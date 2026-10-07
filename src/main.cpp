@@ -1,14 +1,14 @@
 /*
- * Slice 0 boot. Brings up the internal menu panel and, on a dual
- * build, the external content panel. Paints a solid field check on
- * each surface so wiring can be confirmed later.
+ * Boot. Brings up menu and, on a dual build, content. The hatch ENTER
+ * plate is menu-only. ENTER then runs the Slice 0 menu field check.
+ * Content is not a feature surface yet.
  *
- * Not hatch ENTER, not the Ready Room, not a bot window.
  * Adv dual is the active BOTcorps line. This is not a CYD / COM13 port.
  * A successful flash is not a field PASS — nothing here is flashed.
  */
 
 #include "display/botcorps_display.h"
+#include "enter/botcorps_enter.h"
 #include "sd/botcorps_sd.h"
 
 #include <memory>
@@ -98,7 +98,7 @@ void setup(void)
     Serial.begin(115200);
     delay(100);
     const auto board = M5.getBoard();
-    Serial.printf("\n[botcorps] %s slice0\n", BOTCORPS_VERSION);
+    Serial.printf("\n[botcorps] %s\n", BOTCORPS_VERSION);
     Serial.printf("[botcorps] board=%d (%s)\n", (int)board,
                   board == m5::board_t::board_M5CardputerADV ? "Cardputer-Adv" :
                   board == m5::board_t::board_M5Cardputer    ? "Cardputer-K126" :
@@ -113,6 +113,17 @@ void setup(void)
      * the panel came up and SD did not. */
     botcorps_lcd_resume_after_bus();
 
+    /* Dual: leave CONTENT on the Slice 0 clear before the hatch.
+     * The hatch paints MENU only, so this frame stays up on EXT.
+     * Single-screen and a missing panel share that one display, so
+     * the clear waits until ENTER. */
+    if (botcorps_dual_ok()) {
+        botcorps_while_content(paint_content);
+    }
+
+    botcorps_enter_run();
+
+    /* Slice 0 menu path. ENTER has left the hatch. */
     paint_menu();
     botcorps_while_content(paint_content);
     /* Fallback and single-screen: content is the ST7789, so the probe

@@ -10,7 +10,7 @@ Internal ST7789 **240×135** is the menu. External ILI9341 **320×240** is conte
 |--------|-------|
 | Active BOTcorps line = fresh Cardputer Adv dual (INT ST7789 240×135 menu / EXT ILI9341 320×240 content), parallel product, same ideas | Treat CYD / COM13 BOTcorps as the active floor until Dirt unlocks it |
 
-Slice 0 is the display split only. Hatch ENTER, the Ready Room, and bot windows are later slices. A green `pio run` is not a field PASS. Do not flash a device from this tree until Dirt asks.
+Slice 0 is the display split. Slice 1 is the hatch ENTER plate on the menu panel. The Ready Room and bot windows are later slices. A green `pio run` is not a field PASS. Do not flash a device from this tree until Dirt asks.
 
 ## Build
 
@@ -30,7 +30,11 @@ pio run -e cardputer-adv-dual-launcher
 
 Board is the Cardputer Adv's Stamp-S3 (`m5stack-stamps3` on this platform). There is no `cyd28` env.
 
-On a dual build the boot path fills the menu panel and the content panel with different solid colors and a small `MENU` / `CONTENT` label plus the active `SCR_W`×`SCR_H`. That is a wiring check, not product chrome. The content rectangle is the full 320×240 when the external panel comes up.
+On a dual build the content panel is filled once with the Slice 0 field check (full 320×240, not a 240×135 corner) and then left alone. The menu panel shows the hatch until Enter. Enter opens the Slice 0 menu field check on the internal panel. A single-screen build shows the hatch on its only display, then the same menu field check.
+
+## Hatch
+
+`botcorps_enter` draws an olive-drab plate with flaked millscale in the margin, four bolts, a clean door, and khaki stencil caps: `BOTCORPS`, `HATCH`, `PRESS ENTER`, `TO OPEN`, `MENU`. Glyphs print left to right on the current menu rotation. It does not change the external panel's rotation, pins, or the SD quiesce path, and it has no rotate control.
 
 ## Pins
 
@@ -67,7 +71,8 @@ MISO GPIO39 is the stock Cardputer SD data line. The panel does not use it.
 ## Layout
 
 ```
-src/main.cpp                     slice 0 boot + field-check paint
+src/main.cpp                     boot, hatch, then Slice 0 field check
+src/enter/botcorps_enter.*       army-green millscale hatch on MENU
 src/display/botcorps_display.*   menu/content split, quiesce, SCR_*
 src/display/lgfx_ili9341.h       ILI9341 on SPI3 (dual builds only)
 src/display/botcorps_pins.h      locked pin map

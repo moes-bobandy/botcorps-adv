@@ -9,6 +9,7 @@
 #include "ready/botcorps_ready.h"
 
 #include "display/botcorps_display.h"
+#include "window/botcorps_bot_window.h"
 
 #include <math.h>
 #include <stdio.h>
@@ -63,20 +64,26 @@ uint16_t botcorps_seat_ink(int seat)
     return SEATS[seat].ink;
 }
 
+uint16_t botcorps_seat_flake(int seat)
+{
+    if (seat < 0 || seat >= BOTCORPS_SEAT_COUNT) return COL_SCALE_LO;
+    return SEATS[seat].flake;
+}
+
 const char *botcorps_seat_band(int seat)
 {
     if (seat < 0 || seat >= BOTCORPS_SEAT_COUNT) return "";
     return SEATS[seat].band;
 }
 
-static void begin_text(lgfx::LGFX_Device &d)
+static void begin_text(lgfx::LovyanGFX &d)
 {
     d.setTextWrap(false, false);
     d.setTextDatum(lgfx::textdatum::top_left);
     d.setTextSize(1);
 }
 
-static void print_ltr(lgfx::LGFX_Device &d, int x, int y, const char *text,
+static void print_ltr(lgfx::LovyanGFX &d, int x, int y, const char *text,
                       uint16_t fg, uint16_t bg)
 {
     d.setTextColor(fg, bg);
@@ -84,7 +91,7 @@ static void print_ltr(lgfx::LGFX_Device &d, int x, int y, const char *text,
     d.print(text);
 }
 
-static void print_centered_ltr(lgfx::LGFX_Device &d, int box_x, int box_w,
+static void print_centered_ltr(lgfx::LovyanGFX &d, int box_x, int box_w,
                                int y, const char *text,
                                uint16_t fg, uint16_t bg)
 {
@@ -95,7 +102,7 @@ static void print_centered_ltr(lgfx::LGFX_Device &d, int box_x, int box_w,
 }
 
 /* 0 degrees is up, clockwise, in screen space (y grows downward). */
-static void arc_ltr(lgfx::LGFX_Device &d, int cx, int cy, int r,
+static void arc_ltr(lgfx::LovyanGFX &d, int cx, int cy, int r,
                     int deg0, int deg1, uint16_t ink)
 {
     if (r < 2 || deg1 <= deg0) return;
@@ -114,7 +121,7 @@ static void arc_ltr(lgfx::LGFX_Device &d, int cx, int cy, int r,
     }
 }
 
-static void draw_wifi_icon(lgfx::LGFX_Device &d, int cx, int cy, int radius,
+static void draw_wifi_icon(lgfx::LovyanGFX &d, int cx, int cy, int radius,
                            uint16_t ink)
 {
     const int dot_y = cy + radius / 5;
@@ -128,7 +135,7 @@ static void draw_wifi_icon(lgfx::LGFX_Device &d, int cx, int cy, int radius,
     }
 }
 
-static void draw_bt_icon(lgfx::LGFX_Device &d, int cx, int cy, int radius,
+static void draw_bt_icon(lgfx::LovyanGFX &d, int cx, int cy, int radius,
                          uint16_t ink)
 {
     const int top = cy - radius;
@@ -144,7 +151,7 @@ static void draw_bt_icon(lgfx::LGFX_Device &d, int cx, int cy, int radius,
     d.drawLine(wing, lower, cx, bot, ink);
 }
 
-void botcorps_seat_draw_icon(lgfx::LGFX_Device &d, int seat,
+void botcorps_seat_draw_icon(lgfx::LovyanGFX &d, int seat,
                              int cx, int cy, int radius)
 {
     const uint16_t ink = botcorps_seat_ink(seat);
@@ -267,7 +274,7 @@ static void paint_content_card(void)
         print_centered_ltr(d, 12, w - 24, h - 28, state,
                            SEATS[seat].ink, SEATS[seat].body);
     } else {
-        print_centered_ltr(d, 12, w - 24, h - 28, "SEAT",
+        print_centered_ltr(d, 12, w - 24, h - 28, "SELECTED",
                            SEATS[seat].ink, SEATS[seat].body);
     }
     d.drawRect(0, 0, w, h, SEATS[seat].ink);
@@ -293,43 +300,6 @@ static void show_card(int seat, int kind)
     s_shown_seat = seat;
     s_shown_kind = kind;
     botcorps_while_content(paint_content_card);
-}
-
-static void draw_detail(int seat)
-{
-    botcorps_set_surface(BOTCORPS_SURFACE_MENU);
-    auto &d = botcorps_menu();
-    const int w = d.width();
-    const int h = d.height();
-    begin_text(d);
-    d.clearClipRect();
-    d.fillScreen(COL_PLATE);
-    header_flakes(d, w);
-    d.drawFastHLine(8, 20, w - 16, COL_RECESS);
-    d.drawFastHLine(8, 21, w - 16, COL_SEAM_HI);
-    print_ltr(d, 8, 6, "READY", COL_STENCIL, COL_PLATE);
-    const int nm_w = d.textWidth(SEATS[seat].name);
-    print_ltr(d, w - 8 - nm_w, 6, SEATS[seat].name, SEATS[seat].ink, COL_PLATE);
-
-    d.fillRect(10, 28, 64, 72, SEATS[seat].body);
-    d.drawRect(10, 28, 64, 72, COL_SEAM_HI);
-    if (seat == BOTCORPS_SEAT_BLUETOOTH) {
-        draw_bt_icon(d, 42, 64, 22, SEATS[seat].ink);
-    } else {
-        draw_wifi_icon(d, 42, 62, 24, SEATS[seat].ink);
-    }
-
-    d.setTextSize(2);
-    print_ltr(d, 82, 36, SEATS[seat].name, COL_STENCIL, COL_PLATE);
-    d.setTextSize(1);
-    d.fillRect(82, 58, w - 92, 8, SEATS[seat].body);
-
-    /* Same slot as before. State, then the radio this seat names. */
-    char state[28];
-    snprintf(state, sizeof(state), "%s  %s", RADIO_STATE, SEATS[seat].band);
-    print_ltr(d, 8, 106, state, COL_STENCIL, COL_PLATE);
-    print_ltr(d, 8, h - 12, "` BACK", COL_STENCIL_DIM, COL_PLATE);
-    d.drawRect(0, 0, w, h, COL_RECESS);
 }
 
 struct key_edge_t {
@@ -376,24 +346,11 @@ static void wait_until_keys_up(void)
     }
 }
 
-static void run_detail(int seat)
-{
-    draw_detail(seat);
-    show_card(seat, 1);
-    Serial.printf("[botcorps] ready detail %s\n", SEATS[seat].name);
-    wait_until_keys_up();
-    while (true) {
-        const key_edge_t key = poll_keys();
-        if (key.back) break;
-        delay(20);
-    }
-    wait_until_keys_up();
-}
-
 void botcorps_ready_run(void)
 {
     int selected = BOTCORPS_SEAT_WIFI;
     bool grid_dirty = true;
+    uint32_t last_input = millis();
     s_shown_seat = -1;
     s_shown_kind = -1;
 
@@ -408,16 +365,28 @@ void botcorps_ready_run(void)
         }
         show_card(selected, 0);
 
+        /* EXT screensaver while the grid stays on MENU. One restore paint after. */
+        if (botcorps_dual_ok() &&
+            (uint32_t)(millis() - last_input) > BOTCORPS_CONTENT_IDLE_MS) {
+            botcorps_content_screensaver(selected);
+            last_input = millis();
+            s_shown_seat = -1;
+            s_shown_kind = -1;
+            continue;
+        }
+
         const key_edge_t key = poll_keys();
         if (key.back) {
             Serial.println("[botcorps] ready back to hatch");
             return;
         }
+        if (key.enter || key.move != 0) last_input = millis();
         if (key.enter) {
-            run_detail(selected);
+            botcorps_bot_window_run(selected);
             grid_dirty = true;
             s_shown_seat = -1;
             s_shown_kind = -1;
+            last_input = millis();
             wait_until_keys_up();
             continue;
         }

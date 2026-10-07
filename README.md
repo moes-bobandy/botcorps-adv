@@ -10,7 +10,7 @@ Internal ST7789 **240×135** is the menu. External ILI9341 **320×240** is conte
 |--------|-------|
 | Active BOTcorps line = fresh Cardputer Adv dual (INT ST7789 240×135 menu / EXT ILI9341 320×240 content), parallel product, same ideas | Treat CYD / COM13 BOTcorps as the active floor until Dirt unlocks it |
 
-Slice 0 is the display split. Slice 1 is the hatch ENTER plate. Slice 2 is the Ready Room. A green `pio run` is not a field PASS. Do not flash a device from this tree until Dirt asks.
+Slice 0 is the display split. Slice 1 is the hatch. Slice 2 is the Ready Room. Slice 3 is the bot window, drift, and screensaver on the content panel. A green `pio run` is not a field PASS. Do not flash a device from this tree until Dirt asks.
 
 ## Build
 
@@ -40,7 +40,13 @@ On a dual build the content panel keeps the Slice 0 field check while the hatch 
 
 Two seats, in contract order, with no empty cells: **WI-FI** (brass `0xBC68`) on the left, **BLUETOOTH** (field slate `0x2AED`) on the right. Each seat is filled with that color before it is selected. The selected seat adds a light seam, not a grey wash. Icons are drawn (signal arcs, the Bluetooth rune), not a font stand-in.
 
-`;` and `,` move to the previous seat. `.` and `/` move to the next. Enter opens that seat's detail: the icon, the name, the color, and the line `RADIO OFF` plus `2.4 GHz` or `BLE`. Backtick leaves the detail, and from the grid it returns to the hatch. The external card is one full-panel paint per selection change.
+`;` and `,` move to the previous seat. `.` and `/` move to the next. Enter opens that seat's window on the content panel. Backtick returns to the grid, and from the grid it returns to the hatch. The external card is one full-panel paint per selection change.
+
+## Bot window
+
+The window fills the content panel. Millscale flakes drift in the seat's own color behind an opaque header and footer. The header carries the drawn icon and the name. The footer carries `RADIO OFF`, then `2.4 GHz` or `BLE`, and a backtick-back hint. Drift is painted first and the bars second, so flakes do not cross glyphs.
+
+Frames are drawn into an offscreen sprite and pushed. A second sprite is used when the largest free block can hold it. If no sprite fits, each flake is erased and redrawn in place. The content panel is not cleared on every frame. After 20 seconds without a key, the screensaver is that drift across the external panel, with no text. A key restores the card or the window. The live free-block size is printed as `[botcorps] window open <seat> free=<bytes> max_alloc=<bytes>`.
 
 ## Pins
 
@@ -80,6 +86,7 @@ MISO GPIO39 is the stock Cardputer SD data line. The panel does not use it.
 src/main.cpp                     boot, hatch, Ready Room
 src/enter/botcorps_enter.*       army-green millscale hatch on MENU
 src/ready/botcorps_ready.*       Wi-Fi and Bluetooth seats
+src/window/botcorps_bot_window.* seat window, drift, screensaver
 src/display/botcorps_display.*   menu/content split, quiesce, SCR_*
 src/display/lgfx_ili9341.h       ILI9341 on SPI3 (dual builds only)
 src/display/botcorps_pins.h      locked pin map

@@ -1,7 +1,7 @@
 /*
- * Boot. Brings up menu and, on a dual build, content. The hatch ENTER
- * plate is menu-only. ENTER then runs the Slice 0 menu field check.
- * Content is not a feature surface yet.
+ * Boot. Hatch ENTER on MENU, then the Ready Room. On a dual build the
+ * external panel keeps the Slice 0 clear while the hatch is up, and
+ * the seat card while the Ready Room is up.
  *
  * Adv dual is the active BOTcorps line. This is not a CYD / COM13 port.
  * A successful flash is not a field PASS — nothing here is flashed.
@@ -9,6 +9,7 @@
 
 #include "display/botcorps_display.h"
 #include "enter/botcorps_enter.h"
+#include "ready/botcorps_ready.h"
 #include "sd/botcorps_sd.h"
 
 #include <memory>
@@ -21,8 +22,6 @@
 /* Wiring colors, not product chrome. Menu navy, content green, yellow
  * border on the content view rectangle. If that border sits in a
  * 240×135 corner, SCR_* is wrong. */
-static const uint16_t COL_MENU_BG = 0x0010;
-static const uint16_t COL_MENU_FG = 0xFFFF;
 static const uint16_t COL_CONTENT_BG = 0x0200;
 static const uint16_t COL_CONTENT_FG = 0xFFFF;
 static const uint16_t COL_CONTENT_EDGE = 0xFFE0;
@@ -39,16 +38,6 @@ static void paint_label(lgfx::LGFX_Device &d, uint16_t fg, uint16_t bg,
     d.print(w);
     d.print("x");
     d.print(h);
-}
-
-static void paint_menu(void)
-{
-    auto &d = botcorps_menu();
-    d.clearClipRect();
-    d.setTextWrap(false, false);
-    d.fillScreen(COL_MENU_BG);
-    paint_label(d, COL_MENU_FG, COL_MENU_BG, "MENU",
-                (int)d.width(), (int)d.height());
 }
 
 /* Runs under botcorps_while_content, so BotcorpsDisplay and SCR_* are
@@ -113,25 +102,6 @@ void setup(void)
      * the panel came up and SD did not. */
     botcorps_lcd_resume_after_bus();
 
-    /* Dual: leave CONTENT on the Slice 0 clear before the hatch.
-     * The hatch paints MENU only, so this frame stays up on EXT.
-     * Single-screen and a missing panel share that one display, so
-     * the clear waits until ENTER. */
-    if (botcorps_dual_ok()) {
-        botcorps_while_content(paint_content);
-    }
-
-    botcorps_enter_run();
-
-    /* Slice 0 menu path. ENTER has left the hatch. */
-    paint_menu();
-    botcorps_while_content(paint_content);
-    /* Fallback and single-screen: content is the ST7789, so the probe
-     * replaced the menu frame. Put MENU back. Dual+ok leaves both. */
-    if (!botcorps_dual_ok()) {
-        paint_menu();
-    }
-
     Serial.printf("[botcorps] dual_flag=%d ext_ok=%d sd=%d surface=%d\n",
                   BOTCORPS_DUAL_SCREEN, ext ? 1 : 0, sd ? 1 : 0,
                   (int)botcorps_surface());
@@ -139,6 +109,15 @@ void setup(void)
                   botcorps_view_w(), botcorps_view_h());
     Serial.println("[botcorps] pins SCK40 MOSI14 CS5 DC6 RST3 SD_CS12 SPI3");
     Serial.println("[botcorps] cap: LoRa1262 NSS/RST/BUSY G5/G3/G6 and Hydra-on-G5 cannot share this panel");
+
+    while (true) {
+        /* Hatch time: EXT stays on the Slice 0 clear. One paint, not a loop. */
+        if (botcorps_dual_ok()) {
+            botcorps_while_content(paint_content);
+        }
+        botcorps_enter_run();
+        botcorps_ready_run();
+    }
 }
 
 void loop(void)

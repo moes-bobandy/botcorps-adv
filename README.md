@@ -10,7 +10,7 @@ Internal ST7789 **240×135** is the menu. External ILI9341 **320×240** is conte
 |--------|-------|
 | Active BOTcorps line = fresh Cardputer Adv dual (INT ST7789 240×135 menu / EXT ILI9341 320×240 content), parallel product, same ideas | Treat CYD / COM13 BOTcorps as the active floor until Dirt unlocks it |
 
-Slice 0 is the display split. Slice 1 is the hatch ENTER plate. Slice 2 is the Ready Room. Bot windows are a later slice. A green `pio run` is not a field PASS. Do not flash a device from this tree until Dirt asks.
+Slice 0 is the display split. Slice 1 is the hatch ENTER plate. Slice 2 is the Ready Room. A green `pio run` is not a field PASS. Do not flash a device from this tree until Dirt asks.
 
 ## Build
 
@@ -40,7 +40,7 @@ On a dual build the content panel keeps the Slice 0 field check while the hatch 
 
 Two seats, in contract order, with no empty cells: **WI-FI** (brass `0xBC68`) on the left, **BLUETOOTH** (field slate `0x2AED`) on the right. Each seat is filled with that color before it is selected. The selected seat adds a light seam, not a grey wash. Icons are drawn (signal arcs, the Bluetooth rune), not a font stand-in.
 
-`;` and `,` move to the previous seat. `.` and `/` move to the next. Enter opens that seat's detail: the icon, the name, the color, and the line "Radio control lands in a later slice." Backtick leaves the detail, and from the grid it returns to the hatch. The external card is one full-panel paint per selection change.
+`;` and `,` move to the previous seat. `.` and `/` move to the next. Enter opens that seat's detail: the icon, the name, the color, and the line `RADIO OFF` plus `2.4 GHz` or `BLE`. Backtick leaves the detail, and from the grid it returns to the hatch. The external card is one full-panel paint per selection change.
 
 ## Pins
 

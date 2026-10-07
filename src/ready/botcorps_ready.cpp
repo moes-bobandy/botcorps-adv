@@ -28,19 +28,21 @@ static const uint16_t COL_BT          = 0x2AED; /* 46, 92,108 slate */
 static const uint16_t COL_BT_FLAKE    = 0x19A8;
 static const uint16_t COL_BT_INK      = 0xD673;
 
-static const char *const SEAT_STATUS =
-    "Radio control lands in a later slice.";
+/* Both radios are off: this firmware does not start Wi-Fi or BLE.
+ * ESP32-S3 Wi-Fi is 2.4 GHz. Its Bluetooth is LE, not classic. */
+static const char RADIO_STATE[] = "RADIO OFF";
 
 struct seat_def_t {
     const char *name;
     uint16_t body;
     uint16_t ink;
     uint16_t flake;
+    const char *band;
 };
 
 static const seat_def_t SEATS[BOTCORPS_SEAT_COUNT] = {
-    { "WI-FI",     COL_WIFI, COL_WIFI_INK, COL_WIFI_FLAKE },
-    { "BLUETOOTH", COL_BT,   COL_BT_INK,   COL_BT_FLAKE   },
+    { "WI-FI",     COL_WIFI, COL_WIFI_INK, COL_WIFI_FLAKE, "2.4 GHz" },
+    { "BLUETOOTH", COL_BT,   COL_BT_INK,   COL_BT_FLAKE,   "BLE" },
 };
 
 const char *botcorps_seat_name(int seat)
@@ -59,6 +61,12 @@ uint16_t botcorps_seat_ink(int seat)
 {
     if (seat < 0 || seat >= BOTCORPS_SEAT_COUNT) return COL_STENCIL;
     return SEATS[seat].ink;
+}
+
+const char *botcorps_seat_band(int seat)
+{
+    if (seat < 0 || seat >= BOTCORPS_SEAT_COUNT) return "";
+    return SEATS[seat].band;
 }
 
 static void begin_text(lgfx::LGFX_Device &d)
@@ -254,7 +262,9 @@ static void paint_content_card(void)
                        SEATS[seat].ink, SEATS[seat].body);
     d.setTextSize(1);
     if (s_card_kind == 1) {
-        print_centered_ltr(d, 12, w - 24, h - 28, SEAT_STATUS,
+        char state[28];
+        snprintf(state, sizeof(state), "%s  %s", RADIO_STATE, SEATS[seat].band);
+        print_centered_ltr(d, 12, w - 24, h - 28, state,
                            SEATS[seat].ink, SEATS[seat].body);
     } else {
         print_centered_ltr(d, 12, w - 24, h - 28, "SEAT",
@@ -314,9 +324,10 @@ static void draw_detail(int seat)
     d.setTextSize(1);
     d.fillRect(82, 58, w - 92, 8, SEATS[seat].body);
 
-    /* Two LTR lines. The sentence is true: this slice does not open a radio. */
-    print_ltr(d, 8, 106, "Radio control lands in a later slice.",
-              COL_STENCIL, COL_PLATE);
+    /* Same slot as before. State, then the radio this seat names. */
+    char state[28];
+    snprintf(state, sizeof(state), "%s  %s", RADIO_STATE, SEATS[seat].band);
+    print_ltr(d, 8, 106, state, COL_STENCIL, COL_PLATE);
     print_ltr(d, 8, h - 12, "` BACK", COL_STENCIL_DIM, COL_PLATE);
     d.drawRect(0, 0, w, h, COL_RECESS);
 }

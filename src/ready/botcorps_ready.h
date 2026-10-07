@@ -31,5 +31,7 @@ void botcorps_ready_run(void);
 const char *botcorps_seat_name(int seat);
 uint16_t botcorps_seat_body(int seat);
 uint16_t botcorps_seat_ink(int seat);
+/* "2.4 GHz" for Wi-Fi, "BLE" for Bluetooth. */
+const char *botcorps_seat_band(int seat);
 void botcorps_seat_draw_icon(lgfx::LGFX_Device &d, int seat,
                              int cx, int cy, int radius);

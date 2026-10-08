@@ -10,7 +10,7 @@ Internal ST7789 **240×135** is the menu. External ILI9341 **320×240** is conte
 |--------|-------|
 | Active BOTcorps line = fresh Cardputer Adv dual (INT ST7789 240×135 menu / EXT ILI9341 320×240 content), parallel product, same ideas | Treat CYD / COM13 BOTcorps as the active floor until Dirt unlocks it |
 
-Slice 0 is the display split only. Hatch ENTER, the Ready Room, and bot windows are later slices. A green `pio run` is not a field PASS. Do not flash a device from this tree until Dirt asks.
+Slice 0 is the display split. Slice 1R boots straight into bot rain. A green `pio run` is not a field PASS. Do not flash a device from this tree until Dirt asks.
 
 ## Build
 
@@ -30,7 +30,9 @@ pio run -e cardputer-adv-dual-launcher
 
 Board is the Cardputer Adv's Stamp-S3 (`m5stack-stamps3` on this platform). There is no `cyd28` env.
 
-On a dual build the boot path fills the menu panel and the content panel with different solid colors and a small `MENU` / `CONTENT` label plus the active `SCR_W`×`SCR_H`. That is a wiring check, not product chrome. The content rectangle is the full 320×240 when the external panel comes up.
+Boot check: `setup()` draws the internal name bar and one rain frame, then returns. `loop()` calls `botcorps_rain_frame()` on every pass. There is no `paint_menu`, no `paint_content`, and no width-by-height label on the glass. The Slice 0 navy `MENU` plate and green `CONTENT` plate are not a boot destination.
+
+The internal panel shows the name BOTcorps on a slate bar. The content panel is bot rain under that same opaque name bar, so the marks never cross the glyphs. A single-panel build keeps the name bar on the rain frame.
 
 ## Pins
 
@@ -67,7 +69,8 @@ MISO GPIO39 is the stock Cardputer SD data line. The panel does not use it.
 ## Layout
 
 ```
-src/main.cpp                     slice 0 boot + field-check paint
+src/main.cpp                     boot into nav chrome and bot rain
+src/rain/botcorps_rain.*         name bar and bot rain
 src/display/botcorps_display.*   menu/content split, quiesce, SCR_*
 src/display/lgfx_ili9341.h       ILI9341 on SPI3 (dual builds only)
 src/display/botcorps_pins.h      locked pin map

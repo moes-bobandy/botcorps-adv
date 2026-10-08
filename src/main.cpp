@@ -1,76 +1,21 @@
 /*
- * Slice 0 boot. Brings up the internal menu panel and, on a dual
- * build, the external content panel. Paints a solid field check on
- * each surface so wiring can be confirmed later.
+ * Slice 1R boot. Hardware comes up, then the glass is the name bar
+ * and bot rain. There is no color-fill size probe on either panel.
  *
- * Not hatch ENTER, not the Ready Room, not a bot window.
  * Adv dual is the active BOTcorps line. This is not a CYD / COM13 port.
  * A successful flash is not a field PASS — nothing here is flashed.
  */
 
 #include "display/botcorps_display.h"
+#include "rain/botcorps_rain.h"
 #include "sd/botcorps_sd.h"
 
 #include <memory>
 #include "utility/Keyboard/KeyboardReader/TCA8418.h"
 
 #ifndef BOTCORPS_VERSION
-#define BOTCORPS_VERSION "0.0.0-slice0"
+#define BOTCORPS_VERSION "0.0.0-slice1r"
 #endif
-
-/* Wiring colors, not product chrome. Menu navy, content green, yellow
- * border on the content view rectangle. If that border sits in a
- * 240×135 corner, SCR_* is wrong. */
-static const uint16_t COL_MENU_BG = 0x0010;
-static const uint16_t COL_MENU_FG = 0xFFFF;
-static const uint16_t COL_CONTENT_BG = 0x0200;
-static const uint16_t COL_CONTENT_FG = 0xFFFF;
-static const uint16_t COL_CONTENT_EDGE = 0xFFE0;
-
-static void paint_label(lgfx::LGFX_Device &d, uint16_t fg, uint16_t bg,
-                        const char *name, int w, int h)
-{
-    d.setTextWrap(false, false);
-    d.setTextSize(1);
-    d.setTextColor(fg, bg);
-    d.setCursor(8, 8);
-    d.print(name);
-    d.setCursor(8, 20);
-    d.print(w);
-    d.print("x");
-    d.print(h);
-}
-
-static void paint_menu(void)
-{
-    auto &d = botcorps_menu();
-    d.clearClipRect();
-    d.setTextWrap(false, false);
-    d.fillScreen(COL_MENU_BG);
-    paint_label(d, COL_MENU_FG, COL_MENU_BG, "MENU",
-                (int)d.width(), (int)d.height());
-}
-
-/* Runs under botcorps_while_content, so BotcorpsDisplay and SCR_* are
- * the content surface. fillScreen covers the panel; the yellow rect
- * is the active view and must land on the outer edge (320×240). */
-static void paint_content(void)
-{
-    auto &d = BotcorpsDisplay;
-    const int w = SCR_W;
-    const int h = SCR_H;
-    d.clearClipRect();
-    d.fillScreen(COL_CONTENT_BG);
-    if (w > 1 && h > 1) {
-        d.drawRect(0, 0, w, h, COL_CONTENT_EDGE);
-    }
-    paint_label(d, COL_CONTENT_FG, COL_CONTENT_BG, "CONTENT", w, h);
-    Serial.printf("[botcorps] content paint SCR %dx%d device %dx%d\n",
-                  w, h, (int)d.width(), (int)d.height());
-    if (botcorps_dual_ok() && (w != (int)d.width() || h != (int)d.height())) {
-        Serial.println("[botcorps] SCR does not match the content panel");
-    }
-}
 
 static void park_ir_led(void)
 {
@@ -98,14 +43,11 @@ void setup(void)
     Serial.begin(115200);
     delay(100);
     const auto board = M5.getBoard();
-    Serial.printf("\n[botcorps] %s slice0\n", BOTCORPS_VERSION);
+    Serial.printf("\n[botcorps] %s\n", BOTCORPS_VERSION);
     Serial.printf("[botcorps] board=%d (%s)\n", (int)board,
                   board == m5::board_t::board_M5CardputerADV ? "Cardputer-Adv" :
                   board == m5::board_t::board_M5Cardputer    ? "Cardputer-K126" :
                                                                "other");
-    Serial.printf("[botcorps] INT %dx%d\n",
-                  (int)M5Cardputer.Display.width(),
-                  (int)M5Cardputer.Display.height());
 
     const bool ext = botcorps_dual_begin();
     const bool sd = botcorps_sd_mount();
@@ -113,25 +55,20 @@ void setup(void)
      * the panel came up and SD did not. */
     botcorps_lcd_resume_after_bus();
 
-    paint_menu();
-    botcorps_while_content(paint_content);
-    /* Fallback and single-screen: content is the ST7789, so the probe
-     * replaced the menu frame. Put MENU back. Dual+ok leaves both. */
-    if (!botcorps_dual_ok()) {
-        paint_menu();
-    }
-
-    Serial.printf("[botcorps] dual_flag=%d ext_ok=%d sd=%d surface=%d\n",
-                  BOTCORPS_DUAL_SCREEN, ext ? 1 : 0, sd ? 1 : 0,
-                  (int)botcorps_surface());
-    Serial.printf("[botcorps] menu SCR %dx%d\n",
-                  botcorps_view_w(), botcorps_view_h());
+    Serial.printf("[botcorps] dual_flag=%d ext_ok=%d sd=%d\n",
+                  BOTCORPS_DUAL_SCREEN, ext ? 1 : 0, sd ? 1 : 0);
     Serial.println("[botcorps] pins SCK40 MOSI14 CS5 DC6 RST3 SD_CS12 SPI3");
     Serial.println("[botcorps] cap: LoRa1262 NSS/RST/BUSY G5/G3/G6 and Hydra-on-G5 cannot share this panel");
+
+    /* Name on the internal panel when it is a separate surface.
+     * Rain owns the content panel, including the first frame. */
+    botcorps_nav_draw();
+    botcorps_rain_frame();
 }
 
 void loop(void)
 {
+    botcorps_rain_frame();
     M5Cardputer.update();
-    delay(50);
+    delay(20);
 }

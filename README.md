@@ -30,9 +30,9 @@ pio run -e cardputer-adv-dual-launcher
 
 Board is the Cardputer Adv's Stamp-S3 (`m5stack-stamps3` on this platform). There is no `cyd28` env.
 
-Boot check: `setup()` draws the internal name bar and one rain frame, then returns. `loop()` calls `botcorps_rain_frame()` on every pass. There is no `paint_menu`, no `paint_content`, and no width-by-height label on the glass. The Slice 0 navy `MENU` plate and green `CONTENT` plate are not a boot destination.
+Boot check: `setup()` opens the rain screen and returns. `loop()` reads the keyboard and calls `botcorps_rain_frame()` while the external rain is on. There is no `paint_menu`, no `paint_content`, and no width-by-height label on the glass. The Slice 0 navy `MENU` plate and green `CONTENT` plate are not a boot destination.
 
-The internal panel is a charcoal field, a 22px slate bar, white "BOTcorps" at text size 2, and a grey line under the bar. The external panel is bot rain only: dense columns, a bot and a code glyph mix, a new bot color when a column wraps, and a translucent trail. There is no name bar on the rain. Marks step every 90 ms; leftover milliseconds carry into the next step. If the full-frame sprite cannot be allocated, rain uses an 8×8 cell table instead of erasing tails. Serial prints `rain path=sprite` or `rain path=fallback`.
+The internal panel is the menu: dim bot-rain behind a 22px slate bar, white Font0 "BOTcorps" at text size 2, and the mock's grey-blue rule. The external panel is the main UI. On the rain screen it is bot rain only (dense columns, bots and code, 90 ms, same 14-color palette). Marks step every 90 ms; leftover milliseconds carry into the next step. Sprite fade swaps `rgb565_2Byte` pixels on read and write so the field stays near-black. If the sprite cannot be allocated, or a Wi-Fi/Bluetooth screen needs the heap and the largest free block is under 48 KB, rain uses the 8×8 cell table. Serial prints `rain path=sprite` or `rain path=fallback`, plus `heap` lines at boot and when those radio screens open. Wi-Fi and Bluetooth do not start a radio; the lists are idle samples.
 
 ## Pins
 
@@ -69,8 +69,9 @@ MISO GPIO39 is the stock Cardputer SD data line. The panel does not use it.
 ## Layout
 
 ```
-src/main.cpp                     boot into nav chrome and bot rain
-src/rain/botcorps_rain.*         name bar and bot rain
+src/main.cpp                     boot into the rain screen; loop drives keys and rain
+src/rain/botcorps_rain.*         external bot rain (sprite or cell fallback)
+src/ui/botcorps_ui.*             mock screens, internal menu, keyboard
 src/display/botcorps_display.*   menu/content split, quiesce, SCR_*
 src/display/lgfx_ili9341.h       ILI9341 on SPI3 (dual builds only)
 src/display/botcorps_pins.h      locked pin map

@@ -1,16 +1,22 @@
 #pragma once
 
 /*
- * botcorps_rain — Slice 1R2 boot surface.
- *
- * INT: charcoal field, 22px slate bar, white "BOTcorps", grey rule.
- * EXT: bot rain only. No name bar on the rain.
+ * botcorps_rain — external (or only-panel) bot rain.
  *
  * The step is 90 ms on a millis() accumulator that keeps the remainder.
- * Trails are a translucent fade of the previous frame, so they need the
- * full-frame sprite. If that alloc fails, a per-cell table supplies
- * computed trail colors. Neither path reads the external panel.
+ * Trails fade in the full-frame sprite. The sprite stores rgb565_2Byte
+ * (byte-swapped). Fade and blend swap on the way in and out. If the
+ * sprite cannot be kept, an 8×8 cell table paints through the library.
+ * Neither path reads the panel, and neither draws the name bar.
+ *
+ * botcorps_rain_frame() returns true when a step was presented.
  */
 
-void botcorps_nav_draw(void);
-void botcorps_rain_frame(void);
+#include <stdint.h>
+#include <stdbool.h>
+
+bool botcorps_rain_frame(void);
+void botcorps_rain_set_parked(bool parked);
+bool botcorps_rain_sprite_held(void);
+void botcorps_rain_log_heap(const char *tag);
+uint16_t botcorps_rain_palette(int index);

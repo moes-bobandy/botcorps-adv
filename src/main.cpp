@@ -1,6 +1,6 @@
 /*
- * Slice 1R boot. Hardware comes up, then the glass is the name bar
- * and bot rain. There is no color-fill size probe on either panel.
+ * Slice 1R2 boot. Hardware comes up on the rain screen. loop() reads
+ * the keyboard and steps the rain. There is no color-fill size probe.
  *
  * Adv dual is the active BOTcorps line. This is not a CYD / COM13 port.
  * A successful flash is not a field PASS — nothing here is flashed.
@@ -9,12 +9,13 @@
 #include "display/botcorps_display.h"
 #include "rain/botcorps_rain.h"
 #include "sd/botcorps_sd.h"
+#include "ui/botcorps_ui.h"
 
 #include <memory>
 #include "utility/Keyboard/KeyboardReader/TCA8418.h"
 
 #ifndef BOTCORPS_VERSION
-#define BOTCORPS_VERSION "0.0.0-slice1r2"
+#define BOTCORPS_VERSION "0.0.0-slice1r2b"
 #endif
 
 static void park_ir_led(void)
@@ -60,16 +61,23 @@ void setup(void)
     Serial.println("[botcorps] pins SCK40 MOSI14 CS5 DC6 RST3 SD_CS12 SPI3");
     Serial.println("[botcorps] cap: LoRa1262 NSS/RST/BUSY G5/G3/G6 and Hydra-on-G5 cannot share this panel");
 
-    /* Name on the internal panel when it is a separate surface.
-     * Rain owns the content panel, including the first frame. */
-    botcorps_nav_draw();
-    botcorps_rain_frame();
+    /* Rain boot is the first real screen. loop() owns keys and rain.
+     * The name bar is painted by the UI on the internal panel. */
+    botcorps_ui_begin();
+    if (botcorps_dual_ok() && botcorps_ui_wants_ext_rain()) {
+        botcorps_rain_frame();
+    }
+    botcorps_ui_draw(true);
 }
 
 void loop(void)
 {
-    /* Rain steps on a 90 ms accumulator inside the frame call. */
-    botcorps_rain_frame();
     M5Cardputer.update();
+    botcorps_ui_input();
+    bool presented = false;
+    if (botcorps_dual_ok() && botcorps_ui_wants_ext_rain()) {
+        presented = botcorps_rain_frame();
+    }
+    botcorps_ui_draw(presented);
     delay(10);
 }

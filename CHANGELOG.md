@@ -9,6 +9,9 @@
 - External panel on SPI3, pins SCK 40 / MOSI 14 / CS 5 / DC 6 / RST 3 / SD_CS 12. GPIO5 idles HIGH. SD mount is wrapped in `botcorps_lcd_quiesce` / `botcorps_lcd_resume_after_bus`. RGB565 / COLMOD is boot-only.
 - Slice 1R `botcorps_rain`: boot goes to bot rain. The internal panel shows the name BOTcorps on a slate bar. `loop()` advances the rain on the content panel. The Slice 0 navy and green size plates are not on the boot path.
 - Slice 1R2 matches the approved rain mock: 90 ms steps with remainder carry, dense columns, bots and code only, 14-color bots, green code with a pale head, trails faded in the full-frame sprite (or an 8×8 cell table if that sprite cannot be allocated). The name stays on the internal panel. M5GFX is pinned at 0.2.32 and M5Unified at 0.2.13.
+- Sprite fade and the bot backing rect now byte-swap `rgb565_2Byte` pixels, so field `0x0041` round-trips to near-black instead of being read as dark red. The cell fallback still paints through the library.
+- Internal name bar is Font0 at text size 2, white on `#121821`, redrawn every menu frame on `botcorps_menu()`. Rain does not draw it.
+- Mock screens on the same boot path: rain, intro (ENTER powers on), Gibson and role card, terminal, Wi-Fi, Wi-Fi radar, Wi-Fi list, Bluetooth, Bluetooth radar, Bluetooth list, bot, bot radar, and the control panel. Keys are `;` `.` `,` `/`, Enter, and backtick. Wi-Fi and Bluetooth stay radio-off and show the sample list. The external sprite is parked on those screens when the largest free block is under 48 KB.
 - Documented Cap conflict: LoRa1262 (NSS G5 / RST G3 / BUSY G6) and Hydra-on-G5 cannot coexist with this panel. guicmg RST GPIO13 / DC GPIO15 is not this pinout.
 
 ### Notes

@@ -16,11 +16,6 @@
 #include <lgfx/v1/LGFX_Sprite.hpp>
 #include <string.h>
 
-static const uint16_t COL_INT_FIELD = 0x1082; /* 16,16,16 */
-static const uint16_t COL_INT_BAR   = 0x10C4; /* 22,26,34 */
-static const uint16_t COL_INT_RULE  = 0x8C71; /* 140,140,140 */
-static const uint16_t COL_NAME      = 0xFFFF;
-
 static const uint16_t COL_FIELD = 0x0041; /* #070a08 */
 static const uint16_t COL_EYE   = 0x0080; /* #061006 */
 static const uint16_t COL_CODE  = 0x7E6C; /* #7dce62 */
@@ -36,7 +31,6 @@ static const uint16_t PALETTE[14] = {
 
 static const char CODE_GLYPHS[] = "01<>[]{}:/\\|+-=*#";
 static const int CODE_N = 18;
-static const int BAR_H = 22;
 static const int GAP = 6;
 static const int STEP_MS = 90;
 static const int RAIN_COLS = 56;
@@ -67,6 +61,19 @@ static bool s_started = false;
 static lgfx::LGFX_Sprite *s_sprite = nullptr;
 static bool s_use_sprite = false;
 static bool s_path_logged = false;
+static bool s_parked = false;
+static bool s_roundtrip_logged = false;
+
+/*
+ * Worked example. Native COL_FIELD 0x0041 is #070a08 (R5=0, G6=2, B5=1).
+ * A default LGFX 16 bpp sprite stores swap565, so that word sits in the
+ * buffer as __builtin_bswap16(0x0041) == 0x4100. Reading 0x4100 as native
+ * RGB565 is R5=8, G6=8, B5=0 ≈ RGB(66,32,0), the dark red the glass
+ * showed. Fade then walked the field toward that red. Load with bswap,
+ * blend in native 565, store with bswap: 0x4100 → 0x0041 → blend →
+ * bswap back, and 0x0041 round-trips to near-black RGB(0,8,8).
+ */
+static_assert(__builtin_bswap16(0x0041) == 0x4100, "COL_FIELD swap565");
 
 /* Fallback memory: one brightness and one color id per 8x8 cell. */
 static uint8_t s_cell_fade[CELL_COLS * CELL_ROWS];
@@ -194,10 +201,29 @@ static void draw_bot(lgfx::LovyanGFX &g, int x, int y, uint16_t color, bool hat)
     g.fillRect(x + 4, ey, 2, 2, COL_EYE);
 }
 
+static bool sprite_is_swapped(const lgfx::LGFX_Sprite &spr)
+{
+    const uint16_t depth = (uint16_t)spr.getColorDepth();
+    const uint16_t bpp = (uint16_t)(depth & (uint16_t)lgfx::color_depth_t::bit_mask);
+    if (bpp != 16) return false;
+    return (depth & (uint16_t)lgfx::color_depth_t::nonswapped) == 0;
+}
+
+static uint16_t mem_to_native(uint16_t raw, bool swapped)
+{
+    return swapped ? (uint16_t)__builtin_bswap16(raw) : raw;
+}
+
+static uint16_t native_to_mem(uint16_t native, bool swapped)
+{
+    return swapped ? (uint16_t)__builtin_bswap16(native) : native;
+}
+
 static void sprite_blend_rect(lgfx::LGFX_Sprite &spr, int x, int y, int w, int h, int a)
 {
     uint16_t *base = (uint16_t *)spr.getBuffer();
     if (!base) return;
+    const bool swapped = sprite_is_swapped(spr);
     const int sw = spr.width();
     const int sh = spr.height();
     const size_t stride = (sh > 0) ? (spr.bufferLength() / (size_t)sh) / 2u : (size_t)sw;
@@ -208,7 +234,8 @@ static void sprite_blend_rect(lgfx::LGFX_Sprite &spr, int x, int y, int w, int h
         for (int col = 0; col < w; ++col) {
             const int px = x + col;
             if (px < 0 || px >= sw) continue;
-            line[px] = blend565(line[px], FADE_R, FADE_G, FADE_B, a);
+            const uint16_t native = mem_to_native(line[px], swapped);
+            line[px] = native_to_mem(blend565(native, FADE_R, FADE_G, FADE_B, a), swapped);
         }
     }
 }
@@ -217,15 +244,34 @@ static void sprite_fade_all(lgfx::LGFX_Sprite &spr)
 {
     uint16_t *base = (uint16_t *)spr.getBuffer();
     if (!base) return;
+    const bool swapped = sprite_is_swapped(spr);
     const int sw = spr.width();
     const int sh = spr.height();
     const size_t stride = (sh > 0) ? (spr.bufferLength() / (size_t)sh) / 2u : (size_t)sw;
     for (int y = 0; y < sh; ++y) {
         uint16_t *line = base + (size_t)y * stride;
         for (int x = 0; x < sw; ++x) {
-            line[x] = blend565(line[x], FADE_R, FADE_G, FADE_B, FADE_A);
+            const uint16_t native = mem_to_native(line[x], swapped);
+            line[x] = native_to_mem(blend565(native, FADE_R, FADE_G, FADE_B, FADE_A), swapped);
         }
     }
+}
+
+static void log_field_roundtrip(lgfx::LGFX_Sprite &spr)
+{
+    if (s_roundtrip_logged) return;
+    const uint16_t *base = (const uint16_t *)spr.getBuffer();
+    if (!base) return;
+    s_roundtrip_logged = true;
+    const bool swapped = sprite_is_swapped(spr);
+    const uint16_t raw = base[0];
+    const uint16_t native = mem_to_native(raw, swapped);
+    int mr, mg, mb, nr, ng, nb;
+    unpack565(raw, &mr, &mg, &mb);
+    unpack565(native, &nr, &ng, &nb);
+    Serial.printf("[botcorps] field roundtrip raw=0x%04X native=0x%04X swapped=%d "
+                  "misread_rgb=%d,%d,%d native_rgb=%d,%d,%d\n",
+                  raw, native, swapped ? 1 : 0, mr, mg, mb, nr, ng, nb);
 }
 
 static void draw_code(lgfx::LovyanGFX &g, int x, int y, bool head)
@@ -333,6 +379,8 @@ static void cell_stamp(lgfx::LGFX_Device &panel, int x, int y, int w, int h,
     }
 }
 
+/* Fallback never walks a sprite buffer. fillRect goes through the
+ * panel color converter, so COL_FIELD 0x0041 stays near-black. */
 static void fallback_fade_and_draw(lgfx::LGFX_Device &panel)
 {
     for (int i = 0; i < CELL_COLS * CELL_ROWS; ++i) {
@@ -370,6 +418,7 @@ static void fallback_fade_and_draw(lgfx::LGFX_Device &panel)
 
 static bool ensure_sprite(lgfx::LGFX_Device &panel, int width, int height)
 {
+    if (s_parked) return false;
     if (s_path_logged && !s_use_sprite) return false;
     if (s_sprite && s_sprite->width() == width && s_sprite->height() == height) {
         return true;
@@ -402,33 +451,57 @@ static bool ensure_sprite(lgfx::LGFX_Device &panel, int width, int height)
     }
     s_sprite->fillScreen(COL_FIELD);
     s_use_sprite = true;
+    log_field_roundtrip(*s_sprite);
     if (!s_path_logged) {
-        Serial.printf("[botcorps] rain path=sprite %dx%d max_alloc=%u\n",
-                      width, height, (unsigned)max_alloc);
+        Serial.printf("[botcorps] rain path=sprite %dx%d max_alloc=%u free=%u\n",
+                      width, height, (unsigned)max_alloc,
+                      (unsigned)ESP.getFreeHeap());
+        botcorps_rain_log_heap("boot-sprite");
         s_path_logged = true;
     }
     return true;
 }
 
-static void paint_name_bar(lgfx::LGFX_Device &d, int width)
+uint16_t botcorps_rain_palette(int index)
 {
-    d.fillRect(0, 0, width, BAR_H, COL_INT_BAR);
-    d.setTextWrap(false, false);
-    d.setTextDatum(lgfx::textdatum::top_left);
-    d.setTextSize(2);
-    d.setTextColor(COL_NAME, COL_INT_BAR);
-    d.setCursor(8, 3);
-    d.print("BOTcorps");
-    d.drawFastHLine(0, BAR_H, width, COL_INT_RULE);
+    if (index < 0 || index >= 14) return PALETTE[0];
+    return PALETTE[index];
 }
 
-void botcorps_nav_draw(void)
+void botcorps_rain_log_heap(const char *tag)
 {
-    botcorps_set_surface(BOTCORPS_SURFACE_MENU);
-    auto &menu = botcorps_menu();
-    menu.clearClipRect();
-    menu.fillScreen(COL_INT_FIELD);
-    paint_name_bar(menu, menu.width());
+    Serial.printf("[botcorps] heap %s free=%u max_alloc=%u sprite=%d\n",
+                  tag ? tag : "?",
+                  (unsigned)ESP.getFreeHeap(),
+                  (unsigned)ESP.getMaxAllocHeap(),
+                  s_sprite ? 1 : 0);
+}
+
+bool botcorps_rain_sprite_held(void)
+{
+    return s_sprite != nullptr;
+}
+
+void botcorps_rain_set_parked(bool parked)
+{
+    if (parked == s_parked) return;
+    if (parked) {
+        const unsigned before_free = (unsigned)ESP.getFreeHeap();
+        const unsigned before_max = (unsigned)ESP.getMaxAllocHeap();
+        delete s_sprite;
+        s_sprite = nullptr;
+        s_use_sprite = false;
+        s_parked = true;
+        Serial.printf("[botcorps] heap radio-park before free=%u max=%u after free=%u max=%u\n",
+                      before_free, before_max,
+                      (unsigned)ESP.getFreeHeap(),
+                      (unsigned)ESP.getMaxAllocHeap());
+        Serial.println("[botcorps] rain path=fallback while sprite parked");
+        return;
+    }
+    s_parked = false;
+    s_path_logged = false;
+    s_use_sprite = false;
 }
 
 static void present_step(lgfx::LGFX_Device &panel, int width, int height)
@@ -442,13 +515,15 @@ static void present_step(lgfx::LGFX_Device &panel, int width, int height)
     fallback_fade_and_draw(panel);
 }
 
-void botcorps_rain_frame(void)
+bool botcorps_rain_frame(void)
 {
+    /* Content panel only. Never botcorps_menu(), so a dual build cannot
+     * paint the name bar or a size-1 glyph onto the internal ST7789. */
     botcorps_set_surface(BOTCORPS_SURFACE_CONTENT);
     auto &panel = botcorps_content();
     const int width = panel.width();
     const int height = panel.height();
-    if (width < 32 || height < 32) return;
+    if (width < 32 || height < 32) return false;
     if (s_w != width || s_h != height) {
         build_columns(width, height);
         delete s_sprite;
@@ -484,9 +559,5 @@ void botcorps_rain_frame(void)
         }
         if (s_acc_ms > (uint32_t)STEP_MS * 4u) s_acc_ms = (uint32_t)STEP_MS;
     }
-
-    /* One panel: put the name bar back. Dual EXT stays rain only. */
-    if (stepped && !botcorps_dual_ok()) {
-        paint_name_bar(panel, width);
-    }
+    return stepped;
 }

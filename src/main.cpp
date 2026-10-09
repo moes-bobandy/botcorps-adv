@@ -14,7 +14,7 @@
 #include "utility/Keyboard/KeyboardReader/TCA8418.h"
 
 #ifndef BOTCORPS_VERSION
-#define BOTCORPS_VERSION "0.0.0-slice1r"
+#define BOTCORPS_VERSION "0.0.0-slice1r2"
 #endif
 
 static void park_ir_led(void)
@@ -68,7 +68,8 @@ void setup(void)
 
 void loop(void)
 {
+    /* Rain steps on a 90 ms accumulator inside the frame call. */
     botcorps_rain_frame();
     M5Cardputer.update();
-    delay(20);
+    delay(10);
 }

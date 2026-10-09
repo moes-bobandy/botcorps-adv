@@ -32,7 +32,7 @@ Board is the Cardputer Adv's Stamp-S3 (`m5stack-stamps3` on this platform). Ther
 
 Boot check: `setup()` draws the internal name bar and one rain frame, then returns. `loop()` calls `botcorps_rain_frame()` on every pass. There is no `paint_menu`, no `paint_content`, and no width-by-height label on the glass. The Slice 0 navy `MENU` plate and green `CONTENT` plate are not a boot destination.
 
-The internal panel shows the name BOTcorps on a slate bar. The content panel is bot rain under that same opaque name bar, so the marks never cross the glyphs. A single-panel build keeps the name bar on the rain frame.
+The internal panel is a charcoal field, a 22px slate bar, white "BOTcorps" at text size 2, and a grey line under the bar. The external panel is bot rain only: dense columns, a bot and a code glyph mix, a new bot color when a column wraps, and a translucent trail. There is no name bar on the rain. Marks step every 90 ms; leftover milliseconds carry into the next step. If the full-frame sprite cannot be allocated, rain uses an 8×8 cell table instead of erasing tails. Serial prints `rain path=sprite` or `rain path=fallback`.
 
 ## Pins
 

@@ -1,19 +1,16 @@
 #pragma once
 
 /*
- * botcorps_rain — boot surface for Slice 1R.
+ * botcorps_rain — Slice 1R2 boot surface.
  *
- * The internal panel is a plain navigation bar with the product name.
- * The content panel is bot rain, drawn first, then an opaque name bar
- * so the rain never crosses the glyphs. loop() calls botcorps_rain_frame()
- * on every pass.
+ * INT: charcoal field, 22px slate bar, white "BOTcorps", grey rule.
+ * EXT: bot rain only. No name bar on the rain.
  *
- * Does not set rotation, color depth, or the panel pins.
+ * The step is 90 ms on a millis() accumulator that keeps the remainder.
+ * Trails are a translucent fade of the previous frame, so they need the
+ * full-frame sprite. If that alloc fails, a per-cell table supplies
+ * computed trail colors. Neither path reads the external panel.
  */
 
-/* Internal name chrome. On a dual build this is the ST7789 only.
- * On a single panel the rain frame owns the name bar. */
 void botcorps_nav_draw(void);
-
-/* One rain frame on the content surface, then the name bar. */
 void botcorps_rain_frame(void);

@@ -15,7 +15,7 @@
 #include "utility/Keyboard/KeyboardReader/TCA8418.h"
 
 #ifndef BOTCORPS_VERSION
-#define BOTCORPS_VERSION "0.0.0-slice1r2c"
+#define BOTCORPS_VERSION "0.0.0-slice1r2d"
 #endif
 
 static void park_ir_led(void)
@@ -68,7 +68,7 @@ void setup(void)
      * The name bar is painted by the UI on the internal panel. */
     botcorps_ui_begin();
     if (botcorps_dual_ok() && botcorps_ui_wants_ext_rain()) {
-        botcorps_rain_frame();
+        botcorps_rain_step();
     }
     botcorps_ui_draw(true);
 }
@@ -77,10 +77,10 @@ void loop(void)
 {
     M5Cardputer.update();
     botcorps_ui_input();
-    bool presented = false;
+    bool stepped = false;
     if (botcorps_dual_ok() && botcorps_ui_wants_ext_rain()) {
-        presented = botcorps_rain_frame();
+        stepped = botcorps_rain_step();
     }
-    botcorps_ui_draw(presented);
+    botcorps_ui_draw(stepped);
     delay(10);
 }

@@ -154,14 +154,13 @@ static bool s_dirty = true;
 static bool s_backdrop_ready = false;
 static int s_heap_for = -1;
 static uint32_t s_boot_ms = 0;
-static uint32_t s_ui_ms = 0;
 static uint32_t s_stat_ms = 0;
 static uint32_t s_full_n = 0;
 static uint32_t s_ext_ticks = 0;
 static uint32_t s_int_ticks = 0;
 static bool s_name_logged = false;
-static float s_sweep = -100.0f;
 static char s_clk_drawn[8];
+static char s_up_drawn[8];
 static lgfx::LGFX_Sprite *s_anim = nullptr;
 static int s_anim_w = 0;
 static int s_anim_h = 0;
@@ -244,9 +243,7 @@ static bool int_rain_on(void)
 
 bool botcorps_ui_wants_ext_rain(void)
 {
-    /* Boot rain only. Other screens keep the last frame and do not
-     * push the full sprite on the 90 ms tick. */
-    return s_screen == SCR_RAIN;
+    return int_rain_on();
 }
 
 static bool is_radio_screen(int id)
@@ -275,13 +272,9 @@ static void note_heap_for(int id)
         return;
     }
     botcorps_rain_log_heap(screen_tag(id));
-    if (botcorps_rain_sprite_held() && ESP.getMaxAllocHeap() < 48u * 1024u) {
-        botcorps_rain_set_parked(true);
-    } else if (botcorps_rain_sprite_held()) {
-        Serial.println("[botcorps] heap radio sprite kept max_alloc>=48KB");
-    } else {
-        Serial.println("[botcorps] heap radio no sprite held");
-    }
+    /* Sprite stays. A later slice parks the 154 KB buffer so NimBLE
+     * can see a 48 KB block. This slice only logs. */
+    Serial.println("[botcorps] heap radio sprite held; park deferred");
 }
 
 static void anim_release(void);
@@ -291,7 +284,6 @@ static void set_screen(int id)
     /* Leaving rain (and every other entry) is a full dirty paint.
      * The sprite stays until that paint has copied it. */
     anim_release();
-    s_sweep = -100.0f;
     s_backdrop_ready = false;
     s_heap_for = -1;
     s_screen = id;
@@ -870,7 +862,6 @@ static void paint_ext_radar(lgfx::LovyanGFX &g)
     }
     plate(g, 70, 210, 180, 18, COL_BG, COL_LINE);
     txt(g, "RADIO OFF", 160, 214, 1, COL_MUTED, lgfx::textdatum::top_center);
-    s_sweep = fmodf((float)millis() / 1700.0f, 1.0f) * 6.283185f;
 }
 
 static void paint_ext_list(lgfx::LovyanGFX &g, const near_t *rows, const char *band)
@@ -943,7 +934,11 @@ static void paint_cp_row(lgfx::LovyanGFX &g, int index, int y)
     txt(g, label, 16, y + 3, 1, on ? accent() : COL_MUTED, lgfx::textdatum::top_left);
     if (index == 5) {
         paint_rain_swatch(g, 16, y + 18);
-        txt(g, cp_value(), 34, y + 18, 1, COL_INK, lgfx::textdatum::top_left);
+        {
+            int mode = botcorps_rain_mode();
+            if (mode < 0 || mode >= BOTCORPS_RAIN_COLORS) mode = 0;
+            txt(g, RAIN_NAME[mode], 34, y + 18, 1, COL_INK, lgfx::textdatum::top_left);
+        }
         return;
     }
 
@@ -1045,18 +1040,6 @@ static void end_panel(lgfx::LGFX_Device &d)
     d.clearClipRect();
 }
 
-static bool anim_screen(void)
-{
-    return s_screen == SCR_INTRO || s_screen == SCR_GIBSON
-        || s_screen == SCR_WIFI || s_screen == SCR_BT || s_screen == SCR_BOT;
-}
-
-static bool radar_screen(void)
-{
-    return s_screen == SCR_WIFI_RADAR || s_screen == SCR_BT_RADAR
-        || s_screen == SCR_BOT_RADAR;
-}
-
 static lgfx::LGFX_Sprite *anim_sprite(lgfx::LGFX_Device &panel, int w, int h)
 {
     if (s_anim && s_anim_w == w && s_anim_h == h) return s_anim;
@@ -1120,36 +1103,27 @@ static void push_anim(lgfx::LGFX_Device &panel, int x, int y, int w, int h,
     panel.clearClipRect();
 }
 
-static void radar_rays(lgfx::LovyanGFX &g, float ang, uint16_t col)
+/* Disc only. Rain is copied underneath, then the circle covers it,
+ * so the panel never receives rain inside the circle. Rays use the
+ * abf6fcbe weights 180 - k*24. */
+static void draw_radar_disc(lgfx::LovyanGFX &g, int ox, int oy)
 {
-    const int cx = 160;
-    const int cy = 108;
-    const int r = 84;
+    const int cx = 160 - ox;
+    const int cy = 108 - oy;
+    const int r = 88;
+    g.fillCircle(cx, cy, r + 2, COL_BLACK);
+    g.fillCircle(cx, cy, r, 0x1105);
+    g.drawCircle(cx, cy, r, accent());
+    g.drawCircle(cx, cy, r / 2, scale565(accent(), 80, 256));
+    g.drawFastHLine(cx - r, cy, r * 2, scale565(accent(), 70, 256));
+    g.drawFastVLine(cx, cy - r, r * 2, scale565(accent(), 70, 256));
+    const float ang = fmodf((float)millis() / 1700.0f, 1.0f) * 6.283185f;
     for (int k = 0; k < 6; ++k) {
         const float a = ang - (float)k * 0.18f;
         const int x1 = cx + (int)(cosf(a) * (float)(r - 4));
         const int y1 = cy + (int)(sinf(a) * (float)(r - 4));
-        g.drawLine(cx, cy, x1, y1, col);
+        g.drawLine(cx, cy, x1, y1, scale565(accent(), 180 - k * 24, 256));
     }
-}
-
-static void radar_guides(lgfx::LovyanGFX &g)
-{
-    g.drawCircle(160, 108, 88, accent());
-    g.drawCircle(160, 108, 44, scale565(accent(), 80, 256));
-    g.drawFastHLine(72, 108, 176, scale565(accent(), 70, 256));
-    g.drawFastVLine(160, 20, 176, scale565(accent(), 70, 256));
-}
-
-/* Sweep lines only. No fillScreen and no fillRect. */
-static void tick_ext_radar(lgfx::LGFX_Device &g)
-{
-    g.setClipRect(68, 16, 184, 184);
-    if (s_sweep >= 0.0f) radar_rays(g, s_sweep, 0x1105);
-    radar_guides(g);
-    s_sweep = fmodf((float)millis() / 1700.0f, 1.0f) * 6.283185f;
-    radar_rays(g, s_sweep, accent());
-    g.clearClipRect();
 }
 
 static void tick_ext_anim(lgfx::LGFX_Device &panel)
@@ -1160,6 +1134,9 @@ static void tick_ext_anim(lgfx::LGFX_Device &panel)
         push_anim(panel, 108, 36, 104, 120, draw_gib_bot);
     } else if (s_screen == SCR_WIFI || s_screen == SCR_BT || s_screen == SCR_BOT) {
         push_anim(panel, 96, 14, 128, 114, draw_home_live);
+    } else if (s_screen == SCR_WIFI_RADAR || s_screen == SCR_BT_RADAR
+               || s_screen == SCR_BOT_RADAR) {
+        push_anim(panel, 70, 18, 180, 180, draw_radar_disc);
     }
 }
 
@@ -1225,21 +1202,168 @@ static void tick_int_ambience(lgfx::LGFX_Device &menu)
         }
         menu.clearClipRect();
     }
-    char next[8];
-    const uint32_t sec = (millis() - s_boot_ms) / 1000u;
-    snprintf(next, sizeof(next), "%02u:%02u",
-             (unsigned)((sec / 3600u) % 24u),
-             (unsigned)((sec / 60u) % 60u));
-    if (strcmp(next, s_clk_drawn) != 0) {
-        memcpy(s_clk_drawn, next, sizeof(s_clk_drawn));
-        memcpy(s_clk, next, sizeof(s_clk));
-        const int cw = 52;
-        menu.setClipRect(width - cw, 0, cw, BAR_H + 1);
-        menu.fillRect(width - cw, 0, cw, BAR_H, COL_BAR);
-        txt(menu, s_clk, width - 6, 7, 1, accent(), lgfx::textdatum::top_right);
-        menu.drawFastHLine(width - cw, BAR_H, cw, COL_LINE);
+    fmt_times();
+    paint_name(menu, width);
+    if (strcmp(s_up, s_up_drawn) != 0) {
+        memcpy(s_up_drawn, s_up, sizeof(s_up_drawn));
+        view_t vw;
+        fill_view(&vw);
+        const int meta_y = BAR_H + 1;
+        menu.setClipRect(0, meta_y, width, 18);
+        menu.fillRect(0, meta_y, width, 18, COL_BG);
+        int mx = 4;
+        menu.setFont(&fonts::Font0);
+        menu.setTextSize(1, 1);
+        for (int i = 0; i < vw.nmeta; ++i) {
+            if (i) {
+                menu.drawFastVLine(mx, meta_y + 4, 9, COL_LINE);
+                mx += 4;
+            }
+            txt(menu, vw.k[i], mx, meta_y + 5, 1, COL_MUTED, lgfx::textdatum::top_left);
+            mx += menu.textWidth(vw.k[i]) + 2;
+            txt(menu, vw.v[i], mx, meta_y + 4, 1, COL_INK, lgfx::textdatum::top_left);
+            mx += menu.textWidth(vw.v[i]) + 6;
+            if (mx > width - 50) break;
+        }
+        if (vw.chip) {
+            const int cw = menu.textWidth(vw.chip) + 8;
+            const int cx = width - 4 - cw;
+            plate(menu, cx, meta_y + 3, cw, 12, COL_DEEP, vw.chip_c);
+            txt(menu, vw.chip, cx + cw / 2, meta_y + 5, 1, vw.chip_c,
+                lgfx::textdatum::top_center);
+        }
         menu.clearClipRect();
     }
+}
+
+struct box_t { int x, y, w, h; };
+struct seg_t { int x, w; };
+
+static int screen_covers(box_t *out, int cap)
+{
+    int n = 0;
+    auto add = [&](int x, int y, int w, int h) {
+        if (n < cap && w > 0 && h > 0) out[n++] = { x, y, w, h };
+    };
+    switch (s_screen) {
+    case SCR_INTRO:
+        add(0, 0, 320, 18);
+        add(104, 70, 112, 112);
+        break;
+    case SCR_GIBSON:
+        add(136, 6, 48, 16);
+        add(108, 36, 104, 120);
+        add(70, 158, 180, 48);
+        break;
+    case SCR_ROLE:
+        add(16, 12, 288, 216);
+        break;
+    case SCR_WIFI:
+    case SCR_BT:
+    case SCR_BOT:
+        add(96, 14, 128, 114);
+        add(40, 128, 240, 96);
+        break;
+    case SCR_WIFI_RADAR:
+    case SCR_BT_RADAR:
+    case SCR_BOT_RADAR:
+        add(70, 18, 180, 180);
+        add(70, 210, 180, 18);
+        break;
+    case SCR_WIFI_LIST:
+    case SCR_BT_LIST:
+        add(8, 8, 304, 22);
+        add(12, 40, 296, 54);
+        add(12, 102, 296, 54);
+        add(12, 164, 296, 54);
+        break;
+    default:
+        break;
+    }
+    return n;
+}
+
+static int cut_span(const seg_t *in, int n, int x, int w, seg_t *out)
+{
+    int m = 0;
+    const int x1 = x + w;
+    for (int i = 0; i < n && m < 8; ++i) {
+        const int a = in[i].x;
+        const int b = in[i].x + in[i].w;
+        if (w <= 0 || x1 <= a || x >= b) {
+            out[m++] = in[i];
+            continue;
+        }
+        if (x > a && m < 8) out[m++] = { a, x - a };
+        if (x1 < b && m < 8) out[m++] = { x1, b - x1 };
+    }
+    return m;
+}
+
+/* Layout A: push the rain-only sprite through clip rects that skip chrome.
+ * One pushSprite per band. The sprite pixels are not written. */
+static void push_open_rain(lgfx::LGFX_Device &ext)
+{
+    if (!botcorps_rain_sprite_held()) return;
+    box_t cover[8];
+    const int cn = screen_covers(cover, 8);
+    if (cn == 0) {
+        ext.clearClipRect();
+        botcorps_rain_push(ext);
+        ext.clearClipRect();
+        ext.endWrite();
+        return;
+    }
+    seg_t prev[8];
+    int pn = -1;
+    int band_y = 0;
+    int band_h = 0;
+    auto flush = [&]() {
+        if (pn <= 0 || band_h <= 0) return;
+        for (int i = 0; i < pn; ++i) {
+            if (prev[i].w <= 0) continue;
+            ext.setClipRect(prev[i].x, band_y, prev[i].w, band_h);
+            botcorps_rain_push(ext);
+        }
+    };
+    for (int y = 0; y < 240; ++y) {
+        seg_t cur[8];
+        cur[0] = { 0, 320 };
+        int n = 1;
+        for (int e = 0; e < cn; ++e) {
+            if (y < cover[e].y || y >= cover[e].y + cover[e].h) continue;
+            seg_t nxt[8];
+            n = cut_span(cur, n, cover[e].x, cover[e].w, nxt);
+            for (int i = 0; i < n; ++i) cur[i] = nxt[i];
+        }
+        bool same = (pn == n);
+        if (same) {
+            for (int i = 0; i < n; ++i) {
+                if (cur[i].x != prev[i].x || cur[i].w != prev[i].w) same = false;
+            }
+        }
+        if (!same) {
+            flush();
+            pn = n;
+            for (int i = 0; i < n; ++i) prev[i] = cur[i];
+            band_y = y;
+            band_h = 1;
+        } else {
+            band_h++;
+        }
+    }
+    flush();
+    ext.clearClipRect();
+    ext.endWrite();
+}
+
+static void paint_ext_live(lgfx::LGFX_Device &ext, bool chrome)
+{
+    push_open_rain(ext);
+    if (chrome) paint_ext(ext);
+    tick_ext_anim(ext);
+    ext.clearClipRect();
+    ext.endWrite();
 }
 
 static void paint_full(void)
@@ -1249,11 +1373,10 @@ static void paint_full(void)
         auto &ext = botcorps_content();
         ext.clearClipRect();
         if (s_screen == SCR_TERMINAL || s_screen == SCR_CONTROL) {
-            /* fillScreen lives in those painters, dirty path only. */
-        } else if (!botcorps_rain_present(ext) && !s_backdrop_ready) {
-            ext.fillRect(0, 0, ext.width(), ext.height(), COL_RAIN);
+            paint_ext(ext);
+        } else {
+            paint_ext_live(ext, true);
         }
-        paint_ext(ext);
         s_backdrop_ready = true;
         end_panel(ext);
     }
@@ -1261,6 +1384,7 @@ static void paint_full(void)
     auto &menu = botcorps_menu();
     paint_int(menu);
     memcpy(s_clk_drawn, s_clk, sizeof(s_clk_drawn));
+    memcpy(s_up_drawn, s_up, sizeof(s_up_drawn));
     end_panel(menu);
     if (s_heap_for != s_screen) {
         s_heap_for = s_screen;
@@ -1302,46 +1426,26 @@ void botcorps_ui_begin(void)
     botcorps_rain_log_heap("boot");
 }
 
-void botcorps_ui_draw(bool ext_presented)
+void botcorps_ui_draw(bool stepped)
 {
-    (void)ext_presented;
     const uint32_t now = millis();
-    const bool tick = (uint32_t)(now - s_ui_ms) >= 90u;
     if (s_dirty) {
-        if (tick) s_ui_ms = now;
         s_dirty = false;
         paint_full();
         return;
     }
-    /* Rain boot: EXT is the sprite path. INT ambience is per column. */
-    if (s_screen == SCR_RAIN) {
-        if (!tick) return;
-        s_ui_ms = now;
-        botcorps_set_surface(BOTCORPS_SURFACE_MENU);
-        tick_int_ambience(botcorps_menu());
-        end_panel(botcorps_menu());
-        s_int_ticks++;
-        note_stats(now);
-        return;
-    }
-    const bool amb = int_rain_on();
-    const bool ext_tick = anim_screen() || radar_screen();
-    if (!tick || (!amb && !ext_tick)) return;
-    s_ui_ms = now;
-    if (botcorps_dual_ok() && ext_tick) {
+    if (!stepped) return;
+    if (s_screen == SCR_TERMINAL || s_screen == SCR_CONTROL) return;
+    if (botcorps_dual_ok()) {
         botcorps_set_surface(BOTCORPS_SURFACE_CONTENT);
-        auto &ext = botcorps_content();
-        if (radar_screen()) tick_ext_radar(ext);
-        else tick_ext_anim(ext);
-        end_panel(ext);
+        paint_ext_live(botcorps_content(), false);
+        end_panel(botcorps_content());
         s_ext_ticks++;
     }
-    if (amb) {
-        botcorps_set_surface(BOTCORPS_SURFACE_MENU);
-        tick_int_ambience(botcorps_menu());
-        end_panel(botcorps_menu());
-        s_int_ticks++;
-    }
+    botcorps_set_surface(BOTCORPS_SURFACE_MENU);
+    tick_int_ambience(botcorps_menu());
+    end_panel(botcorps_menu());
+    s_int_ticks++;
     note_stats(now);
 }
 

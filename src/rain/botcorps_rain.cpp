@@ -629,21 +629,22 @@ void botcorps_rain_set_parked(bool parked)
     s_use_sprite = false;
 }
 
-static void present_step(lgfx::LGFX_Device &panel, int width, int height)
+static bool present_step(lgfx::LGFX_Device &panel, int width, int height, bool push)
 {
     if (ensure_sprite(panel, width, height)) {
         sprite_fade_all(*s_sprite);
         step_columns(*s_sprite, true);
-        s_sprite->pushSprite(0, 0);
-        return;
+        if (push) s_sprite->pushSprite(&panel, 0, 0);
+        return true;
     }
-    fallback_fade_and_draw(panel);
+    if (push) fallback_fade_and_draw(panel);
+    return false;
 }
 
-bool botcorps_rain_frame(void)
+static bool rain_advance(bool push)
 {
-    /* Content panel only. Never botcorps_menu(), so a dual build cannot
-     * paint the name bar or a size-1 glyph onto the internal ST7789. */
+    /* Content panel only. Never botcorps_menu(). Chrome is not drawn
+     * into the sprite: fade would smear it on the next tick. */
     botcorps_set_surface(BOTCORPS_SURFACE_CONTENT);
     auto &panel = botcorps_content();
     const int width = panel.width();
@@ -667,22 +668,35 @@ bool botcorps_rain_frame(void)
         s_acc_ms = 0;
         if (ensure_sprite(panel, width, height)) {
             s_sprite->fillScreen(COL_FIELD);
-        } else {
-            panel.fillRect(0, 0, width, height, COL_FIELD);
         }
-        present_step(panel, width, height);
-        stepped = true;
+        present_step(panel, width, height, push);
+        stepped = s_sprite != nullptr;
     } else {
         s_acc_ms += now - s_last_ms;
         s_last_ms = now;
         int guard = 0;
         while (s_acc_ms >= (uint32_t)STEP_MS && guard < 2) {
             s_acc_ms -= (uint32_t)STEP_MS;
-            present_step(panel, width, height);
-            stepped = true;
+            if (present_step(panel, width, height, push)) stepped = true;
             ++guard;
         }
         if (s_acc_ms > (uint32_t)STEP_MS * 4u) s_acc_ms = (uint32_t)STEP_MS;
     }
     return stepped;
+}
+
+bool botcorps_rain_step(void)
+{
+    return rain_advance(false);
+}
+
+bool botcorps_rain_frame(void)
+{
+    return rain_advance(true);
+}
+
+void botcorps_rain_push(lgfx::LovyanGFX &dst)
+{
+    if (!s_sprite) return;
+    s_sprite->pushSprite(&dst, 0, 0);
 }

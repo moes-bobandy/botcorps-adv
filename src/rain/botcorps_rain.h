@@ -21,6 +21,10 @@
 #define BOTCORPS_RAIN_COLORS 7
 
 bool botcorps_rain_frame(void);
+/* Advance the rain sprite only. Does not push and does not draw chrome. */
+bool botcorps_rain_step(void);
+/* Push the rain sprite. Honors the destination clip. Does not alter pixels. */
+void botcorps_rain_push(lgfx::LovyanGFX &dst);
 void botcorps_rain_set_parked(bool parked);
 bool botcorps_rain_sprite_held(void);
 void botcorps_rain_log_heap(const char *tag);

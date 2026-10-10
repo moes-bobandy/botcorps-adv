@@ -6,6 +6,7 @@
  * The name bar is painted here, on botcorps_menu() only.
  */
 
+void botcorps_ui_mark_dirty(void);
 void botcorps_ui_begin(void);
 void botcorps_ui_input(void);
 bool botcorps_ui_wants_ext_rain(void);

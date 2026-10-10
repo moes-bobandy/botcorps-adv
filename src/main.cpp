@@ -15,7 +15,7 @@
 #include "utility/Keyboard/KeyboardReader/TCA8418.h"
 
 #ifndef BOTCORPS_VERSION
-#define BOTCORPS_VERSION "0.0.0-slice1r2b"
+#define BOTCORPS_VERSION "0.0.0-slice1r2c"
 #endif
 
 static void park_ir_led(void)
@@ -51,10 +51,13 @@ void setup(void)
                                                                "other");
 
     const bool ext = botcorps_dual_begin();
+    botcorps_ui_mark_dirty();
     const bool sd = botcorps_sd_mount();
+    botcorps_ui_mark_dirty();
     /* Idempotent if the mount already resumed. Keeps GPIO5 high when
      * the panel came up and SD did not. */
     botcorps_lcd_resume_after_bus();
+    botcorps_ui_mark_dirty();
 
     Serial.printf("[botcorps] dual_flag=%d ext_ok=%d sd=%d\n",
                   BOTCORPS_DUAL_SCREEN, ext ? 1 : 0, sd ? 1 : 0);

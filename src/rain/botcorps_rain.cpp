@@ -29,6 +29,30 @@ static const uint16_t PALETTE[14] = {
     0xFA69, 0xE2FF, 0xCF89, 0xF79C, 0xFC43, 0x6BBF, 0x5FF8,
 };
 
+/*
+ * Solid inks are native RGB565. draw_bot / setTextColor / fillRect send
+ * them through the library, which stores swap565. sprite_fade_all and
+ * sprite_blend_rect then bswap on load and store. Nothing writes a raw
+ * native tint into the sprite buffer.
+ *
+ * MULTI (s_mode == 0) keeps PALETTE, COL_CODE, COL_HEAD, and the fade
+ * target (3,12,6). Pick, wrap, and column rules are unchanged.
+ *
+ * Solid fade target is unpack(0x0041) = RGB(0,8,8), the near-black field.
+ * blend565(dst, 0, 8, 8, 46) has equilibrium (0,8,8), so green, cyan,
+ * blue, purple, amber, and white all settle on the field, not on a
+ * tinted floor. The 7x6 bot is the full ink, so the six hues stay apart.
+ */
+static const uint16_t SOLID_INK[6] = {
+    0x26E8, /* green  33,223,66  */
+    0x269C, /* cyan   33,211,231 */
+    0x331F, /* blue   49,97,255  */
+    0xB21F, /* purple 181,65,255 */
+    0xF586, /* amber  247,178,49 */
+    0xFFFF, /* white  255,255,255 */
+};
+static int s_mode = 0;
+
 static const char CODE_GLYPHS[] = "01<>[]{}:/\\|+-=*#";
 static const int CODE_N = 18;
 static const int GAP = 6;
@@ -129,6 +153,44 @@ static uint16_t blend565(uint16_t dst, int sr, int sg, int sb, int a)
     return pack565(r, g, b);
 }
 
+static void trail_rgb(int *r, int *g, int *b)
+{
+    if (s_mode == 0) {
+        *r = FADE_R;
+        *g = FADE_G;
+        *b = FADE_B;
+        return;
+    }
+    *r = 0;
+    *g = 8;
+    *b = 8;
+}
+
+static uint16_t scale_native(uint16_t c, int num, int den)
+{
+    int r, g, b;
+    if (den <= 0) return c;
+    unpack565(c, &r, &g, &b);
+    return pack565(r * num / den, g * num / den, b * num / den);
+}
+
+static uint16_t bot_ink(uint8_t idx)
+{
+    if (s_mode == 0) {
+        if (idx > 13) idx = 0;
+        return PALETTE[idx];
+    }
+    return SOLID_INK[s_mode - 1];
+}
+
+static uint16_t code_ink(bool head)
+{
+    if (s_mode == 0) return head ? COL_HEAD : COL_CODE;
+    const uint16_t c = SOLID_INK[s_mode - 1];
+    if (head) return c;
+    return scale_native(c, 168, 256);
+}
+
 static int pick_bot_color(int self)
 {
     bool used[14] = {};
@@ -224,6 +286,8 @@ static void sprite_blend_rect(lgfx::LGFX_Sprite &spr, int x, int y, int w, int h
     uint16_t *base = (uint16_t *)spr.getBuffer();
     if (!base) return;
     const bool swapped = sprite_is_swapped(spr);
+    int fr, fg, fb;
+    trail_rgb(&fr, &fg, &fb);
     const int sw = spr.width();
     const int sh = spr.height();
     const size_t stride = (sh > 0) ? (spr.bufferLength() / (size_t)sh) / 2u : (size_t)sw;
@@ -235,7 +299,7 @@ static void sprite_blend_rect(lgfx::LGFX_Sprite &spr, int x, int y, int w, int h
             const int px = x + col;
             if (px < 0 || px >= sw) continue;
             const uint16_t native = mem_to_native(line[px], swapped);
-            line[px] = native_to_mem(blend565(native, FADE_R, FADE_G, FADE_B, a), swapped);
+            line[px] = native_to_mem(blend565(native, fr, fg, fb, a), swapped);
         }
     }
 }
@@ -245,6 +309,8 @@ static void sprite_fade_all(lgfx::LGFX_Sprite &spr)
     uint16_t *base = (uint16_t *)spr.getBuffer();
     if (!base) return;
     const bool swapped = sprite_is_swapped(spr);
+    int fr, fg, fb;
+    trail_rgb(&fr, &fg, &fb);
     const int sw = spr.width();
     const int sh = spr.height();
     const size_t stride = (sh > 0) ? (spr.bufferLength() / (size_t)sh) / 2u : (size_t)sw;
@@ -252,7 +318,7 @@ static void sprite_fade_all(lgfx::LGFX_Sprite &spr)
         uint16_t *line = base + (size_t)y * stride;
         for (int x = 0; x < sw; ++x) {
             const uint16_t native = mem_to_native(line[x], swapped);
-            line[x] = native_to_mem(blend565(native, FADE_R, FADE_G, FADE_B, FADE_A), swapped);
+            line[x] = native_to_mem(blend565(native, fr, fg, fb, FADE_A), swapped);
         }
     }
 }
@@ -280,7 +346,7 @@ static void draw_code(lgfx::LovyanGFX &g, int x, int y, bool head)
     g.setTextWrap(false, false);
     g.setTextDatum(lgfx::textdatum::top_left);
     g.setTextSize(1);
-    g.setTextColor(head ? COL_HEAD : COL_CODE);
+    g.setTextColor(code_ink(head));
     g.setCursor(x, y);
     g.print(ch);
 }
@@ -304,7 +370,7 @@ static void draw_column(lgfx::LovyanGFX &g, int index, bool blend_back)
         if (!c.trail && blend_back && s_sprite) {
             sprite_blend_rect(*s_sprite, x - 1, c.y - 18, 12, 28, BACK_A);
         }
-        draw_bot(g, x, c.y, PALETTE[c.color], c.hat != 0);
+        draw_bot(g, x, c.y, bot_ink(c.color), c.hat != 0);
     } else {
         draw_code(g, x, c.y, code_is_head(index, c.y));
     }
@@ -339,12 +405,14 @@ static void cell_paint(lgfx::LGFX_Device &panel, int cx, int cy)
     const uint8_t fade = s_cell_fade[i];
     uint16_t color = COL_FIELD;
     if (fade > 0 && s_cell_id[i] != 0) {
-        uint16_t base = COL_CODE;
-        if (s_cell_id[i] == 16) base = COL_HEAD;
-        else if (s_cell_id[i] == 17) base = blend565(COL_FIELD, FADE_R, FADE_G, FADE_B, BACK_A);
-        else if (s_cell_id[i] <= 14) base = PALETTE[s_cell_id[i] - 1];
+        int fr, fg, fb;
+        trail_rgb(&fr, &fg, &fb);
+        uint16_t base = code_ink(false);
+        if (s_cell_id[i] == 16) base = code_ink(true);
+        else if (s_cell_id[i] == 17) base = blend565(COL_FIELD, fr, fg, fb, BACK_A);
+        else if (s_cell_id[i] <= 14) base = bot_ink((uint8_t)(s_cell_id[i] - 1));
         const int a = 256 - (fade * 16);
-        color = blend565(base, FADE_R, FADE_G, FADE_B, a > 255 ? 255 : a);
+        color = blend565(base, fr, fg, fb, a > 255 ? 255 : a);
     }
     panel.fillRect(x, y, CELL, CELL, color);
     if (fade > 10 && s_cell_id[i] >= 1 && s_cell_id[i] <= 14) {
@@ -466,6 +534,63 @@ uint16_t botcorps_rain_palette(int index)
 {
     if (index < 0 || index >= 14) return PALETTE[0];
     return PALETTE[index];
+}
+
+void botcorps_rain_set_mode(int mode)
+{
+    if (mode < 0 || mode >= BOTCORPS_RAIN_COLORS) mode = 0;
+    s_mode = mode;
+}
+
+int botcorps_rain_mode(void)
+{
+    return s_mode;
+}
+
+uint16_t botcorps_rain_solid(void)
+{
+    if (s_mode <= 0 || s_mode >= BOTCORPS_RAIN_COLORS) return 0;
+    return SOLID_INK[s_mode - 1];
+}
+
+bool botcorps_rain_present(lgfx::LovyanGFX &dst)
+{
+    if (!s_sprite) return false;
+    s_sprite->pushSprite(&dst, 0, 0);
+    return true;
+}
+
+bool botcorps_rain_copy_rect(lgfx::LGFX_Sprite &dst, int x, int y)
+{
+    if (!s_sprite || !s_sprite->getBuffer() || !dst.getBuffer()) return false;
+    if (s_sprite->getColorDepth() != dst.getColorDepth()) return false;
+    uint16_t *src = (uint16_t *)s_sprite->getBuffer();
+    uint16_t *out = (uint16_t *)dst.getBuffer();
+    const int sw = s_sprite->width();
+    const int sh = s_sprite->height();
+    const int dw = dst.width();
+    const int dh = dst.height();
+    const size_t sstride = sh > 0 ? (s_sprite->bufferLength() / (size_t)sh) / 2u : (size_t)sw;
+    const size_t dstride = dh > 0 ? (dst.bufferLength() / (size_t)dh) / 2u : (size_t)dw;
+    for (int row = 0; row < dh; ++row) {
+        const int sy = y + row;
+        if (sy < 0 || sy >= sh) continue;
+        int sx = x;
+        int dx = 0;
+        int n = dw;
+        if (sx < 0) {
+            n += sx;
+            dx = -sx;
+            sx = 0;
+        }
+        if (sx >= sw || n <= 0) continue;
+        if (sx + n > sw) n = sw - sx;
+        if (n <= 0) continue;
+        memcpy(out + (size_t)row * dstride + (size_t)dx,
+               src + (size_t)sy * sstride + (size_t)sx,
+               (size_t)n * 2u);
+    }
+    return true;
 }
 
 void botcorps_rain_log_heap(const char *tag)

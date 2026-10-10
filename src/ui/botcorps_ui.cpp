@@ -21,9 +21,11 @@
 #include "display/botcorps_display.h"
 #include "rain/botcorps_rain.h"
 
+#include <lgfx/v1/LGFX_Sprite.hpp>
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
+#include <Preferences.h>
 
 static const uint16_t COL_BG     = 0x0862; /* #0b0f14 */
 static const uint16_t COL_BAR    = 0x10C4; /* #121821 */
@@ -149,9 +151,26 @@ static int s_saver = 0;
 static int s_saver_on = 1;
 static int s_idle = 1;
 static bool s_dirty = true;
+static bool s_backdrop_ready = false;
+static int s_heap_for = -1;
 static uint32_t s_boot_ms = 0;
 static uint32_t s_ui_ms = 0;
+static uint32_t s_stat_ms = 0;
+static uint32_t s_full_n = 0;
+static uint32_t s_ext_ticks = 0;
+static uint32_t s_int_ticks = 0;
 static bool s_name_logged = false;
+static float s_sweep = -100.0f;
+static char s_clk_drawn[8];
+static lgfx::LGFX_Sprite *s_anim = nullptr;
+static int s_anim_w = 0;
+static int s_anim_h = 0;
+
+static const char *const RAIN_NAME[BOTCORPS_RAIN_COLORS] = {
+    "MULTI", "GREEN", "CYAN", "BLUE", "PURPLE", "AMBER", "WHITE"
+};
+static const char *const NVS_NS = "botcorps";
+static const char *const NVS_KEY = "rain_col";
 
 static char s_clk[8];
 static char s_up[8];
@@ -225,7 +244,9 @@ static bool int_rain_on(void)
 
 bool botcorps_ui_wants_ext_rain(void)
 {
-    return int_rain_on();
+    /* Boot rain only. Other screens keep the last frame and do not
+     * push the full sprite on the 90 ms tick. */
+    return s_screen == SCR_RAIN;
 }
 
 static bool is_radio_screen(int id)
@@ -263,21 +284,64 @@ static void note_heap_for(int id)
     }
 }
 
+static void anim_release(void);
+
 static void set_screen(int id)
 {
+    /* Leaving rain (and every other entry) is a full dirty paint.
+     * The sprite stays until that paint has copied it. */
+    anim_release();
+    s_sweep = -100.0f;
+    s_backdrop_ready = false;
+    s_heap_for = -1;
     s_screen = id;
     s_cursor = 0;
     s_dirty = true;
-    note_heap_for(id);
 }
 
 static void build_dim(void)
 {
-    for (int i = 0; i < 14; ++i) {
-        s_dim_bot[i] = scale565(botcorps_rain_palette(i), 140, 256);
+    if (botcorps_rain_mode() == 0) {
+        for (int i = 0; i < 14; ++i) {
+            s_dim_bot[i] = scale565(botcorps_rain_palette(i), 140, 256);
+        }
+        s_dim_code = scale565(COL_CODE, 115, 256);
+        s_dim_head = scale565(COL_HEAD, 115, 256);
+        return;
     }
-    s_dim_code = scale565(COL_CODE, 115, 256);
-    s_dim_head = scale565(COL_HEAD, 115, 256);
+    const uint16_t ink = botcorps_rain_solid();
+    const uint16_t dim = scale565(ink, 140, 256);
+    for (int i = 0; i < 14; ++i) s_dim_bot[i] = dim;
+    s_dim_code = scale565(ink, 115, 256);
+    s_dim_head = scale565(ink, 170, 256);
+}
+
+static void load_rain_color(void)
+{
+    Preferences prefs;
+    if (!prefs.begin(NVS_NS, true)) {
+        botcorps_rain_set_mode(0);
+        return;
+    }
+    const unsigned v = prefs.getUChar(NVS_KEY, 0);
+    prefs.end();
+    botcorps_rain_set_mode(v >= (unsigned)BOTCORPS_RAIN_COLORS ? 0 : (int)v);
+}
+
+static void save_rain_color(void)
+{
+    Preferences prefs;
+    if (!prefs.begin(NVS_NS, false)) return;
+    prefs.putUChar(NVS_KEY, (uint8_t)botcorps_rain_mode());
+    prefs.end();
+}
+
+static void anim_release(void)
+{
+    delete s_anim;
+    s_anim = nullptr;
+    s_anim_w = 0;
+    s_anim_h = 0;
 }
 
 static void build_int_rain(void)
@@ -411,7 +475,24 @@ static const char *cp_value(void)
         if (s_saver == 3) return "BOUNCE";
         return "BOTS";
     case 3: return s_saver_on ? "ON" : "OFF";
-    default: return s_idle == 0 ? "15 SEC" : s_idle == 2 ? "45 SEC" : "25 SEC";
+    case 4: return s_idle == 0 ? "15 SEC" : s_idle == 2 ? "45 SEC" : "25 SEC";
+    default: {
+        const int m = botcorps_rain_mode();
+        if (m < 0 || m >= BOTCORPS_RAIN_COLORS) return RAIN_NAME[0];
+        return RAIN_NAME[m];
+    }
+    }
+}
+
+static const char *cp_focus_name(void)
+{
+    switch (s_cursor) {
+    case 0: return "ui color";
+    case 1: return "background";
+    case 2: return "screen saver";
+    case 3: return "saver";
+    case 4: return "idle time";
+    default: return "rain colour";
     }
 }
 
@@ -595,16 +676,13 @@ static void fill_view(view_t *vw)
         break;
     }
     case SCR_CONTROL:
-        snprintf(s_sec, sizeof(s_sec), "%d/5", s_cursor + 1);
+        snprintf(s_sec, sizeof(s_sec), "%d/6", s_cursor + 1);
         vw->nmeta = 3;
         vw->k[0] = "sec"; vw->v[0] = s_sec;
         vw->k[1] = "val"; vw->v[1] = cp_value();
         vw->k[2] = "up"; vw->v[2] = s_up;
         vw->chip = "SET";
-        vw->focus = s_cursor == 0 ? "ui color"
-            : s_cursor == 1 ? "background"
-            : s_cursor == 2 ? "screen saver"
-            : s_cursor == 3 ? "saver" : "idle time";
+        vw->focus = cp_focus_name();
         vw->hints = ";. section ,/ ESC";
         break;
     default:
@@ -626,7 +704,7 @@ static void paint_name(lgfx::LGFX_Device &menu, int width)
         s_name_logged = true;
         auto &content = botcorps_content();
         Serial.printf("[botcorps] int name menu %dx%d text_size=%d dual=%d menu_is_content=%d\n",
-                      menu.width(), menu.height(),
+                      (int)menu.width(), (int)menu.height(),
                       (int)(menu.getTextSizeX() + 0.5f),
                       botcorps_dual_ok() ? 1 : 0,
                       (&menu == &content) ? 1 : 0);
@@ -792,6 +870,7 @@ static void paint_ext_radar(lgfx::LovyanGFX &g)
     }
     plate(g, 70, 210, 180, 18, COL_BG, COL_LINE);
     txt(g, "RADIO OFF", 160, 214, 1, COL_MUTED, lgfx::textdatum::top_center);
+    s_sweep = fmodf((float)millis() / 1700.0f, 1.0f) * 6.283185f;
 }
 
 static void paint_ext_list(lgfx::LovyanGFX &g, const near_t *rows, const char *band)
@@ -840,15 +919,33 @@ static void paint_ext_terminal(lgfx::LovyanGFX &g)
     g.clearClipRect();
 }
 
+static void paint_rain_swatch(lgfx::LovyanGFX &g, int x, int y)
+{
+    const int mode = botcorps_rain_mode();
+    if (mode <= 0) {
+        for (int k = 0; k < 4; ++k) {
+            g.fillRect(x + k * 3, y, 3, 10, botcorps_rain_palette(k));
+        }
+        return;
+    }
+    g.fillRect(x, y, 12, 10, botcorps_rain_solid());
+}
+
 static void paint_cp_row(lgfx::LovyanGFX &g, int index, int y)
 {
     const bool on = (s_cursor == index);
-    plate(g, 8, y, 304, 42, on ? COL_PANEL2 : COL_BAR, on ? accent() : COL_LINE);
+    plate(g, 8, y, 304, 36, on ? COL_PANEL2 : COL_BAR, on ? accent() : COL_LINE);
     const char *label = index == 0 ? "UI COLOR"
         : index == 1 ? "BACKGROUND"
         : index == 2 ? "SCREEN SAVER"
-        : index == 3 ? "SAVER" : "IDLE TIME";
-    txt(g, label, 16, y + 4, 1, on ? accent() : COL_MUTED, lgfx::textdatum::top_left);
+        : index == 3 ? "SAVER"
+        : index == 4 ? "IDLE TIME" : "RAIN COLOUR";
+    txt(g, label, 16, y + 3, 1, on ? accent() : COL_MUTED, lgfx::textdatum::top_left);
+    if (index == 5) {
+        paint_rain_swatch(g, 16, y + 18);
+        txt(g, cp_value(), 34, y + 18, 1, COL_INK, lgfx::textdatum::top_left);
+        return;
+    }
 
     const char *opts[4];
     int n = 0;
@@ -891,7 +988,7 @@ static void paint_cp_row(lgfx::LovyanGFX &g, int index, int y)
 static void paint_ext_control(lgfx::LovyanGFX &g)
 {
     g.fillScreen(COL_BG);
-    for (int i = 0; i < 5; ++i) paint_cp_row(g, i, 6 + i * 46);
+    for (int i = 0; i < 6; ++i) paint_cp_row(g, i, 3 + i * 39);
 }
 
 static void paint_ext(lgfx::LGFX_Device &ext)
@@ -942,14 +1039,254 @@ static void paint_ext(lgfx::LGFX_Device &ext)
     }
 }
 
-static void paint_all(void)
+static void end_panel(lgfx::LGFX_Device &d)
+{
+    d.endWrite();
+    d.clearClipRect();
+}
+
+static bool anim_screen(void)
+{
+    return s_screen == SCR_INTRO || s_screen == SCR_GIBSON
+        || s_screen == SCR_WIFI || s_screen == SCR_BT || s_screen == SCR_BOT;
+}
+
+static bool radar_screen(void)
+{
+    return s_screen == SCR_WIFI_RADAR || s_screen == SCR_BT_RADAR
+        || s_screen == SCR_BOT_RADAR;
+}
+
+static lgfx::LGFX_Sprite *anim_sprite(lgfx::LGFX_Device &panel, int w, int h)
+{
+    if (s_anim && s_anim_w == w && s_anim_h == h) return s_anim;
+    anim_release();
+    if (ESP.getMaxAllocHeap() < (size_t)w * (size_t)h * 2u + 8192u) return nullptr;
+    s_anim = new lgfx::LGFX_Sprite(&panel);
+    if (!s_anim->createSprite(w, h)) {
+        anim_release();
+        return nullptr;
+    }
+    s_anim_w = w;
+    s_anim_h = h;
+    return s_anim;
+}
+
+static void draw_intro_btn(lgfx::LovyanGFX &g, int ox, int oy)
+{
+    const float p = (sinf((float)millis() / 420.0f) + 1.0f) * 0.5f;
+    const int halo = 47 + (int)(2.0f * p);
+    const int cx = 160 - ox;
+    const int cy = 126 - oy;
+    g.fillCircle(cx, cy, halo, scale565(accent(), 50, 256));
+    g.fillCircle(cx, cy, 40, 0x1926);
+    g.drawCircle(cx, cy, 40, accent());
+    g.drawArc(cx, cy + 2, 16, 13, 40, 320, COL_POWER);
+    g.drawFastVLine(cx, 112 - oy, 14, COL_POWER);
+}
+
+static void draw_gib_bot(lgfx::LovyanGFX &g, int ox, int oy)
+{
+    const int bob = (int)(sinf((float)millis() / 700.0f) * 1.5f);
+    draw_gibson(g, 160 - ox, 92 + bob - oy, 58);
+}
+
+static int home_bot_index(void)
+{
+    if (s_screen == SCR_BT) return 1;
+    if (s_screen == SCR_BOT) return s_bot;
+    return 0;
+}
+
+static void draw_home_live(lgfx::LovyanGFX &g, int ox, int oy)
+{
+    const bot_t &b = BOTS[home_bot_index()];
+    const float ph = fmodf((float)millis() / 1800.0f, 1.0f);
+    const int cx = 160 - ox;
+    const int cy = 78 - oy;
+    g.drawCircle(cx, cy, 46 + (int)(ph * 14), accent());
+    draw_blob(g, cx, cy, 36, b.c, b.c2);
+}
+
+static void push_anim(lgfx::LGFX_Device &panel, int x, int y, int w, int h,
+                      void (*draw)(lgfx::LovyanGFX &, int, int))
+{
+    lgfx::LGFX_Sprite *spr = anim_sprite(panel, w, h);
+    if (!spr) return;
+    if (!botcorps_rain_copy_rect(*spr, x, y)) return;
+    draw(*spr, x, y);
+    panel.setClipRect(x, y, w, h);
+    spr->pushSprite(x, y);
+    panel.clearClipRect();
+}
+
+static void radar_rays(lgfx::LovyanGFX &g, float ang, uint16_t col)
+{
+    const int cx = 160;
+    const int cy = 108;
+    const int r = 84;
+    for (int k = 0; k < 6; ++k) {
+        const float a = ang - (float)k * 0.18f;
+        const int x1 = cx + (int)(cosf(a) * (float)(r - 4));
+        const int y1 = cy + (int)(sinf(a) * (float)(r - 4));
+        g.drawLine(cx, cy, x1, y1, col);
+    }
+}
+
+static void radar_guides(lgfx::LovyanGFX &g)
+{
+    g.drawCircle(160, 108, 88, accent());
+    g.drawCircle(160, 108, 44, scale565(accent(), 80, 256));
+    g.drawFastHLine(72, 108, 176, scale565(accent(), 70, 256));
+    g.drawFastVLine(160, 20, 176, scale565(accent(), 70, 256));
+}
+
+/* Sweep lines only. No fillScreen and no fillRect. */
+static void tick_ext_radar(lgfx::LGFX_Device &g)
+{
+    g.setClipRect(68, 16, 184, 184);
+    if (s_sweep >= 0.0f) radar_rays(g, s_sweep, 0x1105);
+    radar_guides(g);
+    s_sweep = fmodf((float)millis() / 1700.0f, 1.0f) * 6.283185f;
+    radar_rays(g, s_sweep, accent());
+    g.clearClipRect();
+}
+
+static void tick_ext_anim(lgfx::LGFX_Device &panel)
+{
+    if (s_screen == SCR_INTRO) {
+        push_anim(panel, 104, 70, 112, 112, draw_intro_btn);
+    } else if (s_screen == SCR_GIBSON) {
+        push_anim(panel, 108, 36, 104, 120, draw_gib_bot);
+    } else if (s_screen == SCR_WIFI || s_screen == SCR_BT || s_screen == SCR_BOT) {
+        push_anim(panel, 96, 14, 128, 114, draw_home_live);
+    }
+}
+
+static void int_mark(lgfx::LovyanGFX &g, int index, int y, bool erase)
+{
+    int_col_t &c = s_int[index];
+    const int x = index * INT_GAP;
+    if (erase) {
+        g.fillRect(x - 1, y - 28, 14, 40, COL_RAIN);
+        return;
+    }
+    const uint16_t body = (c.kind == 1) ? s_dim_bot[c.color % 14] : s_dim_code;
+    for (int k = 3; k >= 0; --k) {
+        const int ty = y - k * INT_GAP;
+        const uint16_t tone = mix565(body, COL_RAIN, TRAIL_NUM[k]);
+        if (c.kind == 1) {
+            draw_tiny_bot(g, x, ty, tone, c.hat != 0);
+        } else if (k == 0) {
+            const bool head = ((index + (ty >= 0 ? ty / INT_GAP : 0)) % 7) == 0;
+            const char ch = CODE_GLYPHS[rnd_n(18)];
+            char buf[2] = { ch, 0 };
+            g.setFont(&fonts::Font0);
+            g.setTextSize(1, 1);
+            g.setTextColor(head ? s_dim_head : tone);
+            g.setCursor(x, ty);
+            g.print(buf);
+        }
+    }
+}
+
+/* Column gutters only, plus the clock rect when the second changes.
+ * The size-2 name drawn on the dirty frame is left in place. */
+static void tick_int_ambience(lgfx::LGFX_Device &menu)
+{
+    const int width = menu.width();
+    const int height = menu.height();
+    const int y0 = BAR_H + 19;
+    const int gh = (height - HINT_H) - y0;
+    if (gh > 0 && s_int_n > 0) {
+        int16_t prev_y[INT_COLS];
+        uint8_t moved[INT_COLS];
+        for (int i = 0; i < s_int_n; ++i) {
+            int_col_t &c = s_int[i];
+            prev_y[i] = c.y;
+            moved[i] = 0;
+            if (c.kind == 0) continue;
+            if (rnd_n(100) < c.jitter) continue;
+            moved[i] = 1;
+            c.y = (int16_t)(c.y + INT_GAP);
+            if (c.y > height + INT_GAP) {
+                c.y = (int16_t)(-INT_GAP - rnd_n(3) * INT_GAP);
+                if (c.kind == 1) c.color = (uint8_t)rnd_n(14);
+            }
+        }
+        for (int pass = 0; pass < 2; ++pass) {
+            if (pass == 0) menu.setClipRect(0, y0, 4, gh);
+            else menu.setClipRect(width - 4, y0, 4, gh);
+            for (int i = 0; i < s_int_n; ++i) {
+                if (!moved[i]) continue;
+                int_mark(menu, i, prev_y[i], true);
+                int_mark(menu, i, s_int[i].y, false);
+            }
+        }
+        menu.clearClipRect();
+    }
+    char next[8];
+    const uint32_t sec = (millis() - s_boot_ms) / 1000u;
+    snprintf(next, sizeof(next), "%02u:%02u",
+             (unsigned)((sec / 3600u) % 24u),
+             (unsigned)((sec / 60u) % 60u));
+    if (strcmp(next, s_clk_drawn) != 0) {
+        memcpy(s_clk_drawn, next, sizeof(s_clk_drawn));
+        memcpy(s_clk, next, sizeof(s_clk));
+        const int cw = 52;
+        menu.setClipRect(width - cw, 0, cw, BAR_H + 1);
+        menu.fillRect(width - cw, 0, cw, BAR_H, COL_BAR);
+        txt(menu, s_clk, width - 6, 7, 1, accent(), lgfx::textdatum::top_right);
+        menu.drawFastHLine(width - cw, BAR_H, cw, COL_LINE);
+        menu.clearClipRect();
+    }
+}
+
+static void paint_full(void)
 {
     if (botcorps_dual_ok()) {
         botcorps_set_surface(BOTCORPS_SURFACE_CONTENT);
-        paint_ext(botcorps_content());
+        auto &ext = botcorps_content();
+        ext.clearClipRect();
+        if (s_screen == SCR_TERMINAL || s_screen == SCR_CONTROL) {
+            /* fillScreen lives in those painters, dirty path only. */
+        } else if (!botcorps_rain_present(ext) && !s_backdrop_ready) {
+            ext.fillRect(0, 0, ext.width(), ext.height(), COL_RAIN);
+        }
+        paint_ext(ext);
+        s_backdrop_ready = true;
+        end_panel(ext);
     }
     botcorps_set_surface(BOTCORPS_SURFACE_MENU);
-    paint_int(botcorps_menu());
+    auto &menu = botcorps_menu();
+    paint_int(menu);
+    memcpy(s_clk_drawn, s_clk, sizeof(s_clk_drawn));
+    end_panel(menu);
+    if (s_heap_for != s_screen) {
+        s_heap_for = s_screen;
+        note_heap_for(s_screen);
+    }
+    s_full_n++;
+    Serial.printf("[botcorps] repaint full screen=%d\n", s_screen);
+}
+
+static void note_stats(uint32_t now)
+{
+    if ((uint32_t)(now - s_stat_ms) < 2000u) return;
+    if (s_ext_ticks == 0 && s_int_ticks == 0) {
+        s_stat_ms = now;
+        return;
+    }
+    Serial.printf("[botcorps] repaint ext_tick=%u int_tick=%u full=%u\n",
+                  (unsigned)s_ext_ticks, (unsigned)s_int_ticks, (unsigned)s_full_n);
+    s_ext_ticks = 0;
+    s_int_ticks = 0;
+    s_stat_ms = now;
+}
+
+void botcorps_ui_mark_dirty(void)
+{
+    s_dirty = true;
 }
 
 void botcorps_ui_begin(void)
@@ -958,6 +1295,8 @@ void botcorps_ui_begin(void)
     s_screen = SCR_RAIN;
     s_cursor = 0;
     s_dirty = true;
+    s_backdrop_ready = false;
+    load_rain_color();
     build_dim();
     build_int_rain();
     botcorps_rain_log_heap("boot");
@@ -965,12 +1304,45 @@ void botcorps_ui_begin(void)
 
 void botcorps_ui_draw(bool ext_presented)
 {
+    (void)ext_presented;
     const uint32_t now = millis();
     const bool tick = (uint32_t)(now - s_ui_ms) >= 90u;
-    if (!ext_presented && !tick && !s_dirty) return;
-    if (tick) s_ui_ms = now;
-    s_dirty = false;
-    paint_all();
+    if (s_dirty) {
+        if (tick) s_ui_ms = now;
+        s_dirty = false;
+        paint_full();
+        return;
+    }
+    /* Rain boot: EXT is the sprite path. INT ambience is per column. */
+    if (s_screen == SCR_RAIN) {
+        if (!tick) return;
+        s_ui_ms = now;
+        botcorps_set_surface(BOTCORPS_SURFACE_MENU);
+        tick_int_ambience(botcorps_menu());
+        end_panel(botcorps_menu());
+        s_int_ticks++;
+        note_stats(now);
+        return;
+    }
+    const bool amb = int_rain_on();
+    const bool ext_tick = anim_screen() || radar_screen();
+    if (!tick || (!amb && !ext_tick)) return;
+    s_ui_ms = now;
+    if (botcorps_dual_ok() && ext_tick) {
+        botcorps_set_surface(BOTCORPS_SURFACE_CONTENT);
+        auto &ext = botcorps_content();
+        if (radar_screen()) tick_ext_radar(ext);
+        else tick_ext_anim(ext);
+        end_panel(ext);
+        s_ext_ticks++;
+    }
+    if (amb) {
+        botcorps_set_surface(BOTCORPS_SURFACE_MENU);
+        tick_int_ambience(botcorps_menu());
+        end_panel(botcorps_menu());
+        s_int_ticks++;
+    }
+    note_stats(now);
 }
 
 enum { K_NONE = 0, K_UP, K_DN, K_LT, K_RT, K_OK, K_ESC };
@@ -1018,7 +1390,7 @@ static int item_count(void)
     case SCR_BT_LIST:
         return 3;
     case SCR_CONTROL:
-        return 5;
+        return 6;
     default:
         return 0;
     }
@@ -1102,7 +1474,14 @@ static void nudge_cp(int d)
     else if (s_cursor == 1) s_bg = (s_bg + d + 3) % 3;
     else if (s_cursor == 2) s_saver = (s_saver + d + 4) % 4;
     else if (s_cursor == 3) s_saver_on = (s_saver_on + d + 2) % 2;
-    else s_idle = (s_idle + d + 3) % 3;
+    else if (s_cursor == 4) s_idle = (s_idle + d + 3) % 3;
+    else {
+        const int n = BOTCORPS_RAIN_COLORS;
+        const int m = (botcorps_rain_mode() + d + n) % n;
+        botcorps_rain_set_mode(m);
+        save_rain_color();
+        build_dim();
+    }
 }
 
 static void on_key(int k)
@@ -1129,8 +1508,8 @@ static void on_key(int k)
         return;
     }
     if (s_screen == SCR_CONTROL) {
-        if (k == K_UP) s_cursor = (s_cursor + 4) % 5;
-        if (k == K_DN) s_cursor = (s_cursor + 1) % 5;
+        if (k == K_UP) s_cursor = (s_cursor + 5) % 6;
+        if (k == K_DN) s_cursor = (s_cursor + 1) % 6;
         if (k == K_LT) nudge_cp(-1);
         if (k == K_RT) nudge_cp(1);
         if (k == K_ESC) go_back();

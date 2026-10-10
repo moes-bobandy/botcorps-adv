@@ -10,7 +10,7 @@ Internal ST7789 **240×135** is the menu. External ILI9341 **320×240** is conte
 |--------|-------|
 | Active BOTcorps line = fresh Cardputer Adv dual (INT ST7789 240×135 menu / EXT ILI9341 320×240 content), parallel product, same ideas | Treat CYD / COM13 BOTcorps as the active floor until Dirt unlocks it |
 
-Slice 0 is the display split only. Hatch ENTER, the Ready Room, and bot windows are later slices. A green `pio run` is not a field PASS. Do not flash a device from this tree until Dirt asks.
+Slice 0 is the display split. Slice 1R boots straight into bot rain. A green `pio run` is not a field PASS. Do not flash a device from this tree until Dirt asks.
 
 ## Build
 
@@ -30,7 +30,9 @@ pio run -e cardputer-adv-dual-launcher
 
 Board is the Cardputer Adv's Stamp-S3 (`m5stack-stamps3` on this platform). There is no `cyd28` env.
 
-On a dual build the boot path fills the menu panel and the content panel with different solid colors and a small `MENU` / `CONTENT` label plus the active `SCR_W`×`SCR_H`. That is a wiring check, not product chrome. The content rectangle is the full 320×240 when the external panel comes up.
+Boot check: `setup()` opens the rain screen and returns. `loop()` reads the keyboard and calls `botcorps_rain_frame()` while the external rain is on. There is no `paint_menu`, no `paint_content`, and no width-by-height label on the glass. The Slice 0 navy `MENU` plate and green `CONTENT` plate are not a boot destination.
+
+The internal panel is the menu: dim bot-rain behind a 22px slate bar, white Font0 "BOTcorps" at text size 2, and the mock's grey-blue rule. The external panel is the main UI. On the rain screen it is bot rain only (dense columns, bots and code, 90 ms, same 14-color palette). Marks step every 90 ms; leftover milliseconds carry into the next step. Sprite fade swaps `rgb565_2Byte` pixels on read and write so the field stays near-black. If the sprite cannot be allocated, or a Wi-Fi/Bluetooth screen needs the heap and the largest free block is under 48 KB, rain uses the 8×8 cell table. Serial prints `rain path=sprite` or `rain path=fallback`, plus `heap` lines at boot and when those radio screens open. Wi-Fi and Bluetooth do not start a radio; the lists are idle samples.
 
 ## Pins
 
@@ -67,7 +69,9 @@ MISO GPIO39 is the stock Cardputer SD data line. The panel does not use it.
 ## Layout
 
 ```
-src/main.cpp                     slice 0 boot + field-check paint
+src/main.cpp                     boot into the rain screen; loop drives keys and rain
+src/rain/botcorps_rain.*         external bot rain (sprite or cell fallback)
+src/ui/botcorps_ui.*             mock screens, internal menu, keyboard
 src/display/botcorps_display.*   menu/content split, quiesce, SCR_*
 src/display/lgfx_ili9341.h       ILI9341 on SPI3 (dual builds only)
 src/display/botcorps_pins.h      locked pin map

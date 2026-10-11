@@ -104,9 +104,29 @@ bool botcorps_dual_begin(void)
     pinMode(BOTCORPS_PIN_LCD_CS, OUTPUT);
     digitalWrite(BOTCORPS_PIN_LCD_CS, HIGH);
 
-    /* Boot-only color depth, before begin() writes COLMOD. */
+    /* Boot-only color depth, before begin() writes COLMOD.
+     * One retry on begin or size failure. Pins and rotation stay. */
     g_ext.setColorDepth(16);
-    if (!g_ext.begin()) {
+    bool up = false;
+    for (int attempt = 0; attempt < 2 && !up; ++attempt) {
+        if (attempt) {
+            Serial.println("[botcorps] ILI9341 begin retry");
+            delay(50);
+        }
+        if (!g_ext.begin()) continue;
+        delay(50);
+        g_ext.setRotation(3);
+        g_ext.setTextWrap(false, false);
+        g_ext.setTextSize(1);
+        g_ext.clearClipRect();
+        g_ext.fillScreen(0x0000);
+        up = (g_ext.width() == 320 && g_ext.height() == 240);
+        if (!up) {
+            Serial.printf("[botcorps] EXT geometry %dx%d, want 320x240\n",
+                          (int)g_ext.width(), (int)g_ext.height());
+        }
+    }
+    if (!up) {
         Serial.println("[botcorps] ILI9341 begin() failed — content stays on ST7789");
         s_ext_ok = false;
         pinMode(BOTCORPS_PIN_LCD_CS, OUTPUT);
@@ -114,23 +134,12 @@ bool botcorps_dual_begin(void)
         return false;
     }
 
-    delay(50);
-    g_ext.setRotation(3);
     /* Leave swap-bytes false so this panel matches the internal
      * ST7789. A later RGB565 sprite path must not be swapped twice. */
-    g_ext.setTextWrap(false, false);
-    g_ext.setTextSize(1);
-    g_ext.clearClipRect();
-    g_ext.fillScreen(0x0000);
-
     s_ext_ok = true;
     Serial.printf("[botcorps] ILI9341 %dx%d SPI3 CS%d DC%d RST%d\n",
                   (int)g_ext.width(), (int)g_ext.height(),
                   BOTCORPS_PIN_LCD_CS, BOTCORPS_PIN_LCD_DC, BOTCORPS_PIN_LCD_RST);
-    if (g_ext.width() != 320 || g_ext.height() != 240) {
-        Serial.printf("[botcorps] EXT geometry %dx%d, want 320x240\n",
-                      (int)g_ext.width(), (int)g_ext.height());
-    }
     return true;
 }
 

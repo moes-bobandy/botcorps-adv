@@ -56,7 +56,7 @@ static int s_mode = 0;
 static const char CODE_GLYPHS[] = "01<>[]{}:/\\|+-=*#";
 static const int CODE_N = 18;
 static const int GAP = 6;
-static const int STEP_MS = 90;
+static const int STEP_MS = 140;
 static const int RAIN_COLS = 56;
 static const int CELL = 8;
 static const int CELL_COLS = 40;
@@ -495,12 +495,17 @@ static bool ensure_sprite(lgfx::LGFX_Device &panel, int width, int height)
     s_sprite = nullptr;
     const size_t bytes = (size_t)width * (size_t)height * 2u;
     const size_t max_alloc = ESP.getMaxAllocHeap();
-    if (max_alloc < bytes + 8192u) {
+#if BOTCORPS_RADIO
+    const size_t margin = 48u * 1024u;
+#else
+    const size_t margin = 8192u;
+#endif
+    if (max_alloc < bytes + margin) {
         s_use_sprite = false;
         if (!s_path_logged) {
             Serial.printf("[botcorps] rain path=fallback cells=%dx%d max_alloc=%u need=%u\n",
                           CELL_COLS, CELL_ROWS, (unsigned)max_alloc,
-                          (unsigned)(bytes + 8192u));
+                          (unsigned)(bytes + margin));
             s_path_logged = true;
         }
         return false;

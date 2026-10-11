@@ -7,15 +7,15 @@
  */
 
 #include "display/botcorps_display.h"
+#include "probe/botcorps_probe.h"
 #include "rain/botcorps_rain.h"
-#include "sd/botcorps_sd.h"
 #include "ui/botcorps_ui.h"
 
 #include <memory>
 #include "utility/Keyboard/KeyboardReader/TCA8418.h"
 
 #ifndef BOTCORPS_VERSION
-#define BOTCORPS_VERSION "0.0.0-slice1r2d"
+#define BOTCORPS_VERSION "0.0.0-s0s1"
 #endif
 
 static void park_ir_led(void)
@@ -49,20 +49,29 @@ void setup(void)
                   board == m5::board_t::board_M5CardputerADV ? "Cardputer-Adv" :
                   board == m5::board_t::board_M5Cardputer    ? "Cardputer-K126" :
                                                                "other");
+    botcorps_probe_after_m5();
 
     const bool ext = botcorps_dual_begin();
-    botcorps_ui_mark_dirty();
-    const bool sd = botcorps_sd_mount();
-    botcorps_ui_mark_dirty();
-    /* Idempotent if the mount already resumed. Keeps GPIO5 high when
-     * the panel came up and SD did not. */
     botcorps_lcd_resume_after_bus();
-    botcorps_ui_mark_dirty();
+    botcorps_probe_after_ext(ext);
+    if (!ext) {
+        auto &menu = botcorps_menu();
+        menu.fillScreen(0x0000);
+        menu.setFont(&fonts::Font0);
+        menu.setTextSize(2, 2);
+        menu.setTextColor(0xFFFF, 0x0000);
+        menu.setCursor(8, 40);
+        menu.print("EXT fail");
+    }
 
-    Serial.printf("[botcorps] dual_flag=%d ext_ok=%d sd=%d\n",
-                  BOTCORPS_DUAL_SCREEN, ext ? 1 : 0, sd ? 1 : 0);
+    Serial.printf("[botcorps] dual_flag=%d ext_ok=%d sd=0\n",
+                  BOTCORPS_DUAL_SCREEN, ext ? 1 : 0);
     Serial.println("[botcorps] pins SCK40 MOSI14 CS5 DC6 RST3 SD_CS12 SPI3");
     Serial.println("[botcorps] cap: LoRa1262 NSS/RST/BUSY G5/G3/G6 and Hydra-on-G5 cannot share this panel");
+    Serial.println("[botcorps] sd mount is on demand, not at boot");
+
+    botcorps_probe_run();
+    botcorps_ui_mark_dirty();
 
     /* Rain boot is the first real screen. loop() owns keys and rain.
      * The name bar is painted by the UI on the internal panel. */
@@ -70,6 +79,7 @@ void setup(void)
     if (botcorps_dual_ok() && botcorps_ui_wants_ext_rain()) {
         botcorps_rain_step();
     }
+    botcorps_probe_screen("-", "rain");
     botcorps_ui_draw(true);
 }
 

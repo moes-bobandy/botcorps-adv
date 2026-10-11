@@ -19,6 +19,7 @@
 #include "ui/botcorps_ui.h"
 
 #include "display/botcorps_display.h"
+#include "probe/botcorps_probe.h"
 #include "rain/botcorps_rain.h"
 
 #include <lgfx/v1/LGFX_Sprite.hpp>
@@ -87,7 +88,6 @@ static const int PLAIN_N = 10;
 
 enum {
     SCR_RAIN = 0,
-    SCR_INTRO,
     SCR_GIBSON,
     SCR_ROLE,
     SCR_TERMINAL,
@@ -99,7 +99,8 @@ enum {
     SCR_BT_LIST,
     SCR_BOT,
     SCR_BOT_RADAR,
-    SCR_CONTROL
+    SCR_CONTROL,
+    SCR_DIAG
 };
 
 struct near_t {
@@ -159,6 +160,7 @@ static uint32_t s_full_n = 0;
 static uint32_t s_ext_ticks = 0;
 static uint32_t s_int_ticks = 0;
 static bool s_name_logged = false;
+static float s_sweep = -1.0f;
 static char s_clk_drawn[8];
 static char s_up_drawn[8];
 static lgfx::LGFX_Sprite *s_anim = nullptr;
@@ -238,7 +240,8 @@ static uint16_t accent(void)
 
 static bool int_rain_on(void)
 {
-    return s_screen != SCR_TERMINAL && s_screen != SCR_CONTROL;
+    return s_screen != SCR_TERMINAL && s_screen != SCR_CONTROL
+        && s_screen != SCR_DIAG;
 }
 
 bool botcorps_ui_wants_ext_rain(void)
@@ -279,11 +282,35 @@ static void note_heap_for(int id)
 
 static void anim_release(void);
 
+static const char *screen_name(int id)
+{
+    switch (id) {
+    case SCR_RAIN: return "rain";
+    case SCR_GIBSON: return "gibson";
+    case SCR_ROLE: return "role";
+    case SCR_TERMINAL: return "terminal";
+    case SCR_WIFI: return "wifi";
+    case SCR_WIFI_RADAR: return "wifi-radar";
+    case SCR_WIFI_LIST: return "wifi-list";
+    case SCR_BT: return "bluetooth";
+    case SCR_BT_RADAR: return "bt-radar";
+    case SCR_BT_LIST: return "bt-list";
+    case SCR_BOT: return "bot";
+    case SCR_BOT_RADAR: return "bot-radar";
+    case SCR_CONTROL: return "control";
+    case SCR_DIAG: return "diag";
+    default: return "screen";
+    }
+}
+
 static void set_screen(int id)
 {
     /* Leaving rain (and every other entry) is a full dirty paint.
      * The sprite stays until that paint has copied it. */
+    const char *from = screen_name(s_screen);
+    botcorps_probe_screen(from, screen_name(id));
     anim_release();
+    s_sweep = -1.0f;
     s_backdrop_ready = false;
     s_heap_for = -1;
     s_screen = id;
@@ -351,51 +378,6 @@ static void build_int_rain(void)
     }
 }
 
-static void draw_tiny_bot(lgfx::LovyanGFX &g, int x, int y, uint16_t color, bool hat)
-{
-    const int top = hat ? 1 : 0;
-    if (hat) g.fillRect(x, y, 7, 1, color);
-    g.fillRect(x, y + top, 7, 6, color);
-    const int ey = y + top + 2;
-    g.fillRect(x + 1, ey, 2, 2, COL_EYE);
-    g.fillRect(x + 4, ey, 2, 2, COL_EYE);
-}
-
-static void step_int_rain(lgfx::LovyanGFX &g, int width, int height)
-{
-    g.fillScreen(COL_RAIN);
-    g.setFont(&fonts::Font0);
-    g.setTextSize(1, 1);
-    g.setTextWrap(false, false);
-    g.setTextDatum(lgfx::textdatum::top_left);
-    for (int i = 0; i < s_int_n; ++i) {
-        int_col_t &c = s_int[i];
-        if (c.kind == 0) continue;
-        if (rnd_n(100) < c.jitter) continue;
-        const int x = i * INT_GAP;
-        const uint16_t body = (c.kind == 1) ? s_dim_bot[c.color % 14] : s_dim_code;
-        for (int k = 3; k >= 0; --k) {
-            const int y = c.y - k * INT_GAP;
-            const uint16_t tone = mix565(k == 0 ? body : body, COL_RAIN, TRAIL_NUM[k]);
-            if (c.kind == 1) {
-                draw_tiny_bot(g, x, y, tone, c.hat != 0);
-            } else {
-                const bool head = ((i + (y >= 0 ? y / INT_GAP : 0)) % 7) == 0;
-                const char ch = CODE_GLYPHS[rnd_n(18)];
-                char buf[2] = { ch, 0 };
-                g.setTextColor(k == 0 && head ? s_dim_head : tone);
-                g.setCursor(x, y);
-                g.print(buf);
-            }
-        }
-        c.y = (int16_t)(c.y + INT_GAP);
-        if (c.y > height + INT_GAP) {
-            c.y = (int16_t)(-INT_GAP - rnd_n(3) * INT_GAP);
-            if (c.kind == 1) c.color = (uint8_t)rnd_n(14);
-        }
-    }
-    (void)width;
-}
 
 static void txt(lgfx::LovyanGFX &g, const char *s, int x, int y, float sz,
                 uint16_t col, lgfx::textdatum_t dat)
@@ -558,37 +540,28 @@ static void fill_view(view_t *vw)
         vw->nmeta = 3;
         vw->k[0] = "up"; vw->v[0] = s_up;
         vw->k[1] = "mix"; vw->v[1] = "crew";
-        vw->k[2] = "ms"; vw->v[2] = "90";
+        vw->k[2] = "ms"; vw->v[2] = "140";
         vw->chip = "BOOT";
         vw->nitem = 1;
         vw->item[0] = "continue";
         vw->cursor = 0;
         vw->hints = "ENTER continue";
         break;
-    case SCR_INTRO:
-        vw->nmeta = 3;
-        vw->k[0] = "clk"; vw->v[0] = s_clk;
-        vw->k[1] = "up"; vw->v[1] = s_up;
-        vw->k[2] = "bat"; vw->v[2] = s_bat;
-        vw->chip = "IDLE";
-        vw->nitem = 1;
-        vw->item[0] = "power on";
-        vw->cursor = 0;
-        vw->hints = "ENTER power on";
-        break;
     case SCR_GIBSON:
         vw->nmeta = 3;
         vw->k[0] = "clk"; vw->v[0] = s_clk;
         vw->k[1] = "up"; vw->v[1] = s_up;
         vw->k[2] = "next";
-        vw->v[2] = s_cursor == 0 ? "terminal" : s_cursor == 1 ? "control panel" : "role card";
+        vw->v[2] = s_cursor == 0 ? "terminal" : s_cursor == 1 ? "control panel"
+            : s_cursor == 2 ? "role card" : "diag";
         vw->chip = "MENU";
-        vw->nitem = 3;
+        vw->nitem = 4;
         vw->item[0] = "terminal";
         vw->item[1] = "control panel";
         vw->item[2] = "role card";
+        vw->item[3] = "diag";
         vw->cursor = s_cursor;
-        vw->hints = ";. ENTER";
+        vw->hints = "";
         break;
     case SCR_ROLE:
         vw->nmeta = 3;
@@ -667,6 +640,14 @@ static void fill_view(view_t *vw)
         vw->hints = ";. on EXT  ESC";
         break;
     }
+    case SCR_DIAG:
+        vw->nmeta = 2;
+        vw->k[0] = "up"; vw->v[0] = s_up;
+        vw->k[1] = "view"; vw->v[1] = "ext";
+        vw->chip = "DIAG";
+        vw->focus = "diag";
+        vw->hints = "";
+        break;
     case SCR_CONTROL:
         snprintf(s_sec, sizeof(s_sec), "%d/6", s_cursor + 1);
         vw->nmeta = 3;
@@ -711,8 +692,7 @@ static void paint_int(lgfx::LGFX_Device &menu)
     const int height = menu.height();
     menu.clearClipRect();
     menu.setClipRect(0, 0, width, height);
-    if (int_rain_on()) step_int_rain(menu, width, height);
-    else menu.fillScreen(COL_BG);
+    menu.fillScreen(COL_BG);
 
     fmt_times();
     paint_name(menu, width);
@@ -772,23 +752,9 @@ static void paint_int(lgfx::LGFX_Device &menu)
 
     menu.fillRect(0, height - HINT_H, width, HINT_H, COL_BG);
     menu.drawFastHLine(0, height - HINT_H, width, COL_LINE);
-    txt(menu, vw.hints ? vw.hints : "", width / 2, height - HINT_H + 3, 1,
-        COL_HINTTX, lgfx::textdatum::top_center);
+    (void)vw.hints;
 }
 
-static void paint_ext_intro(lgfx::LovyanGFX &g)
-{
-    g.fillRect(0, 0, 320, 18, COL_BG);
-    txt(g, "BOTcorps", 8, 4, 1, COL_INK, lgfx::textdatum::top_left);
-    txt(g, "OBSERVE ONLY", 312, 5, 1, COL_MUTED, lgfx::textdatum::top_right);
-    const float p = (sinf((float)millis() / 420.0f) + 1.0f) * 0.5f;
-    const int halo = 47 + (int)(2.0f * p);
-    g.fillCircle(160, 126, halo, scale565(accent(), 50, 256));
-    g.fillCircle(160, 126, 40, 0x1926);
-    g.drawCircle(160, 126, 40, accent());
-    g.drawArc(160, 128, 16, 13, 40, 320, COL_POWER);
-    g.drawFastVLine(160, 112, 14, COL_POWER);
-}
 
 static void paint_ext_gibson(lgfx::LovyanGFX &g)
 {
@@ -994,9 +960,6 @@ static void paint_ext(lgfx::LGFX_Device &ext)
     switch (s_screen) {
     case SCR_RAIN:
         break;
-    case SCR_INTRO:
-        paint_ext_intro(ext);
-        break;
     case SCR_GIBSON:
         paint_ext_gibson(ext);
         break;
@@ -1029,6 +992,9 @@ static void paint_ext(lgfx::LGFX_Device &ext)
     case SCR_CONTROL:
         paint_ext_control(ext);
         break;
+    case SCR_DIAG:
+        botcorps_probe_paint(ext);
+        break;
     default:
         break;
     }
@@ -1055,18 +1021,6 @@ static lgfx::LGFX_Sprite *anim_sprite(lgfx::LGFX_Device &panel, int w, int h)
     return s_anim;
 }
 
-static void draw_intro_btn(lgfx::LovyanGFX &g, int ox, int oy)
-{
-    const float p = (sinf((float)millis() / 420.0f) + 1.0f) * 0.5f;
-    const int halo = 47 + (int)(2.0f * p);
-    const int cx = 160 - ox;
-    const int cy = 126 - oy;
-    g.fillCircle(cx, cy, halo, scale565(accent(), 50, 256));
-    g.fillCircle(cx, cy, 40, 0x1926);
-    g.drawCircle(cx, cy, 40, accent());
-    g.drawArc(cx, cy + 2, 16, 13, 40, 320, COL_POWER);
-    g.drawFastVLine(cx, 112 - oy, 14, COL_POWER);
-}
 
 static void draw_gib_bot(lgfx::LovyanGFX &g, int ox, int oy)
 {
@@ -1103,105 +1057,50 @@ static void push_anim(lgfx::LGFX_Device &panel, int x, int y, int w, int h,
     panel.clearClipRect();
 }
 
-/* Disc only. Rain is copied underneath, then the circle covers it,
- * so the panel never receives rain inside the circle. Rays use the
- * abf6fcbe weights 180 - k*24. */
-static void draw_radar_disc(lgfx::LovyanGFX &g, int ox, int oy)
+
+static void tick_radar_rays(lgfx::LGFX_Device &g)
 {
-    const int cx = 160 - ox;
-    const int cy = 108 - oy;
+    const int cx = 160;
+    const int cy = 108;
     const int r = 88;
-    g.fillCircle(cx, cy, r + 2, COL_BLACK);
-    g.fillCircle(cx, cy, r, 0x1105);
+    auto rays = [&](float ang, int k_only) {
+        for (int k = 0; k < 6; ++k) {
+            const float a = ang - (float)k * 0.18f;
+            const int x1 = cx + (int)(cosf(a) * (float)(r - 4));
+            const int y1 = cy + (int)(sinf(a) * (float)(r - 4));
+            const uint16_t col = (k_only < 0)
+                ? (uint16_t)scale565(accent(), 180 - k * 24, 256)
+                : (uint16_t)0x1105;
+            g.drawLine(cx, cy, x1, y1, col);
+        }
+    };
+    g.setClipRect(70, 18, 180, 180);
+    if (s_sweep >= 0.0f) rays(s_sweep, 0);
     g.drawCircle(cx, cy, r, accent());
     g.drawCircle(cx, cy, r / 2, scale565(accent(), 80, 256));
     g.drawFastHLine(cx - r, cy, r * 2, scale565(accent(), 70, 256));
     g.drawFastVLine(cx, cy - r, r * 2, scale565(accent(), 70, 256));
-    const float ang = fmodf((float)millis() / 1700.0f, 1.0f) * 6.283185f;
-    for (int k = 0; k < 6; ++k) {
-        const float a = ang - (float)k * 0.18f;
-        const int x1 = cx + (int)(cosf(a) * (float)(r - 4));
-        const int y1 = cy + (int)(sinf(a) * (float)(r - 4));
-        g.drawLine(cx, cy, x1, y1, scale565(accent(), 180 - k * 24, 256));
-    }
+    s_sweep = fmodf((float)millis() / 1700.0f, 1.0f) * 6.283185f;
+    rays(s_sweep, -1);
+    g.clearClipRect();
 }
 
 static void tick_ext_anim(lgfx::LGFX_Device &panel)
 {
-    if (s_screen == SCR_INTRO) {
-        push_anim(panel, 104, 70, 112, 112, draw_intro_btn);
-    } else if (s_screen == SCR_GIBSON) {
+    if (s_screen == SCR_GIBSON) {
         push_anim(panel, 108, 36, 104, 120, draw_gib_bot);
     } else if (s_screen == SCR_WIFI || s_screen == SCR_BT || s_screen == SCR_BOT) {
         push_anim(panel, 96, 14, 128, 114, draw_home_live);
     } else if (s_screen == SCR_WIFI_RADAR || s_screen == SCR_BT_RADAR
                || s_screen == SCR_BOT_RADAR) {
-        push_anim(panel, 70, 18, 180, 180, draw_radar_disc);
+        tick_radar_rays(panel);
     }
 }
 
-static void int_mark(lgfx::LovyanGFX &g, int index, int y, bool erase)
-{
-    int_col_t &c = s_int[index];
-    const int x = index * INT_GAP;
-    if (erase) {
-        g.fillRect(x - 1, y - 28, 14, 40, COL_RAIN);
-        return;
-    }
-    const uint16_t body = (c.kind == 1) ? s_dim_bot[c.color % 14] : s_dim_code;
-    for (int k = 3; k >= 0; --k) {
-        const int ty = y - k * INT_GAP;
-        const uint16_t tone = mix565(body, COL_RAIN, TRAIL_NUM[k]);
-        if (c.kind == 1) {
-            draw_tiny_bot(g, x, ty, tone, c.hat != 0);
-        } else if (k == 0) {
-            const bool head = ((index + (ty >= 0 ? ty / INT_GAP : 0)) % 7) == 0;
-            const char ch = CODE_GLYPHS[rnd_n(18)];
-            char buf[2] = { ch, 0 };
-            g.setFont(&fonts::Font0);
-            g.setTextSize(1, 1);
-            g.setTextColor(head ? s_dim_head : tone);
-            g.setCursor(x, ty);
-            g.print(buf);
-        }
-    }
-}
-
-/* Column gutters only, plus the clock rect when the second changes.
- * The size-2 name drawn on the dirty frame is left in place. */
+/* Opaque INT. Name bar after the tick, and the up strip when the second changes. */
 static void tick_int_ambience(lgfx::LGFX_Device &menu)
 {
     const int width = menu.width();
-    const int height = menu.height();
-    const int y0 = BAR_H + 19;
-    const int gh = (height - HINT_H) - y0;
-    if (gh > 0 && s_int_n > 0) {
-        int16_t prev_y[INT_COLS];
-        uint8_t moved[INT_COLS];
-        for (int i = 0; i < s_int_n; ++i) {
-            int_col_t &c = s_int[i];
-            prev_y[i] = c.y;
-            moved[i] = 0;
-            if (c.kind == 0) continue;
-            if (rnd_n(100) < c.jitter) continue;
-            moved[i] = 1;
-            c.y = (int16_t)(c.y + INT_GAP);
-            if (c.y > height + INT_GAP) {
-                c.y = (int16_t)(-INT_GAP - rnd_n(3) * INT_GAP);
-                if (c.kind == 1) c.color = (uint8_t)rnd_n(14);
-            }
-        }
-        for (int pass = 0; pass < 2; ++pass) {
-            if (pass == 0) menu.setClipRect(0, y0, 4, gh);
-            else menu.setClipRect(width - 4, y0, 4, gh);
-            for (int i = 0; i < s_int_n; ++i) {
-                if (!moved[i]) continue;
-                int_mark(menu, i, prev_y[i], true);
-                int_mark(menu, i, s_int[i].y, false);
-            }
-        }
-        menu.clearClipRect();
-    }
     fmt_times();
     paint_name(menu, width);
     if (strcmp(s_up, s_up_drawn) != 0) {
@@ -1246,10 +1145,6 @@ static int screen_covers(box_t *out, int cap)
         if (n < cap && w > 0 && h > 0) out[n++] = { x, y, w, h };
     };
     switch (s_screen) {
-    case SCR_INTRO:
-        add(0, 0, 320, 18);
-        add(104, 70, 112, 112);
-        break;
     case SCR_GIBSON:
         add(136, 6, 48, 16);
         add(108, 36, 104, 120);
@@ -1478,10 +1373,10 @@ static int item_count(void)
 {
     switch (s_screen) {
     case SCR_RAIN:
-    case SCR_INTRO:
     case SCR_ROLE:
         return 1;
     case SCR_GIBSON:
+        return 4;
     case SCR_WIFI:
     case SCR_BT:
     case SCR_BOT:
@@ -1504,12 +1399,12 @@ static void run_cursor(void)
 {
     const int i = s_cursor;
     switch (s_screen) {
-    case SCR_RAIN: set_screen(SCR_INTRO); break;
-    case SCR_INTRO: set_screen(SCR_GIBSON); break;
+    case SCR_RAIN: set_screen(SCR_GIBSON); break;
     case SCR_GIBSON:
         if (i == 0) set_screen(SCR_TERMINAL);
         else if (i == 1) set_screen(SCR_CONTROL);
-        else set_screen(SCR_ROLE);
+        else if (i == 2) set_screen(SCR_ROLE);
+        else set_screen(SCR_DIAG);
         break;
     case SCR_ROLE: set_screen(SCR_GIBSON); break;
     case SCR_WIFI:
@@ -1546,7 +1441,7 @@ static void run_cursor(void)
 static void go_back(void)
 {
     switch (s_screen) {
-    case SCR_INTRO: set_screen(SCR_RAIN); break;
+    case SCR_DIAG: set_screen(SCR_GIBSON); break;
     case SCR_ROLE:
     case SCR_TERMINAL:
     case SCR_CONTROL: set_screen(SCR_GIBSON); break;

@@ -612,6 +612,14 @@ bool botcorps_rain_sprite_held(void)
     return s_sprite != nullptr;
 }
 
+void botcorps_rain_release_sprite(void)
+{
+    delete s_sprite;
+    s_sprite = nullptr;
+    s_use_sprite = false;
+    s_path_logged = false;
+}
+
 void botcorps_rain_set_parked(bool parked)
 {
     if (parked == s_parked) return;

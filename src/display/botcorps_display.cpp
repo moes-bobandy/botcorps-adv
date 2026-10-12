@@ -111,9 +111,14 @@ bool botcorps_dual_begin(void)
     for (int attempt = 0; attempt < 2 && !up; ++attempt) {
         if (attempt) {
             Serial.println("[botcorps] ILI9341 begin retry");
+            /* Drop the SPI host before begin() runs again. */
+            g_ext.releaseBus();
             delay(50);
         }
-        if (!g_ext.begin()) continue;
+        if (!g_ext.begin()) {
+            g_ext.fillScreen(0x0000);
+            continue;
+        }
         delay(50);
         g_ext.setRotation(3);
         g_ext.setTextWrap(false, false);
@@ -127,6 +132,7 @@ bool botcorps_dual_begin(void)
         }
     }
     if (!up) {
+        g_ext.fillScreen(0x0000);
         Serial.println("[botcorps] ILI9341 begin() failed — content stays on ST7789");
         s_ext_ok = false;
         pinMode(BOTCORPS_PIN_LCD_CS, OUTPUT);

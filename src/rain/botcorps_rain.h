@@ -27,6 +27,8 @@ bool botcorps_rain_step(void);
 void botcorps_rain_push(lgfx::LovyanGFX &dst);
 void botcorps_rain_set_parked(bool parked);
 bool botcorps_rain_sprite_held(void);
+/* Drop the rain sprite so a later ensure_sprite can create it again. */
+void botcorps_rain_release_sprite(void);
 void botcorps_rain_log_heap(const char *tag);
 uint16_t botcorps_rain_palette(int index);
 void botcorps_rain_set_mode(int mode);

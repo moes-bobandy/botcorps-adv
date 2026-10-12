@@ -11,13 +11,19 @@ struct botcorps_heap_t {
 };
 
 enum {
-    BOTCORPS_ST_M5 = 0,
+    BOTCORPS_ST_M0 = 0,
+    BOTCORPS_ST_M5,
+    BOTCORPS_ST_E0,
     BOTCORPS_ST_EXT,
     BOTCORPS_ST_T0,
     BOTCORPS_ST_A0,
     BOTCORPS_ST_A1,
+    BOTCORPS_ST_SC0,
+    BOTCORPS_ST_SC1,
     BOTCORPS_ST_B0,
     BOTCORPS_ST_B1,
+    BOTCORPS_ST_F0,
+    BOTCORPS_ST_SF,
     BOTCORPS_ST_W0,
     BOTCORPS_ST_W1,
     BOTCORPS_ST_OV0,
@@ -28,6 +34,7 @@ enum {
 
 struct botcorps_probe_t {
     botcorps_heap_t st[BOTCORPS_ST_N];
+    uint8_t ord[BOTCORPS_ST_N];
     char ext_st[6];
     char nim_a[8];
     char nim_b[8];
@@ -38,6 +45,7 @@ struct botcorps_probe_t {
     int wifi_n;
     int ov_ok;
     int sprite_held;
+    int sprite_freed;
     uint32_t sprite_bytes;
     uint32_t tier0;
 };
@@ -45,8 +53,12 @@ struct botcorps_probe_t {
 void botcorps_heap_sample(botcorps_heap_t *out);
 void botcorps_heap_log(const char *tag);
 
-/* After M5 begin, before EXT. */
+/* Largest free internal block, before M5Cardputer.begin(). */
+void botcorps_probe_before_m5(void);
+/* Largest free internal block, after M5Cardputer.begin(). */
 void botcorps_probe_after_m5(void);
+/* Largest free internal block, before EXT begin. */
+void botcorps_probe_before_ext(void);
 /* After EXT begin attempt. ext_ok is the size-checked result. */
 void botcorps_probe_after_ext(bool ext_ok);
 /* Tier 0, both NimBLE cases, Wi-Fi scan, overlay sprite. */

@@ -37,7 +37,6 @@ static const uint16_t COL_MUTED  = 0x8CD4; /* #8d99a6 */
 static const uint16_t COL_AMBER  = 0xF5A9; /* #f0b44a */
 static const uint16_t COL_SEL    = 0x1105; /* #16202b */
 static const uint16_t COL_WHITE  = 0xFFFF;
-static const uint16_t COL_RAIN   = 0x0041; /* #070a0e */
 static const uint16_t COL_EYE    = 0x0080;
 static const uint16_t COL_IVORY  = 0xF79C;
 static const uint16_t COL_IVORY2 = 0xCE16;
@@ -50,8 +49,6 @@ static const uint16_t COL_DIS    = 0x5B0D;
 static const uint16_t COL_HINTTX = 0x9D15;
 static const uint16_t COL_DEEP   = 0x0883;
 static const uint16_t COL_POWER  = 0xDFBF;
-static const uint16_t COL_CODE   = 0x7E6C;
-static const uint16_t COL_HEAD   = 0xEFF9;
 
 static const uint16_t ACCENT_C[3] = { 0x4E7B, 0xF5A9, 0x5FF8 };
 static const char *const ACCENT_N[3] = { "CYAN", "AMBER", "MINT" };
@@ -122,25 +119,6 @@ static const near_t NEAR_BLE[3] = {
 
 static const int BAR_H = 22;
 static const int HINT_H = 14;
-static const int INT_GAP = 8;
-static const int INT_COLS = 32;
-static const char CODE_GLYPHS[] = "01<>[]{}:/\\|+-=*#";
-static const uint8_t TRAIL_NUM[4] = { 150, 80, 40, 16 };
-
-struct int_col_t {
-    int16_t y;
-    uint8_t kind;
-    uint8_t hat;
-    uint8_t color;
-    uint8_t jitter;
-};
-
-static int_col_t s_int[INT_COLS];
-static int s_int_n = 0;
-static uint16_t s_dim_bot[14];
-static uint16_t s_dim_code = COL_CODE;
-static uint16_t s_dim_head = COL_HEAD;
-static uint32_t s_rng = 0x51F00Du;
 
 static int s_screen = SCR_RAIN;
 static int s_cursor = 0;
@@ -180,18 +158,6 @@ static char s_slot[16];
 static char s_pair[16];
 static char s_sec[8];
 
-static uint32_t rnd_u(void)
-{
-    s_rng = s_rng * 1664525u + 1013904223u;
-    return s_rng;
-}
-
-static int rnd_n(int n)
-{
-    if (n <= 1) return 0;
-    return (int)(rnd_u() % (uint32_t)n);
-}
-
 static void unpack565(uint16_t p, int *r, int *g, int *b)
 {
     const int r5 = (p >> 11) & 31;
@@ -219,17 +185,6 @@ static uint16_t scale565(uint16_t c, int num, int den)
     if (den <= 0) return c;
     unpack565(c, &r, &g, &b);
     return pack565(r * num / den, g * num / den, b * num / den);
-}
-
-static uint16_t mix565(uint16_t c, uint16_t bg, int num)
-{
-    int r, g, b, br, bgc, bb;
-    const int inv = 256 - num;
-    unpack565(c, &r, &g, &b);
-    unpack565(bg, &br, &bgc, &bb);
-    return pack565((r * num + br * inv) >> 8,
-                   (g * num + bgc * inv) >> 8,
-                   (b * num + bb * inv) >> 8);
 }
 
 static uint16_t accent(void)
@@ -318,23 +273,6 @@ static void set_screen(int id)
     s_dirty = true;
 }
 
-static void build_dim(void)
-{
-    if (botcorps_rain_mode() == 0) {
-        for (int i = 0; i < 14; ++i) {
-            s_dim_bot[i] = scale565(botcorps_rain_palette(i), 140, 256);
-        }
-        s_dim_code = scale565(COL_CODE, 115, 256);
-        s_dim_head = scale565(COL_HEAD, 115, 256);
-        return;
-    }
-    const uint16_t ink = botcorps_rain_solid();
-    const uint16_t dim = scale565(ink, 140, 256);
-    for (int i = 0; i < 14; ++i) s_dim_bot[i] = dim;
-    s_dim_code = scale565(ink, 115, 256);
-    s_dim_head = scale565(ink, 170, 256);
-}
-
 static void load_rain_color(void)
 {
     Preferences prefs;
@@ -362,22 +300,6 @@ static void anim_release(void)
     s_anim_w = 0;
     s_anim_h = 0;
 }
-
-static void build_int_rain(void)
-{
-    s_int_n = (240 + INT_GAP - 1) / INT_GAP + 1;
-    if (s_int_n > INT_COLS) s_int_n = INT_COLS;
-    for (int i = 0; i < s_int_n; ++i) {
-        uint8_t kind = (i % 2 == 0) ? 1 : 2;
-        if (rnd_n(100) > 55) kind = 0;
-        s_int[i].y = (int16_t)rnd_n(135);
-        s_int[i].kind = kind;
-        s_int[i].hat = (uint8_t)(i % 2 == 0);
-        s_int[i].color = (uint8_t)rnd_n(14);
-        s_int[i].jitter = (uint8_t)(20 + rnd_n(36));
-    }
-}
-
 
 static void txt(lgfx::LovyanGFX &g, const char *s, int x, int y, float sz,
                 uint16_t col, lgfx::textdatum_t dat)
@@ -753,6 +675,16 @@ static void paint_int(lgfx::LGFX_Device &menu)
     menu.fillRect(0, height - HINT_H, width, HINT_H, COL_BG);
     menu.drawFastHLine(0, height - HINT_H, width, COL_LINE);
     (void)vw.hints;
+
+    /* Full INT paints clear the panel. Keep the fail line on top. */
+    const botcorps_probe_t *pr = botcorps_probe_get();
+    if (pr && strcmp(pr->ext_st, "fail") == 0) {
+        menu.setFont(&fonts::Font0);
+        menu.setTextSize(2, 2);
+        menu.setTextColor(0xFFFF, 0x0000);
+        menu.setCursor(8, body_top + 8);
+        menu.print("EXT fail");
+    }
 }
 
 
@@ -819,13 +751,6 @@ static void paint_ext_radar(lgfx::LovyanGFX &g)
     g.drawCircle(cx, cy, r / 2, scale565(accent(), 80, 256));
     g.drawFastHLine(cx - r, cy, r * 2, scale565(accent(), 70, 256));
     g.drawFastVLine(cx, cy - r, r * 2, scale565(accent(), 70, 256));
-    const float ang = fmodf((float)millis() / 1700.0f, 1.0f) * 6.283185f;
-    for (int k = 0; k < 6; ++k) {
-        const float a = ang - (float)k * 0.18f;
-        const int x1 = cx + (int)(cosf(a) * (float)(r - 4));
-        const int y1 = cy + (int)(sinf(a) * (float)(r - 4));
-        g.drawLine(cx, cy, x1, y1, scale565(accent(), 180 - k * 24, 256));
-    }
     plate(g, 70, 210, 180, 18, COL_BG, COL_LINE);
     txt(g, "RADIO OFF", 160, 214, 1, COL_MUTED, lgfx::textdatum::top_center);
 }
@@ -1063,25 +988,21 @@ static void tick_radar_rays(lgfx::LGFX_Device &g)
     const int cx = 160;
     const int cy = 108;
     const int r = 88;
-    auto rays = [&](float ang, int k_only) {
-        for (int k = 0; k < 6; ++k) {
-            const float a = ang - (float)k * 0.18f;
-            const int x1 = cx + (int)(cosf(a) * (float)(r - 4));
-            const int y1 = cy + (int)(sinf(a) * (float)(r - 4));
-            const uint16_t col = (k_only < 0)
-                ? (uint16_t)scale565(accent(), 180 - k * 24, 256)
-                : (uint16_t)0x1105;
-            g.drawLine(cx, cy, x1, y1, col);
-        }
-    };
+    /* Fill the disc before the new rays. Erasing the previous lines
+     * left the rays painted on the dirty frame behind. */
     g.setClipRect(70, 18, 180, 180);
-    if (s_sweep >= 0.0f) rays(s_sweep, 0);
+    g.fillCircle(cx, cy, r, 0x1105);
     g.drawCircle(cx, cy, r, accent());
     g.drawCircle(cx, cy, r / 2, scale565(accent(), 80, 256));
     g.drawFastHLine(cx - r, cy, r * 2, scale565(accent(), 70, 256));
     g.drawFastVLine(cx, cy - r, r * 2, scale565(accent(), 70, 256));
     s_sweep = fmodf((float)millis() / 1700.0f, 1.0f) * 6.283185f;
-    rays(s_sweep, -1);
+    for (int k = 0; k < 6; ++k) {
+        const float a = s_sweep - (float)k * 0.18f;
+        const int x1 = cx + (int)(cosf(a) * (float)(r - 4));
+        const int y1 = cy + (int)(sinf(a) * (float)(r - 4));
+        g.drawLine(cx, cy, x1, y1, scale565(accent(), 180 - k * 24, 256));
+    }
     g.clearClipRect();
 }
 
@@ -1316,8 +1237,6 @@ void botcorps_ui_begin(void)
     s_dirty = true;
     s_backdrop_ready = false;
     load_rain_color();
-    build_dim();
-    build_int_rain();
     botcorps_rain_log_heap("boot");
 }
 
@@ -1479,7 +1398,6 @@ static void nudge_cp(int d)
         const int m = (botcorps_rain_mode() + d + n) % n;
         botcorps_rain_set_mode(m);
         save_rain_color();
-        build_dim();
     }
 }
 

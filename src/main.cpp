@@ -25,9 +25,20 @@ static void park_ir_led(void)
     digitalWrite(44, HIGH);
 }
 
+static void park_sd_cs(void)
+{
+    /* After M5Cardputer.begin(), before EXT begin. GPIO12 only.
+     * SD is not mounted at boot; a floating card can answer SPI3. */
+    pinMode(BOTCORPS_PIN_SD_CS, OUTPUT);
+    digitalWrite(BOTCORPS_PIN_SD_CS, HIGH);
+}
+
 void setup(void)
 {
     park_ir_led();
+    Serial.begin(115200);
+    delay(100);
+    botcorps_probe_before_m5();
 
     auto cfg = M5.config();
     M5Cardputer.begin(cfg, true);
@@ -41,8 +52,6 @@ void setup(void)
      * change color depth — M5GFX already set RGB565 at boot. */
     M5Cardputer.Display.setRotation(1);
 
-    Serial.begin(115200);
-    delay(100);
     const auto board = M5.getBoard();
     Serial.printf("\n[botcorps] %s\n", BOTCORPS_VERSION);
     Serial.printf("[botcorps] board=%d (%s)\n", (int)board,
@@ -50,6 +59,8 @@ void setup(void)
                   board == m5::board_t::board_M5Cardputer    ? "Cardputer-K126" :
                                                                "other");
     botcorps_probe_after_m5();
+    botcorps_probe_before_ext();
+    park_sd_cs();
 
     const bool ext = botcorps_dual_begin();
     botcorps_lcd_resume_after_bus();

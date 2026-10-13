@@ -7,8 +7,12 @@
 
 #include "display/botcorps_display.h"
 #include "probe/botcorps_icons.h"
+#include "ui/botcorps_band.h"
+#include "ui/botcorps_bots.h"
 
 #include <string.h>
+
+static_assert(sizeof(botcorps_cell_t) == 3, "rain cell is 3 bytes");
 
 extern uint8_t botcorps_t0_rain_cell[3][1200];
 extern uint8_t botcorps_t0_rain_col[56][8];
@@ -42,7 +46,7 @@ static const int CELL_N = CELL_COLS * CELL_ROWS;
 enum { KIND_OFF = 0, KIND_CODE = 1, KIND_BOT = 2, KIND_DEVICE = 3 };
 
 static int s_mode = 0;
-static int s_mix = BOTCORPS_RAIN_MIX_CREW;
+static int s_mix = BOTCORPS_RAIN_MIX_FIELD;
 static int s_ncols = 0;
 static int s_h = 240;
 static uint32_t s_rng = 0xA5C3E1u;
@@ -183,22 +187,15 @@ static int pick_bot_color(int self)
 
 static uint8_t kind_for(int i)
 {
-    if (s_mix == BOTCORPS_RAIN_MIX_BOTS) return (i % 2 == 0) ? KIND_BOT : KIND_OFF;
+    /* Mock column split. FIELD: i%3==0 bot, odd columns devices, the rest code. */
     if (s_mix == BOTCORPS_RAIN_MIX_DEV) {
         return (i % 3 == 0) ? KIND_DEVICE : ((i % 2 == 1) ? KIND_CODE : KIND_OFF);
     }
-    if (s_mix == BOTCORPS_RAIN_MIX_CODE) return KIND_CODE;
-    return (i % 3 == 0) ? KIND_BOT : KIND_CODE;
-}
-
-static void assign_kinds(void)
-{
-    for (int i = 0; i < s_ncols; ++i) {
-        uint8_t *c = col_at(i);
-        const uint8_t kind = kind_for(i);
-        c[2] = kind;
-        if (kind == KIND_DEVICE) c[5] = (uint8_t)((i * 5) % 10);
-    }
+    if (s_mix == BOTCORPS_RAIN_MIX_BOTS) return (i % 2 == 0) ? KIND_BOT : KIND_OFF;
+    if (s_mix == BOTCORPS_RAIN_MIX_CREW) return (i % 2 == 0) ? KIND_BOT : KIND_CODE;
+    if ((i % 3) == 0) return KIND_BOT;
+    if ((i % 2) == 1) return KIND_DEVICE;
+    return KIND_CODE;
 }
 
 static void build_columns(void)
@@ -218,7 +215,7 @@ static void build_columns(void)
         c[5] = (kind == KIND_DEVICE) ? (uint8_t)((i * 5) % 10) : (uint8_t)rnd_n(14);
         c[6] = (uint8_t)rnd_n(36);
     }
-    if (s_mix == BOTCORPS_RAIN_MIX_CREW || s_mix == BOTCORPS_RAIN_MIX_BOTS) {
+    if (s_mix != BOTCORPS_RAIN_MIX_DEV) {
         uint8_t deal[14];
         bool taken[RAIN_COLS] = {};
         for (int i = 0; i < 14; ++i) deal[i] = (uint8_t)i;
@@ -244,13 +241,14 @@ static void build_columns(void)
             col_set_y(idx, (int16_t)(((k + 0.2f) / (float)anchors) * (float)s_h));
             c[3] = (uint8_t)(k % 2 == 0);
             c[5] = deal[k];
+            c[7] = (uint8_t)(k + 1);
         }
     }
     s_built = true;
     if (!s_logged) {
         s_logged = true;
-        Serial.printf("[botcorps] rain path=cells %dx%d step=%d\n",
-                      CELL_COLS, CELL_ROWS, STEP_MS);
+        Serial.printf("[botcorps] rain path=cells %dx%d cell=%u pitch=%d step=%d\n",
+                      CELL_COLS, CELL_ROWS, (unsigned)sizeof(botcorps_cell_t), GAP, STEP_MS);
     }
 }
 
@@ -292,12 +290,17 @@ static bool cell_hidden(int cx, int cy)
     return false;
 }
 
-static void cell_paint(lgfx::LGFX_Device &panel, int cx, int cy)
+static int s_slice_y0 = 0;
+static int s_slice_y1 = 240;
+
+static void cell_paint(lgfx::LovyanGFX &panel, int cx, int cy)
 {
     const int i = cell_index(cx, cy);
     if (i < 0 || cell_hidden(cx, cy)) return;
     const int x = cx * CELL;
-    const int y = cy * CELL;
+    const int world_y = cy * CELL;
+    if (world_y + CELL <= s_slice_y0 || world_y >= s_slice_y1) return;
+    const int y = world_y - s_slice_y0;
     const uint8_t fade = botcorps_t0_rain_cell[0][i];
     const uint8_t id = botcorps_t0_rain_cell[1][i];
     uint16_t color = COL_FIELD;
@@ -305,7 +308,8 @@ static void cell_paint(lgfx::LGFX_Device &panel, int cx, int cy)
         int fr, fg, fb;
         trail_rgb(&fr, &fg, &fb);
         uint16_t base = code_ink(false);
-        if (id == 16) base = code_ink(true);
+        if (id >= 32 && id < 44) base = BOTCORPS_BOT_COLOR[id - 32];
+        else if (id == 16) base = code_ink(true);
         else if (id == 17) base = blend565(COL_FIELD, fr, fg, fb, BACK_A);
         else if (id <= 14) base = bot_ink((uint8_t)(id - 1));
         int a = 256 - (fade * 16);
@@ -355,7 +359,29 @@ static void mark_icon_cells(int x, int y)
     }
 }
 
-static void blit_devices(lgfx::LGFX_Device &panel)
+static bool icon_hits_chrome(int x, int y)
+{
+    for (int dy = 0; dy < 12; ++dy) {
+        for (int dx = 0; dx < 12; ++dx) {
+            const int px = x + dx;
+            const int py = y + dy;
+            if (px < 0 || py < 0 || px >= 320 || py >= 240) continue;
+            if (!rain_pixel_ok(px, py)) return true;
+        }
+    }
+    return false;
+}
+
+static bool icon_pixel_ok(int x, int y)
+{
+    const int world_y = y + s_slice_y0;
+    if (y < 0) return false;
+    if (!rain_pixel_ok(x, world_y)) return false;
+    if (world_y < s_slice_y0 || world_y >= s_slice_y1) return false;
+    return true;
+}
+
+static void blit_devices(lgfx::LovyanGFX &panel)
 {
     const uint16_t body = (s_mode == 0) ? (uint16_t)0x5D3F : SOLID_INK[s_mode - 1];
     const uint16_t c1 = body;
@@ -364,8 +390,12 @@ static void blit_devices(lgfx::LGFX_Device &panel)
     for (int i = 0; i < s_ncols; ++i) {
         uint8_t *c = col_at(i);
         if (c[2] != KIND_DEVICE) continue;
-        botcorps_icon_blit_masked(panel, i * GAP, col_y(i), c[5] % 10,
-                                  c1, c2, c3, rain_pixel_ok);
+        const int x = i * GAP;
+        const int y = col_y(i);
+        if (y + 12 <= s_slice_y0 || y >= s_slice_y1) continue;
+        if (icon_hits_chrome(x, y)) continue;
+        botcorps_icon_blit_masked(panel, x, y - s_slice_y0, c[5] % 10,
+                                  c1, c2, c3, icon_pixel_ok);
     }
 }
 
@@ -427,7 +457,9 @@ static void step_columns(void)
         int step = GAP;
         if (c[2] == KIND_BOT) {
             if (!c[4]) cell_stamp(x - 1, y - 18, 12, 28, 17, 0);
-            cell_stamp(x, y, 7, c[3] ? 7 : 6, (uint8_t)(c[5] + 1), 0);
+            uint8_t id = (uint8_t)(c[5] + 1);
+            if (c[7] > 0 && c[7] <= 12) id = (uint8_t)(32 + (c[7] - 1));
+            cell_stamp(x, y, 7, c[3] ? 7 : 6, id, 0);
         } else if (c[2] == KIND_DEVICE) {
             mark_icon_cells(x, y);
             c[5] = (uint8_t)((c[5] + 1 + rnd_n(4)) % 10);
@@ -447,7 +479,7 @@ static void step_columns(void)
     }
 }
 
-static void paint_dirty(lgfx::LGFX_Device &panel)
+static void paint_dirty(lgfx::LovyanGFX &panel)
 {
     panel.startWrite();
     panel.setTextWrap(false, false);
@@ -460,7 +492,7 @@ static void paint_dirty(lgfx::LGFX_Device &panel)
     panel.clearClipRect();
 }
 
-static void paint_all(lgfx::LGFX_Device &panel)
+static void paint_all(lgfx::LovyanGFX &panel)
 {
     panel.startWrite();
     panel.setTextWrap(false, false);
@@ -498,8 +530,33 @@ bool botcorps_rain_step(void)
     s_last_ms = now;
     fade_cells();
     step_columns();
-    if (s_draw && botcorps_dual_ok()) paint_dirty(botcorps_content());
+    if (s_draw && botcorps_dual_ok() && botcorps_band_direct()) {
+        s_slice_y0 = 0;
+        s_slice_y1 = 240;
+        paint_dirty(botcorps_content());
+    }
     return true;
+}
+
+void botcorps_rain_draw(lgfx::LovyanGFX &dst, int y0, int y1)
+{
+    if (!s_built) build_columns();
+    if (y1 <= y0) return;
+    s_slice_y0 = y0;
+    s_slice_y1 = y1;
+    dst.startWrite();
+    dst.setTextWrap(false, false);
+    for (int i = 0; i < CELL_N; ++i) cell_paint(dst, i % CELL_COLS, i / CELL_COLS);
+    blit_devices(dst);
+    dst.endWrite();
+    dst.clearClipRect();
+    s_slice_y0 = 0;
+    s_slice_y1 = 240;
+}
+
+int botcorps_rain_cell_bytes(void)
+{
+    return (int)sizeof(botcorps_cell_t);
 }
 
 void botcorps_rain_paint(void)
@@ -551,11 +608,11 @@ int botcorps_rain_mode(void)
 
 void botcorps_rain_set_mix(int mix)
 {
-    if (mix < 0 || mix > BOTCORPS_RAIN_MIX_DEV) mix = BOTCORPS_RAIN_MIX_CREW;
+    if (mix < 0 || mix > BOTCORPS_RAIN_MIX_DEV) mix = BOTCORPS_RAIN_MIX_FIELD;
     if (mix == s_mix && s_built) return;
     s_mix = mix;
-    if (!s_built) build_columns();
-    else assign_kinds();
+    s_built = false;
+    build_columns();
 }
 
 int botcorps_rain_mix(void)

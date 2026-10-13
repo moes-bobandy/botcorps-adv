@@ -5,6 +5,9 @@
  * before the new chrome is drawn.
  */
 #include "ui/botcorps_ui.h"
+#include "ui/botcorps_band.h"
+#include "ui/botcorps_bots.h"
+#include "ui/botcorps_sprite.h"
 
 #include "display/botcorps_display.h"
 #include "probe/botcorps_probe.h"
@@ -36,7 +39,7 @@ static const uint16_t COL_HOLD  = 0xE38E;
 
 static const uint16_t ACCENT_C[3] = { 0x4E7B, 0xF5A9, 0x5FF8 };
 static const char *const ACCENT_N[3] = { "CYAN", "AMBER", "MINT" };
-static const char *const MIX_N[3] = { "BOTS", "CREW", "DEVICES" };
+static const char *const MIX_N[4] = { "FIELD", "CREW", "BOTS", "DEVICES" };
 static const char *const SAVER_N[4] = { "BOTS", "GIBSON", "FLYBY", "BOUNCE" };
 static const int IDLE_V[3] = { 15, 25, 45 };
 
@@ -66,25 +69,35 @@ struct bot_t {
     const char *id;
     const char *short_name;
     const char *target;
-    uint16_t c;
     uint8_t radio; /* 0 none, 1 wifi, 2 ble */
     uint8_t hold;
 };
 
 static const bot_t BOTS[12] = {
-    { "wifibot", "wifi", "wi-fi", 0x5D3F, 1, 0 },
-    { "bluetoothbot", "bluetooth", "ble", 0x4E7F, 2, 0 },
-    { "deauthbot", "deauth", "deauth", 0x5D3F, 0, 0 },
-    { "hackbot", "hack", "hack", 0x7711, 0, 0 },
-    { "flockbot", "flock", "flock", 0x9F0B, 0, 0 },
-    { "dronebot", "drone", "drone", 0xFB72, 0, 0 },
-    { "airtagbot", "airtag", "air tag", 0xAC7F, 0, 0 },
-    { "keyfobbot", "keyfob", "keyfob", 0x36B8, 0, 0 },
-    { "metabot", "meta", "meta", 0x9F0B, 0, 0 },
-    { "skimmerbot", "skimmer", "skimmer", 0x36B8, 0, 1 },
-    { "flipperbot", "flipper", "flipper", 0xFC6B, 0, 0 },
-    { "samsungtagbot", "samsung", "samsung", 0xBD3F, 0, 0 },
+    { "wifibot", "wifi", "wi-fi", 1, 0 },
+    { "bluetoothbot", "bluetooth", "ble", 2, 0 },
+    { "deauthbot", "deauth", "deauth", 0, 0 },
+    { "hackbot", "hack", "hack", 0, 0 },
+    { "flockbot", "flock", "flock", 0, 0 },
+    { "dronebot", "drone", "drone", 0, 0 },
+    { "airtagbot", "airtag", "air tag", 0, 0 },
+    { "keyfobbot", "keyfob", "keyfob", 0, 0 },
+    { "metabot", "meta", "meta", 0, 0 },
+    { "skimmerbot", "skimmer", "skimmer", 0, 1 },
+    { "flipperbot", "flipper", "flipper", 0, 0 },
+    { "samsungtagbot", "samsung", "samsung", 0, 0 },
 };
+
+static uint16_t bot_color(int i)
+{
+    if (i < 0 || i > 11) return 0xF79C;
+    return BOTCORPS_BOT_COLOR[i];
+}
+
+static bool sprite_blink(int i)
+{
+    return ((millis() + (uint32_t)i * 740u) % 3300u) < 140u;
+}
 
 static const char *const NEAR_WIFI[3] = { "cafe-guest", "printer-2f", "lobby-ap" };
 static const char *const NEAR_WIFI_R[3] = { "-42", "-67", "-71" };
@@ -111,7 +124,7 @@ static int s_cursor = 0;
 static int s_bot = 2;
 static int s_term = 2;
 static int s_color = 0;
-static int s_mix = 1;
+static int s_mix = 0;
 static int s_saver = 0;
 static int s_saver_on = 1;
 static int s_idle = 1;
@@ -234,7 +247,7 @@ static void fmt_times(void)
              (unsigned)(sec % 60u));
 }
 
-static void txt(lgfx::LovyanGFX &g, const char *s, int x, int y, uint16_t col,
+static void txt(Gfx g, const char *s, int x, int y, uint16_t col,
                 lgfx::textdatum_t dat)
 {
     g.setFont(&fonts::Font0);
@@ -245,21 +258,19 @@ static void txt(lgfx::LovyanGFX &g, const char *s, int x, int y, uint16_t col,
     g.setTextDatum(lgfx::textdatum::top_left);
 }
 
-static void plate(lgfx::LovyanGFX &g, int x, int y, int w, int h,
+static void plate(Gfx g, int x, int y, int w, int h,
                   uint16_t fill, uint16_t edge)
 {
     g.fillRect(x, y, w, h, fill);
     g.drawRect(x, y, w, h, edge);
 }
 
-static void draw_blob(lgfx::LovyanGFX &g, int x, int y, int s, uint16_t c)
+static void draw_blob(Gfx g, int x, int y, int scale, uint16_t c, int shape, bool blink)
 {
-    g.fillCircle(x, y, s / 2, c);
-    g.fillRect(x - 2, y - 1, 2, 2, COL_DEEP);
-    g.fillRect(x + 1, y - 1, 2, 2, COL_DEEP);
+    botcorps_sprite_draw(*g.raw(), x, y - g.oy, shape, scale, c, blink);
 }
 
-static void draw_icon(lgfx::LovyanGFX &g, int x, int y, int id, uint16_t col)
+static void draw_icon(Gfx g, int x, int y, int id, uint16_t col)
 {
     if (id == ICO_TERM) {
         g.drawRect(x + 4, y + 6, 20, 16, col);
@@ -303,7 +314,7 @@ static void draw_icon(lgfx::LovyanGFX &g, int x, int y, int id, uint16_t col)
     }
 }
 
-static void draw_btn(lgfx::LovyanGFX &g, int x, int y, int id, bool sel)
+static void draw_btn(Gfx g, int x, int y, int id, bool sel)
 {
     const uint16_t edge = sel ? accent() : COL_LINE;
     const uint16_t fill = sel ? COL_SEL : COL_DEEP;
@@ -343,10 +354,9 @@ static void layout_covers(void)
         break;
     case SCR_GIBSON:
         cover_add(108, 28, 104, 120);
-        cover_add(92, 206, BS, BS);
-        cover_add(128, 206, BS, BS);
-        cover_add(164, 206, BS, BS);
-        cover_add(200, 206, BS, BS);
+        cover_add(110, 206, BS, BS);
+        cover_add(146, 206, BS, BS);
+        cover_add(182, 206, BS, BS);
         break;
     case SCR_TERMINAL:
         cover_add(0, 0, 320, 17);
@@ -400,7 +410,7 @@ static int button_count(void)
 {
     switch (s_screen) {
     case SCR_RAIN: return 1;
-    case SCR_GIBSON: return 4;
+    case SCR_GIBSON: return 3;
     case SCR_WIFI:
     case SCR_BT:
     case SCR_BOT: return 4;
@@ -730,7 +740,7 @@ static void boot_log(void)
     log_add("[ok] 12 boards");
 }
 
-static void paint_one_board(lgfx::LovyanGFX &g, int i, bool sel)
+static void paint_one_board(Gfx g, int i, bool sel)
 {
     int x, y;
     term_xy(i, &x, &y);
@@ -741,20 +751,20 @@ static void paint_one_board(lgfx::LovyanGFX &g, int i, bool sel)
     plate(g, x, y, 72, 46, base, edge);
     if (sel) g.drawRect(x - 2, y - 2, 76, 50, accent());
     g.fillRect(x + 23, y + 12, 26, 16, light ? 0x1082 : 0x0841);
-    draw_blob(g, x + 36, y + 20, 10, BOTS[i].c);
+    draw_blob(g, x + 36, y + 20, 2, bot_color(i), botcorps_shape_for(i), sprite_blink(i));
     g.fillCircle(x + 8, y + 6, 2, BOTS[i].hold ? COL_HOLD : COL_OK);
     const uint16_t ink = light ? 0x1082 : COL_INK;
     txt(g, BOTS[i].short_name, x + 36, y + 34, ink, lgfx::textdatum::top_center);
 }
 
-static void paint_boards(lgfx::LovyanGFX &g)
+static void paint_boards(Gfx g)
 {
     for (int i = 0; i < 12; ++i) {
         paint_one_board(g, i, (i == s_term) && !s_focus_cmds && !s_sheet);
     }
 }
 
-static void paint_palette(lgfx::LovyanGFX &g)
+static void paint_palette(Gfx g)
 {
     g.fillRect(6, 168, 308, 40, COL_DEEP);
     for (int n = 0; n < 12; ++n) {
@@ -766,7 +776,7 @@ static void paint_palette(lgfx::LovyanGFX &g)
     }
 }
 
-static void paint_sheet(lgfx::LovyanGFX &g)
+static void paint_sheet(Gfx g)
 {
     plate(g, 8, 21, 304, 142, COL_BG, accent());
     const int vis = 8;
@@ -783,7 +793,7 @@ static void paint_sheet(lgfx::LovyanGFX &g)
     }
 }
 
-static void paint_prompt(lgfx::LovyanGFX &g)
+static void paint_prompt(Gfx g)
 {
     plate(g, 4, 167, 312, 72, COL_DEEP, accent());
     const int n = s_log_n < 5 ? s_log_n : 5;
@@ -804,7 +814,7 @@ static void paint_prompt(lgfx::LovyanGFX &g)
     if (s_focus_cmds && !s_sheet) paint_palette(g);
 }
 
-static void paint_terminal(lgfx::LovyanGFX &g)
+static void paint_terminal(Gfx g)
 {
     g.fillRect(0, 0, 320, 16, COL_DEEP);
     g.drawFastHLine(0, 16, 320, accent());
@@ -816,7 +826,7 @@ static void paint_terminal(lgfx::LovyanGFX &g)
     if (s_sheet) paint_sheet(g);
 }
 
-static void paint_home(lgfx::LovyanGFX &g, int bot_index)
+static void paint_home(Gfx g, int bot_index)
 {
     const bot_t &b = BOTS[bot_index];
     const int phase = (int)((millis() / 40u) % 14u);
@@ -824,7 +834,7 @@ static void paint_home(lgfx::LovyanGFX &g, int bot_index)
     g.drawCircle(160, 74, 46, accent());
     g.drawCircle(160, 74, 53, COL_LINE);
     g.drawCircle(160, 74, 47 + phase, accent());
-    draw_blob(g, 160, 74, 28, b.c);
+    draw_blob(g, 160, 74, 4, bot_color(bot_index), botcorps_shape_for(bot_index), sprite_blink(bot_index));
     const int ids[4] = { ICO_RADAR, ICO_TERM, ICO_CTRL, ICO_BACK };
     const int xs[4] = { 12, 44, 248, 280 };
     for (int i = 0; i < 4; ++i) draw_btn(g, xs[i], 133, ids[i], s_cursor == i);
@@ -834,7 +844,7 @@ static void paint_home(lgfx::LovyanGFX &g, int bot_index)
     }
 }
 
-static void paint_radar(lgfx::LovyanGFX &g, bool with_list)
+static void paint_radar(Gfx g, bool with_list)
 {
     const int cx = 160;
     const int cy = 108;
@@ -857,7 +867,7 @@ static void paint_radar(lgfx::LovyanGFX &g, bool with_list)
     if (s_track && s_cursor == 0) g.fillCircle(28, with_list ? 72 : 90, 3, accent());
 }
 
-static void paint_list(lgfx::LovyanGFX &g, bool wifi)
+static void paint_list(Gfx g, bool wifi)
 {
     g.fillScreen(COL_BG);
     const char *const *names = wifi ? NEAR_WIFI : NEAR_BLE;
@@ -880,7 +890,7 @@ static void paint_list(lgfx::LovyanGFX &g, bool wifi)
     draw_btn(g, 146, 206, ICO_BACK, s_cursor == 3);
 }
 
-static void paint_cp_value(lgfx::LovyanGFX &g, int index, int y)
+static void paint_cp_value(Gfx g, int index, int y)
 {
     char value[16];
     value[0] = 0;
@@ -901,7 +911,7 @@ static void paint_cp_value(lgfx::LovyanGFX &g, int index, int y)
     }
 }
 
-static void paint_control(lgfx::LovyanGFX &g)
+static void paint_control(Gfx g)
 {
     const char *labels[7] = {
         "UI COLOR", "BACKGROUND", "RAIN MODE", "RAIN COLOUR",
@@ -918,35 +928,45 @@ static void paint_control(lgfx::LovyanGFX &g)
     draw_btn(g, 48, 200, ICO_BACK, s_cursor == 8);
 }
 
-static void paint_gibson(lgfx::LovyanGFX &g)
+static void paint_gibson(Gfx g)
 {
     g.fillCircle(160, 88, 36, COL_DEEP);
     g.drawCircle(160, 88, 36, accent());
     g.drawCircle(160, 88, 42, COL_LINE);
     g.fillRoundRect(148, 36, 24, 10, 2, COL_IVORY);
-    draw_blob(g, 160, 92, 26, COL_IVORY);
+    draw_blob(g, 160, 92, 4, COL_IVORY, BOTCORPS_SHAPE_ROUND, sprite_blink(0));
     g.fillRect(150, 88, 20, 4, COL_DEEP);
-    const int ids[4] = { ICO_TERM, ICO_CTRL, ICO_RADAR, ICO_DIAG };
-    const int xs[4] = { 92, 128, 164, 200 };
-    for (int i = 0; i < 4; ++i) draw_btn(g, xs[i], 206, ids[i], s_cursor == i);
+    const int ids[3] = { ICO_TERM, ICO_CTRL, ICO_RADAR };
+    const int xs[3] = { 110, 146, 182 };
+    for (int i = 0; i < 3; ++i) draw_btn(g, xs[i], 206, ids[i], s_cursor == i);
 }
 
-static void paint_rain_btn(lgfx::LovyanGFX &g)
+static void paint_rain_btn(Gfx g)
 {
     draw_btn(g, 146, 206, ICO_PLAY, true);
 }
 
-static void paint_ext(lgfx::LovyanGFX &g)
+static void paint_ext(Gfx g)
 {
     g.clearClipRect();
     g.setTextWrap(false, false);
     if (s_screen == SCR_DIAG) {
-        botcorps_probe_paint(g);
+        botcorps_probe_paint(*g.raw());
+        char flag[28];
+        snprintf(flag, sizeof(flag), "%s %s L%lu",
+                 botcorps_band_mode_name(),
+                 botcorps_band_direct() ? "direct" : "ok",
+                 (unsigned long)botcorps_band_largest());
+        txt(g, flag, 4, 166, 0xFFFF, lgfx::textdatum::top_left);
         draw_btn(g, 146, 206, ICO_BACK, true);
         return;
     }
     if (!wants_rain()) g.fillScreen(COL_BG);
     else g.fillScreen(COL_FIELD);
+    if (wants_rain() && g.raw()) {
+        const int y0 = botcorps_band_oy();
+        botcorps_rain_draw(*g.raw(), y0, y0 + g.raw()->height());
+    }
     switch (s_screen) {
     case SCR_RAIN: paint_rain_btn(g); break;
     case SCR_GIBSON: paint_gibson(g); break;
@@ -965,7 +985,7 @@ static void paint_ext(lgfx::LovyanGFX &g)
     }
 }
 
-static void radar_rays(lgfx::LovyanGFX &g, float ang, bool erase)
+static void radar_rays(Gfx g, float ang, bool erase)
 {
     const int cx = 160;
     const int cy = 108;
@@ -980,7 +1000,7 @@ static void radar_rays(lgfx::LovyanGFX &g, float ang, bool erase)
     }
 }
 
-static void radar_guides(lgfx::LovyanGFX &g)
+static void radar_guides(Gfx g)
 {
     const int cx = 160;
     const int cy = 108;
@@ -991,7 +1011,7 @@ static void radar_guides(lgfx::LovyanGFX &g)
     g.drawFastVLine(cx, cy - r, r * 2, COL_LINE);
 }
 
-static void tick_radar(lgfx::LovyanGFX &g)
+static void tick_radar(Gfx g)
 {
     g.startWrite();
     g.setClipRect(70, 18, 180, 180);
@@ -1003,7 +1023,7 @@ static void tick_radar(lgfx::LovyanGFX &g)
     g.clearClipRect();
 }
 
-static void tick_home(lgfx::LovyanGFX &g, int bot_index)
+static void tick_home(Gfx g, int bot_index)
 {
     g.startWrite();
     g.setClipRect(110, 24, 100, 100);
@@ -1012,25 +1032,25 @@ static void tick_home(lgfx::LovyanGFX &g, int bot_index)
     g.drawCircle(160, 74, 46, accent());
     const int phase = (int)((millis() / 40u) % 14u);
     g.drawCircle(160, 74, 47 + phase, accent());
-    draw_blob(g, 160, 74, 28, BOTS[bot_index].c);
+    draw_blob(g, 160, 74, 4, bot_color(bot_index), botcorps_shape_for(bot_index), sprite_blink(bot_index));
     g.endWrite();
     g.clearClipRect();
 }
 
-static void tick_gibson(lgfx::LovyanGFX &g)
+static void tick_gibson(Gfx g)
 {
     const int bob = (int)((millis() / 700u) % 3u) - 1;
     g.startWrite();
     g.setClipRect(120, 40, 80, 90);
     g.fillCircle(160, 88, 36, COL_DEEP);
     g.drawCircle(160, 88, 36, accent());
-    draw_blob(g, 160, 92 + bob, 26, COL_IVORY);
+    draw_blob(g, 160, 92 + bob, 4, COL_IVORY, BOTCORPS_SHAPE_ROUND, sprite_blink(0));
     g.fillRect(150, 88 + bob, 20, 4, COL_DEEP);
     g.endWrite();
     g.clearClipRect();
 }
 
-static void tick_ext(lgfx::LovyanGFX &g)
+static void tick_ext(Gfx g)
 {
     if (s_screen == SCR_GIBSON) tick_gibson(g);
     else if (s_screen == SCR_WIFI) tick_home(g, 0);
@@ -1061,7 +1081,7 @@ static void tick_ext(lgfx::LovyanGFX &g)
     }
 }
 
-static void paint_bars(lgfx::LovyanGFX &g, int x, int y, int lit, int n, uint16_t col)
+static void paint_bars(Gfx g, int x, int y, int lit, int n, uint16_t col)
 {
     for (int i = 0; i < n; ++i) {
         g.fillRect(x + i * 6, y, 5, 6, i < lit ? col : COL_LINE);
@@ -1094,16 +1114,16 @@ static void paint_int(lgfx::LGFX_Device &menu)
 
     const int bi = card_bot();
     const bool gib = bi < 0;
-    const uint16_t col = gib ? COL_IVORY : BOTS[bi].c;
+    const uint16_t col = gib ? COL_IVORY : bot_color(bi);
     const char *name = gib ? "gibsonbot" : BOTS[bi].id;
     const char *target = gib ? "ALL BOTS" : BOTS[bi].target;
     plate(menu, 4, 28, width - 8, height - 34, 0x1082, COL_LINE);
     menu.fillRect(12, 36, 52, 52, COL_DEEP);
     if (gib) {
-        draw_blob(menu, 38, 62, 22, COL_IVORY);
+        draw_blob(menu, 38, 62, 3, COL_IVORY, BOTCORPS_SHAPE_ROUND, sprite_blink(0));
         menu.fillRect(28, 58, 20, 3, COL_DEEP);
     } else {
-        draw_blob(menu, 38, 62, 22, col);
+        draw_blob(menu, 38, 62, 3, col, botcorps_shape_for(bi), sprite_blink(bi));
     }
     txt(menu, name, 72, 36, col, lgfx::textdatum::top_left);
     txt(menu, "LV 01", 72, 48, COL_MUTED, lgfx::textdatum::top_left);
@@ -1139,7 +1159,7 @@ static void tick_int_live(lgfx::LGFX_Device &menu)
 
     const int bi = card_bot();
     const bool gib = bi < 0;
-    const uint16_t col = gib ? COL_IVORY : BOTS[bi].c;
+    const uint16_t col = gib ? COL_IVORY : bot_color(bi);
     const uint32_t sec = (millis() - s_boot_ms) / 1000u;
     const int up_lit = sec > 90 ? 16 : (int)(sec * 16 / 90);
 
@@ -1167,7 +1187,6 @@ static void paint_full(void)
         ext.clearClipRect();
         paint_ext(ext);
         ext.endWrite();
-        if (wants_rain()) botcorps_rain_paint();
         tick_ext(ext);
         ext.endWrite();
         ext.clearClipRect();
@@ -1184,10 +1203,8 @@ static void nudge_row(int d)
 {
     if (s_cursor == 0) s_color = (s_color + d + 3) % 3;
     else if (s_cursor == 1) {
-        s_mix = (s_mix + d + 3) % 3;
-        const int mix = s_mix == 0 ? BOTCORPS_RAIN_MIX_BOTS
-            : s_mix == 1 ? BOTCORPS_RAIN_MIX_CREW : BOTCORPS_RAIN_MIX_DEV;
-        botcorps_rain_set_mix(mix);
+        s_mix = (s_mix + d + 4) % 4;
+        botcorps_rain_set_mix(s_mix);
     } else if (s_cursor == 2) {
         if (botcorps_rain_mode() == 0) botcorps_rain_set_mode(1);
         else botcorps_rain_set_mode(0);
@@ -1218,8 +1235,7 @@ static void activate(void)
     case SCR_GIBSON:
         if (s_cursor == 0) enter_screen(SCR_TERMINAL, SCR_GIBSON);
         else if (s_cursor == 1) enter_screen(SCR_CONTROL, SCR_GIBSON);
-        else if (s_cursor == 2) enter_screen(SCR_SCAN, -1);
-        else enter_screen(SCR_DIAG, -1);
+        else enter_screen(SCR_SCAN, -1);
         if (s_screen == SCR_TERMINAL) boot_log();
         break;
     case SCR_WIFI:
@@ -1281,13 +1297,13 @@ static void activate(void)
     }
 }
 
-static void part_begin(lgfx::LGFX_Device &g, int x, int y, int w, int h)
+static void part_begin(Gfx g, int x, int y, int w, int h)
 {
     g.startWrite();
     g.setClipRect(x, y, w, h);
 }
 
-static void part_end(lgfx::LGFX_Device &g)
+static void part_end(Gfx g)
 {
     g.endWrite();
     g.clearClipRect();
@@ -1295,13 +1311,13 @@ static void part_end(lgfx::LGFX_Device &g)
 
 static bool cursor_box(int index, int *x, int *y, int *w, int *h)
 {
-    const int xs_g[4] = { 92, 128, 164, 200 };
+    const int xs_g[3] = { 110, 146, 182 };
     const int xs_h[4] = { 12, 44, 248, 280 };
     *w = BS;
     *h = BS;
     switch (s_screen) {
     case SCR_GIBSON:
-        if (index < 0 || index > 3) return false;
+        if (index < 0 || index > 2) return false;
         *x = xs_g[index];
         *y = 206;
         return true;
@@ -1363,7 +1379,7 @@ static bool cursor_box(int index, int *x, int *y, int *w, int *h)
     }
 }
 
-static void paint_cursor_item(lgfx::LovyanGFX &g, int index, bool sel)
+static void paint_cursor_item(Gfx g, int index, bool sel)
 {
     int x, y, w, h;
     if (!cursor_box(index, &x, &y, &w, &h)) return;
@@ -1393,7 +1409,7 @@ static void paint_cursor_item(lgfx::LovyanGFX &g, int index, bool sel)
     }
     int id = ICO_BACK;
     if (s_screen == SCR_GIBSON) {
-        const int ids[4] = { ICO_TERM, ICO_CTRL, ICO_RADAR, ICO_DIAG };
+        const int ids[3] = { ICO_TERM, ICO_CTRL, ICO_RADAR };
         id = ids[index];
     } else if (s_screen == SCR_WIFI || s_screen == SCR_BT || s_screen == SCR_BOT) {
         const int ids[4] = { ICO_RADAR, ICO_TERM, ICO_CTRL, ICO_BACK };
@@ -1410,8 +1426,18 @@ static void paint_cursor_item(lgfx::LovyanGFX &g, int index, bool sel)
     if (id == ICO_TRACK && sel && s_track) g.fillCircle(x + 14, y, 3, accent());
 }
 
+static bool hold_for_band(void)
+{
+    if (botcorps_dual_ok() && !botcorps_band_direct()) {
+        s_dirty = true;
+        return true;
+    }
+    return false;
+}
+
 static void partial_box(int index, bool sel)
 {
+    if (hold_for_band()) return;
     if (!botcorps_dual_ok()) {
         s_dirty = true;
         return;
@@ -1447,6 +1473,7 @@ static void partial_int(void)
 
 static void partial_tile(int index)
 {
+    if (hold_for_band()) return;
     if (!botcorps_dual_ok()) {
         s_dirty = true;
         return;
@@ -1460,7 +1487,7 @@ static void partial_tile(int index)
     part_end(g);
 }
 
-static void paint_prompt_line(lgfx::LovyanGFX &g)
+static void paint_prompt_line(Gfx g)
 {
     const int y = 171 + 5 * 9;
     g.fillRect(8, y, 300, 10, COL_DEEP);
@@ -1476,6 +1503,7 @@ static void paint_prompt_line(lgfx::LovyanGFX &g)
 
 static void partial_prompt_line(void)
 {
+    if (hold_for_band()) return;
     if (!botcorps_dual_ok()) {
         s_dirty = true;
         return;
@@ -1490,6 +1518,7 @@ static void partial_prompt_line(void)
 
 static void partial_prompt_panel(void)
 {
+    if (hold_for_band()) return;
     if (!botcorps_dual_ok()) {
         s_dirty = true;
         return;
@@ -1510,6 +1539,7 @@ static void partial_prompt_panel(void)
 
 static void partial_chip(int index)
 {
+    if (hold_for_band()) return;
     if (!botcorps_dual_ok()) {
         s_dirty = true;
         return;
@@ -1532,6 +1562,7 @@ static int sheet_row_y(int index, int top)
 
 static void partial_sheet(void)
 {
+    if (hold_for_band()) return;
     if (!botcorps_dual_ok()) {
         s_dirty = true;
         return;
@@ -1546,6 +1577,7 @@ static void partial_sheet(void)
 static void partial_sheet_row(int index, int top)
 {
     if (index < top || index >= top + 8) return;
+    if (hold_for_band()) return;
     if (!botcorps_dual_ok()) {
         s_dirty = true;
         return;
@@ -1563,6 +1595,7 @@ static void partial_sheet_row(int index, int top)
 
 static void partial_portrait(int bot_index)
 {
+    if (hold_for_band()) return;
     if (!botcorps_dual_ok()) {
         s_dirty = true;
         return;
@@ -1650,7 +1683,7 @@ static void on_arrows(int key)
         if (key == 2) move_cursor(1);
         if (key == 3 || key == 4) {
             if (s_cursor >= 7) move_cursor(key == 4 ? 1 : -1);
-            else if (s_cursor == 0) {
+            else if (s_cursor == 0 || s_cursor == 1) {
                 nudge_row(key == 4 ? 1 : -1);
                 s_dirty = true;
             } else {
@@ -1834,15 +1867,39 @@ void botcorps_ui_input(void)
     else if (key == K_CHAR) on_char(typed);
 }
 
+static bool ext_moves(void)
+{
+    return s_screen == SCR_GIBSON || s_screen == SCR_WIFI || s_screen == SCR_BT
+        || s_screen == SCR_BOT || s_screen == SCR_WIFI_RADAR || s_screen == SCR_BT_RADAR
+        || s_screen == SCR_BOT_RADAR || s_screen == SCR_SCAN || s_screen == SCR_TERMINAL
+        || s_screen == SCR_RAIN;
+}
+
 void botcorps_ui_draw(void)
 {
     layout_covers();
+    bool stepped = false;
+    if (botcorps_dual_ok() && wants_rain()) stepped = botcorps_rain_step();
+    if (botcorps_dual_ok() && !botcorps_band_direct()) {
+        if (s_dirty || stepped || ext_moves()) {
+            s_dirty = false;
+            botcorps_set_surface(BOTCORPS_SURFACE_CONTENT);
+            botcorps_band_present([](Gfx g) { paint_ext(g); });
+            botcorps_band_set_oy(0);
+        }
+        fmt_times();
+        static char drawn_b[8];
+        if (strcmp(drawn_b, s_up) != 0) {
+            snprintf(drawn_b, sizeof(drawn_b), "%s", s_up);
+            tick_int_live(botcorps_menu());
+        }
+        return;
+    }
     if (s_dirty) {
         s_dirty = false;
         paint_full();
         return;
     }
-    if (botcorps_dual_ok() && wants_rain()) botcorps_rain_step();
     if (botcorps_dual_ok()) {
         botcorps_set_surface(BOTCORPS_SURFACE_CONTENT);
         tick_ext(botcorps_content());

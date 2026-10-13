@@ -8,6 +8,7 @@
 
 #include "display/botcorps_display.h"
 #include "probe/botcorps_probe.h"
+#include "ui/botcorps_band.h"
 #include "ui/botcorps_ui.h"
 
 #include <memory>
@@ -80,7 +81,10 @@ void setup(void)
     Serial.println("[botcorps] cap: LoRa1262 NSS/RST/BUSY G5/G3/G6 and Hydra-on-G5 cannot share this panel");
     Serial.println("[botcorps] sd mount is on demand, not at boot");
 
+    botcorps_band_touch();
+    botcorps_band_release();
     botcorps_probe_run();
+    botcorps_band_rebuild();
     botcorps_ui_mark_dirty();
 
     /* Rain boot is the first real screen. loop() owns keys and rain.

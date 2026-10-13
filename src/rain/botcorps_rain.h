@@ -13,14 +13,23 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+namespace lgfx { inline namespace v1 { class LovyanGFX; } }
+
 /* 0 = MULTI (the 14-colour palette). 1..6 = solid inks. */
 #define BOTCORPS_RAIN_COLORS 7
 
-/* 0 = bots and code, 1 = bots only, 2 = code only, 3 = device icons and code. */
-#define BOTCORPS_RAIN_MIX_CREW 0
-#define BOTCORPS_RAIN_MIX_BOTS 1
-#define BOTCORPS_RAIN_MIX_CODE 2
-#define BOTCORPS_RAIN_MIX_DEV  3
+/* Mock mixes. FIELD is the default: bots, devices, and code. */
+#define BOTCORPS_RAIN_MIX_FIELD 0
+#define BOTCORPS_RAIN_MIX_CREW  1
+#define BOTCORPS_RAIN_MIX_BOTS  2
+#define BOTCORPS_RAIN_MIX_DEV   3
+
+/* fade, id, glyph. 8x8 grid: 40*30*3 = 3600. A 6 px cell grid at 3 bytes is 6480. */
+struct botcorps_cell_t {
+    uint8_t fade;
+    uint8_t id;
+    uint8_t glyph;
+};
 
 struct botcorps_cover_t {
     int16_t x;
@@ -38,6 +47,9 @@ void botcorps_rain_set_draw(bool enable);
 bool botcorps_rain_step(void);
 /* Paint the current cells into the open area. No step. */
 void botcorps_rain_paint(void);
+/* Draw the slice [world y0, y1) into dst. dst y is world y - y0. */
+void botcorps_rain_draw(lgfx::LovyanGFX &dst, int y0, int y1);
+int botcorps_rain_cell_bytes(void);
 
 void botcorps_rain_set_parked(bool parked);
 bool botcorps_rain_sprite_held(void);

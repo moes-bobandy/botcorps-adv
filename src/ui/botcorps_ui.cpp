@@ -133,6 +133,7 @@ static uint32_t s_boot_ms = 0;
 static char s_clk[8];
 static char s_up[8];
 static int s_prompt_phase = -1;
+static float s_sweep = -1.0f;
 
 static const char *const NVS_NS = "botcorps";
 static const char *const NVS_KEY = "rain_col";
@@ -141,6 +142,18 @@ static uint16_t accent(void)
 {
     if (s_color < 0 || s_color > 2) return ACCENT_C[0];
     return ACCENT_C[s_color];
+}
+
+static uint16_t scale565(uint16_t c, int num, int den)
+{
+    if (den <= 0) return c;
+    int r = ((c >> 11) & 31) * num / den;
+    int g = ((c >> 5) & 63) * num / den;
+    int b = (c & 31) * num / den;
+    if (r > 31) r = 31;
+    if (g > 63) g = 63;
+    if (b > 31) b = 31;
+    return (uint16_t)((r << 11) | (g << 5) | b);
 }
 
 static const char *screen_name(int id)
@@ -412,6 +425,7 @@ static void enter_screen(int id, int ret)
     s_cursor = 0;
     s_sheet = false;
     s_focus_cmds = false;
+    s_sweep = -1.0f;
     s_dirty = true;
     botcorps_probe_screen(from, screen_name(id));
 }
@@ -501,6 +515,9 @@ static void hist_push(const char *line)
 static const char *RAIN_WORD[7] = {
     "MULTI", "GREEN", "CYAN", "BLUE", "PURPLE", "AMBER", "WHITE"
 };
+
+static void partial_prompt_panel(void);
+static void partial_box(int index, bool sel);
 
 static void run_cmd(const char *line)
 {
@@ -612,7 +629,7 @@ static void run_cmd(const char *line)
         else if (strcmp(arg, "ble") == 0) s_filter = 2;
         else {
             log_add("unknown filter");
-            s_dirty = true;
+            partial_prompt_panel();
             return;
         }
         log_add(s_filter == 1 ? "filter wifi" : s_filter == 2 ? "filter ble" : "filter off");
@@ -676,10 +693,12 @@ static void run_cmd(const char *line)
         s_sheet = true;
         s_sheet_i = 0;
         s_focus_cmds = true;
+        s_dirty = true;
+        return;
     } else {
         log_add("command not found");
     }
-    s_dirty = true;
+    partial_prompt_panel();
 }
 
 static void open_bot(int index)
@@ -701,22 +720,27 @@ static void boot_log(void)
     log_add("[ok] 12 boards");
 }
 
+static void paint_one_board(lgfx::LovyanGFX &g, int i, bool sel)
+{
+    int x, y;
+    term_xy(i, &x, &y);
+    const bool light = BOTS[i].radio != 0;
+    const uint16_t base = light ? (sel ? 0xF79C : 0xD69A) : (sel ? 0x18C3 : 0x1082);
+    const uint16_t edge = sel ? accent() : COL_LINE;
+    g.fillRect(x - 2, y - 2, 76, 50, COL_FIELD);
+    plate(g, x, y, 72, 46, base, edge);
+    if (sel) g.drawRect(x - 2, y - 2, 76, 50, accent());
+    g.fillRect(x + 23, y + 12, 26, 16, light ? 0x1082 : 0x0841);
+    draw_blob(g, x + 36, y + 20, 10, BOTS[i].c);
+    g.fillCircle(x + 8, y + 6, 2, BOTS[i].hold ? COL_HOLD : COL_OK);
+    const uint16_t ink = light ? 0x1082 : COL_INK;
+    txt(g, BOTS[i].short_name, x + 36, y + 34, ink, lgfx::textdatum::top_center);
+}
+
 static void paint_boards(lgfx::LovyanGFX &g)
 {
     for (int i = 0; i < 12; ++i) {
-        int x, y;
-        term_xy(i, &x, &y);
-        const bool sel = (i == s_term) && !s_focus_cmds && !s_sheet;
-        const bool light = BOTS[i].radio != 0;
-        const uint16_t base = light ? (sel ? 0xF79C : 0xD69A) : (sel ? 0x18C3 : 0x1082);
-        const uint16_t edge = sel ? accent() : COL_LINE;
-        plate(g, x, y, 72, 46, base, edge);
-        if (sel) g.drawRect(x - 2, y - 2, 76, 50, accent());
-        g.fillRect(x + 23, y + 12, 26, 16, light ? 0x1082 : 0x0841);
-        draw_blob(g, x + 36, y + 20, 10, BOTS[i].c);
-        g.fillCircle(x + 8, y + 6, 2, BOTS[i].hold ? COL_HOLD : COL_OK);
-        const uint16_t ink = light ? 0x1082 : COL_INK;
-        txt(g, BOTS[i].short_name, x + 36, y + 34, ink, lgfx::textdatum::top_center);
+        paint_one_board(g, i, (i == s_term) && !s_focus_cmds && !s_sheet);
     }
 }
 
@@ -811,13 +835,6 @@ static void paint_radar(lgfx::LovyanGFX &g, bool with_list)
     g.drawCircle(cx, cy, r / 2, COL_LINE);
     g.drawFastHLine(cx - r, cy, r * 2, COL_LINE);
     g.drawFastVLine(cx, cy - r, r * 2, COL_LINE);
-    const float ang = (float)(millis() % 1700u) / 1700.0f * 6.283185f;
-    for (int k = 0; k < 6; ++k) {
-        const float a = ang - (float)k * 0.18f;
-        const int x1 = cx + (int)(cosf(a) * (float)(r - 4));
-        const int y1 = cy + (int)(sinf(a) * (float)(r - 4));
-        g.drawLine(cx, cy, x1, y1, accent());
-    }
     plate(g, 70, 210, 180, 18, COL_BG, COL_LINE);
     if (with_list) {
         draw_btn(g, 14, 72, ICO_TRACK, s_cursor == 0);
@@ -938,29 +955,47 @@ static void paint_ext(lgfx::LovyanGFX &g)
     }
 }
 
-static void tick_radar(lgfx::LovyanGFX &g)
+static void radar_rays(lgfx::LovyanGFX &g, float ang, bool erase)
 {
     const int cx = 160;
     const int cy = 108;
     const int r = 88;
-    g.setClipRect(70, 18, 180, 180);
-    g.fillCircle(cx, cy, r, 0x1105);
-    g.drawCircle(cx, cy, r, accent());
-    g.drawCircle(cx, cy, r / 2, COL_LINE);
-    g.drawFastHLine(cx - r, cy, r * 2, COL_LINE);
-    g.drawFastVLine(cx, cy - r, r * 2, COL_LINE);
-    const float ang = (float)(millis() % 1700u) / 1700.0f * 6.283185f;
     for (int k = 0; k < 6; ++k) {
         const float a = ang - (float)k * 0.18f;
         const int x1 = cx + (int)(cosf(a) * (float)(r - 4));
         const int y1 = cy + (int)(sinf(a) * (float)(r - 4));
-        g.drawLine(cx, cy, x1, y1, accent());
+        const uint16_t col = erase ? (uint16_t)0x1105
+                                   : scale565(accent(), 180 - k * 24, 256);
+        g.drawLine(cx, cy, x1, y1, col);
     }
+}
+
+static void radar_guides(lgfx::LovyanGFX &g)
+{
+    const int cx = 160;
+    const int cy = 108;
+    const int r = 88;
+    g.drawCircle(cx, cy, r, accent());
+    g.drawCircle(cx, cy, r / 2, COL_LINE);
+    g.drawFastHLine(cx - r, cy, r * 2, COL_LINE);
+    g.drawFastVLine(cx, cy - r, r * 2, COL_LINE);
+}
+
+static void tick_radar(lgfx::LovyanGFX &g)
+{
+    g.startWrite();
+    g.setClipRect(70, 18, 180, 180);
+    if (s_sweep >= 0.0f) radar_rays(g, s_sweep, true);
+    radar_guides(g);
+    s_sweep = (float)(millis() % 1700u) / 1700.0f * 6.283185f;
+    radar_rays(g, s_sweep, false);
+    g.endWrite();
     g.clearClipRect();
 }
 
 static void tick_home(lgfx::LovyanGFX &g, int bot_index)
 {
+    g.startWrite();
     g.setClipRect(110, 24, 100, 100);
     g.fillCircle(160, 74, 64, COL_FIELD);
     g.fillCircle(160, 74, 48, COL_DEEP);
@@ -968,17 +1003,20 @@ static void tick_home(lgfx::LovyanGFX &g, int bot_index)
     const int phase = (int)((millis() / 40u) % 14u);
     g.drawCircle(160, 74, 47 + phase, accent());
     draw_blob(g, 160, 74, 28, BOTS[bot_index].c);
+    g.endWrite();
     g.clearClipRect();
 }
 
 static void tick_gibson(lgfx::LovyanGFX &g)
 {
     const int bob = (int)((millis() / 700u) % 3u) - 1;
+    g.startWrite();
     g.setClipRect(120, 40, 80, 90);
     g.fillCircle(160, 88, 36, COL_DEEP);
     g.drawCircle(160, 88, 36, accent());
     draw_blob(g, 160, 92 + bob, 26, COL_IVORY);
     g.fillRect(150, 88 + bob, 20, 4, COL_DEEP);
+    g.endWrite();
     g.clearClipRect();
 }
 
@@ -995,8 +1033,19 @@ static void tick_ext(lgfx::LovyanGFX &g)
         const int phase = (int)((millis() / 530u) % 2u);
         if (phase != s_prompt_phase) {
             s_prompt_phase = phase;
-            g.setClipRect(4, 167, 312, 72);
-            paint_prompt(g);
+            const int y = 171 + 5 * 9;
+            g.startWrite();
+            g.setClipRect(8, y, 300, 10);
+            g.fillRect(8, y, 300, 10, COL_DEEP);
+            g.setFont(&fonts::Font0);
+            g.setTextSize(1);
+            g.setTextColor(accent());
+            g.setCursor(10, y);
+            g.print("user@botcorps:~$ ");
+            g.setTextColor(COL_WHITE);
+            g.print(botcorps_t0_term_prompt);
+            if (phase == 0) g.fillRect(g.getCursorX() + 2, y, 5, 8, accent());
+            g.endWrite();
             g.clearClipRect();
         }
     }
@@ -1090,7 +1139,7 @@ static void nudge_row(int d)
     else if (s_cursor == 1) {
         s_mix = (s_mix + d + 3) % 3;
         const int mix = s_mix == 0 ? BOTCORPS_RAIN_MIX_BOTS
-            : s_mix == 1 ? BOTCORPS_RAIN_MIX_CREW : BOTCORPS_RAIN_MIX_CODE;
+            : s_mix == 1 ? BOTCORPS_RAIN_MIX_CREW : BOTCORPS_RAIN_MIX_DEV;
         botcorps_rain_set_mix(mix);
     } else if (s_cursor == 2) {
         if (botcorps_rain_mode() == 0) botcorps_rain_set_mode(1);
@@ -1146,16 +1195,20 @@ static void activate(void)
         break;
     case SCR_WIFI_RADAR:
     case SCR_BT_RADAR:
-        if (s_cursor == 0) s_track = !s_track;
-        else if (s_cursor == 1) enter_screen(s_screen == SCR_WIFI_RADAR ? SCR_WIFI_LIST : SCR_BT_LIST, -1);
-        else go_back();
-        if (s_cursor == 0) s_dirty = true;
+        if (s_cursor == 0) {
+            s_track = !s_track;
+            partial_box(0, true);
+        } else if (s_cursor == 1) {
+            enter_screen(s_screen == SCR_WIFI_RADAR ? SCR_WIFI_LIST : SCR_BT_LIST, -1);
+        } else {
+            go_back();
+        }
         break;
     case SCR_BOT_RADAR:
     case SCR_SCAN:
         if (s_cursor == 0) {
             s_track = !s_track;
-            s_dirty = true;
+            partial_box(0, true);
         } else {
             go_back();
         }
@@ -1181,21 +1234,329 @@ static void activate(void)
     }
 }
 
+static void part_begin(lgfx::LGFX_Device &g, int x, int y, int w, int h)
+{
+    g.startWrite();
+    g.setClipRect(x, y, w, h);
+}
+
+static void part_end(lgfx::LGFX_Device &g)
+{
+    g.endWrite();
+    g.clearClipRect();
+}
+
+static bool cursor_box(int index, int *x, int *y, int *w, int *h)
+{
+    const int xs_g[4] = { 92, 128, 164, 200 };
+    const int xs_h[4] = { 12, 44, 248, 280 };
+    *w = BS;
+    *h = BS;
+    switch (s_screen) {
+    case SCR_GIBSON:
+        if (index < 0 || index > 3) return false;
+        *x = xs_g[index];
+        *y = 206;
+        return true;
+    case SCR_WIFI:
+    case SCR_BT:
+    case SCR_BOT:
+        if (index < 0 || index > 3) return false;
+        *x = xs_h[index];
+        *y = 133;
+        return true;
+    case SCR_WIFI_RADAR:
+    case SCR_BT_RADAR:
+        if (index < 0 || index > 2) return false;
+        *x = 14;
+        *y = 72 + index * 34;
+        return true;
+    case SCR_BOT_RADAR:
+    case SCR_SCAN:
+        if (index < 0 || index > 1) return false;
+        *x = 14;
+        *y = 90 + index * 34;
+        return true;
+    case SCR_WIFI_LIST:
+    case SCR_BT_LIST:
+        if (index >= 0 && index < 3) {
+            *x = 12;
+            *y = 40 + index * 50;
+            *w = 296;
+            *h = 44;
+            return true;
+        }
+        if (index == 3) {
+            *x = 146;
+            *y = 206;
+            return true;
+        }
+        return false;
+    case SCR_CONTROL:
+        if (index >= 0 && index < 7) {
+            *x = 8;
+            *y = 2 + index * 22;
+            *w = 304;
+            *h = 20;
+            return true;
+        }
+        if (index == 7 || index == 8) {
+            *x = (index == 7) ? 14 : 48;
+            *y = 200;
+            return true;
+        }
+        return false;
+    case SCR_DIAG:
+        if (index != 0) return false;
+        *x = 146;
+        *y = 206;
+        return true;
+    default:
+        return false;
+    }
+}
+
+static void paint_cursor_item(lgfx::LovyanGFX &g, int index, bool sel)
+{
+    int x, y, w, h;
+    if (!cursor_box(index, &x, &y, &w, &h)) return;
+    if (s_screen == SCR_CONTROL && index < 7) {
+        const char *labels[7] = {
+            "UI COLOR", "BACKGROUND", "RAIN MODE", "RAIN COLOUR",
+            "SCREEN SAVER", "SAVER", "IDLE TIME"
+        };
+        plate(g, x, y, w, h, sel ? COL_SEL : COL_DEEP, sel ? accent() : COL_LINE);
+        txt(g, labels[index], 14, y + 4, sel ? accent() : COL_MUTED, lgfx::textdatum::top_left);
+        paint_cp_value(g, index, y);
+        return;
+    }
+    if ((s_screen == SCR_WIFI_LIST || s_screen == SCR_BT_LIST) && index < 3) {
+        const bool wifi = s_screen == SCR_WIFI_LIST;
+        const char *const *names = wifi ? NEAR_WIFI : NEAR_BLE;
+        const char *const *rssi = wifi ? NEAR_WIFI_R : NEAR_BLE_R;
+        const uint8_t *bars = wifi ? NEAR_WIFI_B : NEAR_BLE_B;
+        plate(g, x, y, w, h, sel ? COL_SEL : COL_BG, sel ? accent() : COL_LINE);
+        txt(g, names[index], 24, y + 8, COL_INK, lgfx::textdatum::top_left);
+        txt(g, rssi[index], 280, y + 8, COL_AMBER, lgfx::textdatum::top_right);
+        for (int k = 0; k < 4; ++k) {
+            const int bh = (k + 1) * 4;
+            g.fillRect(250 + k * 8, y + 36 - bh, 5, bh, k < bars[index] ? accent() : COL_LINE);
+        }
+        return;
+    }
+    int id = ICO_BACK;
+    if (s_screen == SCR_GIBSON) {
+        const int ids[4] = { ICO_TERM, ICO_CTRL, ICO_RADAR, ICO_DIAG };
+        id = ids[index];
+    } else if (s_screen == SCR_WIFI || s_screen == SCR_BT || s_screen == SCR_BOT) {
+        const int ids[4] = { ICO_RADAR, ICO_TERM, ICO_CTRL, ICO_BACK };
+        id = ids[index];
+    } else if (s_screen == SCR_WIFI_RADAR || s_screen == SCR_BT_RADAR) {
+        const int ids[3] = { ICO_TRACK, ICO_LIST, ICO_BACK };
+        id = ids[index];
+    } else if (s_screen == SCR_BOT_RADAR || s_screen == SCR_SCAN) {
+        id = index == 0 ? ICO_TRACK : ICO_BACK;
+    } else if (s_screen == SCR_CONTROL) {
+        id = index == 7 ? ICO_TERM : ICO_BACK;
+    }
+    draw_btn(g, x, y, id, sel);
+    if (id == ICO_TRACK && sel && s_track) g.fillCircle(x + 14, y, 3, accent());
+}
+
+static void partial_box(int index, bool sel)
+{
+    if (!botcorps_dual_ok()) {
+        s_dirty = true;
+        return;
+    }
+    int x, y, w, h;
+    if (!cursor_box(index, &x, &y, &w, &h)) return;
+    botcorps_set_surface(BOTCORPS_SURFACE_CONTENT);
+    auto &g = botcorps_content();
+    part_begin(g, x, y, w, h);
+    paint_cursor_item(g, index, sel);
+    part_end(g);
+}
+
+static void partial_cursor(int old_i, int new_i)
+{
+    if (old_i == new_i) {
+        partial_box(new_i, true);
+        return;
+    }
+    partial_box(old_i, false);
+    partial_box(new_i, true);
+}
+
+static void partial_int(void)
+{
+    auto &menu = botcorps_menu();
+    botcorps_set_surface(BOTCORPS_SURFACE_MENU);
+    menu.startWrite();
+    paint_int(menu);
+    menu.endWrite();
+    menu.clearClipRect();
+}
+
+static void partial_tile(int index)
+{
+    if (!botcorps_dual_ok()) {
+        s_dirty = true;
+        return;
+    }
+    int x, y;
+    term_xy(index, &x, &y);
+    botcorps_set_surface(BOTCORPS_SURFACE_CONTENT);
+    auto &g = botcorps_content();
+    part_begin(g, x - 2, y - 2, 76, 50);
+    paint_one_board(g, index, (index == s_term) && !s_focus_cmds && !s_sheet);
+    part_end(g);
+}
+
+static void paint_prompt_line(lgfx::LovyanGFX &g)
+{
+    const int y = 171 + 5 * 9;
+    g.fillRect(8, y, 300, 10, COL_DEEP);
+    g.setFont(&fonts::Font0);
+    g.setTextSize(1);
+    g.setTextColor(accent());
+    g.setCursor(10, y);
+    g.print("user@botcorps:~$ ");
+    g.setTextColor(COL_WHITE);
+    g.print(botcorps_t0_term_prompt);
+    if ((millis() / 530u) % 2u == 0) g.fillRect(g.getCursorX() + 2, y, 5, 8, accent());
+}
+
+static void partial_prompt_line(void)
+{
+    if (!botcorps_dual_ok()) {
+        s_dirty = true;
+        return;
+    }
+    const int y = 171 + 5 * 9;
+    botcorps_set_surface(BOTCORPS_SURFACE_CONTENT);
+    auto &g = botcorps_content();
+    part_begin(g, 8, y, 300, 10);
+    paint_prompt_line(g);
+    part_end(g);
+}
+
+static void partial_prompt_panel(void)
+{
+    if (!botcorps_dual_ok()) {
+        s_dirty = true;
+        return;
+    }
+    botcorps_set_surface(BOTCORPS_SURFACE_CONTENT);
+    auto &g = botcorps_content();
+    part_begin(g, 0, 0, 320, 17);
+    g.fillRect(0, 0, 320, 16, COL_DEEP);
+    g.drawFastHLine(0, 16, 320, accent());
+    txt(g, "terminal", 8, 4, accent(), lgfx::textdatum::top_left);
+    txt(g, "12", 76, 4, COL_MUTED, lgfx::textdatum::top_left);
+    if (s_track_name[0]) txt(g, s_track_name, 120, 4, accent(), lgfx::textdatum::top_left);
+    part_end(g);
+    part_begin(g, 4, 167, 312, 72);
+    paint_prompt(g);
+    part_end(g);
+}
+
+static void partial_chip(int index)
+{
+    if (!botcorps_dual_ok()) {
+        s_dirty = true;
+        return;
+    }
+    const int x = 8 + (index % 6) * 51;
+    const int y = 170 + (index / 6) * 18;
+    const bool sel = index == s_cmd_sel;
+    botcorps_set_surface(BOTCORPS_SURFACE_CONTENT);
+    auto &g = botcorps_content();
+    part_begin(g, x, y, 49, 16);
+    plate(g, x, y, 49, 16, sel ? COL_SEL : COL_BG, sel ? accent() : COL_LINE);
+    txt(g, CMDS[index], x + 24, y + 4, sel ? COL_WHITE : COL_MUTED, lgfx::textdatum::top_center);
+    part_end(g);
+}
+
+static int sheet_row_y(int index, int top)
+{
+    return 28 + (index - top) * 16;
+}
+
+static void partial_sheet(void)
+{
+    if (!botcorps_dual_ok()) {
+        s_dirty = true;
+        return;
+    }
+    botcorps_set_surface(BOTCORPS_SURFACE_CONTENT);
+    auto &g = botcorps_content();
+    part_begin(g, 8, 21, 304, 142);
+    paint_sheet(g);
+    part_end(g);
+}
+
+static void partial_sheet_row(int index, int top)
+{
+    if (index < top || index >= top + 8) return;
+    if (!botcorps_dual_ok()) {
+        s_dirty = true;
+        return;
+    }
+    const int y = sheet_row_y(index, top);
+    const bool sel = index == s_sheet_i;
+    botcorps_set_surface(BOTCORPS_SURFACE_CONTENT);
+    auto &g = botcorps_content();
+    part_begin(g, 14, y, 292, 15);
+    g.fillRect(14, y, 292, 15, sel ? COL_SEL : COL_BG);
+    txt(g, CMDS[index], 18, y + 3, sel ? accent() : COL_INK, lgfx::textdatum::top_left);
+    txt(g, CMD_ABOUT[index], 92, y + 3, COL_MUTED, lgfx::textdatum::top_left);
+    part_end(g);
+}
+
+static void partial_portrait(int bot_index)
+{
+    if (!botcorps_dual_ok()) {
+        s_dirty = true;
+        return;
+    }
+    botcorps_set_surface(BOTCORPS_SURFACE_CONTENT);
+    tick_home(botcorps_content(), bot_index);
+    partial_int();
+}
+
 static void move_cursor(int d)
 {
     const int n = button_count();
     if (n <= 0) return;
+    const int old = s_cursor;
     s_cursor = (s_cursor + d + n) % n;
-    s_dirty = true;
+    if (s_cursor != old) partial_cursor(old, s_cursor);
+}
+
+static int sheet_top_for(int index)
+{
+    int top = index - 3;
+    if (top < 0) top = 0;
+    if (top > 4) top = 4;
+    return top;
 }
 
 static void on_arrows(int key)
 {
     if (s_screen == SCR_TERMINAL) {
         if (s_sheet) {
+            const int old = s_sheet_i;
+            const int old_top = sheet_top_for(old);
             if (key == 1) s_sheet_i = (s_sheet_i + 11) % 12;
             if (key == 2) s_sheet_i = (s_sheet_i + 1) % 12;
-            s_dirty = true;
+            const int top = sheet_top_for(s_sheet_i);
+            if (top != old_top) {
+                partial_sheet();
+            } else if (s_sheet_i != old) {
+                partial_sheet_row(old, top);
+                partial_sheet_row(s_sheet_i, top);
+            }
             return;
         }
         if (botcorps_t0_term_prompt[0] && (key == 1 || key == 2)) {
@@ -1209,15 +1570,20 @@ static void on_arrows(int key)
             } else {
                 snprintf(botcorps_t0_term_prompt, 80, "%s", botcorps_t0_term_hist[s_hist_i]);
             }
-            s_dirty = true;
+            partial_prompt_line();
             return;
         }
         if (s_focus_cmds) {
+            const int old = s_cmd_sel;
             const int d = key == 3 ? -1 : key == 4 ? 1 : key == 1 ? -6 : 6;
             s_cmd_sel = (s_cmd_sel + d + 12) % 12;
-            s_dirty = true;
+            if (s_cmd_sel != old) {
+                partial_chip(old);
+                partial_chip(s_cmd_sel);
+            }
             return;
         }
+        const int old = s_term;
         int c = s_term % 4;
         int r = s_term / 4;
         if (key == 3) c = (c + 3) % 4;
@@ -1225,7 +1591,11 @@ static void on_arrows(int key)
         if (key == 1) r = (r + 2) % 3;
         if (key == 2) r = (r + 1) % 3;
         s_term = r * 4 + c;
-        s_dirty = true;
+        if (s_term != old) {
+            partial_tile(old);
+            partial_tile(s_term);
+            partial_int();
+        }
         return;
     }
     if (s_screen == SCR_CONTROL) {
@@ -1235,7 +1605,7 @@ static void on_arrows(int key)
             if (s_cursor >= 7) move_cursor(key == 4 ? 1 : -1);
             else {
                 nudge_row(key == 4 ? 1 : -1);
-                s_dirty = true;
+                partial_box(s_cursor, true);
             }
         }
         return;
@@ -1246,8 +1616,10 @@ static void on_arrows(int key)
         i += (key == 4) ? 1 : -1;
         if (i < 2) i = 11;
         if (i > 11) i = 2;
-        s_bot = i;
-        s_dirty = true;
+        if (i != s_bot) {
+            s_bot = i;
+            partial_portrait(s_bot);
+        }
         return;
     }
     if (key == 1 || key == 3) move_cursor(-1);
@@ -1294,17 +1666,11 @@ static void on_ok(void)
 
 static void on_esc(void)
 {
-    if (s_screen == SCR_TERMINAL) {
-        if (s_sheet) {
-            s_sheet = false;
-            s_dirty = true;
-            return;
-        }
-        if (botcorps_t0_term_prompt[0]) {
-            botcorps_t0_term_prompt[0] = 0;
-            s_dirty = true;
-            return;
-        }
+    if (s_screen == SCR_TERMINAL && (s_sheet || s_focus_cmds)) {
+        s_sheet = false;
+        s_focus_cmds = false;
+        s_dirty = true;
+        return;
     }
     go_back();
 }
@@ -1326,7 +1692,7 @@ static void on_tab(void)
     }
     if (!hit) return;
     snprintf(botcorps_t0_term_prompt, 60, "%s ", hit);
-    s_dirty = true;
+    partial_prompt_line();
 }
 
 static void on_char(char c)
@@ -1337,7 +1703,7 @@ static void on_char(char c)
     if (n + 1 >= 60) return;
     botcorps_t0_term_prompt[n] = c;
     botcorps_t0_term_prompt[n + 1] = 0;
-    s_dirty = true;
+    partial_prompt_line();
 }
 
 static void on_bs(void)
@@ -1349,7 +1715,7 @@ static void on_bs(void)
     const size_t n = strlen(botcorps_t0_term_prompt);
     if (n == 0) return;
     botcorps_t0_term_prompt[n - 1] = 0;
-    s_dirty = true;
+    partial_prompt_line();
 }
 
 enum { K_NONE = 0, K_UP = 1, K_DN = 2, K_LT = 3, K_RT = 4, K_OK = 5, K_ESC = 6, K_TAB = 7, K_BS = 8, K_CHAR = 9 };

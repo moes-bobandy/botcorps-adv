@@ -108,6 +108,7 @@ bool botcorps_dual_begin(void)
      * One retry on begin or size failure. Pins and rotation stay. */
     g_ext.setColorDepth(16);
     bool up = false;
+    bool live = false;
     for (int attempt = 0; attempt < 2 && !up; ++attempt) {
         if (attempt) {
             Serial.println("[botcorps] ILI9341 begin retry");
@@ -115,10 +116,8 @@ bool botcorps_dual_begin(void)
             g_ext.releaseBus();
             delay(50);
         }
-        if (!g_ext.begin()) {
-            g_ext.fillScreen(0x0000);
-            continue;
-        }
+        if (!g_ext.begin()) continue;
+        live = true;
         delay(50);
         g_ext.setRotation(3);
         g_ext.setTextWrap(false, false);
@@ -132,7 +131,7 @@ bool botcorps_dual_begin(void)
         }
     }
     if (!up) {
-        g_ext.fillScreen(0x0000);
+        if (live) g_ext.fillScreen(0x0000);
         Serial.println("[botcorps] ILI9341 begin() failed — content stays on ST7789");
         s_ext_ok = false;
         pinMode(BOTCORPS_PIN_LCD_CS, OUTPUT);

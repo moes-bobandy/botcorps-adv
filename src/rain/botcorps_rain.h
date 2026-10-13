@@ -16,10 +16,11 @@
 /* 0 = MULTI (the 14-colour palette). 1..6 = solid inks. */
 #define BOTCORPS_RAIN_COLORS 7
 
-/* 0 = bots and code, 1 = bots only, 2 = code only. */
+/* 0 = bots and code, 1 = bots only, 2 = code only, 3 = device icons and code. */
 #define BOTCORPS_RAIN_MIX_CREW 0
 #define BOTCORPS_RAIN_MIX_BOTS 1
 #define BOTCORPS_RAIN_MIX_CODE 2
+#define BOTCORPS_RAIN_MIX_DEV  3
 
 struct botcorps_cover_t {
     int16_t x;

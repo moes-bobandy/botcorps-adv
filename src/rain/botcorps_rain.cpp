@@ -1,57 +1,32 @@
 /*
- * Rain look from the approved desktop mock (dense, bots + code, 90 ms).
- *
- * Dense pitch in that script is gap = 6 (ceil(320/6) = 54, plus the
- * script's extra column). The 8px pitch is the non-dense setting.
- * Mix is bots and code only: a bot every third column, code on the
- * rest, then seven anchored bots. No device glyphs.
- *
- * Fade is rgba(3,12,6,0.18) over the previous frame. The external
- * panel cannot be read back, so the fade runs in the sprite buffer.
+ * Cell-grid rain. Gap 6, 140 ms, drawn straight to the external panel.
+ * The 3×1200 cell planes and the 56×8 column records are the Tier 0
+ * buffers. No 153600-byte sprite is allocated.
  */
 #include "rain/botcorps_rain.h"
 
 #include "display/botcorps_display.h"
 
-#include <lgfx/v1/LGFX_Sprite.hpp>
 #include <string.h>
 
+extern uint8_t botcorps_t0_rain_cell[3][1200];
+extern uint8_t botcorps_t0_rain_col[56][8];
+
 static const uint16_t COL_FIELD = 0x0041; /* #070a08 */
-static const uint16_t COL_EYE   = 0x0080; /* #061006 */
-static const uint16_t COL_CODE  = 0x7E6C; /* #7dce62 */
-static const uint16_t COL_HEAD  = 0xEFF9; /* #e9ffc8 */
-static const int FADE_R = 3, FADE_G = 12, FADE_B = 6;
-static const int FADE_A = 46;   /* 0.18 * 256 */
-static const int BACK_A = 141;  /* 0.55 * 256 */
+static const uint16_t COL_EYE   = 0x0080;
+static const uint16_t COL_CODE  = 0x7E6C;
+static const uint16_t COL_HEAD  = 0xEFF9;
+static const int FADE_A = 46;
+static const int BACK_A = 141;
 
 static const uint16_t PALETTE[14] = {
     0x9F0B, 0xFDC9, 0x36B8, 0xAC7F, 0xFB72, 0x5D3F, 0xF689,
     0xFA69, 0xE2FF, 0xCF89, 0xF79C, 0xFC43, 0x6BBF, 0x5FF8,
 };
 
-/*
- * Solid inks are native RGB565. draw_bot / setTextColor / fillRect send
- * them through the library, which stores swap565. sprite_fade_all and
- * sprite_blend_rect then bswap on load and store. Nothing writes a raw
- * native tint into the sprite buffer.
- *
- * MULTI (s_mode == 0) keeps PALETTE, COL_CODE, COL_HEAD, and the fade
- * target (3,12,6). Pick, wrap, and column rules are unchanged.
- *
- * Solid fade target is unpack(0x0041) = RGB(0,8,8), the near-black field.
- * blend565(dst, 0, 8, 8, 46) has equilibrium (0,8,8), so green, cyan,
- * blue, purple, amber, and white all settle on the field, not on a
- * tinted floor. The 7x6 bot is the full ink, so the six hues stay apart.
- */
 static const uint16_t SOLID_INK[6] = {
-    0x26E8, /* green  33,223,66  */
-    0x269C, /* cyan   33,211,231 */
-    0x331F, /* blue   49,97,255  */
-    0xB21F, /* purple 181,65,255 */
-    0xF586, /* amber  247,178,49 */
-    0xFFFF, /* white  255,255,255 */
+    0x26E8, 0x269C, 0x331F, 0xB21F, 0xF586, 0xFFFF,
 };
-static int s_mode = 0;
 
 static const char CODE_GLYPHS[] = "01<>[]{}:/\\|+-=*#";
 static const int CODE_N = 18;
@@ -61,48 +36,23 @@ static const int RAIN_COLS = 56;
 static const int CELL = 8;
 static const int CELL_COLS = 40;
 static const int CELL_ROWS = 30;
+static const int CELL_N = CELL_COLS * CELL_ROWS;
 
-enum { KIND_CODE = 0, KIND_BOT = 1 };
+enum { KIND_OFF = 0, KIND_CODE = 1, KIND_BOT = 2 };
 
-struct col_t {
-    int16_t y;
-    uint8_t kind;
-    uint8_t hat;
-    uint8_t trail;
-    uint8_t color;
-    uint8_t jitter; /* 0..35, percent of steps held */
-};
-
-static col_t s_cols[RAIN_COLS];
+static int s_mode = 0;
+static int s_mix = BOTCORPS_RAIN_MIX_CREW;
 static int s_ncols = 0;
-static int s_w = 0;
-static int s_h = 0;
+static int s_h = 240;
 static uint32_t s_rng = 0xA5C3E1u;
 static uint32_t s_last_ms = 0;
-static uint32_t s_acc_ms = 0;
-static bool s_started = false;
-
-static lgfx::LGFX_Sprite *s_sprite = nullptr;
-static bool s_use_sprite = false;
-static bool s_path_logged = false;
-static bool s_parked = false;
-static bool s_roundtrip_logged = false;
-
-/*
- * Worked example. Native COL_FIELD 0x0041 is #070a08 (R5=0, G6=2, B5=1).
- * A default LGFX 16 bpp sprite stores swap565, so that word sits in the
- * buffer as __builtin_bswap16(0x0041) == 0x4100. Reading 0x4100 as native
- * RGB565 is R5=8, G6=8, B5=0 ≈ RGB(66,32,0), the dark red the glass
- * showed. Fade then walked the field toward that red. Load with bswap,
- * blend in native 565, store with bswap: 0x4100 → 0x0041 → blend →
- * bswap back, and 0x0041 round-trips to near-black RGB(0,8,8).
- */
-static_assert(__builtin_bswap16(0x0041) == 0x4100, "COL_FIELD swap565");
-
-/* Fallback memory: one brightness and one color id per 8x8 cell. */
-static uint8_t s_cell_fade[CELL_COLS * CELL_ROWS];
-static uint8_t s_cell_id[CELL_COLS * CELL_ROWS];
-static uint8_t s_cell_glyph[CELL_COLS * CELL_ROWS];
+static bool s_built = false;
+static bool s_draw = false;
+static bool s_logged = false;
+static bool s_radar = false;
+static botcorps_cover_t s_cover[24];
+static int s_ncover = 0;
+static uint8_t s_dirty[(CELL_N + 7) / 8];
 
 static uint32_t rnd_u(void)
 {
@@ -123,9 +73,9 @@ static int js_round_pos(float x)
 
 static void unpack565(uint16_t p, int *r, int *g, int *b)
 {
-    int r5 = (p >> 11) & 31;
-    int g6 = (p >> 5) & 63;
-    int b5 = p & 31;
+    const int r5 = (p >> 11) & 31;
+    const int g6 = (p >> 5) & 63;
+    const int b5 = p & 31;
     *r = (r5 << 3) | (r5 >> 2);
     *g = (g6 << 2) | (g6 >> 4);
     *b = (b5 << 3) | (b5 >> 2);
@@ -145,7 +95,7 @@ static uint16_t pack565(int r, int g, int b)
 static uint16_t blend565(uint16_t dst, int sr, int sg, int sb, int a)
 {
     int r, g, b;
-    int inv = 256 - a;
+    const int inv = 256 - a;
     unpack565(dst, &r, &g, &b);
     r = (sr * a + r * inv) >> 8;
     g = (sg * a + g * inv) >> 8;
@@ -156,9 +106,9 @@ static uint16_t blend565(uint16_t dst, int sr, int sg, int sb, int a)
 static void trail_rgb(int *r, int *g, int *b)
 {
     if (s_mode == 0) {
-        *r = FADE_R;
-        *g = FADE_G;
-        *b = FADE_B;
+        *r = 3;
+        *g = 12;
+        *b = 6;
         return;
     }
     *r = 0;
@@ -191,13 +141,31 @@ static uint16_t code_ink(bool head)
     return scale_native(c, 168, 256);
 }
 
+static uint8_t *col_at(int i)
+{
+    return botcorps_t0_rain_col[i];
+}
+
+static int16_t col_y(int i)
+{
+    const uint8_t *p = col_at(i);
+    return (int16_t)((uint16_t)p[0] | ((uint16_t)p[1] << 8));
+}
+
+static void col_set_y(int i, int16_t y)
+{
+    uint8_t *p = col_at(i);
+    p[0] = (uint8_t)(uint16_t)y;
+    p[1] = (uint8_t)((uint16_t)y >> 8);
+}
+
 static int pick_bot_color(int self)
 {
     bool used[14] = {};
     int free_n = 0;
     for (int i = 0; i < s_ncols; ++i) {
-        if (i == self || s_cols[i].kind != KIND_BOT) continue;
-        if (s_cols[i].color < 14) used[s_cols[i].color] = true;
+        if (i == self || col_at(i)[2] != KIND_BOT) continue;
+        if (col_at(i)[5] < 14) used[col_at(i)[5]] = true;
     }
     for (int i = 0; i < 14; ++i) {
         if (!used[i]) ++free_n;
@@ -212,143 +180,150 @@ static int pick_bot_color(int self)
     return 0;
 }
 
-static void build_columns(int width, int height)
+static void build_columns(void)
 {
-    s_ncols = (width + GAP - 1) / GAP + 1;
+    s_ncols = (320 + GAP - 1) / GAP + 1;
     if (s_ncols > RAIN_COLS) s_ncols = RAIN_COLS;
+    memset(botcorps_t0_rain_cell, 0, sizeof(botcorps_t0_rain_cell));
+    memset(botcorps_t0_rain_col, 0, sizeof(botcorps_t0_rain_col));
+    memset(s_dirty, 0, sizeof(s_dirty));
     for (int i = 0; i < s_ncols; ++i) {
-        s_cols[i].y = (int16_t)rnd_n(height);
-        s_cols[i].kind = (i % 3 == 0) ? KIND_BOT : KIND_CODE;
-        s_cols[i].hat = (uint8_t)(i % 2 == 0);
-        s_cols[i].trail = (uint8_t)(rnd_n(100) < 15);
-        s_cols[i].color = (uint8_t)rnd_n(14);
-        s_cols[i].jitter = (uint8_t)rnd_n(36);
+        uint8_t *c = col_at(i);
+        uint8_t kind = KIND_CODE;
+        if (s_mix == BOTCORPS_RAIN_MIX_BOTS) kind = (i % 2 == 0) ? KIND_BOT : KIND_OFF;
+        else if (s_mix == BOTCORPS_RAIN_MIX_CODE) kind = KIND_CODE;
+        else kind = (i % 3 == 0) ? KIND_BOT : KIND_CODE;
+        col_set_y(i, (int16_t)rnd_n(s_h));
+        c[2] = kind;
+        c[3] = (uint8_t)(i % 2 == 0);
+        c[4] = (uint8_t)(rnd_n(100) < 15);
+        c[5] = (uint8_t)rnd_n(14);
+        c[6] = (uint8_t)rnd_n(36);
     }
-    uint8_t deal[14];
-    for (int i = 0; i < 14; ++i) deal[i] = (uint8_t)i;
-    for (int i = 13; i > 0; --i) {
-        int j = rnd_n(i + 1);
-        uint8_t tmp = deal[i];
-        deal[i] = deal[j];
-        deal[j] = tmp;
-    }
-    bool taken[RAIN_COLS] = {};
-    const int anchors = 7;
-    for (int k = 0; k < anchors; ++k) {
-        int idx = js_round_pos((k + 0.5f) * (float)(s_ncols - 1) / (float)anchors);
-        if (idx < 0) idx = 0;
-        if (idx >= s_ncols) idx = s_ncols - 1;
-        int guard = 0;
-        while (taken[idx] && guard < s_ncols) {
-            idx = (idx + 1) % s_ncols;
-            ++guard;
+    if (s_mix != BOTCORPS_RAIN_MIX_CODE) {
+        uint8_t deal[14];
+        bool taken[RAIN_COLS] = {};
+        for (int i = 0; i < 14; ++i) deal[i] = (uint8_t)i;
+        for (int i = 13; i > 0; --i) {
+            const int j = rnd_n(i + 1);
+            const uint8_t tmp = deal[i];
+            deal[i] = deal[j];
+            deal[j] = tmp;
         }
-        taken[idx] = true;
-        s_cols[idx].kind = KIND_BOT;
-        s_cols[idx].y = (int16_t)(((k + 0.2f) / (float)anchors) * (float)height);
-        s_cols[idx].hat = (uint8_t)(k % 2 == 0);
-        s_cols[idx].color = deal[k];
-    }
-    s_w = width;
-    s_h = height;
-}
-
-static void draw_bot(lgfx::LovyanGFX &g, int x, int y, uint16_t color, bool hat)
-{
-    const int top = hat ? 1 : 0;
-    if (hat) g.fillRect(x, y, 7, 1, color);
-    g.fillRect(x, y + top, 7, 6, color);
-    const int ey = y + top + 2;
-    g.fillRect(x + 1, ey, 2, 2, COL_EYE);
-    g.fillRect(x + 4, ey, 2, 2, COL_EYE);
-}
-
-static bool sprite_is_swapped(const lgfx::LGFX_Sprite &spr)
-{
-    const uint16_t depth = (uint16_t)spr.getColorDepth();
-    const uint16_t bpp = (uint16_t)(depth & (uint16_t)lgfx::color_depth_t::bit_mask);
-    if (bpp != 16) return false;
-    return (depth & (uint16_t)lgfx::color_depth_t::nonswapped) == 0;
-}
-
-static uint16_t mem_to_native(uint16_t raw, bool swapped)
-{
-    return swapped ? (uint16_t)__builtin_bswap16(raw) : raw;
-}
-
-static uint16_t native_to_mem(uint16_t native, bool swapped)
-{
-    return swapped ? (uint16_t)__builtin_bswap16(native) : native;
-}
-
-static void sprite_blend_rect(lgfx::LGFX_Sprite &spr, int x, int y, int w, int h, int a)
-{
-    uint16_t *base = (uint16_t *)spr.getBuffer();
-    if (!base) return;
-    const bool swapped = sprite_is_swapped(spr);
-    int fr, fg, fb;
-    trail_rgb(&fr, &fg, &fb);
-    const int sw = spr.width();
-    const int sh = spr.height();
-    const size_t stride = (sh > 0) ? (spr.bufferLength() / (size_t)sh) / 2u : (size_t)sw;
-    for (int row = 0; row < h; ++row) {
-        const int py = y + row;
-        if (py < 0 || py >= sh) continue;
-        uint16_t *line = base + (size_t)py * stride;
-        for (int col = 0; col < w; ++col) {
-            const int px = x + col;
-            if (px < 0 || px >= sw) continue;
-            const uint16_t native = mem_to_native(line[px], swapped);
-            line[px] = native_to_mem(blend565(native, fr, fg, fb, a), swapped);
+        const int anchors = 7;
+        for (int k = 0; k < anchors; ++k) {
+            int idx = js_round_pos((k + 0.5f) * (float)(s_ncols - 1) / (float)anchors);
+            if (idx < 0) idx = 0;
+            if (idx >= s_ncols) idx = s_ncols - 1;
+            int guard = 0;
+            while (taken[idx] && guard < s_ncols) {
+                idx = (idx + 1) % s_ncols;
+                ++guard;
+            }
+            taken[idx] = true;
+            uint8_t *c = col_at(idx);
+            c[2] = KIND_BOT;
+            col_set_y(idx, (int16_t)(((k + 0.2f) / (float)anchors) * (float)s_h));
+            c[3] = (uint8_t)(k % 2 == 0);
+            c[5] = deal[k];
         }
     }
-}
-
-static void sprite_fade_all(lgfx::LGFX_Sprite &spr)
-{
-    uint16_t *base = (uint16_t *)spr.getBuffer();
-    if (!base) return;
-    const bool swapped = sprite_is_swapped(spr);
-    int fr, fg, fb;
-    trail_rgb(&fr, &fg, &fb);
-    const int sw = spr.width();
-    const int sh = spr.height();
-    const size_t stride = (sh > 0) ? (spr.bufferLength() / (size_t)sh) / 2u : (size_t)sw;
-    for (int y = 0; y < sh; ++y) {
-        uint16_t *line = base + (size_t)y * stride;
-        for (int x = 0; x < sw; ++x) {
-            const uint16_t native = mem_to_native(line[x], swapped);
-            line[x] = native_to_mem(blend565(native, fr, fg, fb, FADE_A), swapped);
-        }
+    s_built = true;
+    if (!s_logged) {
+        s_logged = true;
+        Serial.printf("[botcorps] rain path=cells %dx%d step=%d\n",
+                      CELL_COLS, CELL_ROWS, STEP_MS);
     }
 }
 
-static void log_field_roundtrip(lgfx::LGFX_Sprite &spr)
+static int cell_index(int cx, int cy)
 {
-    if (s_roundtrip_logged) return;
-    const uint16_t *base = (const uint16_t *)spr.getBuffer();
-    if (!base) return;
-    s_roundtrip_logged = true;
-    const bool swapped = sprite_is_swapped(spr);
-    const uint16_t raw = base[0];
-    const uint16_t native = mem_to_native(raw, swapped);
-    int mr, mg, mb, nr, ng, nb;
-    unpack565(raw, &mr, &mg, &mb);
-    unpack565(native, &nr, &ng, &nb);
-    Serial.printf("[botcorps] field roundtrip raw=0x%04X native=0x%04X swapped=%d "
-                  "misread_rgb=%d,%d,%d native_rgb=%d,%d,%d\n",
-                  raw, native, swapped ? 1 : 0, mr, mg, mb, nr, ng, nb);
+    if (cx < 0 || cy < 0 || cx >= CELL_COLS || cy >= CELL_ROWS) return -1;
+    return cy * CELL_COLS + cx;
 }
 
-static void draw_code(lgfx::LovyanGFX &g, int x, int y, bool head)
+static void mark_dirty(int i)
 {
-    const char ch = CODE_GLYPHS[rnd_n(CODE_N)];
-    g.setTextWrap(false, false);
-    g.setTextDatum(lgfx::textdatum::top_left);
-    g.setTextSize(1);
-    g.setTextColor(code_ink(head));
-    g.setCursor(x, y);
-    g.print(ch);
+    if (i < 0 || i >= CELL_N) return;
+    s_dirty[i >> 3] = (uint8_t)(s_dirty[i >> 3] | (uint8_t)(1u << (i & 7)));
+}
+
+static bool take_dirty(int i)
+{
+    const uint8_t bit = (uint8_t)(1u << (i & 7));
+    if ((s_dirty[i >> 3] & bit) == 0) return false;
+    s_dirty[i >> 3] = (uint8_t)(s_dirty[i >> 3] & (uint8_t)~bit);
+    return true;
+}
+
+static bool cell_hidden(int cx, int cy)
+{
+    const int x = cx * CELL;
+    const int y = cy * CELL;
+    for (int i = 0; i < s_ncover; ++i) {
+        const botcorps_cover_t &b = s_cover[i];
+        if (x < b.x + b.w && x + CELL > b.x && y < b.y + b.h && y + CELL > b.y) {
+            return true;
+        }
+    }
+    if (s_radar) {
+        const int dx = x + CELL / 2 - 160;
+        const int dy = y + CELL / 2 - 108;
+        if (dx * dx + dy * dy < 88 * 88) return true;
+    }
+    return false;
+}
+
+static void cell_paint(lgfx::LGFX_Device &panel, int cx, int cy)
+{
+    const int i = cell_index(cx, cy);
+    if (i < 0 || cell_hidden(cx, cy)) return;
+    const int x = cx * CELL;
+    const int y = cy * CELL;
+    const uint8_t fade = botcorps_t0_rain_cell[0][i];
+    const uint8_t id = botcorps_t0_rain_cell[1][i];
+    uint16_t color = COL_FIELD;
+    if (fade > 0 && id != 0) {
+        int fr, fg, fb;
+        trail_rgb(&fr, &fg, &fb);
+        uint16_t base = code_ink(false);
+        if (id == 16) base = code_ink(true);
+        else if (id == 17) base = blend565(COL_FIELD, fr, fg, fb, BACK_A);
+        else if (id <= 14) base = bot_ink((uint8_t)(id - 1));
+        int a = 256 - (fade * 16);
+        if (a > 255) a = 255;
+        color = blend565(base, fr, fg, fb, a);
+    }
+    panel.fillRect(x, y, CELL, CELL, color);
+    if (fade > 10 && id >= 1 && id <= 14) {
+        panel.fillRect(x + 1, y + 2, 2, 2, COL_EYE);
+        panel.fillRect(x + 4, y + 2, 2, 2, COL_EYE);
+    } else if (fade > 8 && (id == 15 || id == 16)) {
+        const char ch = CODE_GLYPHS[botcorps_t0_rain_cell[2][i] % CODE_N];
+        panel.setTextSize(1);
+        panel.setTextColor(color);
+        panel.setCursor(x, y);
+        panel.print(ch);
+    }
+}
+
+static void cell_stamp(int x, int y, int w, int h, uint8_t id, uint8_t glyph)
+{
+    if (w <= 0 || h <= 0) return;
+    const int x0 = x < 0 ? 0 : x;
+    const int y0 = y < 0 ? 0 : y;
+    const int x1 = x + w;
+    const int y1 = y + h;
+    for (int cy = y0 / CELL; cy <= (y1 - 1) / CELL; ++cy) {
+        for (int cx = x0 / CELL; cx <= (x1 - 1) / CELL; ++cx) {
+            const int i = cell_index(cx, cy);
+            if (i < 0) continue;
+            botcorps_t0_rain_cell[0][i] = 15;
+            botcorps_t0_rain_cell[1][i] = id;
+            botcorps_t0_rain_cell[2][i] = glyph;
+            mark_dirty(i);
+        }
+    }
 }
 
 static bool code_is_head(int index, int y)
@@ -362,177 +337,126 @@ static bool code_is_head(int index, int y)
     return m == 0;
 }
 
-static void draw_column(lgfx::LovyanGFX &g, int index, bool blend_back)
+static void fade_cells(void)
 {
-    col_t &c = s_cols[index];
-    const int x = index * GAP;
-    if (c.kind == KIND_BOT) {
-        if (!c.trail && blend_back && s_sprite) {
-            sprite_blend_rect(*s_sprite, x - 1, c.y - 18, 12, 28, BACK_A);
+    for (int i = 0; i < CELL_N; ++i) {
+        uint8_t fade = botcorps_t0_rain_cell[0][i];
+        if (fade == 0) continue;
+        const uint8_t next = (uint8_t)((fade * 210) >> 8);
+        if (next == fade) continue;
+        fade = next;
+        if (fade < 2) {
+            fade = 0;
+            botcorps_t0_rain_cell[1][i] = 0;
         }
-        draw_bot(g, x, c.y, bot_ink(c.color), c.hat != 0);
-    } else {
-        draw_code(g, x, c.y, code_is_head(index, c.y));
+        botcorps_t0_rain_cell[0][i] = fade;
+        mark_dirty(i);
     }
 }
 
-static void step_columns(lgfx::LovyanGFX &g, bool blend_back)
+static void step_columns(void)
 {
     for (int i = 0; i < s_ncols; ++i) {
-        col_t &c = s_cols[i];
-        if (rnd_n(100) < c.jitter) continue;
-        draw_column(g, i, blend_back);
-        c.y = (int16_t)(c.y + GAP);
-        if (c.y > s_h + GAP) {
-            c.y = (int16_t)(-GAP - rnd_n(4) * GAP);
-            if (c.kind == KIND_BOT) c.color = (uint8_t)pick_bot_color(i);
+        uint8_t *c = col_at(i);
+        if (c[2] == KIND_OFF) continue;
+        if (rnd_n(100) < c[6]) continue;
+        const int x = i * GAP;
+        const int y = col_y(i);
+        if (c[2] == KIND_BOT) {
+            if (!c[4]) cell_stamp(x - 1, y - 18, 12, 28, 17, 0);
+            cell_stamp(x, y, 7, c[3] ? 7 : 6, (uint8_t)(c[5] + 1), 0);
+        } else {
+            const bool head = code_is_head(i, y);
+            const uint8_t glyph = (uint8_t)rnd_n(CODE_N);
+            cell_stamp(x, y, 6, 8, head ? 16 : 15, glyph);
         }
-    }
-}
-
-static int cell_index(int cx, int cy)
-{
-    if (cx < 0 || cy < 0 || cx >= CELL_COLS || cy >= CELL_ROWS) return -1;
-    return cy * CELL_COLS + cx;
-}
-
-static void cell_paint(lgfx::LGFX_Device &panel, int cx, int cy)
-{
-    const int i = cell_index(cx, cy);
-    if (i < 0) return;
-    const int x = cx * CELL;
-    const int y = cy * CELL;
-    const uint8_t fade = s_cell_fade[i];
-    uint16_t color = COL_FIELD;
-    if (fade > 0 && s_cell_id[i] != 0) {
-        int fr, fg, fb;
-        trail_rgb(&fr, &fg, &fb);
-        uint16_t base = code_ink(false);
-        if (s_cell_id[i] == 16) base = code_ink(true);
-        else if (s_cell_id[i] == 17) base = blend565(COL_FIELD, fr, fg, fb, BACK_A);
-        else if (s_cell_id[i] <= 14) base = bot_ink((uint8_t)(s_cell_id[i] - 1));
-        const int a = 256 - (fade * 16);
-        color = blend565(base, fr, fg, fb, a > 255 ? 255 : a);
-    }
-    panel.fillRect(x, y, CELL, CELL, color);
-    if (fade > 10 && s_cell_id[i] >= 1 && s_cell_id[i] <= 14) {
-        panel.fillRect(x + 1, y + 2, 2, 2, COL_EYE);
-        panel.fillRect(x + 4, y + 2, 2, 2, COL_EYE);
-    } else if (fade > 8 && (s_cell_id[i] == 15 || s_cell_id[i] == 16)) {
-        const char ch = CODE_GLYPHS[s_cell_glyph[i] % CODE_N];
-        panel.setTextSize(1);
-        panel.setTextColor(color);
-        panel.setCursor(x, y);
-        panel.print(ch);
-    }
-}
-
-static void cell_stamp(lgfx::LGFX_Device &panel, int x, int y, int w, int h,
-                       uint8_t id, uint8_t glyph)
-{
-    if (w <= 0 || h <= 0) return;
-    const int x0 = x < 0 ? 0 : x;
-    const int y0 = y < 0 ? 0 : y;
-    const int x1 = x + w;
-    const int y1 = y + h;
-    for (int cy = y0 / CELL; cy <= (y1 - 1) / CELL; ++cy) {
-        for (int cx = x0 / CELL; cx <= (x1 - 1) / CELL; ++cx) {
-            const int i = cell_index(cx, cy);
-            if (i < 0) continue;
-            s_cell_fade[i] = 15;
-            s_cell_id[i] = id;
-            s_cell_glyph[i] = glyph;
-            cell_paint(panel, cx, cy);
+        int ny = y + GAP;
+        if (ny > s_h + GAP) {
+            ny = -GAP - rnd_n(4) * GAP;
+            if (c[2] == KIND_BOT) c[5] = (uint8_t)pick_bot_color(i);
         }
+        col_set_y(i, (int16_t)ny);
     }
 }
 
-/* Fallback never walks a sprite buffer. fillRect goes through the
- * panel color converter, so COL_FIELD 0x0041 stays near-black. */
-static void fallback_fade_and_draw(lgfx::LGFX_Device &panel)
+static void paint_dirty(lgfx::LGFX_Device &panel)
 {
-    for (int i = 0; i < CELL_COLS * CELL_ROWS; ++i) {
-        if (s_cell_fade[i] == 0) continue;
-        const uint8_t next = (uint8_t)((s_cell_fade[i] * 210) >> 8);
-        if (next == s_cell_fade[i]) continue;
-        s_cell_fade[i] = next;
-        if (s_cell_fade[i] < 2) {
-            s_cell_fade[i] = 0;
-            s_cell_id[i] = 0;
-        }
+    panel.startWrite();
+    panel.setTextWrap(false, false);
+    for (int i = 0; i < CELL_N; ++i) {
+        if (!take_dirty(i)) continue;
         cell_paint(panel, i % CELL_COLS, i / CELL_COLS);
     }
-    for (int i = 0; i < s_ncols; ++i) {
-        col_t &c = s_cols[i];
-        if (rnd_n(100) < c.jitter) continue;
-        const int x = i * GAP;
-        if (c.kind == KIND_BOT) {
-            if (!c.trail) {
-                cell_stamp(panel, x - 1, c.y - 18, 12, 28, 17, 0);
-            }
-            cell_stamp(panel, x, c.y, 7, c.hat ? 7 : 6, (uint8_t)(c.color + 1), 0);
-        } else {
-            const bool head = code_is_head(i, c.y);
-            const uint8_t glyph = (uint8_t)rnd_n(CODE_N);
-            cell_stamp(panel, x, c.y, 6, 8, head ? 16 : 15, glyph);
-        }
-        c.y = (int16_t)(c.y + GAP);
-        if (c.y > s_h + GAP) {
-            c.y = (int16_t)(-GAP - rnd_n(4) * GAP);
-            if (c.kind == KIND_BOT) c.color = (uint8_t)pick_bot_color(i);
-        }
-    }
+    panel.endWrite();
 }
 
-static bool ensure_sprite(lgfx::LGFX_Device &panel, int width, int height)
+static void paint_all(lgfx::LGFX_Device &panel)
 {
-    if (s_parked) return false;
-    if (s_path_logged && !s_use_sprite) return false;
-    if (s_sprite && s_sprite->width() == width && s_sprite->height() == height) {
-        return true;
+    panel.startWrite();
+    panel.setTextWrap(false, false);
+    for (int i = 0; i < CELL_N; ++i) {
+        s_dirty[i >> 3] = 0;
+        cell_paint(panel, i % CELL_COLS, i / CELL_COLS);
     }
-    delete s_sprite;
-    s_sprite = nullptr;
-    const size_t bytes = (size_t)width * (size_t)height * 2u;
-    const size_t max_alloc = ESP.getMaxAllocHeap();
-#if BOTCORPS_RADIO
-    const size_t margin = 48u * 1024u;
-#else
-    const size_t margin = 8192u;
-#endif
-    if (max_alloc < bytes + margin) {
-        s_use_sprite = false;
-        if (!s_path_logged) {
-            Serial.printf("[botcorps] rain path=fallback cells=%dx%d max_alloc=%u need=%u\n",
-                          CELL_COLS, CELL_ROWS, (unsigned)max_alloc,
-                          (unsigned)(bytes + margin));
-            s_path_logged = true;
-        }
-        return false;
+    panel.endWrite();
+}
+
+void botcorps_rain_set_covers(const botcorps_cover_t *boxes, int n, bool radar_disc)
+{
+    if (n < 0) n = 0;
+    if (n > (int)(sizeof(s_cover) / sizeof(s_cover[0]))) {
+        n = (int)(sizeof(s_cover) / sizeof(s_cover[0]));
     }
-    s_sprite = new lgfx::LGFX_Sprite(&panel);
-    if (!s_sprite->createSprite(width, height)) {
-        delete s_sprite;
-        s_sprite = nullptr;
-        s_use_sprite = false;
-        if (!s_path_logged) {
-            Serial.printf("[botcorps] rain path=fallback cells=%dx%d create failed\n",
-                          CELL_COLS, CELL_ROWS);
-            s_path_logged = true;
-        }
-        return false;
-    }
-    s_sprite->fillScreen(COL_FIELD);
-    s_use_sprite = true;
-    log_field_roundtrip(*s_sprite);
-    if (!s_path_logged) {
-        Serial.printf("[botcorps] rain path=sprite %dx%d max_alloc=%u free=%u\n",
-                      width, height, (unsigned)max_alloc,
-                      (unsigned)ESP.getFreeHeap());
-        botcorps_rain_log_heap("boot-sprite");
-        s_path_logged = true;
-    }
+    s_ncover = n;
+    if (n > 0 && boxes) memcpy(s_cover, boxes, (size_t)n * sizeof(s_cover[0]));
+    s_radar = radar_disc;
+}
+
+void botcorps_rain_set_draw(bool enable)
+{
+    s_draw = enable;
+}
+
+bool botcorps_rain_step(void)
+{
+    if (!s_built) build_columns();
+    const uint32_t now = millis();
+    if (s_last_ms == 0) s_last_ms = now;
+    if ((uint32_t)(now - s_last_ms) < (uint32_t)STEP_MS) return false;
+    s_last_ms = now;
+    fade_cells();
+    step_columns();
+    if (s_draw && botcorps_dual_ok()) paint_dirty(botcorps_content());
     return true;
+}
+
+void botcorps_rain_paint(void)
+{
+    if (!s_built) build_columns();
+    if (!s_draw || !botcorps_dual_ok()) return;
+    paint_all(botcorps_content());
+}
+
+void botcorps_rain_set_parked(bool parked)
+{
+    (void)parked;
+}
+
+bool botcorps_rain_sprite_held(void)
+{
+    return false;
+}
+
+void botcorps_rain_release_sprite(void)
+{
+}
+
+void botcorps_rain_log_heap(const char *tag)
+{
+    Serial.printf("[botcorps] heap %s free=%u max_alloc=%u sprite=0\n",
+                  tag ? tag : "?",
+                  (unsigned)ESP.getFreeHeap(),
+                  (unsigned)ESP.getMaxAllocHeap());
 }
 
 uint16_t botcorps_rain_palette(int index)
@@ -544,7 +468,11 @@ uint16_t botcorps_rain_palette(int index)
 void botcorps_rain_set_mode(int mode)
 {
     if (mode < 0 || mode >= BOTCORPS_RAIN_COLORS) mode = 0;
+    if (mode == s_mode) return;
     s_mode = mode;
+    if (s_built) {
+        memset(s_dirty, 0xFF, sizeof(s_dirty));
+    }
 }
 
 int botcorps_rain_mode(void)
@@ -552,164 +480,22 @@ int botcorps_rain_mode(void)
     return s_mode;
 }
 
+void botcorps_rain_set_mix(int mix)
+{
+    if (mix < 0 || mix > BOTCORPS_RAIN_MIX_CODE) mix = BOTCORPS_RAIN_MIX_CREW;
+    if (mix == s_mix && s_built) return;
+    s_mix = mix;
+    s_built = false;
+    build_columns();
+}
+
+int botcorps_rain_mix(void)
+{
+    return s_mix;
+}
+
 uint16_t botcorps_rain_solid(void)
 {
     if (s_mode <= 0 || s_mode >= BOTCORPS_RAIN_COLORS) return 0;
     return SOLID_INK[s_mode - 1];
-}
-
-bool botcorps_rain_present(lgfx::LovyanGFX &dst)
-{
-    if (!s_sprite) return false;
-    s_sprite->pushSprite(&dst, 0, 0);
-    return true;
-}
-
-bool botcorps_rain_copy_rect(lgfx::LGFX_Sprite &dst, int x, int y)
-{
-    if (!s_sprite || !s_sprite->getBuffer() || !dst.getBuffer()) return false;
-    if (s_sprite->getColorDepth() != dst.getColorDepth()) return false;
-    uint16_t *src = (uint16_t *)s_sprite->getBuffer();
-    uint16_t *out = (uint16_t *)dst.getBuffer();
-    const int sw = s_sprite->width();
-    const int sh = s_sprite->height();
-    const int dw = dst.width();
-    const int dh = dst.height();
-    const size_t sstride = sh > 0 ? (s_sprite->bufferLength() / (size_t)sh) / 2u : (size_t)sw;
-    const size_t dstride = dh > 0 ? (dst.bufferLength() / (size_t)dh) / 2u : (size_t)dw;
-    for (int row = 0; row < dh; ++row) {
-        const int sy = y + row;
-        if (sy < 0 || sy >= sh) continue;
-        int sx = x;
-        int dx = 0;
-        int n = dw;
-        if (sx < 0) {
-            n += sx;
-            dx = -sx;
-            sx = 0;
-        }
-        if (sx >= sw || n <= 0) continue;
-        if (sx + n > sw) n = sw - sx;
-        if (n <= 0) continue;
-        memcpy(out + (size_t)row * dstride + (size_t)dx,
-               src + (size_t)sy * sstride + (size_t)sx,
-               (size_t)n * 2u);
-    }
-    return true;
-}
-
-void botcorps_rain_log_heap(const char *tag)
-{
-    Serial.printf("[botcorps] heap %s free=%u max_alloc=%u sprite=%d\n",
-                  tag ? tag : "?",
-                  (unsigned)ESP.getFreeHeap(),
-                  (unsigned)ESP.getMaxAllocHeap(),
-                  s_sprite ? 1 : 0);
-}
-
-bool botcorps_rain_sprite_held(void)
-{
-    return s_sprite != nullptr;
-}
-
-void botcorps_rain_release_sprite(void)
-{
-    delete s_sprite;
-    s_sprite = nullptr;
-    s_use_sprite = false;
-    s_path_logged = false;
-}
-
-void botcorps_rain_set_parked(bool parked)
-{
-    if (parked == s_parked) return;
-    if (parked) {
-        const unsigned before_free = (unsigned)ESP.getFreeHeap();
-        const unsigned before_max = (unsigned)ESP.getMaxAllocHeap();
-        delete s_sprite;
-        s_sprite = nullptr;
-        s_use_sprite = false;
-        s_parked = true;
-        Serial.printf("[botcorps] heap radio-park before free=%u max=%u after free=%u max=%u\n",
-                      before_free, before_max,
-                      (unsigned)ESP.getFreeHeap(),
-                      (unsigned)ESP.getMaxAllocHeap());
-        Serial.println("[botcorps] rain path=fallback while sprite parked");
-        return;
-    }
-    s_parked = false;
-    s_path_logged = false;
-    s_use_sprite = false;
-}
-
-static bool present_step(lgfx::LGFX_Device &panel, int width, int height, bool push)
-{
-    if (ensure_sprite(panel, width, height)) {
-        sprite_fade_all(*s_sprite);
-        step_columns(*s_sprite, true);
-        if (push) s_sprite->pushSprite(&panel, 0, 0);
-        return true;
-    }
-    if (push) fallback_fade_and_draw(panel);
-    return false;
-}
-
-static bool rain_advance(bool push)
-{
-    /* Content panel only. Never botcorps_menu(). Chrome is not drawn
-     * into the sprite: fade would smear it on the next tick. */
-    botcorps_set_surface(BOTCORPS_SURFACE_CONTENT);
-    auto &panel = botcorps_content();
-    const int width = panel.width();
-    const int height = panel.height();
-    if (width < 32 || height < 32) return false;
-    if (s_w != width || s_h != height) {
-        build_columns(width, height);
-        delete s_sprite;
-        s_sprite = nullptr;
-        s_use_sprite = false;
-        s_path_logged = false;
-        s_started = false;
-        memset(s_cell_fade, 0, sizeof(s_cell_fade));
-    }
-
-    const uint32_t now = millis();
-    bool stepped = false;
-    if (!s_started) {
-        s_started = true;
-        s_last_ms = now;
-        s_acc_ms = 0;
-        if (ensure_sprite(panel, width, height)) {
-            s_sprite->fillScreen(COL_FIELD);
-        }
-        present_step(panel, width, height, push);
-        stepped = s_sprite != nullptr;
-    } else {
-        s_acc_ms += now - s_last_ms;
-        s_last_ms = now;
-        int guard = 0;
-        while (s_acc_ms >= (uint32_t)STEP_MS && guard < 2) {
-            s_acc_ms -= (uint32_t)STEP_MS;
-            if (present_step(panel, width, height, push)) stepped = true;
-            ++guard;
-        }
-        if (s_acc_ms > (uint32_t)STEP_MS * 4u) s_acc_ms = (uint32_t)STEP_MS;
-    }
-    return stepped;
-}
-
-bool botcorps_rain_step(void)
-{
-    return rain_advance(false);
-}
-
-bool botcorps_rain_frame(void)
-{
-    return rain_advance(true);
-}
-
-void botcorps_rain_push(lgfx::LovyanGFX &dst)
-{
-    if (!s_sprite) return;
-    s_sprite->pushSprite(&dst, 0, 0);
 }

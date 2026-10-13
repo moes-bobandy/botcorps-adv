@@ -8,7 +8,6 @@
 
 #include "display/botcorps_display.h"
 #include "probe/botcorps_probe.h"
-#include "rain/botcorps_rain.h"
 #include "ui/botcorps_ui.h"
 
 #include <memory>
@@ -87,21 +86,14 @@ void setup(void)
     /* Rain boot is the first real screen. loop() owns keys and rain.
      * The name bar is painted by the UI on the internal panel. */
     botcorps_ui_begin();
-    if (botcorps_dual_ok() && botcorps_ui_wants_ext_rain()) {
-        botcorps_rain_step();
-    }
     botcorps_probe_screen("-", "rain");
-    botcorps_ui_draw(true);
+    botcorps_ui_draw();
 }
 
 void loop(void)
 {
     M5Cardputer.update();
     botcorps_ui_input();
-    bool stepped = false;
-    if (botcorps_dual_ok() && botcorps_ui_wants_ext_rain()) {
-        stepped = botcorps_rain_step();
-    }
-    botcorps_ui_draw(stepped);
+    botcorps_ui_draw();
     delay(10);
 }

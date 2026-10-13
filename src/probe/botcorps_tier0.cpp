@@ -1,7 +1,9 @@
 /*
- * Tier 0 BSS at the planned final sizes. Reserved, not used as features.
- * botcorps_tier0_bytes() writes and reads every byte through a volatile
- * pointer so the linker cannot drop or shrink the arrays.
+ * Tier 0 BSS at the planned final sizes. The boot touch writes and
+ * reads every byte through a volatile pointer so the linker cannot
+ * drop the arrays. After that touch, rain uses the cell and column
+ * buffers and the terminal uses the prompt, log, history, and found
+ * buffers.
  */
 #include "probe/botcorps_probe.h"
 

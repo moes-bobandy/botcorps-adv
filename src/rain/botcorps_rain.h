@@ -1,41 +1,50 @@
 #pragma once
 
 /*
- * botcorps_rain — external (or only-panel) bot rain.
+ * botcorps_rain — cell-grid rain on the external panel.
  *
- * The step is 90 ms on a millis() accumulator that keeps the remainder.
- * Trails fade in the full-frame sprite. The sprite stores rgb565_2Byte
- * (byte-swapped). Fade and blend swap on the way in and out. If the
- * sprite cannot be kept, an 8×8 cell table paints through the library.
- * Neither path reads the panel, and neither draws the name bar.
- *
- * botcorps_rain_frame() returns true when a step was presented.
+ * The step is 140 ms. Columns live in the Tier 0 column buffer and
+ * the 8×8 cells live in the Tier 0 rain-cell buffer. Each step draws
+ * those cells straight to the panel. There is no full-frame sprite.
+ * Cells that intersect a cover, and cells inside the radar disc, are
+ * left for the UI. The internal panel is never painted.
  */
 
 #include <stdint.h>
 #include <stdbool.h>
 
-#include <lgfx/v1/LGFX_Sprite.hpp>
-
 /* 0 = MULTI (the 14-colour palette). 1..6 = solid inks. */
 #define BOTCORPS_RAIN_COLORS 7
 
-bool botcorps_rain_frame(void);
-/* Advance the rain sprite only. Does not push and does not draw chrome. */
+/* 0 = bots and code, 1 = bots only, 2 = code only. */
+#define BOTCORPS_RAIN_MIX_CREW 0
+#define BOTCORPS_RAIN_MIX_BOTS 1
+#define BOTCORPS_RAIN_MIX_CODE 2
+
+struct botcorps_cover_t {
+    int16_t x;
+    int16_t y;
+    int16_t w;
+    int16_t h;
+};
+
+/* Covers are chrome. radar_disc skips the sweep circle as well. */
+void botcorps_rain_set_covers(const botcorps_cover_t *boxes, int n, bool radar_disc);
+/* False until the UI is up, so the boot probe does not paint. */
+void botcorps_rain_set_draw(bool enable);
+
+/* Advance one 140 ms step and paint the open cells. */
 bool botcorps_rain_step(void);
-/* Push the rain sprite. Honors the destination clip. Does not alter pixels. */
-void botcorps_rain_push(lgfx::LovyanGFX &dst);
+/* Paint the current cells into the open area. No step. */
+void botcorps_rain_paint(void);
+
 void botcorps_rain_set_parked(bool parked);
 bool botcorps_rain_sprite_held(void);
-/* Drop the rain sprite so a later ensure_sprite can create it again. */
 void botcorps_rain_release_sprite(void);
 void botcorps_rain_log_heap(const char *tag);
 uint16_t botcorps_rain_palette(int index);
 void botcorps_rain_set_mode(int mode);
 int botcorps_rain_mode(void);
+void botcorps_rain_set_mix(int mix);
+int botcorps_rain_mix(void);
 uint16_t botcorps_rain_solid(void);
-/* One full push of the current rain sprite. No step. False if parked. */
-bool botcorps_rain_present(lgfx::LovyanGFX &dst);
-/* Copy a rect of sprite memory into another rgb565_2Byte sprite.
- * Copies stored pixels; it does not write a native tint into the buffer. */
-bool botcorps_rain_copy_rect(lgfx::LGFX_Sprite &dst, int x, int y);

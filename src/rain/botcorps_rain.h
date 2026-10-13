@@ -18,11 +18,10 @@ namespace lgfx { inline namespace v1 { class LovyanGFX; } }
 /* 0 = MULTI (the 14-colour palette). 1..6 = solid inks. */
 #define BOTCORPS_RAIN_COLORS 7
 
-/* Mock mixes. FIELD is the default: bots, devices, and code. */
+/* Mock BACKGROUND mixes. FIELD is the default: bots, devices, and code. */
 #define BOTCORPS_RAIN_MIX_FIELD 0
-#define BOTCORPS_RAIN_MIX_CREW  1
-#define BOTCORPS_RAIN_MIX_BOTS  2
-#define BOTCORPS_RAIN_MIX_DEV   3
+#define BOTCORPS_RAIN_MIX_BOTS  1
+#define BOTCORPS_RAIN_MIX_DEV   2
 
 /* fade, id, glyph. 8x8 grid: 40*30*3 = 3600. A 6 px cell grid at 3 bytes is 6480. */
 struct botcorps_cell_t {
@@ -55,9 +54,9 @@ void botcorps_rain_set_parked(bool parked);
 bool botcorps_rain_sprite_held(void);
 void botcorps_rain_release_sprite(void);
 void botcorps_rain_log_heap(const char *tag);
-uint16_t botcorps_rain_palette(int index);
+uint8_t botcorps_rain_palette(int index);
 void botcorps_rain_set_mode(int mode);
 int botcorps_rain_mode(void);
 void botcorps_rain_set_mix(int mix);
 int botcorps_rain_mix(void);
-uint16_t botcorps_rain_solid(void);
+uint8_t botcorps_rain_solid(void);

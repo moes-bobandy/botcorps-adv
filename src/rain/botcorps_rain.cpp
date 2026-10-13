@@ -6,9 +6,9 @@
 #include "rain/botcorps_rain.h"
 
 #include "display/botcorps_display.h"
-#include "probe/botcorps_icons.h"
 #include "ui/botcorps_band.h"
 #include "ui/botcorps_bots.h"
+#include "ui/botcorps_glyph.h"
 
 #include <string.h>
 
@@ -17,10 +17,9 @@ static_assert(sizeof(botcorps_cell_t) == 3, "rain cell is 3 bytes");
 extern uint8_t botcorps_t0_rain_cell[3][1200];
 extern uint8_t botcorps_t0_rain_col[56][8];
 
-static const uint16_t COL_FIELD = 0x0041; /* #070a08 */
-static const uint16_t COL_EYE   = 0x0080;
-static const uint16_t COL_CODE  = 0x7E6C;
-static const uint16_t COL_HEAD  = 0xEFF9;
+static const uint16_t COL_FIELD_N = 0x0041; /* #070a08, native, for blends */
+static const uint16_t COL_CODE_N  = 0x7E6C;
+static const uint16_t COL_HEAD_N  = 0xEFF9;
 static const int FADE_A = 46;
 static const int BACK_A = 141;
 
@@ -140,7 +139,7 @@ static uint16_t bot_ink(uint8_t idx)
 
 static uint16_t code_ink(bool head)
 {
-    if (s_mode == 0) return head ? COL_HEAD : COL_CODE;
+    if (s_mode == 0) return head ? COL_HEAD_N : COL_CODE_N;
     const uint16_t c = SOLID_INK[s_mode - 1];
     if (head) return c;
     return scale_native(c, 168, 256);
@@ -192,7 +191,6 @@ static uint8_t kind_for(int i)
         return (i % 3 == 0) ? KIND_DEVICE : ((i % 2 == 1) ? KIND_CODE : KIND_OFF);
     }
     if (s_mix == BOTCORPS_RAIN_MIX_BOTS) return (i % 2 == 0) ? KIND_BOT : KIND_OFF;
-    if (s_mix == BOTCORPS_RAIN_MIX_CREW) return (i % 2 == 0) ? KIND_BOT : KIND_CODE;
     if ((i % 3) == 0) return KIND_BOT;
     if ((i % 2) == 1) return KIND_DEVICE;
     return KIND_CODE;
@@ -303,27 +301,27 @@ static void cell_paint(lgfx::LovyanGFX &panel, int cx, int cy)
     const int y = world_y - s_slice_y0;
     const uint8_t fade = botcorps_t0_rain_cell[0][i];
     const uint8_t id = botcorps_t0_rain_cell[1][i];
-    uint16_t color = COL_FIELD;
+    uint8_t color = PAL_FIELD;
     if (fade > 0 && id != 0) {
         int fr, fg, fb;
         trail_rgb(&fr, &fg, &fb);
         uint16_t base = code_ink(false);
         if (id >= 32 && id < 44) base = BOTCORPS_BOT_COLOR[id - 32];
         else if (id == 16) base = code_ink(true);
-        else if (id == 17) base = blend565(COL_FIELD, fr, fg, fb, BACK_A);
+        else if (id == 17) base = blend565(COL_FIELD_N, fr, fg, fb, BACK_A);
         else if (id <= 14) base = bot_ink((uint8_t)(id - 1));
         int a = 256 - (fade * 16);
         if (a > 255) a = 255;
-        color = blend565(base, fr, fg, fb, a);
+        color = botcorps_pal_fit(blend565(base, fr, fg, fb, a));
     }
-    panel.fillRect(x, y, CELL, CELL, color);
+    botcorps_pal_rect(panel, x, y, CELL, CELL, color);
     if (fade > 10 && id >= 1 && id <= 14) {
-        panel.fillRect(x + 1, y + 2, 2, 2, COL_EYE);
-        panel.fillRect(x + 4, y + 2, 2, 2, COL_EYE);
+        botcorps_pal_rect(panel, x + 1, y + 2, 2, 2, PAL_EYE);
+        botcorps_pal_rect(panel, x + 4, y + 2, 2, 2, PAL_EYE);
     } else if (fade > 8 && (id == 15 || id == 16)) {
         const char ch = CODE_GLYPHS[botcorps_t0_rain_cell[2][i] % CODE_N];
         panel.setTextSize(1);
-        panel.setTextColor(color);
+        botcorps_pal_text(panel, color);
         panel.setCursor(x, y);
         panel.print(ch);
     }
@@ -384,9 +382,9 @@ static bool icon_pixel_ok(int x, int y)
 static void blit_devices(lgfx::LovyanGFX &panel)
 {
     const uint16_t body = (s_mode == 0) ? (uint16_t)0x5D3F : SOLID_INK[s_mode - 1];
-    const uint16_t c1 = body;
-    const uint16_t c2 = scale_native(body, 128, 256);
-    const uint16_t c3 = scale_native(0xFFFF, 200, 256);
+    const uint8_t c1 = botcorps_pal_fit(body);
+    const uint8_t c2 = botcorps_pal_fit(scale_native(body, 128, 256));
+    const uint8_t c3 = botcorps_pal_fit(scale_native(0xFFFF, 200, 256));
     for (int i = 0; i < s_ncols; ++i) {
         uint8_t *c = col_at(i);
         if (c[2] != KIND_DEVICE) continue;
@@ -394,8 +392,8 @@ static void blit_devices(lgfx::LovyanGFX &panel)
         const int y = col_y(i);
         if (y + 12 <= s_slice_y0 || y >= s_slice_y1) continue;
         if (icon_hits_chrome(x, y)) continue;
-        botcorps_icon_blit_masked(panel, x, y - s_slice_y0, c[5] % 10,
-                                  c1, c2, c3, icon_pixel_ok);
+        botcorps_glyph_blit(panel, x, y - s_slice_y0, c[5] % 10,
+                            c1, c2, c3, icon_pixel_ok);
     }
 }
 
@@ -588,10 +586,10 @@ void botcorps_rain_log_heap(const char *tag)
                   (unsigned)ESP.getMaxAllocHeap());
 }
 
-uint16_t botcorps_rain_palette(int index)
+uint8_t botcorps_rain_palette(int index)
 {
-    if (index < 0 || index >= 14) return PALETTE[0];
-    return PALETTE[index];
+    if (index < 0 || index >= 14) index = 0;
+    return botcorps_pal_fit(PALETTE[index]);
 }
 
 void botcorps_rain_set_mode(int mode)
@@ -620,8 +618,8 @@ int botcorps_rain_mix(void)
     return s_mix;
 }
 
-uint16_t botcorps_rain_solid(void)
+uint8_t botcorps_rain_solid(void)
 {
-    if (s_mode <= 0 || s_mode >= BOTCORPS_RAIN_COLORS) return 0;
-    return SOLID_INK[s_mode - 1];
+    if (s_mode <= 0 || s_mode >= BOTCORPS_RAIN_COLORS) return PAL_FIELD;
+    return botcorps_pal_fit(SOLID_INK[s_mode - 1]);
 }

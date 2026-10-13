@@ -1,6 +1,7 @@
 #include "ui/botcorps_sprite.h"
 
-#include <lgfx/v1/LGFXBase.hpp>
+#include "ui/botcorps_band.h"
+
 #include <pgmspace.h>
 
 /* Mock SPRITE_SRC. 0 empty, 1 body, 2 eye. Width is the first byte of each row set. */
@@ -45,7 +46,7 @@ static const uint8_t *const SPR_SRC[BOTCORPS_SHAPE_N] = {
 };
 static const uint8_t SPR_W[BOTCORPS_SHAPE_N] = { 7, 9, 7, 5 };
 static const uint8_t SPR_H[BOTCORPS_SHAPE_N] = { 7, 6, 9, 5 };
-static const uint16_t COL_EYE = 0x0080;
+static const uint8_t COL_EYE = PAL_EYE;
 
 int botcorps_shape_for(int index)
 {
@@ -54,7 +55,7 @@ int botcorps_shape_for(int index)
 }
 
 void botcorps_sprite_draw(lgfx::LovyanGFX &dst, int x, int y, int shape, int scale,
-                          uint16_t color, bool blink)
+                          uint8_t color, bool blink)
 {
     if (shape < 0 || shape >= BOTCORPS_SHAPE_N) shape = 0;
     if (scale < 1) scale = 1;
@@ -70,8 +71,8 @@ void botcorps_sprite_draw(lgfx::LovyanGFX &dst, int x, int y, int shape, int sca
             int run = 1;
             while (col + run < w && pgm_read_byte(src + row * w + col + run) == v) ++run;
             if (v == 1 || (v == 2 && !blink)) {
-                const uint16_t ink = (v == 2) ? COL_EYE : color;
-                dst.fillRect(ox + col * scale, oy + row * scale, run * scale, scale, ink);
+                const uint8_t ink = (v == 2) ? COL_EYE : color;
+                botcorps_pal_rect(dst, ox + col * scale, oy + row * scale, run * scale, scale, ink);
             }
             col += run;
         }

@@ -4,6 +4,7 @@
 #include <stdbool.h>
 
 #include "ui/botcorps_frame_cfg.h"
+#include "ui/botcorps_pal.h"
 
 namespace lgfx { inline namespace v1 { class LovyanGFX; } }
 
@@ -16,16 +17,16 @@ struct Gfx {
     int oy;
     Gfx(lgfx::LovyanGFX &d);
     lgfx::LovyanGFX *raw(void) const { return p; }
-    void fillRect(int x, int y, int w, int h, uint16_t c);
-    void drawRect(int x, int y, int w, int h, uint16_t c);
-    void fillCircle(int x, int y, int r, uint16_t c);
-    void drawCircle(int x, int y, int r, uint16_t c);
-    void drawLine(int x0, int y0, int x1, int y1, uint16_t c);
-    void fillTriangle(int x0, int y0, int x1, int y1, int x2, int y2, uint16_t c);
-    void drawFastHLine(int x, int y, int w, uint16_t c);
-    void drawFastVLine(int x, int y, int h, uint16_t c);
-    void fillRoundRect(int x, int y, int w, int h, int r, uint16_t c);
-    void fillScreen(uint16_t c);
+    void fillRect(int x, int y, int w, int h, uint8_t c);
+    void drawRect(int x, int y, int w, int h, uint8_t c);
+    void fillCircle(int x, int y, int r, uint8_t c);
+    void drawCircle(int x, int y, int r, uint8_t c);
+    void drawLine(int x0, int y0, int x1, int y1, uint8_t c);
+    void fillTriangle(int x0, int y0, int x1, int y1, int x2, int y2, uint8_t c);
+    void drawFastHLine(int x, int y, int w, uint8_t c);
+    void drawFastVLine(int x, int y, int h, uint8_t c);
+    void fillRoundRect(int x, int y, int w, int h, int r, uint8_t c);
+    void fillScreen(uint8_t c);
     void setClipRect(int x, int y, int w, int h);
     void clearClipRect(void);
     void setTextWrap(bool x, bool y);
@@ -33,8 +34,8 @@ struct Gfx {
     void setFont(const F *f) { p->setFont(f); }
     void setTextSize(float s);
     void setTextSize(float sx, float sy);
-    void setTextColor(uint16_t c);
-    void setTextColor(uint16_t fg, uint16_t bg);
+    void setTextColor(uint8_t c);
+    void setTextColor(uint8_t fg, uint8_t bg);
     void setTextDatum(int dat);
     void drawString(const char *s, int x, int y);
     void setCursor(int x, int y);
@@ -59,3 +60,12 @@ const char *botcorps_band_mode_name(void);
 lgfx::LovyanGFX *botcorps_band_sprite(void);
 /* Draw fn paints world coordinates. The band shifts them. Pushes changed rows. */
 void botcorps_band_present(void (*draw)(Gfx));
+
+/* Normal-order RGB565 for a named index. Swaps the pre-swapped lut word back. */
+uint16_t botcorps_pal_native(uint8_t idx);
+/* Exact reserved index, otherwise the nearest free RGB332 code. */
+uint8_t botcorps_pal_fit(uint16_t native);
+/* Index into the band sprite, native RGB565 on any other surface. */
+void botcorps_pal_rect(lgfx::LovyanGFX &dst, int x, int y, int w, int h, uint8_t idx);
+void botcorps_pal_pixel(lgfx::LovyanGFX &dst, int x, int y, uint8_t idx);
+void botcorps_pal_text(lgfx::LovyanGFX &dst, uint8_t idx);

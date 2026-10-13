@@ -6,10 +6,11 @@
  */
 #include "ui/botcorps_ui.h"
 #include "ui/botcorps_band.h"
-#include "ui/botcorps_bots.h"
 #include "ui/botcorps_sprite.h"
+#include "ui/botcorps_glyph.h"
 
 #include "display/botcorps_display.h"
+#include "probe/botcorps_icons.h"
 #include "probe/botcorps_probe.h"
 #include "rain/botcorps_rain.h"
 
@@ -23,23 +24,23 @@ extern char botcorps_t0_term_hist[20][26];
 extern char botcorps_t0_term_log[2048];
 extern char botcorps_t0_term_found[12][28];
 
-static const uint16_t COL_BG    = 0x0862;
-static const uint16_t COL_FIELD = 0x0041;
-static const uint16_t COL_BAR   = 0x10C4;
-static const uint16_t COL_LINE  = 0x29C8;
-static const uint16_t COL_INK   = 0xE77E;
-static const uint16_t COL_MUTED = 0x8CD4;
-static const uint16_t COL_AMBER = 0xF5A9;
-static const uint16_t COL_SEL   = 0x1105;
-static const uint16_t COL_WHITE = 0xFFFF;
-static const uint16_t COL_DEEP  = 0x0841;
-static const uint16_t COL_IVORY = 0xF79C;
-static const uint16_t COL_OK    = 0x8FF3;
-static const uint16_t COL_HOLD  = 0xE38E;
+static const uint8_t COL_BG    = PAL_BG;
+static const uint8_t COL_FIELD = PAL_FIELD;
+static const uint8_t COL_BAR   = PAL_BAR;
+static const uint8_t COL_LINE  = PAL_LINE;
+static const uint8_t COL_INK   = PAL_INK;
+static const uint8_t COL_MUTED = PAL_MUTED;
+static const uint8_t COL_AMBER = PAL_AMBER;
+static const uint8_t COL_SEL   = PAL_SEL;
+static const uint8_t COL_WHITE = PAL_WHITE;
+static const uint8_t COL_DEEP  = PAL_DEEP;
+static const uint8_t COL_IVORY = PAL_IVORY;
+static const uint8_t COL_OK    = PAL_OK;
+static const uint8_t COL_HOLD  = PAL_HOLD;
 
-static const uint16_t ACCENT_C[3] = { 0x4E7B, 0xF5A9, 0x5FF8 };
+static const uint8_t ACCENT_C[3] = { PAL_CYAN, PAL_AMBER, PAL_MINT };
 static const char *const ACCENT_N[3] = { "CYAN", "AMBER", "MINT" };
-static const char *const MIX_N[4] = { "FIELD", "CREW", "BOTS", "DEVICES" };
+static const char *const MIX_N[3] = { "BOT + DEVICE", "BOTS", "DEVICES" };
 static const char *const SAVER_N[4] = { "BOTS", "GIBSON", "FLYBY", "BOUNCE" };
 static const int IDLE_V[3] = { 15, 25, 45 };
 
@@ -88,10 +89,21 @@ static const bot_t BOTS[12] = {
     { "samsungtagbot", "samsung", "samsung", 0, 0 },
 };
 
-static uint16_t bot_color(int i)
+static const uint8_t BOT_PAL[12] = {
+    PAL_B5D3F, PAL_B4E7F, PAL_B5D3F, PAL_B7711, PAL_B9F0B, PAL_BFB72,
+    PAL_BAC7F, PAL_B36B8, PAL_B9F0B, PAL_B36B8, PAL_BFC6B, PAL_BBD3F,
+};
+
+static uint8_t bot_color(int i)
 {
-    if (i < 0 || i > 11) return 0xF79C;
-    return BOTCORPS_BOT_COLOR[i];
+    if (i < 0 || i > 11) return PAL_IVORY;
+    return BOT_PAL[i];
+}
+
+/* INT panel calls take normal-order RGB565, swapped back from the lut. */
+static uint16_t panel565(uint8_t idx)
+{
+    return botcorps_pal_native(idx);
 }
 
 static bool sprite_blink(int i)
@@ -151,7 +163,7 @@ static float s_sweep = -1.0f;
 static const char *const NVS_NS = "botcorps";
 static const char *const NVS_KEY = "rain_col";
 
-static uint16_t accent(void)
+static uint8_t accent(void)
 {
     if (s_color < 0 || s_color > 2) return ACCENT_C[0];
     return ACCENT_C[s_color];
@@ -247,7 +259,7 @@ static void fmt_times(void)
              (unsigned)(sec % 60u));
 }
 
-static void txt(Gfx g, const char *s, int x, int y, uint16_t col,
+static void txt(Gfx g, const char *s, int x, int y, uint8_t col,
                 lgfx::textdatum_t dat)
 {
     g.setFont(&fonts::Font0);
@@ -259,18 +271,18 @@ static void txt(Gfx g, const char *s, int x, int y, uint16_t col,
 }
 
 static void plate(Gfx g, int x, int y, int w, int h,
-                  uint16_t fill, uint16_t edge)
+                  uint8_t fill, uint8_t edge)
 {
     g.fillRect(x, y, w, h, fill);
     g.drawRect(x, y, w, h, edge);
 }
 
-static void draw_blob(Gfx g, int x, int y, int scale, uint16_t c, int shape, bool blink)
+static void draw_blob(Gfx g, int x, int y, int scale, uint8_t c, int shape, bool blink)
 {
     botcorps_sprite_draw(*g.raw(), x, y - g.oy, shape, scale, c, blink);
 }
 
-static void draw_icon(Gfx g, int x, int y, int id, uint16_t col)
+static void draw_icon(Gfx g, int x, int y, int id, uint8_t col)
 {
     if (id == ICO_TERM) {
         g.drawRect(x + 4, y + 6, 20, 16, col);
@@ -316,8 +328,8 @@ static void draw_icon(Gfx g, int x, int y, int id, uint16_t col)
 
 static void draw_btn(Gfx g, int x, int y, int id, bool sel)
 {
-    const uint16_t edge = sel ? accent() : COL_LINE;
-    const uint16_t fill = sel ? COL_SEL : COL_DEEP;
+    const uint8_t edge = sel ? accent() : COL_LINE;
+    const uint8_t fill = sel ? COL_SEL : COL_DEEP;
     plate(g, x, y, BS, BS, fill, edge);
     if (sel) g.drawRect(x + 1, y + 1, BS - 2, BS - 2, accent());
     draw_icon(g, x, y, id, sel ? accent() : COL_MUTED);
@@ -745,15 +757,15 @@ static void paint_one_board(Gfx g, int i, bool sel)
     int x, y;
     term_xy(i, &x, &y);
     const bool light = BOTS[i].radio != 0;
-    const uint16_t base = light ? (sel ? 0xF79C : 0xD69A) : (sel ? 0x18C3 : 0x1082);
-    const uint16_t edge = sel ? accent() : COL_LINE;
+    const uint8_t base = light ? (sel ? PAL_IVORY : PAL_BOARD_L) : (sel ? PAL_BOARD_D : PAL_PLATE);
+    const uint8_t edge = sel ? accent() : COL_LINE;
     g.fillRect(x - 2, y - 2, 76, 50, COL_FIELD);
     plate(g, x, y, 72, 46, base, edge);
     if (sel) g.drawRect(x - 2, y - 2, 76, 50, accent());
-    g.fillRect(x + 23, y + 12, 26, 16, light ? 0x1082 : 0x0841);
+    g.fillRect(x + 23, y + 12, 26, 16, light ? PAL_PLATE : PAL_DEEP);
     draw_blob(g, x + 36, y + 20, 2, bot_color(i), botcorps_shape_for(i), sprite_blink(i));
     g.fillCircle(x + 8, y + 6, 2, BOTS[i].hold ? COL_HOLD : COL_OK);
-    const uint16_t ink = light ? 0x1082 : COL_INK;
+    const uint8_t ink = light ? PAL_PLATE : COL_INK;
     txt(g, BOTS[i].short_name, x + 36, y + 34, ink, lgfx::textdatum::top_center);
 }
 
@@ -850,7 +862,7 @@ static void paint_radar(Gfx g, bool with_list)
     const int cy = 108;
     const int r = 88;
     g.fillCircle(cx, cy, r + 2, COL_BG);
-    g.fillCircle(cx, cy, r, 0x1105);
+    g.fillCircle(cx, cy, r, PAL_SEL);
     g.drawCircle(cx, cy, r, accent());
     g.drawCircle(cx, cy, r / 2, COL_LINE);
     g.drawFastHLine(cx - r, cy, r * 2, COL_LINE);
@@ -946,19 +958,88 @@ static void paint_rain_btn(Gfx g)
     draw_btn(g, 146, 206, ICO_PLAY, true);
 }
 
+static void paint_diag(Gfx g)
+{
+    const botcorps_probe_t *p = botcorps_probe_get();
+    struct spec {
+        int id;
+        const char *name;
+        int kind;
+    };
+    static const spec rows[] = {
+        { BOTCORPS_ST_M0, "M0", 0 },
+        { BOTCORPS_ST_M5, "M5", 0 },
+        { BOTCORPS_ST_E0, "E0", 0 },
+        { BOTCORPS_ST_EXT, "EXT", 1 },
+        { BOTCORPS_ST_T0, "T0", 2 },
+        { BOTCORPS_ST_A0, "A0", 0 },
+        { BOTCORPS_ST_A1, "A1", 3 },
+        { BOTCORPS_ST_SC0, "S0", 0 },
+        { BOTCORPS_ST_SC1, "S1", 4 },
+        { BOTCORPS_ST_B0, "B0", 0 },
+        { BOTCORPS_ST_B1, "B1", 5 },
+        { BOTCORPS_ST_F0, "F0", 0 },
+        { BOTCORPS_ST_SF, "SF", 6 },
+        { BOTCORPS_ST_W0, "W0", 0 },
+        { BOTCORPS_ST_W1, "W1", 7 },
+        { BOTCORPS_ST_OV0, "O0", 0 },
+        { BOTCORPS_ST_OV1, "O1", 8 },
+        { BOTCORPS_ST_N2, "N2", 9 },
+    };
+    g.fillScreen(PAL_BLACK);
+    g.setTextWrap(false, false);
+    g.setFont(&fonts::Font0);
+    g.setTextSize(1, 1);
+    g.setTextColor(PAL_WHITE);
+    if (p) {
+        for (int i = 0; i < (int)(sizeof(rows) / sizeof(rows[0])); ++i) {
+            char tail[16];
+            tail[0] = 0;
+            switch (rows[i].kind) {
+            case 1: snprintf(tail, sizeof(tail), "%s", p->ext_st); break;
+            case 2: snprintf(tail, sizeof(tail), "%lu", (unsigned long)p->tier0); break;
+            case 3: snprintf(tail, sizeof(tail), "%s %d", p->nim_a, p->nim_a_rc); break;
+            case 4: snprintf(tail, sizeof(tail), "spr%d", p->sprite_held); break;
+            case 5: snprintf(tail, sizeof(tail), "%s %d", p->nim_b, p->nim_b_rc); break;
+            case 6: snprintf(tail, sizeof(tail), "free%d", p->sprite_freed); break;
+            case 7: snprintf(tail, sizeof(tail), "n%d", p->wifi_n); break;
+            case 8: snprintf(tail, sizeof(tail), "%d", p->ov_ok); break;
+            case 9: snprintf(tail, sizeof(tail), "%s %d", p->nim_2, p->nim_2_rc); break;
+            default: break;
+            }
+            char line[56];
+            snprintf(line, sizeof(line), "%02d %s %lu L%lu %lu %s",
+                     p->ord[rows[i].id],
+                     rows[i].name,
+                     (unsigned long)p->st[rows[i].id].free_b,
+                     (unsigned long)p->st[rows[i].id].max_b,
+                     (unsigned long)p->st[rows[i].id].min_b,
+                     tail);
+            g.setCursor(2, i * 8);
+            g.print(line);
+        }
+    }
+    if (g.raw()) {
+        for (int i = 0; i < BOTCORPS_ICON_N; ++i) {
+            botcorps_glyph_blit(*g.raw(), 4 + i * 16, 150 - g.oy, i,
+                                PAL_DIAG, PAL_MUTED, PAL_WHITE, nullptr);
+        }
+    }
+    char flag[28];
+    snprintf(flag, sizeof(flag), "%s %s L%lu",
+             botcorps_band_mode_name(),
+             botcorps_band_direct() ? "direct" : "ok",
+             (unsigned long)botcorps_band_largest());
+    txt(g, flag, 4, 166, PAL_WHITE, lgfx::textdatum::top_left);
+    draw_btn(g, 146, 206, ICO_BACK, true);
+}
+
 static void paint_ext(Gfx g)
 {
     g.clearClipRect();
     g.setTextWrap(false, false);
     if (s_screen == SCR_DIAG) {
-        botcorps_probe_paint(*g.raw());
-        char flag[28];
-        snprintf(flag, sizeof(flag), "%s %s L%lu",
-                 botcorps_band_mode_name(),
-                 botcorps_band_direct() ? "direct" : "ok",
-                 (unsigned long)botcorps_band_largest());
-        txt(g, flag, 4, 166, 0xFFFF, lgfx::textdatum::top_left);
-        draw_btn(g, 146, 206, ICO_BACK, true);
+        paint_diag(g);
         return;
     }
     if (!wants_rain()) g.fillScreen(COL_BG);
@@ -994,8 +1075,9 @@ static void radar_rays(Gfx g, float ang, bool erase)
         const float a = ang - (float)k * 0.18f;
         const int x1 = cx + (int)(cosf(a) * (float)(r - 4));
         const int y1 = cy + (int)(sinf(a) * (float)(r - 4));
-        const uint16_t col = erase ? (uint16_t)0x1105
-                                   : scale565(accent(), 180 - k * 24, 256);
+        const uint8_t col = erase ? PAL_SEL
+                                  : botcorps_pal_fit(scale565(botcorps_pal_native(accent()),
+                                                             180 - k * 24, 256));
         g.drawLine(cx, cy, x1, y1, col);
     }
 }
@@ -1081,7 +1163,7 @@ static void tick_ext(Gfx g)
     }
 }
 
-static void paint_bars(Gfx g, int x, int y, int lit, int n, uint16_t col)
+static void paint_bars(Gfx g, int x, int y, int lit, int n, uint8_t col)
 {
     for (int i = 0; i < n; ++i) {
         g.fillRect(x + i * 6, y, 5, 6, i < lit ? col : COL_LINE);
@@ -1093,12 +1175,12 @@ static void paint_int(lgfx::LGFX_Device &menu)
     const int width = menu.width();
     const int height = menu.height();
     fmt_times();
-    menu.fillScreen(0x0841);
-    menu.fillRect(0, 0, width, BAR_H, COL_BAR);
-    menu.drawFastHLine(0, BAR_H, width, COL_LINE);
+    menu.fillScreen(panel565(PAL_DEEP));
+    menu.fillRect(0, 0, width, BAR_H, panel565(COL_BAR));
+    menu.drawFastHLine(0, BAR_H, width, panel565(COL_LINE));
     menu.setFont(&fonts::Font0);
     menu.setTextSize(2, 2);
-    menu.setTextColor(COL_WHITE);
+    menu.setTextColor(panel565(COL_WHITE));
     menu.setCursor(6, 3);
     menu.print("BOTcorps");
     txt(menu, s_clk, width - 4, 4, COL_INK, lgfx::textdatum::top_right);
@@ -1106,7 +1188,7 @@ static void paint_int(lgfx::LGFX_Device &menu)
     const botcorps_probe_t *pr = botcorps_probe_get();
     if (pr && strcmp(pr->ext_st, "fail") == 0) {
         menu.setTextSize(2, 2);
-        menu.setTextColor(COL_WHITE, 0x0000);
+        menu.setTextColor(panel565(COL_WHITE), panel565(PAL_BLACK));
         menu.setCursor(8, 40);
         menu.print("EXT fail");
         return;
@@ -1114,14 +1196,14 @@ static void paint_int(lgfx::LGFX_Device &menu)
 
     const int bi = card_bot();
     const bool gib = bi < 0;
-    const uint16_t col = gib ? COL_IVORY : bot_color(bi);
+    const uint8_t col = gib ? COL_IVORY : bot_color(bi);
     const char *name = gib ? "gibsonbot" : BOTS[bi].id;
     const char *target = gib ? "ALL BOTS" : BOTS[bi].target;
-    plate(menu, 4, 28, width - 8, height - 34, 0x1082, COL_LINE);
-    menu.fillRect(12, 36, 52, 52, COL_DEEP);
+    plate(menu, 4, 28, width - 8, height - 34, PAL_PLATE, COL_LINE);
+    menu.fillRect(12, 36, 52, 52, panel565(COL_DEEP));
     if (gib) {
         draw_blob(menu, 38, 62, 3, COL_IVORY, BOTCORPS_SHAPE_ROUND, sprite_blink(0));
-        menu.fillRect(28, 58, 20, 3, COL_DEEP);
+        menu.fillRect(28, 58, 20, 3, panel565(COL_DEEP));
     } else {
         draw_blob(menu, 38, 62, 3, col, botcorps_shape_for(bi), sprite_blink(bi));
     }
@@ -1151,7 +1233,7 @@ static void tick_int_live(lgfx::LGFX_Device &menu)
 
     menu.startWrite();
     menu.setClipRect(width - 42, 2, 40, 12);
-    menu.fillRect(width - 42, 2, 40, 12, COL_BAR);
+    menu.fillRect(width - 42, 2, 40, 12, panel565(COL_BAR));
     txt(menu, s_clk, width - 4, 4, COL_INK, lgfx::textdatum::top_right);
     menu.endWrite();
     menu.clearClipRect();
@@ -1159,20 +1241,20 @@ static void tick_int_live(lgfx::LGFX_Device &menu)
 
     const int bi = card_bot();
     const bool gib = bi < 0;
-    const uint16_t col = gib ? COL_IVORY : bot_color(bi);
+    const uint8_t col = gib ? COL_IVORY : bot_color(bi);
     const uint32_t sec = (millis() - s_boot_ms) / 1000u;
     const int up_lit = sec > 90 ? 16 : (int)(sec * 16 / 90);
 
     menu.startWrite();
     menu.setClipRect(52, 108, 96, 8);
-    menu.fillRect(52, 108, 96, 8, 0x1082);
+    menu.fillRect(52, 108, 96, 8, panel565(PAL_PLATE));
     paint_bars(menu, 52, 108, up_lit, 16, col);
     menu.endWrite();
     menu.clearClipRect();
 
     menu.startWrite();
     menu.setClipRect(width - 42, 106, 36, 12);
-    menu.fillRect(width - 42, 106, 36, 12, 0x1082);
+    menu.fillRect(width - 42, 106, 36, 12, panel565(PAL_PLATE));
     txt(menu, s_up, width - 10, 108, COL_INK, lgfx::textdatum::top_right);
     menu.endWrite();
     menu.clearClipRect();
@@ -1203,7 +1285,7 @@ static void nudge_row(int d)
 {
     if (s_cursor == 0) s_color = (s_color + d + 3) % 3;
     else if (s_cursor == 1) {
-        s_mix = (s_mix + d + 4) % 4;
+        s_mix = (s_mix + d + 3) % 3;
         botcorps_rain_set_mix(s_mix);
     } else if (s_cursor == 2) {
         if (botcorps_rain_mode() == 0) botcorps_rain_set_mode(1);
@@ -1867,31 +1949,36 @@ void botcorps_ui_input(void)
     else if (key == K_CHAR) on_char(typed);
 }
 
-static bool ext_moves(void)
-{
-    return s_screen == SCR_GIBSON || s_screen == SCR_WIFI || s_screen == SCR_BT
-        || s_screen == SCR_BOT || s_screen == SCR_WIFI_RADAR || s_screen == SCR_BT_RADAR
-        || s_screen == SCR_BOT_RADAR || s_screen == SCR_SCAN || s_screen == SCR_TERMINAL
-        || s_screen == SCR_RAIN;
-}
-
 void botcorps_ui_draw(void)
 {
     layout_covers();
+    const bool dirty = s_dirty;
     bool stepped = false;
     if (botcorps_dual_ok() && wants_rain()) stepped = botcorps_rain_step();
     if (botcorps_dual_ok() && !botcorps_band_direct()) {
-        if (s_dirty || stepped || ext_moves()) {
+        if (dirty || stepped) {
             s_dirty = false;
             botcorps_set_surface(BOTCORPS_SURFACE_CONTENT);
-            botcorps_band_present([](Gfx g) { paint_ext(g); });
+            botcorps_band_present([](Gfx g) {
+                paint_ext(g);
+                tick_ext(g);
+            });
             botcorps_band_set_oy(0);
         }
-        fmt_times();
-        static char drawn_b[8];
-        if (strcmp(drawn_b, s_up) != 0) {
-            snprintf(drawn_b, sizeof(drawn_b), "%s", s_up);
-            tick_int_live(botcorps_menu());
+        if (dirty) {
+            botcorps_set_surface(BOTCORPS_SURFACE_MENU);
+            auto &menu = botcorps_menu();
+            menu.startWrite();
+            paint_int(menu);
+            menu.endWrite();
+            menu.clearClipRect();
+        } else {
+            fmt_times();
+            static char drawn_b[8];
+            if (strcmp(drawn_b, s_up) != 0) {
+                snprintf(drawn_b, sizeof(drawn_b), "%s", s_up);
+                tick_int_live(botcorps_menu());
+            }
         }
         return;
     }

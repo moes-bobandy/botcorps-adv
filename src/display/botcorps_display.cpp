@@ -114,6 +114,7 @@ bool botcorps_dual_begin(void)
             Serial.println("[botcorps] ILI9341 begin retry");
             /* Drop the SPI host before begin() runs again. */
             g_ext.releaseBus();
+            live = false;
             delay(50);
         }
         if (!g_ext.begin()) continue;

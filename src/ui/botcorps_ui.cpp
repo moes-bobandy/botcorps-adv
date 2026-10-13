@@ -518,6 +518,8 @@ static const char *RAIN_WORD[7] = {
 
 static void partial_prompt_panel(void);
 static void partial_box(int index, bool sel);
+static void partial_tile(int index);
+static void partial_int(void);
 
 static void run_cmd(const char *line)
 {
@@ -567,6 +569,7 @@ static void run_cmd(const char *line)
         if (who < 0) {
             log_add("no such bot");
         } else {
+            const int prev = s_term;
             s_term = who;
             char row[80];
             snprintf(row, sizeof(row), "%s %s", strcmp(cmd, "hunt") == 0 ? "hunting" : "scanning",
@@ -589,6 +592,13 @@ static void run_cmd(const char *line)
                 log_add(row);
             }
             log_add("[ok] sweep done");
+            partial_prompt_panel();
+            if (prev != s_term) {
+                partial_tile(prev);
+                partial_tile(s_term);
+                partial_int();
+            }
+            return;
         }
     } else if (strcmp(cmd, "rain") == 0) {
         if (!arg || !arg[0]) {
@@ -1112,6 +1122,42 @@ static void paint_int(lgfx::LGFX_Device &menu)
     paint_bars(menu, 52, 120, sig / 6, 16, accent());
 }
 
+static void tick_int_live(lgfx::LGFX_Device &menu)
+{
+    const int width = menu.width();
+    const botcorps_probe_t *pr = botcorps_probe_get();
+    const bool fail = pr && strcmp(pr->ext_st, "fail") == 0;
+    botcorps_set_surface(BOTCORPS_SURFACE_MENU);
+
+    menu.startWrite();
+    menu.setClipRect(width - 42, 2, 40, 12);
+    menu.fillRect(width - 42, 2, 40, 12, COL_BAR);
+    txt(menu, s_clk, width - 4, 4, COL_INK, lgfx::textdatum::top_right);
+    menu.endWrite();
+    menu.clearClipRect();
+    if (fail) return;
+
+    const int bi = card_bot();
+    const bool gib = bi < 0;
+    const uint16_t col = gib ? COL_IVORY : BOTS[bi].c;
+    const uint32_t sec = (millis() - s_boot_ms) / 1000u;
+    const int up_lit = sec > 90 ? 16 : (int)(sec * 16 / 90);
+
+    menu.startWrite();
+    menu.setClipRect(52, 108, 96, 8);
+    menu.fillRect(52, 108, 96, 8, 0x1082);
+    paint_bars(menu, 52, 108, up_lit, 16, col);
+    menu.endWrite();
+    menu.clearClipRect();
+
+    menu.startWrite();
+    menu.setClipRect(width - 42, 106, 36, 12);
+    menu.fillRect(width - 42, 106, 36, 12, 0x1082);
+    txt(menu, s_up, width - 10, 108, COL_INK, lgfx::textdatum::top_right);
+    menu.endWrite();
+    menu.clearClipRect();
+}
+
 static void paint_full(void)
 {
     layout_covers();
@@ -1128,6 +1174,7 @@ static void paint_full(void)
     }
     botcorps_set_surface(BOTCORPS_SURFACE_MENU);
     auto &menu = botcorps_menu();
+    menu.startWrite();
     paint_int(menu);
     menu.endWrite();
     menu.clearClipRect();
@@ -1603,7 +1650,10 @@ static void on_arrows(int key)
         if (key == 2) move_cursor(1);
         if (key == 3 || key == 4) {
             if (s_cursor >= 7) move_cursor(key == 4 ? 1 : -1);
-            else {
+            else if (s_cursor == 0) {
+                nudge_row(key == 4 ? 1 : -1);
+                s_dirty = true;
+            } else {
                 nudge_row(key == 4 ? 1 : -1);
                 partial_box(s_cursor, true);
             }
@@ -1803,8 +1853,6 @@ void botcorps_ui_draw(void)
     static char drawn[8];
     if (strcmp(drawn, s_up) != 0) {
         snprintf(drawn, sizeof(drawn), "%s", s_up);
-        botcorps_set_surface(BOTCORPS_SURFACE_MENU);
-        paint_int(botcorps_menu());
-        botcorps_menu().endWrite();
+        tick_int_live(botcorps_menu());
     }
 }

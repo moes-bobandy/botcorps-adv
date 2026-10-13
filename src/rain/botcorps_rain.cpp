@@ -322,16 +322,50 @@ static void cell_paint(lgfx::LGFX_Device &panel, int cx, int cy)
         panel.setTextColor(color);
         panel.setCursor(x, y);
         panel.print(ch);
-    } else if (fade > 6 && id == 18) {
-        const int icon = botcorps_t0_rain_cell[2][i] % 10;
-        const uint16_t body = (s_mode == 0) ? (uint16_t)0x5D3F : SOLID_INK[s_mode - 1];
-        const int f = fade > 15 ? 15 : (int)fade;
-        const uint16_t c1 = scale_native(body, f, 15);
-        const uint16_t c2 = scale_native(body, f / 2, 15);
-        const uint16_t c3 = scale_native(0xFFFF, f, 15);
-        panel.setClipRect(x, y, CELL, CELL);
-        botcorps_icon_blit(panel, x - 2, y - 2, icon, c1, c2, c3);
-        panel.clearClipRect();
+    }
+}
+
+static bool rain_pixel_ok(int x, int y)
+{
+    if (x < 0 || y < 0 || x >= 320 || y >= 240) return false;
+    for (int i = 0; i < s_ncover; ++i) {
+        const botcorps_cover_t &b = s_cover[i];
+        if (x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h) return false;
+    }
+    if (s_radar) {
+        const int dx = x - 160;
+        const int dy = y - 108;
+        if (dx * dx + dy * dy < 88 * 88) return false;
+    }
+    return true;
+}
+
+static void mark_icon_cells(int x, int y)
+{
+    const int x0 = x < 0 ? 0 : x;
+    const int y0 = y < 0 ? 0 : y;
+    const int x1 = x + 12;
+    const int y1 = y + 12;
+    if (x1 <= 0 || y1 <= 0) return;
+    for (int cy = y0 / CELL; cy <= (y1 - 1) / CELL; ++cy) {
+        for (int cx = x0 / CELL; cx <= (x1 - 1) / CELL; ++cx) {
+            const int i = cell_index(cx, cy);
+            if (i >= 0) mark_dirty(i);
+        }
+    }
+}
+
+static void blit_devices(lgfx::LGFX_Device &panel)
+{
+    const uint16_t body = (s_mode == 0) ? (uint16_t)0x5D3F : SOLID_INK[s_mode - 1];
+    const uint16_t c1 = body;
+    const uint16_t c2 = scale_native(body, 128, 256);
+    const uint16_t c3 = scale_native(0xFFFF, 200, 256);
+    for (int i = 0; i < s_ncols; ++i) {
+        uint8_t *c = col_at(i);
+        if (c[2] != KIND_DEVICE) continue;
+        botcorps_icon_blit_masked(panel, i * GAP, col_y(i), c[5] % 10,
+                                  c1, c2, c3, rain_pixel_ok);
     }
 }
 
@@ -395,7 +429,7 @@ static void step_columns(void)
             if (!c[4]) cell_stamp(x - 1, y - 18, 12, 28, 17, 0);
             cell_stamp(x, y, 7, c[3] ? 7 : 6, (uint8_t)(c[5] + 1), 0);
         } else if (c[2] == KIND_DEVICE) {
-            cell_stamp(x, y, 8, 8, 18, c[5] % 10);
+            mark_icon_cells(x, y);
             c[5] = (uint8_t)((c[5] + 1 + rnd_n(4)) % 10);
             step = 12;
         } else {
@@ -421,6 +455,7 @@ static void paint_dirty(lgfx::LGFX_Device &panel)
         if (!take_dirty(i)) continue;
         cell_paint(panel, i % CELL_COLS, i / CELL_COLS);
     }
+    blit_devices(panel);
     panel.endWrite();
     panel.clearClipRect();
 }
@@ -433,6 +468,7 @@ static void paint_all(lgfx::LGFX_Device &panel)
         s_dirty[i >> 3] = 0;
         cell_paint(panel, i % CELL_COLS, i / CELL_COLS);
     }
+    blit_devices(panel);
     panel.endWrite();
     panel.clearClipRect();
 }

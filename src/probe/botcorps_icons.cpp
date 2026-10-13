@@ -48,20 +48,30 @@ static const uint8_t ICON[BOTCORPS_ICON_N][36] PROGMEM = {
       0x00,0x3C,0x00, 0x00,0x00,0x00, 0x00,0x00,0x00, 0x00,0x00,0x00 },
 };
 
-void botcorps_icon_blit(lgfx::LovyanGFX &dst, int x, int y, int id,
-                        uint16_t c1, uint16_t c2, uint16_t c3)
+void botcorps_icon_blit_masked(lgfx::LovyanGFX &dst, int x, int y, int id,
+                               uint16_t c1, uint16_t c2, uint16_t c3,
+                               bool (*allow)(int px, int py))
 {
     if (id < 0 || id >= BOTCORPS_ICON_N) id = BOTCORPS_ICON_UNKNOWN;
     const uint16_t pal[4] = { 0, c1, c2, c3 };
     const uint8_t *rowp = ICON[id];
     for (int row = 0; row < 12; ++row) {
         for (int col = 0; col < 12; ++col) {
+            const int px = x + col;
+            const int py = y + row;
+            if (allow && !allow(px, py)) continue;
             const int bit = col * 2;
             const uint8_t byte = pgm_read_byte(rowp + (bit >> 3));
             const int shift = 6 - (bit & 7);
             const int ix = (byte >> shift) & 3;
-            if (ix) dst.drawPixel(x + col, y + row, pal[ix]);
+            if (ix) dst.drawPixel(px, py, pal[ix]);
         }
         rowp += 3;
     }
+}
+
+void botcorps_icon_blit(lgfx::LovyanGFX &dst, int x, int y, int id,
+                        uint16_t c1, uint16_t c2, uint16_t c3)
+{
+    botcorps_icon_blit_masked(dst, x, y, id, c1, c2, c3, 0);
 }

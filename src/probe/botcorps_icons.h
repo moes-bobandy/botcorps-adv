@@ -21,3 +21,7 @@ enum {
 
 void botcorps_icon_blit(lgfx::LovyanGFX &dst, int x, int y, int id,
                         uint16_t c1, uint16_t c2, uint16_t c3);
+/* allow may be null. When set, a pixel is drawn only if allow(px, py) is true. */
+void botcorps_icon_blit_masked(lgfx::LovyanGFX &dst, int x, int y, int id,
+                               uint16_t c1, uint16_t c2, uint16_t c3,
+                               bool (*allow)(int px, int py));

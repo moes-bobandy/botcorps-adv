@@ -7,11 +7,21 @@
  * lut565 as swap565, so every lut entry is stored pre-swapped. Direct draws
  * swap that word back to normal-order RGB565.
  *
- * Indices 224..254 are the reserved mock-hex block (exact RGB565, not RGB332).
- * Index 255 and 0..223 stay RGB332. PAL_BLACK is the free code 0.
+ * Indices 216..222 and 224..254 are exact RGB565. Index 223 stays RGB332.
+ * Index 255 stays RGB332 white (0xFF): white draws and any 0xFF key use that code.
+ * PAL_BLACK is the free code 0.
  */
 enum : uint8_t {
     PAL_BLACK = 0,
+    PAL_R_FDC9 = 216, /* MULTI rain ink 0xFDC9 */
+    PAL_R_F689,       /* 0xF689 */
+    PAL_R_FA69,       /* 0xFA69 */
+    PAL_R_E2FF,       /* 0xE2FF */
+    PAL_R_CF89,       /* 0xCF89 */
+    PAL_R_FC43,       /* 0xFC43 */
+    PAL_R_6BBF,       /* 0x6BBF */
+    PAL_LO_FIRST = PAL_R_FDC9,
+    PAL_LO_HI = PAL_R_6BBF + 1, /* 223, first free code after the low block */
     PAL_FIELD = 224, /* #070a08  0x0041 */
     PAL_BG,          /* 0x0862 */
     PAL_BAR,         /* 0x10C4 */
@@ -47,6 +57,9 @@ enum : uint8_t {
     PAL_RES_HI = PAL_DIAG + 1
 };
 
-static_assert(PAL_RES_HI <= 256, "reserved block stays inside the lut");
-static_assert(PAL_RES_HI - PAL_RES_LO <= 32, "reserved block is at most 32");
-static_assert(PAL_RES_HI - PAL_RES_LO >= 16, "reserved block covers the mock hexes");
+static_assert(PAL_LO_FIRST == 216, "low exact block starts at 216");
+static_assert(PAL_R_6BBF == 222, "seven MULTI colours occupy 216..222");
+static_assert(PAL_LO_HI == 223, "223 stays a free RGB332 code");
+static_assert(PAL_FIELD == 224, "upper exact block still starts at 224");
+static_assert(PAL_DIAG == 254, "254 stays the last exact slot");
+static_assert(PAL_RES_HI == 255, "255 stays RGB332 white");

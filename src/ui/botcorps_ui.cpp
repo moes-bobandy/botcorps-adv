@@ -227,6 +227,35 @@ static bool wants_rain(void)
     return s_screen != SCR_WIFI_LIST && s_screen != SCR_BT_LIST && s_screen != SCR_DIAG;
 }
 
+/* EXT chrome that moves on its own: sweep, pulse, bob, or the prompt caret. */
+static bool ext_animates(void)
+{
+    switch (s_screen) {
+    case SCR_GIBSON:
+    case SCR_WIFI:
+    case SCR_BT:
+    case SCR_BOT:
+    case SCR_WIFI_RADAR:
+    case SCR_BT_RADAR:
+    case SCR_BOT_RADAR:
+    case SCR_SCAN:
+    case SCR_TERMINAL:
+        return true;
+    default:
+        return false;
+    }
+}
+
+/* Fixed 140 ms step. A screen with no rain uses this instead of the loop rate. */
+static bool anim_step_due(void)
+{
+    static uint32_t s_anim_ms = 0;
+    const uint32_t now = millis();
+    if (s_anim_ms != 0 && (uint32_t)(now - s_anim_ms) < 140u) return false;
+    s_anim_ms = now;
+    return true;
+}
+
 bool botcorps_ui_wants_ext_rain(void)
 {
     return wants_rain();
@@ -1952,6 +1981,8 @@ void botcorps_ui_input(void)
 void botcorps_ui_draw(void)
 {
     layout_covers();
+    if (botcorps_dual_ok() && !wants_rain() && ext_animates() && anim_step_due())
+        s_dirty = true;
     const bool dirty = s_dirty;
     bool stepped = false;
     if (botcorps_dual_ok() && wants_rain()) stepped = botcorps_rain_step();

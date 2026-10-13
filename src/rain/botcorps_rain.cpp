@@ -190,7 +190,8 @@ static uint8_t kind_for(int i)
     if (s_mix == BOTCORPS_RAIN_MIX_DEV) {
         return (i % 3 == 0) ? KIND_DEVICE : ((i % 2 == 1) ? KIND_CODE : KIND_OFF);
     }
-    if (s_mix == BOTCORPS_RAIN_MIX_BOTS) return (i % 2 == 0) ? KIND_BOT : KIND_OFF;
+    /* BOTS label uses the old CREW split: even columns bots, odd columns code. */
+    if (s_mix == BOTCORPS_RAIN_MIX_BOTS) return (i % 2 == 0) ? KIND_BOT : KIND_CODE;
     if ((i % 3) == 0) return KIND_BOT;
     if ((i % 2) == 1) return KIND_DEVICE;
     return KIND_CODE;

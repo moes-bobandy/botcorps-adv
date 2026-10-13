@@ -18,7 +18,8 @@ namespace lgfx { inline namespace v1 { class LovyanGFX; } }
 /* 0 = MULTI (the 14-colour palette). 1..6 = solid inks. */
 #define BOTCORPS_RAIN_COLORS 7
 
-/* Mock BACKGROUND mixes. FIELD is the default: bots, devices, and code. */
+/* Mock BACKGROUND mixes. FIELD is bots, devices, and code.
+ * BOTS is bots plus code. DEVICES is devices, code, and empty columns. */
 #define BOTCORPS_RAIN_MIX_FIELD 0
 #define BOTCORPS_RAIN_MIX_BOTS  1
 #define BOTCORPS_RAIN_MIX_DEV   2

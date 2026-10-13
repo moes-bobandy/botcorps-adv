@@ -85,6 +85,19 @@ static uint16_t pack332(uint8_t raw)
     return (uint16_t)((r5 << 11) | (g6 << 5) | b5);
 }
 
+/* Exact MULTI rain colours, native RGB565, indices 216..222. 0xFDC9 is one of these seven. */
+static const uint16_t k_lo[] = {
+    0xFDC9, /* PAL_R_FDC9 */
+    0xF689, /* PAL_R_F689 */
+    0xFA69, /* PAL_R_FA69 */
+    0xE2FF, /* PAL_R_E2FF */
+    0xCF89, /* PAL_R_CF89 */
+    0xFC43, /* PAL_R_FC43 */
+    0x6BBF, /* PAL_R_6BBF */
+};
+static_assert(sizeof(k_lo) / sizeof(k_lo[0]) == (PAL_LO_HI - PAL_LO_FIRST),
+              "low reserved lut span");
+
 /* Exact mock hexes, native RGB565, in palette-index order from PAL_FIELD. */
 static const uint16_t k_res[] = {
     0x0041, /* PAL_FIELD #070a08 */
@@ -124,6 +137,7 @@ static_assert(sizeof(k_res) / sizeof(k_res[0]) == (PAL_RES_HI - PAL_RES_LO),
 
 static uint16_t native_at(int i)
 {
+    if (i >= PAL_LO_FIRST && i < PAL_LO_HI) return k_lo[i - PAL_LO_FIRST];
     if (i >= PAL_RES_LO && i < PAL_RES_HI) return k_res[i - PAL_RES_LO];
     return pack332((uint8_t)i);
 }
@@ -158,6 +172,7 @@ static int dist2(uint16_t a, uint16_t b)
 
 static bool reserved_slot(int i)
 {
+    if (i >= PAL_LO_FIRST && i < PAL_LO_HI) return true;
     return i >= PAL_RES_LO && i < PAL_RES_HI;
 }
 
@@ -183,6 +198,9 @@ uint16_t botcorps_pal_native(uint8_t idx)
 
 uint8_t botcorps_pal_fit(uint16_t native)
 {
+    for (int i = 0; i < (int)(sizeof(k_lo) / sizeof(k_lo[0])); ++i) {
+        if (k_lo[i] == native) return (uint8_t)(PAL_LO_FIRST + i);
+    }
     for (int i = 0; i < (int)(sizeof(k_res) / sizeof(k_res[0])); ++i) {
         if (k_res[i] == native) return (uint8_t)(PAL_RES_LO + i);
     }

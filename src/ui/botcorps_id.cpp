@@ -47,19 +47,19 @@ static int mx(bool mirror, int x, int w, int width)
     return mirror ? width - x - w : x;
 }
 
-static void hline(Gfx g, int x0, int x1, int y, uint8_t col)
+static void hline(Gfx g, int x0, int x1, int y, uint16_t col)
 {
     if (x1 < x0) { const int t = x0; x0 = x1; x1 = t; }
     g.fillRect(x0, y, x1 - x0 + 1, 1, col);
 }
 
-static void vline(Gfx g, int x, int y0, int y1, uint8_t col)
+static void vline(Gfx g, int x, int y0, int y1, uint16_t col)
 {
     if (y1 < y0) { const int t = y0; y0 = y1; y1 = t; }
     g.fillRect(x, y0, 1, y1 - y0 + 1, col);
 }
 
-static void wire(Gfx g, bool mirror, int width, const seg_t &s, uint8_t col)
+static void wire(Gfx g, bool mirror, int width, const seg_t &s, uint16_t col)
 {
     const int x0 = mirror ? width - s.x0 : s.x0;
     const int x1 = mirror ? width - s.x1 : s.x1;
@@ -104,26 +104,29 @@ static uint16_t mix_nat(uint16_t a, uint16_t b, int num, int den)
 }
 
 struct card_ink {
-    uint8_t edge;
-    uint8_t tint;
-    uint8_t hi;
-    uint8_t tr;
+    uint16_t edge;
+    uint16_t tint;
+    uint16_t hi;
+    uint16_t tr;
 };
+
+static const uint16_t MIX_BG = 0x0862;   /* #0a0e12 */
+static const uint16_t MIX_EDGE = 0x5B0D; /* #59636d */
+static const uint16_t MIX_WIRE = 0x2187; /* #26313a */
 
 static card_ink card_inks(uint8_t col)
 {
-    const uint16_t b = botcorps_pal_native(col);
-    const uint16_t tint_n = mix_nat(0x0862, b, 12, 100); /* #0a0e12 toward the bot */
+    const uint16_t b = botcorps_rgb565(col);
     card_ink k;
-    k.tint = botcorps_pal_fit(tint_n);
-    k.edge = botcorps_pal_fit(mix_nat(0x5B0D, b, 35, 100)); /* #59636d */
-    k.hi = botcorps_pal_fit(mix_nat(tint_n, b, 35, 100));
-    k.tr = botcorps_pal_fit(mix_nat(0x2187, b, 40, 100)); /* #26313a */
+    k.tint = mix_nat(MIX_BG, b, 12, 100);
+    k.edge = mix_nat(MIX_EDGE, b, 35, 100);
+    k.hi = mix_nat(k.tint, b, 35, 100);
+    k.tr = mix_nat(MIX_WIRE, b, 40, 100);
     return k;
 }
 
 /* dfRR from the mock: one pixel row per scan, corners inset by the circle. */
-static void df_rr(Gfx g, int x, int y, int w, int h, int r, uint8_t col)
+static void df_rr(Gfx g, int x, int y, int w, int h, int r, uint16_t col)
 {
     if (w <= 0 || h <= 0) return;
     if (r < 0) r = 0;
@@ -150,36 +153,40 @@ static void gibson_chip(Gfx g, int cx, int cy, int z)
     if (z < 1) z = 1;
     const int ox = cx - (7 * z) / 2;
     const int oy = cy - (7 * z) / 2;
-    auto u = [&](int x, int y, int w, int h, uint8_t col) {
+    auto u = [&](int x, int y, int w, int h, uint16_t col) {
         g.fillRect(ox + x * z, oy + y * z, w * z, h * z, col);
     };
+    const uint16_t ivory = botcorps_rgb565(PAL_IVORY);
+    const uint16_t chin = botcorps_rgb565(PAL_CHIN);
+    const uint16_t black = botcorps_rgb565(PAL_BLACK);
+    const uint16_t steel = botcorps_rgb565(PAL_STEEL);
     const int sx = ox + (z + 1) / 2;
     const int sw = (ox + (13 * z + 1) / 2) - sx;
-    g.fillRect(sx, oy + 7 * z, sw > 0 ? sw : z, z > 2 ? 2 : z, PAL_BLACK);
-    u(3, 0, 1, 1, PAL_IVORY);
-    u(1, 1, 5, 1, PAL_IVORY);
-    u(0, 2, 7, 3, PAL_IVORY);
-    u(0, 5, 7, 1, PAL_IVORY);
-    u(1, 6, 5, 1, PAL_IVORY);
-    u(1, 6, 5, 1, PAL_CHIN);
-    u(0, 5, 1, 1, PAL_CHIN);
-    u(6, 5, 1, 1, PAL_CHIN);
-    u(0, 3, 7, 1, PAL_BLACK);
-    u(1, 4, 2, 1, PAL_BLACK);
-    u(4, 4, 2, 1, PAL_BLACK);
+    g.fillRect(sx, oy + 7 * z, sw > 0 ? sw : z, z > 2 ? 2 : z, black);
+    u(3, 0, 1, 1, ivory);
+    u(1, 1, 5, 1, ivory);
+    u(0, 2, 7, 3, ivory);
+    u(0, 5, 7, 1, ivory);
+    u(1, 6, 5, 1, ivory);
+    u(1, 6, 5, 1, chin);
+    u(0, 5, 1, 1, chin);
+    u(6, 5, 1, 1, chin);
+    u(0, 3, 7, 1, black);
+    u(1, 4, 2, 1, black);
+    u(4, 4, 2, 1, black);
     const int gl = (int)((millis() / 900u) % 2u);
-    u(1 + gl, 3, 1, 1, PAL_STEEL);
-    u(4 + gl, 3, 1, 1, PAL_STEEL);
+    u(1 + gl, 3, 1, 1, steel);
+    u(4 + gl, 3, 1, 1, steel);
 }
 
-static void id_icon(Gfx g, int k, int x, int y, uint8_t col)
+static void id_icon(Gfx g, int k, int x, int y, uint16_t col)
 {
     auto f = [&](int a, int b, int w, int h) { g.fillRect(x + a, y + b, w, h, col); };
     if (k == 0) { f(2, 0, 4, 3); f(1, 4, 6, 3); }
     else if (k == 1) { f(1, 0, 6, 4); f(2, 4, 4, 2); f(3, 6, 2, 1); }
     else if (k == 2) {
         f(1, 1, 6, 5);
-        g.fillRect(x + 3, y + 3, 2, 1, PAL_BLACK);
+        g.fillRect(x + 3, y + 3, 2, 1, botcorps_rgb565(PAL_BLACK));
         f(0, 2, 1, 1); f(7, 2, 1, 1); f(0, 4, 1, 1); f(7, 4, 1, 1);
     } else if (k == 3) {
         f(0, 3, 1, 1); f(1, 2, 1, 3); f(2, 1, 1, 5); f(3, 0, 1, 7);
@@ -187,7 +194,7 @@ static void id_icon(Gfx g, int k, int x, int y, uint8_t col)
     } else if (k == 4) { f(3, 0, 1, 7); f(1, 3, 5, 1); f(2, 2, 3, 3); }
     else if (k == 5) {
         f(2, 0, 4, 1); f(2, 1, 1, 2); f(5, 1, 1, 2); f(1, 3, 6, 4);
-        g.fillRect(x + 3, y + 4, 2, 2, PAL_BLACK);
+        g.fillRect(x + 3, y + 4, 2, 2, botcorps_rgb565(PAL_BLACK));
     } else if (k == 6) {
         f(4, 0, 2, 2); f(3, 2, 2, 2); f(2, 4, 2, 2); f(3, 3, 3, 1); f(4, 5, 1, 2);
     } else {
@@ -207,7 +214,7 @@ static int icon_kind(int bot, bool gib, int i)
     return v[i];
 }
 
-static void pulse(Gfx g, bool mirror, int width, const seg_t &s, int dist, uint8_t col)
+static void pulse(Gfx g, bool mirror, int width, const seg_t &s, int dist, uint16_t col)
 {
     int x0 = mirror ? width - s.x0 : s.x0;
     int y0 = s.y0;
@@ -227,58 +234,65 @@ static void pulse(Gfx g, bool mirror, int width, const seg_t &s, int dist, uint8
     g.fillRect(x - 1, y - 1, 3, 3, col);
 }
 
-static void photo(Gfx g, int x, int y, int w, int h, int bot, bool gib, uint8_t col, int shape)
+static void photo(Gfx g, int x, int y, int w, int h, int bot, bool gib, uint8_t idx, int shape)
 {
-    g.fillRect(x, y, w, h, PAL_BLACK);
-    for (int yy = y + 1; yy < y + h; yy += 4) g.fillRect(x + 1, yy, w - 2, 1, PAL_DEEP);
+    const uint16_t black = botcorps_rgb565(PAL_BLACK);
+    const uint16_t deep = botcorps_rgb565(PAL_DEEP);
+    const uint16_t muted = botcorps_rgb565(PAL_MUTED);
+    g.fillRect(x, y, w, h, black);
+    for (int yy = y + 1; yy < y + h; yy += 4) g.fillRect(x + 1, yy, w - 2, 1, deep);
     for (int k = 0; k < 6; ++k) {
-        g.fillRect(x + k, y, 1, 1, PAL_MUTED);
-        g.fillRect(x, y + k, 1, 1, PAL_MUTED);
-        g.fillRect(x + w - 1 - k, y, 1, 1, PAL_MUTED);
-        g.fillRect(x + w - 1, y + k, 1, 1, PAL_MUTED);
-        g.fillRect(x + k, y + h - 1, 1, 1, PAL_MUTED);
-        g.fillRect(x, y + h - 1 - k, 1, 1, PAL_MUTED);
-        g.fillRect(x + w - 1 - k, y + h - 1, 1, 1, PAL_MUTED);
-        g.fillRect(x + w - 1, y + h - 1 - k, 1, 1, PAL_MUTED);
+        g.fillRect(x + k, y, 1, 1, muted);
+        g.fillRect(x, y + k, 1, 1, muted);
+        g.fillRect(x + w - 1 - k, y, 1, 1, muted);
+        g.fillRect(x + w - 1, y + k, 1, 1, muted);
+        g.fillRect(x + k, y + h - 1, 1, 1, muted);
+        g.fillRect(x, y + h - 1 - k, 1, 1, muted);
+        g.fillRect(x + w - 1 - k, y + h - 1, 1, 1, muted);
+        g.fillRect(x + w - 1, y + h - 1 - k, 1, 1, muted);
     }
     const int cx = x + w / 2;
     const int cy = y + h / 2 - 2;
     if (gib) {
         gibson_chip(g, cx, cy, 4);
     } else {
-        botcorps_sprite_draw(*g.raw(), cx, cy - g.oy, shape, 4, col, false);
+        botcorps_sprite_draw(*g.raw(), cx, cy - g.oy, shape, 4, idx, false);
     }
 }
 
-static void chip(Gfx g, int x, int y, int pat, int bot, bool gib, uint8_t col, int shape)
+static void chip(Gfx g, int x, int y, int pat, int bot, bool gib, uint8_t idx, int shape)
 {
-    g.fillRect(x, y, 34, 34, PAL_MUTED);
-    g.fillRect(x + 1, y + 1, 32, 32, PAL_LINE);
+    const uint16_t muted = botcorps_rgb565(PAL_MUTED);
+    const uint16_t line = botcorps_rgb565(PAL_LINE);
+    const uint16_t deep = botcorps_rgb565(PAL_DEEP);
+    const uint16_t black = botcorps_rgb565(PAL_BLACK);
+    g.fillRect(x, y, 34, 34, muted);
+    g.fillRect(x + 1, y + 1, 32, 32, line);
     if (pat == 0) {
-        g.fillRect(x + 10, y, 1, 34, PAL_DEEP);
-        g.fillRect(x + 23, y, 1, 34, PAL_DEEP);
-        g.fillRect(x, y + 10, 34, 1, PAL_DEEP);
-        g.fillRect(x, y + 23, 34, 1, PAL_DEEP);
+        g.fillRect(x + 10, y, 1, 34, deep);
+        g.fillRect(x + 23, y, 1, 34, deep);
+        g.fillRect(x, y + 10, 34, 1, deep);
+        g.fillRect(x, y + 23, 34, 1, deep);
     } else if (pat == 1) {
-        g.fillRect(x, y + 11, 34, 1, PAL_DEEP);
-        g.fillRect(x, y + 22, 34, 1, PAL_DEEP);
-        g.fillRect(x + 16, y, 1, 11, PAL_DEEP);
-        g.fillRect(x + 16, y + 23, 1, 11, PAL_DEEP);
+        g.fillRect(x, y + 11, 34, 1, deep);
+        g.fillRect(x, y + 22, 34, 1, deep);
+        g.fillRect(x + 16, y, 1, 11, deep);
+        g.fillRect(x + 16, y + 23, 1, 11, deep);
     } else {
-        g.fillRect(x + 16, y, 2, 34, PAL_DEEP);
-        g.fillRect(x, y + 16, 34, 2, PAL_DEEP);
+        g.fillRect(x + 16, y, 2, 34, deep);
+        g.fillRect(x, y + 16, 34, 2, deep);
     }
-    g.fillRect(x + 9, y + 9, 16, 16, PAL_BLACK);
+    g.fillRect(x + 9, y + 9, 16, 16, black);
     if (gib) {
         gibson_chip(g, x + 17, y + 17, 1);
     } else {
-        botcorps_sprite_draw(*g.raw(), x + 17, y + 17 - g.oy, shape, 1, col, false);
+        botcorps_sprite_draw(*g.raw(), x + 17, y + 17 - g.oy, shape, 1, idx, false);
     }
-    if (((millis() / 420u) % 2u) == 0u) g.fillRect(x + 28, y + 2, 3, 3, col);
+    if (((millis() / 420u) % 2u) == 0u) g.fillRect(x + 28, y + 2, 3, 3, botcorps_rgb565(idx));
     (void)bot;
 }
 
-static void bars(Gfx g, const lay_t &L, bool mirror, int width, uint8_t col, bool full)
+static void bars(Gfx g, const lay_t &L, bool mirror, int width, uint16_t col, bool full)
 {
     const int nseg = L.bw / 6;
     const uint32_t sec = millis() / 1000u;
@@ -291,14 +305,15 @@ static void bars(Gfx g, const lay_t &L, bool mirror, int width, uint8_t col, boo
         if (full) {
             g.setFont(&fonts::Font0);
             g.setTextSize(1);
-            g.setTextColor(PAL_MUTED);
+            g.setTextColor(botcorps_rgb565(PAL_MUTED));
             g.setCursor(x, y - 7);
             g.print(lab);
         }
-        g.fillRect(x, y, L.bw, 10, PAL_BLACK);
+        g.fillRect(x, y, L.bw, 10, botcorps_rgb565(PAL_BLACK));
         const int lit = (k == 1) ? lit0 : (3 + k * 2);
+        const uint16_t deep = botcorps_rgb565(PAL_DEEP);
         for (int n = 0; n < nseg && n < 12; ++n) {
-            const uint8_t cc = (n < lit) ? col : PAL_DEEP;
+            const uint16_t cc = (n < lit) ? col : deep;
             g.fillRect(x + 3 + n * 6, y + 2, 5, 6, cc);
         }
     }
@@ -318,6 +333,12 @@ void botcorps_id_paint(Gfx g, int width, int bot, bool gib, uint8_t col,
     bool mirror = false;
     int layi = 0;
     const lay_t &L = pick(bot, gib, &mirror, &layi);
+    const uint16_t body = botcorps_rgb565(col);
+    const uint16_t black = botcorps_rgb565(PAL_BLACK);
+    const uint16_t deep = botcorps_rgb565(PAL_DEEP);
+    const uint16_t muted = botcorps_rgb565(PAL_MUTED);
+    const uint16_t steel = botcorps_rgb565(PAL_STEEL);
+    const uint16_t ivory = botcorps_rgb565(PAL_IVORY);
     const card_ink ink = card_inks(col);
     const int pat = gib ? 0 : (bot + (bot > 5 ? 1 : 0)) % 3;
     df_rr(g, 2, 26, width - 4, 107, 8, ink.edge);
@@ -326,9 +347,9 @@ void botcorps_id_paint(Gfx g, int width, int bot, bool gib, uint8_t col,
     {
         const int x = mx(mirror, L.slot[0], L.slot[2], width);
         const int strap = x + L.slot[2] / 2 - 2;
-        if (L.slot[1] > 22) g.fillRect(strap, 22, 4, L.slot[1] - 22, PAL_STEEL);
-        df_rr(g, x, L.slot[1], L.slot[2], L.slot[3] + 1, 2, PAL_STEEL);
-        df_rr(g, x + 1, L.slot[1] + 1, L.slot[2] - 2, L.slot[3] - 1, 1, PAL_BLACK);
+        if (L.slot[1] > 22) g.fillRect(strap, 22, 4, L.slot[1] - 22, steel);
+        df_rr(g, x, L.slot[1], L.slot[2], L.slot[3] + 1, 2, steel);
+        df_rr(g, x + 1, L.slot[1] + 1, L.slot[2] - 2, L.slot[3] - 1, 1, black);
     }
     for (int i = 0; i < 4; ++i) wire(g, mirror, width, WIRE[layi][i], ink.tr);
     {
@@ -339,56 +360,56 @@ void botcorps_id_paint(Gfx g, int width, int bot, bool gib, uint8_t col,
         const int x = mx(mirror, L.chip[0], 34, width);
         chip(g, x, L.chip[1], pat, bot, gib, col, shape);
     }
-    bars(g, L, mirror, width, col, true);
+    bars(g, L, mirror, width, body, true);
     {
         const int x = mx(mirror, L.name[0], L.name[2], width);
-        g.fillRect(x, L.name[1], L.name[2], L.name[3], PAL_MUTED);
-        g.fillRect(x + 1, L.name[1] + 1, L.name[2] - 2, L.name[3] - 2, PAL_BLACK);
+        g.fillRect(x, L.name[1], L.name[2], L.name[3], muted);
+        g.fillRect(x + 1, L.name[1] + 1, L.name[2] - 2, L.name[3] - 2, black);
         g.setFont(&fonts::Font0);
         g.setTextSize(1);
-        g.setTextColor(col);
+        g.setTextColor(body);
         g.setCursor(x + 4, L.name[1] + 2);
         g.print(name ? name : "");
-        g.setTextColor(PAL_MUTED);
+        g.setTextColor(muted);
         g.setCursor(x + 4, L.name[1] + L.name[3] - 8);
         g.print("LV 01");
-        if (((millis() / 700u) % 4u) != 0u) g.fillRect(x + 4, L.name[1] + 12, 4, 3, col);
+        if (((millis() / 700u) % 4u) != 0u) g.fillRect(x + 4, L.name[1] + 12, 4, 3, body);
     }
     {
         const int x = mx(mirror, L.oled[0], L.oled[2], width);
-        g.fillRect(x, L.oled[1], L.oled[2], L.oled[3], PAL_BLACK);
-        g.setTextColor(col);
+        g.fillRect(x, L.oled[1], L.oled[2], L.oled[3], black);
+        g.setTextColor(body);
         g.setCursor(x + 2, L.oled[1] + 1);
         g.print(target ? target : "");
     }
     {
         const int x = mx(mirror, L.ant[0], L.ant[2], width);
         const int rows = L.ant[3] / 4;
-        for (int k = 0; k <= rows; ++k) g.fillRect(x, L.ant[1] + k * 4, L.ant[2] - 2, 1, PAL_MUTED);
+        for (int k = 0; k <= rows; ++k) g.fillRect(x, L.ant[1] + k * 4, L.ant[2] - 2, 1, muted);
     }
     {
         const int x = mx(mirror, L.usb[0], L.usb[2], width);
-        g.fillRect(x, L.usb[1], L.usb[2], L.usb[3], PAL_MUTED);
-        g.fillRect(x + 3, L.usb[1] + 4, L.usb[2] - 6, L.usb[3] - 8, PAL_BLACK);
+        g.fillRect(x, L.usb[1], L.usb[2], L.usb[3], muted);
+        g.fillRect(x + 3, L.usb[1] + 4, L.usb[2] - 6, L.usb[3] - 8, black);
     }
     for (int i = 0; i < 2; ++i) {
         const int w = (layi == 1) ? 9 : 10;
         const int x = mx(mirror, L.btn[i][0], w, width);
-        g.fillRect(x, L.btn[i][1], w, 8, PAL_DEEP);
-        g.fillRect(x + 3, L.btn[i][1] + 2, w - 6, 4, PAL_MUTED);
+        g.fillRect(x, L.btn[i][1], w, 8, deep);
+        g.fillRect(x + 3, L.btn[i][1] + 2, w - 6, 4, muted);
     }
     {
         const int x = mx(mirror, L.code[0], L.code[2], width);
-        g.fillRect(x, L.code[1], L.code[2], L.code[3], PAL_IVORY);
-        g.fillRect(x, L.code[1], L.code[2], 11, PAL_BLACK);
+        g.fillRect(x, L.code[1], L.code[2], L.code[3], ivory);
+        g.fillRect(x, L.code[1], L.code[2], 11, black);
         for (int i = 0; i < 3; ++i) {
             id_icon(g, icon_kind(bot, gib, i), x + 3 + i * 11, L.code[1] + 2,
-                    i == 1 ? col : PAL_MUTED);
+                    i == 1 ? body : muted);
         }
         int bx = x + 2;
         for (int k = 0; bx < x + L.code[2] - 2 && k < 16; ++k) {
             const int w = 1 + ((bot + 3) * (k + 1)) % 3;
-            g.fillRect(bx, L.code[1] + 13, w, L.code[3] > 15 ? L.code[3] - 15 : 4, PAL_BLACK);
+            g.fillRect(bx, L.code[1] + 13, w, L.code[3] > 15 ? L.code[3] - 15 : 4, black);
             bx += w + 1 + (k % 2);
         }
     }
@@ -412,7 +433,7 @@ void botcorps_id_tick(lgfx::LovyanGFX &menu, int width, int bot, bool gib, uint8
         menu.setClipRect(x0 - 2, y0 - 2, (x1 - x0) + 6, (y1 - y0) + 6);
         Gfx g(menu);
         wire(g, mirror, width, s, ink.tr);
-        pulse(g, mirror, width, s, (int)((t / 40u) + (uint32_t)i * 9u), col);
+        pulse(g, mirror, width, s, (int)((t / 40u) + (uint32_t)i * 9u), botcorps_rgb565(col));
         menu.endWrite();
         menu.clearClipRect();
     }
@@ -422,7 +443,7 @@ void botcorps_id_tick(lgfx::LovyanGFX &menu, int width, int bot, bool gib, uint8
         menu.startWrite();
         menu.setClipRect(x, y, L.bw, 10);
         Gfx g(menu);
-        bars(g, L, mirror, width, col, false);
+        bars(g, L, mirror, width, botcorps_rgb565(col), false);
         menu.endWrite();
         menu.clearClipRect();
     }

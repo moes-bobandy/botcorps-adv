@@ -18,6 +18,8 @@ struct Gfx {
     Gfx(lgfx::LovyanGFX &d);
     lgfx::LovyanGFX *raw(void) const { return p; }
     void fillRect(int x, int y, int w, int h, uint8_t c);
+    /* Plain uint16_t is RGB565. A bare int or uint32_t would be read as RGB888. */
+    void fillRect(int x, int y, int w, int h, uint16_t c);
     void drawRect(int x, int y, int w, int h, uint8_t c);
     void fillCircle(int x, int y, int r, uint8_t c);
     void drawCircle(int x, int y, int r, uint8_t c);
@@ -35,6 +37,7 @@ struct Gfx {
     void setTextSize(float s);
     void setTextSize(float sx, float sy);
     void setTextColor(uint8_t c);
+    void setTextColor(uint16_t c);
     void setTextColor(uint8_t fg, uint8_t bg);
     void setTextDatum(int dat);
     void drawString(const char *s, int x, int y);
@@ -63,7 +66,9 @@ void botcorps_band_present(void (*draw)(Gfx));
 
 /* Normal-order RGB565 for a named index. Swaps the pre-swapped lut word back. */
 uint16_t botcorps_pal_native(uint8_t idx);
-/* Nearest kept colour: a reserved exact slot, or a leftover RGB332 code. */
+/* Mock RGB565 for an index, from the const table. Not the runtime lut. */
+uint16_t botcorps_rgb565(uint8_t idx);
+/* Const lookup. Does not scan the 256 slots. */
 uint8_t botcorps_pal_fit(uint16_t native);
 /* 4-step ramp reused across trail ages 0..13. Ages past that are field. */
 uint8_t botcorps_pal_ramp(int ink, int age);

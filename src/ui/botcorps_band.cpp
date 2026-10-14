@@ -87,32 +87,13 @@ static uint16_t pack332(uint8_t raw)
 
 #include "botcorps_pal_tables.inc"
 
-static void ch8(uint16_t native, int *r, int *g, int *b)
-{
-    const int r5 = (native >> 11) & 31;
-    const int g6 = (native >> 5) & 63;
-    const int b5 = native & 31;
-    *r = (r5 << 3) + (r5 >> 2);
-    *g = (g6 << 2) + (g6 >> 4);
-    *b = (b5 << 3) + (b5 >> 2);
-}
-
 static uint16_t native_at(int i)
 {
     if (k_is_res[i]) return k_exact_nat[i];
     return pack332((uint8_t)i);
 }
 
-static int dist2(uint16_t a, uint16_t b)
-{
-    int ar, ag, ab, br, bg, bb;
-    ch8(a, &ar, &ag, &ab);
-    ch8(b, &br, &bg, &bb);
-    const int dr = ar - br;
-    const int dg = ag - bg;
-    const int db = ab - bb;
-    return dr * dr + dg * dg + db * db;
-}
+#include "botcorps_pal_fit.inc"
 
 uint16_t botcorps_pal_native(uint8_t idx)
 {
@@ -140,21 +121,15 @@ bool botcorps_pal_ramp_for(uint16_t native, int age, uint8_t *out)
     return false;
 }
 
+uint16_t botcorps_rgb565(uint8_t idx)
+{
+    if (k_is_res[idx]) return k_exact_nat[idx];
+    return pack332(idx);
+}
+
 uint8_t botcorps_pal_fit(uint16_t native)
 {
-    /* Nearest of the reserved exacts and the leftover RGB332 codes. A stolen
-     * slot wins when its exact colour is closer than the code it replaced. */
-    int best = 0;
-    int best_d = 1 << 30;
-    for (int i = 0; i < 256; ++i) {
-        const uint16_t shown = k_is_res[i] ? k_exact_nat[i] : pack332((uint8_t)i);
-        const int d = dist2(native, shown);
-        if (d < best_d) {
-            best_d = d;
-            best = i;
-        }
-    }
-    return (uint8_t)best;
+    return k_fit[native];
 }
 
 static bool to_band(const lgfx::LovyanGFX *p)
@@ -162,10 +137,16 @@ static bool to_band(const lgfx::LovyanGFX *p)
     return s_sp && p == static_cast<const lgfx::LovyanGFX *>(s_sp);
 }
 
+static bool on_menu(const lgfx::LovyanGFX *p)
+{
+    return p == static_cast<const lgfx::LovyanGFX *>(&botcorps_menu());
+}
+
 template <class Draw>
 static void with_idx(lgfx::LovyanGFX *p, uint8_t idx, Draw draw)
 {
     if (to_band(p)) draw(lgfx::rgb332_t(idx));
+    else if (on_menu(p)) draw(botcorps_rgb565(idx));
     else draw(botcorps_pal_native(idx));
 }
 
@@ -183,6 +164,7 @@ void botcorps_pal_text(lgfx::LovyanGFX &dst, uint8_t idx)
 {
     /* uint8_t on the band round-trips through RGB888 back to the same index byte. */
     if (to_band(&dst)) dst.setTextColor(idx);
+    else if (on_menu(&dst)) dst.setTextColor(botcorps_rgb565(idx));
     else dst.setTextColor(botcorps_pal_native(idx));
 }
 
@@ -264,6 +246,10 @@ void Gfx::fillRect(int x, int y, int w, int h, uint8_t c)
 {
     with_idx(p, c, [&](auto ink) { p->fillRect(x, y - oy, w, h, ink); });
 }
+void Gfx::fillRect(int x, int y, int w, int h, uint16_t c)
+{
+    p->fillRect(x, y - oy, w, h, c);
+}
 void Gfx::drawRect(int x, int y, int w, int h, uint8_t c)
 {
     with_idx(p, c, [&](auto ink) { p->drawRect(x, y - oy, w, h, ink); });
@@ -310,11 +296,17 @@ void Gfx::setTextSize(float sx, float sy) { p->setTextSize(sx, sy); }
 void Gfx::setTextColor(uint8_t c)
 {
     if (to_band(p)) p->setTextColor(c);
+    else if (on_menu(p)) p->setTextColor(botcorps_rgb565(c));
     else p->setTextColor(botcorps_pal_native(c));
+}
+void Gfx::setTextColor(uint16_t c)
+{
+    p->setTextColor(c);
 }
 void Gfx::setTextColor(uint8_t fg, uint8_t bg)
 {
     if (to_band(p)) p->setTextColor(fg, bg);
+    else if (on_menu(p)) p->setTextColor(botcorps_rgb565(fg), botcorps_rgb565(bg));
     else p->setTextColor(botcorps_pal_native(fg), botcorps_pal_native(bg));
 }
 void Gfx::setTextDatum(int dat) { p->setTextDatum((lgfx::textdatum_t)dat); }

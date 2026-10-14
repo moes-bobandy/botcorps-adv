@@ -7,15 +7,11 @@
  * lut565 as swap565, so every lut entry is stored pre-swapped. Direct draws
  * swap that word back to normal-order RGB565.
  *
- * Reserved colours are not a block at 1..126. Each exact colour and each ramp
- * step sits on the RGB332 code nearest its real colour, and only when that
- * code already looked almost the same. Pass-bar colours (field, bot backing,
- * solids, device ink, icon second colour, fixed bots) always keep an exact
- * slot on their nearest code. Index 0 stays black. Index 255 stays RGB332
- * white. Four ramp steps are reused across a 20-stamp trail.
- *
- * Some names share an index when a second colour is nearer to that exact slot
- * than to any leftover code. The lut still stores one native per index.
+ * Reserved colours are not a block at 1..126. Each named colour stores its
+ * exact RGB565 in its own slot. Index 0 stays black and index 255 stays
+ * RGB332 white, so a dark colour whose nearest code is 0 is placed on the
+ * nearest code that is still free. INT draws those exact values as uint16_t.
+ * The band looks them up through k_fit. Four ramp steps cover a 20-stamp trail.
  */
 enum : uint8_t {
 #include "botcorps_pal_enum.inc"

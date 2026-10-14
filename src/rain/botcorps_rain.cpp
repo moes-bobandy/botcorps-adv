@@ -301,18 +301,21 @@ static void push_stamp(int col, int y, uint8_t kind, uint8_t payload)
     head[col] = (uint8_t)((slot + 1) % TRAIL);
 }
 
-static void paint_field_cell(lgfx::LovyanGFX &panel, int x, int y, int w, int h)
+static const uint8_t STAMP_DONE = 0x80;
+
+/* Clip to this column. A 12 px box on a 6 px gap would erase the next stream. */
+static void clip_column(lgfx::LovyanGFX &panel, int x, int ly, int h)
 {
-    if (w <= 0 || h <= 0) return;
-    int x0 = x < 0 ? 0 : x;
-    int y0 = y < 0 ? 0 : y;
-    int x1 = x + w;
-    int y1 = y + h;
+    if (x < 0) x = 0;
+    if (x > 319) x = 319;
+    int w = GAP;
+    if (x + w > 320) w = 320 - x;
+    int y0 = ly < 0 ? 0 : ly;
+    int y1 = ly + (h < 1 ? 1 : h);
     const int sh = s_slice_y1 - s_slice_y0;
-    if (x1 > 320) x1 = 320;
     if (y1 > sh) y1 = sh;
-    if (x1 <= x0 || y1 <= y0) return;
-    botcorps_pal_rect(panel, x0, y0, x1 - x0, y1 - y0, PAL_FIELD);
+    if (y1 <= y0) y1 = y0 + 1;
+    panel.setClipRect(x, y0, w, y1 - y0);
 }
 
 static void draw_stamp(lgfx::LovyanGFX &panel, int col, int age)
@@ -321,25 +324,28 @@ static void draw_stamp(lgfx::LovyanGFX &panel, int col, int age)
     int slot = head - 1 - age;
     while (slot < 0) slot += TRAIL;
     const int idx = col * TRAIL + slot;
-    const uint8_t kind = stamp_k()[idx] & 3;
+    const uint8_t rawk = stamp_k()[idx];
+    if (rawk & STAMP_DONE) return;
+    const uint8_t kind = rawk & 3;
     if (kind == KIND_OFF) return;
     const int world_y = stamp_y()[idx];
     if (world_y == 255) return;
     const int x = col * GAP;
-    const int shape = (stamp_k()[idx] >> 2) & 3;
+    const int shape = (rawk >> 2) & 3;
     const uint8_t payload = stamp_p()[idx];
-    const int bw = (kind == KIND_DEVICE) ? 12 : (kind == KIND_BOT) ? 9 : 6;
-    const int bh = (kind == KIND_DEVICE) ? 12 : (kind == KIND_BOT) ? 9 : 8;
+    const int bh = (kind == KIND_DEVICE) ? 14 : (kind == KIND_BOT) ? 9 : 8;
     if (world_y + bh <= s_slice_y0 || world_y >= s_slice_y1) return;
-    if (box_hits_chrome(x, world_y, bw, bh)) return;
+    if (box_hits_chrome(x, world_y, GAP, bh)) return;
     const int ly = world_y - s_slice_y0;
+    const bool back = kind == KIND_BOT && col_at(col)[4] == 0;
     if (kind == KIND_CODE) {
         uint16_t base = code_is_head(col, world_y) ? COL_HEAD_N : COL_CODE_N;
         if (s_mode != 0) base = code_ink(code_is_head(col, world_y));
-        const uint8_t ink = trail_ink(base, age);
+        uint8_t ink = trail_ink(base, age);
         if (ink == PAL_FIELD) {
-            paint_field_cell(panel, x, ly, bw, bh);
-            return;
+            if (!botcorps_band_direct()) return;
+            clip_column(panel, x, ly, bh);
+            ink = PAL_FIELD;
         }
         const char ch = CODE_GLYPHS[payload % CODE_N];
         char s[2] = { ch, 0 };
@@ -348,6 +354,10 @@ static void draw_stamp(lgfx::LovyanGFX &panel, int col, int age)
         botcorps_pal_text(panel, ink);
         panel.setCursor(x, ly);
         panel.print(s);
+        if (ink == PAL_FIELD) {
+            panel.clearClipRect();
+            stamp_k()[idx] = (uint8_t)(rawk | STAMP_DONE);
+        }
         return;
     }
     if (kind == KIND_BOT) {
@@ -355,40 +365,55 @@ static void draw_stamp(lgfx::LovyanGFX &panel, int col, int age)
         if (payload >= 32 && payload < 44) native = BOTCORPS_BOT_COLOR[payload - 32];
         else if (s_mode != 0) native = SOLID_INK[s_mode - 1];
         else native = PALETTE[payload % 14];
-        const uint8_t ink = trail_ink(native, age);
+        uint8_t ink = trail_ink(native, age);
         if (ink == PAL_FIELD) {
-            paint_field_cell(panel, x, ly, bw, bh);
-            if (col_at(col)[4] == 0) paint_field_cell(panel, x - 1, ly - 18, 12, 28);
-            return;
-        }
-        if (age == 0 && col_at(col)[4] == 0 && !box_hits_chrome(x - 1, world_y - 18, 12, 28)) {
-            botcorps_pal_rect(panel, x - 1, ly - 18, 12, 28, PAL_BOT_BACK);
+            if (!botcorps_band_direct()) return;
+            clip_column(panel, x, back ? ly - 18 : ly, back ? 28 : bh);
+            if (back) botcorps_pal_rect(panel, x, ly - 18, GAP, 28, PAL_FIELD);
+            ink = PAL_FIELD;
+        } else if (age == 0 && back && !box_hits_chrome(x, world_y - 18, GAP, 28)) {
+            /* One green step off the field: 0x0061 against 0x0041, column width only. */
+            botcorps_pal_rect(panel, x, ly - 18, GAP, 28, PAL_BOT_BACK);
         }
         const int use = (s_shape > 0) ? (s_shape - 1) : shape;
         botcorps_sprite_draw(panel, x + 4, ly + 4, use, 1, ink, false);
+        if (ink == PAL_FIELD) {
+            panel.clearClipRect();
+            stamp_k()[idx] = (uint8_t)(rawk | STAMP_DONE);
+        }
         return;
     }
     if (s_mix != BOTCORPS_RAIN_MIX_DEV) {
-        const uint8_t ink = trail_ink(0x9E6E, age);
+        uint8_t ink = trail_ink(0x9E6E, age);
         if (ink == PAL_FIELD) {
-            paint_field_cell(panel, x, ly, bw, bh);
-            return;
+            if (!botcorps_band_direct()) return;
+            clip_column(panel, x, ly, bh);
+            ink = PAL_FIELD;
+        } else {
+            clip_column(panel, x, ly, bh);
         }
         const char ch = DEV_GLYPHS[payload % (sizeof(DEV_GLYPHS) - 1)];
         char s[2] = { ch, 0 };
-        panel.setFont(&fonts::Font0);
-        panel.setTextSize(2, 1.5f);
+        panel.setFont(&fonts::DejaVu12);
+        panel.setTextSize(1);
         botcorps_pal_text(panel, ink);
         panel.setCursor(x, ly);
         panel.print(s);
+        panel.clearClipRect();
+        if (ink == PAL_FIELD) stamp_k()[idx] = (uint8_t)(rawk | STAMP_DONE);
         return;
     }
     const uint16_t body = (s_mode == 0) ? (uint16_t)0x9E6E : SOLID_INK[s_mode - 1];
-    const uint8_t c1 = trail_ink(body, age);
-    const uint8_t c2 = trail_ink(scale_native(body, 128, 256), age);
-    const uint8_t c3 = trail_ink(scale_native(0xFFFF, 200, 256), age);
+    uint8_t c1 = trail_ink(body, age);
+    uint8_t c2 = trail_ink(scale_native(body, 128, 256), age);
+    uint8_t c3 = trail_ink(scale_native(0xFFFF, 200, 256), age);
     if (c1 == PAL_FIELD) {
-        paint_field_cell(panel, x, ly, bw, bh);
+        if (!botcorps_band_direct()) return;
+        clip_column(panel, x, ly, 12);
+        c1 = c2 = c3 = PAL_FIELD;
+        botcorps_glyph_blit(panel, x, ly, payload % 10, c1, c2, c3, icon_pixel_ok);
+        panel.clearClipRect();
+        stamp_k()[idx] = (uint8_t)(rawk | STAMP_DONE);
         return;
     }
     botcorps_glyph_blit(panel, x, ly, payload % 10, c1, c2, c3, icon_pixel_ok);

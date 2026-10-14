@@ -8,7 +8,17 @@ constexpr bool botcorps_pal_ids_ok(void)
         const uint8_t id = botcorps_pal_ids[i];
         if ((id == 0 && i != 0) || (id == 255 && i != 1)) return false;
     }
-    return PAL_BLACK == 0 && PAL_WHITE == 255 && PAL_RAMP_N == 4
-        && PAL_FIELD != 0 && PAL_FIELD != 255
-        && PAL_SOLID_G != 0 && PAL_SOLID_C != 0 && PAL_SOLID_B != 0;
+    if (PAL_BG == PAL_EYE || PAL_EYE == PAL_BOT_BACK || PAL_BG == PAL_BOT_BACK) return false;
+    if (PAL_BAR == PAL_SEL || PAL_SEL == PAL_PLATE || PAL_BAR == PAL_PLATE) return false;
+    if (PAL_FIELD == PAL_BOT_BACK || PAL_FIELD == 0 || PAL_FIELD == 255) return false;
+    if (PAL_CYAN == PAL_B5D3F) return false;
+    if (PAL_CYAN == PAL_B4E7F) return false;
+    if (PAL_CYAN == PAL_B7711) return false;
+    if (PAL_CYAN == PAL_B9F0B) return false;
+    if (PAL_CYAN == PAL_BFB72) return false;
+    if (PAL_CYAN == PAL_BAC7F) return false;
+    if (PAL_CYAN == PAL_B36B8) return false;
+    if (PAL_CYAN == PAL_BFC6B) return false;
+    if (PAL_CYAN == PAL_BBD3F) return false;
+    return PAL_BLACK == 0 && PAL_WHITE == 255 && PAL_RAMP_N == 4;
 }

@@ -101,10 +101,10 @@ static uint8_t bot_color(int i)
     return BOT_PAL[i];
 }
 
-/* INT panel calls take normal-order RGB565, swapped back from the lut. */
+/* INT is 16-bit. The value stays uint16_t so M5GFX reads RGB565, not RGB888. */
 static uint16_t panel565(uint8_t idx)
 {
-    return botcorps_pal_native(idx);
+    return botcorps_rgb565(idx);
 }
 
 static bool sprite_blink(int i)

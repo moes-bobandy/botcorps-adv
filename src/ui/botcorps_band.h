@@ -78,3 +78,7 @@ bool botcorps_pal_ramp_for(uint16_t native, int age, uint8_t *out);
 void botcorps_pal_rect(lgfx::LovyanGFX &dst, int x, int y, int w, int h, uint8_t idx);
 void botcorps_pal_pixel(lgfx::LovyanGFX &dst, int x, int y, uint8_t idx);
 void botcorps_pal_text(lgfx::LovyanGFX &dst, uint8_t idx);
+/* Hub rain only. While set, pal_rect / pal_pixel / pal_text use the fade table. */
+void botcorps_pal_hub_set(bool on);
+/* Fade-table index for an ink. Does not depend on the hub flag. */
+uint8_t botcorps_pal_hub_of(uint8_t idx);

@@ -49,7 +49,6 @@
     PAL_ICON_C3 = 182, /* 0xC638 */
     PAL_STEEL = 110, /* 0x6BD0 */
     PAL_CHIN = 214, /* 0xCE16 */
-    PAL_DIM = 1, /* field blended with rgba(3,7,6,.42) */
     PAL_WIRE_C = 17, /* cyan accent at 0.35 over the field */
     PAL_WIRE_A = 108, /* amber accent at 0.35 over the field */
     PAL_WIRE_M = 49, /* mint accent at 0.35 over the field */

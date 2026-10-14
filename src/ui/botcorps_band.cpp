@@ -94,6 +94,24 @@ static uint16_t native_at(int i)
 }
 
 #include "botcorps_pal_fit.inc"
+#include "botcorps_pal_hub.inc"
+
+static bool s_hub_dim = false;
+
+void botcorps_pal_hub_set(bool on)
+{
+    s_hub_dim = on;
+}
+
+uint8_t botcorps_pal_hub_of(uint8_t idx)
+{
+    return k_hub_fade[idx];
+}
+
+static uint8_t hub_map(uint8_t idx)
+{
+    return s_hub_dim ? k_hub_fade[idx] : idx;
+}
 
 uint16_t botcorps_pal_native(uint8_t idx)
 {
@@ -144,9 +162,12 @@ static void check_reserved_fit(void)
 {
     for (int n = 0; n < k_own_n; ++n) {
         const uint8_t i = k_own_idx[n];
-        if (botcorps_pal_fit(k_exact_nat[i]) != i) {
-            while (1) {
-            }
+        const uint8_t got = botcorps_pal_fit(k_exact_nat[i]);
+        if (got != i) {
+            Serial.printf("[botcorps] pal fit miss idx=%u native=%04x got=%u direct=1\n",
+                          (unsigned)i, (unsigned)k_exact_nat[i], (unsigned)got);
+            s_direct = true;
+            return;
         }
     }
 }
@@ -171,16 +192,19 @@ static void with_idx(lgfx::LovyanGFX *p, uint8_t idx, Draw draw)
 
 void botcorps_pal_rect(lgfx::LovyanGFX &dst, int x, int y, int w, int h, uint8_t idx)
 {
+    idx = hub_map(idx);
     with_idx(&dst, idx, [&](auto ink) { dst.fillRect(x, y, w, h, ink); });
 }
 
 void botcorps_pal_pixel(lgfx::LovyanGFX &dst, int x, int y, uint8_t idx)
 {
+    idx = hub_map(idx);
     with_idx(&dst, idx, [&](auto ink) { dst.drawPixel(x, y, ink); });
 }
 
 void botcorps_pal_text(lgfx::LovyanGFX &dst, uint8_t idx)
 {
+    idx = hub_map(idx);
     /* uint8_t on the band round-trips through RGB888 back to the same index byte. */
     if (to_band(&dst)) dst.setTextColor(idx);
     else if (on_menu(&dst)) dst.setTextColor(botcorps_rgb565(idx));

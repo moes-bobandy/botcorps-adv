@@ -167,6 +167,10 @@ static int s_mood = MOOD_NEUTRAL;
 static uint32_t s_mood_until = 0;
 static uint32_t s_last_key = 0;
 static char s_bub[8];
+static char s_gp_buf[20];
+static char s_gp_log[2][28];
+static int s_gp_n = 0;
+static bool s_gp_focus = false;
 static const int CP_N = 8;
 extern uint8_t botcorps_t0_rain_cell[3][1200];
 static_assert(1120 + 60 <= 1200, "tab scratch fits inside the rain cell plane");
@@ -1197,9 +1201,114 @@ static void hub_sparks(Gfx g, int cx, int cy, uint32_t t)
     }
 }
 
+static uint16_t mix16(uint16_t a, uint16_t b, int num, int den)
+{
+    const int inv = den - num;
+    auto ch = [](uint16_t p, int *r, int *g, int *bl) {
+        const int r5 = (p >> 11) & 31;
+        const int g6 = (p >> 5) & 63;
+        const int b5 = p & 31;
+        *r = (r5 << 3) | (r5 >> 2);
+        *g = (g6 << 2) | (g6 >> 4);
+        *bl = (b5 << 3) | (b5 >> 2);
+    };
+    int ar, ag, ab, br, bg, bb;
+    ch(a, &ar, &ag, &ab);
+    ch(b, &br, &bg, &bb);
+    const int r = (ar * inv + br * num + den / 2) / den;
+    const int g = (ag * inv + bg * num + den / 2) / den;
+    const int bl = (ab * inv + bb * num + den / 2) / den;
+    return (uint16_t)(((r & 0xF8) << 8) | ((g & 0xFC) << 3) | ((bl & 0xFF) >> 3));
+}
+
+/* Accent at 0.22 over the hub field. The result is an existing slot, not a new one. */
+static uint8_t wash22(uint8_t accent_idx)
+{
+    const uint16_t fg = botcorps_rgb565(accent_idx);
+    const uint16_t bg = botcorps_rgb565(botcorps_pal_hub_of(COL_FIELD));
+    return botcorps_pal_fit(mix16(bg, fg, 22, 100));
+}
+
+static uint8_t half_over_deep(uint8_t fg)
+{
+    return botcorps_pal_fit(mix16(botcorps_rgb565(PAL_DEEP), botcorps_rgb565(fg), 50, 100));
+}
+
+static void draw_heart(Gfx g, int x, int y, uint8_t col)
+{
+    g.fillRect(x + 1, y, 2, 1, col);
+    g.fillRect(x + 4, y, 2, 1, col);
+    g.fillRect(x, y + 1, 6, 2, col);
+    g.fillRect(x + 1, y + 3, 4, 1, col);
+    g.fillRect(x + 2, y + 4, 2, 1, col);
+    g.fillRect(x + 3, y + 5, 1, 1, col);
+}
+
+static const char *pip_glyph(int mood)
+{
+    if (mood == MOOD_SLEEPY) return "Z";
+    if (mood == MOOD_SAD) return "?";
+    if (mood == MOOD_ALERT) return "!";
+    return "o";
+}
+
+static const char *const GP_CMD[] = {
+    "terminal", "scan", "wifi", "ble", "control", "bots", "go", "load",
+    "hunt", "help", "ping", "info", "track", "sniff", "filter", "rain", "clear"
+};
+
+static const char *gp_ghost(void)
+{
+    const int n = (int)strlen(s_gp_buf);
+    if (n <= 0) return nullptr;
+    for (int i = 0; i < (int)(sizeof(GP_CMD) / sizeof(GP_CMD[0])); ++i) {
+        if (strncmp(GP_CMD[i], s_gp_buf, (size_t)n) == 0 && GP_CMD[i][n] != 0)
+            return GP_CMD[i] + n;
+    }
+    return nullptr;
+}
+
+static void gp_push(const char *s)
+{
+    if (s_gp_n >= 2) {
+        memcpy(s_gp_log[0], s_gp_log[1], sizeof(s_gp_log[0]));
+        --s_gp_n;
+    }
+    snprintf(s_gp_log[s_gp_n], sizeof(s_gp_log[0]), "%s", s ? s : "");
+    ++s_gp_n;
+}
+
+static void gp_strip(Gfx g, uint32_t t, uint8_t ac)
+{
+    const uint8_t edge = s_gp_focus ? ac : (uint8_t)COL_LINE;
+    chip_plate(g, 38, 164, 244, 38, PAL_DEEP, edge);
+    if (s_gp_focus) g.drawRect(39, 165, 242, 36, ac);
+    const uint8_t hair = botcorps_pal_fit(mix16(botcorps_rgb565(PAL_DEEP), botcorps_rgb565(ac),
+                                                s_gp_focus ? 60 : 25, 100));
+    g.fillRect(41, 165, 238, 1, hair);
+    for (int k = 0; k < s_gp_n; ++k) {
+        const int y = 164 + 5 + (2 - s_gp_n + k) * 11;
+        const bool dim = s_gp_n == 2 && k == 0;
+        txt(g, s_gp_log[k], 45, y, dim ? half_over_deep(COL_INK) : (uint8_t)COL_INK,
+            lgfx::textdatum::top_left);
+    }
+    txt(g, "gibson", 45, 191, ac, lgfx::textdatum::top_left);
+    txt(g, ">", 45 + 6 * 6, 191, COL_INK, lgfx::textdatum::top_left);
+    const int bx = 45 + 8 * 6;
+    txt(g, s_gp_buf, bx, 191, COL_INK, lgfx::textdatum::top_left);
+    const int after = bx + (int)strlen(s_gp_buf) * 6;
+    const char *ghost = gp_ghost();
+    if (ghost && s_gp_focus) {
+        txt(g, ghost, after + 6, 191, botcorps_pal_fit(0x4AAC), lgfx::textdatum::top_left);
+    }
+    const bool caret = s_gp_focus ? (s_gp_buf[0] || (t / 530u) % 2u == 0u)
+                                  : (t / 700u) % 2u == 0u;
+    if (caret) g.fillRect(after + 1, 191, 5, 8, s_gp_focus ? ac : hair);
+}
+
 static void paint_gibson(Gfx g)
 {
-    /* extGibsonHub. Dim and wires are reserved exact colours. No panel read-back. */
+    /* extGibsonHub. Rain is dimmed by the fade table before this chrome. No read-back. */
     const int cx = 160;
     const int cy = 100;
     const int rr = 44;
@@ -1208,7 +1317,6 @@ static void paint_gibson(Gfx g)
     const uint8_t wire = wire_ink();
     bool asleep = false;
     const int mood = hub_mood(t, &asleep);
-    g.fillRect(0, 0, 320, 240, PAL_DIM);
     static const int stars[10][2] = {
         { 60, 40 }, { 88, 64 }, { 116, 34 }, { 214, 36 }, { 240, 62 },
         { 262, 40 }, { 74, 178 }, { 250, 176 }, { 130, 176 }, { 196, 178 }
@@ -1291,26 +1399,25 @@ static void paint_gibson(Gfx g)
     const float pu = (sinf((float)t / 380.f) + 1.f) * 0.5f;
     const uint8_t led = pu > 0.5f ? (uint8_t)PAL_WHITE : ac;
     g.fillRect(cx + 8, cy + 43, 2, 2, led);
-    static const char *const pips[7] = { "o", "*", "+", "o", "Z", "?", "!" };
     static const int pip_m[7] = {
         MOOD_NEUTRAL, MOOD_HAPPY, MOOD_EXCITED, MOOD_HUNTING, MOOD_SLEEPY, MOOD_SAD, MOOD_ALERT
     };
     int hx = (320 - (7 * 17 - 6)) / 2;
     const int shown = asleep ? MOOD_SLEEPY : mood;
+    const uint8_t wash = wash22(ac);
     for (int i = 0; i < 7; ++i) {
         const bool on = pip_m[i] == shown;
         if (on) {
-            g.fillRect(hx - 3, 154, 11, 11, PAL_SEL);
+            g.fillRect(hx - 3, 154, 11, 11, wash);
             g.fillRect(hx - 3, 164, 11, 1, ac);
         }
-        txt(g, pips[i], hx, 156, on ? PAL_WHITE : PAL_LINE, lgfx::textdatum::top_left);
+        const uint8_t pc = on ? (uint8_t)PAL_WHITE : (uint8_t)PAL_LINE;
+        if (pip_m[i] == MOOD_HAPPY) draw_heart(g, hx, 156, pc);
+        else txt(g, pip_m[i] == MOOD_EXCITED ? "*" : pip_glyph(pip_m[i]), hx, 156, pc,
+                 lgfx::textdatum::top_left);
         hx += 17;
     }
-    chip_plate(g, 38, 164, 244, 38, PAL_DEEP, COL_LINE);
-    g.fillRect(41, 165, 238, 1, ac);
-    txt(g, "gibson", 45, 191, ac, lgfx::textdatum::top_left);
-    txt(g, ">", 45 + 6 * 6, 191, COL_INK, lgfx::textdatum::top_left);
-    if ((t / 530u) % 2u == 0u) g.fillRect(45 + 8 * 6, 191, 5, 8, ac);
+    gp_strip(g, t, ac);
     const int ids[3] = { ICO_TERM, ICO_CTRL, ICO_RADAR };
     const int xs[3] = { 110, 146, 182 };
     for (int i = 0; i < 3; ++i) draw_btn(g, xs[i], 206, ids[i], s_cursor == i);
@@ -1405,7 +1512,10 @@ static void paint_ext(Gfx g)
         paint_diag(g);
         return;
     }
+    const bool hub = s_screen == SCR_GIBSON;
+    botcorps_rain_set_hub(hub);
     if (!wants_rain()) g.fillScreen(COL_BG);
+    else if (hub) g.fillScreen(botcorps_pal_hub_of(COL_FIELD));
     else g.fillScreen(COL_FIELD);
     if (wants_rain() && g.raw()) {
         const int y0 = botcorps_band_oy();
@@ -2185,6 +2295,16 @@ static void on_tab(void)
 
 static void on_char(char c)
 {
+    if (s_screen == SCR_GIBSON) {
+        s_gp_focus = true;
+        if (c >= 'A' && c <= 'Z') c = (char)(c - 'A' + 'a');
+        const size_t n = strlen(s_gp_buf);
+        if (n + 1 < sizeof(s_gp_buf) && c >= 32 && c < 127) {
+            s_gp_buf[n] = c;
+            s_gp_buf[n + 1] = 0;
+        }
+        return;
+    }
     if (s_screen != SCR_TERMINAL) return;
     if (c >= 'A' && c <= 'Z') c = (char)(c - 'A' + 'a');
     const size_t n = strlen(botcorps_t0_term_prompt);
@@ -2197,6 +2317,12 @@ static void on_char(char c)
 
 static void on_bs(void)
 {
+    if (s_screen == SCR_GIBSON && s_gp_buf[0]) {
+        s_gp_focus = true;
+        const size_t n = strlen(s_gp_buf);
+        s_gp_buf[n - 1] = 0;
+        return;
+    }
     if (s_screen != SCR_TERMINAL) {
         on_esc();
         return;
@@ -2275,6 +2401,14 @@ void botcorps_ui_input(void)
         s_bub[0] = (key == K_CHAR && typed) ? typed : '*';
         s_bub[1] = 0;
     }
+    if (key == K_OK && s_screen == SCR_GIBSON && s_gp_buf[0]) {
+        char line[28];
+        s_gp_focus = true;
+        snprintf(line, sizeof(line), "> %s", s_gp_buf);
+        gp_push(line);
+        s_gp_buf[0] = 0;
+        return;
+    }
     if (key == K_UP || key == K_DN || key == K_LT || key == K_RT) on_arrows(key);
     else if (key == K_OK) on_ok();
     else if (key == K_ESC) on_esc();
@@ -2285,6 +2419,7 @@ void botcorps_ui_input(void)
 
 void botcorps_ui_draw(void)
 {
+    botcorps_rain_set_hub(s_screen == SCR_GIBSON);
     layout_covers();
     bool ext_anim = false;
     if (botcorps_dual_ok() && !wants_rain() && ext_animates() && anim_step_due())

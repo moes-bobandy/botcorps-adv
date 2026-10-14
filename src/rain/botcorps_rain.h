@@ -49,6 +49,8 @@ bool botcorps_rain_step(void);
 void botcorps_rain_paint(void);
 /* Draw the slice [world y0, y1) into dst. dst y is world y - y0. */
 void botcorps_rain_draw(lgfx::LovyanGFX &dst, int y0, int y1);
+/* Gibson hub: scale rain inks by 0.58 toward #030706 through the fade table. */
+void botcorps_rain_set_hub(bool on);
 int botcorps_rain_cell_bytes(void);
 
 void botcorps_rain_set_parked(bool parked);

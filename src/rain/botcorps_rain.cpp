@@ -58,6 +58,7 @@ static int s_h = 240;
 static uint32_t s_rng = 0xA5C3E1u;
 static uint32_t s_last_ms = 0;
 static bool s_built = false;
+static bool s_hub_on = false;
 static bool s_draw = false;
 static bool s_logged = false;
 static bool s_radar = false;
@@ -655,9 +656,16 @@ bool botcorps_rain_step(void)
     if (s_draw && botcorps_dual_ok() && botcorps_band_direct()) {
         s_slice_y0 = 0;
         s_slice_y1 = 240;
+        botcorps_pal_hub_set(s_hub_on);
         paint_dirty(botcorps_content());
+        botcorps_pal_hub_set(false);
     }
     return true;
+}
+
+void botcorps_rain_set_hub(bool on)
+{
+    s_hub_on = on;
 }
 
 void botcorps_rain_draw(lgfx::LovyanGFX &dst, int y0, int y1)
@@ -666,10 +674,12 @@ void botcorps_rain_draw(lgfx::LovyanGFX &dst, int y0, int y1)
     if (y1 <= y0) return;
     s_slice_y0 = y0;
     s_slice_y1 = y1;
+    botcorps_pal_hub_set(s_hub_on);
     dst.startWrite();
     paint_stamps(dst);
     dst.endWrite();
     dst.clearClipRect();
+    botcorps_pal_hub_set(false);
     s_slice_y0 = 0;
     s_slice_y1 = 240;
 }

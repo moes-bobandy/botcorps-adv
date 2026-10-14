@@ -432,7 +432,9 @@ static void chip(Gfx g, int x, int y, int pat, int bot, bool gib, uint8_t idx, i
     g.fillRect(x + 9, y + 9, 16, 16, C_INNER);
     g.fillRect(x + 10, y + 10, 14, 14, die);
     if (gib) {
-        gibson_chip(g, x + 17, y + 17, 1);
+        const uint16_t mark = 0x8DBB; /* #8ab4d8, mock idChip */
+        g.fillRect(x + 14, y + 14, 6, 6, mark);
+        g.fillRect(x + 16, y + 16, 2, 2, C_WHITE);
     } else {
         botcorps_sprite_draw(*g.raw(), x + 17, y + 17 - g.oy, shape, 1, idx, false);
     }
@@ -675,12 +677,17 @@ void botcorps_id_paint(Gfx g, int width, int bot, bool gib, uint8_t col,
         const char *bid = gib ? "gibson" : (name ? name : "");
         int bx = x + 2;
         char key[24];
-        const int bh = L.code[3] - 15;
-        for (int k = 0; bh > 0 && bx < x + L.code[2] - 2 && k < 16; ++k) {
+        int bh = L.code[3] - 15;
+        int by = L.code[1] + 13;
+        if (bh < 1) {
+            bh = 1;
+            by = L.code[1] + L.code[3] - 1;
+        }
+        for (int k = 0; bx < x + L.code[2] - 2; ++k) {
             snprintf(key, sizeof(key), "%sbc%d", bid, k);
             int w = 1 + (int)(fnv1a(key) % 3u);
             if (bx + w > x + L.code[2] - 2) w = x + L.code[2] - 2 - bx;
-            if (w > 0) g.fillRect(bx, L.code[1] + 13, w, bh, black);
+            if (w > 0) g.fillRect(bx, by, w, bh, black);
             snprintf(key, sizeof(key), "%sbd%d", bid, k);
             bx += w + 1 + (int)(fnv1a(key) % 2u);
         }

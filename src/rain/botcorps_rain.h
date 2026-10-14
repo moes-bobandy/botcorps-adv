@@ -15,8 +15,9 @@
 
 namespace lgfx { inline namespace v1 { class LovyanGFX; } }
 
-/* 0 = MULTI (the 14-colour palette). 1..6 = solid inks. */
-#define BOTCORPS_RAIN_COLORS 7
+/* 0 = MIXED. 1 = SOLID, using the colour from botcorps_rain_colour. */
+#define BOTCORPS_RAIN_COLORS 2
+#define BOTCORPS_RAIN_COLOURS 6
 
 /* Mock BACKGROUND mixes. FIELD is bots, devices, and code.
  * BOTS is bots plus code. DEVICES is devices, code, and empty columns. */
@@ -60,6 +61,9 @@ void botcorps_rain_log_heap(const char *tag);
 uint8_t botcorps_rain_palette(int index);
 void botcorps_rain_set_mode(int mode);
 int botcorps_rain_mode(void);
+/* 0..5: green, cyan, blue, purple, amber, white. Also forces SOLID. */
+void botcorps_rain_set_colour(int index);
+int botcorps_rain_colour(void);
 void botcorps_rain_set_mix(int mix);
 /* 0 = mixed shapes. 1..4 = round, classic, tall, mini. */
 void botcorps_rain_set_shape(int shape);

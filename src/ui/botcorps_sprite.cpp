@@ -54,8 +54,8 @@ int botcorps_shape_for(int index)
     return index % BOTCORPS_SHAPE_N;
 }
 
-void botcorps_sprite_draw(lgfx::LovyanGFX &dst, int x, int y, int shape, int scale,
-                          uint8_t color, bool blink)
+void botcorps_sprite_draw_inks(lgfx::LovyanGFX &dst, int x, int y, int shape, int scale,
+                               uint8_t body, uint8_t eye, bool blink)
 {
     if (shape < 0 || shape >= BOTCORPS_SHAPE_N) shape = 0;
     if (scale < 1) scale = 1;
@@ -71,10 +71,16 @@ void botcorps_sprite_draw(lgfx::LovyanGFX &dst, int x, int y, int shape, int sca
             int run = 1;
             while (col + run < w && pgm_read_byte(src + row * w + col + run) == v) ++run;
             if (v == 1 || (v == 2 && !blink)) {
-                const uint8_t ink = (v == 2) ? COL_EYE : color;
+                const uint8_t ink = (v == 2) ? eye : body;
                 botcorps_pal_rect(dst, ox + col * scale, oy + row * scale, run * scale, scale, ink);
             }
             col += run;
         }
     }
+}
+
+void botcorps_sprite_draw(lgfx::LovyanGFX &dst, int x, int y, int shape, int scale,
+                          uint8_t color, bool blink)
+{
+    botcorps_sprite_draw_inks(dst, x, y, shape, scale, color, COL_EYE, blink);
 }

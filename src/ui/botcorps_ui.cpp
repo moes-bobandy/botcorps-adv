@@ -144,6 +144,12 @@ static int s_saver_on = 1;
 static int s_idle = 1;
 static int s_ret = -1;
 static bool s_dirty = true;
+/* Full INT repaint. Screen changes and bot changes only. */
+static bool s_int_dirty = true;
+/* Nav focus. Drawn in place. Never promotes a full-panel clear. */
+static int s_focus_old = -1;
+static int s_focus_new = -1;
+static bool s_focus_pend = false;
 static bool s_track = false;
 static bool s_focus_cmds = false;
 static bool s_sheet = false;
@@ -507,6 +513,7 @@ static void enter_screen(int id, int ret)
     s_focus_cmds = false;
     s_sweep = -1.0f;
     s_dirty = true;
+    s_int_dirty = true;
     botcorps_probe_screen(from, screen_name(id));
 }
 
@@ -526,14 +533,23 @@ static void load_rain_color(void)
     }
     const unsigned v = prefs.getUChar(NVS_KEY, 0);
     prefs.end();
-    botcorps_rain_set_mode(v >= (unsigned)BOTCORPS_RAIN_COLORS ? 0 : (int)v);
+    /* 0x80 | colour | (solid << 3). Older bytes were 0 = mixed, 1..6 = a solid. */
+    if (v & 0x80u) {
+        botcorps_rain_set_colour((int)(v & 7u));
+        if ((v & 0x08u) == 0) botcorps_rain_set_mode(0);
+        return;
+    }
+    if (v >= 1 && v <= 6) botcorps_rain_set_colour((int)v - 1);
+    else botcorps_rain_set_mode(0);
 }
 
 static void save_rain_color(void)
 {
     Preferences prefs;
     if (!prefs.begin(NVS_NS, false)) return;
-    prefs.putUChar(NVS_KEY, (uint8_t)botcorps_rain_mode());
+    const unsigned solid = botcorps_rain_mode() ? 0x08u : 0u;
+    const unsigned pack = 0x80u | solid | (unsigned)(botcorps_rain_colour() & 7);
+    prefs.putUChar(NVS_KEY, (uint8_t)pack);
     prefs.end();
 }
 
@@ -592,14 +608,17 @@ static void hist_push(const char *line)
     s_hist_i = -1;
 }
 
-static const char *RAIN_WORD[7] = {
-    "MULTI", "GREEN", "CYAN", "BLUE", "PURPLE", "AMBER", "WHITE"
+static const char *const RAIN_MODE_N[2] = { "MIXED", "SOLID" };
+static const char *const RAIN_COL_N[6] = {
+    "GREEN", "CYAN", "BLUE", "PURPLE", "AMBER", "WHITE"
 };
 
 static void partial_prompt_panel(void);
 static void partial_box(int index, bool sel);
 static void partial_tile(int index);
 static void partial_int(void);
+static void partial_sheet(void);
+static void restore_under_sheet(void);
 
 static void run_cmd(const char *line)
 {
@@ -684,16 +703,17 @@ static void run_cmd(const char *line)
     } else if (strcmp(cmd, "rain") == 0) {
         if (!arg || !arg[0]) {
             char row[80];
-            snprintf(row, sizeof(row), "rain %s", RAIN_WORD[botcorps_rain_mode()]);
+            if (botcorps_rain_mode() == 0) snprintf(row, sizeof(row), "rain MIXED");
+            else snprintf(row, sizeof(row), "rain %s", RAIN_COL_N[botcorps_rain_colour()]);
             log_add(row);
         } else if (strcmp(arg, "multi") == 0 || strcmp(arg, "mixed") == 0) {
             botcorps_rain_set_mode(0);
             save_rain_color();
-            log_add("rain MULTI");
+            log_add("rain MIXED");
         } else {
-            int mode = -1;
-            for (int i = 1; i < 7; ++i) {
-                const char *w = RAIN_WORD[i];
+            int colour = -1;
+            for (int i = 0; i < 6; ++i) {
+                const char *w = RAIN_COL_N[i];
                 const char *a = arg;
                 bool same = true;
                 while (*w && *a) {
@@ -703,14 +723,14 @@ static void run_cmd(const char *line)
                     ++w;
                     ++a;
                 }
-                if (same && *w == 0 && *a == 0) mode = i;
+                if (same && *w == 0 && *a == 0) colour = i;
             }
-            if (mode < 0) log_add("unknown colour");
+            if (colour < 0) log_add("unknown colour");
             else {
-                botcorps_rain_set_mode(mode);
+                botcorps_rain_set_colour(colour);
                 save_rain_color();
                 char row[40];
-                snprintf(row, sizeof(row), "rain %s", RAIN_WORD[mode]);
+                snprintf(row, sizeof(row), "rain %s", RAIN_COL_N[colour]);
                 log_add(row);
             }
         }
@@ -784,7 +804,7 @@ static void run_cmd(const char *line)
         s_sheet = true;
         s_sheet_i = 0;
         s_focus_cmds = true;
-        s_dirty = true;
+        partial_sheet();
         return;
     } else {
         log_add("command not found");
@@ -970,8 +990,8 @@ static void cp_text(int index, char *value, int n)
     if (index == 0) snprintf(value, (size_t)n, "%s", ACCENT_N[s_color]);
     else if (index == 1) snprintf(value, (size_t)n, "%s", MIX_N[s_mix]);
     else if (index == 2) snprintf(value, (size_t)n, "%s", SHAPE_N[s_shape]);
-    else if (index == 3) snprintf(value, (size_t)n, "%s", botcorps_rain_mode() == 0 ? "MIXED" : "SOLID");
-    else if (index == 4) snprintf(value, (size_t)n, "%s", RAIN_WORD[botcorps_rain_mode()]);
+    else if (index == 3) snprintf(value, (size_t)n, "%s", RAIN_MODE_N[botcorps_rain_mode() ? 1 : 0]);
+    else if (index == 4) snprintf(value, (size_t)n, "%s", RAIN_COL_N[botcorps_rain_colour()]);
     else if (index == 5) snprintf(value, (size_t)n, "%s", SAVER_N[s_saver]);
     else if (index == 6) snprintf(value, (size_t)n, "%s", s_saver_on ? "ON" : "OFF");
     else snprintf(value, (size_t)n, "%d SEC", IDLE_V[s_idle]);
@@ -1059,8 +1079,7 @@ static void paint_cp_row(Gfx g, int index, bool on)
             g.fillRect(px - 6, cy - 6, 12, 12, botcorps_rain_solid());
         }
     } else if (index == 4) {
-        const int mode = botcorps_rain_mode();
-        g.fillRect(px - 6, cy - 6, 12, 12, mode <= 0 ? botcorps_rain_palette(0) : botcorps_rain_solid());
+        g.fillRect(px - 6, cy - 6, 12, 12, botcorps_rain_solid());
     } else if (index == 5) saver_preview(g, px, cy);
 }
 
@@ -1070,7 +1089,7 @@ static void paint_control(Gfx g)
     char tag[40];
     const int mode = botcorps_rain_mode();
     const bool solid = mode > 0;
-    if (solid) snprintf(tag, sizeof(tag), "LIVE RAIN  SOLID %s  %s", RAIN_WORD[mode], SHAPE_N[s_shape]);
+    if (solid) snprintf(tag, sizeof(tag), "LIVE RAIN  SOLID %s  %s", RAIN_COL_N[botcorps_rain_colour()], SHAPE_N[s_shape]);
     else snprintf(tag, sizeof(tag), "LIVE RAIN  MIXED  %s", SHAPE_N[s_shape]);
     const int tw = (int)strlen(tag) * 6 + 10;
     const int wy = 188;
@@ -1317,11 +1336,23 @@ static void gp_strip(Gfx g, uint32_t t, uint8_t ac)
     if (caret) g.fillRect(after + 1, 191, 5, 8, s_gp_focus ? ac : hair);
 }
 
+/* chip_plate leaves these four pixels empty. The partial clip would keep them stale. */
+static void gp_strip_corners(Gfx g)
+{
+    g.fillRect(38, 164, 1, 1, PAL_DEEP);
+    g.fillRect(281, 164, 1, 1, PAL_DEEP);
+    g.fillRect(38, 201, 1, 1, PAL_DEEP);
+    g.fillRect(281, 201, 1, 1, PAL_DEEP);
+}
+
 static void partial_gp_strip(void)
 {
     if (s_screen != SCR_GIBSON || !botcorps_dual_ok()) return;
     if (!botcorps_band_direct()) {
-        botcorps_band_patch([](Gfx g) { gp_strip(g, millis(), accent()); }, 38, 164, 244, 38);
+        botcorps_band_patch([](Gfx g) {
+            gp_strip(g, millis(), accent());
+            gp_strip_corners(g);
+        }, 38, 164, 244, 38);
         return;
     }
     botcorps_set_surface(BOTCORPS_SURFACE_CONTENT);
@@ -1329,6 +1360,7 @@ static void partial_gp_strip(void)
     p.startWrite();
     p.setClipRect(38, 164, 244, 38);
     gp_strip(Gfx(p), millis(), accent());
+    gp_strip_corners(Gfx(p));
     p.endWrite();
     p.clearClipRect();
 }
@@ -1717,19 +1749,22 @@ static void tick_int_live(lgfx::LGFX_Device &menu)
     menu.clearClipRect();
 }
 
-static void paint_full(void)
+static void paint_ext_full(void)
 {
     layout_covers();
-    if (botcorps_dual_ok()) {
-        botcorps_set_surface(BOTCORPS_SURFACE_CONTENT);
-        auto &ext = botcorps_content();
-        ext.clearClipRect();
-        paint_ext(ext);
-        ext.endWrite();
-        tick_ext(ext);
-        ext.endWrite();
-        ext.clearClipRect();
-    }
+    if (!botcorps_dual_ok()) return;
+    botcorps_set_surface(BOTCORPS_SURFACE_CONTENT);
+    auto &ext = botcorps_content();
+    ext.clearClipRect();
+    paint_ext(ext);
+    ext.endWrite();
+    tick_ext(ext);
+    ext.endWrite();
+    ext.clearClipRect();
+}
+
+static void paint_int_now(void)
+{
     botcorps_set_surface(BOTCORPS_SURFACE_MENU);
     auto &menu = botcorps_menu();
     menu.startWrite();
@@ -1748,16 +1783,12 @@ static void nudge_row(int d)
         s_shape = (s_shape + d + 5) % 5;
         botcorps_rain_set_shape(s_shape);
     } else if (s_cursor == 3) {
-        if (botcorps_rain_mode() == 0) botcorps_rain_set_mode(1);
-        else botcorps_rain_set_mode(0);
+        const int m = botcorps_rain_mode();
+        botcorps_rain_set_mode((m + d + 2) % 2);
         save_rain_color();
     } else if (s_cursor == 4) {
-        int m = botcorps_rain_mode();
-        if (m <= 0) m = 1;
-        else m = m + d;
-        if (m < 1) m = 6;
-        if (m > 6) m = 1;
-        botcorps_rain_set_mode(m);
+        const int c = botcorps_rain_colour();
+        botcorps_rain_set_colour((c + d + 6) % 6);
         save_rain_color();
     } else if (s_cursor == 5) {
         s_saver = (s_saver + d + 4) % 4;
@@ -1963,29 +1994,41 @@ static void paint_cursor_item(Gfx g, int index, bool sel)
     if (id == ICO_TRACK && sel && s_track) g.fillCircle(x + 14, y, 3, accent());
 }
 
-static bool hold_for_band(void)
+static int s_part_i = 0;
+static bool s_part_sel = false;
+static int s_part_top = 0;
+
+static void draw_focus_part(Gfx g)
 {
-    if (botcorps_dual_ok() && !botcorps_band_direct()) {
-        s_dirty = true;
-        return true;
+    paint_cursor_item(g, s_part_i, s_part_sel);
+}
+
+static void patch_world(void (*fn)(Gfx), int x, int y, int w, int h)
+{
+    if (!fn || w <= 0 || h <= 0 || !botcorps_dual_ok()) return;
+    if (!botcorps_band_direct() && botcorps_band_live()) {
+        if (y < 120 && y + h > 120) {
+            botcorps_band_patch(fn, x, y, w, 120 - y);
+            botcorps_band_patch(fn, x, 120, w, y + h - 120);
+        } else {
+            botcorps_band_patch(fn, x, y, w, h);
+        }
+        return;
     }
-    return false;
+    botcorps_set_surface(BOTCORPS_SURFACE_CONTENT);
+    Gfx g(botcorps_content());
+    part_begin(g, x, y, w, h);
+    fn(g);
+    part_end(g);
 }
 
 static void partial_box(int index, bool sel)
 {
-    if (hold_for_band()) return;
-    if (!botcorps_dual_ok()) {
-        s_dirty = true;
-        return;
-    }
     int x, y, w, h;
     if (!cursor_box(index, &x, &y, &w, &h)) return;
-    botcorps_set_surface(BOTCORPS_SURFACE_CONTENT);
-    auto &g = botcorps_content();
-    part_begin(g, x, y, w, h);
-    paint_cursor_item(g, index, sel);
-    part_end(g);
+    s_part_i = index;
+    s_part_sel = sel;
+    patch_world(draw_focus_part, x, y, w, h);
 }
 
 static void partial_cursor(int old_i, int new_i)
@@ -1998,31 +2041,24 @@ static void partial_cursor(int old_i, int new_i)
     partial_box(new_i, true);
 }
 
+/* Bot change only. A full INT repaint, not a key-to-key refresh. */
 static void partial_int(void)
 {
-    auto &menu = botcorps_menu();
-    botcorps_set_surface(BOTCORPS_SURFACE_MENU);
-    menu.startWrite();
-    paint_int(menu);
-    menu.endWrite();
-    menu.clearClipRect();
+    paint_int_now();
+}
+
+static void draw_tile_part(Gfx g)
+{
+    paint_one_board(g, s_part_i, (s_part_i == s_term) && !s_focus_cmds && !s_sheet);
 }
 
 static void partial_tile(int index)
 {
     if (s_screen != SCR_TERMINAL) return;
-    if (hold_for_band()) return;
-    if (!botcorps_dual_ok()) {
-        s_dirty = true;
-        return;
-    }
     int x, y;
     term_xy(index, &x, &y);
-    botcorps_set_surface(BOTCORPS_SURFACE_CONTENT);
-    auto &g = botcorps_content();
-    part_begin(g, x - 2, y - 2, 76, 50);
-    paint_one_board(g, index, (index == s_term) && !s_focus_cmds && !s_sheet);
-    part_end(g);
+    s_part_i = index;
+    patch_world(draw_tile_part, x - 2, y - 2, 76, 50);
 }
 
 static void paint_prompt_line(Gfx g)
@@ -2039,59 +2075,54 @@ static void paint_prompt_line(Gfx g)
     if ((millis() / 530u) % 2u == 0) g.fillRect(g.getCursorX() + 2, y, 5, 8, accent());
 }
 
-static void partial_prompt_line(void)
+static void draw_prompt_line_part(Gfx g)
 {
-    if (hold_for_band()) return;
-    if (!botcorps_dual_ok()) {
-        s_dirty = true;
-        return;
-    }
-    const int y = 171 + 5 * 9;
-    botcorps_set_surface(BOTCORPS_SURFACE_CONTENT);
-    auto &g = botcorps_content();
-    part_begin(g, 8, y, 300, 10);
     paint_prompt_line(g);
-    part_end(g);
 }
 
-static void partial_prompt_panel(void)
+static void partial_prompt_line(void)
 {
-    if (s_screen != SCR_TERMINAL) return;
-    if (hold_for_band()) return;
-    if (!botcorps_dual_ok()) {
-        s_dirty = true;
-        return;
-    }
-    botcorps_set_surface(BOTCORPS_SURFACE_CONTENT);
-    auto &g = botcorps_content();
-    part_begin(g, 0, 0, 320, 17);
+    const int y = 171 + 5 * 9;
+    patch_world(draw_prompt_line_part, 8, y, 300, 10);
+}
+
+static void draw_prompt_head_part(Gfx g)
+{
     g.fillRect(0, 0, 320, 16, COL_DEEP);
     g.drawFastHLine(0, 16, 320, accent());
     txt(g, "terminal", 8, 4, accent(), lgfx::textdatum::top_left);
     txt(g, "12", 76, 4, COL_MUTED, lgfx::textdatum::top_left);
     if (s_track_name[0]) txt(g, s_track_name, 120, 4, accent(), lgfx::textdatum::top_left);
-    part_end(g);
-    part_begin(g, 4, 167, 312, 72);
+}
+
+static void draw_prompt_body_part(Gfx g)
+{
     paint_prompt(g);
-    part_end(g);
+}
+
+static void partial_prompt_panel(void)
+{
+    if (s_screen != SCR_TERMINAL) return;
+    patch_world(draw_prompt_head_part, 0, 0, 320, 17);
+    patch_world(draw_prompt_body_part, 4, 167, 312, 72);
+}
+
+static void draw_chip_part(Gfx g)
+{
+    const int x = 8 + (s_part_i % 6) * 51;
+    const int y = 170 + (s_part_i / 6) * 18;
+    plate(g, x, y, 49, 16, s_part_sel ? COL_SEL : COL_BG, s_part_sel ? accent() : COL_LINE);
+    txt(g, CMDS[s_part_i], x + 24, y + 4, s_part_sel ? COL_WHITE : COL_MUTED,
+        lgfx::textdatum::top_center);
 }
 
 static void partial_chip(int index)
 {
-    if (hold_for_band()) return;
-    if (!botcorps_dual_ok()) {
-        s_dirty = true;
-        return;
-    }
     const int x = 8 + (index % 6) * 51;
     const int y = 170 + (index / 6) * 18;
-    const bool sel = index == s_cmd_sel;
-    botcorps_set_surface(BOTCORPS_SURFACE_CONTENT);
-    auto &g = botcorps_content();
-    part_begin(g, x, y, 49, 16);
-    plate(g, x, y, 49, 16, sel ? COL_SEL : COL_BG, sel ? accent() : COL_LINE);
-    txt(g, CMDS[index], x + 24, y + 4, sel ? COL_WHITE : COL_MUTED, lgfx::textdatum::top_center);
-    part_end(g);
+    s_part_i = index;
+    s_part_sel = index == s_cmd_sel;
+    patch_world(draw_chip_part, x, y, 49, 16);
 }
 
 static int sheet_row_y(int index, int top)
@@ -2099,49 +2130,67 @@ static int sheet_row_y(int index, int top)
     return 28 + (index - top) * 16;
 }
 
+static void draw_sheet_part(Gfx g)
+{
+    paint_sheet(g);
+}
+
 static void partial_sheet(void)
 {
-    if (hold_for_band()) return;
-    if (!botcorps_dual_ok()) {
-        s_dirty = true;
-        return;
-    }
-    botcorps_set_surface(BOTCORPS_SURFACE_CONTENT);
-    auto &g = botcorps_content();
-    part_begin(g, 8, 21, 304, 142);
-    paint_sheet(g);
-    part_end(g);
+    patch_world(draw_sheet_part, 8, 21, 304, 142);
+}
+
+static void draw_under_sheet_part(Gfx g)
+{
+    g.fillRect(8, 21, 304, 142, COL_BG);
+    paint_boards(g);
+}
+
+static void restore_under_sheet(void)
+{
+    patch_world(draw_under_sheet_part, 8, 21, 304, 142);
+}
+
+static void draw_sheet_row_part(Gfx g)
+{
+    const int y = sheet_row_y(s_part_i, s_part_top);
+    g.fillRect(14, y, 292, 15, s_part_sel ? COL_SEL : COL_BG);
+    txt(g, CMDS[s_part_i], 18, y + 3, s_part_sel ? accent() : COL_INK, lgfx::textdatum::top_left);
+    txt(g, CMD_ABOUT[s_part_i], 92, y + 3, COL_MUTED, lgfx::textdatum::top_left);
 }
 
 static void partial_sheet_row(int index, int top)
 {
     if (index < top || index >= top + 8) return;
-    if (hold_for_band()) return;
-    if (!botcorps_dual_ok()) {
-        s_dirty = true;
-        return;
-    }
     const int y = sheet_row_y(index, top);
-    const bool sel = index == s_sheet_i;
-    botcorps_set_surface(BOTCORPS_SURFACE_CONTENT);
-    auto &g = botcorps_content();
-    part_begin(g, 14, y, 292, 15);
-    g.fillRect(14, y, 292, 15, sel ? COL_SEL : COL_BG);
-    txt(g, CMDS[index], 18, y + 3, sel ? accent() : COL_INK, lgfx::textdatum::top_left);
-    txt(g, CMD_ABOUT[index], 92, y + 3, COL_MUTED, lgfx::textdatum::top_left);
-    part_end(g);
+    s_part_i = index;
+    s_part_top = top;
+    s_part_sel = index == s_sheet_i;
+    patch_world(draw_sheet_row_part, 14, y, 292, 15);
+}
+
+static void draw_portrait_part(Gfx g)
+{
+    g.fillCircle(160, 74, 64, COL_FIELD);
+    g.fillCircle(160, 74, 48, COL_DEEP);
+    g.drawCircle(160, 74, 46, accent());
+    const int phase = (int)((millis() / 40u) % 14u);
+    g.drawCircle(160, 74, 47 + phase, accent());
+    draw_blob(g, 160, 74, 4, bot_color(s_part_i), botcorps_shape_for(s_part_i), sprite_blink(s_part_i));
 }
 
 static void partial_portrait(int bot_index)
 {
-    if (hold_for_band()) return;
-    if (!botcorps_dual_ok()) {
-        s_dirty = true;
-        return;
-    }
-    botcorps_set_surface(BOTCORPS_SURFACE_CONTENT);
-    tick_home(botcorps_content(), bot_index);
+    s_part_i = bot_index;
+    patch_world(draw_portrait_part, 110, 24, 100, 100);
     partial_int();
+}
+
+static void queue_focus(int old_i, int new_i)
+{
+    s_focus_old = old_i;
+    s_focus_new = new_i;
+    s_focus_pend = true;
 }
 
 static void move_cursor(int d)
@@ -2150,7 +2199,7 @@ static void move_cursor(int d)
     if (n <= 0) return;
     const int old = s_cursor;
     s_cursor = (s_cursor + d + n) % n;
-    if (s_cursor != old) partial_cursor(old, s_cursor);
+    if (s_cursor != old) queue_focus(old, s_cursor);
 }
 
 static int sheet_top_for(int index)
@@ -2222,12 +2271,9 @@ static void on_arrows(int key)
         if (key == 2) move_cursor(1);
         if (key == 3 || key == 4) {
             if (s_cursor >= CP_N) move_cursor(key == 4 ? 1 : -1);
-            else if (s_cursor <= 2) {
+            else {
                 nudge_row(key == 4 ? 1 : -1);
-                s_dirty = true;
-            } else {
-                nudge_row(key == 4 ? 1 : -1);
-                partial_box(s_cursor, true);
+                queue_focus(s_cursor, s_cursor);
             }
         }
         return;
@@ -2255,8 +2301,8 @@ static void on_ok(void)
             char line[32];
             snprintf(line, sizeof(line), "%s", CMDS[s_sheet_i]);
             s_sheet = false;
+            restore_under_sheet();
             if (strcmp(line, "cmds") != 0) run_cmd(line);
-            else s_dirty = true;
             return;
         }
         if (botcorps_t0_term_prompt[0]) {
@@ -2268,12 +2314,11 @@ static void on_ok(void)
             if (strcmp(CMDS[s_cmd_sel], "cmds") == 0) {
                 s_sheet = true;
                 s_sheet_i = 0;
-                s_dirty = true;
+                partial_sheet();
             } else if (strcmp(CMDS[s_cmd_sel], "rain") == 0) {
-                int m = botcorps_rain_mode() + 1;
-                if (m > 6) m = 0;
+                const int c = (botcorps_rain_colour() + 1) % 6;
                 char line[24];
-                snprintf(line, sizeof(line), "rain %s", m == 0 ? "multi" : RAIN_WORD[m]);
+                snprintf(line, sizeof(line), "rain %s", RAIN_COL_N[c]);
                 run_cmd(line);
             } else {
                 run_cmd(CMDS[s_cmd_sel]);
@@ -2289,9 +2334,11 @@ static void on_ok(void)
 static void on_esc(void)
 {
     if (s_screen == SCR_TERMINAL && (s_sheet || s_focus_cmds)) {
+        const bool sheet = s_sheet;
         s_sheet = false;
         s_focus_cmds = false;
-        s_dirty = true;
+        if (sheet) restore_under_sheet();
+        partial_prompt_panel();
         return;
     }
     go_back();
@@ -2303,7 +2350,7 @@ static void on_tab(void)
     if (!botcorps_t0_term_prompt[0]) {
         s_focus_cmds = !s_focus_cmds;
         s_tab_i = -1;
-        s_dirty = true;
+        partial_prompt_panel();
         return;
     }
     const bool cont = s_tab_i >= 0 && strcmp(botcorps_t0_term_prompt, tab_last()) == 0;
@@ -2404,6 +2451,7 @@ static int read_key(char *typed)
 void botcorps_ui_mark_dirty(void)
 {
     s_dirty = true;
+    s_int_dirty = true;
 }
 
 void botcorps_ui_begin(void)
@@ -2414,6 +2462,7 @@ void botcorps_ui_begin(void)
     s_screen = SCR_RAIN;
     s_cursor = 0;
     s_dirty = true;
+    s_int_dirty = true;
     s_ret = -1;
     s_track_name[0] = 0;
     botcorps_t0_term_prompt[0] = 0;
@@ -2559,13 +2608,18 @@ void botcorps_ui_draw(void)
     bool ext_anim = false;
     if (botcorps_dual_ok() && !wants_rain() && ext_animates() && anim_step_due())
         ext_anim = true;
+    if (s_focus_pend && !s_dirty) partial_cursor(s_focus_old, s_focus_new);
+    s_focus_pend = false;
     const bool dirty = s_dirty;
+    const bool int_dirty = s_int_dirty;
     bool stepped = false;
     if (botcorps_dual_ok() && wants_rain()) stepped = botcorps_rain_step();
     static uint32_t s_pulse_ms = 0;
     const bool pulse = due_140(&s_pulse_ms);
     if (botcorps_dual_ok() && !botcorps_band_direct()) {
-        if (dirty || stepped || ext_anim) {
+        /* A full present fillScreens. Nav must not get here. Rain frames and
+         * screen changes do. An anim tick on its own stays in place. */
+        if (dirty || stepped) {
             if (dirty) s_dirty = false;
             botcorps_set_surface(BOTCORPS_SURFACE_CONTENT);
             botcorps_band_present([](Gfx g) {
@@ -2573,14 +2627,12 @@ void botcorps_ui_draw(void)
                 tick_ext(g);
             });
             botcorps_band_set_oy(0);
+        } else if (ext_anim && s_screen == SCR_TERMINAL) {
+            partial_prompt_line();
         }
-        if (dirty) {
-            botcorps_set_surface(BOTCORPS_SURFACE_MENU);
-            auto &menu = botcorps_menu();
-            menu.startWrite();
-            paint_int(menu);
-            menu.endWrite();
-            menu.clearClipRect();
+        if (int_dirty) {
+            s_int_dirty = false;
+            paint_int_now();
         } else {
             fmt_times();
             static char drawn_b[8];
@@ -2600,11 +2652,16 @@ void botcorps_ui_draw(void)
         }
         return;
     }
-    if (s_dirty) {
+    if (dirty) {
         s_dirty = false;
-        paint_full();
+        paint_ext_full();
+    }
+    if (int_dirty) {
+        s_int_dirty = false;
+        paint_int_now();
         return;
     }
+    if (dirty) return;
     if (botcorps_dual_ok()) {
         botcorps_set_surface(BOTCORPS_SURFACE_CONTENT);
         tick_ext(botcorps_content());

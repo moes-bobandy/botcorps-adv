@@ -17,3 +17,6 @@ enum {
 int botcorps_shape_for(int index);
 void botcorps_sprite_draw(lgfx::LovyanGFX &dst, int x, int y, int shape, int scale,
                           uint8_t color, bool blink);
+/* Body and eye inks are both caller-chosen. Blink still skips the eyes. */
+void botcorps_sprite_draw_inks(lgfx::LovyanGFX &dst, int x, int y, int shape, int scale,
+                               uint8_t body, uint8_t eye, bool blink);

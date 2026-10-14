@@ -2,6 +2,7 @@
 
 #include "display/botcorps_display.h"
 
+#include <Arduino.h>
 #include <esp_heap_caps.h>
 #include <lgfx/v1/LGFX_Sprite.hpp>
 #include <lgfx/v1/misc/colortype.hpp>
@@ -448,6 +449,12 @@ void botcorps_band_present(void (*draw)(Gfx))
 void botcorps_band_patch(void (*draw)(Gfx), int x, int y, int w, int h)
 {
     if (!draw || !s_live || !s_sp || s_direct || w <= 0 || h <= 0) return;
+    /* BANDS keeps one 120-row slice resident. A patch must not cross y=120. */
+    if (SLICE_N > 1 && y < SLICE_H && (y + h) > SLICE_H) {
+        Serial.printf("[botcorps] band_patch refused, crosses y=%d (y=%d h=%d)\n",
+                      SLICE_H, y, h);
+        return;
+    }
     const int y1 = y + h;
     for (int s = 0; s < SLICE_N; ++s) {
         const int y0 = s * SLICE_H;

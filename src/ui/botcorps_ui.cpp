@@ -125,8 +125,24 @@ static const char *const CMDS[12] = {
     "clear", "ping", "info", "track", "sniff", "cmds"
 };
 static const char *const CMD_ABOUT[12] = {
-    "sweep", "named sweep", "command list", "board status", "colour", "which heard",
-    "wipe log", "found device", "device detail", "pin device", "heard list", "this sheet"
+    "sweep wifi|ble|all", "drone|flock|skimmer", "list the commands", "board status",
+    "rain colour|mixed", "wifi|ble|threats|off", "wipe the log", "ping a found device",
+    "device details", "pin a device", "list heard", "this sheet"
+};
+/* 8x8 command glyphs from the mock sheet. Flash only. */
+static const uint8_t SHEET_ICO[12][8] = {
+    { 0x1c, 0x22, 0x41, 0x41, 0x22, 0x1c, 0x04, 0x02 },
+    { 0x18, 0x18, 0x24, 0xe7, 0xe7, 0x24, 0x18, 0x18 },
+    { 0x3c, 0x42, 0x02, 0x0c, 0x10, 0x10, 0x00, 0x10 },
+    { 0x7e, 0x81, 0xa5, 0x81, 0xbd, 0x7e, 0x24, 0x66 },
+    { 0x48, 0x49, 0x12, 0x94, 0x94, 0x12, 0x42, 0x40 },
+    { 0xff, 0x7e, 0x3c, 0x18, 0x18, 0x18, 0x18, 0x00 },
+    { 0x81, 0x42, 0x24, 0x18, 0x18, 0x24, 0x42, 0x81 },
+    { 0x10, 0x08, 0x25, 0x72, 0x25, 0x08, 0x10, 0x00 },
+    { 0x18, 0x00, 0x38, 0x18, 0x18, 0x18, 0x3c, 0x00 },
+    { 0x3c, 0x42, 0x99, 0xbd, 0xbd, 0x99, 0x42, 0x3c },
+    { 0x00, 0x42, 0x5a, 0xdb, 0xdb, 0x5a, 0x42, 0x00 },
+    { 0x9c, 0x00, 0xbe, 0x00, 0xb8, 0x00, 0x9c, 0x00 },
 };
 
 static const int BAR_H = 22;
@@ -144,8 +160,10 @@ static int s_saver_on = 1;
 static int s_idle = 1;
 static int s_ret = -1;
 static bool s_dirty = true;
-/* Full INT repaint. Screen changes and bot changes only. */
+/* Full INT repaint. Screen changes and boot only. -1 forces the next partial. */
 static bool s_int_dirty = true;
+static int s_int_bot = -1;
+static uint32_t s_bus_t0 = 0;
 /* Nav focus. Drawn in place. Never promotes a full-panel clear. */
 static int s_focus_old = -1;
 static int s_focus_new = -1;
@@ -182,8 +200,6 @@ extern uint8_t botcorps_t0_rain_cell[3][1200];
 static_assert(1120 + 60 <= 1200, "tab scratch fits inside the rain cell plane");
 static char *tab_base(void) { return (char *)&botcorps_t0_rain_cell[1][1120]; }
 static char *tab_last(void) { return (char *)&botcorps_t0_rain_cell[2][1120]; }
-static float s_sweep = -1.0f;
-
 static const char *const NVS_NS = "botcorps";
 static const char *const NVS_KEY = "rain_col";
 
@@ -191,18 +207,6 @@ static uint8_t accent(void)
 {
     if (s_color < 0 || s_color > 2) return ACCENT_C[0];
     return ACCENT_C[s_color];
-}
-
-static uint16_t scale565(uint16_t c, int num, int den)
-{
-    if (den <= 0) return c;
-    int r = ((c >> 11) & 31) * num / den;
-    int g = ((c >> 5) & 63) * num / den;
-    int b = (c & 31) * num / den;
-    if (r > 31) r = 31;
-    if (g > 63) g = 63;
-    if (b > 31) b = 31;
-    return (uint16_t)((r << 11) | (g << 5) | b);
 }
 
 static const char *screen_name(int id)
@@ -265,6 +269,8 @@ static bool ext_animates(void)
     case SCR_BOT_RADAR:
     case SCR_SCAN:
     case SCR_TERMINAL:
+    case SCR_WIFI_LIST:
+    case SCR_BT_LIST:
         return true;
     default:
         return false;
@@ -397,6 +403,34 @@ static void draw_icon(Gfx g, int x, int y, int id, uint8_t col)
     }
 }
 
+static const char *btn_name(int id)
+{
+    if (id == ICO_PLAY) return "play";
+    if (id == ICO_TERM) return "terminal";
+    if (id == ICO_CTRL) return "control";
+    if (id == ICO_RADAR) return "radar";
+    if (id == ICO_BACK) return "back";
+    if (id == ICO_TRACK) return "track";
+    if (id == ICO_LIST) return "list";
+    return "";
+}
+
+static bool btn_locked(int id)
+{
+    if (id == ICO_BACK && (s_screen == SCR_WIFI_LIST || s_screen == SCR_BT_LIST)) return true;
+    if (id == ICO_PLAY && s_screen == SCR_RAIN) return true;
+    if (id == ICO_BACK && s_screen == SCR_DIAG) return true;
+    return false;
+}
+
+static uint8_t label_bg(void)
+{
+    if (s_screen == SCR_WIFI_LIST || s_screen == SCR_BT_LIST) return COL_DEEP;
+    if (s_screen == SCR_GIBSON) return botcorps_pal_hub_of(COL_FIELD);
+    if (!wants_rain()) return COL_BG;
+    return COL_FIELD;
+}
+
 static void draw_btn(Gfx g, int x, int y, int id, bool sel)
 {
     const uint8_t edge = sel ? accent() : COL_LINE;
@@ -404,6 +438,14 @@ static void draw_btn(Gfx g, int x, int y, int id, bool sel)
     plate(g, x, y, BS, BS, fill, edge);
     if (sel) g.drawRect(x + 1, y + 1, BS - 2, BS - 2, accent());
     draw_icon(g, x, y, id, sel ? accent() : COL_MUTED);
+    const char *nm = btn_name(id);
+    const int tw = (int)strlen(nm) * 6;
+    const int lx = x + (BS - tw) / 2;
+    const bool show = sel || btn_locked(id);
+    if (tw > 0) g.fillRect(lx, y + BS, tw, 8, label_bg());
+    if (show && nm[0]) {
+        txt_bg(g, nm, lx, y + BS, bot_color(card_bot()), label_bg(), lgfx::textdatum::top_left);
+    }
 }
 
 static botcorps_cover_t s_box[24];
@@ -422,6 +464,19 @@ static void cover_add(int x, int y, int w, int h)
     s_box[s_box_n++] = { (int16_t)x, (int16_t)y, (int16_t)w, (int16_t)h };
 }
 
+/* Icon plus the Font0 name that sits on the row under the box. */
+static void cover_btn(int x, int y)
+{
+    int bx = x - 12;
+    int bw = BS + 24;
+    if (bx < 0) {
+        bw += bx;
+        bx = 0;
+    }
+    if (bx + bw > 320) bw = 320 - bx;
+    cover_add(bx, y, bw, BS + 8);
+}
+
 static void term_xy(int n, int *x, int *y)
 {
     *x = 7 + (n % 4) * 78;
@@ -433,7 +488,7 @@ static void layout_covers(void)
     cover_reset(false);
     switch (s_screen) {
     case SCR_RAIN:
-        cover_add(146, 206, BS, BS);
+        cover_btn(146, 206);
         break;
     case SCR_GIBSON:
         cover_add(4, 18, 36, 170);
@@ -441,9 +496,9 @@ static void layout_covers(void)
         cover_add(110, 20, 100, 140);
         cover_add(38, 164, 244, 38);
         cover_add(90, 152, 140, 14);
-        cover_add(110, 206, BS, BS);
-        cover_add(146, 206, BS, BS);
-        cover_add(182, 206, BS, BS);
+        cover_btn(110, 206);
+        cover_btn(146, 206);
+        cover_btn(182, 206);
         break;
     case SCR_TERMINAL:
         cover_add(0, 0, 320, 17);
@@ -459,34 +514,40 @@ static void layout_covers(void)
     case SCR_BT:
     case SCR_BOT:
         cover_add(96, 14, 128, 120);
-        cover_add(12, 133, BS, BS);
-        cover_add(44, 133, BS, BS);
-        cover_add(248, 133, BS, BS);
-        cover_add(280, 133, BS, BS);
+        cover_btn(12, 133);
+        cover_btn(44, 133);
+        cover_btn(248, 133);
+        cover_btn(280, 133);
         break;
     case SCR_WIFI_RADAR:
     case SCR_BT_RADAR:
-        cover_reset(true);
-        cover_add(14, 72, BS, BS);
-        cover_add(14, 106, BS, BS);
-        cover_add(14, 140, BS, BS);
-        cover_add(70, 210, 180, 18);
+        cover_reset(false);
+        cover_btn(14, 72);
+        cover_btn(14, 106);
+        cover_btn(14, 140);
+        cover_add(50, 26, 220, 182);
+        cover_add(40, 210, 240, 22);
         break;
     case SCR_BOT_RADAR:
     case SCR_SCAN:
-        cover_reset(true);
-        cover_add(14, 90, BS, BS);
-        cover_add(14, 124, BS, BS);
-        cover_add(70, 210, 180, 18);
+        cover_reset(false);
+        cover_btn(14, 90);
+        cover_btn(14, 124);
+        cover_add(50, 26, 220, 182);
+        cover_add(40, 210, 240, 22);
         break;
     case SCR_WIFI_LIST:
     case SCR_BT_LIST:
+        cover_add(0, 0, 320, 24);
+        cover_add(8, 26, 304, 182);
+        cover_add(0, 209, 320, 31);
+        cover_btn(286, 206);
         break;
     case SCR_CONTROL:
         for (int i = 0; i < CP_N; ++i) cover_add(8, 4 + i * 20, 304, 18);
         cover_add(14, 192, 200, 14);
-        cover_add(14, 204, BS, BS);
-        cover_add(48, 204, BS, BS);
+        cover_btn(14, 204);
+        cover_btn(48, 204);
         break;
     default:
         break;
@@ -523,9 +584,10 @@ static void enter_screen(int id, int ret)
     s_cursor = 0;
     s_sheet = false;
     s_focus_cmds = false;
-    s_sweep = -1.0f;
+    s_bus_t0 = millis();
     s_dirty = true;
     s_int_dirty = true;
+    Serial.printf("[int] enter_screen %s\n", screen_name(id));
     botcorps_probe_screen(from, screen_name(id));
 }
 
@@ -866,24 +928,44 @@ static void paint_palette(Gfx g)
         const int y = 171 + (n / 6) * 18;
         const bool sel = n == s_cmd_sel;
         plate(g, x, y, 41, 15, sel ? COL_SEL : COL_BG, sel ? accent() : COL_LINE);
-        txt(g, CMDS[n], x + 20, y + 4, sel ? COL_WHITE : COL_MUTED, lgfx::textdatum::top_center);
+        txt_bg(g, CMDS[n], x + 20, y + 4, sel ? COL_WHITE : COL_MUTED, sel ? COL_SEL : COL_BG,
+               lgfx::textdatum::top_center);
+    }
+}
+
+static void sheet_icon(Gfx g, int index, int x, int y, uint8_t col)
+{
+    if (index < 0 || index > 11) return;
+    for (int r = 0; r < 8; ++r) {
+        const uint8_t bits = SHEET_ICO[index][r];
+        for (int c = 0; c < 8; ++c) {
+            if (bits & (uint8_t)(1u << (7 - c))) g.fillRect(x + c, y + r, 1, 1, col);
+        }
     }
 }
 
 static void paint_sheet(Gfx g)
 {
     plate(g, 8, 21, 304, 142, COL_BG, accent());
+    g.fillRect(8, 21, 304, 1, accent());
+    for (int k = 0; k < 36; ++k) {
+        g.fillRect(16 + k * 8, 24, 3, 2, COL_LINE);
+        g.fillRect(16 + k * 8, 157, 3, 2, COL_LINE);
+    }
     const int vis = 8;
     int top = s_sheet_i - 3;
     if (top < 0) top = 0;
     if (top > 12 - vis) top = 12 - vis;
     for (int r = 0; r < vis; ++r) {
         const int i = top + r;
-        const int y = 28 + r * 16;
+        const int y = 30 + r * 15;
         const bool sel = i == s_sheet_i;
-        if (sel) g.fillRect(14, y, 292, 15, COL_SEL);
-        txt(g, CMDS[i], 18, y + 3, sel ? accent() : COL_INK, lgfx::textdatum::top_left);
-        txt(g, CMD_ABOUT[i], 92, y + 3, COL_MUTED, lgfx::textdatum::top_left);
+        if (sel) g.fillRect(14, y, 292, 14, COL_SEL);
+        sheet_icon(g, i, 18, y + 3, sel ? accent() : COL_MUTED);
+        txt_bg(g, CMDS[i], 34, y + 3, sel ? accent() : COL_INK, sel ? COL_SEL : COL_BG,
+               lgfx::textdatum::top_left);
+        txt_bg(g, CMD_ABOUT[i], 92, y + 3, sel ? COL_INK : COL_MUTED, sel ? COL_SEL : COL_BG,
+               lgfx::textdatum::top_left);
     }
 }
 
@@ -905,7 +987,10 @@ static void paint_prompt(Gfx g)
     g.print(botcorps_t0_term_prompt);
     const int cx = g.getCursorX() + 2;
     if ((millis() / 530u) % 2u == 0) g.fillRect(cx, y, 5, 8, accent());
-    if (s_focus_cmds && !s_sheet) paint_palette(g);
+    const bool po = s_focus_cmds && !s_sheet;
+    plate(g, 250, 214, 20, 12, po ? COL_SEL : COL_DEEP, po ? accent() : COL_LINE);
+    for (int k = 0; k < 3; ++k) g.fillRect(255, 217 + k * 3, 10, 1, po ? accent() : COL_MUTED);
+    if (po) paint_palette(g);
 }
 
 static void paint_terminal(Gfx g)
@@ -938,18 +1023,174 @@ static void paint_home(Gfx g, int bot_index)
     }
 }
 
+static void hub_gibson(Gfx g, int cx, int cy, int z);
+static void chip_plate(Gfx g, int x, int y, int w, int h, uint8_t fill, uint8_t line);
+
+/* Mock busLayout. kind 1 = radar (lanes stop at cx+/-108). kind 0 = full scan. */
+struct bus_pt { int16_t x, y; };
+static const bus_pt BUS_R[12][4] = {
+    { { 129, 101 }, { 125, 101 }, { 91, 67 }, { 52, 67 } },
+    { { 129, 117 }, { 52, 117 }, { 0, 0 }, { 0, 0 } },
+    { { 129, 133 }, { 125, 133 }, { 91, 167 }, { 52, 167 } },
+    { { 191, 101 }, { 195, 101 }, { 229, 67 }, { 268, 67 } },
+    { { 191, 117 }, { 268, 117 }, { 0, 0 }, { 0, 0 } },
+    { { 191, 133 }, { 195, 133 }, { 229, 167 }, { 268, 167 } },
+    { { 140, 86 }, { 140, 32 }, { 0, 0 }, { 0, 0 } },
+    { { 160, 86 }, { 160, 32 }, { 0, 0 }, { 0, 0 } },
+    { { 180, 86 }, { 180, 32 }, { 0, 0 }, { 0, 0 } },
+    { { 140, 148 }, { 140, 202 }, { 0, 0 }, { 0, 0 } },
+    { { 160, 148 }, { 160, 202 }, { 0, 0 }, { 0, 0 } },
+    { { 180, 148 }, { 180, 202 }, { 0, 0 }, { 0, 0 } },
+};
+static const bus_pt BUS_F[12][4] = {
+    { { 129, 101 }, { 125, 101 }, { 91, 67 }, { 14, 67 } },
+    { { 129, 117 }, { 14, 117 }, { 0, 0 }, { 0, 0 } },
+    { { 129, 133 }, { 125, 133 }, { 91, 167 }, { 14, 167 } },
+    { { 191, 101 }, { 195, 101 }, { 229, 67 }, { 306, 67 } },
+    { { 191, 117 }, { 306, 117 }, { 0, 0 }, { 0, 0 } },
+    { { 191, 133 }, { 195, 133 }, { 229, 167 }, { 306, 167 } },
+    { { 140, 86 }, { 140, 32 }, { 0, 0 }, { 0, 0 } },
+    { { 160, 86 }, { 160, 32 }, { 0, 0 }, { 0, 0 } },
+    { { 180, 86 }, { 180, 32 }, { 0, 0 }, { 0, 0 } },
+    { { 140, 148 }, { 140, 202 }, { 0, 0 }, { 0, 0 } },
+    { { 160, 148 }, { 160, 202 }, { 0, 0 }, { 0, 0 } },
+    { { 180, 148 }, { 180, 202 }, { 0, 0 }, { 0, 0 } },
+};
+static const int8_t BUS_N[12] = { 4, 2, 4, 4, 2, 4, 2, 2, 2, 2, 2, 2 };
+static const int8_t BUS_DEV_LANE[3] = { 1, 6, 9 };
+
+static int bus_len(const bus_pt *p, int n)
+{
+    int L = 0;
+    for (int i = 1; i < n; ++i) {
+        const int dx = p[i].x - p[i - 1].x;
+        const int dy = p[i].y - p[i - 1].y;
+        const int adx = dx < 0 ? -dx : dx;
+        const int ady = dy < 0 ? -dy : dy;
+        L += adx > ady ? adx : ady;
+    }
+    return L;
+}
+
+static void bus_at(const bus_pt *p, int n, int dist, int *x, int *y)
+{
+    int left = dist;
+    if (left < 0) left = 0;
+    for (int i = 1; i < n; ++i) {
+        const int dx = p[i].x - p[i - 1].x;
+        const int dy = p[i].y - p[i - 1].y;
+        const int adx = dx < 0 ? -dx : dx;
+        const int ady = dy < 0 ? -dy : dy;
+        int len = adx > ady ? adx : ady;
+        if (len < 1) len = 1;
+        if (left <= len || i == n - 1) {
+            int k = left;
+            if (k > len) k = len;
+            *x = p[i - 1].x + dx * k / len;
+            *y = p[i - 1].y + dy * k / len;
+            return;
+        }
+        left -= len;
+    }
+    *x = p[0].x;
+    *y = p[0].y;
+}
+
+static void bus_trace(Gfx g, const bus_pt *p, int n, uint8_t col)
+{
+    const int L = bus_len(p, n);
+    for (int s = 0; s <= L; s += 2) {
+        int x = 0;
+        int y = 0;
+        bus_at(p, n, s, &x, &y);
+        g.fillRect(x - 1, y - 1, 2, 2, col);
+    }
+}
+
+static int bus_dev_s(int L)
+{
+    int s = 28 + (L > 42 ? (L - 42) / 2 : 0);
+    if (s < 27) s = 27;
+    if (s > L - 11) s = L - 11;
+    if (s < 8) s = 8;
+    return s;
+}
+
+static int bus_scout_s(int L, uint32_t t, int lane, int period)
+{
+    if (period < 2) period = 2;
+    const uint32_t phase = (t / 16u + (uint32_t)lane * 37u) % (uint32_t)period;
+    const int half = period / 2;
+    const int u = (int)phase < half ? (int)phase : period - (int)phase;
+    int span = L - 16;
+    if (span < 1) span = 1;
+    return 8 + span * u / half;
+}
+
+/* Non-circular bus. radar=false is the Gibson scan (extBus). 0 B heap. */
+static void bus_paint(Gfx g, bool radar, bool wifi, int shown, int sel)
+{
+    const bus_pt (*tab)[4] = radar ? BUS_R : BUS_F;
+    const int period = radar ? 3600 : 7000;
+    const uint32_t t = millis();
+    const int bx = radar ? 50 : 8;
+    const int by = 26;
+    const int bw = radar ? 220 : 304;
+    const int bh = 182;
+    g.fillRect(bx, by, bw, bh, PAL_DEEP);
+    g.drawRect(bx - 1, by - 1, bw + 2, bh + 2, COL_LINE);
+    const uint8_t ac = accent();
+    (void)wifi;
+    for (int i = 0; i < 12; ++i) bus_trace(g, tab[i], BUS_N[i], COL_LINE);
+    for (int d = 0; d < shown && d < 3; ++d) {
+        const int lane = BUS_DEV_LANE[d];
+        const int L = bus_len(tab[lane], BUS_N[lane]);
+        int x = 0;
+        int y = 0;
+        bus_at(tab[lane], BUS_N[lane], bus_dev_s(L), &x, &y);
+        g.fillRect(x - 7, y - 7, 14, 14, PAL_BG);
+        g.drawRect(x - 7, y - 7, 14, 14, COL_LINE);
+        g.fillRect(x - 2, y - 2, 4, 4, ac);
+        if (d == sel) g.drawRect(x - 9, y - 9, 18, 18, ac);
+    }
+    chip_plate(g, 160 - 28, 117 - 28, 56, 56, PAL_BG, COL_LINE);
+    hub_gibson(g, 160, 117, 3);
+    if ((t - s_bus_t0) % (uint32_t)period < 400u) {
+        g.drawRect(160 - 28, 117 - 28, 56, 56, ac);
+    }
+    for (int i = 0; i < 12; ++i) {
+        const int L = bus_len(tab[i], BUS_N[i]);
+        int x = 0;
+        int y = 0;
+        bus_at(tab[i], BUS_N[i], bus_scout_s(L, t, i, period), &x, &y);
+        draw_blob(g, x, y, 1, bot_color(i), botcorps_shape_for(i), false);
+    }
+}
+
+static void bus_label(Gfx g, bool wifi, int shown, int sel)
+{
+    const char *const *names = wifi ? NEAR_WIFI : NEAR_BLE;
+    const char *const *rssi = wifi ? NEAR_WIFI_R : NEAR_BLE_R;
+    char lab[28];
+    if (shown <= 0 || sel < 0 || sel >= shown) snprintf(lab, sizeof(lab), "NO DEVICE YET");
+    else snprintf(lab, sizeof(lab), "%s %s dBm", names[sel], rssi[sel]);
+    const int tw = (int)strlen(lab) * 6 + 16;
+    int x = 160 - tw / 2;
+    if (x < 8) x = 8;
+    plate(g, x, 216, tw, 16, COL_BG, shown > 0 ? COL_AMBER : COL_LINE);
+    txt_bg(g, lab, x + tw / 2, 220, shown > 0 ? COL_AMBER : COL_MUTED, COL_BG,
+           lgfx::textdatum::top_center);
+}
+
 static void paint_radar(Gfx g, bool with_list)
 {
-    const int cx = 160;
-    const int cy = 108;
-    const int r = 88;
-    g.fillCircle(cx, cy, r + 2, COL_BG);
-    g.fillCircle(cx, cy, r, PAL_SEL);
-    g.drawCircle(cx, cy, r, accent());
-    g.drawCircle(cx, cy, r / 2, COL_LINE);
-    g.drawFastHLine(cx - r, cy, r * 2, COL_LINE);
-    g.drawFastVLine(cx, cy - r, r * 2, COL_LINE);
-    plate(g, 70, 210, 180, 18, COL_BG, COL_LINE);
+    const bool wifi = s_screen != SCR_BT_RADAR;
+    const uint32_t t = millis();
+    int shown = 0;
+    if (t > s_bus_t0 + 1700u) shown = 1 + (int)((t - s_bus_t0 - 1700u) / 1100u);
+    if (shown > 3) shown = 3;
+    bus_paint(g, true, wifi, shown, shown > 0 ? shown - 1 : -1);
+    bus_label(g, wifi, shown, shown > 0 ? shown - 1 : -1);
     if (with_list) {
         draw_btn(g, 14, 72, ICO_TRACK, s_cursor == 0);
         draw_btn(g, 14, 106, ICO_LIST, s_cursor == 1);
@@ -958,30 +1199,47 @@ static void paint_radar(Gfx g, bool with_list)
         draw_btn(g, 14, 90, ICO_TRACK, s_cursor == 0);
         draw_btn(g, 14, 124, ICO_BACK, s_cursor == 1);
     }
-    if (s_track && s_cursor == 0) g.fillCircle(28, with_list ? 72 : 90, 3, accent());
+    if (s_track && shown > 0) {
+        const bus_pt (*tab)[4] = BUS_R;
+        const int lane = BUS_DEV_LANE[shown - 1];
+        int x = 0;
+        int y = 0;
+        bus_at(tab[lane], BUS_N[lane], bus_dev_s(bus_len(tab[lane], BUS_N[lane])), &x, &y);
+        g.drawRect(x - 10, y - 10, 20, 20, COL_AMBER);
+    }
+}
+
+static void paint_scan_hud(Gfx g, bool wifi, int sel)
+{
+    const char *const *names = wifi ? NEAR_WIFI : NEAR_BLE;
+    const char *const *rssi = wifi ? NEAR_WIFI_R : NEAR_BLE_R;
+    const uint8_t *bars = wifi ? NEAR_WIFI_B : NEAR_BLE_B;
+    const uint8_t ac = accent();
+    const uint32_t u = (millis() - s_bus_t0) % 7000u;
+    g.fillRect(0, 0, 320, 24, COL_DEEP);
+    g.fillRect(0, 24, 320, 1, COL_LINE);
+    g.fillRect(0, 24, (int)(320u * u / 7000u), 1, ac);
+    hub_gibson(g, 14, 12, 1);
+    txt_bg(g, "GIBSON", 28, 8, ac, COL_DEEP, lgfx::textdatum::top_left);
+    txt_bg(g, "3", 300, 8, COL_INK, COL_DEEP, lgfx::textdatum::top_right);
+    g.fillRect(0, 209, 320, 31, COL_DEEP);
+    g.fillRect(0, 209, 320, 1, COL_LINE);
+    if (sel >= 0 && sel < 3) {
+        txt_bg(g, names[sel], 12, 216, COL_INK, COL_DEEP, lgfx::textdatum::top_left);
+        txt_bg(g, rssi[sel], 120, 216, COL_AMBER, COL_DEEP, lgfx::textdatum::top_left);
+        for (int k = 0; k < 4; ++k) {
+            const int bh = (k + 1) * 3;
+            g.fillRect(168 + k * 5, 226 - bh, 3, bh, k < bars[sel] ? ac : COL_LINE);
+        }
+    }
 }
 
 static void paint_list(Gfx g, bool wifi)
 {
-    g.fillScreen(COL_BG);
-    const char *const *names = wifi ? NEAR_WIFI : NEAR_BLE;
-    const char *const *rssi = wifi ? NEAR_WIFI_R : NEAR_BLE_R;
-    const uint8_t *bars = wifi ? NEAR_WIFI_B : NEAR_BLE_B;
-    plate(g, 8, 8, 304, 22, COL_BG, COL_LINE);
-    txt(g, wifi ? "WI-FI" : "BLE", 16, 14, accent(), lgfx::textdatum::top_left);
-    txt(g, "3", 300, 14, COL_MUTED, lgfx::textdatum::top_right);
-    for (int i = 0; i < 3; ++i) {
-        const int y = 40 + i * 50;
-        const bool sel = s_cursor == i;
-        plate(g, 12, y, 296, 44, sel ? COL_SEL : COL_BG, sel ? accent() : COL_LINE);
-        txt(g, names[i], 24, y + 8, COL_INK, lgfx::textdatum::top_left);
-        txt(g, rssi[i], 280, y + 8, COL_AMBER, lgfx::textdatum::top_right);
-        for (int k = 0; k < 4; ++k) {
-            const int bh = (k + 1) * 4;
-            g.fillRect(250 + k * 8, y + 36 - bh, 5, bh, k < bars[i] ? accent() : COL_LINE);
-        }
-    }
-    draw_btn(g, 146, 206, ICO_BACK, s_cursor == 3);
+    const int sel = (s_cursor >= 0 && s_cursor < 3) ? s_cursor : 0;
+    bus_paint(g, false, wifi, 3, s_cursor < 3 ? s_cursor : -1);
+    paint_scan_hud(g, wifi, sel);
+    draw_btn(g, 286, 206, ICO_BACK, s_cursor == 3);
 }
 
 static const char *const SHAPE_N[5] = { "MIXED", "ROUND", "CLASSIC", "TALL", "MINI" };
@@ -1155,6 +1413,25 @@ static void via_node(Gfx g, int x, int y, uint8_t col)
 {
     g.fillRect(x, y, 3, 3, col);
     g.fillRect(x + 1, y + 1, 1, 1, PAL_FIELD);
+}
+
+/* Inner disc under the hub rings. Integer traces and vias, no buffer. */
+static void hub_die(Gfx g, int cx, int cy, int r)
+{
+    static const int8_t via[8][2] = {
+        { -16, -6 }, { 16, -6 }, { -16, 6 }, { 16, 6 },
+        { -6, -16 }, { 6, -16 }, { -6, 16 }, { 6, 16 }
+    };
+    g.fillCircle(cx, cy, r, PAL_DEEP);
+    for (int k = 10; k < r; k += 8) g.drawCircle(cx, cy, k, (k & 8) ? (uint8_t)PAL_LINE : wire_ink());
+    g.fillRect(cx - r + 8, cy, (r - 8) * 2, 1, PAL_LINE);
+    g.fillRect(cx, cy - r + 8, 1, (r - 8) * 2, PAL_LINE);
+    for (int i = 0; i < 8; ++i) {
+        const int x = cx + via[i][0];
+        const int y = cy + via[i][1];
+        g.fillRect(x - 1, y - 1, 3, 3, PAL_STEEL);
+        g.fillRect(x, y, 1, 1, PAL_IVORY);
+    }
 }
 
 static void hub_gibson(Gfx g, int cx, int cy, int z)
@@ -1420,7 +1697,7 @@ static void paint_gibson(Gfx g)
         draw_blob(g, sx + 11, sy + 10, 1, bot_color(i), botcorps_shape_for(i), false);
         g.fillRect(sx + 21, sy + 7, 4, 4, dot_col(i, t, mood, asleep));
     }
-    g.fillCircle(cx, cy, 34, PAL_DEEP);
+    hub_die(g, cx, cy, 34);
     const uint8_t rc1 = mood == MOOD_ALERT ? (((t / 160u) % 2u) ? PAL_AMBER : PAL_HOLD)
                         : mood == MOOD_SAD ? PAL_LINE : ac;
     px_ring(g, cx, cy, 34, rc1, 0, 0, 0);
@@ -1438,7 +1715,7 @@ static void paint_gibson(Gfx g)
     px_ring(g, cx, cy, 44 + ph, wire, 3, 3, 0);
     hub_sparks(g, cx, cy, t);
     g.fillRect(cx - 14, cy + 25, 28, 1, wire);
-    hub_gibson(g, cx, cy, 5);
+    hub_gibson(g, cx, cy, 9);
     if (asleep) {
         for (int k = 0; k < 3; ++k) {
             const int q = (int)((t / 1500u + (uint32_t)k) % 3u);
@@ -1605,43 +1882,10 @@ static void paint_ext(Gfx g)
     }
 }
 
-static void radar_rays(Gfx g, float ang, bool erase)
-{
-    const int cx = 160;
-    const int cy = 108;
-    const int r = 88;
-    for (int k = 0; k < 6; ++k) {
-        const float a = ang - (float)k * 0.18f;
-        const int x1 = cx + (int)(cosf(a) * (float)(r - 4));
-        const int y1 = cy + (int)(sinf(a) * (float)(r - 4));
-        const uint8_t col = erase ? PAL_SEL
-                                  : botcorps_pal_fit(scale565(botcorps_pal_native(accent()),
-                                                             180 - k * 24, 256));
-        g.drawLine(cx, cy, x1, y1, col);
-    }
-}
-
-static void radar_guides(Gfx g)
-{
-    const int cx = 160;
-    const int cy = 108;
-    const int r = 88;
-    g.drawCircle(cx, cy, r, accent());
-    g.drawCircle(cx, cy, r / 2, COL_LINE);
-    g.drawFastHLine(cx - r, cy, r * 2, COL_LINE);
-    g.drawFastVLine(cx, cy - r, r * 2, COL_LINE);
-}
-
 static void tick_radar(Gfx g)
 {
-    g.startWrite();
-    g.setClipRect(70, 18, 180, 180);
-    if (s_sweep >= 0.0f) radar_rays(g, s_sweep, true);
-    radar_guides(g);
-    s_sweep = (float)(millis() % 1700u) / 1700.0f * 6.283185f;
-    radar_rays(g, s_sweep, false);
-    g.endWrite();
-    g.clearClipRect();
+    /* Scouts move inside paint_radar. A sweep line would cover the bus. */
+    (void)g;
 }
 
 static void tick_home(Gfx g, int bot_index)
@@ -1660,15 +1904,8 @@ static void tick_home(Gfx g, int bot_index)
 
 static void tick_gibson(Gfx g)
 {
-    const int bob = (int)((millis() / 700u) % 3u) - 1;
-    g.startWrite();
-    g.setClipRect(120, 40, 80, 90);
-    g.fillCircle(160, 88, 36, COL_DEEP);
-    g.drawCircle(160, 88, 36, accent());
-    draw_blob(g, 160, 92 + bob, 4, COL_IVORY, BOTCORPS_SHAPE_ROUND, sprite_blink(0));
-    g.fillRect(150, 88 + bob, 20, 4, COL_DEEP);
-    g.endWrite();
-    g.clearClipRect();
+    /* The hub Gibson is painted with the rings. A second sprite here covered him. */
+    (void)g;
 }
 
 static void tick_ext(Gfx g)
@@ -1680,6 +1917,18 @@ static void tick_ext(Gfx g)
     else if (s_screen == SCR_WIFI_RADAR || s_screen == SCR_BT_RADAR ||
              s_screen == SCR_BOT_RADAR || s_screen == SCR_SCAN) {
         tick_radar(g);
+    } else if ((s_screen == SCR_WIFI_LIST || s_screen == SCR_BT_LIST) && botcorps_band_direct()) {
+        const bool wifi = s_screen == SCR_WIFI_LIST;
+        g.startWrite();
+        g.setClipRect(0, 0, 320, 120);
+        paint_list(g, wifi);
+        g.endWrite();
+        g.clearClipRect();
+        g.startWrite();
+        g.setClipRect(0, 120, 320, 120);
+        paint_list(g, wifi);
+        g.endWrite();
+        g.clearClipRect();
     } else if (s_screen == SCR_TERMINAL && !s_sheet) {
         const int phase = (int)((millis() / 530u) % 2u);
         if (phase != s_prompt_phase) {
@@ -1714,6 +1963,8 @@ static void paint_int(lgfx::LGFX_Device &menu)
     const int width = menu.width();
     fmt_times();
     menu.fillScreen(panel565(PAL_DEEP));
+    s_int_bot = -1;
+    Serial.println("[int] FULL fillScreen");
     menu.fillRect(0, 0, width, BAR_H, panel565(COL_BAR));
     menu.drawFastHLine(0, BAR_H, width, panel565(COL_LINE));
     menu.setFont(&fonts::Font0);
@@ -1772,6 +2023,7 @@ static void paint_ext_full(void)
 
 static void paint_int_now(void)
 {
+    Serial.println("[int] paint_int_now");
     botcorps_set_surface(BOTCORPS_SURFACE_MENU);
     auto &menu = botcorps_menu();
     menu.startWrite();
@@ -1934,7 +2186,7 @@ static bool cursor_box(int index, int *x, int *y, int *w, int *h)
             return true;
         }
         if (index == 3) {
-            *x = 146;
+            *x = 286;
             *y = 206;
             return true;
         }
@@ -1973,18 +2225,13 @@ static void paint_cursor_item(Gfx g, int index, bool sel)
         return;
     }
     if ((s_screen == SCR_WIFI_LIST || s_screen == SCR_BT_LIST) && index < 3) {
-        const bool wifi = s_screen == SCR_WIFI_LIST;
-        const char *const *names = wifi ? NEAR_WIFI : NEAR_BLE;
-        const char *const *rssi = wifi ? NEAR_WIFI_R : NEAR_BLE_R;
-        const uint8_t *bars = wifi ? NEAR_WIFI_B : NEAR_BLE_B;
-        const uint8_t row = sel ? (uint8_t)COL_SEL : (uint8_t)COL_BG;
-        plate(g, x, y, w, h, row, sel ? accent() : COL_LINE);
-        txt_bg(g, names[index], 24, y + 8, COL_INK, row, lgfx::textdatum::top_left);
-        txt_bg(g, rssi[index], 280, y + 8, COL_AMBER, row, lgfx::textdatum::top_right);
-        for (int k = 0; k < 4; ++k) {
-            const int bh = (k + 1) * 4;
-            g.fillRect(250 + k * 8, y + 36 - bh, 5, bh, k < bars[index] ? accent() : COL_LINE);
-        }
+        /* Device pads are part of the bus. Focus repaints both slices. */
+        (void)x;
+        (void)y;
+        (void)w;
+        (void)h;
+        (void)sel;
+        paint_list(g, s_screen == SCR_WIFI_LIST);
         return;
     }
     int id = ICO_BACK;
@@ -2015,6 +2262,11 @@ static void draw_focus_part(Gfx g)
     paint_cursor_item(g, s_part_i, s_part_sel);
 }
 
+static void draw_scan_part(Gfx g)
+{
+    paint_list(g, s_screen == SCR_WIFI_LIST);
+}
+
 static void patch_world(void (*fn)(Gfx), int x, int y, int w, int h)
 {
     if (!fn || w <= 0 || h <= 0 || !botcorps_dual_ok()) return;
@@ -2034,10 +2286,54 @@ static void patch_world(void (*fn)(Gfx), int x, int y, int w, int h)
     part_end(g);
 }
 
+static int cursor_icon(int index)
+{
+    if (s_screen == SCR_GIBSON) {
+        const int ids[3] = { ICO_TERM, ICO_CTRL, ICO_RADAR };
+        return ids[index];
+    }
+    if (s_screen == SCR_WIFI || s_screen == SCR_BT || s_screen == SCR_BOT) {
+        const int ids[4] = { ICO_RADAR, ICO_TERM, ICO_CTRL, ICO_BACK };
+        return ids[index];
+    }
+    if (s_screen == SCR_WIFI_RADAR || s_screen == SCR_BT_RADAR) {
+        const int ids[3] = { ICO_TRACK, ICO_LIST, ICO_BACK };
+        return ids[index];
+    }
+    if (s_screen == SCR_BOT_RADAR || s_screen == SCR_SCAN) return index == 0 ? ICO_TRACK : ICO_BACK;
+    if (s_screen == SCR_CONTROL) return index == CP_N ? ICO_TERM : ICO_BACK;
+    if (s_screen == SCR_WIFI_LIST || s_screen == SCR_BT_LIST) return ICO_BACK;
+    if (s_screen == SCR_DIAG) return ICO_BACK;
+    if (s_screen == SCR_RAIN) return ICO_PLAY;
+    return ICO_BACK;
+}
+
 static void partial_box(int index, bool sel)
 {
+    if (s_screen == SCR_WIFI_LIST || s_screen == SCR_BT_LIST) {
+        s_part_i = index;
+        s_part_sel = sel;
+        patch_world(draw_scan_part, 0, 0, 320, 120);
+        patch_world(draw_scan_part, 0, 120, 320, 120);
+        return;
+    }
     int x, y, w, h;
     if (!cursor_box(index, &x, &y, &w, &h)) return;
+    if (w == BS && h == BS) {
+        const int tw = (int)strlen(btn_name(cursor_icon(index))) * 6 + 4;
+        if (tw > w) {
+            const int grow = tw - w;
+            x -= grow / 2;
+            w = tw;
+        }
+        h += 8;
+        if (x < 0) {
+            w += x;
+            x = 0;
+        }
+        if (x + w > 320) w = 320 - x;
+        if (y + h > 240) h = 240 - y;
+    }
     s_part_i = index;
     s_part_sel = sel;
     patch_world(draw_focus_part, x, y, w, h);
@@ -2058,8 +2354,11 @@ static void partial_int(void)
 {
     const botcorps_probe_t *pr = botcorps_probe_get();
     if (pr && strcmp(pr->ext_st, "fail") == 0) return;
-    auto &menu = botcorps_menu();
     const int bi = card_bot();
+    if (bi == s_int_bot) return;
+    s_int_bot = bi;
+    Serial.printf("[int] partial_int bot=%d\n", bi);
+    auto &menu = botcorps_menu();
     const bool gib = bi < 0;
     const uint8_t col = gib ? (uint8_t)COL_IVORY : bot_color(bi);
     const char *name = gib ? "gibson" : BOTS[bi].id;
@@ -2133,8 +2432,8 @@ static void draw_chip_part(Gfx g)
     const int x = 8 + (s_part_i % 6) * 51;
     const int y = 170 + (s_part_i / 6) * 18;
     plate(g, x, y, 49, 16, s_part_sel ? COL_SEL : COL_BG, s_part_sel ? accent() : COL_LINE);
-    txt(g, CMDS[s_part_i], x + 24, y + 4, s_part_sel ? COL_WHITE : COL_MUTED,
-        lgfx::textdatum::top_center);
+    txt_bg(g, CMDS[s_part_i], x + 24, y + 4, s_part_sel ? COL_WHITE : COL_MUTED,
+           s_part_sel ? COL_SEL : COL_BG, lgfx::textdatum::top_center);
 }
 
 static void partial_chip(int index)
@@ -2148,7 +2447,7 @@ static void partial_chip(int index)
 
 static int sheet_row_y(int index, int top)
 {
-    return 28 + (index - top) * 16;
+    return 30 + (index - top) * 15;
 }
 
 static void draw_sheet_part(Gfx g)
@@ -2175,9 +2474,12 @@ static void restore_under_sheet(void)
 static void draw_sheet_row_part(Gfx g)
 {
     const int y = sheet_row_y(s_part_i, s_part_top);
-    g.fillRect(14, y, 292, 15, s_part_sel ? COL_SEL : COL_BG);
-    txt(g, CMDS[s_part_i], 18, y + 3, s_part_sel ? accent() : COL_INK, lgfx::textdatum::top_left);
-    txt(g, CMD_ABOUT[s_part_i], 92, y + 3, COL_MUTED, lgfx::textdatum::top_left);
+    const uint8_t bg = s_part_sel ? (uint8_t)COL_SEL : (uint8_t)COL_BG;
+    g.fillRect(14, y, 292, 14, bg);
+    sheet_icon(g, s_part_i, 18, y + 3, s_part_sel ? accent() : COL_MUTED);
+    txt_bg(g, CMDS[s_part_i], 34, y + 3, s_part_sel ? accent() : COL_INK, bg, lgfx::textdatum::top_left);
+    txt_bg(g, CMD_ABOUT[s_part_i], 92, y + 3, s_part_sel ? COL_INK : COL_MUTED, bg,
+           lgfx::textdatum::top_left);
 }
 
 static void partial_sheet_row(int index, int top)
@@ -2187,7 +2489,7 @@ static void partial_sheet_row(int index, int top)
     s_part_i = index;
     s_part_top = top;
     s_part_sel = index == s_sheet_i;
-    patch_world(draw_sheet_row_part, 14, y, 292, 15);
+    patch_world(draw_sheet_row_part, 14, y, 292, 14);
 }
 
 static void draw_portrait_part(Gfx g)
@@ -2658,6 +2960,9 @@ void botcorps_ui_draw(void)
             botcorps_band_set_oy(0);
         } else if (ext_anim && s_screen == SCR_TERMINAL) {
             partial_prompt_line();
+        } else if (ext_anim && (s_screen == SCR_WIFI_LIST || s_screen == SCR_BT_LIST)) {
+            patch_world(draw_scan_part, 0, 0, 320, 120);
+            patch_world(draw_scan_part, 0, 120, 320, 120);
         }
         if (int_dirty) {
             s_int_dirty = false;

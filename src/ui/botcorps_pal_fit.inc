@@ -1,6 +1,9 @@
-/* Minimax 4-bit fit. Each bin is the 16 RGB565 words under one 4-bit key
- * (r5 = 2*r4 or 2*r4+1, g6 = 4*g4..+3, b5 = 2*b4 or 2*b4+1).
- * The entry minimises that bin's worst dist2 to the displayed slot colour. */
+/* Minimax 4-bit fit for the 71 exact slots, including PAL_HUB_HEAD (145)
+ * and PAL_HUB_IVORY (178). Each bin is the 16 RGB565 words under one 4-bit
+ * key (r5 = 2*r4 or 2*r4+1, g6 = 4*g4..+3, b5 = 2*b4 or 2*b4+1).
+ * The entry minimises that bin's worst dist2 to the displayed slot colour.
+ * Recomputed after those two slots, the minimax floor is 4053. The table
+ * hits it at input 0x108E (slot 38). */
 constexpr uint8_t k_fit4[4096] = {
     4, 8, 8, 5, 33, 33, 33, 2, 2, 2, 2, 2, 2, 3, 3, 3, 36, 8, 5, 37, 33, 33, 33, 6, 6, 6, 6, 6, 6, 7, 7, 7,
     36, 5, 37, 37, 1, 1, 9, 9, 6, 6, 6, 6, 6, 7, 7, 7, 12, 1, 1, 1, 1, 17, 9, 9, 6, 6, 6, 6, 6, 7, 7, 7,
@@ -215,3 +218,22 @@ static_assert(fit_not_minimax(2048, 2560) == 0, "minimax 4");
 static_assert(fit_not_minimax(2560, 3072) == 0, "minimax 5");
 static_assert(fit_not_minimax(3072, 3584) == 0, "minimax 6");
 static_assert(fit_not_minimax(3584, 4096) == 0, "minimax 7");
+/* Worst dist2 of the chosen slots. With fit_not_minimax == 0 this equals
+ * the minimax floor: no other assignment of these slots can do better. */
+constexpr int fit_chosen_worst(int a, int b)
+{
+    int w = 0;
+    for (int key = a; key < b; ++key) {
+        const int d = fit_bin_worst(key, k_fit4[key], 1000000);
+        if (d > w) w = d;
+    }
+    return w;
+}
+static_assert(fit_chosen_worst(0, 512) == 4053, "minimax floor");
+static_assert(fit_chosen_worst(512, 1024) <= 4053, "floor 1");
+static_assert(fit_chosen_worst(1024, 1536) <= 4053, "floor 2");
+static_assert(fit_chosen_worst(1536, 2048) <= 4053, "floor 3");
+static_assert(fit_chosen_worst(2048, 2560) <= 4053, "floor 4");
+static_assert(fit_chosen_worst(2560, 3072) <= 4053, "floor 5");
+static_assert(fit_chosen_worst(3072, 3584) <= 4053, "floor 6");
+static_assert(fit_chosen_worst(3584, 4096) <= 4053, "floor 7");

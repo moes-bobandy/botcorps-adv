@@ -158,6 +158,9 @@ static uint32_t s_boot_ms = 0;
 static char s_clk[8];
 static char s_up[8];
 static int s_prompt_phase = -1;
+static int s_tab_i = -1;
+static char s_tab_base[60];
+static char s_tab_last[60];
 static float s_sweep = -1.0f;
 
 static const char *const NVS_NS = "botcorps";
@@ -224,7 +227,8 @@ static int default_back(int id)
 
 static bool wants_rain(void)
 {
-    return s_screen != SCR_WIFI_LIST && s_screen != SCR_BT_LIST && s_screen != SCR_DIAG;
+    return s_screen != SCR_WIFI_LIST && s_screen != SCR_BT_LIST
+        && s_screen != SCR_DIAG && s_screen != SCR_TERMINAL;
 }
 
 /* EXT chrome that moves on its own: sweep, pulse, bob, or the prompt caret. */
@@ -807,13 +811,14 @@ static void paint_boards(Gfx g)
 
 static void paint_palette(Gfx g)
 {
-    g.fillRect(6, 168, 308, 40, COL_DEEP);
+    /* Mock tmChip: 6 x 2 chips over the scrollback. */
+    g.fillRect(5, 169, 268, 38, COL_DEEP);
     for (int n = 0; n < 12; ++n) {
-        const int x = 8 + (n % 6) * 51;
-        const int y = 170 + (n / 6) * 18;
+        const int x = 8 + (n % 6) * 44;
+        const int y = 171 + (n / 6) * 18;
         const bool sel = n == s_cmd_sel;
-        plate(g, x, y, 49, 16, sel ? COL_SEL : COL_BG, sel ? accent() : COL_LINE);
-        txt(g, CMDS[n], x + 24, y + 4, sel ? COL_WHITE : COL_MUTED, lgfx::textdatum::top_center);
+        plate(g, x, y, 41, 15, sel ? COL_SEL : COL_BG, sel ? accent() : COL_LINE);
+        txt(g, CMDS[n], x + 20, y + 4, sel ? COL_WHITE : COL_MUTED, lgfx::textdatum::top_center);
     }
 }
 
@@ -971,12 +976,20 @@ static void paint_control(Gfx g)
 
 static void paint_gibson(Gfx g)
 {
-    g.fillCircle(160, 88, 36, COL_DEEP);
-    g.drawCircle(160, 88, 36, accent());
-    g.drawCircle(160, 88, 42, COL_LINE);
-    g.fillRoundRect(148, 36, 24, 10, 2, COL_IVORY);
-    draw_blob(g, 160, 92, 4, COL_IVORY, BOTCORPS_SHAPE_ROUND, sprite_blink(0));
-    g.fillRect(150, 88, 20, 4, COL_DEEP);
+    /* extGibsonHub: crew sprites wired into rings, the portrait is sprite art. */
+    const int cx = 160;
+    const int cy = 100;
+    for (int i = 0; i < 12; ++i) {
+        const bool left = i < 6;
+        const int sx = left ? 10 : 300;
+        const int sy = 28 + (i % 6) * 26;
+        g.drawFastHLine(left ? sx + 8 : cx + 36, sy, left ? cx - 36 - (sx + 8) : sx - (cx + 36), accent());
+        draw_blob(g, sx, sy, 1, bot_color(i), botcorps_shape_for(i), false);
+    }
+    g.drawCircle(cx, cy, 34, accent());
+    g.drawCircle(cx, cy, 40, COL_LINE);
+    g.drawCircle(cx, cy, 46, COL_MUTED);
+    draw_blob(g, cx, cy, 3, COL_IVORY, BOTCORPS_SHAPE_ROUND, sprite_blink(0));
     const int ids[3] = { ICO_TERM, ICO_CTRL, ICO_RADAR };
     const int xs[3] = { 110, 146, 182 };
     for (int i = 0; i < 3; ++i) draw_btn(g, xs[i], 206, ids[i], s_cursor == i);
@@ -1202,7 +1215,6 @@ static void paint_bars(Gfx g, int x, int y, int lit, int n, uint8_t col)
 static void paint_int(lgfx::LGFX_Device &menu)
 {
     const int width = menu.width();
-    const int height = menu.height();
     fmt_times();
     menu.fillScreen(panel565(PAL_DEEP));
     menu.fillRect(0, 0, width, BAR_H, panel565(COL_BAR));
@@ -1228,29 +1240,39 @@ static void paint_int(lgfx::LGFX_Device &menu)
     const uint8_t col = gib ? COL_IVORY : bot_color(bi);
     const char *name = gib ? "gibsonbot" : BOTS[bi].id;
     const char *target = gib ? "ALL BOTS" : BOTS[bi].target;
-    plate(menu, 4, 28, width - 8, height - 34, PAL_PLATE, COL_LINE);
-    menu.fillRect(12, 36, 52, 52, panel565(COL_DEEP));
-    if (gib) {
-        draw_blob(menu, 38, 62, 3, COL_IVORY, BOTCORPS_SHAPE_ROUND, sprite_blink(0));
-        menu.fillRect(28, 58, 20, 3, panel565(COL_DEEP));
-    } else {
-        draw_blob(menu, 38, 62, 3, col, botcorps_shape_for(bi), sprite_blink(bi));
-    }
-    txt(menu, name, 72, 36, col, lgfx::textdatum::top_left);
-    txt(menu, "LV 01", 72, 48, COL_MUTED, lgfx::textdatum::top_left);
-    txt(menu, target, 72, 64, COL_INK, lgfx::textdatum::top_left);
-    const int idx = gib ? 5 : bi;
-    const int hits = 8 + (idx * 3) % 10;
-    const int sig = 40 + (idx * 7) % 50;
+    const int idx = gib ? 0 : bi;
+    const int vi = idx % 6;
+    const int lay = vi / 2;
+    const bool mirror = (vi % 2) == 1;
+    int photo_x = 8;
+    int chip_x = 60;
+    int name_x = 60;
+    int name_y = 90;
+    if (lay == 1) { chip_x = 60; name_x = 108; name_y = 34; }
+    if (lay == 2) { chip_x = 150; name_x = 60; name_y = 96; }
+    auto mx = [&](int x, int w) { return mirror ? width - x - w : x; };
+    Gfx card(menu);
+    card.drawRect(2, 26, width - 4, 104, COL_LINE);
+    card.fillRect(mx(photo_x, 44), 32, 44, 50, COL_DEEP);
+    draw_blob(card, mx(photo_x, 44) + 22, 56, 2, col,
+              gib ? BOTCORPS_SHAPE_ROUND : botcorps_shape_for(bi), sprite_blink(gib ? 0 : bi));
+    card.drawRect(mx(chip_x, 34), 36, 34, 34, COL_MUTED);
+    draw_blob(card, mx(chip_x, 34) + 17, 53, 1, col,
+              gib ? BOTCORPS_SHAPE_ROUND : botcorps_shape_for(bi), false);
+    txt(card, name, mx(name_x, 70), name_y, col, lgfx::textdatum::top_left);
+    txt(card, "LV 01", mx(name_x, 40), name_y + 10, COL_MUTED, lgfx::textdatum::top_left);
+    txt(card, target, mx(name_x, 70), name_y + 20, COL_INK, lgfx::textdatum::top_left);
+    const int hits = 8 + ((gib ? 5 : bi) * 3) % 10;
+    const int sig = 40 + ((gib ? 5 : bi) * 7) % 50;
     const uint32_t sec = (millis() - s_boot_ms) / 1000u;
     const int up_lit = sec > 90 ? 16 : (int)(sec * 16 / 90);
-    txt(menu, "HITS", 12, 96, COL_MUTED, lgfx::textdatum::top_left);
-    paint_bars(menu, 52, 96, hits, 16, col);
-    txt(menu, "UP", 12, 108, COL_MUTED, lgfx::textdatum::top_left);
-    paint_bars(menu, 52, 108, up_lit, 16, col);
-    txt(menu, s_up, width - 10, 108, COL_INK, lgfx::textdatum::top_right);
-    txt(menu, gib ? "SIG" : "DUTY", 12, 120, COL_MUTED, lgfx::textdatum::top_left);
-    paint_bars(menu, 52, 120, sig / 6, 16, accent());
+    txt(card, "HITS", 12, 96, COL_MUTED, lgfx::textdatum::top_left);
+    paint_bars(card, 52, 96, hits > 8 ? 8 : hits, 8, col);
+    txt(card, "UP", 12, 108, COL_MUTED, lgfx::textdatum::top_left);
+    paint_bars(card, 52, 108, up_lit > 8 ? 8 : up_lit, 8, col);
+    txt(card, s_up, width - 8, 108, COL_INK, lgfx::textdatum::top_right);
+    txt(card, gib ? "SIG" : "DUTY", 12, 120, COL_MUTED, lgfx::textdatum::top_left);
+    paint_bars(card, 52, 120, sig / 12, 8, accent());
 }
 
 static void tick_int_live(lgfx::LGFX_Device &menu)
@@ -1276,8 +1298,8 @@ static void tick_int_live(lgfx::LGFX_Device &menu)
 
     menu.startWrite();
     menu.setClipRect(52, 108, 96, 8);
-    menu.fillRect(52, 108, 96, 8, panel565(PAL_PLATE));
-    paint_bars(menu, 52, 108, up_lit, 16, col);
+    menu.fillRect(52, 108, 96, 8, panel565(COL_DEEP));
+    paint_bars(menu, 52, 108, up_lit > 8 ? 8 : up_lit, 8, col);
     menu.endWrite();
     menu.clearClipRect();
 
@@ -1874,18 +1896,25 @@ static void on_tab(void)
     if (s_screen != SCR_TERMINAL || s_sheet) return;
     if (!botcorps_t0_term_prompt[0]) {
         s_focus_cmds = !s_focus_cmds;
+        s_tab_i = -1;
         s_dirty = true;
         return;
     }
-    const char *hit = 0;
-    for (int i = 0; i < 12; ++i) {
-        if (strncmp(CMDS[i], botcorps_t0_term_prompt, strlen(botcorps_t0_term_prompt)) == 0) {
-            hit = CMDS[i];
-            break;
-        }
+    const bool cont = s_tab_i >= 0 && strcmp(botcorps_t0_term_prompt, s_tab_last) == 0;
+    if (!cont) {
+        snprintf(s_tab_base, sizeof(s_tab_base), "%s", botcorps_t0_term_prompt);
+        s_tab_i = -1;
     }
-    if (!hit) return;
-    snprintf(botcorps_t0_term_prompt, 60, "%s ", hit);
+    int match[12];
+    int n = 0;
+    const size_t bn = strlen(s_tab_base);
+    for (int i = 0; i < 12; ++i) {
+        if (strncmp(CMDS[i], s_tab_base, bn) == 0) match[n++] = i;
+    }
+    if (n == 0) return;
+    s_tab_i = (s_tab_i + 1) % n;
+    snprintf(botcorps_t0_term_prompt, 60, "%s ", CMDS[match[s_tab_i]]);
+    snprintf(s_tab_last, sizeof(s_tab_last), "%s", botcorps_t0_term_prompt);
     partial_prompt_line();
 }
 
@@ -1897,6 +1926,7 @@ static void on_char(char c)
     if (n + 1 >= 60) return;
     botcorps_t0_term_prompt[n] = c;
     botcorps_t0_term_prompt[n + 1] = 0;
+    s_tab_i = -1;
     partial_prompt_line();
 }
 
@@ -1909,6 +1939,7 @@ static void on_bs(void)
     const size_t n = strlen(botcorps_t0_term_prompt);
     if (n == 0) return;
     botcorps_t0_term_prompt[n - 1] = 0;
+    s_tab_i = -1;
     partial_prompt_line();
 }
 

@@ -9,6 +9,7 @@
 #include "ui/botcorps_band.h"
 #include "ui/botcorps_bots.h"
 #include "ui/botcorps_glyph.h"
+#include "ui/botcorps_sprite.h"
 
 #include <string.h>
 
@@ -41,6 +42,10 @@ static const int CELL = 8;
 static const int CELL_COLS = 40;
 static const int CELL_ROWS = 30;
 static const int CELL_N = CELL_COLS * CELL_ROWS;
+/* Mock step() keeps a fading frame. The trail is a ring of stamps in the Tier 0 cell planes. */
+static const int TRAIL = 20;
+static const int STAMP_N = 56 * TRAIL;
+static_assert(STAMP_N + 56 <= 1200, "rain trail fits the tier0 cell plane");
 
 enum { KIND_OFF = 0, KIND_CODE = 1, KIND_BOT = 2, KIND_DEVICE = 3 };
 
@@ -209,7 +214,7 @@ static void build_columns(void)
         const uint8_t kind = kind_for(i);
         col_set_y(i, (int16_t)rnd_n(s_h));
         c[2] = kind;
-        c[3] = (uint8_t)(i % 2 == 0);
+        c[3] = (uint8_t)((i >> 1) & 3);
         c[4] = (uint8_t)(rnd_n(100) < 15);
         c[5] = (kind == KIND_DEVICE) ? (uint8_t)((i * 5) % 10) : (uint8_t)rnd_n(14);
         c[6] = (uint8_t)rnd_n(36);
@@ -292,40 +297,104 @@ static bool cell_hidden(int cx, int cy)
 static int s_slice_y0 = 0;
 static int s_slice_y1 = 240;
 
-static void cell_paint(lgfx::LovyanGFX &panel, int cx, int cy)
+/* Mock FADE is rgba(3,12,6,.18): each step keeps about 0.82 of the glyph. */
+static const uint8_t FADE_KEEP[TRAIL] = {
+    255, 210, 172, 141, 115, 94, 77, 63, 51, 41,
+    33, 27, 22, 18, 14, 11, 9, 7, 5, 4
+};
+
+static uint8_t *stamp_y(void) { return botcorps_t0_rain_cell[0]; }
+static uint8_t *stamp_k(void) { return botcorps_t0_rain_cell[1]; }
+static uint8_t *stamp_p(void) { return botcorps_t0_rain_cell[2]; }
+static uint8_t *ring_head(void) { return botcorps_t0_rain_cell[0] + STAMP_N; }
+
+static bool rain_pixel_ok(int x, int y);
+static bool icon_pixel_ok(int x, int y);
+static bool code_is_head(int index, int y);
+
+static uint8_t fade_ink(uint16_t native, int age)
 {
-    const int i = cell_index(cx, cy);
-    if (i < 0 || cell_hidden(cx, cy)) return;
-    const int x = cx * CELL;
-    const int world_y = cy * CELL;
-    if (world_y + CELL <= s_slice_y0 || world_y >= s_slice_y1) return;
-    const int y = world_y - s_slice_y0;
-    const uint8_t fade = botcorps_t0_rain_cell[0][i];
-    const uint8_t id = botcorps_t0_rain_cell[1][i];
-    uint8_t color = PAL_FIELD;
-    if (fade > 0 && id != 0) {
-        int fr, fg, fb;
-        trail_rgb(&fr, &fg, &fb);
-        uint16_t base = code_ink(false);
-        if (id >= 32 && id < 44) base = BOTCORPS_BOT_COLOR[id - 32];
-        else if (id == 16) base = code_ink(true);
-        else if (id == 17) base = blend565(COL_FIELD_N, fr, fg, fb, BACK_A);
-        else if (id <= 14) base = bot_ink((uint8_t)(id - 1));
-        int a = 256 - (fade * 16);
-        if (a > 255) a = 255;
-        color = botcorps_pal_fit(blend565(base, fr, fg, fb, a));
+    if (age <= 0) return botcorps_pal_fit(native);
+    if (age >= TRAIL) return PAL_FIELD;
+    const int keep = FADE_KEEP[age];
+    if (keep < 16) return PAL_FIELD;
+    int fr, fg, fb;
+    unpack565(COL_FIELD_N, &fr, &fg, &fb);
+    return botcorps_pal_fit(blend565(native, fr, fg, fb, 256 - keep));
+}
+
+static bool box_hits_chrome(int x, int y, int w, int h)
+{
+    for (int dy = 0; dy < h; dy += 2) {
+        for (int dx = 0; dx < w; dx += 2) {
+            const int px = x + dx;
+            const int py = y + dy;
+            if (px < 0 || py < 0 || px >= 320 || py >= 240) continue;
+            if (!rain_pixel_ok(px, py)) return true;
+        }
     }
-    botcorps_pal_rect(panel, x, y, CELL, CELL, color);
-    if (fade > 10 && id >= 1 && id <= 14) {
-        botcorps_pal_rect(panel, x + 1, y + 2, 2, 2, PAL_EYE);
-        botcorps_pal_rect(panel, x + 4, y + 2, 2, 2, PAL_EYE);
-    } else if (fade > 8 && (id == 15 || id == 16)) {
-        const char ch = CODE_GLYPHS[botcorps_t0_rain_cell[2][i] % CODE_N];
+    return false;
+}
+
+static void push_stamp(int col, int y, uint8_t kind, uint8_t payload)
+{
+    if (col < 0 || col >= 56) return;
+    uint8_t *head = ring_head();
+    const int slot = head[col] % TRAIL;
+    const int idx = col * TRAIL + slot;
+    stamp_y()[idx] = (y < 0 || y > 239) ? 255 : (uint8_t)y;
+    stamp_k()[idx] = kind;
+    stamp_p()[idx] = payload;
+    head[col] = (uint8_t)((slot + 1) % TRAIL);
+}
+
+static void draw_stamp(lgfx::LovyanGFX &panel, int col, int age)
+{
+    const int head = ring_head()[col] % TRAIL;
+    int slot = head - 1 - age;
+    while (slot < 0) slot += TRAIL;
+    const int idx = col * TRAIL + slot;
+    const uint8_t kind = stamp_k()[idx] & 3;
+    if (kind == KIND_OFF) return;
+    const int world_y = stamp_y()[idx];
+    if (world_y == 255) return;
+    const int x = col * GAP;
+    const int shape = (stamp_k()[idx] >> 2) & 3;
+    const uint8_t payload = stamp_p()[idx];
+    const int bw = (kind == KIND_DEVICE) ? 12 : (kind == KIND_BOT) ? 9 : 6;
+    const int bh = (kind == KIND_DEVICE) ? 12 : (kind == KIND_BOT) ? 9 : 8;
+    if (world_y + bh <= s_slice_y0 || world_y >= s_slice_y1) return;
+    if (box_hits_chrome(x, world_y, bw, bh)) return;
+    const int ly = world_y - s_slice_y0;
+    if (kind == KIND_CODE) {
+        uint16_t base = code_is_head(col, world_y) ? COL_HEAD_N : COL_CODE_N;
+        if (s_mode != 0) base = code_ink(code_is_head(col, world_y));
+        const uint8_t ink = fade_ink(base, age);
+        if (ink == PAL_FIELD) return;
+        const char ch = CODE_GLYPHS[payload % CODE_N];
+        char s[2] = { ch, 0 };
+        panel.setFont(&fonts::Font0);
         panel.setTextSize(1);
-        botcorps_pal_text(panel, color);
-        panel.setCursor(x, y);
-        panel.print(ch);
+        botcorps_pal_text(panel, ink);
+        panel.setCursor(x, ly);
+        panel.print(s);
+        return;
     }
+    if (kind == KIND_BOT) {
+        uint16_t native = PALETTE[0];
+        if (payload >= 32 && payload < 44) native = BOTCORPS_BOT_COLOR[payload - 32];
+        else if (s_mode != 0) native = SOLID_INK[s_mode - 1];
+        else native = PALETTE[payload % 14];
+        const uint8_t ink = fade_ink(native, age);
+        if (ink == PAL_FIELD && age > 2) return;
+        botcorps_sprite_draw(panel, x + 4, ly + 4, shape, 1, ink, false);
+        return;
+    }
+    uint16_t body = (s_mode == 0) ? (uint16_t)0x9E6E : SOLID_INK[s_mode - 1];
+    const uint8_t c1 = fade_ink(body, age);
+    const uint8_t c2 = fade_ink(scale_native(body, 128, 256), age);
+    const uint8_t c3 = fade_ink(scale_native(0xFFFF, 200, 256), age + 1);
+    botcorps_glyph_blit(panel, x, ly, payload % 10, c1, c2, c3, icon_pixel_ok);
 }
 
 static bool rain_pixel_ok(int x, int y)
@@ -398,25 +467,6 @@ static void blit_devices(lgfx::LovyanGFX &panel)
     }
 }
 
-static void cell_stamp(int x, int y, int w, int h, uint8_t id, uint8_t glyph)
-{
-    if (w <= 0 || h <= 0) return;
-    const int x0 = x < 0 ? 0 : x;
-    const int y0 = y < 0 ? 0 : y;
-    const int x1 = x + w;
-    const int y1 = y + h;
-    for (int cy = y0 / CELL; cy <= (y1 - 1) / CELL; ++cy) {
-        for (int cx = x0 / CELL; cx <= (x1 - 1) / CELL; ++cx) {
-            const int i = cell_index(cx, cy);
-            if (i < 0) continue;
-            botcorps_t0_rain_cell[0][i] = 15;
-            botcorps_t0_rain_cell[1][i] = id;
-            botcorps_t0_rain_cell[2][i] = glyph;
-            mark_dirty(i);
-        }
-    }
-}
-
 static bool code_is_head(int index, int y)
 {
     int q;
@@ -428,80 +478,73 @@ static bool code_is_head(int index, int y)
     return m == 0;
 }
 
-static void fade_cells(void)
-{
-    for (int i = 0; i < CELL_N; ++i) {
-        uint8_t fade = botcorps_t0_rain_cell[0][i];
-        if (fade == 0) continue;
-        const uint8_t next = (uint8_t)((fade * 210) >> 8);
-        if (next == fade) continue;
-        fade = next;
-        if (fade < 2) {
-            fade = 0;
-            botcorps_t0_rain_cell[1][i] = 0;
-        }
-        botcorps_t0_rain_cell[0][i] = fade;
-        mark_dirty(i);
-    }
-}
-
 static void step_columns(void)
 {
     for (int i = 0; i < s_ncols; ++i) {
         uint8_t *c = col_at(i);
         if (c[2] == KIND_OFF) continue;
         if (rnd_n(100) < c[6]) continue;
-        const int x = i * GAP;
         const int y = col_y(i);
         int step = GAP;
         if (c[2] == KIND_BOT) {
-            if (!c[4]) cell_stamp(x - 1, y - 18, 12, 28, 17, 0);
-            uint8_t id = (uint8_t)(c[5] + 1);
-            if (c[7] > 0 && c[7] <= 12) id = (uint8_t)(32 + (c[7] - 1));
-            cell_stamp(x, y, 7, c[3] ? 7 : 6, id, 0);
+            uint8_t payload = c[5];
+            if (c[7] > 0 && c[7] <= 12) payload = (uint8_t)(32 + (c[7] - 1));
+            const uint8_t shape = (uint8_t)(c[3] & 3);
+            push_stamp(i, y, (uint8_t)(KIND_BOT | (shape << 2)), payload);
         } else if (c[2] == KIND_DEVICE) {
-            mark_icon_cells(x, y);
-            c[5] = (uint8_t)((c[5] + 1 + rnd_n(4)) % 10);
-            step = 12;
+            push_stamp(i, y, KIND_DEVICE, c[5]);
+            if (s_mix == BOTCORPS_RAIN_MIX_DEV) {
+                c[5] = (uint8_t)((c[5] + 1 + rnd_n(4)) % 10);
+                step = 12;
+            }
         } else {
-            const bool head = code_is_head(i, y);
-            const uint8_t glyph = (uint8_t)rnd_n(CODE_N);
-            cell_stamp(x, y, 6, 8, head ? 16 : 15, glyph);
+            push_stamp(i, y, KIND_CODE, (uint8_t)rnd_n(CODE_N));
         }
         int ny = y + step;
         if (ny > s_h + step) {
             ny = -step - rnd_n(4) * GAP;
-            if (c[2] == KIND_BOT) c[5] = (uint8_t)pick_bot_color(i);
+            if (c[2] == KIND_BOT) {
+                c[5] = (uint8_t)pick_bot_color(i);
+                c[3] = (uint8_t)((c[3] + 1) & 3);
+            }
             if (c[2] == KIND_DEVICE) c[5] = (uint8_t)((c[5] + 1 + rnd_n(3)) % 10);
         }
         col_set_y(i, (int16_t)ny);
     }
 }
 
+static void paint_stamps(lgfx::LovyanGFX &panel)
+{
+    panel.setTextWrap(false, false);
+    for (int col = 0; col < s_ncols; ++col) {
+        for (int age = TRAIL - 1; age >= 0; --age) draw_stamp(panel, col, age);
+    }
+}
+
+static void clear_open(lgfx::LovyanGFX &panel)
+{
+    for (int cy = 0; cy < CELL_ROWS; ++cy) {
+        for (int cx = 0; cx < CELL_COLS; ++cx) {
+            if (cell_hidden(cx, cy)) continue;
+            const int world_y = cy * CELL;
+            if (world_y + CELL <= s_slice_y0 || world_y >= s_slice_y1) continue;
+            botcorps_pal_rect(panel, cx * CELL, world_y - s_slice_y0, CELL, CELL, PAL_FIELD);
+        }
+    }
+}
+
 static void paint_dirty(lgfx::LovyanGFX &panel)
 {
     panel.startWrite();
-    panel.setTextWrap(false, false);
-    for (int i = 0; i < CELL_N; ++i) {
-        if (!take_dirty(i)) continue;
-        cell_paint(panel, i % CELL_COLS, i / CELL_COLS);
-    }
-    blit_devices(panel);
+    clear_open(panel);
+    paint_stamps(panel);
     panel.endWrite();
     panel.clearClipRect();
 }
 
 static void paint_all(lgfx::LovyanGFX &panel)
 {
-    panel.startWrite();
-    panel.setTextWrap(false, false);
-    for (int i = 0; i < CELL_N; ++i) {
-        s_dirty[i >> 3] = 0;
-        cell_paint(panel, i % CELL_COLS, i / CELL_COLS);
-    }
-    blit_devices(panel);
-    panel.endWrite();
-    panel.clearClipRect();
+    paint_dirty(panel);
 }
 
 void botcorps_rain_set_covers(const botcorps_cover_t *boxes, int n, bool radar_disc)
@@ -527,7 +570,6 @@ bool botcorps_rain_step(void)
     if (s_last_ms == 0) s_last_ms = now;
     if ((uint32_t)(now - s_last_ms) < (uint32_t)STEP_MS) return false;
     s_last_ms = now;
-    fade_cells();
     step_columns();
     if (s_draw && botcorps_dual_ok() && botcorps_band_direct()) {
         s_slice_y0 = 0;
@@ -544,9 +586,7 @@ void botcorps_rain_draw(lgfx::LovyanGFX &dst, int y0, int y1)
     s_slice_y0 = y0;
     s_slice_y1 = y1;
     dst.startWrite();
-    dst.setTextWrap(false, false);
-    for (int i = 0; i < CELL_N; ++i) cell_paint(dst, i % CELL_COLS, i / CELL_COLS);
-    blit_devices(dst);
+    paint_stamps(dst);
     dst.endWrite();
     dst.clearClipRect();
     s_slice_y0 = 0;

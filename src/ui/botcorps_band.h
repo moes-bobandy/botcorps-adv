@@ -61,6 +61,8 @@ int botcorps_band_bytes(void);
 uint32_t botcorps_band_largest(void);
 /* Try a 153600-byte frame, log the free block, and release it. */
 void botcorps_frame_diag(void);
+/* Redraw one world rectangle into the live band and push the changed rows. */
+void botcorps_band_patch(void (*draw)(Gfx), int x, int y, int w, int h);
 const char *botcorps_band_mode_name(void);
 lgfx::LovyanGFX *botcorps_band_sprite(void);
 /* Draw fn paints world coordinates. The band shifts them. Pushes changed rows. */

@@ -1317,6 +1317,22 @@ static void gp_strip(Gfx g, uint32_t t, uint8_t ac)
     if (caret) g.fillRect(after + 1, 191, 5, 8, s_gp_focus ? ac : hair);
 }
 
+static void partial_gp_strip(void)
+{
+    if (s_screen != SCR_GIBSON || !botcorps_dual_ok()) return;
+    if (!botcorps_band_direct()) {
+        botcorps_band_patch([](Gfx g) { gp_strip(g, millis(), accent()); }, 38, 164, 244, 38);
+        return;
+    }
+    botcorps_set_surface(BOTCORPS_SURFACE_CONTENT);
+    auto &p = botcorps_content();
+    p.startWrite();
+    p.setClipRect(38, 164, 244, 38);
+    gp_strip(Gfx(p), millis(), accent());
+    p.endWrite();
+    p.clearClipRect();
+}
+
 static void paint_gibson(Gfx g)
 {
     /* extGibsonHub. Rain is dimmed by the fade table before this chrome. No read-back. */
@@ -2040,10 +2056,7 @@ static void partial_prompt_line(void)
 
 static void partial_prompt_panel(void)
 {
-    if (s_screen != SCR_TERMINAL) {
-        s_dirty = true;
-        return;
-    }
+    if (s_screen != SCR_TERMINAL) return;
     if (hold_for_band()) return;
     if (!botcorps_dual_ok()) {
         s_dirty = true;
@@ -2321,6 +2334,7 @@ static void on_char(char c)
             s_gp_buf[n] = c;
             s_gp_buf[n + 1] = 0;
         }
+        partial_gp_strip();
         return;
     }
     if (s_screen != SCR_TERMINAL) return;
@@ -2339,6 +2353,7 @@ static void on_bs(void)
         s_gp_focus = true;
         const size_t n = strlen(s_gp_buf);
         s_gp_buf[n - 1] = 0;
+        partial_gp_strip();
         return;
     }
     if (s_screen != SCR_TERMINAL) {
@@ -2452,26 +2467,26 @@ static void gp_run(const char *line)
     gp_push(echo);
     if (strcmp(cmd, "clear") == 0) {
         s_gp_n = 0;
-        s_dirty = true;
+        partial_gp_strip();
         return;
     }
     if (strcmp(cmd, "help") == 0) {
         run_cmd("help");
         if (s_log_n > 0) gp_push(log_line(s_log_n - 1));
-        s_dirty = true;
+        partial_gp_strip();
         return;
     }
     if (strcmp(cmd, "go") == 0 || strcmp(cmd, "load") == 0) {
         if (!arg || !arg[0]) {
             snprintf(s_gp_buf, sizeof(s_gp_buf), "%s ", cmd);
             gp_push("need a screen");
-            s_dirty = true;
+            partial_gp_strip();
             return;
         }
         const int id = gp_screen(arg);
         if (id < 0) {
             gp_push("no such screen");
-            s_dirty = true;
+            partial_gp_strip();
             return;
         }
         gp_open(id);
@@ -2500,13 +2515,13 @@ static void gp_run(const char *line)
         if (strcmp(cmd, "hunt") == 0 || strcmp(cmd, "scan") == 0) gp_open(SCR_TERMINAL);
         run_cmd(line);
         if (s_screen == SCR_GIBSON && s_log_n > 0) gp_push(log_line(s_log_n - 1));
-        s_dirty = true;
+        if (s_screen == SCR_GIBSON) partial_gp_strip();
         return;
     }
     gp_push("no such command");
     s_mood = MOOD_SAD;
     s_mood_until = millis() + 1400u;
-    s_dirty = true;
+    partial_gp_strip();
 }
 
 void botcorps_ui_input(void)

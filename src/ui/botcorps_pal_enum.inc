@@ -56,3 +56,5 @@
     PAL_WASH_C = 1, /* cyan accent at 0.22 over the field */
     PAL_WASH_A = 44, /* amber accent at 0.22 over the field */
     PAL_WASH_M = 65, /* mint accent at 0.22 over the field */
+    PAL_HUB_HEAD = 145, /* dimmed 0xEFF9 head, hue 83 deg, (140,151,122) */
+    PAL_HUB_IVORY = 178, /* dimmed ivory, hue kept off blue */

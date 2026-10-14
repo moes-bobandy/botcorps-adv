@@ -444,3 +444,21 @@ void botcorps_band_present(void (*draw)(Gfx))
     }
     botcorps_band_set_oy(0);
 }
+
+void botcorps_band_patch(void (*draw)(Gfx), int x, int y, int w, int h)
+{
+    if (!draw || !s_live || !s_sp || s_direct || w <= 0 || h <= 0) return;
+    const int y1 = y + h;
+    for (int s = 0; s < SLICE_N; ++s) {
+        const int y0 = s * SLICE_H;
+        const int yb = y0 + SLICE_H;
+        if (y1 <= y0 || y >= yb) continue;
+        botcorps_band_set_oy(y0);
+        s_sp->setTextWrap(false, false);
+        s_sp->setClipRect(x, y - y0, w, h);
+        draw(Gfx(*s_sp));
+        s_sp->clearClipRect();
+        push_slice(y0);
+    }
+    botcorps_band_set_oy(0);
+}

@@ -58,9 +58,10 @@
     PAL_WASH_M = 65, /* mint accent at 0.22 over the field */
     PAL_HUB_HEAD = 145, /* dimmed 0xEFF9 head, hue 83 deg, (140,151,122) */
     PAL_HUB_IVORY = 178, /* dimmed ivory, hue kept off blue */
-    /* Explicit terminal pair. k_exact_nat holds the word. k_is_res stays 0 so the
-     * frozen minimax proof does not treat these indices as fit candidates
-     * (k_fit4 already returns some of them as RGB332 codes). */
+    /* Sheet-only indices. k_is_res stays 0 and k_exact_nat stays 0 so the
+     * shared 256-word lookup is unchanged. The displayed word lives in
+     * botcorps_term_ov and is installed on the EXT panel for a full sheet. */
+    PAL_TERM_INK = 229, /* #c5d0da unselected command name */
     PAL_TERM_M = 230, /* #ff2bd6 */
     PAL_TERM_M28 = 231, /* magenta at 0.28 */
     PAL_TERM_M22 = 232, /* magenta at 0.22 */

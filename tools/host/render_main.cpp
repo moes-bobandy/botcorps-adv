@@ -22,10 +22,9 @@ static uint16_t pack332(uint8_t i)
 
 static uint16_t word_of(uint8_t idx, int term)
 {
-    if (term) {
-        for (int n = 0; n < botcorps_term_ov_n; ++n)
-            if (botcorps_term_ov_i[n] == idx) return botcorps_term_ov_c[n];
-    }
+    /* Same native word push_slice byte-swaps onto the EXT panel. */
+    const uint16_t ov = botcorps_term_ov_native(idx, term);
+    if (ov) return ov;
     if (k_is_res[idx]) return k_exact_nat[idx];
     return pack332(idx);
 }
@@ -89,17 +88,36 @@ int main(void)
     static uint8_t term[320 * 240];
     static uint8_t hunt[320 * 240];
     static uint8_t idle[320 * 240];
+    static uint8_t bus[320 * 240];
+    static uint8_t amber[320 * 240];
     host_fit_calls = 0;
     botcorps_host_terminal(term);
     printf("sheet pal_fit calls %d\n", host_fit_calls);
     printf("cmds sheet swap %d\n", botcorps_host_cmds_sheet());
     printf("int override %d span %d\n", botcorps_host_int_span(), host_rgb_span);
+    printf("int full %d strip %d partial %d\n", host_int_full, host_int_strip, host_int_part);
     write_raw("/tmp/term.rgb", term, host_term_lut);
     hist_term(term);
     botcorps_host_idle(idle);
     write_raw("/tmp/idle.rgb", idle, host_term_lut);
     botcorps_host_hunt(hunt);
     write_raw("/tmp/hunt.rgb", hunt, host_term_lut);
+    botcorps_host_bus(bus);
+    write_raw("/tmp/bus.rgb", bus, host_term_lut);
+    botcorps_host_amber(amber);
+    write_raw("/tmp/amber.rgb", amber, host_term_lut);
+    int amber_237 = 0;
+    int amber_123 = 0;
+    int amber_213 = 0;
+    int amber_229 = 0;
+    for (int i = 0; i < 320 * 240; ++i) {
+        if (amber[i] == 237) amber_237++;
+        if (amber[i] == 123) amber_123++;
+        if (amber[i] == 213) amber_213++;
+        if (amber[i] == 229) amber_229++;
+    }
+    printf("amber code237 %d pal_cyan123 %d pal_amber213 %d name229 %d\n",
+           amber_237, amber_123, amber_213, amber_229);
     int idle_bad = 0;
     int hunt_bad = 0;
     for (int i = 0; i < 320 * 240; ++i) {

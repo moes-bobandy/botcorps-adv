@@ -10,7 +10,26 @@ int host_term_lut = 0;
 int host_fit_calls = 0;
 int host_rgb_ov = 0;
 int host_rgb_span = 0;
+int host_int_mask = 0;
+int host_int_full = 0;
+int host_int_strip = 0;
+int host_int_part = 0;
 void botcorps_lut_term(bool on) { host_term_lut = on ? 1 : 0; }
+
+static int term_code(uint8_t idx)
+{
+    for (int n = 0; n < botcorps_term_ov_n; ++n)
+        if (idx == botcorps_term_ov_i[n]) return 1;
+    return 0;
+}
+
+static void note_int(uint8_t idx)
+{
+    if (!host_int_mask || !term_code(idx)) return;
+    if (host_int_mask & 1) host_int_full++;
+    if (host_int_mask & 2) host_int_strip++;
+    if (host_int_mask & 4) host_int_part++;
+}
 
 const fonts::Font fonts::Font0 = {0};
 const fonts::Font fonts::Font8x8C64 = {1};
@@ -100,9 +119,21 @@ void Gfx::clearClipRect(void) { s_clip = false; }
 void Gfx::setTextWrap(bool, bool) {}
 void Gfx::setTextSize(float s) { s_scale = s < 1.f ? 1 : (int)s; }
 void Gfx::setTextSize(float sx, float) { setTextSize(sx); }
-void Gfx::setTextColor(uint8_t c) { s_fg = c; s_bg_on = false; }
+void Gfx::setTextColor(uint8_t c)
+{
+    note_int(c);
+    s_fg = c;
+    s_bg_on = false;
+}
 void Gfx::setTextColor(uint16_t) {}
-void Gfx::setTextColor(uint8_t fg, uint8_t bg) { s_fg = fg; s_bg = bg; s_bg_on = true; }
+void Gfx::setTextColor(uint8_t fg, uint8_t bg)
+{
+    note_int(fg);
+    note_int(bg);
+    s_fg = fg;
+    s_bg = bg;
+    s_bg_on = true;
+}
 void Gfx::setTextDatum(lgfx::textdatum_t d) { s_datum = (int)d; }
 void Gfx::setCursor(int x, int y) { s_cx = x - ox; s_cy = y - oy; }
 int Gfx::getCursorX(void) { return s_cx + ox; }
@@ -168,11 +199,31 @@ void Gfx::print(const char *s)
 
 uint16_t botcorps_rgb565(uint8_t idx)
 {
-    if (idx >= 230 && idx <= 248) host_rgb_span++;
-    for (int n = 0; n < botcorps_term_ov_n; ++n)
-        if (idx == botcorps_term_ov_i[n]) host_rgb_ov++;
+    if (idx >= 229 && idx <= 248) host_rgb_span++;
+    if (term_code(idx)) host_rgb_ov++;
+    note_int(idx);
     return 0;
 }
+
+static void touch_rgb(uint8_t c) { (void)botcorps_rgb565(c); }
+
+static void touch_card(void (*fn)(uint8_t))
+{
+    static const uint8_t ids[] = {
+        PAL_DEEP, PAL_IVORY, PAL_CHIN, PAL_BLACK, PAL_STEEL, PAL_BG, PAL_MUTED,
+        PAL_HOLD, PAL_WHITE, PAL_BAR, PAL_LINE, PAL_INK, PAL_B5D3F, PAL_B4E7F,
+        PAL_B7711, PAL_B9F0B, PAL_BFB72, PAL_BAC7F, PAL_B36B8, PAL_BFC6B, PAL_BBD3F
+    };
+    for (unsigned i = 0; i < sizeof(ids); ++i) fn(ids[i]);
+}
+
+uint16_t botcorps_pal_native(uint8_t idx)
+{
+    note_int(idx);
+    return 0;
+}
+
+static void touch_native(uint8_t c) { (void)botcorps_pal_native(c); }
 void botcorps_sprite_draw(lgfx::v1::LovyanGFX &, int x, int y, int, int scale, uint8_t color, bool blink)
 {
     const int s = scale < 1 ? 1 : scale;
@@ -201,8 +252,19 @@ void botcorps_rain_set_shape(int) {}
 uint8_t botcorps_rain_palette(int) { return 123; }
 uint8_t botcorps_rain_solid(void) { return 57; }
 int botcorps_rain_mix(void) { return 0; }
-void botcorps_id_paint(Gfx, int, int, bool, uint8_t, int, const char *, const char *) {}
-void botcorps_id_recompose(lgfx::v1::LovyanGFX &, int, int, bool, uint8_t, int, const char *, const char *) {}
+void botcorps_id_paint(Gfx, int, int, bool, uint8_t, int, const char *, const char *)
+{
+    if (host_int_mask & 2) touch_card(touch_native);
+    else touch_card(touch_rgb);
+}
+void botcorps_id_recompose(lgfx::v1::LovyanGFX &, int, int, bool, uint8_t, int, const char *, const char *)
+{
+    const int saved = host_int_mask;
+    host_int_mask |= 2;
+    touch_native(PAL_DEEP);
+    botcorps_id_paint(Gfx(), 240, 0, false, PAL_IVORY, 0, "", "");
+    host_int_mask = saved;
+}
 void botcorps_id_tick(lgfx::v1::LovyanGFX &, int, int, bool, uint8_t) {}
 static lgfx::v1::LGFX_Device s_dummy;
 lgfx::v1::LGFX_Device &botcorps_menu(void) { return s_dummy; }
@@ -227,7 +289,6 @@ static botcorps_probe_t s_pr = {};
 const botcorps_probe_t *botcorps_probe_get(void) { return &s_pr; }
 void botcorps_glyph_blit(lgfx::v1::LovyanGFX &, int, int, int, uint8_t, uint8_t, uint8_t, bool (*)(int, int)) {}
 uint8_t botcorps_pal_fit(uint16_t) { host_fit_calls++; return 0; }
-uint16_t botcorps_pal_native(uint8_t) { return 0; }
 
 char botcorps_t0_term_prompt[80];
 char botcorps_t0_term_hist[20][26];

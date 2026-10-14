@@ -200,11 +200,7 @@ void botcorps_lut_term(bool on)
 
 static uint16_t term_ov_native(uint8_t idx)
 {
-    if (!s_term_lut) return 0;
-    for (int n = 0; n < botcorps_term_ov_n; ++n) {
-        if (botcorps_term_ov_i[n] == idx) return botcorps_term_ov_c[n];
-    }
-    return 0;
+    return botcorps_term_ov_native(idx, s_term_lut ? 1 : 0);
 }
 
 /* Pre-swapped word for pushImage onto EXT. */

@@ -327,7 +327,7 @@ bool botcorps_band_rebuild(void)
     return true;
 }
 
-Gfx::Gfx(lgfx::LovyanGFX &d) : p(&d), oy(botcorps_band_oy()) {}
+Gfx::Gfx(lgfx::LovyanGFX &d) : p(&d), ox(s_ox), oy(botcorps_band_oy()) {}
 
 void Gfx::fillRect(int x, int y, int w, int h, uint8_t c)
 {

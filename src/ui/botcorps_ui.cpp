@@ -350,7 +350,7 @@ static void plate(Gfx g, int x, int y, int w, int h,
 
 static void draw_blob(Gfx g, int x, int y, int scale, uint8_t c, int shape, bool blink)
 {
-    botcorps_sprite_draw(*g.raw(), x, y - g.oy, shape, scale, c, blink);
+    botcorps_sprite_draw(*g.raw(), x - g.ox, y - g.oy, shape, scale, c, blink);
 }
 
 static void draw_icon(Gfx g, int x, int y, int id, uint8_t col)
@@ -1008,13 +1008,13 @@ static void shape_preview(Gfx g, int px, int cy)
     if (s_shape <= 0) {
         int sx = px - 19;
         for (int id = 0; id < 4; ++id) {
-            botcorps_sprite_draw(*g.raw(), sx + SPR_W[id] / 2, cy - g.oy, id, 1, live, false);
+            botcorps_sprite_draw(*g.raw(), sx + SPR_W[id] / 2 - g.ox, cy - g.oy, id, 1, live, false);
             sx += SPR_W[id] + 3;
         }
         return;
     }
     const int id = s_shape - 1;
-    botcorps_sprite_draw(*g.raw(), px, cy - g.oy, id, 2, live, false);
+    botcorps_sprite_draw(*g.raw(), px - g.ox, cy - g.oy, id, 2, live, false);
 }
 
 static void saver_preview(Gfx g, int px, int cy)
@@ -1557,7 +1557,7 @@ static void paint_diag(Gfx g)
     }
     if (g.raw()) {
         for (int i = 0; i < BOTCORPS_ICON_N; ++i) {
-            botcorps_glyph_blit(*g.raw(), 4 + i * 16, 150 - g.oy, i,
+            botcorps_glyph_blit(*g.raw(), 4 + i * 16 - g.ox, 150 - g.oy, i,
                                 PAL_DIAG, PAL_MUTED, PAL_WHITE, nullptr);
         }
     }

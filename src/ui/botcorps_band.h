@@ -14,6 +14,7 @@ extern uint16_t botcorps_t0_lut565[256];
 
 struct Gfx {
     lgfx::LovyanGFX *p;
+    int ox;
     int oy;
     Gfx(lgfx::LovyanGFX &d);
     lgfx::LovyanGFX *raw(void) const { return p; }

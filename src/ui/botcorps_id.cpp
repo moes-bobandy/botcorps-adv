@@ -17,7 +17,6 @@ void botcorps_id_strip_alloc(void)
     if (s_id_strip) return;
     auto *sp = new lgfx::LGFX_Sprite(&botcorps_menu());
     sp->setColorDepth(16);
-    sp->setSwapBytes(false);
     if (!sp->createSprite(236, 16)) {
         delete sp;
         s_id_strip = nullptr;
@@ -428,7 +427,7 @@ static void photo(Gfx g, int x, int y, int w, int h, int bot, bool gib, uint8_t 
         gibson_chip(g, cx, cy, 3);
     } else {
         const int bob = ((millis() / 900u + (uint32_t)bot) % 2u) ? 1 : 0;
-        botcorps_sprite_draw(*g.raw(), cx, cy + bob - g.oy, shape, 4, idx, false);
+        botcorps_sprite_draw(*g.raw(), cx - g.ox, cy + bob - g.oy, shape, 4, idx, false);
     }
     g.fillRect(x + w - 12, y + h - 10, 9, 8, C_BADGE);
     for (int k = 0; k < 4; ++k) {
@@ -464,7 +463,7 @@ static void chip(Gfx g, int x, int y, int pat, int bot, bool gib, uint8_t idx, i
         g.fillRect(x + 14, y + 14, 6, 6, mark);
         g.fillRect(x + 16, y + 16, 2, 2, C_WHITE);
     } else {
-        botcorps_sprite_draw(*g.raw(), x + 17, y + 17 - g.oy, shape, 1, idx, false);
+        botcorps_sprite_draw(*g.raw(), x + 17 - g.ox, y + 17 - g.oy, shape, 1, idx, false);
     }
     if (((millis() / 420u) % 2u) == 0u) g.fillRect(x + 28, y + 2, 3, 3, botcorps_rgb565(idx));
     (void)bot;

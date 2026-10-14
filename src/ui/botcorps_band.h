@@ -63,10 +63,12 @@ void botcorps_band_present(void (*draw)(Gfx));
 
 /* Normal-order RGB565 for a named index. Swaps the pre-swapped lut word back. */
 uint16_t botcorps_pal_native(uint8_t idx);
-/* Exact reserved index, otherwise the nearest free RGB332 code. */
+/* Nearest kept colour: a reserved exact slot, or a leftover RGB332 code. */
 uint8_t botcorps_pal_fit(uint16_t native);
-/* 6-step ramp reused across trail ages 0..19. 0 head, 1 code, 2 device, 3.. bot/mix. */
+/* 4-step ramp reused across trail ages 0..13. Ages past that are field. */
 uint8_t botcorps_pal_ramp(int ink, int age);
+/* True when native is a ramp source. Writes the step index for this age. */
+bool botcorps_pal_ramp_for(uint16_t native, int age, uint8_t *out);
 /* Index into the band sprite, native RGB565 on any other surface. */
 void botcorps_pal_rect(lgfx::LovyanGFX &dst, int x, int y, int w, int h, uint8_t idx);
 void botcorps_pal_pixel(lgfx::LovyanGFX &dst, int x, int y, uint8_t idx);

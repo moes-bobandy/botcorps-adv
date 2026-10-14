@@ -256,25 +256,12 @@ static bool code_is_head(int index, int y);
 
 static uint8_t fade_ink(uint16_t native, int age);
 
-static int ramp_ink(uint16_t native)
-{
-    static const uint16_t src[] = {
-        0xEFF9, 0x7E6C, 0x9E6E,
-        0x5D3F, 0x4E7F, 0x7711, 0x9F0B, 0xFB72, 0xAC7F, 0x36B8, 0xFC6B, 0xBD3F,
-        0xFDC9, 0xF689, 0xFA69, 0xE2FF, 0xCF89, 0xF79C, 0xFC43, 0x6BBF, 0x5FF8,
-    };
-    for (int i = 0; i < (int)(sizeof(src) / sizeof(src[0])); ++i) {
-        if (src[i] == native) return i;
-    }
-    return -1;
-}
-
 static uint8_t trail_ink(uint16_t native, int age)
 {
-    if (s_mode == 0) {
-        const int ink = ramp_ink(native);
-        if (ink >= 0) return botcorps_pal_ramp(ink, age);
-    }
+    if (age >= TRAIL) return PAL_FIELD;
+    if (age > 0 && FADE_KEEP[age] < 16) return PAL_FIELD;
+    uint8_t idx = PAL_FIELD;
+    if (botcorps_pal_ramp_for(native, age, &idx)) return idx;
     return fade_ink(native, age);
 }
 
@@ -314,6 +301,20 @@ static void push_stamp(int col, int y, uint8_t kind, uint8_t payload)
     head[col] = (uint8_t)((slot + 1) % TRAIL);
 }
 
+static void paint_field_cell(lgfx::LovyanGFX &panel, int x, int y, int w, int h)
+{
+    if (w <= 0 || h <= 0) return;
+    int x0 = x < 0 ? 0 : x;
+    int y0 = y < 0 ? 0 : y;
+    int x1 = x + w;
+    int y1 = y + h;
+    const int sh = s_slice_y1 - s_slice_y0;
+    if (x1 > 320) x1 = 320;
+    if (y1 > sh) y1 = sh;
+    if (x1 <= x0 || y1 <= y0) return;
+    botcorps_pal_rect(panel, x0, y0, x1 - x0, y1 - y0, PAL_FIELD);
+}
+
 static void draw_stamp(lgfx::LovyanGFX &panel, int col, int age)
 {
     const int head = ring_head()[col] % TRAIL;
@@ -336,7 +337,10 @@ static void draw_stamp(lgfx::LovyanGFX &panel, int col, int age)
         uint16_t base = code_is_head(col, world_y) ? COL_HEAD_N : COL_CODE_N;
         if (s_mode != 0) base = code_ink(code_is_head(col, world_y));
         const uint8_t ink = trail_ink(base, age);
-        if (ink == PAL_FIELD) return;
+        if (ink == PAL_FIELD) {
+            paint_field_cell(panel, x, ly, bw, bh);
+            return;
+        }
         const char ch = CODE_GLYPHS[payload % CODE_N];
         char s[2] = { ch, 0 };
         panel.setFont(&fonts::Font0);
@@ -352,7 +356,11 @@ static void draw_stamp(lgfx::LovyanGFX &panel, int col, int age)
         else if (s_mode != 0) native = SOLID_INK[s_mode - 1];
         else native = PALETTE[payload % 14];
         const uint8_t ink = trail_ink(native, age);
-        if (ink == PAL_FIELD && age > 2) return;
+        if (ink == PAL_FIELD) {
+            paint_field_cell(panel, x, ly, bw, bh);
+            if (col_at(col)[4] == 0) paint_field_cell(panel, x - 1, ly - 18, 12, 28);
+            return;
+        }
         if (age == 0 && col_at(col)[4] == 0 && !box_hits_chrome(x - 1, world_y - 18, 12, 28)) {
             botcorps_pal_rect(panel, x - 1, ly - 18, 12, 28, PAL_BOT_BACK);
         }
@@ -362,10 +370,14 @@ static void draw_stamp(lgfx::LovyanGFX &panel, int col, int age)
     }
     if (s_mix != BOTCORPS_RAIN_MIX_DEV) {
         const uint8_t ink = trail_ink(0x9E6E, age);
-        const char ch = DEV_GLYPHS[payload % 10];
+        if (ink == PAL_FIELD) {
+            paint_field_cell(panel, x, ly, bw, bh);
+            return;
+        }
+        const char ch = DEV_GLYPHS[payload % (sizeof(DEV_GLYPHS) - 1)];
         char s[2] = { ch, 0 };
         panel.setFont(&fonts::Font0);
-        panel.setTextSize(2);
+        panel.setTextSize(2, 1.5f);
         botcorps_pal_text(panel, ink);
         panel.setCursor(x, ly);
         panel.print(s);
@@ -375,6 +387,10 @@ static void draw_stamp(lgfx::LovyanGFX &panel, int col, int age)
     const uint8_t c1 = trail_ink(body, age);
     const uint8_t c2 = trail_ink(scale_native(body, 128, 256), age);
     const uint8_t c3 = trail_ink(scale_native(0xFFFF, 200, 256), age);
+    if (c1 == PAL_FIELD) {
+        paint_field_cell(panel, x, ly, bw, bh);
+        return;
+    }
     botcorps_glyph_blit(panel, x, ly, payload % 10, c1, c2, c3, icon_pixel_ok);
 }
 

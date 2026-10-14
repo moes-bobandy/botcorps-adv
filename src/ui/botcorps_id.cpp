@@ -4,6 +4,7 @@
 #include "ui/botcorps_sprite.h"
 
 #include <Arduino.h>
+#include <math.h>
 #include <stdio.h>
 
 /* ID_LAY from the mock. A, C, D, each mirrored by ID_V. Coordinates are the INT 240-wide card. */
@@ -70,6 +71,142 @@ static void wire(Gfx g, bool mirror, int width, const seg_t &s, uint8_t col)
     }
 }
 
+static void split565(uint16_t p, int *r, int *g, int *b)
+{
+    const int r5 = (p >> 11) & 31;
+    const int g6 = (p >> 5) & 63;
+    const int b5 = p & 31;
+    *r = (r5 << 3) | (r5 >> 2);
+    *g = (g6 << 2) | (g6 >> 4);
+    *b = (b5 << 3) | (b5 >> 2);
+}
+
+static uint16_t pack565(int r, int g, int b)
+{
+    if (r < 0) r = 0;
+    if (g < 0) g = 0;
+    if (b < 0) b = 0;
+    if (r > 255) r = 255;
+    if (g > 255) g = 255;
+    if (b > 255) b = 255;
+    return (uint16_t)(((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3));
+}
+
+static uint16_t mix_nat(uint16_t a, uint16_t b, int num, int den)
+{
+    int ar, ag, ab, br, bg, bb;
+    const int inv = den - num;
+    split565(a, &ar, &ag, &ab);
+    split565(b, &br, &bg, &bb);
+    return pack565((ar * inv + br * num) / den,
+                   (ag * inv + bg * num) / den,
+                   (ab * inv + bb * num) / den);
+}
+
+struct card_ink {
+    uint8_t edge;
+    uint8_t tint;
+    uint8_t hi;
+    uint8_t tr;
+};
+
+static card_ink card_inks(uint8_t col)
+{
+    const uint16_t b = botcorps_pal_native(col);
+    const uint16_t tint_n = mix_nat(0x0862, b, 12, 100); /* #0a0e12 toward the bot */
+    card_ink k;
+    k.tint = botcorps_pal_fit(tint_n);
+    k.edge = botcorps_pal_fit(mix_nat(0x5B0D, b, 35, 100)); /* #59636d */
+    k.hi = botcorps_pal_fit(mix_nat(tint_n, b, 35, 100));
+    k.tr = botcorps_pal_fit(mix_nat(0x2187, b, 40, 100)); /* #26313a */
+    return k;
+}
+
+/* dfRR from the mock: one pixel row per scan, corners inset by the circle. */
+static void df_rr(Gfx g, int x, int y, int w, int h, int r, uint8_t col)
+{
+    if (w <= 0 || h <= 0) return;
+    if (r < 0) r = 0;
+    if (r > w / 2) r = w / 2;
+    if (r > h / 2) r = h / 2;
+    for (int i = 0; i < h; ++i) {
+        int ins = 0;
+        const int j = (i < r) ? i : (i >= h - r ? h - 1 - i : -1);
+        if (j >= 0) {
+            const float inner = (float)r - (float)j - 0.5f;
+            const float sq = (float)r * (float)r - inner * inner;
+            const int rad = sq > 0.f ? (int)(sqrtf(sq) + 0.5f) : 0;
+            ins = r - rad;
+            if (ins < 0) ins = 0;
+        }
+        const int ww = w - 2 * ins;
+        if (ww > 0) g.fillRect(x + ins, y + i, ww, 1, col);
+    }
+}
+
+/* gibsonChip: ivory round body, chin, sunglasses, glint. Not the plain round sprite. */
+static void gibson_chip(Gfx g, int cx, int cy, int z)
+{
+    if (z < 1) z = 1;
+    const int ox = cx - (7 * z) / 2;
+    const int oy = cy - (7 * z) / 2;
+    auto u = [&](int x, int y, int w, int h, uint8_t col) {
+        g.fillRect(ox + x * z, oy + y * z, w * z, h * z, col);
+    };
+    const int sx = ox + (z + 1) / 2;
+    const int sw = (ox + (13 * z + 1) / 2) - sx;
+    g.fillRect(sx, oy + 7 * z, sw > 0 ? sw : z, z > 2 ? 2 : z, PAL_BLACK);
+    u(3, 0, 1, 1, PAL_IVORY);
+    u(1, 1, 5, 1, PAL_IVORY);
+    u(0, 2, 7, 3, PAL_IVORY);
+    u(0, 5, 7, 1, PAL_IVORY);
+    u(1, 6, 5, 1, PAL_IVORY);
+    u(1, 6, 5, 1, PAL_CHIN);
+    u(0, 5, 1, 1, PAL_CHIN);
+    u(6, 5, 1, 1, PAL_CHIN);
+    u(0, 3, 7, 1, PAL_BLACK);
+    u(1, 4, 2, 1, PAL_BLACK);
+    u(4, 4, 2, 1, PAL_BLACK);
+    const int gl = (int)((millis() / 900u) % 2u);
+    u(1 + gl, 3, 1, 1, PAL_STEEL);
+    u(4 + gl, 3, 1, 1, PAL_STEEL);
+}
+
+static void id_icon(Gfx g, int k, int x, int y, uint8_t col)
+{
+    auto f = [&](int a, int b, int w, int h) { g.fillRect(x + a, y + b, w, h, col); };
+    if (k == 0) { f(2, 0, 4, 3); f(1, 4, 6, 3); }
+    else if (k == 1) { f(1, 0, 6, 4); f(2, 4, 4, 2); f(3, 6, 2, 1); }
+    else if (k == 2) {
+        f(1, 1, 6, 5);
+        g.fillRect(x + 3, y + 3, 2, 1, PAL_BLACK);
+        f(0, 2, 1, 1); f(7, 2, 1, 1); f(0, 4, 1, 1); f(7, 4, 1, 1);
+    } else if (k == 3) {
+        f(0, 3, 1, 1); f(1, 2, 1, 3); f(2, 1, 1, 5); f(3, 0, 1, 7);
+        f(4, 1, 1, 5); f(5, 2, 1, 3); f(6, 3, 1, 1);
+    } else if (k == 4) { f(3, 0, 1, 7); f(1, 3, 5, 1); f(2, 2, 3, 3); }
+    else if (k == 5) {
+        f(2, 0, 4, 1); f(2, 1, 1, 2); f(5, 1, 1, 2); f(1, 3, 6, 4);
+        g.fillRect(x + 3, y + 4, 2, 2, PAL_BLACK);
+    } else if (k == 6) {
+        f(4, 0, 2, 2); f(3, 2, 2, 2); f(2, 4, 2, 2); f(3, 3, 3, 1); f(4, 5, 1, 2);
+    } else {
+        f(1, 0, 6, 1); f(1, 6, 6, 1); f(0, 1, 1, 5); f(7, 1, 1, 5);
+    }
+}
+
+static int icon_kind(int bot, bool gib, int i)
+{
+    if (gib) return i;
+    int v[3] = { bot % 8, (bot * 3 + 1) % 8, (bot * 5 + 2) % 8 };
+    for (int k = 0; k < 3; ++k) {
+        for (int j = 0; j < k; ++j) {
+            if (v[k] == v[j]) v[k] = (v[k] + k + 1) % 8;
+        }
+    }
+    return v[i];
+}
+
 static void pulse(Gfx g, bool mirror, int width, const seg_t &s, int dist, uint8_t col)
 {
     int x0 = mirror ? width - s.x0 : s.x0;
@@ -107,7 +244,7 @@ static void photo(Gfx g, int x, int y, int w, int h, int bot, bool gib, uint8_t 
     const int cx = x + w / 2;
     const int cy = y + h / 2 - 2;
     if (gib) {
-        botcorps_sprite_draw(*g.raw(), cx, cy - g.oy, BOTCORPS_SHAPE_ROUND, 4, PAL_IVORY, false);
+        gibson_chip(g, cx, cy, 4);
     } else {
         botcorps_sprite_draw(*g.raw(), cx, cy - g.oy, shape, 4, col, false);
     }
@@ -133,7 +270,7 @@ static void chip(Gfx g, int x, int y, int pat, int bot, bool gib, uint8_t col, i
     }
     g.fillRect(x + 9, y + 9, 16, 16, PAL_BLACK);
     if (gib) {
-        botcorps_sprite_draw(*g.raw(), x + 17, y + 17 - g.oy, BOTCORPS_SHAPE_ROUND, 1, PAL_IVORY, false);
+        gibson_chip(g, x + 17, y + 17, 1);
     } else {
         botcorps_sprite_draw(*g.raw(), x + 17, y + 17 - g.oy, shape, 1, col, false);
     }
@@ -181,21 +318,26 @@ void botcorps_id_paint(Gfx g, int width, int bot, bool gib, uint8_t col,
     bool mirror = false;
     int layi = 0;
     const lay_t &L = pick(bot, gib, &mirror, &layi);
-    g.drawRect(2, 26, width - 4, 104, col);
-    g.fillRect(3, 27, width - 6, 102, PAL_DEEP);
+    const card_ink ink = card_inks(col);
+    const int pat = gib ? 0 : (bot + (bot > 5 ? 1 : 0)) % 3;
+    df_rr(g, 2, 26, width - 4, 107, 8, ink.edge);
+    df_rr(g, 3, 27, width - 6, 105, 7, ink.tint);
+    g.fillRect(14, 27, width - 28, 1, ink.hi);
     {
         const int x = mx(mirror, L.slot[0], L.slot[2], width);
-        g.fillRect(x, L.slot[1], L.slot[2], L.slot[3], PAL_MUTED);
-        g.fillRect(x + 1, L.slot[1] + 1, L.slot[2] - 2, L.slot[3] - 1, PAL_BLACK);
+        const int strap = x + L.slot[2] / 2 - 2;
+        if (L.slot[1] > 22) g.fillRect(strap, 22, 4, L.slot[1] - 22, PAL_STEEL);
+        df_rr(g, x, L.slot[1], L.slot[2], L.slot[3] + 1, 2, PAL_STEEL);
+        df_rr(g, x + 1, L.slot[1] + 1, L.slot[2] - 2, L.slot[3] - 1, 1, PAL_BLACK);
     }
-    for (int i = 0; i < 4; ++i) wire(g, mirror, width, WIRE[layi][i], PAL_LINE);
+    for (int i = 0; i < 4; ++i) wire(g, mirror, width, WIRE[layi][i], ink.tr);
     {
         const int x = mx(mirror, L.photo[0], L.photo[2], width);
         photo(g, x, L.photo[1], L.photo[2], L.photo[3], bot, gib, col, shape);
     }
     {
         const int x = mx(mirror, L.chip[0], 34, width);
-        chip(g, x, L.chip[1], L.pat, bot, gib, col, shape);
+        chip(g, x, L.chip[1], pat, bot, gib, col, shape);
     }
     bars(g, L, mirror, width, col, true);
     {
@@ -240,8 +382,8 @@ void botcorps_id_paint(Gfx g, int width, int bot, bool gib, uint8_t col,
         g.fillRect(x, L.code[1], L.code[2], L.code[3], PAL_IVORY);
         g.fillRect(x, L.code[1], L.code[2], 11, PAL_BLACK);
         for (int i = 0; i < 3; ++i) {
-            const int ix = x + 3 + i * 11;
-            g.fillRect(ix, L.code[1] + 2, 6, (i == 1) ? 7 : 4, (i == 1) ? col : PAL_MUTED);
+            id_icon(g, icon_kind(bot, gib, i), x + 3 + i * 11, L.code[1] + 2,
+                    i == 1 ? col : PAL_MUTED);
         }
         int bx = x + 2;
         for (int k = 0; bx < x + L.code[2] - 2 && k < 16; ++k) {
@@ -258,6 +400,7 @@ void botcorps_id_tick(lgfx::LovyanGFX &menu, int width, int bot, bool gib, uint8
     int layi = 0;
     const lay_t &L = pick(bot, gib, &mirror, &layi);
     const uint32_t t = millis();
+    const card_ink ink = card_inks(col);
     for (int i = 0; i < 4; ++i) {
         const seg_t &s = WIRE[layi][i];
         int x0 = mirror ? width - s.x0 : s.x0;
@@ -268,7 +411,7 @@ void botcorps_id_tick(lgfx::LovyanGFX &menu, int width, int bot, bool gib, uint8
         menu.startWrite();
         menu.setClipRect(x0 - 2, y0 - 2, (x1 - x0) + 6, (y1 - y0) + 6);
         Gfx g(menu);
-        wire(g, mirror, width, s, PAL_LINE);
+        wire(g, mirror, width, s, ink.tr);
         pulse(g, mirror, width, s, (int)((t / 40u) + (uint32_t)i * 9u), col);
         menu.endWrite();
         menu.clearClipRect();

@@ -57,6 +57,9 @@ bool botcorps_band_direct(void);
 bool botcorps_band_live(void);
 int botcorps_band_oy(void);
 void botcorps_band_set_oy(int y);
+void botcorps_band_set_ox(int x);
+/* Full-slice redraw used when a patch targets a slice the sprite is not holding. */
+void botcorps_band_set_recompose(void (*draw)(Gfx));
 int botcorps_band_bytes(void);
 uint32_t botcorps_band_largest(void);
 /* Try a 153600-byte frame, log the free block, and release it. */

@@ -474,15 +474,20 @@ static void draw_stamp(lgfx::LovyanGFX &panel, int col, int age)
                 stamp_k()[idx] = (uint8_t)(rawk | STAMP_DONE);
             return;
         }
-        /* 12x28 at (x-1, y-18). Clamped to this slice (the y=120 seam) and to x=0..319. */
+        /* 12x28 at (x-1, y-18). Clamped to this slice (the y=120 seam) and to x=0..319.
+         * A plate that meets chrome is not wiped, so the clear cannot punch the UI. */
         const rect_t plate = { x - 1, world_y - 18, 12, 28 };
         const bool draw = foot_hits_slice(fp, nfp)
             && !box_hits_chrome(fp[nfp - 1].x, fp[nfp - 1].y, fp[nfp - 1].w, fp[nfp - 1].h);
-        const bool wipe = foot_hits_slice(&plate, 1);
+        const bool wipe = foot_hits_slice(&plate, 1)
+            && !box_hits_chrome(plate.x, plate.y, plate.w, plate.h);
         if (!draw && !wipe) return;
         /* One transaction so the field clear is not visible before the sprite. */
         panel.startWrite();
-        if (wipe) fill_clamped(panel, plate, PAL_FIELD);
+        if (wipe) {
+            fill_clamped(panel, plate, PAL_FIELD);
+            mark_redraw(idx, &plate, 1);
+        }
         if (draw) {
             uint16_t native = PALETTE[0];
             if (payload >= 32 && payload < 44) native = BOTCORPS_BOT_COLOR[payload - 32];

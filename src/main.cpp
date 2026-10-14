@@ -86,6 +86,7 @@ void setup(void)
     botcorps_band_release();
     botcorps_probe_run();
     botcorps_band_rebuild();
+    botcorps_id_strip_alloc();
     botcorps_ui_mark_dirty();
 
     /* Rain boot is the first real screen. loop() owns keys and rain.

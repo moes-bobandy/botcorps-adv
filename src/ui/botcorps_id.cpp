@@ -4,9 +4,37 @@
 #include "ui/botcorps_sprite.h"
 
 #include <Arduino.h>
+#include <esp_heap_caps.h>
+#include <lgfx/v1/LGFX_Sprite.hpp>
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
+
+static lgfx::LGFX_Sprite *s_id_strip = nullptr;
+
+void botcorps_id_strip_alloc(void)
+{
+    if (s_id_strip) return;
+    auto *sp = new lgfx::LGFX_Sprite(&botcorps_menu());
+    sp->setColorDepth(16);
+    sp->setSwapBytes(false);
+    if (!sp->createSprite(236, 16)) {
+        delete sp;
+        s_id_strip = nullptr;
+    } else {
+        s_id_strip = sp;
+    }
+    const uint32_t free_b = (uint32_t)ESP.getFreeHeap();
+    const uint32_t largest = (uint32_t)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL);
+    const uint32_t gate = 48u * 1024u;
+    Serial.printf("[botcorps] id strip %s bytes=%u free=%u largest=%u gate=%u %s\n",
+                  s_id_strip ? "ok" : "direct",
+                  s_id_strip ? 236u * 16u * 2u : 0u,
+                  (unsigned)free_b,
+                  (unsigned)largest,
+                  (unsigned)gate,
+                  largest >= gate ? "hold" : "short");
+}
 
 /* ID_LAY from the mock. A, C, D, each mirrored by ID_V. Coordinates are the INT 240-wide card. */
 struct lay_t {
@@ -694,29 +722,51 @@ void botcorps_id_paint(Gfx g, int width, int bot, bool gib, uint8_t col,
     }
 }
 
+void botcorps_id_recompose(lgfx::LovyanGFX &menu, int width, int bot, bool gib,
+                           uint8_t col, int shape, const char *name, const char *target)
+{
+    const int x0 = 2;
+    const int y0 = 26;
+    const int y1 = 133;
+    const int sw = 236;
+    const int sh = 16;
+    if (s_id_strip && s_id_strip->getBuffer()) {
+        for (int y = y0; y < y1; y += sh) {
+            int h = y1 - y;
+            if (h > sh) h = sh;
+            s_id_strip->fillRect(0, 0, sw, sh, botcorps_rgb565(PAL_DEEP));
+            botcorps_band_set_ox(x0);
+            botcorps_band_set_oy(y);
+            s_id_strip->setClipRect(0, 0, sw, h);
+            botcorps_id_paint(Gfx(*s_id_strip), width, bot, gib, col, shape, name, target);
+            s_id_strip->clearClipRect();
+            botcorps_band_set_ox(0);
+            botcorps_band_set_oy(0);
+            menu.startWrite();
+            menu.setClipRect(x0, y, sw, h);
+            s_id_strip->pushSprite(&menu, x0, y);
+            menu.clearClipRect();
+            menu.endWrite();
+        }
+        return;
+    }
+    menu.startWrite();
+    for (int y = y0; y < y1; y += sh) {
+        int h = y1 - y;
+        if (h > sh) h = sh;
+        menu.setClipRect(x0, y, sw, h);
+        botcorps_id_paint(Gfx(menu), width, bot, gib, col, shape, name, target);
+        menu.clearClipRect();
+    }
+    menu.endWrite();
+}
+
 void botcorps_id_tick(lgfx::LovyanGFX &menu, int width, int bot, bool gib, uint8_t col)
 {
     bool mirror = false;
     int layi = 0;
     const lay_t &L = pick(bot, gib, &mirror, &layi);
-    const uint32_t t = millis();
-    const card_ink ink = card_inks(col);
     const uint16_t body = botcorps_rgb565(col);
-    const int ntr = TR_COUNT[layi];
-    for (int i = 0; i < ntr; ++i) {
-        int x = 0;
-        int y = 0;
-        int w = 0;
-        int h = 0;
-        poly_box(mirror, width, layi, i, &x, &y, &w, &h);
-        menu.startWrite();
-        menu.setClipRect(x, y, w, h);
-        Gfx g(menu);
-        wire_poly(g, mirror, width, layi, i, ink.tr);
-        pulse_poly(g, mirror, width, layi, i, (int)((t * 26u) / 1000u + (uint32_t)i * 9u), body);
-        menu.endWrite();
-        menu.clearClipRect();
-    }
     for (int k = 0; k < 3; ++k) {
         const int x = mx(mirror, L.bars[k][0], L.bw, width);
         const int y = L.bars[k][1];
@@ -724,41 +774,6 @@ void botcorps_id_tick(lgfx::LovyanGFX &menu, int width, int bot, bool gib, uint8
         menu.setClipRect(x, y - 8, L.bw, 18);
         Gfx g(menu);
         bar_one(g, x, y, L.bw, k, bot, gib, body, true);
-        menu.endWrite();
-        menu.clearClipRect();
-    }
-    {
-        const int x = mx(mirror, L.photo[0], L.photo[2], width);
-        menu.startWrite();
-        menu.setClipRect(x, L.photo[1], L.photo[2], L.photo[3]);
-        Gfx g(menu);
-        photo(g, x, L.photo[1], L.photo[2], L.photo[3], bot, gib, col,
-              gib ? BOTCORPS_SHAPE_ROUND : botcorps_shape_for(bot));
-        menu.endWrite();
-        menu.clearClipRect();
-    }
-    {
-        int x = 0;
-        int y = 0;
-        chip_at(L, mirror, width, &x, &y);
-        menu.startWrite();
-        menu.setClipRect(x + 26, y, 8, 6);
-        Gfx g(menu);
-        g.fillRect(x + 28, y + 2, 3, 3, C_FACE);
-        if (((t / 420u) % 2u) == 0u) g.fillRect(x + 28, y + 2, 3, 3, body);
-        menu.endWrite();
-        menu.clearClipRect();
-    }
-    {
-        const int x = mx(mirror, L.name[0], L.name[2], width);
-        const int y = L.name[1];
-        const int st = bot_st(bot, gib);
-        const bool on = gib || st == 2 || ((t / 700u) % 4u) != 0u;
-        menu.startWrite();
-        menu.setClipRect(x + 3, y + 3, 6, 5);
-        Gfx g(menu);
-        g.fillRect(x + 4, y + 4, 4, 3, botcorps_rgb565(PAL_DEEP));
-        if (on) g.fillRect(x + 4, y + 4, 4, 3, status_col(body, st, gib));
         menu.endWrite();
         menu.clearClipRect();
     }

@@ -1328,7 +1328,9 @@ static void gp_strip(Gfx g, uint32_t t, uint8_t ac)
     txt(g, "gibson", 45, 191, ac, lgfx::textdatum::top_left);
     txt(g, ">", 45 + 6 * 6, 191, COL_INK, lgfx::textdatum::top_left);
     const int bx = 45 + 8 * 6;
-    txt(g, s_gp_buf, bx, 191, COL_INK, lgfx::textdatum::top_left);
+    char gp_box[25];
+    snprintf(gp_box, sizeof(gp_box), "%-24.24s", s_gp_buf);
+    txt_bg(g, gp_box, bx, 191, COL_INK, PAL_DEEP, lgfx::textdatum::top_left);
     const int after = bx + (int)strlen(s_gp_buf) * 6;
     const char *ghost = gp_ghost();
     if (ghost && s_gp_focus) {
@@ -2051,10 +2053,20 @@ static void partial_cursor(int old_i, int new_i)
     partial_box(new_i, true);
 }
 
-/* Bot change only. A full INT repaint, not a key-to-key refresh. */
+/* Bot change. Recompose the card in strips. Does not fill the panel. */
 static void partial_int(void)
 {
-    paint_int_now();
+    const botcorps_probe_t *pr = botcorps_probe_get();
+    if (pr && strcmp(pr->ext_st, "fail") == 0) return;
+    auto &menu = botcorps_menu();
+    const int bi = card_bot();
+    const bool gib = bi < 0;
+    const uint8_t col = gib ? (uint8_t)COL_IVORY : bot_color(bi);
+    const char *name = gib ? "gibson" : BOTS[bi].id;
+    const char *target = gib ? "ALL BOTS" : BOTS[bi].target;
+    botcorps_id_recompose(menu, menu.width(), gib ? 0 : bi, gib, col,
+                          gib ? BOTCORPS_SHAPE_ROUND : botcorps_shape_for(bi),
+                          name, target);
 }
 
 static void draw_tile_part(Gfx g)
@@ -2074,15 +2086,14 @@ static void partial_tile(int index)
 static void paint_prompt_line(Gfx g)
 {
     const int y = 171 + 5 * 9;
-    g.fillRect(8, y, 300, 10, COL_DEEP);
-    g.setFont(&fonts::Font0);
-    g.setTextSize(1);
-    g.setTextColor(accent());
-    g.setCursor(10, y);
-    g.print("user@botcorps:~$ ");
-    g.setTextColor(COL_WHITE);
-    g.print(botcorps_t0_term_prompt);
-    if ((millis() / 530u) % 2u == 0) g.fillRect(g.getCursorX() + 2, y, 5, 8, accent());
+    char typed[33];
+    snprintf(typed, sizeof(typed), "%-32.32s", botcorps_t0_term_prompt);
+    txt_bg(g, "user@botcorps:~$ ", 10, y, accent(), PAL_DEEP, lgfx::textdatum::top_left);
+    txt_bg(g, typed, 10 + 18 * 6, y, COL_WHITE, PAL_DEEP, lgfx::textdatum::top_left);
+    if ((millis() / 530u) % 2u == 0 && (int)strlen(botcorps_t0_term_prompt) < 32) {
+        const int cx = 10 + (18 + (int)strlen(botcorps_t0_term_prompt)) * 6;
+        g.fillRect(cx + 2, y, 5, 8, accent());
+    }
 }
 
 static void draw_prompt_line_part(Gfx g)
@@ -2465,8 +2476,15 @@ void botcorps_ui_mark_dirty(void)
     s_int_dirty = true;
 }
 
+static void recompose_ext(Gfx g)
+{
+    paint_ext(g);
+    tick_ext(g);
+}
+
 void botcorps_ui_begin(void)
 {
+    botcorps_band_set_recompose(recompose_ext);
     s_boot_ms = millis();
     s_last_key = s_boot_ms;
     s_bub[0] = 0;

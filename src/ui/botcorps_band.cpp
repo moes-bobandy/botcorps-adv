@@ -15,6 +15,9 @@ static lgfx::LGFX_Sprite *s_sp = nullptr;
 static bool s_live = false;
 static bool s_direct = false;
 static int s_oy = 0;
+static int s_ox = 0;
+static int s_resident = -1;
+static void (*s_recompose)(Gfx) = nullptr;
 static uint32_t s_largest = 0;
 static uint32_t s_frame = 0;
 static volatile uint32_t s_touch_sink;
@@ -91,6 +94,16 @@ int botcorps_band_oy(void)
 void botcorps_band_set_oy(int y)
 {
     s_oy = y;
+}
+
+void botcorps_band_set_ox(int x)
+{
+    s_ox = x;
+}
+
+void botcorps_band_set_recompose(void (*draw)(Gfx))
+{
+    s_recompose = draw;
 }
 
 uint32_t botcorps_band_largest(void)
@@ -271,6 +284,8 @@ void botcorps_band_release(void)
 {
     s_live = false;
     s_oy = 0;
+    s_ox = 0;
+    s_resident = -1;
     if (s_sp) {
         s_sp->endWrite();
         s_sp->clearClipRect();
@@ -316,51 +331,51 @@ Gfx::Gfx(lgfx::LovyanGFX &d) : p(&d), oy(botcorps_band_oy()) {}
 
 void Gfx::fillRect(int x, int y, int w, int h, uint8_t c)
 {
-    with_idx(p, c, [&](auto ink) { p->fillRect(x, y - oy, w, h, ink); });
+    with_idx(p, c, [&](auto ink) { p->fillRect(x - s_ox, y - oy, w, h, ink); });
 }
 void Gfx::fillRect(int x, int y, int w, int h, uint16_t c)
 {
-    p->fillRect(x, y - oy, w, h, c);
+    p->fillRect(x - s_ox, y - oy, w, h, c);
 }
 void Gfx::drawRect(int x, int y, int w, int h, uint8_t c)
 {
-    with_idx(p, c, [&](auto ink) { p->drawRect(x, y - oy, w, h, ink); });
+    with_idx(p, c, [&](auto ink) { p->drawRect(x - s_ox, y - oy, w, h, ink); });
 }
 void Gfx::fillCircle(int x, int y, int r, uint8_t c)
 {
-    with_idx(p, c, [&](auto ink) { p->fillCircle(x, y - oy, r, ink); });
+    with_idx(p, c, [&](auto ink) { p->fillCircle(x - s_ox, y - oy, r, ink); });
 }
 void Gfx::drawCircle(int x, int y, int r, uint8_t c)
 {
-    with_idx(p, c, [&](auto ink) { p->drawCircle(x, y - oy, r, ink); });
+    with_idx(p, c, [&](auto ink) { p->drawCircle(x - s_ox, y - oy, r, ink); });
 }
 void Gfx::drawLine(int x0, int y0, int x1, int y1, uint8_t c)
 {
-    with_idx(p, c, [&](auto ink) { p->drawLine(x0, y0 - oy, x1, y1 - oy, ink); });
+    with_idx(p, c, [&](auto ink) { p->drawLine(x0 - s_ox, y0 - oy, x1 - s_ox, y1 - oy, ink); });
 }
 void Gfx::fillTriangle(int x0, int y0, int x1, int y1, int x2, int y2, uint8_t c)
 {
     with_idx(p, c, [&](auto ink) {
-        p->fillTriangle(x0, y0 - oy, x1, y1 - oy, x2, y2 - oy, ink);
+        p->fillTriangle(x0 - s_ox, y0 - oy, x1 - s_ox, y1 - oy, x2 - s_ox, y2 - oy, ink);
     });
 }
 void Gfx::drawFastHLine(int x, int y, int w, uint8_t c)
 {
-    with_idx(p, c, [&](auto ink) { p->drawFastHLine(x, y - oy, w, ink); });
+    with_idx(p, c, [&](auto ink) { p->drawFastHLine(x - s_ox, y - oy, w, ink); });
 }
 void Gfx::drawFastVLine(int x, int y, int h, uint8_t c)
 {
-    with_idx(p, c, [&](auto ink) { p->drawFastVLine(x, y - oy, h, ink); });
+    with_idx(p, c, [&](auto ink) { p->drawFastVLine(x - s_ox, y - oy, h, ink); });
 }
 void Gfx::fillRoundRect(int x, int y, int w, int h, int r, uint8_t c)
 {
-    with_idx(p, c, [&](auto ink) { p->fillRoundRect(x, y - oy, w, h, r, ink); });
+    with_idx(p, c, [&](auto ink) { p->fillRoundRect(x - s_ox, y - oy, w, h, r, ink); });
 }
 void Gfx::fillScreen(uint8_t c)
 {
     with_idx(p, c, [&](auto ink) { p->fillScreen(ink); });
 }
-void Gfx::setClipRect(int x, int y, int w, int h) { p->setClipRect(x, y - oy, w, h); }
+void Gfx::setClipRect(int x, int y, int w, int h) { p->setClipRect(x - s_ox, y - oy, w, h); }
 void Gfx::clearClipRect(void) { p->clearClipRect(); }
 void Gfx::setTextWrap(bool x, bool y) { p->setTextWrap(x, y); }
 void Gfx::setTextSize(float s) { p->setTextSize(s); }
@@ -382,8 +397,8 @@ void Gfx::setTextColor(uint8_t fg, uint8_t bg)
     else p->setTextColor(botcorps_pal_native(fg), botcorps_pal_native(bg));
 }
 void Gfx::setTextDatum(int dat) { p->setTextDatum((lgfx::textdatum_t)dat); }
-void Gfx::drawString(const char *s, int x, int y) { p->drawString(s ? s : "", x, y - oy); }
-void Gfx::setCursor(int x, int y) { p->setCursor(x, y - oy); }
+void Gfx::drawString(const char *s, int x, int y) { p->drawString(s ? s : "", x - s_ox, y - oy); }
+void Gfx::setCursor(int x, int y) { p->setCursor(x - s_ox, y - oy); }
 void Gfx::print(const char *s) { p->print(s ? s : ""); }
 int Gfx::getCursorX(void) { return p->getCursorX(); }
 void Gfx::startWrite(void) { p->startWrite(); }
@@ -442,8 +457,26 @@ void botcorps_band_present(void (*draw)(Gfx))
         s_sp->endWrite();
         s_sp->clearClipRect();
         push_slice(y0);
+        s_resident = s;
     }
     botcorps_band_set_oy(0);
+}
+
+static bool recompose_slice(int slice)
+{
+    if (!s_recompose || !s_sp || !s_live || s_direct) return false;
+    if (slice < 0 || slice >= SLICE_N) return false;
+    const int y0 = slice * SLICE_H;
+    botcorps_band_set_oy(y0);
+    s_sp->clearClipRect();
+    s_sp->setTextWrap(false, false);
+    s_recompose(Gfx(*s_sp));
+    s_sp->endWrite();
+    s_sp->clearClipRect();
+    push_slice(y0);
+    s_resident = slice;
+    botcorps_band_set_oy(0);
+    return true;
 }
 
 void botcorps_band_patch(void (*draw)(Gfx), int x, int y, int w, int h)
@@ -455,17 +488,22 @@ void botcorps_band_patch(void (*draw)(Gfx), int x, int y, int w, int h)
                       SLICE_H, y, h);
         return;
     }
-    const int y1 = y + h;
-    for (int s = 0; s < SLICE_N; ++s) {
-        const int y0 = s * SLICE_H;
-        const int yb = y0 + SLICE_H;
-        if (y1 <= y0 || y >= yb) continue;
-        botcorps_band_set_oy(y0);
-        s_sp->setTextWrap(false, false);
-        s_sp->setClipRect(x, y - y0, w, h);
-        draw(Gfx(*s_sp));
-        s_sp->clearClipRect();
-        push_slice(y0);
+    const int slice = y / SLICE_H;
+    if (slice < 0 || slice >= SLICE_N) return;
+    /* After present the sprite still holds the last slice. A patch in the
+     * other slice has to rebuild that slice before it draws, or push_slice
+     * would send the resident slice's pixels to the wrong rows. */
+    if (s_resident != slice && !recompose_slice(slice)) {
+        Serial.printf("[botcorps] band_patch refused, slice %d not resident\n", slice);
+        return;
     }
+    const int y0 = slice * SLICE_H;
+    botcorps_band_set_oy(y0);
+    s_sp->setTextWrap(false, false);
+    s_sp->setClipRect(x, y - y0, w, h);
+    draw(Gfx(*s_sp));
+    s_sp->clearClipRect();
+    push_slice(y0);
+    s_resident = slice;
     botcorps_band_set_oy(0);
 }

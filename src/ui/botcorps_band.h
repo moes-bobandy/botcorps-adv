@@ -65,6 +65,8 @@ void botcorps_band_present(void (*draw)(Gfx));
 uint16_t botcorps_pal_native(uint8_t idx);
 /* Exact reserved index, otherwise the nearest free RGB332 code. */
 uint8_t botcorps_pal_fit(uint16_t native);
+/* 6-step ramp reused across trail ages 0..19. 0 head, 1 code, 2 device, 3.. bot/mix. */
+uint8_t botcorps_pal_ramp(int ink, int age);
 /* Index into the band sprite, native RGB565 on any other surface. */
 void botcorps_pal_rect(lgfx::LovyanGFX &dst, int x, int y, int w, int h, uint8_t idx);
 void botcorps_pal_pixel(lgfx::LovyanGFX &dst, int x, int y, uint8_t idx);

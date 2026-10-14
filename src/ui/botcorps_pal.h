@@ -7,12 +7,26 @@
  * lut565 as swap565, so every lut entry is stored pre-swapped. Direct draws
  * swap that word back to normal-order RGB565.
  *
- * Indices 216..222 and 224..254 are exact RGB565. Index 223 stays RGB332.
+ * Indices 1..126 are 6-step fade ramps (reused across a 20-stamp trail).
+ * 216..222 and 224..254 are exact RGB565. 223 is the bot backing box.
  * Index 255 stays RGB332 white (0xFF): white draws and any 0xFF key use that code.
  * PAL_BLACK is the free code 0.
+ *
+ * Ramp order, 6 steps each: head, code, device #9dcf72, nine fixed bot
+ * colours, then the nine MULTI inks that are not those bots.
  */
 enum : uint8_t {
     PAL_BLACK = 0,
+    PAL_RAMP_N = 6,
+    PAL_RAMP_HEAD = 1,
+    PAL_RAMP_CODE = 7,
+    PAL_RAMP_DEV = 13,
+    PAL_RAMP_BOT = 19,
+    PAL_RAMP_BOT_N = 9,
+    PAL_RAMP_MIX = 73,
+    PAL_RAMP_MIX_N = 9,
+    PAL_RAMP_END = 127,
+    PAL_BOT_BACK = 223,
     PAL_R_FDC9 = 216, /* MULTI rain ink 0xFDC9 */
     PAL_R_F689,       /* 0xF689 */
     PAL_R_FA69,       /* 0xFA69 */
@@ -57,9 +71,19 @@ enum : uint8_t {
     PAL_RES_HI = PAL_DIAG + 1
 };
 
+static_assert(PAL_RAMP_HEAD == 1, "head ramp starts at 1");
+static_assert(PAL_RAMP_N == 6, "each ink reuses 6 steps");
+static_assert(PAL_RAMP_CODE == PAL_RAMP_HEAD + PAL_RAMP_N, "code ramp follows head");
+static_assert(PAL_RAMP_DEV == PAL_RAMP_CODE + PAL_RAMP_N, "device ramp follows code");
+static_assert(PAL_RAMP_BOT == PAL_RAMP_DEV + PAL_RAMP_N, "bot ramps follow device");
+static_assert(PAL_RAMP_MIX == PAL_RAMP_BOT + PAL_RAMP_BOT_N * PAL_RAMP_N, "mix ramps follow bots");
+static_assert(PAL_RAMP_END == PAL_RAMP_MIX + PAL_RAMP_MIX_N * PAL_RAMP_N, "ramp block ends at 127");
+static_assert(PAL_RAMP_END < 216, "ramps stay below the exact block");
+static_assert(PAL_RAMP_END != 255 && PAL_BOT_BACK != 255, "255 stays RGB332 white");
 static_assert(PAL_LO_FIRST == 216, "low exact block starts at 216");
 static_assert(PAL_R_6BBF == 222, "seven MULTI colours occupy 216..222");
-static_assert(PAL_LO_HI == 223, "223 stays a free RGB332 code");
+static_assert(PAL_LO_HI == 223, "223 is the slot after the MULTI block");
+static_assert(PAL_BOT_BACK == 223, "223 is the bot backing box");
 static_assert(PAL_FIELD == 224, "upper exact block still starts at 224");
 static_assert(PAL_DIAG == 254, "254 stays the last exact slot");
 static_assert(PAL_RES_HI == 255, "255 stays RGB332 white");

@@ -8,6 +8,7 @@
 #include "ui/botcorps_band.h"
 #include "ui/botcorps_sprite.h"
 #include "ui/botcorps_glyph.h"
+#include "ui/botcorps_id.h"
 
 #include "display/botcorps_display.h"
 #include "probe/botcorps_icons.h"
@@ -159,8 +160,12 @@ static char s_clk[8];
 static char s_up[8];
 static int s_prompt_phase = -1;
 static int s_tab_i = -1;
-static char s_tab_base[60];
-static char s_tab_last[60];
+static int s_shape = 0;
+static const int CP_N = 8;
+extern uint8_t botcorps_t0_rain_cell[3][1200];
+static_assert(1120 + 60 <= 1200, "tab scratch fits inside the rain cell plane");
+static char *tab_base(void) { return (char *)&botcorps_t0_rain_cell[1][1120]; }
+static char *tab_last(void) { return (char *)&botcorps_t0_rain_cell[2][1120]; }
 static float s_sweep = -1.0f;
 
 static const char *const NVS_NS = "botcorps";
@@ -251,13 +256,18 @@ static bool ext_animates(void)
 }
 
 /* Fixed 140 ms step. A screen with no rain uses this instead of the loop rate. */
+static bool due_140(uint32_t *last)
+{
+    const uint32_t now = millis();
+    if (*last != 0 && (uint32_t)(now - *last) < 140u) return false;
+    *last = now;
+    return true;
+}
+
 static bool anim_step_due(void)
 {
     static uint32_t s_anim_ms = 0;
-    const uint32_t now = millis();
-    if (s_anim_ms != 0 && (uint32_t)(now - s_anim_ms) < 140u) return false;
-    s_anim_ms = now;
-    return true;
+    return due_140(&s_anim_ms);
 }
 
 bool botcorps_ui_wants_ext_rain(void)
@@ -398,7 +408,9 @@ static void layout_covers(void)
         cover_add(146, 206, BS, BS);
         break;
     case SCR_GIBSON:
-        cover_add(108, 28, 104, 120);
+        cover_add(4, 18, 36, 170);
+        cover_add(280, 18, 36, 170);
+        cover_add(110, 20, 100, 140);
         cover_add(110, 206, BS, BS);
         cover_add(146, 206, BS, BS);
         cover_add(182, 206, BS, BS);
@@ -441,9 +453,9 @@ static void layout_covers(void)
     case SCR_BT_LIST:
         break;
     case SCR_CONTROL:
-        for (int i = 0; i < 7; ++i) cover_add(8, 2 + i * 22, 304, 20);
-        cover_add(14, 200, BS, BS);
-        cover_add(48, 200, BS, BS);
+        for (int i = 0; i < CP_N; ++i) cover_add(8, 4 + i * 20, 304, 18);
+        cover_add(14, 204, BS, BS);
+        cover_add(48, 204, BS, BS);
         break;
     default:
         break;
@@ -465,7 +477,7 @@ static int button_count(void)
     case SCR_SCAN: return 2;
     case SCR_WIFI_LIST:
     case SCR_BT_LIST: return 4;
-    case SCR_CONTROL: return 9;
+    case SCR_CONTROL: return CP_N + 2;
     case SCR_DIAG: return 1;
     default: return 0;
     }
@@ -936,60 +948,137 @@ static void paint_list(Gfx g, bool wifi)
     draw_btn(g, 146, 206, ICO_BACK, s_cursor == 3);
 }
 
-static void paint_cp_value(Gfx g, int index, int y)
+static const char *const SHAPE_N[5] = { "MIXED", "ROUND", "CLASSIC", "TALL", "MINI" };
+
+static void cp_text(int index, char *value, int n)
 {
+    if (index == 0) snprintf(value, (size_t)n, "%s", ACCENT_N[s_color]);
+    else if (index == 1) snprintf(value, (size_t)n, "%s", MIX_N[s_mix]);
+    else if (index == 2) snprintf(value, (size_t)n, "%s", SHAPE_N[s_shape]);
+    else if (index == 3) snprintf(value, (size_t)n, "%s", botcorps_rain_mode() == 0 ? "MIXED" : "SOLID");
+    else if (index == 4) snprintf(value, (size_t)n, "%s", RAIN_WORD[botcorps_rain_mode()]);
+    else if (index == 5) snprintf(value, (size_t)n, "%s", SAVER_N[s_saver]);
+    else if (index == 6) snprintf(value, (size_t)n, "%s", s_saver_on ? "ON" : "OFF");
+    else snprintf(value, (size_t)n, "%d SEC", IDLE_V[s_idle]);
+}
+
+static void paint_cp_row(Gfx g, int index, bool on)
+{
+    const char *labels[8] = {
+        "UI COLOR", "BACKGROUND", "BOT SHAPE", "RAIN MODE",
+        "RAIN COLOUR", "SCREEN SAVER", "SAVER", "IDLE TIME"
+    };
+    const int y = 4 + index * 20;
+    const bool preview = index == 0 || index == 3 || index == 4 || index == 5;
+    plate(g, 8, y, 304, 18, on ? COL_SEL : COL_DEEP, on ? accent() : COL_LINE);
+    txt(g, labels[index], 16, y + 5, on ? accent() : COL_MUTED, lgfx::textdatum::top_left);
     char value[16];
-    value[0] = 0;
-    if (index == 0) snprintf(value, sizeof(value), "%s", ACCENT_N[s_color]);
-    else if (index == 1) snprintf(value, sizeof(value), "%s", MIX_N[s_mix]);
-    else if (index == 2) snprintf(value, sizeof(value), "%s", botcorps_rain_mode() == 0 ? "MIXED" : "SOLID");
-    else if (index == 3) snprintf(value, sizeof(value), "%s", RAIN_WORD[botcorps_rain_mode()]);
-    else if (index == 4) snprintf(value, sizeof(value), "%s", SAVER_N[s_saver]);
-    else if (index == 5) snprintf(value, sizeof(value), "%s", s_saver_on ? "ON" : "OFF");
-    else snprintf(value, sizeof(value), "%d S", IDLE_V[s_idle]);
-    txt(g, value, 300, y + 4, COL_INK, lgfx::textdatum::top_right);
-    if (index == 3) {
+    cp_text(index, value, (int)sizeof(value));
+    const int vr = preview ? 250 : 298;
+    txt(g, value, vr, y + 5, on ? COL_INK : COL_MUTED, lgfx::textdatum::top_right);
+    if (on) {
+        txt(g, "<", vr - (int)strlen(value) * 6 - 8, y + 5, accent(), lgfx::textdatum::top_right);
+        txt(g, ">", vr + 8, y + 5, accent(), lgfx::textdatum::top_left);
+    }
+    const int px = 286;
+    const int cy = y + 9;
+    if (index == 0) g.fillCircle(px, cy, 5, accent());
+    else if (index == 3) {
         if (botcorps_rain_mode() <= 0) {
-            for (int k = 0; k < 4; ++k) g.fillRect(16 + k * 3, y + 12, 3, 6, botcorps_rain_palette(k));
+            for (int k = 0; k < 4; ++k) {
+                g.fillRect(px - 6 + (k % 2) * 6, cy - 6 + (k / 2) * 6, 6, 6, botcorps_rain_palette(k));
+            }
         } else {
-            g.fillRect(16, y + 12, 12, 6, botcorps_rain_solid());
+            g.fillRect(px - 6, cy - 6, 12, 12, botcorps_rain_solid());
         }
+    } else if (index == 4) {
+        g.fillRect(px - 6, cy - 6, 12, 12, botcorps_rain_mode() <= 0 ? botcorps_rain_palette(0) : botcorps_rain_solid());
+    } else if (index == 5) {
+        g.fillRect(px - 6, cy - 6, 12, 12, PAL_DEEP);
+        g.fillRect(px - 4, cy - 2, 3, 3, accent());
+        g.fillRect(px + 1, cy - 4, 4, 4, COL_IVORY);
     }
 }
 
 static void paint_control(Gfx g)
 {
-    const char *labels[7] = {
-        "UI COLOR", "BACKGROUND", "RAIN MODE", "RAIN COLOUR",
-        "SCREEN SAVER", "SAVER", "IDLE TIME"
-    };
-    for (int i = 0; i < 7; ++i) {
-        const int y = 2 + i * 22;
-        const bool on = s_cursor == i;
-        plate(g, 8, y, 304, 20, on ? COL_SEL : COL_DEEP, on ? accent() : COL_LINE);
-        txt(g, labels[i], 14, y + 4, on ? accent() : COL_MUTED, lgfx::textdatum::top_left);
-        paint_cp_value(g, i, y);
+    for (int i = 0; i < CP_N; ++i) paint_cp_row(g, i, s_cursor == i);
+    txt(g, "LIVE RAIN", 19, 188, COL_INK, lgfx::textdatum::top_left);
+    draw_btn(g, 14, 204, ICO_TERM, s_cursor == CP_N);
+    draw_btn(g, 48, 204, ICO_BACK, s_cursor == CP_N + 1);
+}
+
+static const char *GIB_CROWN[7] = {
+    "#.....#.....#", "##...###...##", "###.#####.###", "#############",
+    "#############", ".###########.", ".###########."
+};
+
+static void px_ring(Gfx g, int cx, int cy, int r, uint8_t col, int on, int off, int phase)
+{
+    const int n = (int)((float)r * 6.3f);
+    if (n < 1) return;
+    for (int k = 0; k < n; ++k) {
+        if (on > 0 && (((k / on + phase) % 2) != 0)) continue;
+        (void)off;
+        const float a = (float)k / (float)r;
+        const int x = cx + (int)(cosf(a) * (float)r);
+        const int y = cy + (int)(sinf(a) * (float)r);
+        g.fillRect(x, y, 1, 1, col);
     }
-    draw_btn(g, 14, 200, ICO_TERM, s_cursor == 7);
-    draw_btn(g, 48, 200, ICO_BACK, s_cursor == 8);
+}
+
+static void gib_crown(Gfx g, int cx, int y)
+{
+    const int x0 = cx - 13;
+    g.fillRect(x0 - 4, y - 3, 13 * 2 + 8, 7 * 2 + 5, PAL_DEEP);
+    for (int r = 0; r < 7; ++r) {
+        for (int c = 0; c < 13; ++c) {
+            if (GIB_CROWN[r][c] != '#') continue;
+            g.fillRect(x0 + c * 2, y + r * 2, 2, 2, r >= 5 ? PAL_MUTED : PAL_IVORY);
+        }
+    }
 }
 
 static void paint_gibson(Gfx g)
 {
-    /* extGibsonHub: crew sprites wired into rings, the portrait is sprite art. */
+    /* extGibsonHub: crew slots, wires, pixel rings, crown, ivory gibson chip. */
     const int cx = 160;
     const int cy = 100;
+    const int rr = 44;
+    const uint32_t t = millis();
     for (int i = 0; i < 12; ++i) {
         const bool left = i < 6;
-        const int sx = left ? 10 : 300;
-        const int sy = 28 + (i % 6) * 26;
-        g.drawFastHLine(left ? sx + 8 : cx + 36, sy, left ? cx - 36 - (sx + 8) : sx - (cx + 36), accent());
-        draw_blob(g, sx, sy, 1, bot_color(i), botcorps_shape_for(i), false);
+        const int sx = left ? 6 : 286;
+        const int sy = 22 + (i % 6) * 27;
+        const int ys = sy + 10;
+        const int ddy = ys - cy;
+        const bool out = ddy > rr - 6 || ddy < -(rr - 6);
+        int ex = rr;
+        if (!out && ddy * ddy < rr * rr) {
+            ex = (int)sqrtf((float)(rr * rr - ddy * ddy));
+        } else if (out) {
+            ex = 26;
+        }
+        const int x1 = left ? sx + 28 : cx + ex + 1;
+        const int x2 = left ? cx - ex : sx;
+        if (x2 > x1) g.fillRect(x1, ys, x2 - x1, 1, accent());
+        g.fillRect(sx, sy, 28, 20, PAL_DEEP);
+        g.drawRect(sx, sy, 28, 20, COL_LINE);
+        draw_blob(g, sx + 11, sy + 10, 1, bot_color(i), botcorps_shape_for(i), false);
+        g.fillRect(sx + 21, sy + 7, 4, 4, (i == 9) ? COL_HOLD : COL_OK);
+        const int travel = (x2 > x1) ? (x2 - x1) : 1;
+        const int d = (int)((t / 30u + (uint32_t)i * 11u) % (uint32_t)(travel + 10));
+        if (d < travel) g.fillRect((left ? x1 + d : x2 - d) - 1, ys - 1, 2, 3, accent());
     }
-    g.drawCircle(cx, cy, 34, accent());
-    g.drawCircle(cx, cy, 40, COL_LINE);
-    g.drawCircle(cx, cy, 46, COL_MUTED);
-    draw_blob(g, cx, cy, 3, COL_IVORY, BOTCORPS_SHAPE_ROUND, sprite_blink(0));
+    g.fillCircle(cx, cy, 34, PAL_DEEP);
+    px_ring(g, cx, cy, 34, accent(), 0, 0, 0);
+    px_ring(g, cx, cy, 37, accent(), 5, 5, (int)(t / 90u));
+    px_ring(g, cx, cy, 42, COL_LINE, 2, 4, (int)(t / 140u));
+    gib_crown(g, cx, 22);
+    draw_blob(g, cx, cy, 5, COL_IVORY, BOTCORPS_SHAPE_ROUND, sprite_blink(0));
+    g.fillRect(cx - 15, cy + 40, 30, 12, PAL_DEEP);
+    g.drawRect(cx - 15, cy + 40, 30, 12, accent());
+    g.fillRect(cx - 6, cy + 43, 12, 6, accent());
     const int ids[3] = { ICO_TERM, ICO_CTRL, ICO_RADAR };
     const int xs[3] = { 110, 146, 182 };
     for (int i = 0; i < 3; ++i) draw_btn(g, xs[i], 206, ids[i], s_cursor == i);
@@ -1240,73 +1329,19 @@ static void paint_int(lgfx::LGFX_Device &menu)
     const uint8_t col = gib ? COL_IVORY : bot_color(bi);
     const char *name = gib ? "gibsonbot" : BOTS[bi].id;
     const char *target = gib ? "ALL BOTS" : BOTS[bi].target;
-    const int idx = gib ? 0 : bi;
-    const int vi = idx % 6;
-    const int lay = vi / 2;
-    const bool mirror = (vi % 2) == 1;
-    int photo_x = 8;
-    int chip_x = 60;
-    int name_x = 60;
-    int name_y = 90;
-    if (lay == 1) { chip_x = 60; name_x = 108; name_y = 34; }
-    if (lay == 2) { chip_x = 150; name_x = 60; name_y = 96; }
-    auto mx = [&](int x, int w) { return mirror ? width - x - w : x; };
-    Gfx card(menu);
-    card.drawRect(2, 26, width - 4, 104, COL_LINE);
-    card.fillRect(mx(photo_x, 44), 32, 44, 50, COL_DEEP);
-    draw_blob(card, mx(photo_x, 44) + 22, 56, 2, col,
-              gib ? BOTCORPS_SHAPE_ROUND : botcorps_shape_for(bi), sprite_blink(gib ? 0 : bi));
-    card.drawRect(mx(chip_x, 34), 36, 34, 34, COL_MUTED);
-    draw_blob(card, mx(chip_x, 34) + 17, 53, 1, col,
-              gib ? BOTCORPS_SHAPE_ROUND : botcorps_shape_for(bi), false);
-    txt(card, name, mx(name_x, 70), name_y, col, lgfx::textdatum::top_left);
-    txt(card, "LV 01", mx(name_x, 40), name_y + 10, COL_MUTED, lgfx::textdatum::top_left);
-    txt(card, target, mx(name_x, 70), name_y + 20, COL_INK, lgfx::textdatum::top_left);
-    const int hits = 8 + ((gib ? 5 : bi) * 3) % 10;
-    const int sig = 40 + ((gib ? 5 : bi) * 7) % 50;
-    const uint32_t sec = (millis() - s_boot_ms) / 1000u;
-    const int up_lit = sec > 90 ? 16 : (int)(sec * 16 / 90);
-    txt(card, "HITS", 12, 96, COL_MUTED, lgfx::textdatum::top_left);
-    paint_bars(card, 52, 96, hits > 8 ? 8 : hits, 8, col);
-    txt(card, "UP", 12, 108, COL_MUTED, lgfx::textdatum::top_left);
-    paint_bars(card, 52, 108, up_lit > 8 ? 8 : up_lit, 8, col);
-    txt(card, s_up, width - 8, 108, COL_INK, lgfx::textdatum::top_right);
-    txt(card, gib ? "SIG" : "DUTY", 12, 120, COL_MUTED, lgfx::textdatum::top_left);
-    paint_bars(card, 52, 120, sig / 12, 8, accent());
+    botcorps_id_paint(Gfx(menu), width, gib ? 0 : bi, gib, col,
+                      gib ? BOTCORPS_SHAPE_ROUND : botcorps_shape_for(bi), name, target);
 }
 
 static void tick_int_live(lgfx::LGFX_Device &menu)
 {
     const int width = menu.width();
-    const botcorps_probe_t *pr = botcorps_probe_get();
-    const bool fail = pr && strcmp(pr->ext_st, "fail") == 0;
     botcorps_set_surface(BOTCORPS_SURFACE_MENU);
 
     menu.startWrite();
     menu.setClipRect(width - 42, 2, 40, 12);
     menu.fillRect(width - 42, 2, 40, 12, panel565(COL_BAR));
     txt(menu, s_clk, width - 4, 4, COL_INK, lgfx::textdatum::top_right);
-    menu.endWrite();
-    menu.clearClipRect();
-    if (fail) return;
-
-    const int bi = card_bot();
-    const bool gib = bi < 0;
-    const uint8_t col = gib ? COL_IVORY : bot_color(bi);
-    const uint32_t sec = (millis() - s_boot_ms) / 1000u;
-    const int up_lit = sec > 90 ? 16 : (int)(sec * 16 / 90);
-
-    menu.startWrite();
-    menu.setClipRect(52, 108, 96, 8);
-    menu.fillRect(52, 108, 96, 8, panel565(COL_DEEP));
-    paint_bars(menu, 52, 108, up_lit > 8 ? 8 : up_lit, 8, col);
-    menu.endWrite();
-    menu.clearClipRect();
-
-    menu.startWrite();
-    menu.setClipRect(width - 42, 106, 36, 12);
-    menu.fillRect(width - 42, 106, 36, 12, panel565(PAL_PLATE));
-    txt(menu, s_up, width - 10, 108, COL_INK, lgfx::textdatum::top_right);
     menu.endWrite();
     menu.clearClipRect();
 }
@@ -1339,10 +1374,13 @@ static void nudge_row(int d)
         s_mix = (s_mix + d + 3) % 3;
         botcorps_rain_set_mix(s_mix);
     } else if (s_cursor == 2) {
+        s_shape = (s_shape + d + 5) % 5;
+        botcorps_rain_set_shape(s_shape);
+    } else if (s_cursor == 3) {
         if (botcorps_rain_mode() == 0) botcorps_rain_set_mode(1);
         else botcorps_rain_set_mode(0);
         save_rain_color();
-    } else if (s_cursor == 3) {
+    } else if (s_cursor == 4) {
         int m = botcorps_rain_mode();
         if (m <= 0) m = 1;
         else m = m + d;
@@ -1350,11 +1388,11 @@ static void nudge_row(int d)
         if (m > 6) m = 1;
         botcorps_rain_set_mode(m);
         save_rain_color();
-    } else if (s_cursor == 4) {
-        s_saver = (s_saver + d + 4) % 4;
     } else if (s_cursor == 5) {
-        s_saver_on = s_saver_on ? 0 : 1;
+        s_saver = (s_saver + d + 4) % 4;
     } else if (s_cursor == 6) {
+        s_saver_on = s_saver_on ? 0 : 1;
+    } else if (s_cursor == 7) {
         s_idle = (s_idle + d + 3) % 3;
     }
 }
@@ -1414,11 +1452,11 @@ static void activate(void)
         if (s_cursor == 3) go_back();
         break;
     case SCR_CONTROL:
-        if (s_cursor == 7) {
+        if (s_cursor == CP_N) {
             const int back_to = s_ret >= 0 ? s_ret : SCR_GIBSON;
             enter_screen(SCR_TERMINAL, back_to);
             boot_log();
-        } else if (s_cursor == 8) {
+        } else if (s_cursor == CP_N + 1) {
             go_back();
         }
         break;
@@ -1489,16 +1527,16 @@ static bool cursor_box(int index, int *x, int *y, int *w, int *h)
         }
         return false;
     case SCR_CONTROL:
-        if (index >= 0 && index < 7) {
+        if (index >= 0 && index < CP_N) {
             *x = 8;
-            *y = 2 + index * 22;
+            *y = 4 + index * 20;
             *w = 304;
-            *h = 20;
+            *h = 18;
             return true;
         }
-        if (index == 7 || index == 8) {
-            *x = (index == 7) ? 14 : 48;
-            *y = 200;
+        if (index == CP_N || index == CP_N + 1) {
+            *x = (index == CP_N) ? 14 : 48;
+            *y = 204;
             return true;
         }
         return false;
@@ -1516,14 +1554,9 @@ static void paint_cursor_item(Gfx g, int index, bool sel)
 {
     int x, y, w, h;
     if (!cursor_box(index, &x, &y, &w, &h)) return;
-    if (s_screen == SCR_CONTROL && index < 7) {
-        const char *labels[7] = {
-            "UI COLOR", "BACKGROUND", "RAIN MODE", "RAIN COLOUR",
-            "SCREEN SAVER", "SAVER", "IDLE TIME"
-        };
-        plate(g, x, y, w, h, sel ? COL_SEL : COL_DEEP, sel ? accent() : COL_LINE);
-        txt(g, labels[index], 14, y + 4, sel ? accent() : COL_MUTED, lgfx::textdatum::top_left);
-        paint_cp_value(g, index, y);
+    if (s_screen == SCR_CONTROL && index < CP_N) {
+        paint_cp_row(g, index, sel);
+        (void)x; (void)y; (void)w; (void)h;
         return;
     }
     if ((s_screen == SCR_WIFI_LIST || s_screen == SCR_BT_LIST) && index < 3) {
@@ -1815,8 +1848,8 @@ static void on_arrows(int key)
         if (key == 1) move_cursor(-1);
         if (key == 2) move_cursor(1);
         if (key == 3 || key == 4) {
-            if (s_cursor >= 7) move_cursor(key == 4 ? 1 : -1);
-            else if (s_cursor == 0 || s_cursor == 1) {
+            if (s_cursor >= CP_N) move_cursor(key == 4 ? 1 : -1);
+            else if (s_cursor <= 2) {
                 nudge_row(key == 4 ? 1 : -1);
                 s_dirty = true;
             } else {
@@ -1900,21 +1933,21 @@ static void on_tab(void)
         s_dirty = true;
         return;
     }
-    const bool cont = s_tab_i >= 0 && strcmp(botcorps_t0_term_prompt, s_tab_last) == 0;
+    const bool cont = s_tab_i >= 0 && strcmp(botcorps_t0_term_prompt, tab_last()) == 0;
     if (!cont) {
-        snprintf(s_tab_base, sizeof(s_tab_base), "%s", botcorps_t0_term_prompt);
+        snprintf(tab_base(), 60, "%s", botcorps_t0_term_prompt);
         s_tab_i = -1;
     }
     int match[12];
     int n = 0;
-    const size_t bn = strlen(s_tab_base);
+    const size_t bn = strlen(tab_base());
     for (int i = 0; i < 12; ++i) {
-        if (strncmp(CMDS[i], s_tab_base, bn) == 0) match[n++] = i;
+        if (strncmp(CMDS[i], tab_base(), bn) == 0) match[n++] = i;
     }
     if (n == 0) return;
     s_tab_i = (s_tab_i + 1) % n;
     snprintf(botcorps_t0_term_prompt, 60, "%s ", CMDS[match[s_tab_i]]);
-    snprintf(s_tab_last, sizeof(s_tab_last), "%s", botcorps_t0_term_prompt);
+    snprintf(tab_last(), 60, "%s", botcorps_t0_term_prompt);
     partial_prompt_line();
 }
 
@@ -2012,14 +2045,17 @@ void botcorps_ui_input(void)
 void botcorps_ui_draw(void)
 {
     layout_covers();
+    bool ext_anim = false;
     if (botcorps_dual_ok() && !wants_rain() && ext_animates() && anim_step_due())
-        s_dirty = true;
+        ext_anim = true;
     const bool dirty = s_dirty;
     bool stepped = false;
     if (botcorps_dual_ok() && wants_rain()) stepped = botcorps_rain_step();
+    static uint32_t s_pulse_ms = 0;
+    const bool pulse = due_140(&s_pulse_ms);
     if (botcorps_dual_ok() && !botcorps_band_direct()) {
-        if (dirty || stepped) {
-            s_dirty = false;
+        if (dirty || stepped || ext_anim) {
+            if (dirty) s_dirty = false;
             botcorps_set_surface(BOTCORPS_SURFACE_CONTENT);
             botcorps_band_present([](Gfx g) {
                 paint_ext(g);
@@ -2041,6 +2077,15 @@ void botcorps_ui_draw(void)
                 snprintf(drawn_b, sizeof(drawn_b), "%s", s_up);
                 tick_int_live(botcorps_menu());
             }
+            if (pulse) {
+                const int bi = card_bot();
+                const bool gib = bi < 0;
+                const botcorps_probe_t *pr = botcorps_probe_get();
+                if (!(pr && strcmp(pr->ext_st, "fail") == 0)) {
+                    botcorps_id_tick(botcorps_menu(), botcorps_menu().width(),
+                                     gib ? 0 : bi, gib, gib ? COL_IVORY : bot_color(bi));
+                }
+            }
         }
         return;
     }
@@ -2060,5 +2105,14 @@ void botcorps_ui_draw(void)
     if (strcmp(drawn, s_up) != 0) {
         snprintf(drawn, sizeof(drawn), "%s", s_up);
         tick_int_live(botcorps_menu());
+    }
+    if (pulse) {
+        const int bi = card_bot();
+        const bool gib = bi < 0;
+        const botcorps_probe_t *pr = botcorps_probe_get();
+        if (!(pr && strcmp(pr->ext_st, "fail") == 0)) {
+            botcorps_id_tick(botcorps_menu(), botcorps_menu().width(),
+                             gib ? 0 : bi, gib, gib ? COL_IVORY : bot_color(bi));
+        }
     }
 }

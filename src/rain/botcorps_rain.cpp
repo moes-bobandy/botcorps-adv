@@ -28,6 +28,8 @@ static const uint16_t PALETTE[14] = {
     0x9F0B, 0xFDC9, 0x36B8, 0xAC7F, 0xFB72, 0x5D3F, 0xF689,
     0xFA69, 0xE2FF, 0xCF89, 0xF79C, 0xFC43, 0x6BBF, 0x5FF8,
 };
+static const char DEV_GLYPHS[] = "*/#+@%&$X";
+static int s_shape = 0;
 
 static const uint16_t SOLID_INK[6] = {
     0x26E8, 0x269C, 0x331F, 0xB21F, 0xF586, 0xFFFF,
@@ -61,7 +63,8 @@ static bool s_logged = false;
 static bool s_radar = false;
 static botcorps_cover_t s_cover[24];
 static int s_ncover = 0;
-static uint8_t s_dirty[(CELL_N + 7) / 8];
+/* Planes 1 and 2, bytes 1120..1179, hold the Tab completion scratch.
+ * They sit inside botcorps_t0_rain_cell so the nm Tier 0 total still counts them. */
 
 static uint32_t rnd_u(void)
 {
@@ -112,34 +115,12 @@ static uint16_t blend565(uint16_t dst, int sr, int sg, int sb, int a)
     return pack565(r, g, b);
 }
 
-static void trail_rgb(int *r, int *g, int *b)
-{
-    if (s_mode == 0) {
-        *r = 3;
-        *g = 12;
-        *b = 6;
-        return;
-    }
-    *r = 0;
-    *g = 8;
-    *b = 8;
-}
-
 static uint16_t scale_native(uint16_t c, int num, int den)
 {
     int r, g, b;
     if (den <= 0) return c;
     unpack565(c, &r, &g, &b);
     return pack565(r * num / den, g * num / den, b * num / den);
-}
-
-static uint16_t bot_ink(uint8_t idx)
-{
-    if (s_mode == 0) {
-        if (idx > 13) idx = 0;
-        return PALETTE[idx];
-    }
-    return SOLID_INK[s_mode - 1];
 }
 
 static uint16_t code_ink(bool head)
@@ -208,7 +189,6 @@ static void build_columns(void)
     if (s_ncols > RAIN_COLS) s_ncols = RAIN_COLS;
     memset(botcorps_t0_rain_cell, 0, sizeof(botcorps_t0_rain_cell));
     memset(botcorps_t0_rain_col, 0, sizeof(botcorps_t0_rain_col));
-    memset(s_dirty, 0, sizeof(s_dirty));
     for (int i = 0; i < s_ncols; ++i) {
         uint8_t *c = col_at(i);
         const uint8_t kind = kind_for(i);
@@ -256,44 +236,6 @@ static void build_columns(void)
     }
 }
 
-static int cell_index(int cx, int cy)
-{
-    if (cx < 0 || cy < 0 || cx >= CELL_COLS || cy >= CELL_ROWS) return -1;
-    return cy * CELL_COLS + cx;
-}
-
-static void mark_dirty(int i)
-{
-    if (i < 0 || i >= CELL_N) return;
-    s_dirty[i >> 3] = (uint8_t)(s_dirty[i >> 3] | (uint8_t)(1u << (i & 7)));
-}
-
-static bool take_dirty(int i)
-{
-    const uint8_t bit = (uint8_t)(1u << (i & 7));
-    if ((s_dirty[i >> 3] & bit) == 0) return false;
-    s_dirty[i >> 3] = (uint8_t)(s_dirty[i >> 3] & (uint8_t)~bit);
-    return true;
-}
-
-static bool cell_hidden(int cx, int cy)
-{
-    const int x = cx * CELL;
-    const int y = cy * CELL;
-    for (int i = 0; i < s_ncover; ++i) {
-        const botcorps_cover_t &b = s_cover[i];
-        if (x < b.x + b.w && x + CELL > b.x && y < b.y + b.h && y + CELL > b.y) {
-            return true;
-        }
-    }
-    if (s_radar) {
-        const int dx = x + CELL / 2 - 160;
-        const int dy = y + CELL / 2 - 108;
-        if (dx * dx + dy * dy < 88 * 88) return true;
-    }
-    return false;
-}
-
 static int s_slice_y0 = 0;
 static int s_slice_y1 = 240;
 
@@ -311,6 +253,30 @@ static uint8_t *ring_head(void) { return botcorps_t0_rain_cell[0] + STAMP_N; }
 static bool rain_pixel_ok(int x, int y);
 static bool icon_pixel_ok(int x, int y);
 static bool code_is_head(int index, int y);
+
+static uint8_t fade_ink(uint16_t native, int age);
+
+static int ramp_ink(uint16_t native)
+{
+    static const uint16_t src[] = {
+        0xEFF9, 0x7E6C, 0x9E6E,
+        0x5D3F, 0x4E7F, 0x7711, 0x9F0B, 0xFB72, 0xAC7F, 0x36B8, 0xFC6B, 0xBD3F,
+        0xFDC9, 0xF689, 0xFA69, 0xE2FF, 0xCF89, 0xF79C, 0xFC43, 0x6BBF, 0x5FF8,
+    };
+    for (int i = 0; i < (int)(sizeof(src) / sizeof(src[0])); ++i) {
+        if (src[i] == native) return i;
+    }
+    return -1;
+}
+
+static uint8_t trail_ink(uint16_t native, int age)
+{
+    if (s_mode == 0) {
+        const int ink = ramp_ink(native);
+        if (ink >= 0) return botcorps_pal_ramp(ink, age);
+    }
+    return fade_ink(native, age);
+}
 
 static uint8_t fade_ink(uint16_t native, int age)
 {
@@ -369,7 +335,7 @@ static void draw_stamp(lgfx::LovyanGFX &panel, int col, int age)
     if (kind == KIND_CODE) {
         uint16_t base = code_is_head(col, world_y) ? COL_HEAD_N : COL_CODE_N;
         if (s_mode != 0) base = code_ink(code_is_head(col, world_y));
-        const uint8_t ink = fade_ink(base, age);
+        const uint8_t ink = trail_ink(base, age);
         if (ink == PAL_FIELD) return;
         const char ch = CODE_GLYPHS[payload % CODE_N];
         char s[2] = { ch, 0 };
@@ -385,15 +351,30 @@ static void draw_stamp(lgfx::LovyanGFX &panel, int col, int age)
         if (payload >= 32 && payload < 44) native = BOTCORPS_BOT_COLOR[payload - 32];
         else if (s_mode != 0) native = SOLID_INK[s_mode - 1];
         else native = PALETTE[payload % 14];
-        const uint8_t ink = fade_ink(native, age);
+        const uint8_t ink = trail_ink(native, age);
         if (ink == PAL_FIELD && age > 2) return;
-        botcorps_sprite_draw(panel, x + 4, ly + 4, shape, 1, ink, false);
+        if (age == 0 && col_at(col)[4] == 0 && !box_hits_chrome(x - 1, world_y - 18, 12, 28)) {
+            botcorps_pal_rect(panel, x - 1, ly - 18, 12, 28, PAL_BOT_BACK);
+        }
+        const int use = (s_shape > 0) ? (s_shape - 1) : shape;
+        botcorps_sprite_draw(panel, x + 4, ly + 4, use, 1, ink, false);
         return;
     }
-    uint16_t body = (s_mode == 0) ? (uint16_t)0x9E6E : SOLID_INK[s_mode - 1];
-    const uint8_t c1 = fade_ink(body, age);
-    const uint8_t c2 = fade_ink(scale_native(body, 128, 256), age);
-    const uint8_t c3 = fade_ink(scale_native(0xFFFF, 200, 256), age + 1);
+    if (s_mix != BOTCORPS_RAIN_MIX_DEV) {
+        const uint8_t ink = trail_ink(0x9E6E, age);
+        const char ch = DEV_GLYPHS[payload % 10];
+        char s[2] = { ch, 0 };
+        panel.setFont(&fonts::Font0);
+        panel.setTextSize(2);
+        botcorps_pal_text(panel, ink);
+        panel.setCursor(x, ly);
+        panel.print(s);
+        return;
+    }
+    const uint16_t body = (s_mode == 0) ? (uint16_t)0x9E6E : SOLID_INK[s_mode - 1];
+    const uint8_t c1 = trail_ink(body, age);
+    const uint8_t c2 = trail_ink(scale_native(body, 128, 256), age);
+    const uint8_t c3 = trail_ink(scale_native(0xFFFF, 200, 256), age);
     botcorps_glyph_blit(panel, x, ly, payload % 10, c1, c2, c3, icon_pixel_ok);
 }
 
@@ -412,34 +393,6 @@ static bool rain_pixel_ok(int x, int y)
     return true;
 }
 
-static void mark_icon_cells(int x, int y)
-{
-    const int x0 = x < 0 ? 0 : x;
-    const int y0 = y < 0 ? 0 : y;
-    const int x1 = x + 12;
-    const int y1 = y + 12;
-    if (x1 <= 0 || y1 <= 0) return;
-    for (int cy = y0 / CELL; cy <= (y1 - 1) / CELL; ++cy) {
-        for (int cx = x0 / CELL; cx <= (x1 - 1) / CELL; ++cx) {
-            const int i = cell_index(cx, cy);
-            if (i >= 0) mark_dirty(i);
-        }
-    }
-}
-
-static bool icon_hits_chrome(int x, int y)
-{
-    for (int dy = 0; dy < 12; ++dy) {
-        for (int dx = 0; dx < 12; ++dx) {
-            const int px = x + dx;
-            const int py = y + dy;
-            if (px < 0 || py < 0 || px >= 320 || py >= 240) continue;
-            if (!rain_pixel_ok(px, py)) return true;
-        }
-    }
-    return false;
-}
-
 static bool icon_pixel_ok(int x, int y)
 {
     const int world_y = y + s_slice_y0;
@@ -447,24 +400,6 @@ static bool icon_pixel_ok(int x, int y)
     if (!rain_pixel_ok(x, world_y)) return false;
     if (world_y < s_slice_y0 || world_y >= s_slice_y1) return false;
     return true;
-}
-
-static void blit_devices(lgfx::LovyanGFX &panel)
-{
-    const uint16_t body = (s_mode == 0) ? (uint16_t)0x5D3F : SOLID_INK[s_mode - 1];
-    const uint8_t c1 = botcorps_pal_fit(body);
-    const uint8_t c2 = botcorps_pal_fit(scale_native(body, 128, 256));
-    const uint8_t c3 = botcorps_pal_fit(scale_native(0xFFFF, 200, 256));
-    for (int i = 0; i < s_ncols; ++i) {
-        uint8_t *c = col_at(i);
-        if (c[2] != KIND_DEVICE) continue;
-        const int x = i * GAP;
-        const int y = col_y(i);
-        if (y + 12 <= s_slice_y0 || y >= s_slice_y1) continue;
-        if (icon_hits_chrome(x, y)) continue;
-        botcorps_glyph_blit(panel, x, y - s_slice_y0, c[5] % 10,
-                            c1, c2, c3, icon_pixel_ok);
-    }
 }
 
 static bool code_is_head(int index, int y)
@@ -521,22 +456,9 @@ static void paint_stamps(lgfx::LovyanGFX &panel)
     }
 }
 
-static void clear_open(lgfx::LovyanGFX &panel)
-{
-    for (int cy = 0; cy < CELL_ROWS; ++cy) {
-        for (int cx = 0; cx < CELL_COLS; ++cx) {
-            if (cell_hidden(cx, cy)) continue;
-            const int world_y = cy * CELL;
-            if (world_y + CELL <= s_slice_y0 || world_y >= s_slice_y1) continue;
-            botcorps_pal_rect(panel, cx * CELL, world_y - s_slice_y0, CELL, CELL, PAL_FIELD);
-        }
-    }
-}
-
 static void paint_dirty(lgfx::LovyanGFX &panel)
 {
     panel.startWrite();
-    clear_open(panel);
     paint_stamps(panel);
     panel.endWrite();
     panel.clearClipRect();
@@ -643,6 +565,12 @@ void botcorps_rain_set_mode(int mode)
 int botcorps_rain_mode(void)
 {
     return s_mode;
+}
+
+void botcorps_rain_set_shape(int shape)
+{
+    if (shape < 0 || shape > 4) shape = 0;
+    s_shape = shape;
 }
 
 void botcorps_rain_set_mix(int mix)

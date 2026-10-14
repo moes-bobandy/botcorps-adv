@@ -135,12 +135,16 @@ static const uint16_t k_res[] = {
 static_assert(sizeof(k_res) / sizeof(k_res[0]) == (PAL_RES_HI - PAL_RES_LO),
               "reserved lut span");
 
-static uint16_t native_at(int i)
-{
-    if (i >= PAL_LO_FIRST && i < PAL_LO_HI) return k_lo[i - PAL_LO_FIRST];
-    if (i >= PAL_RES_LO && i < PAL_RES_HI) return k_res[i - PAL_RES_LO];
-    return pack332((uint8_t)i);
-}
+/* Head, code, #9dcf72, nine fixed bots, nine other MULTI inks. Six steps each. */
+static const uint16_t k_ramp_src[] = {
+    0xEFF9, 0x7E6C, 0x9E6E,
+    0x5D3F, 0x4E7F, 0x7711, 0x9F0B, 0xFB72, 0xAC7F, 0x36B8, 0xFC6B, 0xBD3F,
+    0xFDC9, 0xF689, 0xFA69, 0xE2FF, 0xCF89, 0xF79C, 0xFC43, 0x6BBF, 0x5FF8,
+};
+static_assert(sizeof(k_ramp_src) / sizeof(k_ramp_src[0]) ==
+                  (PAL_RAMP_END - PAL_RAMP_HEAD) / PAL_RAMP_N,
+              "ramp sources match the slot block");
+static const int k_ramp_age[PAL_RAMP_N] = { 0, 4, 8, 12, 15, 19 };
 
 static void ch8(uint16_t native, int *r, int *g, int *b)
 {
@@ -150,6 +154,39 @@ static void ch8(uint16_t native, int *r, int *g, int *b)
     *r = (r5 << 3) + (r5 >> 2);
     *g = (g6 << 2) + (g6 >> 4);
     *b = (b5 << 3) + (b5 >> 2);
+}
+
+static uint16_t fade_once(uint16_t native)
+{
+    int r, g, b;
+    ch8(native, &r, &g, &b);
+    r = (r * 210 + 3 * 46) >> 8;
+    g = (g * 210 + 12 * 46) >> 8;
+    b = (b * 210 + 6 * 46) >> 8;
+    if (r > 255) r = 255;
+    if (g > 255) g = 255;
+    if (b > 255) b = 255;
+    return (uint16_t)(((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3));
+}
+
+static uint16_t ramp_native(int ink, int step)
+{
+    uint16_t c = k_ramp_src[ink];
+    const int age = k_ramp_age[step];
+    for (int k = 0; k < age; ++k) c = fade_once(c);
+    return c;
+}
+
+static uint16_t native_at(int i)
+{
+    if (i >= PAL_RAMP_HEAD && i < PAL_RAMP_END) {
+        const int o = i - PAL_RAMP_HEAD;
+        return ramp_native(o / PAL_RAMP_N, o % PAL_RAMP_N);
+    }
+    if (i == PAL_BOT_BACK) return 0x0061; /* #030c06, the mock bot backing */
+    if (i >= PAL_LO_FIRST && i < PAL_LO_HI) return k_lo[i - PAL_LO_FIRST];
+    if (i >= PAL_RES_LO && i < PAL_RES_HI) return k_res[i - PAL_RES_LO];
+    return pack332((uint8_t)i);
 }
 
 static uint8_t quant332(uint16_t native)
@@ -172,6 +209,8 @@ static int dist2(uint16_t a, uint16_t b)
 
 static bool reserved_slot(int i)
 {
+    if (i >= PAL_RAMP_HEAD && i < PAL_RAMP_END) return true;
+    if (i == PAL_BOT_BACK) return true;
     if (i >= PAL_LO_FIRST && i < PAL_LO_HI) return true;
     return i >= PAL_RES_LO && i < PAL_RES_HI;
 }
@@ -194,6 +233,18 @@ static uint8_t nearest_free(uint16_t native)
 uint16_t botcorps_pal_native(uint8_t idx)
 {
     return __builtin_bswap16(botcorps_t0_lut565[idx]);
+}
+
+uint8_t botcorps_pal_ramp(int ink, int age)
+{
+    if (ink < 0) ink = 0;
+    if (ink >= (int)(sizeof(k_ramp_src) / sizeof(k_ramp_src[0]))) {
+        ink = (int)(sizeof(k_ramp_src) / sizeof(k_ramp_src[0])) - 1;
+    }
+    if (age < 0) age = 0;
+    if (age > 19) age = 19;
+    const int step = age * (PAL_RAMP_N - 1) / 19;
+    return (uint8_t)(PAL_RAMP_HEAD + ink * PAL_RAMP_N + step);
 }
 
 uint8_t botcorps_pal_fit(uint16_t native)

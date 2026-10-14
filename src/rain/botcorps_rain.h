@@ -59,5 +59,7 @@ uint8_t botcorps_rain_palette(int index);
 void botcorps_rain_set_mode(int mode);
 int botcorps_rain_mode(void);
 void botcorps_rain_set_mix(int mix);
+/* 0 = mixed shapes. 1..4 = round, classic, tall, mini. */
+void botcorps_rain_set_shape(int shape);
 int botcorps_rain_mix(void);
 uint8_t botcorps_rain_solid(void);

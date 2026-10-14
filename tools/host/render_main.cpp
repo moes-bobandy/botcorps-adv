@@ -1,6 +1,7 @@
 #include "host_shim.h"
 #include "ui/botcorps_pal.h"
 #include "ui/botcorps_pal_tables.inc"
+#include "ui/botcorps_term_ov.h"
 
 #include <stdio.h>
 #include <stdint.h>
@@ -19,18 +20,11 @@ static uint16_t pack332(uint8_t i)
     return (uint16_t)((r5 << 11) | (g6 << 5) | b5);
 }
 
-static const uint8_t OV_I[13] = {
-    230, 231, 232, 234, 235, 236, 237, 239, 242, 243, 246, 247, 248
-};
-static const uint16_t OV_C[13] = {
-    0xF95A, 0x48A9, 0x3887, 0x3086, 0x58CA, 0x2064, 0x079F,
-    0x026A, 0x01E8, 0x01A7, 0x02EC, 0x0105, 0xE6FA
-};
-
 static uint16_t word_of(uint8_t idx, int term)
 {
     if (term) {
-        for (int n = 0; n < 13; ++n) if (OV_I[n] == idx) return OV_C[n];
+        for (int n = 0; n < botcorps_term_ov_n; ++n)
+            if (botcorps_term_ov_i[n] == idx) return botcorps_term_ov_c[n];
     }
     if (k_is_res[idx]) return k_exact_nat[idx];
     return pack332(idx);
@@ -70,14 +64,15 @@ static void hist_term(const uint8_t *idx)
     int other = 0;
     for (int i = 0; i < 320 * 240; ++i) {
         int found = 0;
-        for (int n = 0; n < 13; ++n) if (idx[i] == OV_I[n]) { hit[n]++; found = 1; break; }
+        for (int n = 0; n < botcorps_term_ov_n; ++n)
+            if (idx[i] == botcorps_term_ov_i[n]) { hit[n]++; found = 1; break; }
         if (!found && idx[i] >= 230 && idx[i] <= 248) other++;
     }
     FILE *f = fopen("/tmp/term_idx_hist.txt", "w");
     int sum = 0;
     for (int n = 0; n < 13; ++n) {
-        printf("code %u pixels %d\n", OV_I[n], hit[n]);
-        if (f) fprintf(f, "code %u pixels %d\n", OV_I[n], hit[n]);
+        printf("code %u explicit %d fit 0\n", botcorps_term_ov_i[n], hit[n]);
+        if (f) fprintf(f, "code %u explicit %d fit 0\n", botcorps_term_ov_i[n], hit[n]);
         sum += hit[n];
     }
     printf("other 230-248 pixels %d\n", other);
@@ -94,7 +89,11 @@ int main(void)
     static uint8_t term[320 * 240];
     static uint8_t hunt[320 * 240];
     static uint8_t idle[320 * 240];
+    host_fit_calls = 0;
     botcorps_host_terminal(term);
+    printf("sheet pal_fit calls %d\n", host_fit_calls);
+    printf("cmds sheet swap %d\n", botcorps_host_cmds_sheet());
+    printf("int override %d span %d\n", botcorps_host_int_span(), host_rgb_span);
     write_raw("/tmp/term.rgb", term, host_term_lut);
     hist_term(term);
     botcorps_host_idle(idle);
@@ -111,8 +110,8 @@ int main(void)
     int hunt13 = 0;
     for (int i = 0; i < 320 * 240; ++i) {
         for (int n = 0; n < 13; ++n) {
-            if (idle[i] == OV_I[n]) idle13++;
-            if (hunt[i] == OV_I[n]) hunt13++;
+            if (idle[i] == botcorps_term_ov_i[n]) idle13++;
+            if (hunt[i] == botcorps_term_ov_i[n]) hunt13++;
         }
     }
     printf("idle codes 230-248 pixels %d explicit13 %d\n", idle_bad, idle13);

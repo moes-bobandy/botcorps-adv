@@ -186,26 +186,41 @@ uint16_t botcorps_rgb565(uint8_t idx)
     return pack332(idx);
 }
 
-/* Sheet-only override. Writes the existing lut, no extra buffer.
- * Call once before a full present, never between the two bands. */
-static const uint8_t TERM_OV_I[13] = {
-    230, 231, 232, 234, 235, 236, 237, 239, 242, 243, 246, 247, 248
-};
-static const uint16_t TERM_OV_C[13] = {
-    0xF95A, 0x48A9, 0x3887, 0x3086, 0x58CA, 0x2064, 0x079F,
-    0x026A, 0x01E8, 0x01A7, 0x02EC, 0x0105, 0xE6FA
-};
+#include "ui/botcorps_term_ov.h"
+
+/* Sheet colours stay out of botcorps_t0_lut565. The flag only changes
+ * the words pushed to the EXT panel. INT and the strip sprite keep reading
+ * the shared lookup through botcorps_pal_native. */
 static bool s_term_lut = false;
 
 void botcorps_lut_term(bool on)
 {
-    if (on == s_term_lut) return;
     s_term_lut = on;
-    for (int n = 0; n < 13; ++n) {
-        const uint8_t i = TERM_OV_I[n];
-        const uint16_t nat = on ? TERM_OV_C[n] : pack332(i);
-        botcorps_t0_lut565[i] = __builtin_bswap16(nat);
+}
+
+static uint16_t term_ov_native(uint8_t idx)
+{
+    if (!s_term_lut) return 0;
+    for (int n = 0; n < botcorps_term_ov_n; ++n) {
+        if (botcorps_term_ov_i[n] == idx) return botcorps_term_ov_c[n];
     }
+    return 0;
+}
+
+/* Pre-swapped word for pushImage onto EXT. */
+static uint16_t ext_push_word(uint8_t idx)
+{
+    const uint16_t nat = term_ov_native(idx);
+    if (nat) return __builtin_bswap16(nat);
+    return botcorps_t0_lut565[idx];
+}
+
+/* Normal-order word for a direct draw on the EXT panel. */
+static uint16_t ext_draw_word(uint8_t idx)
+{
+    const uint16_t nat = term_ov_native(idx);
+    if (nat) return nat;
+    return botcorps_pal_native(idx);
 }
 
 uint8_t botcorps_pal_fit(uint16_t native)
@@ -245,11 +260,17 @@ static bool on_menu(const lgfx::LovyanGFX *p)
     return p == static_cast<const lgfx::LovyanGFX *>(&botcorps_menu());
 }
 
+static bool on_ext_panel(const lgfx::LovyanGFX *p)
+{
+    return p == static_cast<const lgfx::LovyanGFX *>(&botcorps_content());
+}
+
 template <class Draw>
 static void with_idx(lgfx::LovyanGFX *p, uint8_t idx, Draw draw)
 {
     if (to_band(p)) draw(lgfx::rgb332_t(idx));
     else if (on_menu(p)) draw(botcorps_rgb565(idx));
+    else if (on_ext_panel(p)) draw(ext_draw_word(idx));
     else draw(botcorps_pal_native(idx));
 }
 
@@ -271,6 +292,7 @@ void botcorps_pal_text(lgfx::LovyanGFX &dst, uint8_t idx)
     /* uint8_t on the band round-trips through RGB888 back to the same index byte. */
     if (to_band(&dst)) dst.setTextColor(idx);
     else if (on_menu(&dst)) dst.setTextColor(botcorps_rgb565(idx));
+    else if (on_ext_panel(&dst)) dst.setTextColor(ext_draw_word(idx));
     else dst.setTextColor(botcorps_pal_native(idx));
 }
 
@@ -406,6 +428,7 @@ void Gfx::setTextColor(uint8_t c)
 {
     if (to_band(p)) p->setTextColor(c);
     else if (on_menu(p)) p->setTextColor(botcorps_rgb565(c));
+    else if (on_ext_panel(p)) p->setTextColor(ext_draw_word(c));
     else p->setTextColor(botcorps_pal_native(c));
 }
 void Gfx::setTextColor(uint16_t c)
@@ -416,6 +439,7 @@ void Gfx::setTextColor(uint8_t fg, uint8_t bg)
 {
     if (to_band(p)) p->setTextColor(fg, bg);
     else if (on_menu(p)) p->setTextColor(botcorps_rgb565(fg), botcorps_rgb565(bg));
+    else if (on_ext_panel(p)) p->setTextColor(ext_draw_word(fg), ext_draw_word(bg));
     else p->setTextColor(botcorps_pal_native(fg), botcorps_pal_native(bg));
 }
 void Gfx::setTextDatum(int dat) { p->setTextDatum((lgfx::textdatum_t)dat); }
@@ -457,7 +481,7 @@ static void push_slice(int world_y0)
         const bool dirty = full || botcorps_t0_row_hash[world] != h;
         if (!dirty) continue;
         botcorps_t0_row_hash[world] = h;
-        for (int x = 0; x < 320; ++x) line[x] = botcorps_t0_lut565[row[x]];
+        for (int x = 0; x < 320; ++x) line[x] = ext_push_word(row[x]);
         panel.pushImage(0, world, 320, 1, line);
     }
     panel.endWrite();

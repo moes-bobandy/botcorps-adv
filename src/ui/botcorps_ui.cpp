@@ -698,6 +698,7 @@ static void enter_screen(int id, int ret)
     s_cursor = 0;
     s_sheet = false;
     s_focus_cmds = false;
+    botcorps_lut_term(false);
     s_bus_t0 = millis();
     s_act = -1;
     s_act_dev = -1;
@@ -1117,29 +1118,36 @@ static void paint_one_board(Gfx g, int i, bool sel, bool dim)
     int x, y;
     term_xy(i, &x, &y);
     const bool wh = BOTS[i].radio != 0;
-    const uint8_t ac = term_accent();
+    const uint8_t ac = accent();
     const uint32_t t = millis();
     const int w = 72;
     const int h = 46;
     if (sel && !dim) {
-        const uint8_t halo = ((t / 320u) % 2u) ? glow_of(STEP_SEL) : term_low();
-        g.fillRect(x - 3, y - 3, w + 6, h + 6, halo);
+        const uint8_t wash = (s_color == 1) ? (uint8_t)PAL_WASH_A
+                             : (s_color == 2) ? (uint8_t)PAL_WASH_M : (uint8_t)PAL_WASH_C;
+        const uint8_t wire = (s_color == 1) ? (uint8_t)PAL_WIRE_A
+                             : (s_color == 2) ? (uint8_t)PAL_WIRE_M : (uint8_t)PAL_WIRE_C;
+        g.drawRect(x - 4, y - 4, w + 8, h + 8, wash);
+        g.drawRect(x - 3, y - 3, w + 6, h + 6, wire);
         const int ph = (int)((t / 70u) % 2u);
-        for (int d = 0, k = 0; d < w + 4; d += 4, ++k) {
+        const int n = 4;
+        for (int d = 0, k = 0; d < w + 4; d += n, ++k) {
             if (((k + ph) % 2) != 0) continue;
-            const int dw = (d + 4 > w + 2) ? (w + 2 - d) : 4;
-            if (dw > 0) {
-                g.fillRect(x - 2 + d, y - 2, dw, 1, ac);
-                g.fillRect(x + w + 1 - d - 4 + (d + 4 > w + 2 ? d + 4 - (w + 2) : 0), y + h + 1, dw, 1, ac);
-            }
+            int dw = n;
+            if (d + dw > w + 2) dw = w + 2 - d;
+            if (dw <= 0) continue;
+            g.fillRect(x - 2 + d, y - 2, dw, 1, ac);
+            const int bx = x + w + 1 - d - n + (d + n > w + 2 ? d + n - (w + 2) : 0);
+            g.fillRect(bx, y + h + 1, dw, 1, ac);
         }
-        for (int d = 0, k = 0; d < h + 4; d += 4, ++k) {
+        for (int d = 0, k = 0; d < h + 4; d += n, ++k) {
             if (((k + ph) % 2) != 0) continue;
-            const int dh = (d + 4 > h + 2) ? (h + 2 - d) : 4;
-            if (dh > 0) {
-                g.fillRect(x + w + 1, y - 2 + d, 1, dh, ac);
-                g.fillRect(x - 2, y + h + 1 - d - 4 + (d + 4 > h + 2 ? d + 4 - (h + 2) : 0), 1, dh, ac);
-            }
+            int dh = n;
+            if (d + dh > h + 2) dh = h + 2 - d;
+            if (dh <= 0) continue;
+            g.fillRect(x + w + 1, y - 2 + d, 1, dh, ac);
+            const int by = y + h + 1 - d - n + (d + n > h + 2 ? d + n - (h + 2) : 0);
+            g.fillRect(x - 2, by, 1, dh, ac);
         }
     }
     const uint8_t base = dim ? (wh ? (uint8_t)PAL_LINE : (uint8_t)PAL_FIELD)
@@ -1149,10 +1157,9 @@ static void paint_one_board(Gfx g, int i, bool sel, bool dim)
     const uint8_t tr = wh ? (uint8_t)PAL_CHIN : (sel ? (uint8_t)PAL_STEEL : (uint8_t)PAL_LINE);
     const uint8_t ant = wh ? (uint8_t)PAL_HUB_HEAD : (uint8_t)PAL_STEEL;
     const uint8_t pad = (uint8_t)PAL_SOFT;
-    const uint8_t fp = (uint8_t)PAL_FIELD;
+    const uint8_t fp = sel ? (uint8_t)PAL_BLACK : (uint8_t)PAL_FIELD;
     const uint8_t fpp = wh ? (uint8_t)PAL_ICON_C3 : (uint8_t)PAL_SOFT;
-    const uint8_t silk = wh ? (sel ? (uint8_t)PAL_BLACK : (uint8_t)PAL_SEL)
-                            : (sel ? (uint8_t)PAL_WHITE : (uint8_t)PAL_SOFT);
+    const uint8_t silk = wh ? (uint8_t)PAL_LINE : (sel ? (uint8_t)PAL_STEEL : (uint8_t)PAL_MUTED);
     const uint8_t led = wh ? (uint8_t)PAL_CHIN : (uint8_t)PAL_BOARD_D;
     const uint8_t hole = (uint8_t)PAL_FIELD;
     g.fillRect(x + 1, y, w - 2, h, base);
@@ -1198,6 +1205,14 @@ static void paint_one_board(Gfx g, int i, bool sel, bool dim)
         g.fillRect(x + 22, y + 13, 1, 24, ac);
         g.fillRect(x + 49, y + 13, 1, 24, ac);
     }
+    if (wh) {
+        g.fillRect(x + 8, y + 3, 1, 1, PAL_LINE);
+        g.fillRect(x + 7, y + 4, 1, 1, PAL_LINE);
+        g.fillRect(x + 9, y + 4, 1, 1, PAL_LINE);
+        g.fillRect(x + 6, y + 5, 1, 1, PAL_SEL);
+        g.fillRect(x + 10, y + 5, 1, 1, PAL_SEL);
+        g.fillRect(x + 8, y + 6, 1, 1, PAL_SEL);
+    }
     const int bob = sel ? -((int)((t / 450u) % 2u)) : 0;
     draw_blob(g, x + 36, y + 25 + bob, 2, bot_color(i), botcorps_shape_for(i), sel && sprite_blink(i));
     const int st = BOTS[i].st;
@@ -1214,10 +1229,12 @@ static void paint_one_board(Gfx g, int i, bool sel, bool dim)
         up[n] = c;
     }
     up[n] = 0;
-    const int keep = s_px;
-    s_px = 6;
-    txt(g, up, x + 36, y + 38, silk, lgfx::textdatum::top_center);
-    s_px = keep;
+    if (!dim) {
+        const int keep = s_px;
+        s_px = 6;
+        txt(g, up, x + 36, y + 38, silk, lgfx::textdatum::top_center);
+        s_px = keep;
+    }
 }
 
 static void paint_boards(Gfx g)
@@ -1363,11 +1380,35 @@ static void glow_txt(Gfx g, const char *s, int x, int y, uint8_t bg, int px)
 {
     const int keep = s_px;
     s_px = px;
-    txt_bg(g, s, x + 3, y + 2, term_low(), bg, lgfx::textdatum::top_left);
-    txt_bg(g, s, x + 2, y + 1, glow_of(STEP_GLOW), bg, lgfx::textdatum::top_left);
+    const uint8_t ring[3] = { term_low(), glow_of(STEP_SEL), glow_of(STEP_GLOW) };
+    for (int r = 3; r >= 1; --r) {
+        const uint8_t c = ring[3 - r];
+        const int inner = (r - 1) * (r - 1);
+        const int outer = r * r;
+        for (int dy = -r; dy <= r; ++dy) {
+            for (int dx = -r; dx <= r; ++dx) {
+                const int d2 = dx * dx + dy * dy;
+                if (d2 > outer || d2 <= inner) continue;
+                txt_bg(g, s, x + dx, y + dy, c, bg, lgfx::textdatum::top_left);
+            }
+        }
+    }
     txt_bg(g, s, x + 1, y, glow_of(STEP_AC), bg, lgfx::textdatum::top_left);
     txt_bg(g, s, x, y, glow_of(STEP_AC), bg, lgfx::textdatum::top_left);
     s_px = keep;
+}
+
+/* Screen frame follows the UI accent. Halo is wash, then wire, then the accent. */
+static void frame_rect(Gfx g, int x, int y, int w, int h)
+{
+    const uint8_t low = (s_color == 1) ? (uint8_t)PAL_WASH_A
+                        : (s_color == 2) ? (uint8_t)PAL_WASH_M : (uint8_t)PAL_WASH_C;
+    const uint8_t mid = (s_color == 1) ? (uint8_t)PAL_WIRE_A
+                        : (s_color == 2) ? (uint8_t)PAL_WIRE_M : (uint8_t)PAL_WIRE_C;
+    g.drawRect(x - 3, y - 3, w + 6, h + 6, low);
+    g.drawRect(x - 2, y - 2, w + 4, h + 4, mid);
+    g.drawRect(x - 1, y - 1, w + 2, h + 2, accent());
+    g.drawRect(x, y, w, h, accent());
 }
 
 static void paint_term_icons(Gfx g)
@@ -1411,7 +1452,15 @@ static void paint_term_icons(Gfx g)
 static void paint_term_head(Gfx g)
 {
     g.fillRect(0, 0, 320, 16, PAL_BG);
-    glow_hline(g, 0, 16, 320, STEP_AC);
+    {
+        const uint8_t low = (s_color == 1) ? (uint8_t)PAL_WASH_A
+                            : (s_color == 2) ? (uint8_t)PAL_WASH_M : (uint8_t)PAL_WASH_C;
+        const uint8_t mid = (s_color == 1) ? (uint8_t)PAL_WIRE_A
+                            : (s_color == 2) ? (uint8_t)PAL_WIRE_M : (uint8_t)PAL_WIRE_C;
+        g.fillRect(0, 18, 320, 1, low);
+        g.fillRect(0, 17, 320, 1, mid);
+        g.fillRect(0, 16, 320, 1, accent());
+    }
     glow_txt(g, "terminal", 8, 4, PAL_BG, 8);
     const int keep = s_px;
     s_px = 6;
@@ -1504,7 +1553,7 @@ static void paint_sheet(Gfx g)
         const int x0 = bx + 2 + ((yy & 2) ? 2 : 0);
         for (int xx = x0; xx < bx + w - 2; xx += 4) g.fillRect(xx, yy, 2, 1, PAL_DEEP);
     }
-    glow_rect(g, bx, by, w, h);
+    frame_rect(g, bx, by, w, h);
     glow_hline(g, bx + 3, by + h - 2, w - 6, STEP_HAIR);
     glow_hline(g, bx + 18, by + h - 1, 10, STEP_AC);
     if (top > 0) blit_ico(g, ARROW_UP, bx + w - 12, by + 2, COL_MUTED);
@@ -1530,11 +1579,10 @@ static void paint_sheet(Gfx g)
         const bool hail = strcmp(CMDN[cmd], "hail") == 0;
         const uint8_t ic = hail ? (uint8_t)PAL_IVORY : (on ? glow_of(STEP_AC) : (uint8_t)COL_MUTED);
         blit_ico(g, CMD_ICO[cmd], bx + 10, y + 1, ic);
-        const uint8_t name_c = on ? (uint8_t)PAL_INK : (uint8_t)PAL_SOFT;
+        const uint8_t name_c = on ? (uint8_t)PAL_WHITE : accent();
         if (on) txt_bg(g, CMDN[cmd], bx + 25, y + 1, name_c, bg, lgfx::textdatum::top_left);
         txt_bg(g, CMDN[cmd], bx + 24, y + 1, name_c, bg, lgfx::textdatum::top_left);
-        /* v3.2 unselected purpose is UI.muted = #00f0ff. Nearest reserved slot is PAL_SOLID_C. */
-        draw_purpose(g, CMDP[cmd], bx + w - 8, y + 1, on ? (uint8_t)PAL_CYAN : (uint8_t)PAL_SOLID_C, bg);
+        draw_purpose(g, CMDP[cmd], bx + w - 8, y + 1, accent(), bg);
     }
     s_px = keep;
 }
@@ -1657,7 +1705,7 @@ static void paint_prompt(Gfx g)
     const int keep = s_px;
     s_px = 8;
     g.fillRect(4, 167, 312, 72, COL_DEEP);
-    glow_rect(g, 4, 167, 312, 72);
+    frame_rect(g, 4, 167, 312, 72);
     const int n = s_log_n < 6 ? s_log_n : 6;
     const int start = s_log_n - n;
     for (int k = 0; k < n; ++k) {
@@ -1673,12 +1721,12 @@ static void paint_prompt(Gfx g)
     }
     const int y = PROMPT_Y;
     glow_txt(g, "user@botcorps", 10, y, COL_DEEP, 6);
-    s_px = 8;
-    txt(g, ":~$ ", 10 + 13 * 8, y, PAL_INK, lgfx::textdatum::top_left);
-    g.setFont(&fonts::Font8x8C64);
+    s_px = 6;
+    txt(g, ":~$", 10 + 13 * 6, y, accent(), lgfx::textdatum::top_left);
+    g.setFont(&fonts::Font0);
     g.setTextSize(1);
     g.setTextColor(COL_WHITE);
-    g.setCursor(10 + 17 * 8, y);
+    g.setCursor(10 + 16 * 6, y);
     g.print(botcorps_t0_term_prompt);
     const int cx = g.getCursorX() + 2;
     const char *ghost = cand_ghost();
@@ -1894,7 +1942,6 @@ static void bus_paint(Gfx g, bool radar, bool wifi, int shown, int sel)
     const uint8_t wash = (s_color == 1) ? (uint8_t)PAL_WASH_A
                          : (s_color == 2) ? (uint8_t)PAL_WASH_M : (uint8_t)PAL_WASH_C;
     (void)wifi;
-    for (int i = 0; i < 12; ++i) bus_trace(g, tab[i], BUS_N[i], wash);
     for (int i = 0; i < 12; ++i) bus_trace(g, tab[i], BUS_N[i], COL_LINE);
     const int nnode = radar ? (shown < 3 ? shown : 3) : 12;
     for (int d = 0; d < nnode; ++d) {
@@ -1903,16 +1950,12 @@ static void bus_paint(Gfx g, bool radar, bool wifi, int shown, int sel)
         const int L = bus_len(tab[lane], BUS_N[lane]);
         int x = 0;
         int y = 0;
-        bus_at(tab[lane], BUS_N[lane], bus_dev_s(L), &x, &y);
-        g.fillRect(x - 8, y - 8, 16, 16, PAL_BG);
-        g.drawRect(x - 8, y - 8, 16, 16, PAL_LINE);
-        g.drawCircle(x, y, 11, wash);
         const int typ = radar ? (wifi ? NEAR_WIFI_T[d] : NEAR_BLE_T[d]) : (int)SCAN_TYPE[d];
+        const int at = radar ? bus_dev_s(L) : (L > 14 ? L - 8 : L);
+        bus_at(tab[lane], BUS_N[lane], at, &x, &y);
+        g.drawCircle(x, y, 8, wash);
         dev_icon(g, typ, x - 6, y - 6, false);
-        if (d == sel) {
-            g.drawCircle(x, y, 13, ac);
-            g.drawRect(x - 10, y - 10, 20, 20, ac);
-        }
+        if (d == sel) g.drawRect(x - 7, y - 7, 14, 14, ac);
     }
     chip_plate(g, 160 - 28, 117 - 28, 56, 56, PAL_BG, COL_LINE);
     hub_gibson(g, 160, 117, 3);
@@ -3624,6 +3667,7 @@ static void on_ok(void)
                      CMD_ARG[s_sheet_i] ? " " : "");
             s_sheet = false;
             s_dirty = true;
+            botcorps_lut_term(false);
             return;
         }
         if (botcorps_t0_term_prompt[0]) {
@@ -3635,6 +3679,9 @@ static void on_ok(void)
             if (strcmp(CMDS[s_cmd_sel], "cmds") == 0) {
                 s_sheet = true;
                 s_sheet_i = 0;
+                s_dirty = true;
+                /* Same gate as the full present, so this path installs the sheet lut. */
+                botcorps_lut_term(s_screen == SCR_TERMINAL && s_sheet);
                 partial_sheet();
             } else if (strcmp(CMDS[s_cmd_sel], "rain") == 0) {
                 int m = botcorps_rain_mode() + 1;
@@ -3671,6 +3718,7 @@ static void on_esc(void)
         s_sheet = false;
         s_focus_cmds = false;
         s_dirty = true;
+        botcorps_lut_term(false);
         return;
     }
     go_back();
@@ -3685,6 +3733,7 @@ static void on_tab(void)
         if (s_sheet) s_sheet_i = 0;
         s_tab_i = -1;
         s_dirty = true;
+        botcorps_lut_term(s_screen == SCR_TERMINAL && s_sheet);
         return;
     }
     const bool cont = s_tab_i >= 0 && strcmp(botcorps_t0_term_prompt, tab_last()) == 0;
@@ -4042,7 +4091,7 @@ void botcorps_host_terminal(uint8_t *buf)
     botcorps_lut_term(true);
     s_sheet_i = 2;
     s_focus_cmds = false;
-    s_term = 0;
+    s_term = 2;
     s_color = 0;
     s_log_n = 0;
     s_log_next = 0;
@@ -4086,5 +4135,37 @@ void botcorps_host_hunt(uint8_t *buf)
     s_info_dev = -1;
     s_bus_t0 = 1000;
     paint_list(Gfx(), true);
+}
+
+int botcorps_host_cmds_sheet(void)
+{
+    host_term_lut = 0;
+    s_screen = SCR_TERMINAL;
+    s_focus_cmds = true;
+    s_sheet = false;
+    s_dirty = false;
+    botcorps_t0_term_prompt[0] = 0;
+    s_cmd_sel = 11;
+    on_ok();
+    return (host_term_lut && s_dirty && s_sheet) ? 1 : 0;
+}
+
+int botcorps_host_int_span(void)
+{
+    host_rgb_ov = 0;
+    host_rgb_span = 0;
+    s_sheet = true;
+    s_term = 2;
+    s_bot = 2;
+    const int ids[] = {
+        SCR_TERMINAL, SCR_GIBSON, SCR_WIFI, SCR_BT, SCR_BOT,
+        SCR_WIFI_LIST, SCR_BT_LIST, SCR_CONTROL, SCR_RAIN, SCR_DIAG
+    };
+    for (int id : ids) {
+        s_screen = id;
+        s_sheet = true;
+        paint_int(botcorps_menu());
+    }
+    return host_rgb_ov;
 }
 #endif

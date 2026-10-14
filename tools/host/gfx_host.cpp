@@ -1,4 +1,5 @@
 #include "host_shim.h"
+#include "ui/botcorps_term_ov.h"
 
 #define PROGMEM
 #include "lgfx/Fonts/glcdfont.h"
@@ -6,6 +7,9 @@
 
 uint8_t *host_frame = nullptr;
 int host_term_lut = 0;
+int host_fit_calls = 0;
+int host_rgb_ov = 0;
+int host_rgb_span = 0;
 void botcorps_lut_term(bool on) { host_term_lut = on ? 1 : 0; }
 
 const fonts::Font fonts::Font0 = {0};
@@ -162,7 +166,13 @@ void Gfx::print(const char *s)
     }
 }
 
-uint16_t botcorps_rgb565(uint8_t) { return 0; }
+uint16_t botcorps_rgb565(uint8_t idx)
+{
+    if (idx >= 230 && idx <= 248) host_rgb_span++;
+    for (int n = 0; n < botcorps_term_ov_n; ++n)
+        if (idx == botcorps_term_ov_i[n]) host_rgb_ov++;
+    return 0;
+}
 void botcorps_sprite_draw(lgfx::v1::LovyanGFX &, int x, int y, int, int scale, uint8_t color, bool blink)
 {
     const int s = scale < 1 ? 1 : scale;
@@ -216,7 +226,7 @@ void botcorps_rain_log_heap(const char *) {}
 static botcorps_probe_t s_pr = {};
 const botcorps_probe_t *botcorps_probe_get(void) { return &s_pr; }
 void botcorps_glyph_blit(lgfx::v1::LovyanGFX &, int, int, int, uint8_t, uint8_t, uint8_t, bool (*)(int, int)) {}
-uint8_t botcorps_pal_fit(uint16_t) { return 0; }
+uint8_t botcorps_pal_fit(uint16_t) { host_fit_calls++; return 0; }
 uint16_t botcorps_pal_native(uint8_t) { return 0; }
 
 char botcorps_t0_term_prompt[80];

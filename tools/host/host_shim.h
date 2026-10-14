@@ -133,7 +133,12 @@ static HostM5 M5Cardputer;
 
 extern uint8_t *host_frame;
 extern int host_term_lut;
+extern int host_fit_calls;
+extern int host_rgb_ov;
+extern int host_rgb_span;
 void botcorps_lut_term(bool on);
+int botcorps_host_cmds_sheet(void);
+int botcorps_host_int_span(void);
 
 uint16_t botcorps_rgb565(uint8_t);
 void botcorps_sprite_draw(lgfx::v1::LovyanGFX &, int, int, int, int, uint8_t, bool);

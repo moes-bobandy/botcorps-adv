@@ -1150,9 +1150,9 @@ static void paint_one_board(Gfx g, int i, bool sel, bool dim)
             g.fillRect(x - 2, by, 1, dh, ac);
         }
     }
-    const uint8_t base = dim ? (uint8_t)PAL_FIELD
-                             : (wh ? (sel ? (uint8_t)PAL_DIAG : (uint8_t)PAL_BOARD_D)
-                                   : (uint8_t)PAL_FIELD);
+    const uint8_t base = dim ? (wh ? (uint8_t)PAL_LINE : (uint8_t)PAL_FIELD)
+                             : (wh ? (sel ? (uint8_t)PAL_IVORY : (uint8_t)PAL_BOARD_L)
+                                   : (uint8_t)PAL_BOARD_D);
     const uint8_t edge = sel ? ac : (wh ? (uint8_t)150 : (uint8_t)PAL_LINE);
     const uint8_t tr = wh ? (uint8_t)PAL_CHIN : (sel ? (uint8_t)PAL_STEEL : (uint8_t)PAL_LINE);
     const uint8_t ant = wh ? (uint8_t)PAL_HUB_HEAD : (uint8_t)PAL_STEEL;
@@ -1168,22 +1168,26 @@ static void paint_one_board(Gfx g, int i, bool sel, bool dim)
     g.fillRect(x + 1, y + h - 1, w - 2, 1, edge);
     g.fillRect(x, y + 1, 1, h - 2, edge);
     g.fillRect(x + w - 1, y + 1, 1, h - 2, edge);
+    /* Sheet-covered rows keep their face. The trace stubs read as stray dashes. */
+    const bool traces = !dim && !(s_sheet && i >= 4);
     const int longtr[4] = { 1, 3, 5, 6 };
-    for (int n = 0; n < 4; ++n) {
-        const int k = longtr[n];
-        g.fillRect(x + 4, y + 6 + k * 4, 19, 1, tr);
-        g.fillRect(x + 49, y + 6 + k * 4, 19, 1, tr);
+    if (traces) {
+        for (int n = 0; n < 4; ++n) {
+            const int k = longtr[n];
+            g.fillRect(x + 4, y + 6 + k * 4, 19, 1, tr);
+            g.fillRect(x + 49, y + 6 + k * 4, 19, 1, tr);
+        }
+        const int shorttr[4] = { 0, 2, 4, 7 };
+        for (int n = 0; n < 4; ++n) {
+            const int k = shorttr[n];
+            g.fillRect(x + 4, y + 6 + k * 4, 5, 1, tr);
+            g.fillRect(x + 63, y + 6 + k * 4, 5, 1, tr);
+        }
+        g.fillRect(x + 26, y + 9, 1, 5, tr);
     }
-    const int shorttr[4] = { 0, 2, 4, 7 };
-    for (int n = 0; n < 4; ++n) {
-        const int k = shorttr[n];
-        g.fillRect(x + 4, y + 6 + k * 4, 5, 1, tr);
-        g.fillRect(x + 63, y + 6 + k * 4, 5, 1, tr);
-    }
-    g.fillRect(x + 26, y + 9, 1, 5, tr);
     for (int k = 0; k < 6; ++k) {
         g.fillRect(x + 26 + k * 4, y + 3, 1, 7, ant);
-        if (k < 5) g.fillRect(x + 26 + k * 4, (k % 2) ? y + 9 : y + 3, 5, 1, ant);
+        if (traces && k < 5) g.fillRect(x + 26 + k * 4, (k % 2) ? y + 9 : y + 3, 5, 1, ant);
     }
     const int run = (int)((t / 90u) % 10u);
     for (int k = 0; k < 8; ++k) {
@@ -1389,9 +1393,9 @@ static void glow_txt(Gfx g, const char *s, int x, int y, uint8_t bg, int px)
 {
     const int keep = s_px;
     s_px = px;
-    const uint8_t ring[3] = { term_low(), glow_of(STEP_SEL), glow_of(STEP_GLOW) };
-    for (int r = 3; r >= 1; --r) {
-        const uint8_t c = ring[3 - r];
+    const uint8_t ring[4] = { term_low(), glow_of(STEP_HAIR), glow_of(STEP_GLOW), glow_of(STEP_AC) };
+    for (int r = 4; r >= 1; --r) {
+        const uint8_t c = ring[4 - r];
         const int inner = (r - 1) * (r - 1);
         const int outer = r * r;
         for (int dy = -r; dy <= r; ++dy) {
@@ -1440,6 +1444,7 @@ static void stroke_round(Gfx g, int x, int y, int w, int h, uint8_t c)
 /* Tab sheet frame is magenta from the EXT-only table, in every UI accent. */
 static void frame_mag(Gfx g, int x, int y, int w, int h)
 {
+    stroke_round(g, x - 4, y - 4, w + 8, h + 8, PAL_TERM_M10);
     stroke_round(g, x - 3, y - 3, w + 6, h + 6, PAL_TERM_M10);
     stroke_round(g, x - 2, y - 2, w + 4, h + 4, PAL_TERM_M22);
     stroke_round(g, x - 1, y - 1, w + 2, h + 2, PAL_TERM_M35);
@@ -1492,13 +1497,15 @@ static void paint_term_head(Gfx g)
                             : (s_color == 2) ? (uint8_t)PAL_WASH_M : (uint8_t)PAL_WASH_C;
         const uint8_t mid = (s_color == 1) ? (uint8_t)PAL_WIRE_A
                             : (s_color == 2) ? (uint8_t)PAL_WIRE_M : (uint8_t)PAL_WIRE_C;
-        g.fillRect(0, 18, 320, 1, low);
-        g.fillRect(0, 17, 320, 1, mid);
-        g.fillRect(0, 16, 320, 1, accent());
+        g.fillRect(0, 16, 320, 2, accent());
+        g.fillRect(0, 18, 320, 1, mid);
     }
     glow_txt(g, "terminal", 8, 4, PAL_BG, 8);
     const int keep = s_px;
     s_px = 6;
+    const uint8_t boards_wash = (s_color == 1) ? (uint8_t)PAL_WASH_A
+                                 : (s_color == 2) ? (uint8_t)PAL_WASH_M : (uint8_t)PAL_WASH_C;
+    txt(g, "12 boards", 79, 5, boards_wash, lgfx::textdatum::top_left);
     txt(g, "12 boards", 78, 4, accent(), lgfx::textdatum::top_left);
     if (s_track_name[0]) txt(g, s_track_name, 156, 4, term_accent(), lgfx::textdatum::top_left);
     s_px = keep;
@@ -1581,8 +1588,7 @@ static void paint_sheet(Gfx g)
         g.fillRect(bx + 1, y0, w - 2, by + h - y0, PAL_DEEP);
     }
     frame_mag(g, bx, by, w, h);
-    glow_hline(g, bx + 3, by + h - 2, w - 6, STEP_HAIR);
-    glow_hline(g, bx + 18, by + h - 1, 10, STEP_AC);
+    glow_hline(g, bx + 6, by + h - 3, w - 12, STEP_HAIR);
     if (top > 0) blit_ico(g, ARROW_UP, bx + w - 12, by + 2, COL_MUTED);
     if (top + nshow < rows) blit_ico(g, ARROW_DN, bx + w - 12, by + h - 11, COL_MUTED);
     for (int r = 0; r < nshow; ++r) {
@@ -1605,7 +1611,7 @@ static void paint_sheet(Gfx g)
         const uint8_t name_c = on ? ink : (uint8_t)PAL_TERM_INK;
         if (on) txt_bg(g, CMDN[cmd], bx + 25, y + 1, name_c, bg, lgfx::textdatum::top_left);
         txt_bg(g, CMDN[cmd], bx + 24, y + 1, name_c, bg, lgfx::textdatum::top_left);
-        draw_purpose(g, CMDP[cmd], bx + w - 8, y + 1, on ? ink : (uint8_t)PAL_MUTED, bg);
+        draw_purpose(g, CMDP[cmd], bx + w - 8, y + 1, on ? ink : ac, bg);
     }
     s_px = keep;
 }
@@ -1936,7 +1942,7 @@ static const uint8_t NEAR_BLE_T[3] = { DEV_BT, DEV_BT, DEV_BT };
 /* Twelve nodes, one per angled spoke. Existing palette slots only. */
 static const uint8_t SCAN_TYPE[12] = {
     DEV_AP, DEV_BT, DEV_TV, DEV_CAM, DEV_DEAUTH, DEV_TAG,
-    DEV_DRONE, DEV_FLOCK, DEV_SKIM, DEV_UNK, DEV_CAM, DEV_TAG
+    DEV_DRONE, DEV_FLOCK, DEV_SKIM, DEV_BT, DEV_CAM, DEV_TAG
 };
 static const int SCAN_N = 12;
 
@@ -2278,7 +2284,6 @@ static void __attribute__((unused)) paint_bus_scan(Gfx g, bool wifi)
 {
     bus_paint(g, false, wifi, 12, -1);
     paint_scan_hud(g, wifi, -1);
-    draw_btn(g, 286, 206, ICO_BACK, false);
 }
 
 static void paint_list(Gfx g, bool wifi)
@@ -3571,7 +3576,7 @@ static void draw_sheet_row_part(Gfx g)
                s_part_sel ? ink : (uint8_t)PAL_TERM_INK, bg,
                lgfx::textdatum::top_left);
         txt_bg(g, CMDP[s_part_i], 100, y + 3,
-               s_part_sel ? ink : (uint8_t)PAL_MUTED, bg,
+               s_part_sel ? ink : accent(), bg,
                lgfx::textdatum::top_left);
     }
 }

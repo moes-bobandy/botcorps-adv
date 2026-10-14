@@ -329,6 +329,18 @@ static void txt(Gfx g, const char *s, int x, int y, uint8_t col,
     g.setTextDatum(lgfx::textdatum::top_left);
 }
 
+/* Opaque glyphs. The background is part of the character, not a fillRect under it. */
+static void txt_bg(Gfx g, const char *s, int x, int y, uint8_t fg, uint8_t bg,
+                   lgfx::textdatum_t dat)
+{
+    g.setFont(&fonts::Font0);
+    g.setTextSize(1);
+    g.setTextColor(fg, bg);
+    g.setTextDatum(dat);
+    g.drawString(s ? s : "", x, y);
+    g.setTextDatum(lgfx::textdatum::top_left);
+}
+
 static void plate(Gfx g, int x, int y, int w, int h,
                   uint8_t fill, uint8_t edge)
 {
@@ -533,23 +545,14 @@ static void load_rain_color(void)
     }
     const unsigned v = prefs.getUChar(NVS_KEY, 0);
     prefs.end();
-    /* 0x80 | colour | (solid << 3). Older bytes were 0 = mixed, 1..6 = a solid. */
-    if (v & 0x80u) {
-        botcorps_rain_set_colour((int)(v & 7u));
-        if ((v & 0x08u) == 0) botcorps_rain_set_mode(0);
-        return;
-    }
-    if (v >= 1 && v <= 6) botcorps_rain_set_colour((int)v - 1);
-    else botcorps_rain_set_mode(0);
+    botcorps_rain_set_mode(v >= (unsigned)BOTCORPS_RAIN_COLORS ? 0 : (int)v);
 }
 
 static void save_rain_color(void)
 {
     Preferences prefs;
     if (!prefs.begin(NVS_NS, false)) return;
-    const unsigned solid = botcorps_rain_mode() ? 0x08u : 0u;
-    const unsigned pack = 0x80u | solid | (unsigned)(botcorps_rain_colour() & 7);
-    prefs.putUChar(NVS_KEY, (uint8_t)pack);
+    prefs.putUChar(NVS_KEY, (uint8_t)botcorps_rain_mode());
     prefs.end();
 }
 
@@ -608,9 +611,8 @@ static void hist_push(const char *line)
     s_hist_i = -1;
 }
 
-static const char *const RAIN_MODE_N[2] = { "MIXED", "SOLID" };
-static const char *const RAIN_COL_N[6] = {
-    "GREEN", "CYAN", "BLUE", "PURPLE", "AMBER", "WHITE"
+static const char *RAIN_WORD[7] = {
+    "MULTI", "GREEN", "CYAN", "BLUE", "PURPLE", "AMBER", "WHITE"
 };
 
 static void partial_prompt_panel(void);
@@ -703,17 +705,16 @@ static void run_cmd(const char *line)
     } else if (strcmp(cmd, "rain") == 0) {
         if (!arg || !arg[0]) {
             char row[80];
-            if (botcorps_rain_mode() == 0) snprintf(row, sizeof(row), "rain MIXED");
-            else snprintf(row, sizeof(row), "rain %s", RAIN_COL_N[botcorps_rain_colour()]);
+            snprintf(row, sizeof(row), "rain %s", RAIN_WORD[botcorps_rain_mode()]);
             log_add(row);
         } else if (strcmp(arg, "multi") == 0 || strcmp(arg, "mixed") == 0) {
             botcorps_rain_set_mode(0);
             save_rain_color();
-            log_add("rain MIXED");
+            log_add("rain MULTI");
         } else {
-            int colour = -1;
-            for (int i = 0; i < 6; ++i) {
-                const char *w = RAIN_COL_N[i];
+            int mode = -1;
+            for (int i = 1; i < 7; ++i) {
+                const char *w = RAIN_WORD[i];
                 const char *a = arg;
                 bool same = true;
                 while (*w && *a) {
@@ -723,14 +724,14 @@ static void run_cmd(const char *line)
                     ++w;
                     ++a;
                 }
-                if (same && *w == 0 && *a == 0) colour = i;
+                if (same && *w == 0 && *a == 0) mode = i;
             }
-            if (colour < 0) log_add("unknown colour");
+            if (mode < 0) log_add("unknown colour");
             else {
-                botcorps_rain_set_colour(colour);
+                botcorps_rain_set_mode(mode);
                 save_rain_color();
                 char row[40];
-                snprintf(row, sizeof(row), "rain %s", RAIN_COL_N[colour]);
+                snprintf(row, sizeof(row), "rain %s", RAIN_WORD[mode]);
                 log_add(row);
             }
         }
@@ -990,8 +991,8 @@ static void cp_text(int index, char *value, int n)
     if (index == 0) snprintf(value, (size_t)n, "%s", ACCENT_N[s_color]);
     else if (index == 1) snprintf(value, (size_t)n, "%s", MIX_N[s_mix]);
     else if (index == 2) snprintf(value, (size_t)n, "%s", SHAPE_N[s_shape]);
-    else if (index == 3) snprintf(value, (size_t)n, "%s", RAIN_MODE_N[botcorps_rain_mode() ? 1 : 0]);
-    else if (index == 4) snprintf(value, (size_t)n, "%s", RAIN_COL_N[botcorps_rain_colour()]);
+    else if (index == 3) snprintf(value, (size_t)n, "%s", botcorps_rain_mode() == 0 ? "MIXED" : "SOLID");
+    else if (index == 4) snprintf(value, (size_t)n, "%s", RAIN_WORD[botcorps_rain_mode()]);
     else if (index == 5) snprintf(value, (size_t)n, "%s", SAVER_N[s_saver]);
     else if (index == 6) snprintf(value, (size_t)n, "%s", s_saver_on ? "ON" : "OFF");
     else snprintf(value, (size_t)n, "%d SEC", IDLE_V[s_idle]);
@@ -1055,15 +1056,16 @@ static void paint_cp_row(Gfx g, int index, bool on)
     };
     const int y = 4 + index * 20;
     const bool preview = index == 0 || index == 2 || index == 3 || index == 4 || index == 5;
-    plate(g, 8, y, 304, 18, on ? COL_SEL : COL_DEEP, on ? accent() : COL_LINE);
-    txt(g, labels[index], 16, y + 5, on ? accent() : COL_MUTED, lgfx::textdatum::top_left);
+    const uint8_t row = on ? (uint8_t)COL_SEL : (uint8_t)COL_DEEP;
+    plate(g, 8, y, 304, 18, row, on ? accent() : COL_LINE);
+    txt_bg(g, labels[index], 16, y + 5, on ? accent() : COL_MUTED, row, lgfx::textdatum::top_left);
     char value[16];
     cp_text(index, value, (int)sizeof(value));
     const int vr = preview ? 250 : 298;
-    txt(g, value, vr, y + 5, on ? COL_INK : PAL_SOFT, lgfx::textdatum::top_right);
+    txt_bg(g, value, vr, y + 5, on ? COL_INK : PAL_SOFT, row, lgfx::textdatum::top_right);
     if (on) {
-        txt(g, "<", vr - (int)strlen(value) * 6 - 8, y + 5, accent(), lgfx::textdatum::top_right);
-        txt(g, ">", vr + 8, y + 5, accent(), lgfx::textdatum::top_left);
+        txt_bg(g, "<", vr - (int)strlen(value) * 6 - 8, y + 5, accent(), row, lgfx::textdatum::top_right);
+        txt_bg(g, ">", vr + 8, y + 5, accent(), row, lgfx::textdatum::top_left);
     }
     const int px = 286;
     const int cy = y + 9;
@@ -1079,7 +1081,8 @@ static void paint_cp_row(Gfx g, int index, bool on)
             g.fillRect(px - 6, cy - 6, 12, 12, botcorps_rain_solid());
         }
     } else if (index == 4) {
-        g.fillRect(px - 6, cy - 6, 12, 12, botcorps_rain_solid());
+        const int mode = botcorps_rain_mode();
+        g.fillRect(px - 6, cy - 6, 12, 12, mode <= 0 ? botcorps_rain_palette(0) : botcorps_rain_solid());
     } else if (index == 5) saver_preview(g, px, cy);
 }
 
@@ -1089,7 +1092,7 @@ static void paint_control(Gfx g)
     char tag[40];
     const int mode = botcorps_rain_mode();
     const bool solid = mode > 0;
-    if (solid) snprintf(tag, sizeof(tag), "LIVE RAIN  SOLID %s  %s", RAIN_COL_N[botcorps_rain_colour()], SHAPE_N[s_shape]);
+    if (solid) snprintf(tag, sizeof(tag), "LIVE RAIN  SOLID %s  %s", RAIN_WORD[mode], SHAPE_N[s_shape]);
     else snprintf(tag, sizeof(tag), "LIVE RAIN  MIXED  %s", SHAPE_N[s_shape]);
     const int tw = (int)strlen(tag) * 6 + 10;
     const int wy = 188;
@@ -1740,13 +1743,15 @@ static void tick_int_live(lgfx::LGFX_Device &menu)
 {
     const int width = menu.width();
     botcorps_set_surface(BOTCORPS_SURFACE_MENU);
-
+    /* No fill under the clock. The glyphs carry the bar colour. */
     menu.startWrite();
-    menu.setClipRect(width - 42, 2, 40, 12);
-    menu.fillRect(width - 42, 2, 40, 12, panel565(COL_BAR));
-    txt(menu, s_clk, width - 4, 4, COL_INK, lgfx::textdatum::top_right);
+    menu.setFont(&fonts::Font0);
+    menu.setTextSize(1);
+    menu.setTextColor(panel565(COL_INK), panel565(COL_BAR));
+    menu.setTextDatum(lgfx::textdatum::top_right);
+    menu.drawString(s_clk, width - 4, 4);
+    menu.setTextDatum(lgfx::textdatum::top_left);
     menu.endWrite();
-    menu.clearClipRect();
 }
 
 static void paint_ext_full(void)
@@ -1783,12 +1788,16 @@ static void nudge_row(int d)
         s_shape = (s_shape + d + 5) % 5;
         botcorps_rain_set_shape(s_shape);
     } else if (s_cursor == 3) {
-        const int m = botcorps_rain_mode();
-        botcorps_rain_set_mode((m + d + 2) % 2);
+        if (botcorps_rain_mode() == 0) botcorps_rain_set_mode(1);
+        else botcorps_rain_set_mode(0);
         save_rain_color();
     } else if (s_cursor == 4) {
-        const int c = botcorps_rain_colour();
-        botcorps_rain_set_colour((c + d + 6) % 6);
+        int m = botcorps_rain_mode();
+        if (m <= 0) m = 1;
+        else m = m + d;
+        if (m < 1) m = 6;
+        if (m > 6) m = 1;
+        botcorps_rain_set_mode(m);
         save_rain_color();
     } else if (s_cursor == 5) {
         s_saver = (s_saver + d + 4) % 4;
@@ -1966,9 +1975,10 @@ static void paint_cursor_item(Gfx g, int index, bool sel)
         const char *const *names = wifi ? NEAR_WIFI : NEAR_BLE;
         const char *const *rssi = wifi ? NEAR_WIFI_R : NEAR_BLE_R;
         const uint8_t *bars = wifi ? NEAR_WIFI_B : NEAR_BLE_B;
-        plate(g, x, y, w, h, sel ? COL_SEL : COL_BG, sel ? accent() : COL_LINE);
-        txt(g, names[index], 24, y + 8, COL_INK, lgfx::textdatum::top_left);
-        txt(g, rssi[index], 280, y + 8, COL_AMBER, lgfx::textdatum::top_right);
+        const uint8_t row = sel ? (uint8_t)COL_SEL : (uint8_t)COL_BG;
+        plate(g, x, y, w, h, row, sel ? accent() : COL_LINE);
+        txt_bg(g, names[index], 24, y + 8, COL_INK, row, lgfx::textdatum::top_left);
+        txt_bg(g, rssi[index], 280, y + 8, COL_AMBER, row, lgfx::textdatum::top_right);
         for (int k = 0; k < 4; ++k) {
             const int bh = (k + 1) * 4;
             g.fillRect(250 + k * 8, y + 36 - bh, 5, bh, k < bars[index] ? accent() : COL_LINE);
@@ -2316,9 +2326,10 @@ static void on_ok(void)
                 s_sheet_i = 0;
                 partial_sheet();
             } else if (strcmp(CMDS[s_cmd_sel], "rain") == 0) {
-                const int c = (botcorps_rain_colour() + 1) % 6;
+                int m = botcorps_rain_mode() + 1;
+                if (m > 6) m = 0;
                 char line[24];
-                snprintf(line, sizeof(line), "rain %s", RAIN_COL_N[c]);
+                snprintf(line, sizeof(line), "rain %s", m == 0 ? "multi" : RAIN_WORD[m]);
                 run_cmd(line);
             } else {
                 run_cmd(CMDS[s_cmd_sel]);

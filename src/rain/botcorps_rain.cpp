@@ -31,15 +31,8 @@ static const uint16_t PALETTE[14] = {
 static const char DEV_GLYPHS[] = "*/#+@%&$X";
 static int s_shape = 0;
 
-/* Mock rain colours. Heads are exact slots where one exists; the rest,
- * and every fade step that is not a ramp, go through k_fit4. */
 static const uint16_t SOLID_INK[6] = {
-    0x7E6C, /* GREEN  #7DCE62 */
-    0x4E7B, /* CYAN   #4ECFDA */
-    0x5D3F, /* BLUE   #58A6FF */
-    0xAC7F, /* PURPLE #A88CFF */
-    0xF5A9, /* AMBER  #F0B44A */
-    0xEF7E, /* WHITE  #E8EEF2 */
+    0x26E8, 0x269C, 0x331F, 0xB21F, 0xF586, 0xFFFF,
 };
 
 static const char CODE_GLYPHS[] = "01<>[]{}:/\\|+-=*#";
@@ -58,8 +51,7 @@ static_assert(STAMP_N + 56 <= 1200, "rain trail fits the tier0 cell plane");
 
 enum { KIND_OFF = 0, KIND_CODE = 1, KIND_BOT = 2, KIND_DEVICE = 3 };
 
-static int s_mode = 0; /* 0 mixed, 1 solid */
-static int s_solid = 0; /* default GREEN */
+static int s_mode = 0;
 static int s_mix = BOTCORPS_RAIN_MIX_FIELD;
 static int s_ncols = 0;
 static int s_h = 240;
@@ -135,7 +127,7 @@ static uint16_t scale_native(uint16_t c, int num, int den)
 static uint16_t code_ink(bool head)
 {
     if (s_mode == 0) return head ? COL_HEAD_N : COL_CODE_N;
-    const uint16_t c = SOLID_INK[s_solid];
+    const uint16_t c = SOLID_INK[s_mode - 1];
     if (head) return c;
     return scale_native(c, 168, 256);
 }
@@ -268,6 +260,8 @@ static bool icon_pixel_ok(int x, int y);
 static bool code_is_head(int index, int y);
 
 static uint8_t fade_ink(uint16_t native, int age);
+/* Bot trails only. Shorter and fainter than the glyph ramp. Age 0 stays full. */
+static uint8_t bot_trail_ink(uint16_t native, int age);
 
 static uint8_t trail_ink(uint16_t native, int age)
 {
@@ -276,6 +270,16 @@ static uint8_t trail_ink(uint16_t native, int age)
     uint8_t idx = PAL_FIELD;
     if (botcorps_pal_ramp_for(native, age, &idx)) return idx;
     return fade_ink(native, age);
+}
+
+static uint8_t bot_trail_ink(uint16_t native, int age)
+{
+    if (age <= 0) return botcorps_pal_fit(native);
+    if (age > 2) return PAL_FIELD;
+    const int keep = (age == 1) ? 36 : 14;
+    int fr, fg, fb;
+    unpack565(COL_FIELD_N, &fr, &fg, &fb);
+    return botcorps_pal_fit(blend565(native, fr, fg, fb, 256 - keep));
 }
 
 static uint8_t fade_ink(uint16_t native, int age)
@@ -462,8 +466,8 @@ static void draw_stamp(lgfx::LovyanGFX &panel, int col, int age)
         const int b = fp[i].y + fp[i].h;
         if (b > bottom) bottom = b;
     }
-    /* Non-trail bots (~85%) erase the mock plate, then stamp full brightness.
-     * Trail bots (~15%, column flag) fall through and use the glyph ramp. */
+    /* Non-trail bots (~85%) erase the small field plate, then stamp full brightness.
+     * Trail bots (~15%) keep a two-step faint tail, not the glyph ramp. */
     if (kind == KIND_BOT && col_at(col)[4] == 0) {
         if (age != 0) {
             if (world_y < s_slice_y1 && bottom <= s_slice_y1)
@@ -472,18 +476,25 @@ static void draw_stamp(lgfx::LovyanGFX &panel, int col, int age)
         }
         /* 12x28 at (x-1, y-18). Clamped to this slice (the y=120 seam) and to x=0..319. */
         const rect_t plate = { x - 1, world_y - 18, 12, 28 };
-        if (foot_hits_slice(&plate, 1)) fill_clamped(panel, plate, PAL_FIELD);
-        if (!foot_hits_slice(fp, nfp)) return;
-        if (box_hits_chrome(fp[nfp - 1].x, fp[nfp - 1].y, fp[nfp - 1].w, fp[nfp - 1].h)) return;
-        uint16_t native = PALETTE[0];
-        if (payload >= 32 && payload < 44) native = BOTCORPS_BOT_COLOR[payload - 32];
-        else if (s_mode != 0) native = SOLID_INK[s_solid];
-        else native = PALETTE[payload % 14];
-        const int use = (s_shape > 0) ? (s_shape - 1) : shape;
-        clip_clamped(panel, fp[nfp - 1]);
-        botcorps_sprite_draw(panel, x + 4, world_y - s_slice_y0 + 4, use, 1,
-                             botcorps_pal_fit(native), false);
-        panel.clearClipRect();
+        const bool draw = foot_hits_slice(fp, nfp)
+            && !box_hits_chrome(fp[nfp - 1].x, fp[nfp - 1].y, fp[nfp - 1].w, fp[nfp - 1].h);
+        const bool wipe = foot_hits_slice(&plate, 1);
+        if (!draw && !wipe) return;
+        /* One transaction so the field clear is not visible before the sprite. */
+        panel.startWrite();
+        if (wipe) fill_clamped(panel, plate, PAL_FIELD);
+        if (draw) {
+            uint16_t native = PALETTE[0];
+            if (payload >= 32 && payload < 44) native = BOTCORPS_BOT_COLOR[payload - 32];
+            else if (s_mode != 0) native = SOLID_INK[s_mode - 1];
+            else native = PALETTE[payload % 14];
+            const int use = (s_shape > 0) ? (s_shape - 1) : shape;
+            clip_clamped(panel, fp[nfp - 1]);
+            botcorps_sprite_draw(panel, x + 4, world_y - s_slice_y0 + 4, use, 1,
+                                 botcorps_pal_fit(native), false);
+            panel.clearClipRect();
+        }
+        panel.endWrite();
         return;
     }
     if (!foot_hits_slice(fp, nfp)) return;
@@ -513,9 +524,9 @@ static void draw_stamp(lgfx::LovyanGFX &panel, int col, int age)
     if (kind == KIND_BOT) {
         uint16_t native = PALETTE[0];
         if (payload >= 32 && payload < 44) native = BOTCORPS_BOT_COLOR[payload - 32];
-        else if (s_mode != 0) native = SOLID_INK[s_solid];
+        else if (s_mode != 0) native = SOLID_INK[s_mode - 1];
         else native = PALETTE[payload % 14];
-        const uint8_t ink = trail_ink(native, age);
+        const uint8_t ink = bot_trail_ink(native, age);
         if (ink == PAL_FIELD) {
             for (int i = 0; i < nfp; ++i) fill_clamped(panel, fp[i], PAL_FIELD);
             mark_redraw(idx, fp, nfp);
@@ -547,7 +558,7 @@ static void draw_stamp(lgfx::LovyanGFX &panel, int col, int age)
         panel.clearClipRect();
         return;
     }
-    const uint16_t body = (s_mode == 0) ? (uint16_t)0x9E6E : SOLID_INK[s_solid];
+    const uint16_t body = (s_mode == 0) ? (uint16_t)0x9E6E : SOLID_INK[s_mode - 1];
     const uint8_t c1 = trail_ink(body, age);
     const uint8_t c2 = trail_ink(scale_native(body, 128, 256), age);
     const uint8_t c3 = trail_ink(scale_native(0xFFFF, 200, 256), age);
@@ -755,24 +766,14 @@ uint8_t botcorps_rain_palette(int index)
 
 void botcorps_rain_set_mode(int mode)
 {
-    s_mode = (mode == 0) ? 0 : 1;
+    if (mode < 0 || mode >= BOTCORPS_RAIN_COLORS) mode = 0;
+    if (mode == s_mode) return;
+    s_mode = mode;
 }
 
 int botcorps_rain_mode(void)
 {
     return s_mode;
-}
-
-void botcorps_rain_set_colour(int index)
-{
-    if (index < 0 || index >= BOTCORPS_RAIN_COLOURS) index = 0;
-    s_solid = index;
-    s_mode = 1;
-}
-
-int botcorps_rain_colour(void)
-{
-    return s_solid;
 }
 
 void botcorps_rain_set_shape(int shape)
@@ -797,5 +798,6 @@ int botcorps_rain_mix(void)
 
 uint8_t botcorps_rain_solid(void)
 {
-    return botcorps_pal_fit(SOLID_INK[s_solid]);
+    if (s_mode <= 0 || s_mode >= BOTCORPS_RAIN_COLORS) return PAL_FIELD;
+    return botcorps_pal_fit(SOLID_INK[s_mode - 1]);
 }

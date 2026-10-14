@@ -11,7 +11,8 @@
  * exact RGB565 in its own slot. Index 0 stays black and index 255 stays
  * RGB332 white, so a dark colour whose nearest code is 0 is placed on the
  * nearest code that is still free. INT draws those exact values as uint16_t.
- * The band looks them up through k_fit. Four ramp steps cover a 20-stamp trail.
+ * The band looks them up through a 4096-entry table (4 bits per channel).
+ * Four ramp steps cover a 20-stamp trail.
  */
 enum : uint8_t {
 #include "botcorps_pal_enum.inc"

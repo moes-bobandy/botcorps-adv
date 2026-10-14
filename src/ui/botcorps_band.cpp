@@ -129,7 +129,11 @@ uint16_t botcorps_rgb565(uint8_t idx)
 
 uint8_t botcorps_pal_fit(uint16_t native)
 {
-    return k_fit[native];
+    const unsigned r = (native >> 11) & 31;
+    const unsigned g = (native >> 5) & 63;
+    const unsigned b = native & 31;
+    const unsigned key = ((r >> 1) << 8) | ((g >> 2) << 4) | (b >> 1);
+    return k_fit4[key];
 }
 
 static bool to_band(const lgfx::LovyanGFX *p)

@@ -129,11 +129,26 @@ uint16_t botcorps_rgb565(uint8_t idx)
 
 uint8_t botcorps_pal_fit(uint16_t native)
 {
+    for (int n = 0; n < k_own_n; ++n) {
+        const uint8_t i = k_own_idx[n];
+        if (k_exact_nat[i] == native) return i;
+    }
     const unsigned r = (native >> 11) & 31;
     const unsigned g = (native >> 5) & 63;
     const unsigned b = native & 31;
     const unsigned key = ((r >> 1) << 8) | ((g >> 2) << 4) | (b >> 1);
     return k_fit4[key];
+}
+
+static void check_reserved_fit(void)
+{
+    for (int n = 0; n < k_own_n; ++n) {
+        const uint8_t i = k_own_idx[n];
+        if (botcorps_pal_fit(k_exact_nat[i]) != i) {
+            while (1) {
+            }
+        }
+    }
 }
 
 static bool to_band(const lgfx::LovyanGFX *p)
@@ -188,6 +203,7 @@ void botcorps_band_touch(void)
         t[i] = swapped;
         acc ^= t[i];
     }
+    check_reserved_fit();
     s_touch_sink = acc;
 }
 

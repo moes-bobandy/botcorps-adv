@@ -185,8 +185,11 @@ static uint8_t kind_for(int i)
 
 static void build_columns(void)
 {
-    s_ncols = (320 + GAP - 1) / GAP + 1;
-    if (s_ncols > RAIN_COLS) s_ncols = RAIN_COLS;
+    /* 54 columns, index 0..53. Column 53 starts at x=318 (a 2 px sliver).
+     * Column 54 would start at x=324 and is fully off the 320 px panel. */
+    s_ncols = (320 + GAP - 1) / GAP;
+    if (s_ncols > 54) s_ncols = 54;
+    static_assert((320 + 6 - 1) / 6 == 54, "drop only the column at x=324");
     memset(botcorps_t0_rain_cell, 0, sizeof(botcorps_t0_rain_cell));
     memset(botcorps_t0_rain_col, 0, sizeof(botcorps_t0_rain_col));
     for (int i = 0; i < s_ncols; ++i) {

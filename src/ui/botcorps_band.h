@@ -68,7 +68,7 @@ void botcorps_band_present(void (*draw)(Gfx));
 uint16_t botcorps_pal_native(uint8_t idx);
 /* Mock RGB565 for an index, from the const table. Not the runtime lut. */
 uint16_t botcorps_rgb565(uint8_t idx);
-/* Const lookup. Does not scan the 256 slots. */
+/* Exact reserved slot, else the 4096-entry table. Does not scan 256. */
 uint8_t botcorps_pal_fit(uint16_t native);
 /* 4-step ramp reused across trail ages 0..13. Ages past that are field. */
 uint8_t botcorps_pal_ramp(int ink, int age);

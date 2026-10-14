@@ -71,23 +71,24 @@ struct bot_t {
     const char *id;
     const char *short_name;
     const char *target;
+    const char *ins;
     uint8_t radio; /* 0 none, 1 wifi, 2 ble */
-    uint8_t hold;
+    uint8_t st; /* 0 ready, 1 limited, 2 hold */
 };
 
 static const bot_t BOTS[12] = {
-    { "wifibot", "wifi", "wi-fi", 1, 0 },
-    { "bluetoothbot", "bluetooth", "ble", 2, 0 },
-    { "deauthbot", "deauth", "deauth", 0, 0 },
-    { "hackbot", "hack", "hack", 0, 0 },
-    { "flockbot", "flock", "flock", 0, 0 },
-    { "dronebot", "drone", "drone", 0, 0 },
-    { "airtagbot", "airtag", "air tag", 0, 0 },
-    { "keyfobbot", "keyfob", "keyfob", 0, 0 },
-    { "metabot", "meta", "meta", 0, 0 },
-    { "skimmerbot", "skimmer", "skimmer", 0, 1 },
-    { "flipperbot", "flipper", "flipper", 0, 0 },
-    { "samsungtagbot", "samsung", "samsung", 0, 0 },
+    { "wifibot", "wifi", "WI-FI", "~", 1, 1 },
+    { "bluetoothbot", "bluetooth", "BLE", "*", 2, 1 },
+    { "deauthbot", "deauth", "DEAUTH", "/", 0, 0 },
+    { "hackbot", "hack", "HACK", "#", 0, 0 },
+    { "flockbot", "flock", "FLOCK", "#", 0, 0 },
+    { "dronebot", "drone", "DRONE", "*", 0, 0 },
+    { "airtagbot", "airtag", "AIR TAG", "+", 0, 0 },
+    { "keyfobbot", "keyfob", "KEYFOB", "[", 0, 0 },
+    { "metabot", "meta", "META", "+", 0, 0 },
+    { "skimmerbot", "skimmer", "SKIMMER", "~", 0, 2 },
+    { "flipperbot", "flipper", "FLIPPER", "^", 0, 1 },
+    { "samsungtagbot", "samsung", "SAMSUNG", "o", 0, 1 },
 };
 
 static const uint8_t BOT_PAL[12] = {
@@ -161,6 +162,11 @@ static char s_up[8];
 static int s_prompt_phase = -1;
 static int s_tab_i = -1;
 static int s_shape = 0;
+enum { MOOD_NEUTRAL = 0, MOOD_HAPPY, MOOD_EXCITED, MOOD_HUNTING, MOOD_SLEEPY, MOOD_SAD, MOOD_ALERT };
+static int s_mood = MOOD_NEUTRAL;
+static uint32_t s_mood_until = 0;
+static uint32_t s_last_key = 0;
+static char s_bub[8];
 static const int CP_N = 8;
 extern uint8_t botcorps_t0_rain_cell[3][1200];
 static_assert(1120 + 60 <= 1200, "tab scratch fits inside the rain cell plane");
@@ -411,6 +417,8 @@ static void layout_covers(void)
         cover_add(4, 18, 36, 170);
         cover_add(280, 18, 36, 170);
         cover_add(110, 20, 100, 140);
+        cover_add(38, 164, 244, 38);
+        cover_add(90, 152, 140, 14);
         cover_add(110, 206, BS, BS);
         cover_add(146, 206, BS, BS);
         cover_add(182, 206, BS, BS);
@@ -454,6 +462,7 @@ static void layout_covers(void)
         break;
     case SCR_CONTROL:
         for (int i = 0; i < CP_N; ++i) cover_add(8, 4 + i * 20, 304, 18);
+        cover_add(14, 192, 200, 14);
         cover_add(14, 204, BS, BS);
         cover_add(48, 204, BS, BS);
         break;
@@ -615,7 +624,8 @@ static void run_cmd(const char *line)
         log_add("12 boards");
         for (int i = 0; i < 12; ++i) {
             char row[80];
-            snprintf(row, sizeof(row), "  %s %s", BOTS[i].short_name, BOTS[i].hold ? "hold" : "ok");
+            const char *stn = BOTS[i].st == 2 ? "hold" : BOTS[i].st == 1 ? "limited" : "ready";
+            snprintf(row, sizeof(row), "  %s %s", BOTS[i].short_name, stn);
             log_add(row);
         }
     } else if (strcmp(cmd, "clear") == 0) {
@@ -809,7 +819,8 @@ static void paint_one_board(Gfx g, int i, bool sel)
     if (sel) g.drawRect(x - 2, y - 2, 76, 50, accent());
     g.fillRect(x + 23, y + 12, 26, 16, light ? PAL_PLATE : PAL_DEEP);
     draw_blob(g, x + 36, y + 20, 2, bot_color(i), botcorps_shape_for(i), sprite_blink(i));
-    g.fillCircle(x + 8, y + 6, 2, BOTS[i].hold ? COL_HOLD : COL_OK);
+    const uint8_t dot = BOTS[i].st == 2 ? COL_HOLD : BOTS[i].st == 1 ? COL_AMBER : COL_OK;
+    g.fillCircle(x + 8, y + 6, 2, dot);
     const uint8_t ink = light ? PAL_PLATE : COL_INK;
     txt(g, BOTS[i].short_name, x + 36, y + 34, ink, lgfx::textdatum::top_center);
 }
@@ -962,6 +973,56 @@ static void cp_text(int index, char *value, int n)
     else snprintf(value, (size_t)n, "%d SEC", IDLE_V[s_idle]);
 }
 
+static const int SPR_W[4] = { 7, 9, 7, 5 };
+static const int SPR_H[4] = { 7, 6, 9, 5 };
+
+static void shape_preview(Gfx g, int px, int cy)
+{
+    const int mode = botcorps_rain_mode();
+    const uint8_t live = mode > 0 ? botcorps_rain_solid() : botcorps_rain_palette(0);
+    if (s_shape <= 0) {
+        int sx = px - 19;
+        for (int id = 0; id < 4; ++id) {
+            botcorps_sprite_draw(*g.raw(), sx + SPR_W[id] / 2, cy - g.oy, id, 1, live, false);
+            sx += SPR_W[id] + 3;
+        }
+        return;
+    }
+    const int id = s_shape - 1;
+    botcorps_sprite_draw(*g.raw(), px, cy - g.oy, id, 2, live, false);
+}
+
+static void saver_preview(Gfx g, int px, int cy)
+{
+    const int x0 = px - 6;
+    const int y0 = cy - 6;
+    const int mode = botcorps_rain_mode();
+    const uint8_t ic = mode > 0 ? botcorps_rain_solid() : botcorps_rain_palette(0);
+    if (s_saver == 0) {
+        static const int dot[6][2] = { { 1, 1 }, { 5, 5 }, { 9, 2 }, { 3, 8 }, { 7, 0 }, { 10, 8 } };
+        for (int k = 0; k < 6; ++k) g.fillRect(x0 + dot[k][0], y0 + dot[k][1], 2, 3, ic);
+    } else if (s_saver == 1) {
+        for (int k = 0; k <= 12; k += 4) {
+            g.fillRect(x0 + k, y0, 1, 13, PAL_DEEP);
+            g.fillRect(x0, y0 + k, 13, 1, PAL_DEEP);
+        }
+        g.fillRect(x0 + 2, y0 + 2, 4, 4, ic);
+        g.fillRect(x0 + 8, y0 + 8, 4, 4, botcorps_rain_palette(5));
+    } else if (s_saver == 2) {
+        g.fillRect(x0 + 5, y0 + 5, 1, 1, PAL_LINE);
+        g.fillRect(x0 + 1, y0 + 1, 2, 2, ic);
+        g.fillRect(x0 + 4, y0 + 4, 3, 3, ic);
+        g.fillRect(x0 + 8, y0 + 8, 5, 5, ic);
+    } else {
+        g.fillRect(x0, y0, 13, 1, PAL_LINE);
+        g.fillRect(x0, y0 + 12, 13, 1, PAL_LINE);
+        g.fillRect(x0, y0, 1, 13, PAL_LINE);
+        g.fillRect(x0 + 12, y0, 1, 13, PAL_LINE);
+        g.fillRect(x0 + 2, y0 + 7, 3, 3, ic);
+        g.fillRect(x0 + 6, y0 + 3, 4, 4, ic);
+    }
+}
+
 static void paint_cp_row(Gfx g, int index, bool on)
 {
     const char *labels[8] = {
@@ -969,13 +1030,13 @@ static void paint_cp_row(Gfx g, int index, bool on)
         "RAIN COLOUR", "SCREEN SAVER", "SAVER", "IDLE TIME"
     };
     const int y = 4 + index * 20;
-    const bool preview = index == 0 || index == 3 || index == 4 || index == 5;
+    const bool preview = index == 0 || index == 2 || index == 3 || index == 4 || index == 5;
     plate(g, 8, y, 304, 18, on ? COL_SEL : COL_DEEP, on ? accent() : COL_LINE);
     txt(g, labels[index], 16, y + 5, on ? accent() : COL_MUTED, lgfx::textdatum::top_left);
     char value[16];
     cp_text(index, value, (int)sizeof(value));
     const int vr = preview ? 250 : 298;
-    txt(g, value, vr, y + 5, on ? COL_INK : COL_MUTED, lgfx::textdatum::top_right);
+    txt(g, value, vr, y + 5, on ? COL_INK : PAL_SOFT, lgfx::textdatum::top_right);
     if (on) {
         txt(g, "<", vr - (int)strlen(value) * 6 - 8, y + 5, accent(), lgfx::textdatum::top_right);
         txt(g, ">", vr + 8, y + 5, accent(), lgfx::textdatum::top_left);
@@ -983,27 +1044,34 @@ static void paint_cp_row(Gfx g, int index, bool on)
     const int px = 286;
     const int cy = y + 9;
     if (index == 0) g.fillCircle(px, cy, 5, accent());
+    else if (index == 2) shape_preview(g, px, cy);
     else if (index == 3) {
         if (botcorps_rain_mode() <= 0) {
+            static const int sw[4] = { 0, 2, 3, 1 };
             for (int k = 0; k < 4; ++k) {
-                g.fillRect(px - 6 + (k % 2) * 6, cy - 6 + (k / 2) * 6, 6, 6, botcorps_rain_palette(k));
+                g.fillRect(px - 6 + (k % 2) * 6, cy - 6 + (k / 2) * 6, 6, 6, botcorps_rain_palette(sw[k]));
             }
         } else {
             g.fillRect(px - 6, cy - 6, 12, 12, botcorps_rain_solid());
         }
     } else if (index == 4) {
-        g.fillRect(px - 6, cy - 6, 12, 12, botcorps_rain_mode() <= 0 ? botcorps_rain_palette(0) : botcorps_rain_solid());
-    } else if (index == 5) {
-        g.fillRect(px - 6, cy - 6, 12, 12, PAL_DEEP);
-        g.fillRect(px - 4, cy - 2, 3, 3, accent());
-        g.fillRect(px + 1, cy - 4, 4, 4, COL_IVORY);
-    }
+        const int mode = botcorps_rain_mode();
+        g.fillRect(px - 6, cy - 6, 12, 12, mode <= 0 ? botcorps_rain_palette(0) : botcorps_rain_solid());
+    } else if (index == 5) saver_preview(g, px, cy);
 }
 
 static void paint_control(Gfx g)
 {
     for (int i = 0; i < CP_N; ++i) paint_cp_row(g, i, s_cursor == i);
-    txt(g, "LIVE RAIN", 19, 188, COL_INK, lgfx::textdatum::top_left);
+    char tag[40];
+    const int mode = botcorps_rain_mode();
+    const bool solid = mode > 0;
+    if (solid) snprintf(tag, sizeof(tag), "LIVE RAIN  SOLID %s  %s", RAIN_WORD[mode], SHAPE_N[s_shape]);
+    else snprintf(tag, sizeof(tag), "LIVE RAIN  MIXED  %s", SHAPE_N[s_shape]);
+    const int tw = (int)strlen(tag) * 6 + 10;
+    const int wy = 188;
+    plate(g, 14, wy + 4, tw, 13, COL_DEEP, COL_LINE);
+    txt(g, tag, 19, wy + 7, solid ? botcorps_rain_solid() : COL_INK, lgfx::textdatum::top_left);
     draw_btn(g, 14, 204, ICO_TERM, s_cursor == CP_N);
     draw_btn(g, 48, 204, ICO_BACK, s_cursor == CP_N + 1);
 }
@@ -1039,13 +1107,117 @@ static void gib_crown(Gfx g, int cx, int y)
     }
 }
 
+static uint8_t wire_ink(void)
+{
+    if (s_color == 1) return PAL_WIRE_A;
+    if (s_color == 2) return PAL_WIRE_M;
+    return PAL_WIRE_C;
+}
+
+static void chip_plate(Gfx g, int x, int y, int w, int h, uint8_t fill, uint8_t line)
+{
+    if (w < 3 || h < 3) return;
+    g.fillRect(x + 1, y, w - 2, h, fill);
+    g.fillRect(x, y + 1, w, h - 2, fill);
+    g.fillRect(x + 1, y, w - 2, 1, line);
+    g.fillRect(x + 1, y + h - 1, w - 2, 1, line);
+    g.fillRect(x, y + 1, 1, h - 2, line);
+    g.fillRect(x + w - 1, y + 1, 1, h - 2, line);
+}
+
+static void via_node(Gfx g, int x, int y, uint8_t col)
+{
+    g.fillRect(x, y, 3, 3, col);
+    g.fillRect(x + 1, y + 1, 1, 1, PAL_FIELD);
+}
+
+static void hub_gibson(Gfx g, int cx, int cy, int z)
+{
+    const int ox = cx - (7 * z) / 2;
+    const int oy = cy - (7 * z) / 2;
+    auto u = [&](int x, int y, int w, int h, uint8_t col) {
+        g.fillRect(ox + x * z, oy + y * z, w * z, h * z, col);
+    };
+    g.fillRect(ox + z / 2, oy + 7 * z, 6 * z, z > 2 ? 2 : z, PAL_BLACK);
+    u(3, 0, 1, 1, PAL_IVORY);
+    u(1, 1, 5, 1, PAL_IVORY);
+    u(0, 2, 7, 3, PAL_IVORY);
+    u(0, 5, 7, 1, PAL_IVORY);
+    u(1, 6, 5, 1, PAL_CHIN);
+    u(0, 5, 1, 1, PAL_CHIN);
+    u(6, 5, 1, 1, PAL_CHIN);
+    u(0, 3, 7, 1, PAL_BLACK);
+    u(1, 3, 2, 2, PAL_BLACK);
+    u(4, 3, 2, 2, PAL_BLACK);
+    const int gl = (int)((millis() / 900u) % 2u);
+    u(1 + gl, 3, 1, 1, PAL_STEEL);
+    u(4 + gl, 3, 1, 1, PAL_STEEL);
+}
+
+static int hub_mood(uint32_t t, bool *asleep)
+{
+    if (s_last_key == 0) s_last_key = t;
+    *asleep = (uint32_t)(t - s_last_key) > 20000u;
+    if (*asleep) return MOOD_SLEEPY;
+    if (s_mood_until != 0 && (int32_t)(t - s_mood_until) < 0) return s_mood;
+    return MOOD_NEUTRAL;
+}
+
+static uint8_t dot_col(int i, uint32_t t, int mood, bool asleep)
+{
+    const int st = BOTS[i].st;
+    const bool blink = ((t / 700u + (uint32_t)i) % 4u) != 0u;
+    uint8_t base = PAL_DEEP;
+    if (st == 2 || blink) base = st == 2 ? PAL_HOLD : st == 1 ? PAL_AMBER : PAL_OK;
+    if (asleep || mood == MOOD_SLEEPY) {
+        return ((t / 1400u + (uint32_t)i) % 3u) == 0u ? PAL_OK : PAL_DEEP;
+    }
+    if (mood == MOOD_ALERT) return ((t / 160u) % 2u) ? PAL_AMBER : PAL_HOLD;
+    if (mood == MOOD_HAPPY) return accent();
+    if (mood == MOOD_EXCITED) return ((t / 110u + (uint32_t)i) % 2u) ? PAL_WHITE : accent();
+    if (mood == MOOD_HUNTING) return ((t / 110u) % 12u) == (uint32_t)i ? PAL_WHITE : base;
+    if (mood == MOOD_SAD) return st == 2 ? PAL_HOLD : PAL_DEEP;
+    return base;
+}
+
+static void hub_sparks(Gfx g, int cx, int cy, uint32_t t)
+{
+    const uint8_t ac = accent();
+    for (int i = 0; i < 8; ++i) {
+        const uint32_t period = 900u + (uint32_t)i * 70u;
+        const uint32_t age = (t + (uint32_t)i * 130u) % period;
+        const float life = (float)age / (float)period;
+        if (life > 0.85f) continue;
+        const float a = (float)i * 0.8f + (float)t / 400.f;
+        const float rad = 22.f + life * 18.f;
+        const int x = cx + (int)(cosf(a) * rad);
+        const int y = cy + (int)(sinf(a) * rad * 0.9f) - (int)(life * 16.f);
+        const uint8_t ink = (i & 1) ? (uint8_t)PAL_IVORY : ac;
+        g.fillRect(x, y, 1 + (i & 1), 1, ink);
+    }
+}
+
 static void paint_gibson(Gfx g)
 {
-    /* extGibsonHub: crew slots, wires, pixel rings, crown, ivory gibson chip. */
+    /* extGibsonHub. Dim and wires are reserved exact colours. No panel read-back. */
     const int cx = 160;
     const int cy = 100;
     const int rr = 44;
     const uint32_t t = millis();
+    const uint8_t ac = accent();
+    const uint8_t wire = wire_ink();
+    bool asleep = false;
+    const int mood = hub_mood(t, &asleep);
+    g.fillRect(0, 0, 320, 240, PAL_DIM);
+    static const int stars[10][2] = {
+        { 60, 40 }, { 88, 64 }, { 116, 34 }, { 214, 36 }, { 240, 62 },
+        { 262, 40 }, { 74, 178 }, { 250, 176 }, { 130, 176 }, { 196, 178 }
+    };
+    for (int k = 0; k < 10; ++k) {
+        const int on = (int)((t / 420u + (uint32_t)k * 3u) % 5u);
+        const uint8_t sc = on == 0 ? PAL_WHITE : on == 1 ? PAL_LINE : PAL_IVORY;
+        g.fillRect(stars[k][0], stars[k][1], 1, 1, sc);
+    }
     for (int i = 0; i < 12; ++i) {
         const bool left = i < 6;
         const int sx = left ? 6 : 286;
@@ -1053,32 +1225,92 @@ static void paint_gibson(Gfx g)
         const int ys = sy + 10;
         const int ddy = ys - cy;
         const bool out = ddy > rr - 6 || ddy < -(rr - 6);
-        int ex = rr;
-        if (!out && ddy * ddy < rr * rr) {
-            ex = (int)sqrtf((float)(rr * rr - ddy * ddy));
-        } else if (out) {
-            ex = 26;
-        }
+        int ex = 26;
+        if (!out) ex = (int)sqrtf((float)(rr * rr - ddy * ddy));
         const int x1 = left ? sx + 28 : cx + ex + 1;
         const int x2 = left ? cx - ex : sx;
-        if (x2 > x1) g.fillRect(x1, ys, x2 - x1, 1, accent());
-        g.fillRect(sx, sy, 28, 20, PAL_DEEP);
-        g.drawRect(sx, sy, 28, 20, COL_LINE);
+        const int len = x2 - x1;
+        int ry = cy;
+        if (ex < rr) {
+            const int drop = (int)sqrtf((float)(rr * rr - ex * ex));
+            ry = cy + (ddy < 0 ? -drop : drop);
+        }
+        if (len > 0) g.fillRect(x1, ys, len, 1, wire);
+        if (out) {
+            const int y0 = ys < ry ? ys : ry;
+            g.fillRect(left ? x2 : x1 - 1, y0, 1, (ys > ry ? ys - ry : ry - ys) + 1, wire);
+        }
+        const int travel = len > 0 ? len : 1;
+        const int d = (int)((t / 33u + (uint32_t)i * 11u) % (uint32_t)(travel + 10));
+        if (d < travel) g.fillRect((left ? x1 + d : x2 - d) - 1, ys - 1, 2, 3, ac);
+        via_node(g, left ? x2 - 1 : x1 - 2, (out ? ry : ys) - 1, ac);
+        chip_plate(g, sx, sy, 28, 20, PAL_DEEP, COL_LINE);
         draw_blob(g, sx + 11, sy + 10, 1, bot_color(i), botcorps_shape_for(i), false);
-        g.fillRect(sx + 21, sy + 7, 4, 4, (i == 9) ? COL_HOLD : COL_OK);
-        const int travel = (x2 > x1) ? (x2 - x1) : 1;
-        const int d = (int)((t / 30u + (uint32_t)i * 11u) % (uint32_t)(travel + 10));
-        if (d < travel) g.fillRect((left ? x1 + d : x2 - d) - 1, ys - 1, 2, 3, accent());
+        g.fillRect(sx + 21, sy + 7, 4, 4, dot_col(i, t, mood, asleep));
     }
     g.fillCircle(cx, cy, 34, PAL_DEEP);
-    px_ring(g, cx, cy, 34, accent(), 0, 0, 0);
-    px_ring(g, cx, cy, 37, accent(), 5, 5, (int)(t / 90u));
+    const uint8_t rc1 = mood == MOOD_ALERT ? (((t / 160u) % 2u) ? PAL_AMBER : PAL_HOLD)
+                        : mood == MOOD_SAD ? PAL_LINE : ac;
+    px_ring(g, cx, cy, 34, rc1, 0, 0, 0);
+    const int spin = mood == MOOD_HUNTING ? (int)(t / 30u) : mood == MOOD_EXCITED ? (int)(t / 50u) : (int)(t / 90u);
+    px_ring(g, cx, cy, 37, mood == MOOD_ALERT ? PAL_AMBER : mood == MOOD_SAD ? PAL_LINE : ac, 5, 5, spin);
+    if (mood == MOOD_HUNTING) {
+        for (int k = 0; k < 14; ++k) {
+            const float ang = (float)t / 260.f - (float)k * 0.07f;
+            const uint8_t ink = k < 3 ? (uint8_t)PAL_WHITE : ac;
+            g.fillRect(cx + (int)(cosf(ang) * 40.f), cy + (int)(sinf(ang) * 40.f), 1, 1, ink);
+        }
+    }
     px_ring(g, cx, cy, 42, COL_LINE, 2, 4, (int)(t / 140u));
+    const int ph = (int)((t % 2400u) * 5u / 2400u);
+    px_ring(g, cx, cy, 44 + ph, wire, 3, 3, 0);
+    hub_sparks(g, cx, cy, t);
+    g.fillRect(cx - 14, cy + 25, 28, 1, wire);
+    hub_gibson(g, cx, cy, 5);
+    if (asleep) {
+        for (int k = 0; k < 3; ++k) {
+            const int q = (int)((t / 1500u + (uint32_t)k) % 3u);
+            txt(g, "z", cx + 26 + k * 5, cy - 22 - q * 6, COL_IVORY, lgfx::textdatum::top_left);
+        }
+    }
+    if (s_bub[0] && s_mood_until != 0 && (int32_t)(t - s_mood_until) < 0) {
+        const int bw = (int)strlen(s_bub) * 6 + 10;
+        const int bx = cx + 34;
+        chip_plate(g, bx, 24, bw, 11, PAL_DEEP, ac);
+        txt(g, s_bub, bx + 5, 25, COL_INK, lgfx::textdatum::top_left);
+        g.fillRect(bx + 6, 35, 3, 2, ac);
+    }
     gib_crown(g, cx, 22);
-    draw_blob(g, cx, cy, 5, COL_IVORY, BOTCORPS_SHAPE_ROUND, sprite_blink(0));
-    g.fillRect(cx - 15, cy + 40, 30, 12, PAL_DEEP);
-    g.drawRect(cx - 15, cy + 40, 30, 12, accent());
-    g.fillRect(cx - 6, cy + 43, 12, 6, accent());
+    chip_plate(g, cx - 15, cy + 40, 30, 12, PAL_DEEP, ac);
+    g.fillRect(cx - 6, cy + 43, 12, 6, ac);
+    g.fillRect(cx - 4, cy + 44, 8, 4, PAL_BG);
+    for (int k = 0; k < 4; ++k) {
+        g.fillRect(cx - 5 + k * 4, cy + 42, 1, 1, ac);
+        g.fillRect(cx - 5 + k * 4, cy + 49, 1, 1, ac);
+    }
+    const float pu = (sinf((float)t / 380.f) + 1.f) * 0.5f;
+    const uint8_t led = pu > 0.5f ? (uint8_t)PAL_WHITE : ac;
+    g.fillRect(cx + 8, cy + 43, 2, 2, led);
+    static const char *const pips[7] = { "o", "*", "+", "o", "Z", "?", "!" };
+    static const int pip_m[7] = {
+        MOOD_NEUTRAL, MOOD_HAPPY, MOOD_EXCITED, MOOD_HUNTING, MOOD_SLEEPY, MOOD_SAD, MOOD_ALERT
+    };
+    int hx = (320 - (7 * 17 - 6)) / 2;
+    const int shown = asleep ? MOOD_SLEEPY : mood;
+    for (int i = 0; i < 7; ++i) {
+        const bool on = pip_m[i] == shown;
+        if (on) {
+            g.fillRect(hx - 3, 154, 11, 11, PAL_SEL);
+            g.fillRect(hx - 3, 164, 11, 1, ac);
+        }
+        txt(g, pips[i], hx, 156, on ? PAL_WHITE : PAL_LINE, lgfx::textdatum::top_left);
+        hx += 17;
+    }
+    chip_plate(g, 38, 164, 244, 38, PAL_DEEP, COL_LINE);
+    g.fillRect(41, 165, 238, 1, ac);
+    txt(g, "gibson", 45, 191, ac, lgfx::textdatum::top_left);
+    txt(g, ">", 45 + 6 * 6, 191, COL_INK, lgfx::textdatum::top_left);
+    if ((t / 530u) % 2u == 0u) g.fillRect(45 + 8 * 6, 191, 5, 8, ac);
     const int ids[3] = { ICO_TERM, ICO_CTRL, ICO_RADAR };
     const int xs[3] = { 110, 146, 182 };
     for (int i = 0; i < 3; ++i) draw_btn(g, xs[i], 206, ids[i], s_cursor == i);
@@ -1327,7 +1559,7 @@ static void paint_int(lgfx::LGFX_Device &menu)
     const int bi = card_bot();
     const bool gib = bi < 0;
     const uint8_t col = gib ? COL_IVORY : bot_color(bi);
-    const char *name = gib ? "gibsonbot" : BOTS[bi].id;
+    const char *name = gib ? "gibson" : BOTS[bi].id;
     const char *target = gib ? "ALL BOTS" : BOTS[bi].target;
     botcorps_id_paint(Gfx(menu), width, gib ? 0 : bi, gib, col,
                       gib ? BOTCORPS_SHAPE_ROUND : botcorps_shape_for(bi), name, target);
@@ -2018,6 +2250,8 @@ void botcorps_ui_mark_dirty(void)
 void botcorps_ui_begin(void)
 {
     s_boot_ms = millis();
+    s_last_key = s_boot_ms;
+    s_bub[0] = 0;
     s_screen = SCR_RAIN;
     s_cursor = 0;
     s_dirty = true;
@@ -2034,6 +2268,13 @@ void botcorps_ui_input(void)
     char typed = 0;
     const int key = read_key(&typed);
     if (key == K_NONE) return;
+    s_last_key = millis();
+    if (s_screen == SCR_GIBSON && (key == K_CHAR || key == K_OK)) {
+        s_mood = MOOD_HAPPY;
+        s_mood_until = s_last_key + 1500u;
+        s_bub[0] = (key == K_CHAR && typed) ? typed : '*';
+        s_bub[1] = 0;
+    }
     if (key == K_UP || key == K_DN || key == K_LT || key == K_RT) on_arrows(key);
     else if (key == K_OK) on_ok();
     else if (key == K_ESC) on_esc();

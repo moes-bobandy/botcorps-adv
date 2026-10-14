@@ -124,44 +124,40 @@ static const char *const CMDS[12] = {
     "scan", "hunt", "help", "bots", "rain", "filter",
     "clear", "ping", "info", "track", "sniff", "cmds"
 };
-/* 8x8 command glyphs from the mock sheet. Flash only. */
-static const int SHEET_N = 14;
-static const char *const SHEET_NAME[SHEET_N] = {
-    "scan", "hunt", "help", "bots", "rain", "filter", "clear",
-    "ping", "info", "track", "sniff", "go", "load", "cmds"
+/* v3.2 command menu. 40 names + purposes, const in flash. defend stays in CORE. */
+static const int CMD_N = 40;
+static const int G_AT[5] = { 0, 17, 25, 33, 40 };
+static const char *const G_NAME[4] = { "CORE", "COMMS", "GAME", "SYS" };
+static const char *const CMDN[CMD_N] = {
+    "scan", "hunt", "help", "bots", "rain", "filter", "ping", "info", "track", "sniff",
+    "go", "load", "defend", "sweep", "roster", "pulse", "dig",
+    "hail", "say", "ask", "rollcall", "whisper", "broadcast", "link", "mute",
+    "train", "hunt-run", "score", "rank", "loadout", "lobby", "duel", "stash",
+    "clear", "history", "theme", "about", "cmds", "version", "uptime"
 };
-static const char *const SHEET_ABOUT[SHEET_N] = {
+static const char *const CMDP[CMD_N] = {
     "sweep . wifi|ble|all", "drone|flock|skimmer|deauth", "list the commands", "board status",
-    "rain . <colour>|mixed", "wifi|ble|threats|strong|off", "wipe the log", "ping a found device",
-    "device details", "pin a device . off", "list heard (filtered)",
-    "terminal|control|bots|wifi|ble|scan", "wifilist|blelist|gibson", "this sheet"
+    "rain . <colour>|mixed", "wifi|ble|threats|strong|off", "ping a found device", "device details",
+    "pin a device . off", "list heard (filtered)", "jump to a screen", "load a screen",
+    "typing game . beginner|veteran", "alias . scan", "alias . bots", "alias . ping", "alias . info",
+    "greet a bot", "send a line to a bot", "query bot status", "crew check-in",
+    "quiet line to a bot", "speak to the crew", "open a bot channel", "hush a bot",
+    "sealed", "sealed", "sealed", "sealed", "sealed", "sealed", "sealed", "sealed",
+    "wipe the log", "recent lines", "neon look", "build blurb", "this menu", "term build", "session clock"
 };
-static const uint8_t SHEET_ICO[SHEET_N][8] = {
-    { 0x1c, 0x22, 0x41, 0x41, 0x22, 0x1c, 0x04, 0x02 },
-    { 0x18, 0x18, 0x24, 0xe7, 0xe7, 0x24, 0x18, 0x18 },
-    { 0x3c, 0x42, 0x02, 0x0c, 0x10, 0x10, 0x00, 0x10 },
-    { 0x7e, 0x81, 0xa5, 0x81, 0xbd, 0x7e, 0x24, 0x66 },
-    { 0x48, 0x49, 0x12, 0x94, 0x94, 0x12, 0x42, 0x40 },
-    { 0xff, 0x7e, 0x3c, 0x18, 0x18, 0x18, 0x18, 0x00 },
-    { 0x81, 0x42, 0x24, 0x18, 0x18, 0x24, 0x42, 0x81 },
-    { 0x10, 0x08, 0x25, 0x72, 0x25, 0x08, 0x10, 0x00 },
-    { 0x18, 0x00, 0x38, 0x18, 0x18, 0x18, 0x3c, 0x00 },
-    { 0x3c, 0x42, 0x99, 0xbd, 0xbd, 0x99, 0x42, 0x3c },
-    { 0x00, 0x42, 0x5a, 0xdb, 0xdb, 0x5a, 0x42, 0x00 },
-    { 0x00, 0x08, 0x04, 0xfe, 0x04, 0x08, 0x00, 0x00 },
-    { 0x00, 0x08, 0x04, 0xfe, 0x04, 0x08, 0x00, 0x00 },
-    { 0x9c, 0x00, 0xbe, 0x00, 0xb8, 0x00, 0x9c, 0x00 },
+static const uint8_t CMD_ARG[CMD_N] = {
+    1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1,
+    1, 1, 1, 0, 1, 0, 1, 1,
+    0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0
 };
-/* Prompt list. Same commands the mock offers beside the cursor. cmds stays on the palette. */
-static const int PCMD_N = 13;
-static const char *const PCMD[PCMD_N] = {
-    "scan", "hunt", "help", "bots", "rain", "filter", "clear",
-    "ping", "info", "track", "sniff", "go", "load"
+static const int PCMD_N = CMD_N;
+static const char *const *const PCMD = CMDN;
+static const char *const HAIL[13] = {
+    "reading you", "channel clear", "link warm", "quiet", "keys ready", "eyes open",
+    "airborne", "ping soft", "click armed", "mesh synced", "on hold", "wave ready", "nearby"
 };
-static const char *const PHINT[PCMD_N] = {
-    "wifi|ble|all", "drone|flock|..", 0, 0, "<colour>", "wifi|ble|..",
-    0, "<device>", "<device>", "off|<device>", 0, "<screen>", "<screen>"
-};
+static const char *const CHAT3[3] = { "copy", "on it", "noted" };
 /* Hunt dropdown on the Gibson scan. Order is the hunt-actions menu. */
 static const int ACT_N = 5;
 static const char *const ACT_NAME[ACT_N] = { "hunt", "info", "tag", "ignore", "back" };
@@ -617,6 +613,7 @@ static void enter_screen(int id, int ret)
 {
     if (id < 0) return;
     const char *from = screen_name(s_screen);
+    const int before = card_bot();
     s_ret = ret;
     s_screen = id;
     s_cursor = 0;
@@ -632,7 +629,7 @@ static void enter_screen(int id, int ret)
         memset(s_dev_ign, 0, sizeof(s_dev_ign));
     }
     s_dirty = true;
-    s_int_dirty = true;
+    if (card_bot() != before) s_int_dirty = true;
     Serial.printf("[int] enter_screen %s\n", screen_name(id));
     botcorps_probe_screen(from, screen_name(id));
 }
@@ -672,6 +669,17 @@ static char *log_slot(int i)
 static void log_add(const char *s)
 {
     snprintf(log_slot(s_log_next), LOG_W, "%s", s ? s : "");
+    s_log_next = (s_log_next + 1) % LOG_ROWS;
+    if (s_log_n < LOG_ROWS) ++s_log_n;
+}
+
+/* First two bytes mark a bot-coloured reply. 12 is Gibson. */
+static void log_add_bot(int bot, const char *s)
+{
+    char *d = log_slot(s_log_next);
+    d[0] = '\x01';
+    d[1] = (char)(bot < 0 ? 12 : bot);
+    snprintf(d + 2, (size_t)LOG_W - 2, "%s", s ? s : "");
     s_log_next = (s_log_next + 1) % LOG_ROWS;
     if (s_log_n < LOG_ROWS) ++s_log_n;
 }
@@ -745,14 +753,22 @@ static void run_cmd(const char *line)
         arg = sp + 1;
         while (*arg == ' ') ++arg;
     }
+    if (strcmp(cmd, "sweep") == 0) cmd = (char *)"scan";
+    else if (strcmp(cmd, "roster") == 0) cmd = (char *)"bots";
+    else if (strcmp(cmd, "pulse") == 0) cmd = (char *)"ping";
+    else if (strcmp(cmd, "dig") == 0) cmd = (char *)"info";
     char echo[80];
     snprintf(echo, sizeof(echo), "> %s%s%s", cmd, arg ? " " : "", arg ? arg : "");
     log_add(echo);
 
     if (strcmp(cmd, "help") == 0) {
-        log_add("scan hunt help bots rain filter");
-        log_add("clear ping info track sniff go");
-        log_add("colours green cyan blue purple amber white");
+        for (int g = 0; g < 4; ++g) {
+            char row[80];
+            int n = snprintf(row, sizeof(row), "%s", G_NAME[g]);
+            for (int i = G_AT[g]; i < G_AT[g + 1] && n < 68; ++i)
+                n += snprintf(row + n, sizeof(row) - (size_t)n, " %s", CMDN[i]);
+            log_add(row);
+        }
     } else if (strcmp(cmd, "bots") == 0) {
         log_add("12 boards");
         for (int i = 0; i < 12; ++i) {
@@ -912,9 +928,77 @@ static void run_cmd(const char *line)
     } else if (strcmp(cmd, "cmds") == 0) {
         s_sheet = true;
         s_sheet_i = 0;
-        s_focus_cmds = true;
-        partial_sheet();
+        s_focus_cmds = false;
+        s_dirty = true;
         return;
+    } else if (strcmp(cmd, "hail") == 0 || strcmp(cmd, "ask") == 0 || strcmp(cmd, "link") == 0 ||
+               strcmp(cmd, "mute") == 0 || strcmp(cmd, "say") == 0 || strcmp(cmd, "whisper") == 0) {
+        int bot = -1;
+        if (!arg || !arg[0]) bot = -1;
+        else if (strcmp(arg, "gibson") == 0 || strcmp(arg, "gib") == 0) bot = 12;
+        else {
+            bot = -2;
+            for (int i = 0; i < 12; ++i) {
+                if (strncmp(BOTS[i].short_name, arg, strlen(arg)) == 0) {
+                    bot = i;
+                    break;
+                }
+            }
+        }
+        if (bot == -1) {
+            log_add(cmd);
+        } else if (bot < 0) {
+            log_add("no such bot");
+        } else {
+            const char *who = bot == 12 ? "gibson" : BOTS[bot].short_name;
+            char row[80];
+            if (strcmp(cmd, "mute") == 0) snprintf(row, sizeof(row), "%s hushed", who);
+            else if (strcmp(cmd, "link") == 0) snprintf(row, sizeof(row), "%s channel open", who);
+            else if (strcmp(cmd, "ask") == 0) {
+                const char *st = bot == 12 ? "crown lit" : BOTS[bot].st == 2 ? "hold" : BOTS[bot].st == 1 ? "limited" : "ready";
+                snprintf(row, sizeof(row), "%s %s", who, st);
+            } else if (strcmp(cmd, "say") == 0 || strcmp(cmd, "whisper") == 0) {
+                snprintf(row, sizeof(row), "%s %s", who, CHAT3[(int)strlen(arg) % 3]);
+            } else {
+                snprintf(row, sizeof(row), "%s %s", who, HAIL[bot == 12 ? 0 : bot + 1]);
+            }
+            if (strcmp(cmd, "whisper") == 0 || strcmp(cmd, "mute") == 0) log_add(row);
+            else log_add_bot(bot, row);
+        }
+    } else if (strcmp(cmd, "rollcall") == 0) {
+        log_add_bot(12, "gibson reading you");
+        for (int i = 0; i < 12; ++i) {
+            char row[40];
+            snprintf(row, sizeof(row), "%s %s", BOTS[i].short_name, HAIL[i + 1]);
+            log_add_bot(i, row);
+        }
+    } else if (strcmp(cmd, "broadcast") == 0) {
+        log_add_bot(12, "gibson reading you");
+        log_add_bot(3, "hack copy");
+        log_add_bot(5, "drone on it");
+        log_add_bot(4, "flock noted");
+        log_add_bot(0, "wifi copy");
+    } else if (strcmp(cmd, "history") == 0) {
+        if (s_hist_n <= 0) log_add("history empty");
+        else {
+            const int n = s_hist_n < 4 ? s_hist_n : 4;
+            for (int i = s_hist_n - n; i < s_hist_n; ++i) log_add(botcorps_t0_term_hist[i]);
+        }
+    } else if (strcmp(cmd, "theme") == 0) {
+        log_add("theme neon");
+    } else if (strcmp(cmd, "about") == 0) {
+        log_add("BOTcorps term 3.2");
+    } else if (strcmp(cmd, "version") == 0) {
+        log_add("term 3.2");
+    } else if (strcmp(cmd, "uptime") == 0) {
+        char row[32];
+        const uint32_t sec = (millis() - s_boot_ms) / 1000u;
+        snprintf(row, sizeof(row), "uptime %u m %u s", (unsigned)(sec / 60u), (unsigned)(sec % 60u));
+        log_add(row);
+    } else if (strcmp(cmd, "train") == 0 || strcmp(cmd, "hunt-run") == 0 || strcmp(cmd, "score") == 0 ||
+               strcmp(cmd, "rank") == 0 || strcmp(cmd, "loadout") == 0 || strcmp(cmd, "lobby") == 0 ||
+               strcmp(cmd, "duel") == 0 || strcmp(cmd, "stash") == 0 || strcmp(cmd, "defend") == 0) {
+        log_add("sealed");
     } else {
         log_add("command not found");
     }
@@ -979,58 +1063,93 @@ static void paint_palette(Gfx g)
     }
 }
 
-static void sheet_icon(Gfx g, int index, int x, int y, uint8_t col)
+/* Painted row: header or command. 4 headers + CMD_N commands. */
+static int menu_rows(void)
 {
-    if (index < 0 || index >= SHEET_N) return;
-    for (int r = 0; r < 8; ++r) {
-        const uint8_t bits = SHEET_ICO[index][r];
-        for (int c = 0; c < 8; ++c) {
-            if (bits & (uint8_t)(1u << (7 - c))) g.fillRect(x + c, y + r, 1, 1, col);
-        }
+    return CMD_N + 4;
+}
+
+static int menu_sel_row(int cmd)
+{
+    int row = 0;
+    for (int g = 0; g < 4; ++g) {
+        ++row;
+        if (cmd < G_AT[g + 1]) return row + (cmd - G_AT[g]);
+        row += G_AT[g + 1] - G_AT[g];
     }
+    return 0;
 }
 
-static int sheet_top_of(int index)
+static void menu_row(int row, int *hdr, int *cmd)
 {
-    int top = index - 3;
-    if (top < 0) top = 0;
-    const int max = SHEET_N - 8;
-    if (top > max) top = max;
-    return top;
+    int acc = 0;
+    for (int g = 0; g < 4; ++g) {
+        if (row == acc) {
+            *hdr = g;
+            *cmd = -1;
+            return;
+        }
+        ++acc;
+        const int n = G_AT[g + 1] - G_AT[g];
+        if (row < acc + n) {
+            *hdr = -1;
+            *cmd = G_AT[g] + (row - acc);
+            return;
+        }
+        acc += n;
+    }
+    *hdr = -1;
+    *cmd = 0;
 }
 
+/* Prompt-anchored Tab dropdown. Grouped CORE/COMMS/GAME/SYS. Neon edge is PAL_CYAN. */
 static void paint_sheet(Gfx g)
 {
-    const int x0 = 8;
-    const int y0 = 21;
-    const int w = 304;
-    const int h = 142;
-    const int vis = 8;
-    g.fillRect(x0 + 3, y0 + 4, w, h, PAL_BLACK);
-    plate(g, x0, y0, w, h, COL_BG, COL_LINE);
-    g.fillRect(x0, y0, w, 1, accent());
-    for (int k = 0; k < 36; ++k) {
-        g.fillRect(x0 + 8 + k * 8, y0 + 3, 3, 2, COL_LINE);
-        g.fillRect(x0 + 8 + k * 8, y0 + h - 6, 3, 2, COL_LINE);
-    }
-    const int top = sheet_top_of(s_sheet_i);
-    for (int r = 0; r < vis && top + r < SHEET_N; ++r) {
-        const int i = top + r;
-        const int y = y0 + 9 + r * 15;
-        const bool sel = i == s_sheet_i;
-        if (sel) {
-            g.fillRect(x0 + 6, y - 1, w - 12, 14, COL_SEL);
-            g.fillRect(x0 + 6, y - 1, 2, 14, accent());
+    const int rh = 12;
+    const int vis = 9;
+    const int w = 292;
+    const int bx = 14;
+    const int prompt_y = 171 + 5 * 9;
+    const int rows = menu_rows();
+    int sel = s_sheet_i;
+    if (sel < 0) sel = 0;
+    if (sel >= CMD_N) sel = CMD_N - 1;
+    const int sel_row = menu_sel_row(sel);
+    int top = sel_row - 3;
+    if (top < 0) top = 0;
+    if (top > rows - vis) top = rows - vis;
+    const int h = vis * rh + 10;
+    int by = prompt_y - 5 - h;
+    if (by < 18) by = 18;
+    g.fillRect(bx + 2, by + 3, w, h, PAL_BLACK);
+    plate(g, bx, by, w, h, COL_BG, PAL_CYAN);
+    g.fillRect(bx + 1, by + 1, w - 2, 1, PAL_CYAN);
+    g.fillRect(bx + 3, by + h - 2, w - 6, 1, COL_LINE);
+    g.fillRect(bx + 18, by + h - 1, 10, 1, PAL_CYAN);
+    if (top > 0) txt(g, "^", bx + w - 12, by + 2, COL_MUTED, lgfx::textdatum::top_left);
+    if (top + vis < rows) txt(g, "v", bx + w - 12, by + h - 12, COL_MUTED, lgfx::textdatum::top_left);
+    for (int r = 0; r < vis; ++r) {
+        int hdr = -1;
+        int cmd = 0;
+        menu_row(top + r, &hdr, &cmd);
+        const int y = by + 5 + r * rh;
+        if (hdr >= 0) {
+            txt_bg(g, G_NAME[hdr], bx + 8, y + 1, PAL_CYAN, COL_BG, lgfx::textdatum::top_left);
+            g.fillRect(bx + 48, y + 5, w - 60, 1, COL_LINE);
+            continue;
         }
-        const uint8_t bg = sel ? (uint8_t)COL_SEL : (uint8_t)COL_BG;
-        sheet_icon(g, i, x0 + 16, y + 2, sel ? accent() : COL_MUTED);
-        txt_bg(g, SHEET_NAME[i], x0 + 34, y + 2, sel ? accent() : COL_INK, bg,
-               lgfx::textdatum::top_left);
-        txt_bg(g, SHEET_ABOUT[i], x0 + 92, y + 3, sel ? COL_INK : COL_MUTED, bg,
+        const bool on = cmd == sel;
+        const uint8_t bg = on ? (uint8_t)COL_SEL : (uint8_t)COL_BG;
+        if (on) {
+            g.fillRect(bx + 3, y - 1, w - 6, rh - 1, COL_SEL);
+            g.fillRect(bx + 3, y - 1, 2, rh - 1, PAL_CYAN);
+        }
+        g.fillRect(bx + 10, y + 2, 3, 3, on ? (uint8_t)PAL_CYAN : (uint8_t)COL_MUTED);
+        txt_bg(g, CMDN[cmd], bx + 18, y + 1, on ? COL_WHITE : COL_INK, bg, lgfx::textdatum::top_left);
+        const int pw = (int)strlen(CMDP[cmd]) * 6;
+        txt_bg(g, CMDP[cmd], bx + w - 8 - pw, y + 1, on ? COL_INK : COL_MUTED, bg,
                lgfx::textdatum::top_left);
     }
-    if (top > 0) txt(g, "^", x0 + w - 16, y0 + 9, COL_MUTED, lgfx::textdatum::top_left);
-    if (top + vis < SHEET_N) txt(g, "v", x0 + w - 16, y0 + h - 16, COL_MUTED, lgfx::textdatum::top_left);
 }
 
 static const char *cand_ghost(void)
@@ -1110,8 +1229,6 @@ static void paint_cands(Gfx g)
     int w = 40;
     for (int i = 0; i < vis; ++i) {
         int ww = (int)strlen(rows[start + i]) * 6 + 14;
-        if (!sp && idx[start + i] >= 0 && PHINT[idx[start + i]])
-            ww += (int)strlen(PHINT[idx[start + i]]) * 6 + 10;
         if (ww > w) w = ww;
     }
     if (sp) {
@@ -1144,22 +1261,26 @@ static void paint_cands(Gfx g)
             g.fillRect(bx + 2, y - 1, 2, rh - 1, accent());
         }
         txt_bg(g, rows[start + k], bx + 6, y, on ? COL_WHITE : COL_INK, bg, lgfx::textdatum::top_left);
-        if (!sp && idx[start + k] >= 0 && PHINT[idx[start + k]]) {
-            const char *hint = PHINT[idx[start + k]];
-            txt_bg(g, hint, bx + w - 5 - (int)strlen(hint) * 6, y, COL_MUTED, bg,
-                   lgfx::textdatum::top_left);
-        }
         y += rh;
     }
 }
 
 static void paint_prompt(Gfx g)
 {
-    plate(g, 4, 167, 312, 72, COL_DEEP, accent());
+    plate(g, 4, 167, 312, 72, COL_DEEP, PAL_CYAN);
+    g.fillRect(5, 168, 310, 1, PAL_CYAN);
     const int n = s_log_n < 5 ? s_log_n : 5;
     const int start = s_log_n - n;
     for (int k = 0; k < n; ++k) {
-        txt(g, log_line(start + k), 10, 171 + k * 9, COL_INK, lgfx::textdatum::top_left);
+        const char *ln = log_line(start + k);
+        uint8_t ink = COL_INK;
+        const char *show = ln;
+        if (ln && ln[0] == '\x01') {
+            const int b = (unsigned char)ln[1];
+            ink = b >= 12 ? (uint8_t)COL_IVORY : bot_color(b);
+            show = ln + 2;
+        }
+        txt_bg(g, show, 10, 171 + k * 9, ink, PAL_DEEP, lgfx::textdatum::top_left);
     }
     const int y = 171 + 5 * 9;
     g.setFont(&fonts::Font0);
@@ -1186,8 +1307,9 @@ static void paint_prompt(Gfx g)
 static void paint_terminal(Gfx g)
 {
     g.fillRect(0, 0, 320, 16, COL_DEEP);
-    g.drawFastHLine(0, 16, 320, accent());
-    txt(g, "terminal", 8, 4, accent(), lgfx::textdatum::top_left);
+    g.drawFastHLine(0, 15, 320, PAL_CYAN);
+    g.drawFastHLine(0, 16, 320, PAL_CYAN);
+    txt(g, "terminal", 8, 4, PAL_CYAN, lgfx::textdatum::top_left);
     txt(g, "12", 76, 4, COL_MUTED, lgfx::textdatum::top_left);
     if (s_track_name[0]) txt(g, s_track_name, 120, 4, accent(), lgfx::textdatum::top_left);
     paint_boards(g);
@@ -1449,17 +1571,16 @@ static int list_band(void)
 static void act_origin(int dev, int *mx, int *my)
 {
     int px = 160;
-    int py = 117;
+    int py = 80;
     if (dev >= 0 && dev < 3) scan_pad(dev, &px, &py);
     const int mh = ACT_N * 15 + 6;
-    int x = px + 16;
-    if (x + 92 > 312) x = px - 16 - 92;
-    if (x < 4) x = 4;
-    int y = py - mh / 2;
+    const int ry = py - 8;
+    int y = ry + 17;
+    if (y + mh > 204) y = ry - mh - 1;
     if (y < 28) y = 28;
-    if (y + mh > 206) y = 206 - mh;
-    *mx = x;
+    *mx = 214;
     *my = y;
+    (void)px;
 }
 
 static void paint_act_menu(Gfx g)
@@ -2285,6 +2406,7 @@ static void paint_int(lgfx::LGFX_Device &menu)
     const char *target = gib ? "ALL BOTS" : BOTS[bi].target;
     botcorps_id_paint(Gfx(menu), width, gib ? 0 : bi, gib, col,
                       gib ? BOTCORPS_SHAPE_ROUND : botcorps_shape_for(bi), name, target);
+    s_int_bot = bi;
 }
 
 static void tick_int_live(lgfx::LGFX_Device &menu)
@@ -2724,8 +2846,9 @@ static void partial_term_lower(void)
 static void draw_prompt_head_part(Gfx g)
 {
     g.fillRect(0, 0, 320, 16, COL_DEEP);
-    g.drawFastHLine(0, 16, 320, accent());
-    txt(g, "terminal", 8, 4, accent(), lgfx::textdatum::top_left);
+    g.drawFastHLine(0, 15, 320, PAL_CYAN);
+    g.drawFastHLine(0, 16, 320, PAL_CYAN);
+    txt(g, "terminal", 8, 4, PAL_CYAN, lgfx::textdatum::top_left);
     txt(g, "12", 76, 4, COL_MUTED, lgfx::textdatum::top_left);
     if (s_track_name[0]) txt(g, s_track_name, 120, 4, accent(), lgfx::textdatum::top_left);
 }
@@ -2772,7 +2895,7 @@ static void draw_sheet_part(Gfx g)
 
 static void partial_sheet(void)
 {
-    patch_world(draw_sheet_part, 8, 21, 304, 142);
+    s_dirty = true;
 }
 
 static void draw_under_sheet_part(Gfx g)
@@ -2792,11 +2915,12 @@ static void draw_sheet_row_part(Gfx g)
     const uint8_t bg = s_part_sel ? (uint8_t)COL_SEL : (uint8_t)COL_BG;
     g.fillRect(14, y - 1, 292, 15, bg);
     if (s_part_sel) g.fillRect(14, y - 1, 2, 14, accent());
-    sheet_icon(g, s_part_i, 24, y + 2, s_part_sel ? accent() : COL_MUTED);
-    txt_bg(g, SHEET_NAME[s_part_i], 42, y + 2, s_part_sel ? accent() : COL_INK, bg,
-           lgfx::textdatum::top_left);
-    txt_bg(g, SHEET_ABOUT[s_part_i], 100, y + 3, s_part_sel ? COL_INK : COL_MUTED, bg,
-           lgfx::textdatum::top_left);
+    if (s_part_i >= 0 && s_part_i < CMD_N) {
+        txt_bg(g, CMDN[s_part_i], 42, y + 2, s_part_sel ? accent() : COL_INK, bg,
+               lgfx::textdatum::top_left);
+        txt_bg(g, CMDP[s_part_i], 100, y + 3, s_part_sel ? COL_INK : COL_MUTED, bg,
+               lgfx::textdatum::top_left);
+    }
 }
 
 static void partial_sheet_row(int index, int top)
@@ -2844,24 +2968,17 @@ static void move_cursor(int d)
 
 static int sheet_top_for(int index)
 {
-    return sheet_top_of(index);
+    (void)index;
+    return 0;
 }
 
 static void on_arrows(int key)
 {
     if (s_screen == SCR_TERMINAL) {
-        if (s_sheet) {
-            const int old = s_sheet_i;
-            const int old_top = sheet_top_for(old);
-            if (key == 1) s_sheet_i = (s_sheet_i + SHEET_N - 1) % SHEET_N;
-            if (key == 2) s_sheet_i = (s_sheet_i + 1) % SHEET_N;
-            const int top = sheet_top_for(s_sheet_i);
-            if (top != old_top) {
-                partial_sheet();
-            } else if (s_sheet_i != old) {
-                partial_sheet_row(old, top);
-                partial_sheet_row(s_sheet_i, top);
-            }
+        if (s_sheet && !botcorps_t0_term_prompt[0]) {
+            if (key == 1 || key == 3) s_sheet_i = (s_sheet_i + CMD_N - 1) % CMD_N;
+            if (key == 2 || key == 4) s_sheet_i = (s_sheet_i + 1) % CMD_N;
+            s_dirty = true;
             return;
         }
         if (botcorps_t0_term_prompt[0] && (key == 1 || key == 2)) {
@@ -3004,11 +3121,24 @@ static void on_ok(void)
     }
     if (s_screen == SCR_TERMINAL) {
         if (s_sheet) {
-            char line[32];
-            snprintf(line, sizeof(line), "%s", SHEET_NAME[s_sheet_i]);
+            if (botcorps_t0_term_prompt[0]) {
+                s_sheet = false;
+                run_cmd(botcorps_t0_term_prompt);
+                botcorps_t0_term_prompt[0] = 0;
+                s_dirty = true;
+                return;
+            }
+            if (s_sheet_i < 0) s_sheet_i = 0;
+            if (s_sheet_i >= CMD_N) s_sheet_i = CMD_N - 1;
+            if (strcmp(CMDN[s_sheet_i], "cmds") == 0) {
+                s_sheet_i = 0;
+                s_dirty = true;
+                return;
+            }
+            snprintf(botcorps_t0_term_prompt, 60, "%s%s", CMDN[s_sheet_i],
+                     CMD_ARG[s_sheet_i] ? " " : "");
             s_sheet = false;
-            restore_under_sheet();
-            if (strcmp(line, "cmds") != 0) run_cmd(line);
+            s_dirty = true;
             return;
         }
         if (botcorps_t0_term_prompt[0]) {
@@ -3053,11 +3183,9 @@ static void on_esc(void)
         }
     }
     if (s_screen == SCR_TERMINAL && (s_sheet || s_focus_cmds)) {
-        const bool sheet = s_sheet;
         s_sheet = false;
         s_focus_cmds = false;
-        if (sheet) restore_under_sheet();
-        partial_prompt_panel();
+        s_dirty = true;
         return;
     }
     go_back();
@@ -3067,9 +3195,11 @@ static void on_tab(void)
 {
     if (s_screen != SCR_TERMINAL || s_sheet) return;
     if (!botcorps_t0_term_prompt[0]) {
-        s_focus_cmds = !s_focus_cmds;
+        s_sheet = !s_sheet;
+        s_focus_cmds = false;
+        if (s_sheet) s_sheet_i = 0;
         s_tab_i = -1;
-        partial_prompt_panel();
+        s_dirty = true;
         return;
     }
     const bool cont = s_tab_i >= 0 && strcmp(botcorps_t0_term_prompt, tab_last()) == 0;

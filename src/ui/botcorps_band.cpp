@@ -36,13 +36,40 @@ int botcorps_band_bytes(void)
     return 320 * SLICE_H;
 }
 
+#if BOTCORPS_FRAME_MODE == FRAME
+extern "C" const char botcorps_mode_frame[] = "FRAME";
+#else
+extern "C" const char botcorps_mode_bands[] = "BANDS";
+#endif
+
 const char *botcorps_band_mode_name(void)
 {
 #if BOTCORPS_FRAME_MODE == FRAME
-    return "FRAME";
+    return botcorps_mode_frame;
 #else
-    return "BANDS";
+    return botcorps_mode_bands;
 #endif
+}
+
+/* Diagnostic only. The screen that follows is always BANDS.
+ * 153600 is the full RGB565 frame. The NimBLE gate is probe.cpp:93. */
+void botcorps_frame_diag(void)
+{
+    const uint32_t bytes = 153600u;
+    const uint32_t margin = 4096u;
+    const uint32_t gate = 48u * 1024u;
+    const uint32_t largest = (uint32_t)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL);
+    const char *pick = "BANDS";
+    if (largest >= bytes + margin) {
+        void *buf = heap_caps_malloc(bytes, MALLOC_CAP_INTERNAL);
+        if (buf) {
+            const uint32_t after = (uint32_t)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL);
+            if (after >= gate) pick = "FRAME";
+            heap_caps_free(buf);
+        }
+    }
+    Serial.printf("[botcorps] frame diag largest=%u need=%u gate=%u pick=%s\n",
+                  (unsigned)largest, (unsigned)(bytes + margin), (unsigned)gate, pick);
 }
 
 bool botcorps_band_direct(void)

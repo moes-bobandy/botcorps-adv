@@ -59,6 +59,8 @@ int botcorps_band_oy(void);
 void botcorps_band_set_oy(int y);
 int botcorps_band_bytes(void);
 uint32_t botcorps_band_largest(void);
+/* Try a 153600-byte frame, log the free block, and release it. */
+void botcorps_frame_diag(void);
 const char *botcorps_band_mode_name(void);
 lgfx::LovyanGFX *botcorps_band_sprite(void);
 /* Draw fn paints world coordinates. The band shifts them. Pushes changed rows. */

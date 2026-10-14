@@ -53,3 +53,6 @@
     PAL_WIRE_A = 108, /* amber accent at 0.35 over the field */
     PAL_WIRE_M = 49, /* mint accent at 0.35 over the field */
     PAL_SOFT = 186, /* #c3ccd5 unselected control value */
+    PAL_WASH_C = 1, /* cyan accent at 0.22 over the field */
+    PAL_WASH_A = 44, /* amber accent at 0.22 over the field */
+    PAL_WASH_M = 65, /* mint accent at 0.22 over the field */

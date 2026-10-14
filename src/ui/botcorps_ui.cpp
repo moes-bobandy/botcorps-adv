@@ -1221,12 +1221,12 @@ static uint16_t mix16(uint16_t a, uint16_t b, int num, int den)
     return (uint16_t)(((r & 0xF8) << 8) | ((g & 0xFC) << 3) | ((bl & 0xFF) >> 3));
 }
 
-/* Accent at 0.22 over the hub field. The result is an existing slot, not a new one. */
+/* Exact 0.22 wash over the field. One slot per hub accent. */
 static uint8_t wash22(uint8_t accent_idx)
 {
-    const uint16_t fg = botcorps_rgb565(accent_idx);
-    const uint16_t bg = botcorps_rgb565(botcorps_pal_hub_of(COL_FIELD));
-    return botcorps_pal_fit(mix16(bg, fg, 22, 100));
+    if (accent_idx == PAL_AMBER) return PAL_WASH_A;
+    if (accent_idx == PAL_MINT) return PAL_WASH_M;
+    return PAL_WASH_C;
 }
 
 static uint8_t half_over_deep(uint8_t fg)
@@ -1244,12 +1244,23 @@ static void draw_heart(Gfx g, int x, int y, uint8_t col)
     g.fillRect(x + 3, y + 5, 1, 1, col);
 }
 
+static void draw_filled_pip(Gfx g, int x, int y, uint8_t col)
+{
+    g.fillCircle(x + 3, y + 3, 3, col);
+}
+
+static void draw_fisheye(Gfx g, int x, int y, uint8_t col)
+{
+    g.drawCircle(x + 3, y + 3, 3, col);
+    g.fillCircle(x + 3, y + 3, 1, col);
+}
+
 static const char *pip_glyph(int mood)
 {
     if (mood == MOOD_SLEEPY) return "Z";
     if (mood == MOOD_SAD) return "?";
     if (mood == MOOD_ALERT) return "!";
-    return "o";
+    return "*";
 }
 
 static const char *const GP_CMD[] = {
@@ -1413,6 +1424,8 @@ static void paint_gibson(Gfx g)
         }
         const uint8_t pc = on ? (uint8_t)PAL_WHITE : (uint8_t)PAL_LINE;
         if (pip_m[i] == MOOD_HAPPY) draw_heart(g, hx, 156, pc);
+        else if (pip_m[i] == MOOD_NEUTRAL) draw_filled_pip(g, hx, 156, pc);
+        else if (pip_m[i] == MOOD_HUNTING) draw_fisheye(g, hx, 156, pc);
         else txt(g, pip_m[i] == MOOD_EXCITED ? "*" : pip_glyph(pip_m[i]), hx, 156, pc,
                  lgfx::textdatum::top_left);
         hx += 17;
@@ -1981,6 +1994,7 @@ static void partial_int(void)
 
 static void partial_tile(int index)
 {
+    if (s_screen != SCR_TERMINAL) return;
     if (hold_for_band()) return;
     if (!botcorps_dual_ok()) {
         s_dirty = true;
@@ -2026,6 +2040,10 @@ static void partial_prompt_line(void)
 
 static void partial_prompt_panel(void)
 {
+    if (s_screen != SCR_TERMINAL) {
+        s_dirty = true;
+        return;
+    }
     if (hold_for_band()) return;
     if (!botcorps_dual_ok()) {
         s_dirty = true;
@@ -2389,6 +2407,108 @@ void botcorps_ui_begin(void)
     botcorps_rain_log_heap("boot");
 }
 
+static int gp_screen(const char *name)
+{
+    if (!name || !name[0]) return -1;
+    if (strcmp(name, "terminal") == 0) return SCR_TERMINAL;
+    if (strcmp(name, "control") == 0) return SCR_CONTROL;
+    if (strcmp(name, "bots") == 0 || strcmp(name, "bot") == 0) return SCR_BOT;
+    if (strcmp(name, "wifi") == 0) return SCR_WIFI;
+    if (strcmp(name, "ble") == 0 || strcmp(name, "bluetooth") == 0) return SCR_BT;
+    if (strcmp(name, "scan") == 0 || strcmp(name, "radar") == 0) return SCR_SCAN;
+    if (strcmp(name, "wifiradar") == 0) return SCR_WIFI_RADAR;
+    if (strcmp(name, "bleradar") == 0) return SCR_BT_RADAR;
+    if (strcmp(name, "rain") == 0) return SCR_RAIN;
+    if (strcmp(name, "gibson") == 0) return SCR_GIBSON;
+    if (strcmp(name, "diag") == 0) return SCR_DIAG;
+    return -1;
+}
+
+static void gp_open(int id)
+{
+    enter_screen(id, SCR_GIBSON);
+    if (id == SCR_TERMINAL) boot_log();
+}
+
+static void gp_run(const char *line)
+{
+    char buf[40];
+    snprintf(buf, sizeof(buf), "%s", line ? line : "");
+    char *cmd = buf;
+    while (*cmd == ' ') ++cmd;
+    char *sp = strchr(cmd, ' ');
+    char *arg = 0;
+    if (sp) {
+        *sp = 0;
+        arg = sp + 1;
+        while (*arg == ' ') ++arg;
+    }
+    char echo[28];
+    snprintf(echo, sizeof(echo), "> %s", cmd);
+    if (arg && arg[0]) {
+        const size_t n = strlen(echo);
+        snprintf(echo + n, sizeof(echo) - n, " %s", arg);
+    }
+    gp_push(echo);
+    if (strcmp(cmd, "clear") == 0) {
+        s_gp_n = 0;
+        s_dirty = true;
+        return;
+    }
+    if (strcmp(cmd, "help") == 0) {
+        run_cmd("help");
+        if (s_log_n > 0) gp_push(log_line(s_log_n - 1));
+        s_dirty = true;
+        return;
+    }
+    if (strcmp(cmd, "go") == 0 || strcmp(cmd, "load") == 0) {
+        if (!arg || !arg[0]) {
+            snprintf(s_gp_buf, sizeof(s_gp_buf), "%s ", cmd);
+            gp_push("need a screen");
+            s_dirty = true;
+            return;
+        }
+        const int id = gp_screen(arg);
+        if (id < 0) {
+            gp_push("no such screen");
+            s_dirty = true;
+            return;
+        }
+        gp_open(id);
+        return;
+    }
+    if (strcmp(cmd, "terminal") == 0 || strcmp(cmd, "control") == 0 || strcmp(cmd, "bots") == 0
+        || strcmp(cmd, "wifi") == 0 || strcmp(cmd, "ble") == 0) {
+        gp_open(gp_screen(cmd));
+        return;
+    }
+    if (strcmp(cmd, "scan") == 0 && (!arg || !arg[0] || strcmp(arg, "radar") == 0)) {
+        gp_open(SCR_SCAN);
+        return;
+    }
+    if (strcmp(cmd, "scan") == 0 && arg && strcmp(arg, "wifi") == 0) {
+        gp_open(SCR_WIFI_RADAR);
+        return;
+    }
+    if (strcmp(cmd, "scan") == 0 && arg && (strcmp(arg, "ble") == 0 || strcmp(arg, "bluetooth") == 0)) {
+        gp_open(SCR_BT_RADAR);
+        return;
+    }
+    if (strcmp(cmd, "rain") == 0 || strcmp(cmd, "filter") == 0 || strcmp(cmd, "ping") == 0
+        || strcmp(cmd, "info") == 0 || strcmp(cmd, "track") == 0 || strcmp(cmd, "sniff") == 0
+        || strcmp(cmd, "hunt") == 0 || strcmp(cmd, "scan") == 0) {
+        if (strcmp(cmd, "hunt") == 0 || strcmp(cmd, "scan") == 0) gp_open(SCR_TERMINAL);
+        run_cmd(line);
+        if (s_screen == SCR_GIBSON && s_log_n > 0) gp_push(log_line(s_log_n - 1));
+        s_dirty = true;
+        return;
+    }
+    gp_push("no such command");
+    s_mood = MOOD_SAD;
+    s_mood_until = millis() + 1400u;
+    s_dirty = true;
+}
+
 void botcorps_ui_input(void)
 {
     char typed = 0;
@@ -2402,11 +2522,11 @@ void botcorps_ui_input(void)
         s_bub[1] = 0;
     }
     if (key == K_OK && s_screen == SCR_GIBSON && s_gp_buf[0]) {
-        char line[28];
         s_gp_focus = true;
-        snprintf(line, sizeof(line), "> %s", s_gp_buf);
-        gp_push(line);
+        char line[28];
+        snprintf(line, sizeof(line), "%s", s_gp_buf);
         s_gp_buf[0] = 0;
+        gp_run(line);
         return;
     }
     if (key == K_UP || key == K_DN || key == K_LT || key == K_RT) on_arrows(key);

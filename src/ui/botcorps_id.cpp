@@ -681,7 +681,7 @@ void botcorps_id_paint(Gfx g, int width, int bot, bool gib, uint8_t col,
         int by = L.code[1] + 13;
         if (bh < 1) {
             bh = 1;
-            by = L.code[1] + L.code[3] - 1;
+            by = L.code[1] + 12;
         }
         for (int k = 0; bx < x + L.code[2] - 2; ++k) {
             snprintf(key, sizeof(key), "%sbc%d", bid, k);

@@ -10,3 +10,9 @@
 #ifndef BOTCORPS_FRAME_MODE
 #define BOTCORPS_FRAME_MODE BANDS
 #endif
+
+#if BOTCORPS_FRAME_MODE == FRAME
+#pragma message("BOTCORPS_FRAME_MODE=FRAME")
+#else
+#pragma message("BOTCORPS_FRAME_MODE=BANDS")
+#endif

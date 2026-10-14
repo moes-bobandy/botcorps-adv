@@ -366,7 +366,7 @@ static int stamp_foot(int col, int world_y, uint8_t rawk, uint8_t payload, rect_
     if (kind == KIND_CODE) {
         o[n++] = { x, world_y, 6, 8 };
     } else if (kind == KIND_BOT) {
-        if (col_at(col)[4] == 0) o[n++] = { x - 1, world_y - 18, 12, 28 };
+        /* Sprite only. A 12x28 backing rect reads as a solid block. */
         o[n++] = { x, world_y, 9, 9 };
     } else if (kind == KIND_DEVICE && s_mix != BOTCORPS_RAIN_MIX_DEV) {
         const dbox_t b = DEV_BOX[payload % 9];
@@ -483,15 +483,11 @@ static void draw_stamp(lgfx::LovyanGFX &panel, int col, int age)
         else if (s_mode != 0) native = SOLID_INK[s_mode - 1];
         else native = PALETTE[payload % 14];
         const uint8_t ink = trail_ink(native, age);
-        const bool back = col_at(col)[4] == 0;
         if (ink == PAL_FIELD) {
             for (int i = 0; i < nfp; ++i) fill_clamped(panel, fp[i], PAL_FIELD);
             mark_redraw(idx, fp, nfp);
             if (bottom <= s_slice_y1) stamp_k()[idx] = (uint8_t)(rawk | STAMP_DONE);
             return;
-        }
-        if (age == 0 && back && !box_hits_chrome(x - 1, world_y - 18, 12, 28)) {
-            fill_clamped(panel, fp[0], PAL_BOT_BACK);
         }
         const int use = (s_shape > 0) ? (s_shape - 1) : shape;
         clip_clamped(panel, fp[nfp - 1]);

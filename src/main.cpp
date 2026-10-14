@@ -82,6 +82,7 @@ void setup(void)
     Serial.println("[botcorps] sd mount is on demand, not at boot");
 
     botcorps_band_touch();
+    botcorps_frame_diag();
     botcorps_band_release();
     botcorps_probe_run();
     botcorps_band_rebuild();

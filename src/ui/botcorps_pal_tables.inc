@@ -1,10 +1,10 @@
 /* Exact natives live in the slots below. Index 0 and 255 are not reserved. */
 constexpr uint8_t k_is_res[256] = {
-    0, 0, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0,
+    0, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0,
     0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 1, 0, 0, 1, 0, 1,
+    1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 1, 0, 1, 1, 0, 1,
     0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0,
-    1, 0, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0,
+    1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0,
     0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 0, 0, 1, 1, 1, 1,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0,
@@ -18,15 +18,15 @@ constexpr uint8_t k_is_res[256] = {
     1, 1, 0, 0, 1, 1, 0, 0, 0, 1, 0, 1, 0, 0, 1, 0,
 };
 constexpr uint16_t k_exact_nat[256] = {
-    0x0000, 0x0000, 0x0000, 0x0000, 0x0041, 0x10C4, 0x0000, 0x0000,
+    0x0000, 0x11A6, 0x0000, 0x0000, 0x0041, 0x10C4, 0x0000, 0x0000,
     0x0862, 0x128C, 0x0000, 0x0000, 0x02C2, 0x0AC9, 0x0000, 0x0000,
     0x0000, 0x1A6A, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
     0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
     0x0061, 0x2087, 0x0000, 0x0000, 0x0080, 0x1105, 0x0000, 0x0000,
-    0x1082, 0x29C8, 0x21F4, 0x0000, 0x0000, 0x1B29, 0x0000, 0x331F,
+    0x1082, 0x29C8, 0x21F4, 0x0000, 0x3162, 0x1B29, 0x0000, 0x331F,
     0x0000, 0x22E9, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
     0x0000, 0x26E8, 0x36B8, 0x269C, 0x0000, 0x0000, 0x0000, 0x0000,
-    0x0841, 0x0000, 0x0000, 0x0000, 0x18C3, 0x592C, 0x0000, 0x0000,
+    0x0841, 0x11E6, 0x0000, 0x0000, 0x18C3, 0x592C, 0x0000, 0x0000,
     0x5AA2, 0x4A69, 0x0000, 0x0000, 0x4B02, 0x4B27, 0x0000, 0x0000,
     0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x5D3F,
     0x0000, 0x0000, 0x0000, 0x4E7F, 0x0000, 0x0000, 0x5FF8, 0x0000,
@@ -52,14 +52,14 @@ constexpr uint16_t k_exact_nat[256] = {
     0x0000, 0xF689, 0x0000, 0xF79C, 0x0000, 0x0000, 0xEFF9, 0x0000,
 };
 constexpr uint8_t k_own_idx[] = {
-    4, 5, 8, 9, 12, 13, 17, 32, 33, 36, 37, 40, 41, 42, 45,
-    47, 49, 57, 58, 59, 64, 68, 69, 72, 73, 76, 77, 87, 91, 94, 100,
-    102, 104, 108, 109, 110, 111, 121, 122, 123, 146, 149, 150, 153, 158, 171, 179,
-    182, 183, 186, 205, 207, 213, 214, 218, 221, 223, 233, 238, 240, 241, 244, 245,
-    249, 251, 254,
+    1, 4, 5, 8, 9, 12, 13, 17, 32, 33, 36, 37, 40, 41, 42, 44,
+    45, 47, 49, 57, 58, 59, 64, 65, 68, 69, 72, 73, 76, 77, 87, 91,
+    94, 100, 102, 104, 108, 109, 110, 111, 121, 122, 123, 146, 149, 150, 153, 158,
+    171, 179, 182, 183, 186, 205, 207, 213, 214, 218, 221, 223, 233, 238, 240, 241,
+    244, 245, 249, 251, 254,
 };
 constexpr int k_own_n = (int)(sizeof(k_own_idx) / sizeof(k_own_idx[0]));
-static_assert(k_own_n == 66, "exact slot count");
+static_assert(k_own_n == 69, "exact slot count");
 static const uint16_t k_ramp_src[] = {
     0xEFF9, 0x7E6C, 0x9E6E, 0x5D3F, 0x4E7F, 0x7711, 0x9F0B, 0xFB72, 0xAC7F, 0x36B8, 0xFC6B, 0xBD3F, 0xFDC9, 0xF689, 0xFA69, 0xE2FF, 0xCF89, 0xF79C, 0xFC43, 0x6BBF, 0x5FF8, 0x26E8, 0x269C, 0x331F, 0xB21F, 0xF586, 0xFFFF, 0x4B27, 0xC638, 0x1364, 0x1485, 0x134E, 0x1452, 0x198F, 0x21F4, 0x590F, 0x7154, 0x7AC3, 0xA3A4, 0x7BEF, 0xA534
 };
@@ -132,11 +132,16 @@ static_assert(k_is_res[PAL_SOLID_B] == 1 && k_exact_nat[PAL_SOLID_B] == 0x331F, 
 static_assert(k_is_res[PAL_SOLID_P] == 1 && k_exact_nat[PAL_SOLID_P] == 0xB21F, "PAL_SOLID_P");
 static_assert(k_is_res[PAL_SOLID_A] == 1 && k_exact_nat[PAL_SOLID_A] == 0xF586, "PAL_SOLID_A");
 static_assert(((0x0061 >> 5) & 63) == (((0x0041 >> 5) & 63) + 1), "bot back is one green step off field");
-static_assert(k_is_res[1] == 0 && k_exact_nat[1] == 0, "index 1 is a plain code");
 static_assert(k_is_res[PAL_WIRE_C] == 1 && k_exact_nat[PAL_WIRE_C] == 0x1A6A, "cyan wire");
 static_assert(k_is_res[PAL_WIRE_A] == 1 && k_exact_nat[PAL_WIRE_A] == 0x5223, "amber wire");
 static_assert(k_is_res[PAL_WIRE_M] == 1 && k_exact_nat[PAL_WIRE_M] == 0x22E9, "mint wire");
 static_assert(k_is_res[PAL_SOFT] == 1 && k_exact_nat[PAL_SOFT] == 0xC67A, "soft grey");
+static_assert(k_is_res[PAL_WASH_C] == 1 && k_exact_nat[PAL_WASH_C] == 0x11A6, "wash cyan");
+static_assert(k_is_res[PAL_WASH_A] == 1 && k_exact_nat[PAL_WASH_A] == 0x3162, "wash amber");
+static_assert(k_is_res[PAL_WASH_M] == 1 && k_exact_nat[PAL_WASH_M] == 0x11E6, "wash mint");
+static_assert(__builtin_bswap16(k_exact_nat[PAL_WASH_C]) == 0xA611, "wash cyan lut");
+static_assert(__builtin_bswap16(k_exact_nat[PAL_WASH_A]) == 0x6231, "wash amber lut");
+static_assert(__builtin_bswap16(k_exact_nat[PAL_WASH_M]) == 0xE611, "wash mint lut");
 constexpr bool botcorps_reserved_maps_home(void)
 {
     for (int n = 0; n < k_own_n; ++n) {

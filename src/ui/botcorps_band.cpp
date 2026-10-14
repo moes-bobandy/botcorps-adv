@@ -195,7 +195,11 @@ static bool s_term_lut = false;
 
 void botcorps_lut_term(bool on)
 {
+    if (s_term_lut == on) return;
     s_term_lut = on;
+    /* The row hash is the index bytes. A flag change keeps those bytes and
+     * would skip the push, so the old RGB565 would stay on the panel. */
+    for (int i = 0; i < 240; ++i) botcorps_t0_row_hash[i] = 0xffffffffu;
 }
 
 static uint16_t term_ov_native(uint8_t idx)

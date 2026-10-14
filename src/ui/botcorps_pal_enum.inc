@@ -61,6 +61,9 @@
     /* Sheet-only indices. k_is_res stays 0 and k_exact_nat stays 0 so the
      * shared 256-word lookup is unchanged. The displayed word lives in
      * botcorps_term_ov and is installed on the EXT panel for a full sheet. */
+    PAL_TERM_INK_C = 226, /* #D6F7FF light cyan UI.ink */
+    PAL_TERM_INK_A = 227, /* #FFEFD6 light amber UI.ink */
+    PAL_TERM_INK_M = 228, /* #DEFFF7 light mint UI.ink */
     PAL_TERM_INK = 229, /* #c5d0da unselected command name */
     PAL_TERM_M = 230, /* #ff2bd6 */
     PAL_TERM_M28 = 231, /* magenta at 0.28 */

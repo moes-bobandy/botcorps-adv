@@ -569,11 +569,10 @@ static void bars(Gfx g, const lay_t &L, bool mirror, int width, int bot, bool gi
 
 static const lay_t &pick(int bot, bool gib, bool *mirror, int *layi)
 {
-    (void)bot;
-    (void)gib;
-    *layi = 0;
+    const int vi = gib ? 0 : (bot % 6);
+    *layi = vi / 2;
     *mirror = false;
-    return LAY[0];
+    return LAY[*layi];
 }
 
 static void chip_at(const lay_t &L, bool mirror, int width, int *x, int *y)

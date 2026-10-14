@@ -50,6 +50,8 @@ struct Gfx {
 };
 
 void botcorps_band_touch(void);
+/* Install or clear the 13 sheet colours in the live lut. Full repaint only. */
+void botcorps_lut_term(bool on);
 /* live = false, sprite deleted, no write left open. Safe before radios. */
 void botcorps_band_release(void);
 /* After radios. One failure sticks for the session (direct draw, no retry loop). */

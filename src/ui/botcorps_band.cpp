@@ -130,9 +130,7 @@ static uint16_t pack332(uint8_t raw)
 
 static uint16_t native_at(int i)
 {
-    /* Explicit term slots keep k_is_res clear so the frozen minimax table
-     * does not treat them as fit candidates. Their exact word still shows. */
-    if (k_is_res[i] || k_exact_nat[i] != 0) return k_exact_nat[i];
+    if (k_is_res[i]) return k_exact_nat[i];
     return pack332((uint8_t)i);
 }
 
@@ -184,8 +182,30 @@ bool botcorps_pal_ramp_for(uint16_t native, int age, uint8_t *out)
 
 uint16_t botcorps_rgb565(uint8_t idx)
 {
-    if (k_is_res[idx] || k_exact_nat[idx] != 0) return k_exact_nat[idx];
+    if (k_is_res[idx]) return k_exact_nat[idx];
     return pack332(idx);
+}
+
+/* Sheet-only override. Writes the existing lut, no extra buffer.
+ * Call once before a full present, never between the two bands. */
+static const uint8_t TERM_OV_I[13] = {
+    230, 231, 232, 234, 235, 236, 237, 239, 242, 243, 246, 247, 248
+};
+static const uint16_t TERM_OV_C[13] = {
+    0xF95A, 0x48A9, 0x3887, 0x3086, 0x58CA, 0x2064, 0x079F,
+    0x026A, 0x01E8, 0x01A7, 0x02EC, 0x0105, 0xE6FA
+};
+static bool s_term_lut = false;
+
+void botcorps_lut_term(bool on)
+{
+    if (on == s_term_lut) return;
+    s_term_lut = on;
+    for (int n = 0; n < 13; ++n) {
+        const uint8_t i = TERM_OV_I[n];
+        const uint16_t nat = on ? TERM_OV_C[n] : pack332(i);
+        botcorps_t0_lut565[i] = __builtin_bswap16(nat);
+    }
 }
 
 uint8_t botcorps_pal_fit(uint16_t native)

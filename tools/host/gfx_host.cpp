@@ -5,6 +5,8 @@
 #include "lgfx/Fonts/Font8x8C64.h"
 
 uint8_t *host_frame = nullptr;
+int host_term_lut = 0;
+void botcorps_lut_term(bool on) { host_term_lut = on ? 1 : 0; }
 
 const fonts::Font fonts::Font0 = {0};
 const fonts::Font fonts::Font8x8C64 = {1};

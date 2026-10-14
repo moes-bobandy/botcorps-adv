@@ -1112,7 +1112,7 @@ static uint8_t term_accent(void);
 static uint8_t term_low(void);
 static uint8_t glow_of(int step);
 
-static void paint_one_board(Gfx g, int i, bool sel)
+static void paint_one_board(Gfx g, int i, bool sel, bool dim)
 {
     int x, y;
     term_xy(i, &x, &y);
@@ -1121,7 +1121,7 @@ static void paint_one_board(Gfx g, int i, bool sel)
     const uint32_t t = millis();
     const int w = 72;
     const int h = 46;
-    if (sel) {
+    if (sel && !dim) {
         const uint8_t halo = ((t / 320u) % 2u) ? glow_of(STEP_SEL) : term_low();
         g.fillRect(x - 3, y - 3, w + 6, h + 6, halo);
         const int ph = (int)((t / 70u) % 2u);
@@ -1142,7 +1142,9 @@ static void paint_one_board(Gfx g, int i, bool sel)
             }
         }
     }
-    const uint8_t base = wh ? (sel ? (uint8_t)PAL_IVORY : (uint8_t)PAL_CREAM) : (uint8_t)PAL_BOARD_D;
+    const uint8_t base = dim ? (wh ? (uint8_t)PAL_LINE : (uint8_t)PAL_FIELD)
+                             : (wh ? (sel ? (uint8_t)PAL_IVORY : (uint8_t)PAL_BOARD_L)
+                                   : (uint8_t)PAL_BOARD_D);
     const uint8_t edge = sel ? ac : (wh ? (uint8_t)150 : (uint8_t)PAL_LINE);
     const uint8_t tr = wh ? (uint8_t)PAL_CHIN : (sel ? (uint8_t)PAL_STEEL : (uint8_t)PAL_LINE);
     const uint8_t ant = wh ? (uint8_t)PAL_HUB_HEAD : (uint8_t)PAL_STEEL;
@@ -1221,7 +1223,7 @@ static void paint_one_board(Gfx g, int i, bool sel)
 static void paint_boards(Gfx g)
 {
     for (int i = 0; i < 12; ++i) {
-        paint_one_board(g, i, (i == s_term) && !s_focus_cmds && !s_sheet);
+        paint_one_board(g, i, (i == s_term) && !s_focus_cmds, false);
     }
 }
 
@@ -1281,19 +1283,50 @@ static void menu_row(int row, int *hdr, int *cmd)
 static const int PROMPT_Y = 227;
 static void blit_ico(Gfx g, const uint8_t *bits, int x, int y, uint8_t col);
 
+static bool sheet_exact(void)
+{
+    return s_screen == SCR_TERMINAL && s_sheet;
+}
+
 static uint8_t term_accent(void)
 {
+    if (!sheet_exact()) {
+        if (s_color == 1) return PAL_AMBER;
+        if (s_color == 2) return PAL_MINT;
+        return PAL_CYAN;
+    }
     return (s_color == 1) ? PAL_TERM_C : PAL_TERM_M;
 }
 
 static uint8_t term_low(void)
 {
+    if (!sheet_exact()) {
+        if (s_color == 1) return PAL_WASH_A;
+        if (s_color == 2) return PAL_WASH_M;
+        return PAL_WASH_C;
+    }
     return (s_color == 1) ? PAL_TERM_C10 : PAL_TERM_M10;
 }
 
-/* Shadow stays the shared 45% slot. Every other step is the TERM_PAIR code. */
+/* Sheet-open steps are the 13 exact codes. Otherwise the reserved UI slots. */
 static uint8_t glow_of(int step)
 {
+    if (!sheet_exact()) {
+        if (step == STEP_SHADOW) return PAL_BG;
+        if (s_color == 1) {
+            if (step == STEP_HAIR || step == STEP_GLOW) return PAL_WIRE_A;
+            if (step == STEP_AC) return PAL_AMBER;
+            return PAL_WASH_A;
+        }
+        if (s_color == 2) {
+            if (step == STEP_HAIR || step == STEP_GLOW) return PAL_WIRE_M;
+            if (step == STEP_AC) return PAL_MINT;
+            return PAL_WASH_M;
+        }
+        if (step == STEP_HAIR || step == STEP_GLOW) return PAL_WIRE_C;
+        if (step == STEP_AC) return PAL_CYAN;
+        return PAL_WASH_C;
+    }
     const uint8_t *row = (s_color == 1) ? TERM_CYN : TERM_MAG;
     switch (step) {
     case STEP_SHADOW: return PAL_BG;
@@ -1306,13 +1339,13 @@ static uint8_t glow_of(int step)
     }
 }
 
-/* neonGlow: the mark, then .35, .18 and .10 offset copies. Explicit slots only. */
+/* 3px halo: .10, then .18, then a 2px .35 copy, then the mark. */
 static void glow_hline(Gfx g, int x, int y, int w, int step)
 {
     if (w >= 6) {
-        g.fillRect(x + 3, y + 2, w, 1, term_low());
-        g.fillRect(x + 2, y + 1, w, 1, glow_of(STEP_SEL));
-        g.fillRect(x + 1, y + 1, w, 1, glow_of(STEP_GLOW));
+        g.fillRect(x + 3, y + 3, w, 1, term_low());
+        g.fillRect(x + 2, y + 2, w, 1, glow_of(STEP_SEL));
+        g.fillRect(x + 1, y + 1, w, 2, glow_of(STEP_GLOW));
     }
     g.fillRect(x, y, w, 1, glow_of(step));
 }
@@ -1322,15 +1355,16 @@ static void glow_rect(Gfx g, int x, int y, int w, int h)
     g.drawRect(x + 3, y + 3, w, h, term_low());
     g.drawRect(x + 2, y + 2, w, h, glow_of(STEP_SEL));
     g.drawRect(x + 1, y + 1, w, h, glow_of(STEP_GLOW));
+    g.drawRect(x + 2, y + 2, w - 2, h - 2, glow_of(STEP_GLOW));
     g.drawRect(x, y, w, h, glow_of(STEP_AC));
 }
 
-static void glow_txt(Gfx g, const char *s, int x, int y, uint8_t bg)
+static void glow_txt(Gfx g, const char *s, int x, int y, uint8_t bg, int px)
 {
     const int keep = s_px;
-    s_px = 8;
-    txt_bg(g, s, x + 2, y + 2, term_low(), bg, lgfx::textdatum::top_left);
-    txt_bg(g, s, x + 1, y + 1, glow_of(STEP_GLOW), bg, lgfx::textdatum::top_left);
+    s_px = px;
+    txt_bg(g, s, x + 3, y + 2, term_low(), bg, lgfx::textdatum::top_left);
+    txt_bg(g, s, x + 2, y + 1, glow_of(STEP_GLOW), bg, lgfx::textdatum::top_left);
     txt_bg(g, s, x + 1, y, glow_of(STEP_AC), bg, lgfx::textdatum::top_left);
     txt_bg(g, s, x, y, glow_of(STEP_AC), bg, lgfx::textdatum::top_left);
     s_px = keep;
@@ -1378,10 +1412,10 @@ static void paint_term_head(Gfx g)
 {
     g.fillRect(0, 0, 320, 16, PAL_BG);
     glow_hline(g, 0, 16, 320, STEP_AC);
-    glow_txt(g, "terminal", 8, 4, PAL_BG);
+    glow_txt(g, "terminal", 8, 4, PAL_BG, 8);
     const int keep = s_px;
-    s_px = 8;
-    txt(g, "12 boards", 84, 4, COL_MUTED, lgfx::textdatum::top_left);
+    s_px = 6;
+    txt(g, "12 boards", 78, 4, COL_MUTED, lgfx::textdatum::top_left);
     if (s_track_name[0]) txt(g, s_track_name, 156, 4, term_accent(), lgfx::textdatum::top_left);
     s_px = keep;
     paint_term_icons(g);
@@ -1437,7 +1471,7 @@ static void sheet_box(int *by, int *h, int *top_out, int *nshow_out)
 static void paint_sheet(Gfx g)
 {
     const int keep = s_px;
-    s_px = 8;
+    s_px = 6;
     const int rh = 12;
     const int w = 292;
     const int bx = 14;
@@ -1450,8 +1484,26 @@ static void paint_sheet(Gfx g)
     int sel = s_sheet_i;
     if (sel < 0) sel = 0;
     if (sel >= CMD_N) sel = CMD_N - 1;
-    g.fillRect(bx + 2, by + 3, w, h, glow_of(STEP_SHADOW));
-    g.fillRect(bx, by, w, h, COL_BG);
+    /* Darken the boards under the sheet, then a dither so they stay visible. */
+    for (int i = 0; i < 12; ++i) {
+        int tx = 0;
+        int ty = 0;
+        term_xy(i, &tx, &ty);
+        if (tx + 72 <= bx || ty + 46 <= by || tx >= bx + w || ty >= by + h) continue;
+        paint_one_board(g, i, (i == s_term) && !s_focus_cmds, true);
+    }
+    g.fillRect(bx + w, by + 3, 2, h, PAL_BG);
+    g.fillRect(bx + 2, by + h, w, 3, PAL_BG);
+    /* Boards stay visible above the prompt. The prompt plate is covered. */
+    if (by + h > 167) {
+        const int y0 = by > 167 ? by : 167;
+        g.fillRect(bx + 1, y0, w - 2, by + h - y0, PAL_DEEP);
+    }
+    const int y_tile = (by + h - 2) < 166 ? (by + h - 2) : 166;
+    for (int yy = by + 2; yy < y_tile; yy += 2) {
+        const int x0 = bx + 2 + ((yy & 2) ? 2 : 0);
+        for (int xx = x0; xx < bx + w - 2; xx += 4) g.fillRect(xx, yy, 2, 1, PAL_DEEP);
+    }
     glow_rect(g, bx, by, w, h);
     glow_hline(g, bx + 3, by + h - 2, w - 6, STEP_HAIR);
     glow_hline(g, bx + 18, by + h - 1, 10, STEP_AC);
@@ -1463,14 +1515,16 @@ static void paint_sheet(Gfx g)
         menu_row(top + r, &hdr, &cmd);
         const int y = by + 5 + r * rh;
         if (hdr >= 0) {
-            glow_txt(g, G_NAME[hdr], bx + 8, y + 1, COL_BG);
+            glow_txt(g, G_NAME[hdr], bx + 8, y + 1, PAL_DEEP, 6);
             glow_hline(g, bx + 48, y + 5, w - 60, STEP_RULE);
             continue;
         }
         const bool on = cmd == sel;
-        const uint8_t bg = on ? glow_of(STEP_SEL) : (uint8_t)COL_BG;
+        const uint8_t bg = on ? glow_of(STEP_SEL) : (uint8_t)PAL_DEEP;
+        g.fillRect(bx + 3, y - 1, w - 6, rh - 1, bg);
         if (on) {
-            g.fillRect(bx + 3, y - 1, w - 6, rh - 1, bg);
+            g.fillRect(bx + 1, y - 3, w - 2, 1, term_low());
+            g.fillRect(bx + 1, y + rh - 2, w - 2, 2, glow_of(STEP_GLOW));
             g.fillRect(bx + 3, y - 1, 2, rh - 1, glow_of(STEP_AC));
         }
         const bool hail = strcmp(CMDN[cmd], "hail") == 0;
@@ -1479,9 +1533,8 @@ static void paint_sheet(Gfx g)
         const uint8_t name_c = on ? (uint8_t)PAL_INK : (uint8_t)PAL_SOFT;
         if (on) txt_bg(g, CMDN[cmd], bx + 25, y + 1, name_c, bg, lgfx::textdatum::top_left);
         txt_bg(g, CMDN[cmd], bx + 24, y + 1, name_c, bg, lgfx::textdatum::top_left);
-        s_px = 6;
-        draw_purpose(g, CMDP[cmd], bx + w - 8, y + 1, on ? (uint8_t)PAL_INK : (uint8_t)COL_MUTED, bg);
-        s_px = 8;
+        /* v3.2 unselected purpose is UI.muted = #00f0ff. Nearest reserved slot is PAL_SOLID_C. */
+        draw_purpose(g, CMDP[cmd], bx + w - 8, y + 1, on ? (uint8_t)PAL_CYAN : (uint8_t)PAL_SOLID_C, bg);
     }
     s_px = keep;
 }
@@ -1619,7 +1672,7 @@ static void paint_prompt(Gfx g)
         txt_bg(g, show, 10, 171 + k * 9, ink, PAL_DEEP, lgfx::textdatum::top_left);
     }
     const int y = PROMPT_Y;
-    glow_txt(g, "user@botcorps", 10, y, COL_DEEP);
+    glow_txt(g, "user@botcorps", 10, y, COL_DEEP, 6);
     s_px = 8;
     txt(g, ":~$ ", 10 + 13 * 8, y, PAL_INK, lgfx::textdatum::top_left);
     g.setFont(&fonts::Font8x8C64);
@@ -1803,6 +1856,11 @@ static const uint8_t DEV_COL[DEV_N][3] = {
 };
 static const uint8_t NEAR_WIFI_T[3] = { DEV_AP, DEV_AP, DEV_AP };
 static const uint8_t NEAR_BLE_T[3] = { DEV_BT, DEV_BT, DEV_BT };
+/* Twelve docked nodes, one per lane. Existing slots only. */
+static const uint8_t SCAN_TYPE[12] = {
+    DEV_AP, DEV_BT, DEV_TV, DEV_CAM, DEV_DEAUTH, DEV_TAG,
+    DEV_DRONE, DEV_FLOCK, DEV_SKIM, DEV_UNK, DEV_AP, DEV_BT
+};
 
 static void dev_icon(Gfx g, int type, int x, int y, bool dim)
 {
@@ -1833,20 +1891,28 @@ static void bus_paint(Gfx g, bool radar, bool wifi, int shown, int sel)
     g.fillRect(bx, by, bw, bh, PAL_DEEP);
     g.drawRect(bx - 1, by - 1, bw + 2, bh + 2, COL_LINE);
     const uint8_t ac = accent();
+    const uint8_t wash = (s_color == 1) ? (uint8_t)PAL_WASH_A
+                         : (s_color == 2) ? (uint8_t)PAL_WASH_M : (uint8_t)PAL_WASH_C;
     (void)wifi;
+    for (int i = 0; i < 12; ++i) bus_trace(g, tab[i], BUS_N[i], wash);
     for (int i = 0; i < 12; ++i) bus_trace(g, tab[i], BUS_N[i], COL_LINE);
-    for (int d = 0; d < shown && d < 3; ++d) {
-        if (!radar && s_dev_ign[wifi ? 0 : 1][d]) continue;
-        const int lane = BUS_DEV_LANE[d];
+    const int nnode = radar ? (shown < 3 ? shown : 3) : 12;
+    for (int d = 0; d < nnode; ++d) {
+        if (d < 3 && !radar && s_dev_ign[wifi ? 0 : 1][d]) continue;
+        const int lane = radar ? BUS_DEV_LANE[d] : d;
         const int L = bus_len(tab[lane], BUS_N[lane]);
         int x = 0;
         int y = 0;
         bus_at(tab[lane], BUS_N[lane], bus_dev_s(L), &x, &y);
-        g.fillRect(x - 7, y - 7, 14, 14, PAL_BG);
-        g.drawRect(x - 7, y - 7, 14, 14, COL_LINE);
-        const uint8_t *types = wifi ? NEAR_WIFI_T : NEAR_BLE_T;
-        dev_icon(g, types[d], x - 6, y - 6, false);
-        if (d == sel) g.drawRect(x - 9, y - 9, 18, 18, ac);
+        g.fillRect(x - 8, y - 8, 16, 16, PAL_BG);
+        g.drawRect(x - 8, y - 8, 16, 16, PAL_LINE);
+        g.drawCircle(x, y, 11, wash);
+        const int typ = radar ? (wifi ? NEAR_WIFI_T[d] : NEAR_BLE_T[d]) : (int)SCAN_TYPE[d];
+        dev_icon(g, typ, x - 6, y - 6, false);
+        if (d == sel) {
+            g.drawCircle(x, y, 13, ac);
+            g.drawRect(x - 10, y - 10, 20, 20, ac);
+        }
     }
     chip_plate(g, 160 - 28, 117 - 28, 56, 56, PAL_BG, COL_LINE);
     hub_gibson(g, 160, 117, 3);
@@ -1922,15 +1988,15 @@ static void paint_scan_hud(Gfx g, bool wifi, int sel)
     g.setTextSize(2);
     g.setTextColor(COL_INK);
     g.setCursor(248, 4);
-    g.print("3");
+    g.print("12");
     g.setTextSize(1);
     s_px = keep;
     g.fillRect(0, 209, 320, 31, PAL_BG);
     g.fillRect(0, 209, 320, 1, COL_LINE);
-    const uint8_t *types = wifi ? NEAR_WIFI_T : NEAR_BLE_T;
     int tally[DEV_N];
     for (int i = 0; i < DEV_N; ++i) tally[i] = 0;
-    for (int d = 0; d < 3; ++d) tally[types[d]]++;
+    for (int d = 0; d < 12; ++d) tally[SCAN_TYPE[d]]++;
+    const uint8_t *types = wifi ? NEAR_WIFI_T : NEAR_BLE_T;
     if (sel >= 0 && sel < 3) dev_icon(g, types[sel], 8, 216, false);
     for (int k = 0; k < 4; ++k) {
         const int bh = (k + 1) * 3;
@@ -3196,7 +3262,7 @@ static void partial_int(void)
 
 static void draw_tile_part(Gfx g)
 {
-    paint_one_board(g, s_part_i, (s_part_i == s_term) && !s_focus_cmds && !s_sheet);
+    paint_one_board(g, s_part_i, (s_part_i == s_term) && !s_focus_cmds, false);
 }
 
 static void partial_tile(int index)
@@ -3897,6 +3963,8 @@ void botcorps_ui_draw(void)
         if (dirty || stepped) {
             if (dirty) s_dirty = false;
             botcorps_set_surface(BOTCORPS_SURFACE_CONTENT);
+            /* One swap for the whole frame, before either band is pushed. */
+            botcorps_lut_term(s_screen == SCR_TERMINAL && s_sheet);
             botcorps_band_present([](Gfx g) {
                 paint_ext(g);
                 tick_ext(g);
@@ -3932,6 +4000,7 @@ void botcorps_ui_draw(void)
     }
     if (dirty) {
         s_dirty = false;
+        botcorps_lut_term(s_screen == SCR_TERMINAL && s_sheet);
         paint_ext_full();
     }
     if (int_dirty) {
@@ -3970,6 +4039,7 @@ void botcorps_host_terminal(uint8_t *buf)
     memset(buf, PAL_FIELD, 320u * 240u);
     s_screen = SCR_TERMINAL;
     s_sheet = true;
+    botcorps_lut_term(true);
     s_sheet_i = 2;
     s_focus_cmds = false;
     s_term = 0;
@@ -3989,6 +4059,7 @@ void botcorps_host_idle(uint8_t *buf)
     memset(buf, PAL_FIELD, 320u * 240u);
     s_screen = SCR_TERMINAL;
     s_sheet = false;
+    botcorps_lut_term(false);
     s_sheet_i = 0;
     s_focus_cmds = false;
     s_term = 2;
@@ -4006,6 +4077,7 @@ void botcorps_host_hunt(uint8_t *buf)
     host_frame = buf;
     memset(buf, PAL_FIELD, 320u * 240u);
     s_screen = SCR_WIFI_LIST;
+    botcorps_lut_term(false);
     s_sheet = false;
     s_cursor = 0;
     s_color = 0;

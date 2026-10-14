@@ -132,6 +132,8 @@ static HostM5 M5Cardputer;
 #define BOTCORPS_RAIN_COLORS 7
 
 extern uint8_t *host_frame;
+extern int host_term_lut;
+void botcorps_lut_term(bool on);
 
 uint16_t botcorps_rgb565(uint8_t);
 void botcorps_sprite_draw(lgfx::v1::LovyanGFX &, int, int, int, int, uint8_t, bool);

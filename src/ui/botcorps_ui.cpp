@@ -186,10 +186,12 @@ enum {
     STEP_AC,         /* solid accent stroke and text */
     STEP_N
 };
-static const uint8_t GLOW_STEP[3][STEP_N] = {
-    { PAL_BG, PAL_WIRE_C, PAL_WASH_C, PAL_WASH_C, PAL_WASH_C, PAL_WIRE_C, PAL_CYAN },
-    { PAL_BG, PAL_WIRE_A, PAL_WASH_A, PAL_WASH_A, PAL_WASH_A, PAL_WIRE_A, PAL_AMBER },
-    { PAL_BG, PAL_WIRE_M, PAL_WASH_M, PAL_WASH_M, PAL_WASH_M, PAL_WIRE_M, PAL_MINT },
+/* TERM_PAIR. UI cyan and mint share magenta. UI amber uses #00f0ff. Explicit slots only. */
+static const uint8_t TERM_MAG[6] = {
+    PAL_TERM_M, PAL_TERM_M28, PAL_TERM_M22, PAL_TERM_M18, PAL_TERM_M35, PAL_TERM_M10
+};
+static const uint8_t TERM_CYN[6] = {
+    PAL_TERM_C, PAL_TERM_C28, PAL_TERM_C22, PAL_TERM_C18, PAL_TERM_C35, PAL_TERM_C10
 };
 static const uint8_t CMD_ICO[CMD_N][8] = {
     { 0x38, 0x44, 0x82, 0x82, 0x44, 0x38, 0x04, 0x02 },
@@ -424,11 +426,21 @@ static void fmt_times(void)
              (unsigned)(sec % 60u));
 }
 
+/* 6 = Font0. 8 = Font8x8C64, the largest built-in that fits a 12px row. */
+static int s_px = 6;
+
+static void use_px(Gfx g, int px)
+{
+    s_px = px;
+    if (px >= 8) g.setFont(&fonts::Font8x8C64);
+    else g.setFont(&fonts::Font0);
+    g.setTextSize(1);
+}
+
 static void txt(Gfx g, const char *s, int x, int y, uint8_t col,
                 lgfx::textdatum_t dat)
 {
-    g.setFont(&fonts::Font0);
-    g.setTextSize(1);
+    use_px(g, s_px);
     g.setTextColor(col);
     g.setTextDatum(dat);
     g.drawString(s ? s : "", x, y);
@@ -439,8 +451,7 @@ static void txt(Gfx g, const char *s, int x, int y, uint8_t col,
 static void txt_bg(Gfx g, const char *s, int x, int y, uint8_t fg, uint8_t bg,
                    lgfx::textdatum_t dat)
 {
-    g.setFont(&fonts::Font0);
-    g.setTextSize(1);
+    use_px(g, s_px);
     g.setTextColor(fg, bg);
     g.setTextDatum(dat);
     g.drawString(s ? s : "", x, y);
@@ -1097,22 +1108,114 @@ static void boot_log(void)
     log_add("[ok] 12 boards");
 }
 
+static uint8_t term_accent(void);
+static uint8_t term_low(void);
+static uint8_t glow_of(int step);
+
 static void paint_one_board(Gfx g, int i, bool sel)
 {
     int x, y;
     term_xy(i, &x, &y);
-    const bool light = BOTS[i].radio != 0;
-    const uint8_t base = light ? (sel ? PAL_IVORY : PAL_BOARD_L) : (sel ? PAL_BOARD_D : PAL_PLATE);
-    const uint8_t edge = sel ? accent() : COL_LINE;
-    g.fillRect(x - 2, y - 2, 76, 50, COL_FIELD);
-    plate(g, x, y, 72, 46, base, edge);
-    if (sel) g.drawRect(x - 2, y - 2, 76, 50, accent());
-    g.fillRect(x + 23, y + 12, 26, 16, light ? PAL_PLATE : PAL_DEEP);
-    draw_blob(g, x + 36, y + 20, 2, bot_color(i), botcorps_shape_for(i), sprite_blink(i));
-    const uint8_t dot = BOTS[i].st == 2 ? COL_HOLD : BOTS[i].st == 1 ? COL_AMBER : COL_OK;
-    g.fillCircle(x + 8, y + 6, 2, dot);
-    const uint8_t ink = light ? PAL_PLATE : COL_INK;
-    txt(g, BOTS[i].short_name, x + 36, y + 34, ink, lgfx::textdatum::top_center);
+    const bool wh = BOTS[i].radio != 0;
+    const uint8_t ac = term_accent();
+    const uint32_t t = millis();
+    const int w = 72;
+    const int h = 46;
+    if (sel) {
+        const uint8_t halo = ((t / 320u) % 2u) ? glow_of(STEP_SEL) : term_low();
+        g.fillRect(x - 3, y - 3, w + 6, h + 6, halo);
+        const int ph = (int)((t / 70u) % 2u);
+        for (int d = 0, k = 0; d < w + 4; d += 4, ++k) {
+            if (((k + ph) % 2) != 0) continue;
+            const int dw = (d + 4 > w + 2) ? (w + 2 - d) : 4;
+            if (dw > 0) {
+                g.fillRect(x - 2 + d, y - 2, dw, 1, ac);
+                g.fillRect(x + w + 1 - d - 4 + (d + 4 > w + 2 ? d + 4 - (w + 2) : 0), y + h + 1, dw, 1, ac);
+            }
+        }
+        for (int d = 0, k = 0; d < h + 4; d += 4, ++k) {
+            if (((k + ph) % 2) != 0) continue;
+            const int dh = (d + 4 > h + 2) ? (h + 2 - d) : 4;
+            if (dh > 0) {
+                g.fillRect(x + w + 1, y - 2 + d, 1, dh, ac);
+                g.fillRect(x - 2, y + h + 1 - d - 4 + (d + 4 > h + 2 ? d + 4 - (h + 2) : 0), 1, dh, ac);
+            }
+        }
+    }
+    const uint8_t base = wh ? (sel ? (uint8_t)PAL_IVORY : (uint8_t)PAL_CREAM) : (uint8_t)PAL_BOARD_D;
+    const uint8_t edge = sel ? ac : (wh ? (uint8_t)150 : (uint8_t)PAL_LINE);
+    const uint8_t tr = wh ? (uint8_t)PAL_CHIN : (sel ? (uint8_t)PAL_STEEL : (uint8_t)PAL_LINE);
+    const uint8_t ant = wh ? (uint8_t)PAL_HUB_HEAD : (uint8_t)PAL_STEEL;
+    const uint8_t pad = (uint8_t)PAL_SOFT;
+    const uint8_t fp = (uint8_t)PAL_FIELD;
+    const uint8_t fpp = wh ? (uint8_t)PAL_ICON_C3 : (uint8_t)PAL_SOFT;
+    const uint8_t silk = wh ? (sel ? (uint8_t)PAL_BLACK : (uint8_t)PAL_SEL)
+                            : (sel ? (uint8_t)PAL_WHITE : (uint8_t)PAL_SOFT);
+    const uint8_t led = wh ? (uint8_t)PAL_CHIN : (uint8_t)PAL_BOARD_D;
+    const uint8_t hole = (uint8_t)PAL_FIELD;
+    g.fillRect(x + 1, y, w - 2, h, base);
+    g.fillRect(x, y + 1, w, h - 2, base);
+    g.fillRect(x + 1, y, w - 2, 1, edge);
+    g.fillRect(x + 1, y + h - 1, w - 2, 1, edge);
+    g.fillRect(x, y + 1, 1, h - 2, edge);
+    g.fillRect(x + w - 1, y + 1, 1, h - 2, edge);
+    const int longtr[4] = { 1, 3, 5, 6 };
+    for (int n = 0; n < 4; ++n) {
+        const int k = longtr[n];
+        g.fillRect(x + 4, y + 6 + k * 4, 19, 1, tr);
+        g.fillRect(x + 49, y + 6 + k * 4, 19, 1, tr);
+    }
+    const int shorttr[4] = { 0, 2, 4, 7 };
+    for (int n = 0; n < 4; ++n) {
+        const int k = shorttr[n];
+        g.fillRect(x + 4, y + 6 + k * 4, 5, 1, tr);
+        g.fillRect(x + 63, y + 6 + k * 4, 5, 1, tr);
+    }
+    g.fillRect(x + 26, y + 9, 1, 5, tr);
+    for (int k = 0; k < 6; ++k) {
+        g.fillRect(x + 26 + k * 4, y + 3, 1, 7, ant);
+        if (k < 5) g.fillRect(x + 26 + k * 4, (k % 2) ? y + 9 : y + 3, 5, 1, ant);
+    }
+    const int run = (int)((t / 90u) % 10u);
+    for (int k = 0; k < 8; ++k) {
+        const bool lit_l = sel && (k == run || (k == run - 1 && k >= 0));
+        const bool lit_r = sel && ((7 - k) == run || (7 - k) == run - 1);
+        g.fillRect(x + 2, y + 5 + k * 4, 2, 2, lit_l ? ac : pad);
+        g.fillRect(x + 68, y + 5 + k * 4, 2, 2, lit_r ? ac : pad);
+    }
+    g.fillRect(x + 62, y + 2, 3, 3, pad);
+    g.fillRect(x + 63, y + 3, 1, 1, hole);
+    g.fillRect(x + 23, y + 14, 26, 22, fp);
+    for (int k = 0; k < 8; ++k) {
+        g.fillRect(x + 25 + k * 3, y + 14, 1, 1, fpp);
+        g.fillRect(x + 25 + k * 3, y + 35, 1, 1, fpp);
+    }
+    if (sel) {
+        g.fillRect(x + 22, y + 13, 28, 1, ac);
+        g.fillRect(x + 22, y + 36, 28, 1, ac);
+        g.fillRect(x + 22, y + 13, 1, 24, ac);
+        g.fillRect(x + 49, y + 13, 1, 24, ac);
+    }
+    const int bob = sel ? -((int)((t / 450u) % 2u)) : 0;
+    draw_blob(g, x + 36, y + 25 + bob, 2, bot_color(i), botcorps_shape_for(i), sel && sprite_blink(i));
+    const int st = BOTS[i].st;
+    const bool on = st != 0 || ((t / 700u + (uint32_t)i) % 4u) != 0u;
+    uint8_t ledc = led;
+    if (on) ledc = st == 2 ? (uint8_t)PAL_HOLD : st == 1 ? (uint8_t)PAL_AMBER : (uint8_t)PAL_OK;
+    g.fillRect(x + 6, y + 2, 2, 2, ledc);
+    char up[16];
+    const char *src = BOTS[i].short_name;
+    int n = 0;
+    for (; src[n] && n < 15; ++n) {
+        char c = src[n];
+        if (c >= 'a' && c <= 'z') c = (char)(c - 32);
+        up[n] = c;
+    }
+    up[n] = 0;
+    const int keep = s_px;
+    s_px = 6;
+    txt(g, up, x + 36, y + 38, silk, lgfx::textdatum::top_center);
+    s_px = keep;
 }
 
 static void paint_boards(Gfx g)
@@ -1178,45 +1281,116 @@ static void menu_row(int row, int *hdr, int *cmd)
 static const int PROMPT_Y = 227;
 static void blit_ico(Gfx g, const uint8_t *bits, int x, int y, uint8_t col);
 
-static uint8_t glow_of(int step)
+static uint8_t term_accent(void)
 {
-    int a = s_color;
-    if (a < 0 || a > 2) a = 0;
-    return GLOW_STEP[a][step];
+    return (s_color == 1) ? PAL_TERM_C : PAL_TERM_M;
 }
 
-/* neonGlow: a thin mark is its own colour, plus a 1px-offset copy in the dim slot. */
+static uint8_t term_low(void)
+{
+    return (s_color == 1) ? PAL_TERM_C10 : PAL_TERM_M10;
+}
+
+/* Shadow stays the shared 45% slot. Every other step is the TERM_PAIR code. */
+static uint8_t glow_of(int step)
+{
+    const uint8_t *row = (s_color == 1) ? TERM_CYN : TERM_MAG;
+    switch (step) {
+    case STEP_SHADOW: return PAL_BG;
+    case STEP_HAIR: return row[1];
+    case STEP_RULE: return row[2];
+    case STEP_SEL: return row[3];
+    case STEP_HUNT: return row[2];
+    case STEP_GLOW: return row[4];
+    default: return row[0];
+    }
+}
+
+/* neonGlow: the mark, then .35, .18 and .10 offset copies. Explicit slots only. */
 static void glow_hline(Gfx g, int x, int y, int w, int step)
 {
-    if (w >= 6) g.fillRect(x + 1, y + 1, w, 1, glow_of(STEP_GLOW));
+    if (w >= 6) {
+        g.fillRect(x + 3, y + 2, w, 1, term_low());
+        g.fillRect(x + 2, y + 1, w, 1, glow_of(STEP_SEL));
+        g.fillRect(x + 1, y + 1, w, 1, glow_of(STEP_GLOW));
+    }
     g.fillRect(x, y, w, 1, glow_of(step));
 }
 
 static void glow_rect(Gfx g, int x, int y, int w, int h)
 {
+    g.drawRect(x + 3, y + 3, w, h, term_low());
+    g.drawRect(x + 2, y + 2, w, h, glow_of(STEP_SEL));
     g.drawRect(x + 1, y + 1, w, h, glow_of(STEP_GLOW));
     g.drawRect(x, y, w, h, glow_of(STEP_AC));
 }
 
 static void glow_txt(Gfx g, const char *s, int x, int y, uint8_t bg)
 {
+    const int keep = s_px;
+    s_px = 8;
+    txt_bg(g, s, x + 2, y + 2, term_low(), bg, lgfx::textdatum::top_left);
     txt_bg(g, s, x + 1, y + 1, glow_of(STEP_GLOW), bg, lgfx::textdatum::top_left);
+    txt_bg(g, s, x + 1, y, glow_of(STEP_AC), bg, lgfx::textdatum::top_left);
     txt_bg(g, s, x, y, glow_of(STEP_AC), bg, lgfx::textdatum::top_left);
+    s_px = keep;
+}
+
+static void paint_term_icons(Gfx g)
+{
+    const uint8_t ac = term_accent();
+    const uint8_t off = PAL_LINE;
+    g.fillRect(205, 1, 20, 14, PAL_BG);
+    g.drawRect(205, 1, 20, 14, glow_of(STEP_HAIR));
+    static const char *crown[7] = {
+        "#.....#.....#", "##...###...##", "###.#####.###", "#############",
+        "#############", ".###########.", ".###########."
+    };
+    for (int r = 0; r < 7; ++r) {
+        for (int c = 0; c < 13; ++c) {
+            if (crown[r][c] != '#') continue;
+            g.fillRect(208 + c, 4 + r, 1, 1, r >= 5 ? (uint8_t)PAL_CHIN : (uint8_t)PAL_IVORY);
+        }
+    }
+    const int sg = 3 + (int)((millis() / 2500u) % 2u);
+    for (int k = 0; k < 4; ++k) {
+        const int h = (k + 1) * 2;
+        g.fillRect(236 + k * 4, 12 - h, 3, h, k < sg ? ac : off);
+    }
+    g.fillRect(262, 4, 17, 9, PAL_MUTED);
+    g.fillRect(263, 5, 15, 7, PAL_BG);
+    g.fillRect(279, 6, 2, 5, PAL_MUTED);
+    const bool blink = (millis() / 500u) % 2u == 0u;
+    for (int k = 0; k < 5; ++k) {
+        uint8_t cell = PAL_BG;
+        if (k < 4 || blink) cell = k < 2 ? (uint8_t)PAL_AMBER : (uint8_t)PAL_OK;
+        g.fillRect(264 + k * 3, 6, 2, 5, cell);
+    }
+    const bool rx = (millis() / 700u) % 5u == 0u;
+    g.fillRect(290, 6, 4, 4, rx ? ac : off);
+    const int keep = s_px;
+    s_px = 8;
+    txt(g, "RX", 298, 4, rx ? ac : (uint8_t)COL_MUTED, lgfx::textdatum::top_left);
+    s_px = keep;
 }
 
 static void paint_term_head(Gfx g)
 {
-    g.fillRect(0, 0, 320, 16, COL_DEEP);
+    g.fillRect(0, 0, 320, 16, PAL_BG);
     glow_hline(g, 0, 16, 320, STEP_AC);
-    glow_txt(g, "terminal", 8, 4, COL_DEEP);
-    txt(g, "12 boards", 76, 4, COL_MUTED, lgfx::textdatum::top_left);
-    if (s_track_name[0]) txt(g, s_track_name, 120, 4, glow_of(STEP_AC), lgfx::textdatum::top_left);
+    glow_txt(g, "terminal", 8, 4, PAL_BG);
+    const int keep = s_px;
+    s_px = 8;
+    txt(g, "12 boards", 84, 4, COL_MUTED, lgfx::textdatum::top_left);
+    if (s_track_name[0]) txt(g, s_track_name, 156, 4, term_accent(), lgfx::textdatum::top_left);
+    s_px = keep;
+    paint_term_icons(g);
 }
 
 static int purpose_px(const char *s)
 {
     int n = 0;
-    for (const char *p = s; *p; ++p) n += (*p == '\x7f') ? 4 : 6;
+    for (const char *p = s; *p; ++p) n += (*p == '\x7f') ? 4 : s_px;
     return n;
 }
 
@@ -1262,6 +1436,8 @@ static void sheet_box(int *by, int *h, int *top_out, int *nshow_out)
 /* Prompt-anchored Tab dropdown. Grouped CORE/COMMS/GAME/SYS. */
 static void paint_sheet(Gfx g)
 {
+    const int keep = s_px;
+    s_px = 8;
     const int rh = 12;
     const int w = 292;
     const int bx = 14;
@@ -1303,8 +1479,11 @@ static void paint_sheet(Gfx g)
         const uint8_t name_c = on ? (uint8_t)PAL_INK : (uint8_t)PAL_SOFT;
         if (on) txt_bg(g, CMDN[cmd], bx + 25, y + 1, name_c, bg, lgfx::textdatum::top_left);
         txt_bg(g, CMDN[cmd], bx + 24, y + 1, name_c, bg, lgfx::textdatum::top_left);
+        s_px = 6;
         draw_purpose(g, CMDP[cmd], bx + w - 8, y + 1, on ? (uint8_t)PAL_INK : (uint8_t)COL_MUTED, bg);
+        s_px = 8;
     }
+    s_px = keep;
 }
 
 static const char *cand_ghost(void)
@@ -1422,9 +1601,11 @@ static void paint_cands(Gfx g)
 
 static void paint_prompt(Gfx g)
 {
+    const int keep = s_px;
+    s_px = 8;
     g.fillRect(4, 167, 312, 72, COL_DEEP);
     glow_rect(g, 4, 167, 312, 72);
-    const int n = s_log_n < 5 ? s_log_n : 5;
+    const int n = s_log_n < 6 ? s_log_n : 6;
     const int start = s_log_n - n;
     for (int k = 0; k < n; ++k) {
         const char *ln = log_line(start + k);
@@ -1438,12 +1619,13 @@ static void paint_prompt(Gfx g)
         txt_bg(g, show, 10, 171 + k * 9, ink, PAL_DEEP, lgfx::textdatum::top_left);
     }
     const int y = PROMPT_Y;
-    glow_txt(g, "user@botcorps:~$ ", 10, y, COL_DEEP);
-    g.setFont(&fonts::Font0);
+    glow_txt(g, "user@botcorps", 10, y, COL_DEEP);
+    s_px = 8;
+    txt(g, ":~$ ", 10 + 13 * 8, y, PAL_INK, lgfx::textdatum::top_left);
+    g.setFont(&fonts::Font8x8C64);
     g.setTextSize(1);
     g.setTextColor(COL_WHITE);
-    g.setCursor(10 + 18 * 6, y);
-    g.setTextColor(COL_WHITE);
+    g.setCursor(10 + 17 * 8, y);
     g.print(botcorps_t0_term_prompt);
     const int cx = g.getCursorX() + 2;
     const char *ghost = cand_ghost();
@@ -1451,12 +1633,13 @@ static void paint_prompt(Gfx g)
         g.setTextColor(COL_MUTED);
         g.print(ghost);
     }
-    if ((millis() / 530u) % 2u == 0) g.fillRect(cx, y, 5, 8, accent());
+    if ((millis() / 530u) % 2u == 0) g.fillRect(cx, y, 6, 8, term_accent());
     paint_cands(g);
     const bool po = s_focus_cmds && !s_sheet;
     plate(g, 250, 214, 20, 12, po ? COL_SEL : COL_DEEP, po ? accent() : COL_LINE);
-    for (int k = 0; k < 3; ++k) g.fillRect(255, 217 + k * 3, 10, 1, po ? accent() : COL_MUTED);
+    for (int k = 0; k < 3; ++k) g.fillRect(255, 217 + k * 3, 10, 1, po ? term_accent() : COL_MUTED);
     if (po) paint_palette(g);
+    s_px = keep;
 }
 
 static void paint_terminal(Gfx g)
@@ -1589,6 +1772,54 @@ static int bus_scout_s(int L, uint32_t t, int lane, int period)
     return 8 + span * u / half;
 }
 
+/* Ten device icons from the v3.2 set. Colours are existing slots. */
+enum {
+    DEV_SKIM = 0, DEV_FLOCK, DEV_DRONE, DEV_TAG, DEV_CAM, DEV_DEAUTH,
+    DEV_AP, DEV_BT, DEV_TV, DEV_UNK, DEV_N
+};
+static const char *const DEV_ROW[DEV_N][12] = {
+    { "............", ".aaaaaaaaaa.", "aaaaaaaaaaaa", "bbbbbbbbbbbb", "bbbbbbbbbbbb", "aaaaaaaaaaaa", "acccaaaaaaaa", "acccaabbbbaa", "acccaaaaaaaa", "aaaaaaaaaaaa", ".aaaaaaaaaa.", "............" },
+    { "aa...aa.....", ".aa.aa......", "..aca.......", "............", ".....aa...aa", "......aa.aa.", ".......aca..", "............", "aa...aa.....", ".aa.aa......", "..aca.......", "............" },
+    { "ccc......ccc", "ccc......ccc", ".a........a.", "..a.aaaa.a..", "...aabbaa...", "...abccba...", "...aabbaa...", "..a.aaaa.a..", ".a........a.", "ccc......ccc", "ccc......ccc", "............" },
+    { "............", "...aaaaaa...", "..aaaaaaaa..", ".aaabbbbaaa.", ".aabbccbbaa.", ".aabcbbcbaa.", ".aabcbbcbaa.", ".aabbccbbaa.", ".aaabbbbaaa.", "..aaaaaaaa..", "...aaaaaa...", "............" },
+    { "............", "...aaaa.....", "aaaaaaaaaaaa", "abbbbbbbbbca", "abbbcccbbbba", "abbcbbbcbbba", "abbcbbbcbbba", "abbbcccbbbba", "abbbbbbbbbba", "aaaaaaaaaaaa", "............", "............" },
+    { "...aaaaaa...", ".aa......aa.", "a..aaaaaa..a", "..aa....aa..", "...a.aa.a...", ".....aa.....", ".....aa.....", "........c..c", ".........cc.", ".........cc.", "........c..c", "............" },
+    { "...cccccc...", ".cc......cc.", "c..cccccc..c", "..cc....cc..", "...c.cc.c...", ".....cc.....", "......c.....", "..aaaaaaaa..", ".abbbbbbbba.", ".abcbbbbcba.", ".aaaaaaaaaa.", "............" },
+    { "...bbbbbb...", "..bbbaabbb..", ".bbbbababbb.", ".bbababbabb.", ".bbbaababbb.", ".bbbbcabbbb.", ".bbbbcabbbb.", ".bbbaababbb.", ".bbababbabb.", ".bbbbababbb.", "..bbbaabbb..", "...bbbbbb..." },
+    { "............", "aaaaaaaaaaaa", "abbbbbbbbbba", "abbbbbbbbbba", "abbcccccbbba", "abbbbbbbcbba", "abcccbbbcbba", "abbbbcbbcbba", "abc.bcbbcbba", "aaaaaaaaaaaa", "....aaaa....", "...aaaaaa..." },
+    { "............", "...cccccc...", "..cc....cc..", "..cc....cc..", "......ccc...", ".....cc.....", ".....cc.....", "............", ".....cc.....", ".....cc.....", "............", "............" },
+};
+static const uint8_t DEV_COL[DEV_N][3] = {
+    { PAL_BFC6B, PAL_WASH_A, PAL_IVORY },
+    { PAL_B9F0B, PAL_BOARD_D, PAL_HEAD },
+    { PAL_BFB72, PAL_WASH_A, PAL_IVORY },
+    { PAL_IVORY, PAL_DIAG, PAL_R_FDC9 },
+    { PAL_R_E2FF, 33, PAL_INK },
+    { PAL_BAC7F, 33, PAL_INK },
+    { PAL_B36B8, PAL_WASH_M, PAL_INK },
+    { PAL_B4E7F, PAL_SEL, PAL_INK },
+    { PAL_B5D3F, PAL_SEL, PAL_INK },
+    { 150, PAL_SEL, PAL_WHITE },
+};
+static const uint8_t NEAR_WIFI_T[3] = { DEV_AP, DEV_AP, DEV_AP };
+static const uint8_t NEAR_BLE_T[3] = { DEV_BT, DEV_BT, DEV_BT };
+
+static void dev_icon(Gfx g, int type, int x, int y, bool dim)
+{
+    if (type < 0 || type >= DEV_N) type = DEV_UNK;
+    const uint8_t *col = DEV_COL[type];
+    for (int r = 0; r < 12; ++r) {
+        const char *row = DEV_ROW[type][r];
+        for (int c = 0; c < 12; ++c) {
+            const char ch = row[c];
+            if (ch != 'a' && ch != 'b' && ch != 'c') continue;
+            uint8_t ink = col[ch - 'a'];
+            if (dim) ink = PAL_LINE;
+            g.fillRect(x + c, y + r, 1, 1, ink);
+        }
+    }
+}
+
 /* Non-circular bus. radar=false is the Gibson scan (extBus). 0 B heap. */
 static void bus_paint(Gfx g, bool radar, bool wifi, int shown, int sel)
 {
@@ -1613,7 +1844,8 @@ static void bus_paint(Gfx g, bool radar, bool wifi, int shown, int sel)
         bus_at(tab[lane], BUS_N[lane], bus_dev_s(L), &x, &y);
         g.fillRect(x - 7, y - 7, 14, 14, PAL_BG);
         g.drawRect(x - 7, y - 7, 14, 14, COL_LINE);
-        g.fillRect(x - 2, y - 2, 4, 4, ac);
+        const uint8_t *types = wifi ? NEAR_WIFI_T : NEAR_BLE_T;
+        dev_icon(g, types[d], x - 6, y - 6, false);
         if (d == sel) g.drawRect(x - 9, y - 9, 18, 18, ac);
     }
     chip_plate(g, 160 - 28, 117 - 28, 56, 56, PAL_BG, COL_LINE);
@@ -1679,22 +1911,44 @@ static void paint_scan_hud(Gfx g, bool wifi, int sel)
     const uint8_t *bars = wifi ? NEAR_WIFI_B : NEAR_BLE_B;
     const uint8_t ac = accent();
     const uint32_t u = (millis() - s_bus_t0) % 7000u;
-    g.fillRect(0, 0, 320, 24, COL_DEEP);
+    g.fillRect(0, 0, 320, 24, PAL_BG);
     g.fillRect(0, 24, 320, 1, COL_LINE);
     g.fillRect(0, 24, (int)(320u * u / 7000u), 1, ac);
     hub_gibson(g, 14, 12, 1);
-    txt_bg(g, "GIBSON", 28, 8, ac, COL_DEEP, lgfx::textdatum::top_left);
-    txt_bg(g, "3", 300, 8, COL_INK, COL_DEEP, lgfx::textdatum::top_right);
-    g.fillRect(0, 209, 320, 31, COL_DEEP);
+    const int keep = s_px;
+    s_px = 8;
+    txt(g, "GIBSON", 28, 8, ac, lgfx::textdatum::top_left);
+    g.setFont(&fonts::Font8x8C64);
+    g.setTextSize(2);
+    g.setTextColor(COL_INK);
+    g.setCursor(248, 4);
+    g.print("3");
+    g.setTextSize(1);
+    s_px = keep;
+    g.fillRect(0, 209, 320, 31, PAL_BG);
     g.fillRect(0, 209, 320, 1, COL_LINE);
-    if (sel >= 0 && sel < 3) {
-        txt_bg(g, names[sel], 12, 216, COL_INK, COL_DEEP, lgfx::textdatum::top_left);
-        txt_bg(g, rssi[sel], 120, 216, COL_AMBER, COL_DEEP, lgfx::textdatum::top_left);
-        for (int k = 0; k < 4; ++k) {
-            const int bh = (k + 1) * 3;
-            g.fillRect(168 + k * 5, 226 - bh, 3, bh, k < bars[sel] ? ac : COL_LINE);
-        }
+    const uint8_t *types = wifi ? NEAR_WIFI_T : NEAR_BLE_T;
+    int tally[DEV_N];
+    for (int i = 0; i < DEV_N; ++i) tally[i] = 0;
+    for (int d = 0; d < 3; ++d) tally[types[d]]++;
+    if (sel >= 0 && sel < 3) dev_icon(g, types[sel], 8, 216, false);
+    for (int k = 0; k < 4; ++k) {
+        const int bh = (k + 1) * 3;
+        const int lit = (sel >= 0 && sel < 3) ? bars[sel] : 0;
+        g.fillRect(26 + k * 5, 227 - bh, 3, bh, k < lit ? ac : COL_LINE);
     }
+    s_px = 6;
+    for (int i = 0; i < DEV_N; ++i) {
+        const int x = 52 + i * 26;
+        dev_icon(g, i, x, 214, tally[i] == 0);
+        char num[4];
+        snprintf(num, sizeof(num), "%d", tally[i]);
+        txt(g, num, x + 13, 218, tally[i] ? (uint8_t)COL_INK : (uint8_t)COL_MUTED,
+            lgfx::textdatum::top_left);
+    }
+    s_px = keep;
+    (void)names;
+    (void)rssi;
 }
 
 static void blit_ico(Gfx g, const uint8_t *bits, int x, int y, uint8_t col)
@@ -1736,6 +1990,8 @@ static void act_origin(int dev, int *mx, int *my)
 static void paint_act_menu(Gfx g)
 {
     if (s_act < 0 || s_act_dev < 0) return;
+    const int keep = s_px;
+    s_px = 8;
     int mx = 0;
     int my = 0;
     act_origin(s_act_dev, &mx, &my);
@@ -1751,7 +2007,7 @@ static void paint_act_menu(Gfx g)
             g.fillRect(mx + 2, yy, 88, 14, bg);
             g.fillRect(mx + 2, yy, 2, 14, glow_of(STEP_AC));
         }
-        blit_ico(g, ACT_ICO[j], mx + 8, yy + 3, on ? COL_WHITE : accent());
+        blit_ico(g, ACT_ICO[j], mx + 8, yy + 3, on ? COL_WHITE : term_accent());
         const char *lab = ACT_NAME[j];
         if (j == 1 && s_act_dev >= 0 && s_dev_fol[band][s_act_dev]) lab = "unfollow";
         txt_bg(g, lab, mx + 21, yy + 2, on ? COL_WHITE : COL_INK, bg,
@@ -1761,6 +2017,7 @@ static void paint_act_menu(Gfx g)
         }
         if (j == ACT_N - 1) g.fillRect(mx + 6, yy - 1, 80, 1, COL_LINE);
     }
+    s_px = keep;
 }
 
 static void paint_info_card(Gfx g, bool wifi)
@@ -3723,6 +3980,24 @@ void botcorps_host_terminal(uint8_t *buf)
     log_add("BOTcorps term");
     log_add_bot(0, "wifi channel clear");
     log_add_bot(12, "gibson reading you");
+    paint_terminal(Gfx());
+}
+
+void botcorps_host_idle(uint8_t *buf)
+{
+    host_frame = buf;
+    memset(buf, PAL_FIELD, 320u * 240u);
+    s_screen = SCR_TERMINAL;
+    s_sheet = false;
+    s_sheet_i = 0;
+    s_focus_cmds = false;
+    s_term = 2;
+    s_color = 0;
+    s_log_n = 0;
+    s_log_next = 0;
+    botcorps_t0_term_prompt[0] = 0;
+    log_add("BOTcorps term");
+    log_add("[ok] 12 boards");
     paint_terminal(Gfx());
 }
 

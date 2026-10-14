@@ -58,3 +58,19 @@
     PAL_WASH_M = 65, /* mint accent at 0.22 over the field */
     PAL_HUB_HEAD = 145, /* dimmed 0xEFF9 head, hue 83 deg, (140,151,122) */
     PAL_HUB_IVORY = 178, /* dimmed ivory, hue kept off blue */
+    /* Explicit terminal pair. k_exact_nat holds the word. k_is_res stays 0 so the
+     * frozen minimax proof does not treat these indices as fit candidates
+     * (k_fit4 already returns some of them as RGB332 codes). */
+    PAL_TERM_M = 230, /* #ff2bd6 */
+    PAL_TERM_M28 = 231, /* magenta at 0.28 */
+    PAL_TERM_M22 = 232, /* magenta at 0.22 */
+    PAL_TERM_M18 = 234, /* magenta at 0.18 */
+    PAL_TERM_M35 = 235, /* magenta at 0.35 */
+    PAL_TERM_M10 = 236, /* magenta at 0.10 */
+    PAL_TERM_C = 237, /* #00f0ff */
+    PAL_TERM_C28 = 239, /* cyan at 0.28 */
+    PAL_TERM_C22 = 242, /* cyan at 0.22 */
+    PAL_TERM_C18 = 243, /* cyan at 0.18 */
+    PAL_TERM_C35 = 246, /* cyan at 0.35 */
+    PAL_TERM_C10 = 247, /* cyan at 0.10 */
+    PAL_CREAM = 248, /* #e2dfd6 unselected light tile */

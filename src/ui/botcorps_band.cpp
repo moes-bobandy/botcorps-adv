@@ -130,7 +130,9 @@ static uint16_t pack332(uint8_t raw)
 
 static uint16_t native_at(int i)
 {
-    if (k_is_res[i]) return k_exact_nat[i];
+    /* Explicit term slots keep k_is_res clear so the frozen minimax table
+     * does not treat them as fit candidates. Their exact word still shows. */
+    if (k_is_res[i] || k_exact_nat[i] != 0) return k_exact_nat[i];
     return pack332((uint8_t)i);
 }
 
@@ -182,7 +184,7 @@ bool botcorps_pal_ramp_for(uint16_t native, int age, uint8_t *out)
 
 uint16_t botcorps_rgb565(uint8_t idx)
 {
-    if (k_is_res[idx]) return k_exact_nat[idx];
+    if (k_is_res[idx] || k_exact_nat[idx] != 0) return k_exact_nat[idx];
     return pack332(idx);
 }
 

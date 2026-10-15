@@ -306,7 +306,7 @@ static int s_hist_i = -1;
 static int s_found_n = 0;
 static int s_log_n = 0;
 static int s_log_next = 0;
-static int s_filter = 0; /* 0 off, 1 wifi, 2 ble */
+static int s_filter = 0; /* low bits: 0 off, 1 wifi, 2 ble. Bit 8: scan-all mode. */
 static char s_track_name[28];
 static uint32_t s_boot_ms = 0;
 static char s_clk[8];
@@ -719,6 +719,7 @@ static int button_count(void)
 }
 
 static void partial_int(void);
+static void scan_all_set(bool on);
 
 static void enter_screen(int id, int ret)
 {
@@ -730,6 +731,7 @@ static void enter_screen(int id, int ret)
     s_cursor = 0;
     s_sheet = false;
     s_focus_cmds = false;
+    scan_all_set(false);
     botcorps_lut_term(false);
     s_bus_t0 = millis();
     s_act = -1;
@@ -855,6 +857,24 @@ static void partial_int(void);
 static void partial_sheet(void);
 static void restore_under_sheet(void);
 
+/* Bit 8 lives in s_filter so the mode flag does not grow .bss. */
+static bool scan_all_on(void)
+{
+    return (s_filter & 0x100) != 0;
+}
+
+static void scan_all_set(bool on)
+{
+    if (on) s_filter |= 0x100;
+    else s_filter &= ~0x100;
+}
+
+/* Sheet colours, or the scan-all frame. Not called from inside a paint. */
+static void lut_for_term(void)
+{
+    botcorps_lut_term(s_screen == SCR_TERMINAL && (s_sheet || scan_all_on()));
+}
+
 static void run_cmd(const char *line)
 {
     char buf[80];
@@ -877,6 +897,9 @@ static void run_cmd(const char *line)
     char echo[80];
     snprintf(echo, sizeof(echo), "> %s%s%s", cmd, arg ? " " : "", arg ? arg : "");
     log_add(echo);
+    /* A new command leaves scan-all. The scan-all branch turns it back on.
+     * The term lut is not touched here. The full repaint installs it. */
+    scan_all_set(false);
 
     if (strcmp(cmd, "help") == 0) {
         for (int g = 0; g < 4; ++g) {
@@ -898,7 +921,10 @@ static void run_cmd(const char *line)
         log_clear();
     } else if (strcmp(cmd, "scan") == 0 || strcmp(cmd, "hunt") == 0) {
         if (strcmp(cmd, "scan") == 0 && arg && strcmp(arg, "all") == 0) {
-            /* Crew sweep stays on the terminal. It does not open a bot screen. */
+            /* Crew sweep stays on the terminal. It does not open a bot screen.
+             * Mode only. The next full repaint installs the term lut. */
+            scan_all_set(true);
+            s_dirty = true;
             s_mood_until = millis() + 160u;
             log_add_bot(12, "crew sweep - 12 boards");
             log_add("scan ################ 100%");
@@ -912,7 +938,6 @@ static void run_cmd(const char *line)
             found_add("watch-6");
             found_add("lobby-ap");
             found_add("speaker-7");
-            partial_prompt_panel();
             return;
         }
         int who = s_term;
@@ -1756,19 +1781,26 @@ static void paint_sheet(Gfx g)
         int hdr0 = -1;
         int cmd0 = 0;
         menu_row(top, &hdr0, &cmd0);
-        if (hdr0 >= 0)
-            g.fillRect(bx + 40, by + 6, w - 70, 3, PAL_TERM_M10);
+        if (hdr0 >= 0) {
+            g.fillRect(bx + 40, by + 6, w - 70, 1, PAL_TERM_M22);
+            g.fillRect(bx + 40, by + 7, w - 70, 1, PAL_TERM_M18);
+            g.fillRect(bx + 40, by + 8, w - 70, 1, PAL_TERM_M10);
+        }
         for (int r = 0; r < nshow; ++r) {
             int hdr = -1;
             int cmd = 0;
             menu_row(top + r, &hdr, &cmd);
             if (hdr >= 0) continue;
             const int y = by + 5 + r * rh;
-            g.fillRect(bx + 6, y, 2, rh - 1, PAL_TERM_M10);
-            g.fillRect(x1 - 6, y, 1, rh - 1, PAL_TERM_M10);
+            g.fillRect(bx + 6, y, 1, rh - 1, PAL_TERM_M22);
+            g.fillRect(bx + 7, y, 1, rh - 1, PAL_TERM_M18);
+            g.fillRect(bx + 8, y, 1, rh - 1, PAL_TERM_M10);
+            g.fillRect(x1 - 7, y, 1, rh - 1, PAL_TERM_M18);
+            g.fillRect(x1 - 6, y, 1, rh - 1, PAL_TERM_M22);
         }
-        g.fillRect(bx + 8, y1 - 6, w - 16, 1, PAL_TERM_M10);
-        g.fillRect(bx + 8, y1 - 7, w - 28, 1, PAL_TERM_M10);
+        g.fillRect(bx + 8, y1 - 8, w - 28, 1, PAL_TERM_M10);
+        g.fillRect(bx + 8, y1 - 7, w - 28, 1, PAL_TERM_M18);
+        g.fillRect(bx + 8, y1 - 6, w - 16, 1, PAL_TERM_M22);
     }
     /* g. Selected row clips the ramp on that row. The bar stays whole. */
     for (int r = 0; r < nshow; ++r) {
@@ -1922,22 +1954,54 @@ static void paint_cands(Gfx g)
     }
 }
 
+/* "scan #### 100%" becomes the v3.2 16-block bar. Label and percent stay text. */
+static bool paint_hash_bar(Gfx g, const char *ln, int x, int y, uint8_t ink)
+{
+    const char *hash = ln ? strchr(ln, '#') : 0;
+    if (!hash) return false;
+    int n = (int)(hash - ln);
+    while (n > 0 && ln[n - 1] == ' ') --n;
+    if (n <= 0 || n > 12) return false;
+    char label[13];
+    for (int i = 0; i < n; ++i) label[i] = ln[i];
+    label[n] = 0;
+    const char *pct = strrchr(ln, '%');
+    int pr = 100;
+    if (pct) {
+        const char *p = pct;
+        while (p > ln && p[-1] >= '0' && p[-1] <= '9') --p;
+        if (p < pct) {
+            pr = 0;
+            while (p < pct) { pr = pr * 10 + (*p - '0'); ++p; }
+        }
+    }
+    if (pr < 0) pr = 0;
+    if (pr > 100) pr = 100;
+    txt_bg(g, label, x, y, ink, PAL_BLACK, lgfx::textdatum::top_left);
+    const int bx = x + n * 6 + 4;
+    const int by = y + 1;
+    const int lit = (pr * 16 + 50) / 100;
+    /* TERM magenta only while scan-all mode is up, and the blocks sit
+     * inside the sheet rect. Unlit is a base-lookup dark, not an override. */
+    const uint8_t on = scan_all_on() ? (uint8_t)PAL_TERM_M : accent();
+    const uint8_t off = (uint8_t)PAL_LINE;
+    for (int i = 0; i < 16; ++i)
+        g.fillRect(bx + i * 5, by, 4, 6, i < lit ? on : off);
+    char tail[8];
+    snprintf(tail, sizeof(tail), "%d%%", pr);
+    txt_bg(g, tail, bx + 16 * 5 + 4, y, ink, PAL_BLACK, lgfx::textdatum::top_left);
+    return true;
+}
+
 static void paint_prompt(Gfx g)
 {
     const int keep = s_px;
     s_px = 6;
     /* Tiles end at y=165. Deep black plate. Enter pulses the hairline cyan. */
     g.fillRect(4, 168, 312, 68, PAL_BLACK);
-    /* Idle keeps the 170 hairline. The magenta glow is the crew-sweep
-     * log only, and only while the Tab sheet is closed. */
-    bool sweep_log = false;
-    for (int i = 0; i < s_log_n; ++i) {
-        const char *ln = log_line(i);
-        if (ln && ln[0] == '\x01') ln += 2;
-        if (ln && strstr(ln, "crew sweep")) { sweep_log = true; break; }
-    }
-    const bool sweep = sweep_log && !s_sheet;
-    if (!sweep) {
+    /* Plate chrome is the same with the sheet open or closed. The scan-all
+     * frame, if any, is painted later and only inside the sheet rect. */
+    {
         const bool pulse = s_mood_until != 0 && (int32_t)(millis() - s_mood_until) < 0;
         g.fillRect(4, 167, 312, 1, pulse ? accent() : (uint8_t)170);
     }
@@ -1945,20 +2009,16 @@ static void paint_prompt(Gfx g)
         const int span = 46;
         int sy = 171 + (int)((millis() / 28u) % (uint32_t)span);
         if (sy > 223) sy = 223;
-        const int sx = sweep ? 18 : 8;
-        const int sw = sweep ? 230 : 248;
-        g.fillRect(sx, sy, sw, 1, (s_color == 1) ? (uint8_t)PAL_WIRE_A
+        g.fillRect(8, sy, 248, 1, (s_color == 1) ? (uint8_t)PAL_WIRE_A
                                        : (s_color == 2) ? (uint8_t)PAL_WIRE_M
                                                         : (uint8_t)PAL_WIRE_C);
     }
-    if (!sweep) {
-        g.fillRect(4, 235, 312, 1, COL_LINE);
-        g.fillRect(4, 168, 1, 68, COL_LINE);
-        g.fillRect(315, 168, 1, 68, COL_LINE);
-    }
+    g.fillRect(4, 235, 312, 1, COL_LINE);
+    g.fillRect(4, 168, 1, 68, COL_LINE);
+    g.fillRect(315, 168, 1, 68, COL_LINE);
     const int n = s_log_n < 6 ? s_log_n : 6;
     const int start = s_log_n - n;
-    const int lx = sweep ? 20 : (s_sheet && sweep_log) ? 16 : 10;
+    const int lx = scan_all_on() ? 20 : 10;
     for (int k = 0; k < n; ++k) {
         const char *ln = log_line(start + k);
         const int ly = 171 + k * 8;
@@ -1982,6 +2042,7 @@ static void paint_prompt(Gfx g)
                 continue;
             }
         }
+        if (paint_hash_bar(g, show, lx, ly, ink)) continue;
         txt_bg(g, show, lx, ly, ink, PAL_BLACK, lgfx::textdatum::top_left);
     }
     const int y = PROMPT_Y;
@@ -2008,40 +2069,30 @@ static void paint_prompt(Gfx g)
     if ((millis() / 530u) % 2u == 0) g.fillRect(cx, y, 6, 8, accent());
     paint_cands(g);
     const bool po = s_focus_cmds && !s_sheet;
-    const int menu_y = sweep ? 198 : 214;
-    plate(g, 250, menu_y, 20, 12, po ? COL_SEL : COL_DEEP, po ? accent() : COL_LINE);
-    for (int k = 0; k < 3; ++k)
-        g.fillRect(255, menu_y + 3 + k * 3, 10, 1, po ? accent() : COL_MUTED);
+    plate(g, 250, 214, 20, 12, po ? COL_SEL : COL_DEEP, po ? accent() : COL_LINE);
+    for (int k = 0; k < 3; ++k) g.fillRect(255, 217 + k * 3, 10, 1, po ? accent() : COL_MUTED);
     if (po) paint_palette(g);
-    /* Companion box, bottom right. Shared slots. The sheet covers what it overlaps.
-     * On a crew sweep the box stays inside the log glow, above the prompt. */
+    /* Companion box, bottom right. Same place with the sheet open or closed. */
     {
-        const int bx = sweep ? 268 : 274;
+        const int bx = 274;
         const int by = 174;
-        const int bw = sweep ? 32 : 38;
-        const int bh = sweep ? 44 : 60;
-        const int chin = sweep ? 34 : 48;
-        const int blob = sweep ? 20 : 30;
         const uint8_t edge = (s_color == 1) ? (uint8_t)PAL_WIRE_A
                              : (s_color == 2) ? (uint8_t)PAL_WIRE_M : (uint8_t)PAL_WIRE_C;
-        g.fillRect(bx, by, bw, bh, PAL_BG);
-        g.fillRect(bx, by, bw, 1, edge);
-        g.fillRect(bx, by + bh - 1, bw, 1, COL_LINE);
-        g.fillRect(bx, by, 1, bh, COL_LINE);
-        g.fillRect(bx + bw - 1, by, 1, bh, COL_LINE);
+        g.fillRect(bx, by, 38, 60, PAL_BG);
+        g.fillRect(bx, by, 38, 1, edge);
+        g.fillRect(bx, by + 59, 38, 1, COL_LINE);
+        g.fillRect(bx, by, 1, 60, COL_LINE);
+        g.fillRect(bx + 37, by, 1, 60, COL_LINE);
         const int bot = s_term >= 0 && s_term <= 11 ? s_term : 0;
-        draw_blob(g, bx + 19, by + blob, 2, bot_color(bot), 0, false);
-        g.fillRect(bx + 9, by + chin, 20, 1, edge);
+        draw_blob(g, bx + 19, by + 30, 2, bot_color(bot), 0, false);
+        g.fillRect(bx + 9, by + 48, 20, 1, edge);
     }
-    if (sweep) {
-        /* Same magenta as the sheet edge, hot wire then two inward steps.
-         * Every pixel stays inside x14..306, y167..222. Prompt is y=227. */
-        botcorps_lut_term(true);
+    if (scan_all_on() && !s_sheet) {
+        /* TERM override codes, inside x14..306, y167..222 only. Prompt is y=227.
+         * No lut call here. The full repaint already installed the table. */
         g.drawRect(14, 167, 293, 56, PAL_TERM_M);
         g.drawRect(15, 168, 291, 54, PAL_TERM_M35);
         g.drawRect(16, 169, 289, 52, PAL_TERM_M22);
-    } else if (!s_sheet) {
-        botcorps_lut_term(false);
     }
     s_px = keep;
 }
@@ -4723,7 +4774,7 @@ static void on_ok(void)
                      CMD_ARG[s_sheet_i] ? " " : "");
             s_sheet = false;
             s_dirty = true;
-            botcorps_lut_term(false);
+            lut_for_term();
             return;
         }
         if (botcorps_t0_term_prompt[0]) {
@@ -4737,7 +4788,7 @@ static void on_ok(void)
                 s_sheet_i = 0;
                 s_dirty = true;
                 /* Same gate as the full present, so this path installs the sheet lut. */
-                botcorps_lut_term(s_screen == SCR_TERMINAL && s_sheet);
+                lut_for_term();
             } else if (strcmp(CMDS[s_cmd_sel], "rain") == 0) {
                 int m = botcorps_rain_mode() + 1;
                 if (m > 6) m = 0;
@@ -4787,7 +4838,7 @@ static void on_esc(void)
         s_sheet = false;
         s_focus_cmds = false;
         s_dirty = true;
-        botcorps_lut_term(false);
+        lut_for_term();
         return;
     }
     go_back();
@@ -4815,7 +4866,7 @@ static void on_tab(void)
         if (s_sheet) s_sheet_i = 0;
         s_tab_i = -1;
         s_dirty = true;
-        botcorps_lut_term(s_screen == SCR_TERMINAL && s_sheet);
+        lut_for_term();
         return;
     }
     const bool cont = s_tab_i >= 0 && strcmp(botcorps_t0_term_prompt, tab_last()) == 0;
@@ -5137,7 +5188,7 @@ void botcorps_ui_draw(void)
             if (dirty) s_dirty = false;
             botcorps_set_surface(BOTCORPS_SURFACE_CONTENT);
             /* One swap for the whole frame, before either band is pushed. */
-            botcorps_lut_term(s_screen == SCR_TERMINAL && s_sheet);
+            lut_for_term();
             botcorps_band_present([](Gfx g) {
                 paint_ext(g);
                 tick_ext(g);
@@ -5173,7 +5224,7 @@ void botcorps_ui_draw(void)
     }
     if (dirty) {
         s_dirty = false;
-        botcorps_lut_term(s_screen == SCR_TERMINAL && s_sheet);
+        lut_for_term();
         paint_ext_full();
     }
     if (int_dirty) {
@@ -5240,6 +5291,8 @@ void botcorps_host_idle(uint8_t *buf)
     s_log_next = 0;
     botcorps_t0_term_prompt[0] = 0;
     s_track_name[0] = 0;
+    scan_all_set(false);
+    s_mood_until = 0;
     boot_log();
     paint_ext(Gfx());
 }
@@ -5505,6 +5558,7 @@ void botcorps_host_scanall(uint8_t *buf)
     botcorps_t0_term_prompt[0] = 0;
     s_bus_t0 = 0;
     run_cmd("scan all");
+    lut_for_term();
     paint_ext(Gfx());
 }
 
@@ -5512,8 +5566,19 @@ void botcorps_host_scanall_sheet(uint8_t *buf)
 {
     botcorps_host_scanall(buf);
     s_sheet = true;
-    botcorps_lut_term(true);
     s_sheet_i = 0;
+    lut_for_term();
+    paint_ext(Gfx());
+}
+
+/* Log text says crew sweep, but scan-all mode was never set. */
+void botcorps_host_stale_sweep(uint8_t *buf)
+{
+    botcorps_host_idle(buf);
+    scan_all_set(false);
+    botcorps_lut_term(false);
+    s_mood_until = 0;
+    log_add("crew sweep - 12 boards");
     paint_ext(Gfx());
 }
 

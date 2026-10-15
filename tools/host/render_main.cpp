@@ -5,6 +5,7 @@
 
 #include <stdio.h>
 #include <stdint.h>
+#include <string.h>
 
 static uint16_t pack332(uint8_t i)
 {
@@ -539,6 +540,8 @@ int main(void)
         printf("scan-term-m rings %d/3 bottom %u prompt-glow %d hold %d bfb72 %d ov-out %d\n",
                ring_ok, bot, prompt_glow, hold, salmon, ov);
     }
+    static uint8_t sweep_closed[320 * 240];
+    memcpy(sweep_closed, hit, sizeof(sweep_closed));
     botcorps_host_scanall_sheet(hit);
     write_raw("/tmp/hit-scanall-tab.rgb", hit, 1);
     {
@@ -560,6 +563,30 @@ int main(void)
         printf("tab-covers-log frame-outside %d", frame);
         if (frame) printf(" box %d,%d-%d,%d", minx, miny, maxx, maxy);
         printf(" sheet-edge %u\n", hit[167 * 320 + 14]);
+    }
+    {
+        int diff = 0;
+        for (int y = 0; y < 240; ++y)
+            for (int x = 0; x < 320; ++x) {
+                if (x >= 14 && x <= 306 && y >= 104 && y <= 222) continue;
+                if (sweep_closed[y * 320 + x] != hit[y * 320 + x]) {
+                    if (diff < 6)
+                        printf(" sweep-out %d,%d %u->%u\n", x, y,
+                               sweep_closed[y * 320 + x], hit[y * 320 + x]);
+                    diff++;
+                }
+            }
+        printf("sweep-tab-outside %d\n", diff);
+    }
+    botcorps_host_stale_sweep(hit);
+    {
+        int stale170 = 0;
+        int frame = 0;
+        for (int x = 4; x <= 315; ++x) if (hit[167 * 320 + x] == 170) stale170++;
+        for (int i = 0; i < 320 * 240; ++i)
+            if (hit[i] == 230 || hit[i] == 235 || hit[i] == 232) frame++;
+        printf("stale-170 %d stale-frame %d\n", stale170, frame);
+        write_raw("/tmp/hit-stale.rgb", hit, 0);
     }
     botcorps_host_scanall(hit);
     write_raw("/tmp/hit-scanall.rgb", hit, 1);

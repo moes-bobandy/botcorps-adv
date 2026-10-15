@@ -415,6 +415,76 @@ int main(void)
            bus[67 * 320 + (65 - 7)], bus[77 * 320 + (101 - 7)],
            bus[167 * 320 + (47 - 7)], bus[55 * 320 + (140 - 7)]);
     botcorps_host_sig(0);
+    /* sel 0 (top 0), sel 20 (top 19), sel 39 (top 35). */
+    {
+        static const uint8_t grid[6][6] = {
+            { 235, 230, 230, 230, 230, 230 },
+            { 230, 236, 236, 235, 235, 235 },
+            { 230, 236, 236, 232, 232, 232 },
+            { 230, 235, 232, 234, 234, 234 },
+            { 230, 235, 232, 234, 236, 236 },
+            { 230, 235, 232, 234, 236, 236 },
+        };
+        const int sels[] = { 0, 20, 39 };
+        const char *paths[] = { "/tmp/sheet-s0.rgb", "/tmp/sheet-s20.rgb", "/tmp/sheet-s39.rgb" };
+        for (int si = 0; si < 3; ++si) {
+            botcorps_host_sheet(sheet, sels[si]);
+            write_raw(paths[si], sheet, 1);
+            int bad = 0;
+            printf("dump sel %d\n", sels[si]);
+            printf(" TL");
+            for (int dy = 0; dy < 6; ++dy) {
+                for (int dx = 0; dx < 6; ++dx) {
+                    const uint8_t g = sheet[(104 + dy) * 320 + (14 + dx)];
+                    printf(" %u", g);
+                    if (g != grid[dy][dx]) bad++;
+                }
+            }
+            printf("\n grid-bad %d\n", bad);
+            printf(" top");
+            for (int y = 104; y <= 109; ++y) {
+                printf(" y%d", y);
+                for (int x = 14; x <= 25; ++x) printf(",%u", sheet[y * 320 + x]);
+            }
+            printf("\n");
+            int hair = 0;
+            for (int x = 20; x <= 299; ++x) if (sheet[218 * 320 + x] != 231) hair++;
+            printf(" hair-not-231 %d y220=%u text127", hair, sheet[220 * 320 + 100]);
+            int n127 = 0;
+            for (int i = 0; i < 320 * 240; ++i) if (sheet[i] == 127) n127++;
+            printf(" %d\n", n127);
+            printf(" y216");
+            for (int x = 14; x <= 19; ++x) printf(" %u", sheet[216 * 320 + x]);
+            printf(" |");
+            for (int x = 301; x <= 306; ++x) printf(" %u", sheet[216 * 320 + x]);
+            printf("\n y217");
+            for (int x = 14; x <= 22; ++x) printf(" %u", sheet[217 * 320 + x]);
+            printf(" mid%u", sheet[217 * 320 + 160]);
+            printf(" |");
+            for (int x = 300; x <= 306; ++x) printf(" %u", sheet[217 * 320 + x]);
+            printf("\n");
+            printf(" up-arrow");
+            for (int y = 110; y <= 117; ++y) {
+                printf(" y%d", y);
+                for (int x = 293; x <= 306; ++x) printf(",%u", sheet[y * 320 + x]);
+            }
+            printf("\n dn-arrow");
+            for (int y = 208; y <= 215; ++y) {
+                printf(" y%d", y);
+                for (int x = 293; x <= 306; ++x) printf(",%u", sheet[y * 320 + x]);
+            }
+            printf("\n");
+            int out = 0;
+            for (int y = 0; y < 240; ++y)
+                for (int x = 0; x < 320; ++x) {
+                    if (x >= 14 && x <= 306 && y >= 104 && y <= 222) continue;
+                    for (int n = 0; n < botcorps_term_ov_n; ++n)
+                        if (sheet[y * 320 + x] == botcorps_term_ov_i[n]) { out++; break; }
+                }
+            printf(" outside %d\n", out);
+        }
+    }
+    botcorps_host_sig(0);
     botcorps_host_bus_ble(bus);
     write_raw("/tmp/bus-ble.rgb", bus, 0);
     printf("ble-edge 83,67=%u 101,77=%u 65,117=%u 47,167=%u 140,55=%u\n",

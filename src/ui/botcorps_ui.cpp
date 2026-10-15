@@ -1459,14 +1459,9 @@ static void stroke_round(Gfx g, int x, int y, int w, int h, uint8_t c)
     g.fillRect(x + w - 2, y + h - 3, 1, 1, c);
 }
 
-/* Ramp A, edge inward: 230, 235, 232, 234, 236, 236.
- * Top rows and the side columns. The 6x6 corner table replaces the
- * square corner. The bottom edge is painted later, after the hairline. */
-static void sheet_ramp_top(Gfx g, int x, int y, int w, int h)
+/* 6x6 corner. (sx, sy) point inward from the outer pixel. */
+static void sheet_corner(Gfx g, int x, int y, int sx, int sy)
 {
-    const uint8_t ramp[6] = {
-        PAL_TERM_M, PAL_TERM_M35, PAL_TERM_M22, PAL_TERM_M18, PAL_TERM_M10, PAL_TERM_M10
-    };
     const uint8_t corn[6][6] = {
         { PAL_TERM_M35, PAL_TERM_M, PAL_TERM_M, PAL_TERM_M, PAL_TERM_M, PAL_TERM_M },
         { PAL_TERM_M, PAL_TERM_M10, PAL_TERM_M10, PAL_TERM_M35, PAL_TERM_M35, PAL_TERM_M35 },
@@ -1474,6 +1469,20 @@ static void sheet_ramp_top(Gfx g, int x, int y, int w, int h)
         { PAL_TERM_M, PAL_TERM_M35, PAL_TERM_M22, PAL_TERM_M18, PAL_TERM_M18, PAL_TERM_M18 },
         { PAL_TERM_M, PAL_TERM_M35, PAL_TERM_M22, PAL_TERM_M18, PAL_TERM_M10, PAL_TERM_M10 },
         { PAL_TERM_M, PAL_TERM_M35, PAL_TERM_M22, PAL_TERM_M18, PAL_TERM_M10, PAL_TERM_M10 },
+    };
+    for (int dy = 0; dy < 6; ++dy) {
+        for (int dx = 0; dx < 6; ++dx)
+            g.fillRect(x + sx * dx, y + sy * dy, 1, 1, corn[dy][dx]);
+    }
+}
+
+/* Ramp A, edge inward: 230, 235, 232, 234, 236, 236.
+ * Top rows and the side columns. The 6x6 corner table replaces the
+ * square corner. The bottom edge is painted later, after the hairline. */
+static void sheet_ramp_top(Gfx g, int x, int y, int w, int h)
+{
+    const uint8_t ramp[6] = {
+        PAL_TERM_M, PAL_TERM_M35, PAL_TERM_M22, PAL_TERM_M18, PAL_TERM_M10, PAL_TERM_M10
     };
     const int x1 = x + w;
     const int y1 = y + h;
@@ -1483,15 +1492,10 @@ static void sheet_ramp_top(Gfx g, int x, int y, int w, int h)
         g.fillRect(x + i, y, 1, tall, ramp[i]);
         g.fillRect(x1 - i, y, 1, tall, ramp[i]);
     }
-    for (int dy = 0; dy < 6; ++dy) {
-        for (int dx = 0; dx < 6; ++dx) {
-            const uint8_t c = corn[dy][dx];
-            g.fillRect(x + dx, y + dy, 1, 1, c);
-            g.fillRect(x1 - dx, y + dy, 1, 1, c);
-            g.fillRect(x + dx, y1 - dy, 1, 1, c);
-            g.fillRect(x1 - dx, y1 - dy, 1, 1, c);
-        }
-    }
+    sheet_corner(g, x, y, 1, 1);
+    sheet_corner(g, x1, y, -1, 1);
+    sheet_corner(g, x, y1, 1, -1);
+    sheet_corner(g, x1, y1, -1, -1);
 }
 
 static void paint_term_icons(Gfx g)
@@ -1671,6 +1675,8 @@ static void paint_sheet(Gfx g)
             }
             txt(g, G_NAME[hdr], gx, gy, PAL_TERM_M, lgfx::textdatum::top_left);
             s_px = keepf;
+            /* The glow copy reaches x17. The top-left grid keeps x14..19. */
+            sheet_corner(g, bx, by, 1, 1);
         } else {
             glow_txt(g, G_NAME[hdr], bx + 8, y + 1, PAL_BG, 6);
         }
@@ -1722,8 +1728,10 @@ static void paint_sheet(Gfx g)
                              : (s_color == 2) ? (uint8_t)PAL_MINT : (uint8_t)PAL_TERM_C;
         draw_purpose(g, CMDP[cmd], bx + w - 8, y + 1, pur, bg);
     }
-    if (top > 0) blit_ico(g, ARROW_UP, bx + w - 12, by + 2, COL_MUTED);
-    if (top + nshow < rows) blit_ico(g, ARROW_DN, bx + w - 12, by + h - 11, COL_MUTED);
+    /* 8px icons. x293..300 stays off the x301 ramp. y is 110..117 and 208..215. */
+    const int ax = x1 - 13;
+    if (top > 0) blit_ico(g, ARROW_UP, ax, by + 6, COL_MUTED);
+    if (top + nshow < rows) blit_ico(g, ARROW_DN, ax, y1 - 14, COL_MUTED);
     s_px = keep;
 }
 

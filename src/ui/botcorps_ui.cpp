@@ -1460,22 +1460,24 @@ static void stroke_round(Gfx g, int x, int y, int w, int h, uint8_t c)
     g.fillRect(x + w - 2, y + h - 3, 1, 1, c);
 }
 
-/* Tab sheet frame. Override codes stay inside the rect. The halo outside
- * the rect is shared slots, so the bloom still reads past the edge. */
+/* Inclusive border of the sheet rect. Core 235, then 236 one and two
+ * pixels inward. Nothing is drawn outside the rect. */
 static void frame_mag(Gfx g, int x, int y, int w, int h)
 {
-    stroke_round(g, x - 4, y - 4, w + 8, h + 8, PAL_WASH_M);
-    stroke_round(g, x - 3, y - 3, w + 6, h + 6, PAL_WIRE_M);
-    stroke_round(g, x - 2, y - 2, w + 4, h + 4, PAL_R_E2FF);
-    stroke_round(g, x - 1, y - 1, w + 2, h + 2, PAL_WIRE_M);
-    /* 236, 234, 232, 231 falloff, then the 230 stroke, then 235/232 bloom. */
-    stroke_round(g, x, y, w, h, PAL_TERM_M10);
-    stroke_round(g, x + 1, y + 1, w - 2, h - 2, PAL_TERM_M18);
-    stroke_round(g, x + 2, y + 2, w - 4, h - 4, PAL_TERM_M22);
-    stroke_round(g, x + 3, y + 3, w - 6, h - 6, PAL_TERM_M28);
-    stroke_round(g, x + 4, y + 4, w - 8, h - 8, PAL_TERM_M);
-    stroke_round(g, x + 5, y + 5, w - 10, h - 10, PAL_TERM_M35);
-    stroke_round(g, x + 6, y + 6, w - 12, h - 12, PAL_TERM_M22);
+    const int rw = w + 1;
+    const int rh = h + 1;
+    g.fillRect(x, y, rw, 1, PAL_TERM_M35);
+    g.fillRect(x, y + h, rw, 1, PAL_TERM_M35);
+    g.fillRect(x, y, 1, rh, PAL_TERM_M35);
+    g.fillRect(x + w, y, 1, rh, PAL_TERM_M35);
+    g.fillRect(x + 1, y + 1, rw - 2, 1, PAL_TERM_M10);
+    g.fillRect(x + 1, y + h - 1, rw - 2, 1, PAL_TERM_M10);
+    g.fillRect(x + 1, y + 1, 1, rh - 2, PAL_TERM_M10);
+    g.fillRect(x + w - 1, y + 1, 1, rh - 2, PAL_TERM_M10);
+    g.fillRect(x + 2, y + 2, rw - 4, 1, PAL_TERM_M10);
+    g.fillRect(x + 2, y + h - 2, rw - 4, 1, PAL_TERM_M10);
+    g.fillRect(x + 2, y + 2, 1, rh - 4, PAL_TERM_M10);
+    g.fillRect(x + w - 2, y + 2, 1, rh - 4, PAL_TERM_M10);
 }
 
 static void paint_term_icons(Gfx g)
@@ -1621,9 +1623,7 @@ static void paint_sheet(Gfx g)
         if (tx + 72 <= bx || ty + 46 <= by || tx >= bx + w || ty >= by + h) continue;
         paint_one_board(g, i, (i == s_term) && !s_focus_cmds, true);
     }
-    /* M10 is the precomputed 0.10 tint. The core stays deep so the rows read. */
-    g.fillRect(bx + 3, by + 3, w - 6, h - 6, PAL_TERM_M10);
-    g.fillRect(bx + 10, by + 10, w - 20, h - 20, PAL_DEEP);
+    g.fillRect(bx + 3, by + 3, w - 5, h - 5, PAL_DEEP);
     if (by + h > 168) {
         const int y0 = by > 168 ? by : 168;
         g.fillRect(bx + 1, y0, w - 2, by + h - y0, PAL_DEEP);
@@ -1639,14 +1639,42 @@ static void paint_sheet(Gfx g)
         menu_row(top + r, &hdr, &cmd);
         const int y = by + 5 + r * rh;
         if (hdr >= 0) {
-            glow_txt(g, G_NAME[hdr], bx + 8, y + 1, PAL_DEEP, 6);
+            if (hdr == 0) {
+                /* Glyphs 230. Five pixels on every side: 235, 232, 234, 236, 236. */
+                const uint8_t ringc[5] = {
+                    PAL_TERM_M35, PAL_TERM_M22, PAL_TERM_M18, PAL_TERM_M10, PAL_TERM_M10
+                };
+                const int gx = bx + 8;
+                const int gy = y + 1;
+                const int keepf = s_px;
+                s_px = 6;
+                for (int d = 5; d >= 1; --d) {
+                    const uint8_t c = ringc[d - 1];
+                    for (int dy = -d; dy <= d; ++dy) {
+                        for (int dx = -d; dx <= d; ++dx) {
+                            const int ax = dx < 0 ? -dx : dx;
+                            const int ay = dy < 0 ? -dy : dy;
+                            if ((ax > ay ? ax : ay) != d) continue;
+                            txt(g, G_NAME[hdr], gx + dx, gy + dy, c, lgfx::textdatum::top_left);
+                        }
+                    }
+                }
+                txt(g, G_NAME[hdr], gx, gy, PAL_TERM_M, lgfx::textdatum::top_left);
+                s_px = keepf;
+            } else {
+                glow_txt(g, G_NAME[hdr], bx + 8, y + 1, PAL_DEEP, 6);
+            }
             glow_hline(g, bx + 48, y + 5, w - 60, STEP_RULE);
             continue;
         }
         const bool on = cmd == sel;
-        const uint8_t bg = on ? glow_of(STEP_SEL) : (uint8_t)PAL_DEEP;
-        g.fillRect(bx + 3, y - 1, w - 6, rh - 1, bg);
-        if (on) g.fillRect(bx + 3, y - 1, 2, rh - 1, glow_of(STEP_AC));
+        const uint8_t bg = on ? (uint8_t)PAL_TERM_M18 : (uint8_t)PAL_DEEP;
+        if (on) {
+            g.fillRect(bx + 3, y, w - 6, rh - 2, bg);
+            g.fillRect(bx + 3, y, 2, rh - 2, PAL_TERM_M);
+        } else {
+            g.fillRect(bx + 3, y - 1, w - 6, rh - 1, bg);
+        }
         const uint8_t ac = accent();
         blit_ico(g, CMD_ICO[cmd], bx + 10, y + 1, on ? (uint8_t)PAL_TERM_M : ac);
         const uint8_t ink = term_ink();
@@ -1779,12 +1807,7 @@ static void paint_prompt(Gfx g)
     s_px = 6;
     /* Tiles end at y=165. The plate starts below them. */
     g.fillRect(4, 168, 312, 68, COL_DEEP);
-    {
-        const uint8_t wire = (s_color == 1) ? (uint8_t)PAL_WIRE_A
-                             : (s_color == 2) ? (uint8_t)PAL_WIRE_M : (uint8_t)PAL_WIRE_C;
-        g.fillRect(4, 168, 312, 1, accent());
-        g.fillRect(4, 169, 312, 1, wire);
-    }
+    g.fillRect(4, 167, 312, 1, (uint8_t)170);
     g.fillRect(4, 235, 312, 1, COL_LINE);
     g.fillRect(4, 168, 1, 68, COL_LINE);
     g.fillRect(315, 168, 1, 68, COL_LINE);
@@ -1818,15 +1841,10 @@ static void paint_prompt(Gfx g)
     const int y = PROMPT_Y;
     s_px = 6;
     {
-        const uint8_t wash = (s_color == 1) ? (uint8_t)PAL_WASH_A
-                             : (s_color == 2) ? (uint8_t)PAL_WASH_M : (uint8_t)PAL_WASH_C;
-        const uint8_t wire = (s_color == 1) ? (uint8_t)PAL_WIRE_A
-                             : (s_color == 2) ? (uint8_t)PAL_WIRE_M : (uint8_t)PAL_WIRE_C;
-        txt(g, "user@botcorps", 13, y + 3, wash, lgfx::textdatum::top_left);
-        txt(g, "user@botcorps", 12, y + 2, wire, lgfx::textdatum::top_left);
-        txt(g, "user@botcorps", 11, y + 1, (uint8_t)PAL_R_E2FF, lgfx::textdatum::top_left);
-        txt(g, "user@botcorps", 11, y, accent(), lgfx::textdatum::top_left);
-        txt(g, "user@botcorps", 10, y, accent(), lgfx::textdatum::top_left);
+        txt(g, "user@botcorps", 8, y, (uint8_t)5, lgfx::textdatum::top_left);
+        txt(g, "user@botcorps", 10, y, (uint8_t)5, lgfx::textdatum::top_left);
+        txt(g, "user@botcorps", 9, y + 1, (uint8_t)5, lgfx::textdatum::top_left);
+        txt(g, "user@botcorps", 9, y, (uint8_t)194, lgfx::textdatum::top_left);
     }
     txt(g, ":~$", 10 + 13 * 6 + 1, y, accent(), lgfx::textdatum::top_left);
     txt(g, ":~$", 10 + 13 * 6, y, accent(), lgfx::textdatum::top_left);

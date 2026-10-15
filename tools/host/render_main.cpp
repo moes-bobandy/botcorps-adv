@@ -152,7 +152,7 @@ int main(void)
         int minx = 320, miny = 240, maxx = 0, maxy = 0;
         for (int y = 0; y < 240; ++y) {
             for (int x = 0; x < 320; ++x) {
-                const int inside = sheet_on[f] && x >= 14 && x < 306 && y >= 104 && y < 222;
+                const int inside = sheet_on[f] && x >= 14 && x <= 306 && y >= 104 && y <= 222;
                 if (inside) continue;
                 const uint8_t c = frames[f][y * 320 + x];
                 for (int n = 0; n < botcorps_term_ov_n; ++n) {

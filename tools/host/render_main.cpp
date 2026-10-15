@@ -504,6 +504,8 @@ int main(void)
     write_raw("/tmp/hit-keyfob.rgb", hit, 0);
     botcorps_host_hub(hit);
     write_raw("/tmp/hit-hub.rgb", hit, 0);
+    botcorps_host_intro(hit);
+    write_raw("/tmp/hit-intro.rgb", hit, 0);
     botcorps_host_sheet(hit, 0);
     write_raw("/tmp/hit-tab0.rgb", hit, 1);
     botcorps_host_sheet(hit, 20);

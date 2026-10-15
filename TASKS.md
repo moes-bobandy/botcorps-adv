@@ -38,3 +38,35 @@ Addendum: 80647a0/d02bc4a (pushed during this review) add icon-zone hit tests, b
 - INT paint now applies a top-right clip on CYD (incomplete fold; full compact badge still needed).
 - OSK path returns only K_CHAR / K_OK / K_BS (no arrow hotkeys).
 - Touch edge detection + ~50 ms debounce added (fires once per press).
+
+---
+
+## GIBSONbot review — tip e48765c (2026-10-15 ~7:08 PM ET)
+
+Reviewed commits since 868fb09: 3e970a0 (INT clip + typing note), 7eac44a (touch edge/debounce), 2b0d40d/e48765c (REPORT tip bumps). Built bin still ~1.40 MB tracked. Nothing flashed or merged by this watch.
+
+### What this batch actually fixed
+4. **Touch edge + debounce — DONE enough for P0.** `read_key` now fires once on press edge with ~50 ms min interval and ignores hold repeats. Keep as closed unless device testing shows bounce; optional later: release-edge or longer gate.
+
+### Still open (renumbered status vs prior list)
+1. Palette `constexpr` / static_assert still broken (`inline` + assert commented).
+2. INT fold still incomplete: only `setClipRect(220,0,100,60)` around full `paint_int` — not a compact CYD badge; full 240×135 card still drawn into the corner. Skip `paint_int` / `id_tick` on CYD and draw a compact badge instead.
+3. Touch main nav still blanket `K_OK` on icon zones; no focus/select split, no dropdown/top-bar/back hit-tests.
+5. OSK hit geometry still 16×32 from (0,160); paint still 15×30 from (8,165).
+6. OSK key map still wrong: space→`K_OK`, `,`→`K_BS`, `.`→`K_TAB`; white text on `0x0010`, no real SPACE/BKSP/ENTER cells.
+7. `paint_osk()` still called every `botcorps_ui_draw()` loop.
+8. Typing path better (OSK → `K_CHAR` → `on_char` on Terminal) but no host/unit test; space still can't be typed.
+9. Bot-colored Terminal replies: code path exists (`bot_color` / `\x01` ink); confirm on device vs mock ivory-only idle look.
+10. Board labels: still need focused-tile-only rule verified against mock.
+11. Rain: Terminal excluded in `wants_rain()` — keep; verify intro density vs v11.
+12–13. Adv `VIEW_MAX` / comment restorations — recheck if still missing after this tip.
+14. `builds/cyd/botcorps-cyd.bin` still tracked (gitignore has `*.bin` but file remains in index). Untrack it.
+15–19. P1 unchanged (calibration, bus, NimBLE, host-render, optional I2C).
+20. REPORT.md still overclaims: tip field lags (says 7eac44a, tip is e48765c); "INT folded", "ID badge kept", "typing path does not fire hotkeys" are not fully true.
+
+### Next Super Grok slice (paste order)
+A. Real CYD compact ID badge; disable full `paint_int`/`id_tick` on CYD (closes 2).
+B. Shared OSK rect table + real SPACE/BKSP/ENTER/hide; stop per-loop repaint (closes 5–7).
+C. Icon-zone focus then select; dropdown/top-bar/back hit-tests — no blanket `K_OK` (closes 3).
+D. Untrack `builds/cyd/botcorps-cyd.bin`; fix REPORT honesty (closes 14, 20).
+E. Restore palette constexpr assert (closes 1).

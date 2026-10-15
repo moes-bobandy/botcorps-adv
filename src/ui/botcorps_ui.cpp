@@ -292,6 +292,18 @@ enum { MOOD_NEUTRAL = 0, MOOD_HAPPY, MOOD_EXCITED, MOOD_HUNTING, MOOD_SLEEPY, MO
 static int s_mood = MOOD_NEUTRAL;
 static uint32_t s_mood_until = 0;
 static uint32_t s_last_key = 0;
+#ifdef BOTCORPS_CYD
+static bool s_osk_open = false;
+static int s_osk_row = 0;
+static int s_osk_col = 0;
+static const char *osk_rows[] = {
+    "1234567890",
+    "qwertyuiop",
+    "asdfghjkl",
+    "zxcvbnm",
+    " ,.<"
+};
+#endif
 static char s_bub[8];
 static char s_gp_buf[20];
 static char s_gp_log[2][28];
@@ -4271,14 +4283,29 @@ static int read_key(char *typed)
 {
     *typed = 0;
 #ifdef BOTCORPS_CYD
-    // Basic touch: any tap acts as OK / next for navigation.
-    // Full OSK and focus labels to be refined.
     int tx, ty;
-    if (botcorps_disp().getTouch(&tx, &ty)) {
-        *typed = 0;
-        return K_OK;  // treat tap as enter/select for now
+    if (!botcorps_disp().getTouch(&tx, &ty)) return K_NONE;
+    // Simple OSK: bottom 80px is keyboard when open
+    if (s_osk_open && ty > 160) {
+        int row = (ty - 160) / 16;
+        int col = tx / 32;
+        if (row >= 0 && row < 5 && col >= 0 && col < (int)strlen(osk_rows[row])) {
+            char c = osk_rows[row][col];
+            if (c == ' ') return K_OK;
+            if (c == ',') return K_BS;
+            if (c == '.') return K_TAB;
+            if (c == '<') { s_osk_open = false; return K_ESC; }
+            *typed = c;
+            return K_CHAR;
+        }
+        return K_NONE;
     }
-    return K_NONE;
+    // Outside OSK: tap opens keyboard on terminal, else acts as OK
+    if (s_screen == SCR_TERMINAL) {
+        s_osk_open = true;
+        return K_NONE;
+    }
+    return K_OK;
 #else
     if (!M5Cardputer.Keyboard.isChange()) return K_NONE;
     if (!M5Cardputer.Keyboard.isPressed()) return K_NONE;
@@ -4470,6 +4497,26 @@ void botcorps_ui_input(void)
     else if (key == K_CHAR) on_char(typed);
 }
 
+
+#ifdef BOTCORPS_CYD
+static void paint_osk(void)
+{
+    if (!s_osk_open) return;
+    auto &d = botcorps_disp();
+    d.fillRect(0, 160, 320, 80, 0x0010);
+    d.setTextColor(0xFFFF);
+    d.setTextSize(1);
+    for (int r = 0; r < 5; ++r) {
+        const char *row = osk_rows[r];
+        int y = 165 + r * 15;
+        for (int c = 0; row[c]; ++c) {
+            int x = 8 + c * 30;
+            d.setCursor(x, y);
+            d.print(row[c]);
+        }
+    }
+}
+#endif
 void botcorps_ui_draw(void)
 {
     botcorps_rain_set_hub(s_screen == SCR_GIBSON);
@@ -4558,6 +4605,9 @@ void botcorps_ui_draw(void)
                              gib ? 0 : bi, gib, gib ? COL_IVORY : bot_color(bi));
         }
     }
+#ifdef BOTCORPS_CYD
+    paint_osk();
+#endif
 }
 
 #ifdef BOTCORPS_HOST_RENDER

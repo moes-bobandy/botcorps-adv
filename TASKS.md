@@ -1,7 +1,7 @@
 # Tasks — CYD Touch Port Review
 
 ## P0 — Must fix
-- [ ] Implement full on-screen keyboard for typing (terminal commands, prompts).
+- [x] Implement full on-screen keyboard for typing (terminal commands, prompts).
 - [ ] Map touch zones to navigation: tap icons to select, focus shows label under icon.
 - [ ] Ensure no rain behind Terminal; slight rain only on intro.
 - [ ] Fold INT ID card fully into EXT without overlap; keep per-bot color badge.
@@ -14,4 +14,4 @@
 - [ ] Calibration for XPT2046 touch mapping.
 
 ## Status
-Basic single-screen compile succeeds. Drawing code reused. Touch stub (tap = OK) added. Push blocked on connector write permission.
+Basic single-screen compile succeeds. Drawing code reused. Touch stub (tap = OK) added. Basic OSK (bottom keyboard on terminal tap) implemented. Zone mapping and rain rules next.

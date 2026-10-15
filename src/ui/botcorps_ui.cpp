@@ -4080,6 +4080,10 @@ static void paint_int_now(void)
     Serial.println("[int] paint_int_now");
     botcorps_set_surface(BOTCORPS_SURFACE_MENU);
     auto &menu = botcorps_menu();
+#ifdef BOTCORPS_CYD
+    // Fold INT into EXT: draw ID card in top-right corner, clipped
+    menu.setClipRect(220, 0, 100, 60);
+#endif
     menu.startWrite();
     paint_int(menu);
     menu.endWrite();

@@ -4285,7 +4285,7 @@ static int read_key(char *typed)
 #ifdef BOTCORPS_CYD
     int tx, ty;
     if (!botcorps_disp().getTouch(&tx, &ty)) return K_NONE;
-    // Simple OSK: bottom 80px is keyboard when open
+    // OSK takes priority when open
     if (s_osk_open && ty > 160) {
         int row = (ty - 160) / 16;
         int col = tx / 32;
@@ -4300,7 +4300,20 @@ static int read_key(char *typed)
         }
         return K_NONE;
     }
-    // Outside OSK: tap opens keyboard on terminal, else acts as OK
+    // Check icon cover zones for navigation
+    for (int i = 0; i < s_box_n; ++i) {
+        auto &b = s_box[i];
+        if (tx >= b.x && tx < b.x + b.w && ty >= b.y && ty < b.y + b.h) {
+            // Map zone to action: terminal icon opens OSK or navigates
+            if (s_screen == SCR_TERMINAL && ty > 160) {
+                s_osk_open = true;
+                return K_NONE;
+            }
+            // Simple: treat icon tap as select / OK for now
+            return K_OK;
+        }
+    }
+    // Fallback
     if (s_screen == SCR_TERMINAL) {
         s_osk_open = true;
         return K_NONE;

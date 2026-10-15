@@ -1529,8 +1529,10 @@ static void sheet_corner(Gfx g, int x, int y, int sx, int sy)
  * square corner. The bottom edge is painted later, after the hairline. */
 static void sheet_ramp_top(Gfx g, int x, int y, int w, int h)
 {
+    /* Hotter inward steps. The 6x6 corner table is painted after this and
+     * the CORE column at x30,y105-109 is the text halo, not this ramp. */
     const uint8_t ramp[6] = {
-        PAL_TERM_M, PAL_TERM_M35, PAL_TERM_M22, PAL_TERM_M18, PAL_TERM_M10, PAL_TERM_M10
+        PAL_TERM_M, PAL_TERM_M, PAL_TERM_M35, PAL_TERM_M22, PAL_TERM_M18, PAL_TERM_M10
     };
     const int x1 = x + w;
     const int y1 = y + h;
@@ -1908,10 +1910,12 @@ static void paint_prompt(Gfx g)
     s_px = 6;
     /* Tiles end at y=165. Deep black plate. Enter pulses the hairline cyan. */
     g.fillRect(4, 168, 312, 68, PAL_BLACK);
-    {
-        const bool pulse = s_mood_until != 0 && (int32_t)(millis() - s_mood_until) < 0;
-        g.fillRect(4, 167, 312, 1, pulse ? accent() : (uint8_t)170);
-    }
+    /* Pink frame on the log plate. Shared slots, so it stays off the sheet lut. */
+    g.drawRect(2, 165, 316, 73, PAL_HOLD);
+    g.drawRect(3, 166, 314, 71, PAL_BFB72);
+    g.drawRect(4, 167, 312, 69, PAL_BFB72);
+    if (s_mood_until != 0 && (int32_t)(millis() - s_mood_until) < 0)
+        g.fillRect(6, 168, 308, 1, PAL_WHITE);
     {
         const int span = 46;
         int sy = 171 + (int)((millis() / 28u) % (uint32_t)span);
@@ -1920,9 +1924,7 @@ static void paint_prompt(Gfx g)
                                        : (s_color == 2) ? (uint8_t)PAL_WIRE_M
                                                         : (uint8_t)PAL_WIRE_C);
     }
-    g.fillRect(4, 235, 312, 1, COL_LINE);
-    g.fillRect(4, 168, 1, 68, COL_LINE);
-    g.fillRect(315, 168, 1, 68, COL_LINE);
+    g.drawRect(5, 168, 310, 67, PAL_HOLD);
     const int n = s_log_n < 6 ? s_log_n : 6;
     const int start = s_log_n - n;
     for (int k = 0; k < n; ++k) {
@@ -3189,11 +3191,9 @@ static void paint_gibson(Gfx g)
         g.fillRect(sx + 21, sy + 7, 4, 4, dot_col(i, t, mood, asleep));
     }
     hub_die(g, cx, cy, 34);
-    const uint8_t rc1 = mood == MOOD_ALERT ? (((t / 160u) % 2u) ? PAL_AMBER : PAL_HOLD)
-                        : mood == MOOD_SAD ? PAL_LINE : ac;
-    px_ring(g, cx, cy, 34, rc1, 0, 0, 0);
+    px_ring(g, cx, cy, 34, PAL_CYAN, 0, 0, 0);
     const int spin = mood == MOOD_HUNTING ? (int)(t / 30u) : mood == MOOD_EXCITED ? (int)(t / 50u) : (int)(t / 90u);
-    px_ring(g, cx, cy, 37, mood == MOOD_ALERT ? PAL_AMBER : mood == MOOD_SAD ? PAL_LINE : ac, 5, 5, spin);
+    px_ring(g, cx, cy, 37, PAL_CYAN, 5, 5, spin);
     if (mood == MOOD_HUNTING) {
         for (int k = 0; k < 14; ++k) {
             const float ang = (float)t / 260.f - (float)k * 0.07f;
@@ -3201,11 +3201,11 @@ static void paint_gibson(Gfx g)
             g.fillRect(cx + (int)(cosf(ang) * 40.f), cy + (int)(sinf(ang) * 40.f), 1, 1, ink);
         }
     }
-    px_ring(g, cx, cy, 42, COL_LINE, 2, 4, (int)(t / 140u));
-    px_ring(g, cx, cy, 48, ac, 1, 5, (int)(t / 80u));
-    px_ring(g, cx, cy, 54, wire, 2, 6, (int)(t / 200u));
+    px_ring(g, cx, cy, 42, PAL_CYAN, 2, 4, (int)(t / 140u));
+    px_ring(g, cx, cy, 48, PAL_CYAN, 1, 5, (int)(t / 80u));
+    px_ring(g, cx, cy, 54, PAL_CYAN, 2, 6, (int)(t / 200u));
     const int ph = (int)((t % 2400u) * 5u / 2400u);
-    px_ring(g, cx, cy, 44 + ph, wire, 3, 3, 0);
+    px_ring(g, cx, cy, 44 + ph, PAL_CYAN, 3, 3, 0);
     hub_sparks(g, cx, cy, t);
     g.fillRect(cx - 14, cy + 25, 28, 1, wire);
     hub_gibson(g, cx, cy, 9);
@@ -3619,8 +3619,10 @@ static void paint_gc_route(Gfx g, uint8_t ac)
     const int w = 180;
     const int h = 126;
     g.fillRect(x, y, w, h, PAL_BLACK);
-    g.drawRect(x, y, w, h, PAL_HOLD);
-    g.drawRect(x + 2, y + 2, w - 4, h - 4, ac);
+    g.drawRect(x - 2, y - 2, w + 4, h + 4, PAL_HOLD);
+    g.drawRect(x - 1, y - 1, w + 2, h + 2, PAL_BFB72);
+    g.drawRect(x, y, w, h, PAL_BFB72);
+    g.drawRect(x + 1, y + 1, w - 2, h - 2, PAL_HOLD);
     for (int gy = 16; gy < h - 8; gy += 16) g.fillRect(x + 8, y + gy, w - 16, 1, PAL_LINE);
     for (int gx = 16; gx < w - 8; gx += 18) g.fillRect(x + gx, y + 8, 1, h - 16, PAL_LINE);
     dev_icon(g, DEV_DEAUTH, x + 18, y + 16, false);
@@ -3678,8 +3680,10 @@ static void paint_gchat(Gfx g)
     g.drawRect(4, 148, 312, 88, ac);
     g.drawRect(5, 149, 310, 86, PAL_WIRE_C);
     g.fillRect(6, 150, 250, 1, (uint32_t)(t - s_bus_t0) < 160u ? ac : (uint8_t)PAL_WIRE_C);
-    draw_blob(g, 290, 200, 2, PAL_IVORY, 0, false);
-    g.drawRect(274, 184, 32, 32, ac);
+    g.fillRect(280, 200, 28, 28, PAL_BLACK);
+    g.drawRect(279, 199, 30, 30, ac);
+    g.drawRect(280, 200, 28, 28, PAL_WIRE_C);
+    hub_gibson(g, 294, 214, 3);
     s_px = 6;
     const int n = s_log_n < 6 ? s_log_n : 6;
     const int start = s_log_n - n;
@@ -5483,6 +5487,8 @@ void botcorps_host_hub(uint8_t *buf)
     s_color = 0;
     s_cursor = 0;
     s_act = -1;
+    s_mood = MOOD_NEUTRAL;
+    s_mood_until = 0;
     paint_ext(Gfx());
 }
 #endif

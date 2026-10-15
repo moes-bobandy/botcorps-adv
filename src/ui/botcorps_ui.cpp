@@ -1460,24 +1460,53 @@ static void stroke_round(Gfx g, int x, int y, int w, int h, uint8_t c)
     g.fillRect(x + w - 2, y + h - 3, 1, 1, c);
 }
 
-/* Inclusive border of the sheet rect. Core 235, then 236 one and two
- * pixels inward. Nothing is drawn outside the rect. */
+/* Inclusive border. Ramp from the edge inward: 235, 235, 236, 236.
+ * r3 corners stay inside the rect: the outer pixel is left blank,
+ * one step in is 230, two steps in is 235. */
 static void frame_mag(Gfx g, int x, int y, int w, int h)
 {
-    const int rw = w + 1;
-    const int rh = h + 1;
-    g.fillRect(x, y, rw, 1, PAL_TERM_M35);
-    g.fillRect(x, y + h, rw, 1, PAL_TERM_M35);
-    g.fillRect(x, y, 1, rh, PAL_TERM_M35);
-    g.fillRect(x + w, y, 1, rh, PAL_TERM_M35);
-    g.fillRect(x + 1, y + 1, rw - 2, 1, PAL_TERM_M10);
-    g.fillRect(x + 1, y + h - 1, rw - 2, 1, PAL_TERM_M10);
-    g.fillRect(x + 1, y + 1, 1, rh - 2, PAL_TERM_M10);
-    g.fillRect(x + w - 1, y + 1, 1, rh - 2, PAL_TERM_M10);
-    g.fillRect(x + 2, y + 2, rw - 4, 1, PAL_TERM_M10);
-    g.fillRect(x + 2, y + h - 2, rw - 4, 1, PAL_TERM_M10);
-    g.fillRect(x + 2, y + 2, 1, rh - 4, PAL_TERM_M10);
-    g.fillRect(x + w - 2, y + 2, 1, rh - 4, PAL_TERM_M10);
+    const uint8_t ramp[4] = {
+        PAL_TERM_M35, PAL_TERM_M35, PAL_TERM_M10, PAL_TERM_M10
+    };
+    const int x1 = x + w;
+    const int y1 = y + h;
+    for (int i = 0; i < 4; ++i) {
+        const uint8_t c = ramp[i];
+        const int L = x + i;
+        const int R = x1 - i;
+        const int T = y + i;
+        const int B = y1 - i;
+        const int span = R - L + 1;
+        const int tall = B - T + 1;
+        if (span < 1 || tall < 1) continue;
+        if (i == 0) {
+            if (span > 4) {
+                g.fillRect(L + 2, T, span - 4, 1, c);
+                g.fillRect(L + 2, B, span - 4, 1, c);
+            }
+            if (tall > 4) {
+                g.fillRect(L, T + 2, 1, tall - 4, c);
+                g.fillRect(R, T + 2, 1, tall - 4, c);
+            }
+        } else {
+            g.fillRect(L, T, span, 1, c);
+            g.fillRect(L, B, span, 1, c);
+            if (tall > 2) {
+                g.fillRect(L, T + 1, 1, tall - 2, c);
+                g.fillRect(R, T + 1, 1, tall - 2, c);
+            }
+        }
+    }
+    const int cx[4] = { x, x1, x, x1 };
+    const int cy[4] = { y, y, y1, y1 };
+    const int sx[4] = { 1, -1, 1, -1 };
+    const int sy[4] = { 1, 1, -1, -1 };
+    for (int k = 0; k < 4; ++k) {
+        g.fillRect(cx[k] + sx[k], cy[k], 1, 1, PAL_TERM_M);
+        g.fillRect(cx[k], cy[k] + sy[k], 1, 1, PAL_TERM_M);
+        g.fillRect(cx[k] + 2 * sx[k], cy[k], 1, 1, PAL_TERM_M35);
+        g.fillRect(cx[k], cy[k] + 2 * sy[k], 1, 1, PAL_TERM_M35);
+    }
 }
 
 static void paint_term_icons(Gfx g)
@@ -1615,66 +1644,75 @@ static void paint_sheet(Gfx g)
     int sel = s_sheet_i;
     if (sel < 0) sel = 0;
     if (sel >= CMD_N) sel = CMD_N - 1;
-    /* Darken the boards under the sheet, then a dither so they stay visible. */
-    for (int i = 0; i < 12; ++i) {
-        int tx = 0;
-        int ty = 0;
-        term_xy(i, &tx, &ty);
-        if (tx + 72 <= bx || ty + 46 <= by || tx >= bx + w || ty >= by + h) continue;
-        paint_one_board(g, i, (i == s_term) && !s_focus_cmds, true);
-    }
-    g.fillRect(bx + 3, by + 3, w - 5, h - 5, PAL_DEEP);
-    if (by + h > 168) {
-        const int y0 = by > 168 ? by : 168;
-        g.fillRect(bx + 1, y0, w - 2, by + h - y0, PAL_DEEP);
-    }
-    frame_mag(g, bx, by, w, h);
-    /* The hair halo drops 3px. Keep that 236 row inside the sheet rect. */
-    glow_hline(g, bx + 6, by + h - 4, w - 12, STEP_HAIR);
-    if (top > 0) blit_ico(g, ARROW_UP, bx + w - 12, by + 2, COL_MUTED);
-    if (top + nshow < rows) blit_ico(g, ARROW_DN, bx + w - 12, by + h - 11, COL_MUTED);
+    /* Under the sheet: shared slot 8. Tiles that stick out stay as painted. */
+    g.fillRect(bx + 1, by + 1, w - 1, h - 1, PAL_BG);
+    /* Plain row backgrounds first. A row starts on its own y, not the one above. */
     for (int r = 0; r < nshow; ++r) {
         int hdr = -1;
         int cmd = 0;
         menu_row(top + r, &hdr, &cmd);
+        if (hdr >= 0) continue;
         const int y = by + 5 + r * rh;
-        if (hdr >= 0) {
-            if (hdr == 0) {
-                /* Glyphs 230. Five pixels on every side: 235, 232, 234, 236, 236. */
-                const uint8_t ringc[5] = {
-                    PAL_TERM_M35, PAL_TERM_M22, PAL_TERM_M18, PAL_TERM_M10, PAL_TERM_M10
-                };
-                const int gx = bx + 8;
-                const int gy = y + 1;
-                const int keepf = s_px;
-                s_px = 6;
-                for (int d = 5; d >= 1; --d) {
-                    const uint8_t c = ringc[d - 1];
-                    for (int dy = -d; dy <= d; ++dy) {
-                        for (int dx = -d; dx <= d; ++dx) {
-                            const int ax = dx < 0 ? -dx : dx;
-                            const int ay = dy < 0 ? -dy : dy;
-                            if ((ax > ay ? ax : ay) != d) continue;
-                            txt(g, G_NAME[hdr], gx + dx, gy + dy, c, lgfx::textdatum::top_left);
-                        }
+        g.fillRect(bx + 4, y, w - 8, rh - 1, PAL_BG);
+    }
+    /* CORE header glow, then its 1px rule. Other groups keep their own glow. */
+    for (int r = 0; r < nshow; ++r) {
+        int hdr = -1;
+        int cmd = 0;
+        menu_row(top + r, &hdr, &cmd);
+        if (hdr < 0) continue;
+        const int y = by + 5 + r * rh;
+        if (hdr == 0) {
+            const uint8_t ringc[5] = {
+                PAL_TERM_M35, PAL_TERM_M22, PAL_TERM_M18, PAL_TERM_M10, PAL_TERM_M10
+            };
+            const int gx = bx + 8;
+            const int gy = y + 1;
+            const int keepf = s_px;
+            s_px = 6;
+            for (int d = 5; d >= 1; --d) {
+                const uint8_t c = ringc[d - 1];
+                for (int dy = -d; dy <= d; ++dy) {
+                    for (int dx = -d; dx <= d; ++dx) {
+                        const int ax = dx < 0 ? -dx : dx;
+                        const int ay = dy < 0 ? -dy : dy;
+                        if ((ax > ay ? ax : ay) != d) continue;
+                        txt(g, G_NAME[hdr], gx + dx, gy + dy, c, lgfx::textdatum::top_left);
                     }
                 }
-                txt(g, G_NAME[hdr], gx, gy, PAL_TERM_M, lgfx::textdatum::top_left);
-                s_px = keepf;
-            } else {
-                glow_txt(g, G_NAME[hdr], bx + 8, y + 1, PAL_DEEP, 6);
             }
-            glow_hline(g, bx + 48, y + 5, w - 60, STEP_RULE);
-            continue;
-        }
-        const bool on = cmd == sel;
-        const uint8_t bg = on ? (uint8_t)PAL_TERM_M18 : (uint8_t)PAL_DEEP;
-        if (on) {
-            g.fillRect(bx + 3, y, w - 6, rh - 2, bg);
-            g.fillRect(bx + 3, y, 2, rh - 2, PAL_TERM_M);
+            txt(g, G_NAME[hdr], gx, gy, PAL_TERM_M, lgfx::textdatum::top_left);
+            s_px = keepf;
+            /* One pixel, code 232. No downward halo. */
+            g.fillRect(bx + 48, y + 5, w - 60, 1, PAL_TERM_M22);
         } else {
-            g.fillRect(bx + 3, y - 1, w - 6, rh - 1, bg);
+            glow_txt(g, G_NAME[hdr], bx + 8, y + 1, PAL_BG, 6);
+            glow_hline(g, bx + 48, y + 5, w - 60, STEP_RULE);
         }
+    }
+    /* Hairline first. The frame's inward 236 then owns y220. */
+    glow_hline(g, bx + 6, by + h - 4, w - 12, STEP_HAIR);
+    frame_mag(g, bx, by, w, h);
+    if (top > 0) blit_ico(g, ARROW_UP, bx + w - 12, by + 2, COL_MUTED);
+    if (top + nshow < rows) blit_ico(g, ARROW_DN, bx + w - 12, by + h - 11, COL_MUTED);
+    /* Selected row after the glow, so y120..121 of row 0 stay 234. */
+    for (int r = 0; r < nshow; ++r) {
+        int hdr = -1;
+        int cmd = 0;
+        menu_row(top + r, &hdr, &cmd);
+        if (hdr >= 0 || cmd != sel) continue;
+        const int y = by + 5 + r * rh;
+        g.fillRect(bx + 3, y - 1, w - 6, rh - 1, PAL_TERM_M18);
+        g.fillRect(bx + 3, y - 1, 2, rh - 1, PAL_TERM_M);
+    }
+    for (int r = 0; r < nshow; ++r) {
+        int hdr = -1;
+        int cmd = 0;
+        menu_row(top + r, &hdr, &cmd);
+        if (hdr >= 0) continue;
+        const int y = by + 5 + r * rh;
+        const bool on = cmd == sel;
+        const uint8_t bg = on ? (uint8_t)PAL_TERM_M18 : (uint8_t)PAL_BG;
         const uint8_t ac = accent();
         blit_ico(g, CMD_ICO[cmd], bx + 10, y + 1, on ? (uint8_t)PAL_TERM_M : ac);
         const uint8_t ink = term_ink();
@@ -2004,18 +2042,33 @@ static int bus_dev_s(int L)
     return s;
 }
 
-/* Top row level at y=55 (86-31). Bottom row level at y=180 (148+32).
- * Side spokes stay at two thirds. No screen-edge clamp. */
+#ifdef BOTCORPS_HOST_RENDER
+/* Host proofs rotate the existing bar triple. Firmware leaves this at 0. */
+static int s_host_sig = 0;
+#endif
+
+/* Top row level at y=55 (dock 31). Bottom row level at y=180 (dock 32).
+ * Side icons sit on the lane by the existing bar count:
+ * s = clamp(28 + (1 - bars/4) * (L-42), 27, L-11). */
 static int bus_dock(const bus_pt *p, int n, int L, int lane)
 {
     (void)p;
     (void)n;
-    int dock = (L * 2) / 3;
-    if (lane >= 6 && lane <= 8) dock = 31;
-    else if (lane >= 9 && lane <= 11) dock = 32;
-    if (dock > L - 8) dock = L - 8;
-    if (dock < 18) dock = 18;
-    return dock;
+    if (lane >= 6 && lane <= 8) return 31;
+    if (lane >= 9 && lane <= 11) return 32;
+    int bi = lane % 3;
+#ifdef BOTCORPS_HOST_RENDER
+    bi = (lane + s_host_sig) % 3;
+#endif
+    int bars = NEAR_WIFI_B[bi];
+    if (bars > 4) bars = 4;
+    if (bars < 0) bars = 0;
+    int span = L - 42;
+    if (span < 0) span = 0;
+    int s = 28 + ((4 - bars) * span) / 4;
+    if (s < 27) s = 27;
+    if (s > L - 11) s = L - 11;
+    return s;
 }
 
 /* Scan: 7000 ms. Out to 11 px short of the chip, wait, back to the hub.
@@ -4085,7 +4138,6 @@ static void on_ok(void)
                 s_dirty = true;
                 /* Same gate as the full present, so this path installs the sheet lut. */
                 botcorps_lut_term(s_screen == SCR_TERMINAL && s_sheet);
-                partial_sheet();
             } else if (strcmp(CMDS[s_cmd_sel], "rain") == 0) {
                 int m = botcorps_rain_mode() + 1;
                 if (m > 6) m = 0;
@@ -4658,5 +4710,45 @@ int botcorps_host_int_span(void)
     host_int_mask = 0;
     host_frame = saved;
     return host_rgb_ov;
+}
+
+void botcorps_host_sig(int s)
+{
+    s_host_sig = s;
+}
+
+static void host_sheet_setup(uint8_t *buf)
+{
+    host_frame = buf;
+    memset(buf, PAL_FIELD, 320u * 240u);
+    s_screen = SCR_TERMINAL;
+    s_sheet = true;
+    botcorps_lut_term(true);
+    s_sheet_i = 0;
+    s_focus_cmds = false;
+    s_term = 2;
+    s_color = 0;
+    s_log_n = 0;
+    s_log_next = 0;
+    botcorps_t0_term_prompt[0] = 0;
+    s_track_name[0] = 0;
+    boot_log();
+}
+
+void botcorps_host_sheet(uint8_t *buf, int sel)
+{
+    host_sheet_setup(buf);
+    if (sel < 0) sel = 0;
+    if (sel >= CMD_N) sel = CMD_N - 1;
+    s_sheet_i = sel;
+    paint_ext(Gfx());
+}
+
+/* Arrow the open sheet, then the same paint_ext a clean frame uses. */
+void botcorps_host_sheet_key(uint8_t *buf, int key)
+{
+    host_frame = buf;
+    on_arrows(key);
+    paint_ext(Gfx());
 }
 #endif

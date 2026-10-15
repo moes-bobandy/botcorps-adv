@@ -195,3 +195,6 @@ void botcorps_host_bus(uint8_t *buf);
 void botcorps_host_amber(uint8_t *buf);
 void botcorps_host_botscan(uint8_t *buf);
 void botcorps_host_botscan_n(uint8_t *buf, int bot);
+void botcorps_host_sheet(uint8_t *buf, int sel);
+void botcorps_host_sheet_key(uint8_t *buf, int key);
+void botcorps_host_sig(int s);

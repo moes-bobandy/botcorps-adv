@@ -1985,24 +1985,14 @@ static int bus_dev_s(int L)
     return s;
 }
 
-/* Just past the inner corner, so the spoke keeps running out to the rim. */
+/* Outward of the scouts, still short of the rim. No screen-edge clamp. */
 static int bus_dock(const bus_pt *p, int n, int L)
 {
-    int dock = 22;
-    if (n >= 3) {
-        dock = 0;
-        const int corner = n - 2;
-        for (int i = 1; i <= corner; ++i) {
-            const int dx = p[i].x - p[i - 1].x;
-            const int dy = p[i].y - p[i - 1].y;
-            const int adx = dx < 0 ? -dx : dx;
-            const int ady = dy < 0 ? -dy : dy;
-            dock += adx > ady ? adx : ady;
-        }
-        dock += 6;
-    }
-    if (dock > L - 18) dock = L > 36 ? L / 3 : 16;
-    if (dock < 14) dock = 14;
+    (void)p;
+    (void)n;
+    int dock = (L * 2) / 3;
+    if (dock > L - 16) dock = L - 16;
+    if (dock < 28) dock = 28;
     return dock;
 }
 
@@ -2161,7 +2151,14 @@ static void bus_paint(Gfx g, bool radar, bool wifi, int shown, int sel)
         const int L = bus_len(tab[i], BUS_N[i]);
         int x = 0;
         int y = 0;
-        bus_at(tab[i], BUS_N[i], bus_scout_s(L, t, i, period), &x, &y);
+        int s = bus_scout_s(L, t, i, period);
+        if (!radar) {
+            /* Turn back before the chip so the order stays hub, scout, chip. */
+            int stop = bus_dock(tab[i], BUS_N[i], L) - 24;
+            if (stop < 8) stop = 8;
+            if (s > stop) s = stop;
+        }
+        bus_at(tab[i], BUS_N[i], s, &x, &y);
         draw_blob(g, x, y, 1, bot_color(i), botcorps_shape_for(i), false);
     }
     if (!radar && sel >= 0 && sel < SCAN_N) {
@@ -2327,8 +2324,13 @@ static void paint_act_menu(Gfx g)
     for (int j = 0; j < ACT_N; ++j) {
         const int yy = my + 3 + j * 15;
         const bool on = j == s_act;
-        const uint8_t bg = (uint8_t)COL_BG;
-        if (on) g.fillRect(mx + 2, yy, 2, 14, accent());
+        const uint8_t hi = (s_color == 1) ? (uint8_t)PAL_WASH_A
+                           : (s_color == 2) ? (uint8_t)PAL_WASH_M : (uint8_t)PAL_WASH_C;
+        const uint8_t bg = on ? hi : (uint8_t)COL_BG;
+        if (on) {
+            g.fillRect(mx + 4, yy, 86, 14, hi);
+            g.fillRect(mx + 2, yy, 2, 14, accent());
+        }
         blit_ico(g, ACT_ICO[j], mx + 8, yy + 3, on ? COL_WHITE : accent());
         const char *lab = ACT_NAME[j];
         if (j == 1 && s_act_dev >= 0 && s_dev_fol[band][s_act_dev]) lab = "unfollow";

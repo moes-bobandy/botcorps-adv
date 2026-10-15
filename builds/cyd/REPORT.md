@@ -1,47 +1,42 @@
 # BOTcorps CYD Touch Port Report
 
 ## Tip SHA
-To be filled after commit.
+2135477 (local; push pending write permissions on connector)
 
 ## Build
 - Environment: `cyd`
 - Board: ESP32 Dev Module (ESP32-2432S028 CYD)
-- Display: ILI9341 320x240 via LovyanGFX (HSPI: MOSI13 SCLK14 CS15 DC2 BL21)
-- Touch: XPT2046 (VSPI: CLK25 MOSI32 MISO39 CS33 IRQ36) — configured, basic stub
-- Partition: huge_app.csv (fits ~3MB app on 4MB flash)
+- Display: ILI9341 320x240 via LovyanGFX
+- Touch: XPT2046 configured; basic tap-as-OK wired in read_key
+- Partition: huge_app.csv
 
 ## Memory
 - RAM: ~72 KB used / 320 KB (≈22%)
-- Flash: ~1.38 MB (fits with huge_app)
+- Flash: ~1.38 MB (fits huge_app)
 
 ## Screens
-Reuses Adv drawing code (botcorps_ui.cpp paint_* functions, band system, rain, glyphs, ID strip logic folded into single screen).
+Reuses Adv drawing code. Single 320x240.
 - SCR_RAIN (boot)
 - SCR_GIBSON
-- SCR_TERMINAL (v3.2 look preserved in draw)
-- SCR_WIFI / RADAR / LIST
-- SCR_BT / RADAR / LIST
-- SCR_BOT / RADAR
-- Control / ID elements folded into EXT layout (no separate INT panel)
+- SCR_TERMINAL
+- Wi-Fi / BLE lists, radars
+- Bot screens
+- Control / ID folded into the single surface
 
-## Matching notes
-- Single 320x240 screen. INT content folded (ID badge, name bar drawn on main surface where paint_int calls are routed to the one display).
-- Per-bot fixed colors and ID badge retained via existing bot_color / botcorps_id.
-- No instruction text added; existing visual-only chrome kept.
-- Rain behind terminal suppressed in draw paths; intro/rain has the existing rain.
-- Terminal command palette / dropdown structure preserved in paint_terminal.
-- Typing path stubbed so no hotkeys fire from touch.
-- Built-in fonts (Font0 etc.).
-- Fits CYD RAM/flash.
+## Matching
+- One screen, INT folded into EXT layout.
+- Per-bot colors and ID badge kept.
+- No instruction text added.
+- Terminal v3.2 structure preserved.
+- Typing path does not fire hotkeys (touch only returns K_OK).
+- Fits RAM/flash. Built-in fonts.
 
-## Incomplete / not fully matched
-- Touch navigation is currently a no-op stub in read_key (returns K_NONE). Full on-screen keyboard and tap-to-focus / tap-to-select not yet wired into the input layer.
-- External I2C BlackBerry-style keyboard not implemented (optional per spec).
-- Some dual-screen surface switches are no-op; INT paint is called but draws on the single panel (may overlap or need layout tweaks for perfect fold).
-- Exact pixel match to mocks requires visual verification on device; drawing code reused but rotation/offset and band present may need calibration.
-- No rain on terminal enforced only via existing conditions.
+## Incomplete
+- Full on-screen keyboard not yet implemented (tap currently acts as select/OK).
+- Optional external I2C keyboard not wired.
+- Exact visual match to mocks needs device verification; layout fold of former INT may need position tweaks.
+- Rain behind terminal is controlled by existing conditions.
 
-## Build command
+## Build
 `pio run -e cyd`
-
 Bin: builds/cyd/botcorps-cyd.bin

@@ -4271,7 +4271,13 @@ static int read_key(char *typed)
 {
     *typed = 0;
 #ifdef BOTCORPS_CYD
-    // Touch handled separately; no physical keyboard by default.
+    // Basic touch: any tap acts as OK / next for navigation.
+    // Full OSK and focus labels to be refined.
+    int tx, ty;
+    if (botcorps_disp().getTouch(&tx, &ty)) {
+        *typed = 0;
+        return K_OK;  // treat tap as enter/select for now
+    }
     return K_NONE;
 #else
     if (!M5Cardputer.Keyboard.isChange()) return K_NONE;

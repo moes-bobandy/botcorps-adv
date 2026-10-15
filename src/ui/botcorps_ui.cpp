@@ -1167,7 +1167,8 @@ static void paint_one_board(Gfx g, int i, bool sel, bool dim)
     const uint8_t pad = (uint8_t)PAL_SOFT;
     const uint8_t fp = sel ? (uint8_t)PAL_BLACK : (uint8_t)PAL_FIELD;
     const uint8_t fpp = wh ? (uint8_t)PAL_ICON_C3 : (uint8_t)PAL_SOFT;
-    const uint8_t silk = wh ? (uint8_t)PAL_LINE : (sel ? (uint8_t)PAL_STEEL : (uint8_t)PAL_MUTED);
+    const uint8_t silk = wh ? (sel ? (uint8_t)PAL_BLACK : (uint8_t)PAL_LINE)
+                            : (sel ? (uint8_t)PAL_WHITE : (uint8_t)PAL_MUTED);
     const uint8_t led = wh ? (uint8_t)PAL_CHIN : (uint8_t)PAL_BOARD_D;
     const uint8_t hole = (uint8_t)PAL_FIELD;
     g.fillRect(x + 1, y, w - 2, h, base);
@@ -1239,8 +1240,7 @@ static void paint_one_board(Gfx g, int i, bool sel, bool dim)
     if (!dim && !(s_sheet && i >= 4)) {
         const int keep = s_px;
         s_px = 6;
-        if (sel) txt(g, up, x + 37, y + 38, silk, lgfx::textdatum::top_center);
-        txt(g, up, x + 36, y + 38, silk, lgfx::textdatum::top_center);
+        txt(g, up, x + 36, y + 37, silk, lgfx::textdatum::top_center);
         s_px = keep;
     }
     /* Faint Wi-Fi arcs on the right of the WIFI tile. Wire slot, not the accent. */
@@ -1463,9 +1463,10 @@ static void stroke_round(Gfx g, int x, int y, int w, int h, uint8_t c)
  * the rect is shared slots, so the bloom still reads past the edge. */
 static void frame_mag(Gfx g, int x, int y, int w, int h)
 {
-    stroke_round(g, x - 3, y - 3, w + 6, h + 6, PAL_WASH_M);
-    stroke_round(g, x - 2, y - 2, w + 4, h + 4, PAL_WIRE_M);
-    stroke_round(g, x - 1, y - 1, w + 2, h + 2, PAL_R_E2FF);
+    stroke_round(g, x - 4, y - 4, w + 8, h + 8, PAL_WASH_M);
+    stroke_round(g, x - 3, y - 3, w + 6, h + 6, PAL_WIRE_M);
+    stroke_round(g, x - 2, y - 2, w + 4, h + 4, PAL_R_E2FF);
+    stroke_round(g, x - 1, y - 1, w + 2, h + 2, PAL_WIRE_M);
     /* 236, 234, 232, 231 falloff, then the 230 stroke, then 235/232 bloom. */
     stroke_round(g, x, y, w, h, PAL_TERM_M10);
     stroke_round(g, x + 1, y + 1, w - 2, h - 2, PAL_TERM_M18);
@@ -1772,7 +1773,7 @@ static void paint_cands(Gfx g)
 static void paint_prompt(Gfx g)
 {
     const int keep = s_px;
-    s_px = 8;
+    s_px = 6;
     /* Tiles end at y=165. The plate starts below them. */
     g.fillRect(4, 168, 312, 68, COL_DEEP);
     {
@@ -1781,8 +1782,10 @@ static void paint_prompt(Gfx g)
         const uint8_t wire = (s_color == 1) ? (uint8_t)PAL_WIRE_A
                              : (s_color == 2) ? (uint8_t)PAL_WIRE_M : (uint8_t)PAL_WIRE_C;
         g.fillRect(4, 168, 312, 1, accent());
-        g.fillRect(5, 169, 310, 1, wire);
-        g.fillRect(6, 170, 308, 2, wash);
+        g.fillRect(4, 169, 312, 1, (uint8_t)PAL_R_E2FF);
+        g.fillRect(5, 170, 310, 1, wire);
+        g.fillRect(6, 171, 308, 2, wash);
+        g.fillRect(8, 173, 304, 2, wash);
     }
     g.fillRect(4, 235, 312, 1, COL_LINE);
     g.fillRect(4, 168, 1, 68, COL_LINE);
@@ -1791,6 +1794,7 @@ static void paint_prompt(Gfx g)
     const int start = s_log_n - n;
     for (int k = 0; k < n; ++k) {
         const char *ln = log_line(start + k);
+        const int ly = 171 + k * 8;
         uint8_t ink = COL_INK;
         const char *show = ln;
         if (ln && ln[0] == '\x01') {
@@ -1798,9 +1802,20 @@ static void paint_prompt(Gfx g)
             ink = b >= 12 ? (uint8_t)COL_IVORY : bot_color(b);
             show = ln + 2;
         } else if (ln && ln[0] == '[') {
-            ink = (uint8_t)PAL_OK;
+            const char *rb = strchr(ln, ']');
+            if (rb) {
+                char tag[12];
+                int tn = (int)(rb - ln) + 1;
+                if (tn > 11) tn = 11;
+                for (int i = 0; i < tn; ++i) tag[i] = ln[i];
+                tag[tn] = 0;
+                txt_bg(g, tag, 10, ly, (uint8_t)PAL_OK, PAL_DEEP, lgfx::textdatum::top_left);
+                if (rb[1]) txt_bg(g, rb + 1, 10 + tn * 6, ly, COL_INK, PAL_DEEP,
+                                  lgfx::textdatum::top_left);
+                continue;
+            }
         }
-        txt_bg(g, show, 10, 171 + k * 9, ink, PAL_DEEP, lgfx::textdatum::top_left);
+        txt_bg(g, show, 10, ly, ink, PAL_DEEP, lgfx::textdatum::top_left);
     }
     const int y = PROMPT_Y;
     s_px = 6;
@@ -1809,9 +1824,9 @@ static void paint_prompt(Gfx g)
                              : (s_color == 2) ? (uint8_t)PAL_WASH_M : (uint8_t)PAL_WASH_C;
         const uint8_t wire = (s_color == 1) ? (uint8_t)PAL_WIRE_A
                              : (s_color == 2) ? (uint8_t)PAL_WIRE_M : (uint8_t)PAL_WIRE_C;
-        txt(g, "user@botcorps", 12, y + 2, wash, lgfx::textdatum::top_left);
-        txt(g, "user@botcorps", 11, y + 1, wire, lgfx::textdatum::top_left);
-        txt(g, "user@botcorps", 10, y + 1, (uint8_t)PAL_R_E2FF, lgfx::textdatum::top_left);
+        txt(g, "user@botcorps", 13, y + 3, wash, lgfx::textdatum::top_left);
+        txt(g, "user@botcorps", 12, y + 2, wire, lgfx::textdatum::top_left);
+        txt(g, "user@botcorps", 11, y + 1, (uint8_t)PAL_R_E2FF, lgfx::textdatum::top_left);
         txt(g, "user@botcorps", 11, y, accent(), lgfx::textdatum::top_left);
         txt(g, "user@botcorps", 10, y, accent(), lgfx::textdatum::top_left);
     }
@@ -1846,7 +1861,7 @@ static void paint_prompt(Gfx g)
         g.fillRect(bx, by, 1, 60, COL_LINE);
         g.fillRect(bx + 37, by, 1, 60, COL_LINE);
         const int bot = s_term >= 0 && s_term <= 11 ? s_term : 0;
-        draw_blob(g, bx + 19, by + 32, 3, bot_color(bot), botcorps_shape_for(bot), false);
+        draw_blob(g, bx + 19, by + 30, 2, bot_color(bot), 0, false);
         g.fillRect(bx + 9, by + 48, 20, 1, edge);
     }
     s_px = keep;
@@ -2114,19 +2129,18 @@ static void bus_paint(Gfx g, bool radar, bool wifi, int shown, int sel)
         for (int d = 0; d < SCAN_N; ++d) {
             const int lane = d;
             const int L = bus_len(tab[lane], BUS_N[lane]);
-            /* Stagger the docks down the spoke so the outer rings stay apart. */
-            int pull = 16 + (d % 3) * 18;
-            int at = L - pull;
-            if (at < 16) at = 16;
             int x = 0;
             int y = 0;
-            bus_at(tab[lane], BUS_N[lane], at, &x, &y);
-            const int pulse = 12 + (int)((t / 180u + (uint32_t)d) % 3u);
-            g.drawCircle(x, y, pulse, ac);
-            g.drawCircle(x, y, pulse + 1, ac);
-            g.drawCircle(x, y, 8, ac);
+            bus_at(tab[lane], BUS_N[lane], L, &x, &y);
+            /* 14px chip stays inside the bus so the top and bottom rows do not meet. */
+            if (x < 15) x = 15;
+            if (x > 305) x = 305;
+            if (y < 33) y = 33;
+            if (y > 201) y = 201;
+            g.fillRect(x - 7, y - 7, 14, 14, PAL_BG);
+            g.drawRect(x - 7, y - 7, 14, 14, COL_LINE);
             dev_icon(g, SCAN_TYPE[d], x - 6, y - 6, false);
-            if (d == sel) g.drawRect(x - 11, y - 11, 22, 22, ac);
+            if (d == sel) g.drawRect(x - 8, y - 8, 16, 16, ac);
         }
     }
     /* Gibson only on the Gibson scan. A bot scan keeps that bot's sprite. */
@@ -2279,8 +2293,16 @@ static void paint_act_menu(Gfx g)
     int my = 0;
     act_origin(s_act_dev, &mx, &my);
     const int mh = ACT_N * 15 + 6;
-    g.fillRect(mx - 2, my - 2, 96, mh + 4, glow_of(STEP_SHADOW));
-    plate(g, mx, my, 92, mh, COL_BG, glow_of(STEP_AC));
+    const uint8_t wash = (s_color == 1) ? (uint8_t)PAL_WASH_A
+                         : (s_color == 2) ? (uint8_t)PAL_WASH_M : (uint8_t)PAL_WASH_C;
+    const uint8_t wire = (s_color == 1) ? (uint8_t)PAL_WIRE_A
+                         : (s_color == 2) ? (uint8_t)PAL_WIRE_M : (uint8_t)PAL_WIRE_C;
+    stroke_round(g, mx - 3, my - 3, 98, mh + 6, wash);
+    stroke_round(g, mx - 2, my - 2, 96, mh + 4, wire);
+    stroke_round(g, mx - 1, my - 1, 94, mh + 2, (uint8_t)PAL_R_E2FF);
+    g.fillRect(mx + 2, my, 88, mh, COL_BG);
+    g.fillRect(mx, my + 2, 92, mh - 4, COL_BG);
+    stroke_round(g, mx, my, 92, mh, accent());
     const int band = list_band();
     for (int j = 0; j < ACT_N; ++j) {
         const int yy = my + 3 + j * 15;

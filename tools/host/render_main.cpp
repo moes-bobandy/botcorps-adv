@@ -134,10 +134,11 @@ int main(void)
         botcorps_host_botscan_n(onebot, b);
         write_raw(path, onebot, bot_lut);
     }
-    /* Sheet body is y=104..222, x=14..306. Glow is 4px, so the sheet
-     * region counted as inside is x=8..312, y=98..228. */
+    /* Tab-open sheet rect at s_sheet_i=2: x=14..306, y=104..222.
+     * Override pixels outside that rect must be 0. Frames with no
+     * sheet count the whole 320x240. */
     const int frames_n = 6;
-    const char *names[] = { "term", "idle", "amber", "hunt", "gibson", "botscan" };
+    const char *names[] = { "tab-open", "idle", "amber", "hunt", "gibson", "botscan" };
     const uint8_t *frames[] = { term, idle, amber, hunt, bus, bots };
     const int sheet_on[] = { 1, 0, 1, 0, 0, 0 };
     for (int f = 0; f < frames_n; ++f) {
@@ -147,7 +148,7 @@ int main(void)
         int minx = 320, miny = 240, maxx = 0, maxy = 0;
         for (int y = 0; y < 240; ++y) {
             for (int x = 0; x < 320; ++x) {
-                const int inside = sheet_on[f] && x >= 8 && x < 312 && y >= 98 && y < 228;
+                const int inside = sheet_on[f] && x >= 14 && x < 306 && y >= 104 && y < 222;
                 if (inside) continue;
                 const uint8_t c = frames[f][y * 320 + x];
                 for (int n = 0; n < botcorps_term_ov_n; ++n) {

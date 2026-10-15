@@ -58,8 +58,8 @@ static void write_raw(const char *path, const uint8_t *idx, int term)
 
 static void hist_term(const uint8_t *idx)
 {
-    int hit[13];
-    for (int n = 0; n < 13; ++n) hit[n] = 0;
+    int hit[17];
+    for (int n = 0; n < 17; ++n) hit[n] = 0;
     int other = 0;
     for (int i = 0; i < 320 * 240; ++i) {
         int found = 0;
@@ -69,7 +69,7 @@ static void hist_term(const uint8_t *idx)
     }
     FILE *f = fopen("/tmp/term_idx_hist.txt", "w");
     int sum = 0;
-    for (int n = 0; n < 13; ++n) {
+    for (int n = 0; n < botcorps_term_ov_n && n < 17; ++n) {
         printf("code %u explicit %d fit 0\n", botcorps_term_ov_i[n], hit[n]);
         if (f) fprintf(f, "code %u explicit %d fit 0\n", botcorps_term_ov_i[n], hit[n]);
         sum += hit[n];
@@ -93,20 +93,25 @@ int main(void)
     static uint8_t bots[320 * 240];
     host_fit_calls = 0;
     botcorps_host_terminal(term);
+    const int term_lut = host_term_lut;
     printf("sheet pal_fit calls %d\n", host_fit_calls);
     printf("cmds sheet swap %d\n", botcorps_host_cmds_sheet());
     printf("int override %d span %d\n", botcorps_host_int_span(), host_rgb_span);
     printf("int full %d strip %d partial %d\n", host_int_full, host_int_strip, host_int_part);
-    write_raw("/tmp/term.rgb", term, host_term_lut);
+    write_raw("/tmp/term.rgb", term, term_lut);
     hist_term(term);
     botcorps_host_idle(idle);
-    write_raw("/tmp/idle.rgb", idle, host_term_lut);
+    const int idle_lut = host_term_lut;
+    write_raw("/tmp/idle.rgb", idle, idle_lut);
     botcorps_host_hunt(hunt);
-    write_raw("/tmp/hunt.rgb", hunt, host_term_lut);
+    const int hunt_lut = host_term_lut;
+    write_raw("/tmp/hunt.rgb", hunt, hunt_lut);
     botcorps_host_bus(bus);
-    write_raw("/tmp/bus.rgb", bus, host_term_lut);
+    const int bus_lut = host_term_lut;
+    write_raw("/tmp/bus.rgb", bus, bus_lut);
     botcorps_host_amber(amber);
-    write_raw("/tmp/amber.rgb", amber, host_term_lut);
+    const int amber_lut = host_term_lut;
+    write_raw("/tmp/amber.rgb", amber, amber_lut);
     int amber_237 = 0;
     int amber_123 = 0;
     int amber_213 = 0;
@@ -120,13 +125,14 @@ int main(void)
     printf("amber code237 %d pal_cyan123 %d pal_amber213 %d name229 %d\n",
            amber_237, amber_123, amber_213, amber_229);
     botcorps_host_botscan(bots);
-    write_raw("/tmp/bots.rgb", bots, host_term_lut);
+    const int bot_lut = host_term_lut;
+    write_raw("/tmp/bots.rgb", bots, bot_lut);
     static uint8_t onebot[320 * 240];
     for (int b = 0; b < 12; ++b) {
         char path[64];
         snprintf(path, sizeof(path), "/tmp/bot-%02d.rgb", b);
         botcorps_host_botscan_n(onebot, b);
-        write_raw(path, onebot, host_term_lut);
+        write_raw(path, onebot, bot_lut);
     }
     /* Sheet body is y=104..222, x=14..306. Glow is 4px, so the sheet
      * region counted as inside is x=8..312, y=98..228. */

@@ -1129,6 +1129,9 @@ static void paint_one_board(Gfx g, int i, bool sel, bool dim)
                              : (s_color == 2) ? (uint8_t)PAL_WASH_M : (uint8_t)PAL_WASH_C;
         const uint8_t wire = (s_color == 1) ? (uint8_t)PAL_WIRE_A
                              : (s_color == 2) ? (uint8_t)PAL_WIRE_M : (uint8_t)PAL_WIRE_C;
+        /* Outside the sheet: shared slots only. 207 is the hot rim. */
+        g.drawRect(x - 6, y - 6, w + 12, h + 12, wash);
+        g.drawRect(x - 5, y - 5, w + 10, h + 10, (uint8_t)PAL_R_E2FF);
         g.drawRect(x - 4, y - 4, w + 8, h + 8, wash);
         g.drawRect(x - 3, y - 3, w + 6, h + 6, wire);
         const int ph = (int)((t / 70u) % 2u);
@@ -1211,18 +1214,10 @@ static void paint_one_board(Gfx g, int i, bool sel, bool dim)
         g.fillRect(x + 22, y + 13, 1, 24, ac);
         g.fillRect(x + 49, y + 13, 1, 24, ac);
     }
-    if (BOTS[i].radio == 1 && !dim) {
-        const uint8_t m = sel ? ac : (uint8_t)PAL_STEEL;
-        g.fillRect(x + 8, y + 6, 1, 1, m);
-        g.fillRect(x + 6, y + 4, 1, 1, m);
-        g.fillRect(x + 10, y + 4, 1, 1, m);
-        g.fillRect(x + 5, y + 3, 1, 1, m);
-        g.fillRect(x + 11, y + 3, 1, 1, m);
-        g.fillRect(x + 4, y + 2, 1, 1, m);
-        g.fillRect(x + 12, y + 2, 1, 1, m);
-    }
     const int bob = sel ? -((int)((t / 450u) % 2u)) : 0;
-    draw_blob(g, x + 36, y + 25 + bob, 2, bot_color(i), botcorps_shape_for(i),
+    /* Same boxed face on every tile: the round sprite from the flash table,
+     * drawn in this bot's fixed colour. Scan screens keep shape_for. */
+    draw_blob(g, x + 36, y + 25 + bob, 2, bot_color(i), 0,
               sel && sprite_blink(i));
     const int st = BOTS[i].st;
     const bool on = st != 0 || ((t / 700u + (uint32_t)i) % 4u) != 0u;
@@ -1241,8 +1236,20 @@ static void paint_one_board(Gfx g, int i, bool sel, bool dim)
     if (!dim && !(s_sheet && i >= 4)) {
         const int keep = s_px;
         s_px = 6;
+        if (sel) txt(g, up, x + 37, y + 38, silk, lgfx::textdatum::top_center);
         txt(g, up, x + 36, y + 38, silk, lgfx::textdatum::top_center);
         s_px = keep;
+    }
+    /* Wi-Fi mark sits in the clear silk, drawn last so the face cannot cover it. */
+    if (BOTS[i].radio == 1 && !dim) {
+        const uint8_t m = ac;
+        g.fillRect(x + 14, y + 9, 2, 2, m);
+        g.fillRect(x + 11, y + 7, 2, 2, m);
+        g.fillRect(x + 17, y + 7, 2, 2, m);
+        g.fillRect(x + 9, y + 5, 2, 2, m);
+        g.fillRect(x + 19, y + 5, 2, 2, m);
+        g.fillRect(x + 8, y + 3, 2, 2, m);
+        g.fillRect(x + 20, y + 3, 2, 2, m);
     }
 }
 
@@ -1447,19 +1454,26 @@ static void stroke_round(Gfx g, int x, int y, int w, int h, uint8_t c)
 /* Tab sheet frame is magenta from the EXT-only table, in every UI accent. */
 static void frame_mag(Gfx g, int x, int y, int w, int h)
 {
-    /* 4 px falloff, outside in: .10 .18 .22 .28, then the .35 stroke. */
+    /* 4 px falloff, outside in, then a full magenta stroke and an inner bloom.
+     * Every one of these is an existing override code. */
     stroke_round(g, x - 4, y - 4, w + 8, h + 8, PAL_TERM_M10);
     stroke_round(g, x - 3, y - 3, w + 6, h + 6, PAL_TERM_M18);
     stroke_round(g, x - 2, y - 2, w + 4, h + 4, PAL_TERM_M22);
     stroke_round(g, x - 1, y - 1, w + 2, h + 2, PAL_TERM_M28);
-    stroke_round(g, x, y, w, h, PAL_TERM_M35);
+    stroke_round(g, x, y, w, h, PAL_TERM_M);
+    stroke_round(g, x + 1, y + 1, w - 2, h - 2, PAL_TERM_M35);
+    stroke_round(g, x + 2, y + 2, w - 4, h - 4, PAL_TERM_M22);
 }
 
 static void paint_term_icons(Gfx g)
 {
     const uint8_t off = PAL_LINE;
+    /* Crown sits in the header, outside the sheet. Shared slots only. */
+    g.drawRect(203, 0, 24, 16, PAL_WASH_M);
+    g.drawRect(204, 0, 22, 16, PAL_WIRE_M);
     g.fillRect(205, 1, 20, 14, PAL_BG);
-    g.drawRect(205, 1, 20, 14, PAL_WIRE_M);
+    g.drawRect(205, 1, 20, 14, PAL_R_E2FF);
+    g.drawRect(206, 2, 18, 12, PAL_WIRE_M);
     static const char *crown[7] = {
         "#.....#.....#", "##...###...##", "###.#####.###", "#############",
         "#############", ".###########.", ".###########."
@@ -1775,8 +1789,10 @@ static void paint_prompt(Gfx g)
                              : (s_color == 2) ? (uint8_t)PAL_WIRE_M : (uint8_t)PAL_WIRE_C;
         txt(g, "user@botcorps", 12, y + 2, wash, lgfx::textdatum::top_left);
         txt(g, "user@botcorps", 11, y + 1, wire, lgfx::textdatum::top_left);
+        txt(g, "user@botcorps", 11, y, accent(), lgfx::textdatum::top_left);
         txt(g, "user@botcorps", 10, y, accent(), lgfx::textdatum::top_left);
     }
+    txt(g, ":~$", 10 + 13 * 6 + 1, y, accent(), lgfx::textdatum::top_left);
     txt(g, ":~$", 10 + 13 * 6, y, accent(), lgfx::textdatum::top_left);
     g.setFont(&fonts::Font0);
     g.setTextSize(1);
@@ -2073,7 +2089,8 @@ static void bus_paint(Gfx g, bool radar, bool wifi, int shown, int sel)
             if (d == sel) g.drawRect(x - 9, y - 9, 18, 18, spoke);
         }
     }
-    scan_die(g, 160, 117, !radar);
+    /* Gibson only on the Gibson scan. A bot scan keeps that bot's sprite. */
+    scan_die(g, 160, 117, s_screen == SCR_SCAN);
     for (int i = 0; i < 12; ++i) {
         const int L = bus_len(tab[i], BUS_N[i]);
         int x = 0;
@@ -2098,8 +2115,15 @@ static void bus_label(Gfx g, bool wifi, int shown, int sel)
            lgfx::textdatum::top_center);
 }
 
+static void paint_bus_scan(Gfx g, bool wifi);
+
 static void paint_radar(Gfx g, bool with_list)
 {
+    /* Device path for SCR_SCAN. The full extBus layout lives in paint_bus_scan. */
+    if (s_screen == SCR_SCAN) {
+        paint_bus_scan(g, true);
+        return;
+    }
     const bool wifi = s_screen != SCR_BT_RADAR;
     const uint32_t t = millis();
     int shown = 0;
@@ -2138,34 +2162,35 @@ static void paint_scan_hud(Gfx g, bool wifi, int sel)
     hub_gibson(g, 14, 12, 1);
     const int keep = s_px;
     s_px = 8;
+    txt(g, "GIBSON", 29, 8, ac, lgfx::textdatum::top_left);
     txt(g, "GIBSON", 28, 8, ac, lgfx::textdatum::top_left);
     s_px = keep;
-    g.drawCircle(214, 12, 5, COL_MUTED);
-    g.fillCircle(214, 12, 2, COL_MUTED);
+    g.drawCircle(232, 12, 5, COL_MUTED);
+    g.fillCircle(232, 12, 2, COL_MUTED);
     g.setFont(&fonts::Font8x8C64);
     g.setTextSize(2);
     g.setTextColor(COL_INK);
-    g.setCursor(226, 2);
+    g.setCursor(248, 2);
     g.print("12");
     g.setTextSize(1);
-    g.drawCircle(268, 12, 5, COL_MUTED);
-    g.drawLine(268, 8, 268, 16, COL_MUTED);
-    g.drawLine(264, 12, 272, 12, COL_MUTED);
+    g.drawCircle(296, 12, 5, COL_MUTED);
+    g.drawLine(296, 8, 296, 16, COL_MUTED);
+    g.drawLine(292, 12, 300, 12, COL_MUTED);
     g.fillRect(0, 209, 320, 31, PAL_BG);
     g.fillRect(0, 209, 320, 1, COL_LINE);
     int tally[DEV_N];
     for (int i = 0; i < DEV_N; ++i) tally[i] = 0;
     for (int d = 0; d < SCAN_N; ++d) tally[SCAN_TYPE[d]]++;
     const uint8_t *types = wifi ? NEAR_WIFI_T : NEAR_BLE_T;
-    if (sel >= 0 && sel < 3) dev_icon(g, types[sel], 8, 216, false);
+    if (sel >= 0 && sel < 3) dev_icon(g, types[sel], 12, 218, false);
     for (int k = 0; k < 4; ++k) {
         const int bh = (k + 1) * 3;
         const int lit = (sel >= 0 && sel < 3) ? bars[sel] : 0;
-        g.fillRect(26 + k * 5, 227 - bh, 3, bh, k < lit ? ac : COL_LINE);
+        g.fillRect(30 + k * 5, 227 - bh, 3, bh, k < lit ? ac : COL_LINE);
     }
     s_px = 6;
     for (int i = 0; i < DEV_N; ++i) {
-        const int x = 52 + i * 26;
+        const int x = 62 + i * 25;
         dev_icon(g, i, x, 214, tally[i] == 0);
         char num[4];
         snprintf(num, sizeof(num), "%d", tally[i]);
@@ -2348,7 +2373,7 @@ static void paint_dev_list(Gfx g, bool wifi)
     s_px = keep;
 }
 
-static void __attribute__((unused)) paint_bus_scan(Gfx g, bool wifi)
+static void paint_bus_scan(Gfx g, bool wifi)
 {
     bus_paint(g, false, wifi, 12, 0);
     paint_scan_hud(g, wifi, 0);
@@ -4392,6 +4417,9 @@ void botcorps_host_amber(uint8_t *buf)
 
 int botcorps_host_cmds_sheet(void)
 {
+    uint8_t *saved = host_frame;
+    static uint8_t scratch[320 * 240];
+    host_frame = scratch;
     host_term_lut = 0;
     s_screen = SCR_TERMINAL;
     s_focus_cmds = true;
@@ -4400,7 +4428,9 @@ int botcorps_host_cmds_sheet(void)
     botcorps_t0_term_prompt[0] = 0;
     s_cmd_sel = 11;
     on_ok();
-    return (host_term_lut && s_dirty && s_sheet) ? 1 : 0;
+    const int r = (host_term_lut && s_dirty && s_sheet) ? 1 : 0;
+    host_frame = saved;
+    return r;
 }
 
 int botcorps_host_int_span(void)

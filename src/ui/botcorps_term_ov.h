@@ -9,9 +9,9 @@ static constexpr uint8_t botcorps_term_ov_i[] = {
     226, 227, 228, 229, 230, 231, 232, 234, 235, 236, 237, 239, 242, 243, 246, 247, 248
 };
 static constexpr uint16_t botcorps_term_ov_c[] = {
-    0xD7BF, /* 226 #D6F7FF light cyan UI.ink */
-    0xFF7A, /* 227 #FFEFD6 light amber UI.ink */
-    0xDFFE, /* 228 #DEFFF7 light mint UI.ink */
+    0x9F3D, /* 226 #9BE4ED cyan UI.ink, hexMix(accent,.45,255) */
+    0xFEB3, /* 227 #FBD69B amber UI.ink, hexMix(accent,.45,255) */
+    0xA7FB, /* 228 #A4FFDF mint UI.ink, hexMix(accent,.45,255) */
     0xC67B, /* 229 #c5d0da unselected command name */
     0xF95A, 0x48A9, 0x3887, 0x3086, 0x58CA, 0x2064, 0x079F,
     0x026A, 0x01E8, 0x01A7, 0x02EC, 0x0105, 0xE6FA

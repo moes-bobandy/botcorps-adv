@@ -90,6 +90,7 @@ int main(void)
     static uint8_t idle[320 * 240];
     static uint8_t bus[320 * 240];
     static uint8_t amber[320 * 240];
+    static uint8_t bots[320 * 240];
     host_fit_calls = 0;
     botcorps_host_terminal(term);
     printf("sheet pal_fit calls %d\n", host_fit_calls);
@@ -118,6 +119,45 @@ int main(void)
     }
     printf("amber code237 %d pal_cyan123 %d pal_amber213 %d name229 %d\n",
            amber_237, amber_123, amber_213, amber_229);
+    botcorps_host_botscan(bots);
+    write_raw("/tmp/bots.rgb", bots, host_term_lut);
+    /* Sheet body is y=104..222, x=14..306. Glow is 4px, so the sheet
+     * region counted as inside is x=8..312, y=98..228. */
+    const int frames_n = 6;
+    const char *names[] = { "term", "idle", "amber", "hunt", "gibson", "botscan" };
+    const uint8_t *frames[] = { term, idle, amber, hunt, bus, bots };
+    const int sheet_on[] = { 1, 0, 1, 0, 0, 0 };
+    for (int f = 0; f < frames_n; ++f) {
+        int out = 0;
+        int by_code[17];
+        for (int n = 0; n < 17; ++n) by_code[n] = 0;
+        int minx = 320, miny = 240, maxx = 0, maxy = 0;
+        for (int y = 0; y < 240; ++y) {
+            for (int x = 0; x < 320; ++x) {
+                const int inside = sheet_on[f] && x >= 8 && x < 312 && y >= 98 && y < 228;
+                if (inside) continue;
+                const uint8_t c = frames[f][y * 320 + x];
+                for (int n = 0; n < botcorps_term_ov_n; ++n) {
+                    if (c == botcorps_term_ov_i[n]) {
+                        out++;
+                        by_code[n]++;
+                        if (x < minx) minx = x;
+                        if (y < miny) miny = y;
+                        if (x > maxx) maxx = x;
+                        if (y > maxy) maxy = y;
+                        break;
+                    }
+                }
+            }
+        }
+        printf("outside-sheet %s %d", names[f], out);
+        if (out) {
+            printf(" box %d,%d-%d,%d", minx, miny, maxx, maxy);
+            for (int n = 0; n < botcorps_term_ov_n; ++n)
+                if (by_code[n]) printf(" c%u=%d", botcorps_term_ov_i[n], by_code[n]);
+        }
+        printf("\n");
+    }
     int idle_bad = 0;
     int hunt_bad = 0;
     for (int i = 0; i < 320 * 240; ++i) {

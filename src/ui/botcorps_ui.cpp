@@ -1113,6 +1113,8 @@ static uint8_t term_accent(void);
 static uint8_t term_low(void);
 static uint8_t glow_of(int step);
 
+static void hub_gibson(Gfx g, int cx, int cy, int z);
+
 static void paint_one_board(Gfx g, int i, bool sel, bool dim)
 {
     int x, y;
@@ -1220,7 +1222,7 @@ static void paint_one_board(Gfx g, int i, bool sel, bool dim)
         g.fillRect(x + 12, y + 2, 1, 1, m);
     }
     const int bob = sel ? -((int)((t / 450u) % 2u)) : 0;
-    draw_blob(g, x + 36, y + 25 + bob, 2, bot_color(i), botcorps_shape_for(i), sel && sprite_blink(i));
+    hub_gibson(g, x + 36, y + 24 + bob, 2);
     const int st = BOTS[i].st;
     const bool on = st != 0 || ((t / 700u + (uint32_t)i) % 4u) != 0u;
     uint8_t ledc = led;
@@ -1444,19 +1446,19 @@ static void stroke_round(Gfx g, int x, int y, int w, int h, uint8_t c)
 /* Tab sheet frame is magenta from the EXT-only table, in every UI accent. */
 static void frame_mag(Gfx g, int x, int y, int w, int h)
 {
+    /* 4 px falloff, outside in: .10 .18 .22 .28, then the .35 stroke. */
     stroke_round(g, x - 4, y - 4, w + 8, h + 8, PAL_TERM_M10);
-    stroke_round(g, x - 3, y - 3, w + 6, h + 6, PAL_TERM_M10);
+    stroke_round(g, x - 3, y - 3, w + 6, h + 6, PAL_TERM_M18);
     stroke_round(g, x - 2, y - 2, w + 4, h + 4, PAL_TERM_M22);
-    stroke_round(g, x - 1, y - 1, w + 2, h + 2, PAL_TERM_M35);
-    stroke_round(g, x, y, w, h, PAL_TERM_M);
+    stroke_round(g, x - 1, y - 1, w + 2, h + 2, PAL_TERM_M28);
+    stroke_round(g, x, y, w, h, PAL_TERM_M35);
 }
 
 static void paint_term_icons(Gfx g)
 {
-    const uint8_t ac = term_accent();
     const uint8_t off = PAL_LINE;
     g.fillRect(205, 1, 20, 14, PAL_BG);
-    g.drawRect(205, 1, 20, 14, glow_of(STEP_HAIR));
+    g.drawRect(205, 1, 20, 14, PAL_WIRE_M);
     static const char *crown[7] = {
         "#.....#.....#", "##...###...##", "###.#####.###", "#############",
         "#############", ".###########.", ".###########."
@@ -1470,7 +1472,7 @@ static void paint_term_icons(Gfx g)
     const int sg = 3 + (int)((millis() / 2500u) % 2u);
     for (int k = 0; k < 4; ++k) {
         const int h = (k + 1) * 2;
-        g.fillRect(236 + k * 4, 12 - h, 3, h, k < sg ? ac : off);
+        g.fillRect(236 + k * 4, 12 - h, 3, h, k < sg ? accent() : off);
     }
     g.fillRect(262, 4, 17, 9, PAL_MUTED);
     g.fillRect(263, 5, 15, 7, PAL_BG);
@@ -1481,11 +1483,11 @@ static void paint_term_icons(Gfx g)
         if (k < 4 || blink) cell = k < 2 ? (uint8_t)PAL_AMBER : (uint8_t)PAL_OK;
         g.fillRect(264 + k * 3, 6, 2, 5, cell);
     }
-    const bool rx = (millis() / 700u) % 5u == 0u;
+    const bool rx = ((millis() / 700u) % 5u) != 4u;
     g.fillRect(290, 6, 4, 4, rx ? (uint8_t)PAL_R_E2FF : off);
     const int keep = s_px;
     s_px = 8;
-    txt(g, "RX", 298, 4, rx ? ac : (uint8_t)COL_MUTED, lgfx::textdatum::top_left);
+    txt(g, "RX", 298, 4, rx ? accent() : (uint8_t)COL_MUTED, lgfx::textdatum::top_left);
     s_px = keep;
 }
 
@@ -1500,7 +1502,15 @@ static void paint_term_head(Gfx g)
         g.fillRect(0, 16, 320, 2, accent());
         g.fillRect(0, 18, 320, 1, mid);
     }
-    glow_txt(g, "terminal", 8, 4, PAL_BG, 8);
+    /* Header sits outside the sheet, so this glow stays on reserved slots. */
+    {
+        const int keep = s_px;
+        s_px = 8;
+        txt(g, "terminal", 10, 6, PAL_WASH_M, lgfx::textdatum::top_left);
+        txt(g, "terminal", 9, 5, PAL_WIRE_M, lgfx::textdatum::top_left);
+        txt(g, "terminal", 8, 4, PAL_R_E2FF, lgfx::textdatum::top_left);
+        s_px = keep;
+    }
     const int keep = s_px;
     s_px = 6;
     const uint8_t boards_wash = (s_color == 1) ? (uint8_t)PAL_WASH_A
@@ -1583,6 +1593,7 @@ static void paint_sheet(Gfx g)
         if (tx + 72 <= bx || ty + 46 <= by || tx >= bx + w || ty >= by + h) continue;
         paint_one_board(g, i, (i == s_term) && !s_focus_cmds, true);
     }
+    g.fillRect(bx + 3, by + 3, w - 6, h - 6, PAL_DEEP);
     if (by + h > 168) {
         const int y0 = by > 168 ? by : 168;
         g.fillRect(bx + 1, y0, w - 2, by + h - y0, PAL_DEEP);
@@ -1606,7 +1617,7 @@ static void paint_sheet(Gfx g)
         g.fillRect(bx + 3, y - 1, w - 6, rh - 1, bg);
         if (on) g.fillRect(bx + 3, y - 1, 2, rh - 1, glow_of(STEP_AC));
         const uint8_t ac = accent();
-        blit_ico(g, CMD_ICO[cmd], bx + 10, y + 1, on ? ac : (uint8_t)PAL_MUTED);
+        blit_ico(g, CMD_ICO[cmd], bx + 10, y + 1, on ? term_accent() : ac);
         const uint8_t ink = term_ink();
         const uint8_t name_c = on ? ink : (uint8_t)PAL_TERM_INK;
         if (on) txt_bg(g, CMDN[cmd], bx + 25, y + 1, name_c, bg, lgfx::textdatum::top_left);
@@ -1753,8 +1764,16 @@ static void paint_prompt(Gfx g)
         txt_bg(g, show, 10, 171 + k * 9, ink, PAL_DEEP, lgfx::textdatum::top_left);
     }
     const int y = PROMPT_Y;
-    glow_txt(g, "user@botcorps", 10, y, COL_DEEP, 6);
     s_px = 6;
+    {
+        const uint8_t wash = (s_color == 1) ? (uint8_t)PAL_WASH_A
+                             : (s_color == 2) ? (uint8_t)PAL_WASH_M : (uint8_t)PAL_WASH_C;
+        const uint8_t wire = (s_color == 1) ? (uint8_t)PAL_WIRE_A
+                             : (s_color == 2) ? (uint8_t)PAL_WIRE_M : (uint8_t)PAL_WIRE_C;
+        txt(g, "user@botcorps", 12, y + 2, wash, lgfx::textdatum::top_left);
+        txt(g, "user@botcorps", 11, y + 1, wire, lgfx::textdatum::top_left);
+        txt(g, "user@botcorps", 10, y, accent(), lgfx::textdatum::top_left);
+    }
     txt(g, ":~$", 10 + 13 * 6, y, accent(), lgfx::textdatum::top_left);
     g.setFont(&fonts::Font0);
     g.setTextSize(1);
@@ -1767,7 +1786,7 @@ static void paint_prompt(Gfx g)
         g.setTextColor(COL_MUTED);
         g.print(ghost);
     }
-    if ((millis() / 530u) % 2u == 0) g.fillRect(cx, y, 6, 8, term_accent());
+    if ((millis() / 530u) % 2u == 0) g.fillRect(cx, y, 6, 8, accent());
     paint_cands(g);
     const bool po = s_focus_cmds && !s_sheet;
     plate(g, 250, 214, 20, 12, po ? COL_SEL : COL_DEEP, po ? accent() : COL_LINE);
@@ -1962,6 +1981,40 @@ static void dev_icon(Gfx g, int type, int x, int y, bool dim)
     }
 }
 
+/* 56px die. Scale 6 of the 7px sprite is 42px, a 7px margin.
+ * 90b1602 drew the hub portrait at z=9 (63px). That scale does not fit
+ * between these traces, and that commit's bug was the INT strip blanking
+ * the card, not this sprite. */
+static void scan_die(Gfx g, int cx, int cy, bool gibson)
+{
+    const int s = 56;
+    const int x = cx - s / 2;
+    const int y = cy - s / 2;
+    g.fillRect(x + 3, y + 3, s - 6, s - 6, PAL_BG);
+    g.drawRect(x + 2, y + 2, s - 4, s - 4, PAL_LINE);
+    g.drawRect(x + 6, y + 6, s - 12, s - 12, PAL_DIAG);
+    for (int i = 8; i <= s - 10; i += 8) {
+        g.fillRect(x - 1, y + i, 5, 2, PAL_STEEL);
+        g.fillRect(x + s - 4, y + i, 5, 2, PAL_STEEL);
+        g.fillRect(x + i, y - 1, 2, 5, PAL_STEEL);
+        g.fillRect(x + i, y + s - 4, 2, 5, PAL_STEEL);
+    }
+    g.fillRect(x + 7, y + 7, 2, 2, PAL_IVORY);
+    int bot = 0;
+    uint8_t col = PAL_IVORY;
+    int shape = BOTCORPS_SHAPE_ROUND;
+    if (!gibson) {
+        if (s_screen == SCR_BT_RADAR) bot = 1;
+        else if (s_screen == SCR_WIFI_RADAR) bot = 0;
+        else bot = s_bot;
+        if (bot < 0) bot = 0;
+        if (bot > 11) bot = 11;
+        col = bot_color(bot);
+        shape = botcorps_shape_for(bot);
+    }
+    draw_blob(g, cx, cy, 6, col, shape, false);
+}
+
 /* Non-circular bus. radar=false is the Gibson scan (extBus). 0 B heap. */
 static void bus_paint(Gfx g, bool radar, bool wifi, int shown, int sel)
 {
@@ -1975,9 +2028,11 @@ static void bus_paint(Gfx g, bool radar, bool wifi, int shown, int sel)
     g.fillRect(bx, by, bw, bh, PAL_DEEP);
     g.drawRect(bx - 1, by - 1, bw + 2, bh + 2, COL_LINE);
     const uint8_t ac = accent();
-    /* Scan spokes stay dim (PAL_LINE 41) with a wash glow (PAL_WASH_C 1). */
-    const uint8_t spoke = radar ? (uint8_t)COL_LINE : (uint8_t)PAL_LINE;
-    const uint8_t spoke_glow = radar ? (uint8_t)0 : (uint8_t)PAL_WASH_C;
+    /* Chrome follows the accent. Reserved slots only, never the sheet codes. */
+    const uint8_t spoke = (s_color == 1) ? (uint8_t)PAL_WIRE_A
+                          : (s_color == 2) ? (uint8_t)PAL_WIRE_M : (uint8_t)PAL_WIRE_C;
+    const uint8_t spoke_glow = (s_color == 1) ? (uint8_t)PAL_WASH_A
+                               : (s_color == 2) ? (uint8_t)PAL_WASH_M : (uint8_t)PAL_WASH_C;
     for (int i = 0; i < 12; ++i) bus_trace(g, tab[i], BUS_N[i], spoke, spoke_glow);
     if (radar) {
         const int nnode = shown < 3 ? shown : 3;
@@ -2001,17 +2056,15 @@ static void bus_paint(Gfx g, bool radar, bool wifi, int shown, int sel)
             int y = 0;
             bus_at(tab[lane], BUS_N[lane], at, &x, &y);
             const uint8_t node = DEV_COL[SCAN_TYPE[d]][0];
-            g.drawCircle(x, y, 10, PAL_WASH_C);
-            g.drawCircle(x, y, 8, PAL_WIRE_C);
+            const int pulse = 9 + (int)((t / 180u + (uint32_t)d) % 3u);
+            g.drawCircle(x, y, pulse, spoke_glow);
+            g.drawCircle(x, y, 8, spoke);
             g.drawCircle(x, y, 6, node);
             dev_icon(g, SCAN_TYPE[d], x - 6, y - 6, false);
+            if (d == sel) g.drawRect(x - 9, y - 9, 18, 18, spoke);
         }
     }
-    chip_plate(g, 160 - 28, 117 - 28, 56, 56, PAL_BG, COL_LINE);
-    hub_gibson(g, 160, 117, 3);
-    if ((t - s_bus_t0) % (uint32_t)period < 400u) {
-        g.drawRect(160 - 28, 117 - 28, 56, 56, ac);
-    }
+    scan_die(g, 160, 117, !radar);
     for (int i = 0; i < 12; ++i) {
         const int L = bus_len(tab[i], BUS_N[i]);
         int x = 0;
@@ -2264,7 +2317,7 @@ static void paint_dev_list(Gfx g, bool wifi)
         g.fillRect(8, y, 304, rh - 1, on ? dimbar : (uint8_t)((d & 1) ? PAL_BG : PAL_FIELD));
         dev_icon(g, types[d], 13, y + 2, false);
         txt(g, names[d], 28, y + 4, on ? (uint8_t)COL_WHITE : (uint8_t)COL_INK, lgfx::textdatum::top_left);
-        txt(g, macs[d], 116, y + 4, COL_MUTED, lgfx::textdatum::top_left);
+        txt(g, macs[d], 106, y + 4, COL_MUTED, lgfx::textdatum::top_left);
         txt(g, rssi[d], 222, y + 4, ac, lgfx::textdatum::top_left);
         char chs[8];
         snprintf(chs, sizeof(chs), "ch%02d", ch[d]);
@@ -2282,8 +2335,8 @@ static void paint_dev_list(Gfx g, bool wifi)
 
 static void __attribute__((unused)) paint_bus_scan(Gfx g, bool wifi)
 {
-    bus_paint(g, false, wifi, 12, -1);
-    paint_scan_hud(g, wifi, -1);
+    bus_paint(g, false, wifi, 12, 0);
+    paint_scan_hud(g, wifi, 0);
 }
 
 static void paint_list(Gfx g, bool wifi)
@@ -4282,6 +4335,20 @@ void botcorps_host_bus(uint8_t *buf)
     s_info_dev = -1;
     s_bus_t0 = 1000;
     paint_bus_scan(Gfx(), true);
+}
+
+void botcorps_host_botscan(uint8_t *buf)
+{
+    host_frame = buf;
+    memset(buf, PAL_FIELD, 320u * 240u);
+    s_screen = SCR_BOT_RADAR;
+    s_bot = 2;
+    s_color = 0;
+    s_sheet = false;
+    botcorps_lut_term(false);
+    s_cursor = 0;
+    s_bus_t0 = 1000;
+    paint_radar(Gfx(), false);
 }
 
 void botcorps_host_amber(uint8_t *buf)

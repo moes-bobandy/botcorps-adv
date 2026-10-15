@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>BOTcorps Adv — INTRO ESP32 chip v11 (TEAM plate + neon pop + companion die)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root { color-scheme: dark; --neon: #00f0ff; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; background: #020305; color: #c9ced6;
+    font: 13px/1.4 "Segoe UI", system-ui, sans-serif;
+    display: flex; flex-direction: column; align-items: center; padding: 28px 16px;
+  }
+  h1 { font-size: 14px; font-weight: 600; color: #9aa3ad; margin: 0 0 18px; letter-spacing: .04em; }
+  .adv {
+    background: linear-gradient(#3a3e44, #2b2e33);
+    border: 1px solid #4b5058; border-radius: 18px;
+    padding: 22px 26px 20px; box-shadow: 0 10px 30px #000a, inset 0 1px 0 #5a6068;
+    max-width: 100%;
+  }
+  .glass { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .bezel {
+    background: #000; border-radius: 6px; padding: 8px;
+    box-shadow: inset 0 0 0 1px var(--neon), 0 0 22px #00f0ffaa, 0 0 48px #00f0ff55,
+                inset 0 0 0 1px #1c1f24, 0 1px 0 #50565e;
+  }
+  canvas {
+    display: block; image-rendering: pixelated; image-rendering: crisp-edges;
+    width: 640px; max-width: calc(100vw - 80px); height: auto; aspect-ratio: 4 / 3;
+    filter: saturate(1.55) contrast(1.28) brightness(1.04);
+    touch-action: manipulation; cursor: default; -webkit-tap-highlight-color: transparent;
+  }
+  .tag { font: 11px ui-monospace, Consolas, monospace; color: #8b929b; }
+  .keys { margin-top: 18px; display: grid; gap: 5px; }
+  .row { display: flex; gap: 5px; justify-content: center; }
+  .k { width: 34px; height: 16px; border-radius: 4px; background: #24272c; box-shadow: inset 0 -2px 0 #17191c, 0 0 0 1px #3c4148; }
+  .k.w { width: 120px; }
+  .k.neon { box-shadow: inset 0 -2px 0 #0a3a40, 0 0 0 1px #00f0ff88, 0 0 8px #00f0ff44; }
+  .note { margin-top: 14px; font-size: 11px; color: #6c737c; max-width: 680px; text-align: center; }
+  .readout { margin-top: 10px; font: 12px ui-monospace, Consolas, monospace; color: #9aa3ad; }
+  .readout b { color: #fff; }
+  @media (max-width: 760px) { body { padding: 14px 8px; } .adv { padding: 12px 10px; } .keys { display: none; } }
+</style>
+</head>
+<body>
+<h1>BOTcorps Adv &mdash; INTRO ESP32 chip v9 (clean faces, clean name-tag)</h1>
+<div class="adv">
+  <div class="glass">
+    <div class="bezel"><canvas id="ext" width="320" height="240"></canvas></div>
+    <div class="tag">EXT 320&times;240 &mdash; INTRO v11 (TEAM ID polish · neon pop · companion MCU)</div>
+  </div>
+  <div class="keys" aria-hidden="true">
+    <div class="row"><i class="k"></i><i class="k"></i><i class="k"></i><i class="k"></i><i class="k"></i><i class="k"></i><i class="k"></i><i class="k"></i><i class="k"></i><i class="k"></i><i class="k"></i><i class="k"></i><i class="k"></i><i class="k"></i></div>
+    <div class="row"><i class="k"></i><i class="k"></i><i class="k"></i><i class="k"></i><i class="k"></i><i class="k"></i><i class="k"></i><i class="k"></i><i class="k"></i><i class="k"></i><i class="k"></i><i class="k"></i><i class="k"></i></div>
+    <div class="row"><i class="k"></i><i class="k"></i><i class="k"></i><i class="k"></i><i class="k w neon"></i><i class="k"></i><i class="k"></i><i class="k"></i><i class="k"></i></div>
+  </div>
+</div>
+<div class="readout">gate <b id="gateState">CLOSED</b> &middot; sel <b id="selName">GIBSON</b> &middot; arrows &middot; ENTER via Gibson</div>
+<div class="note">v11: polished TEAM/ALL BOTS name-tag; neon pops like FINAL-v1 (deep black + cyan bloom); companion FLASH die under Gibson. Gibson entrance. No PWR/ENT. Slight rain. No play / no instruction text.</div>
+<script>
+(() => {
+  const W = 320, H = 240;
+  const cv = document.getElementById('ext');
+  const ctx = cv.getContext('2d');
+  ctx.imageSmoothingEnabled = false;
+  const FONT = '"Courier New", Courier, monospace';
+
+  const GIBSON_C = '#F4F0E2';
+  const INT_SILK = '#6d7a87';
+  const INT_AC = '#00f0ff';          /* hot neon — matches FINAL-v1 / Terminal */
+  const NEON = '#00f0ff';
+  const UI_INK = '#e6edf3';
+  const RC = { silk: '#9aa5b0', pin: '#c3cad1', dim: '#8e98a2' };
+
+  /* IB_COL distinct colours (FINAL ID boards) */
+  const BOTS = [
+    { id: 'wifibot',       short: 'WIFI',  st: 'limited', radio: 1, c: '#58A6FF' },
+    { id: 'bluetoothbot',  short: 'BT',    st: 'limited', radio: 1, c: '#4ECDFA' },
+    { id: 'deauthbot',     short: 'DEA',   st: 'ready',   radio: 0, c: '#7A7CFF' },
+    { id: 'hackbot',       short: 'HACK',  st: 'ready',   radio: 0, c: '#E35CFF' },
+    { id: 'flockbot',      short: 'FLK',   st: 'ready',   radio: 0, c: '#38D6E6' },
+    { id: 'dronebot',      short: 'DRN',   st: 'ready',   radio: 0, c: '#FF6F91' },
+    { id: 'airtagbot',     short: 'AIR',   st: 'ready',   radio: 0, c: '#A88CFF' },
+    { id: 'keyfobbot',     short: 'FOB',   st: 'ready',   radio: 0, c: '#FF5A5A' },
+    { id: 'metabot',       short: 'META',  st: 'ready',   radio: 0, c: '#FF7AD0' },
+    { id: 'skimmerbot',    short: 'SKIM',  st: 'hold',    radio: 0, c: '#2E8FD0' },
+    { id: 'flipperbot',    short: 'FLIP',  st: 'limited', radio: 0, c: '#FF8F5A' },
+    { id: 'samsungtagbot', short: 'SAMS',  st: 'limited', radio: 0, c: '#E8B4FF' }
+  ];
+  const READY = BOTS.filter(b => b.st === 'ready').length;
+
+  /* Realistic board regions (not a circle): Gibson MCU left, bot dies right grid, name-tag bottom */
+  /* Gibson left MCU = entrance. Bot grid clear of name-tag. No PWR switch. */
+  const GIB = { x: 10, y: 22, w: 116, h: 78 };           /* U1 ESP32 — entrance / gate */
+  const GRID = { x0: 138, y0: 22, cw: 44, ch: 30, cols: 4, rows: 3 }; /* gutters; dies 34x22 */
+  const FLASH = { x: 14, y: 104, w: 92, h: 22 };         /* U14 companion FLASH die under Gibson */
+  const TAG  = { x: 8, y: 130, w: 304, h: 92 };          /* name-tag below bot row clear gap */
+
+  let sel = 0; /* 0 = Gibson/team, 1..12 = bots */
+  let entered = false; /* false until Gibson entrance opens the panel */
+  let gateAnim = 0;    /* 0..1 how open the rest of the UI is */
+  let pulseT = -1e9;
+  let bootT0 = performance.now();
+  let growT0 = bootT0; /* bar grow restart on sel change */
+
+  /* ---- slight rain backdrop (sparse glyphs + dots; drawn under opaque UI) ---- */
+  const RAIN_GLYPH = '01アカサタナハマヤラワアイウエオ{}[]<>|/\\*+#';
+  const RAIN_COLS = [];
+  (function buildRain() {
+    const gap = 14;
+    for (let i = 0; i < Math.ceil(W / gap); i++) {
+      if (i % 3 === 1) continue; /* skip every 3rd column — keep it light */
+      RAIN_COLS.push({
+        x: 6 + i * gap,
+        y: -Math.random() * H,
+        speed: 0.35 + Math.random() * 0.55,
+        len: 4 + (i % 4),
+        seed: (i * 17 + 3) % RAIN_GLYPH.length,
+        dim: 0.08 + (i % 5) * 0.02
+      });
+    }
+  })();
+  function stepRain(t) {
+    /* advance positions; t is ms since boot */
+    RAIN_COLS.forEach((c, i) => {
+      c.y += c.speed;
+      if (c.y - c.len * 11 > H) {
+        c.y = -c.len * 11 - (i * 17) % 40;
+        c.speed = 0.35 + ((i * 13) % 55) / 100;
+      }
+    });
+  }
+  function drawRain(c, t) {
+    stepRain(t);
+    c.save();
+    c.font = '9px ' + FONT;
+    c.textBaseline = 'top';
+    c.textAlign = 'left';
+    RAIN_COLS.forEach((col, ci) => {
+      for (let k = 0; k < col.len; k++) {
+        const yy = Math.round(col.y - k * 11);
+        if (yy < -12 || yy > H) continue;
+        const head = k === 0;
+        const a = (head ? 0.28 : 0.10) * (1 - k / (col.len + 1)) * (0.85 + col.dim);
+        /* cool cyan / steel — neon pop on deep black, no pale haze wash */
+        c.fillStyle = head
+          ? 'rgba(140, 210, 255,' + a.toFixed(3) + ')'
+          : 'rgba(60, 120, 160,' + a.toFixed(3) + ')';
+        const ch = RAIN_GLYPH[(col.seed + k + Math.floor(t / 180)) % RAIN_GLYPH.length];
+        c.fillText(ch, col.x, yy);
+      }
+      /* occasional soft pixel drop (not a bot face) */
+      if (ci % 5 === 0) {
+        const dy = Math.round(col.y - col.len * 5);
+        if (dy > 0 && dy < H) {
+          c.fillStyle = 'rgba(80, 160, 200, 0.14)';
+          c.fillRect(col.x + 2, dy, 2, 2);
+        }
+      }
+    });
+    c.restore();
+  }
+
+
+  function alpha(hex, a) {
+    const n = parseInt(hex.slice(1), 16);
+    return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+  }
+  function R(c, x, y, w, h, col) {
+    c.fillStyle = col; c.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h));
+  }
+  function mix(a, b, t) {
+    const pa = parseInt(a.slice(1), 16), pb = parseInt(b.slice(1), 16);
+    const f = (x, y) => Math.round(x + (y - x) * t);
+    const r = f((pa >> 16) & 255, (pb >> 16) & 255);
+    const g = f((pa >> 8) & 255, (pb >> 8) & 255);
+    const bl = f(pa & 255, pb & 255);
+    return '#' + [r, g, bl].map(v => v.toString(16).padStart(2, '0')).join('');
+  }
+  function textW(c, s, size, bold) {
+    c.font = (bold ? 'bold ' : '') + size + 'px ' + FONT; return c.measureText(s).width;
+  }
+  function ptext(c, s, x, y, z, col, align) {
+    c.save(); c.font = (z === 2 ? 'bold 10px ' : 'bold 8px ') + FONT;
+    c.fillStyle = col; c.textBaseline = 'top'; c.textAlign = align || 'left';
+    c.fillText(s, Math.round(x), Math.round(y)); c.restore();
+  }
+  function txt(c, s, x, y, o) {
+    o = o || {}; c.save();
+    c.font = (o.bold ? 'bold ' : '') + (o.size || 10) + 'px ' + FONT;
+    c.fillStyle = o.color || UI_INK; c.textBaseline = 'top'; c.textAlign = o.align || 'left';
+    c.fillText(s, Math.round(x), Math.round(y)); c.restore();
+  }
+  function easeOut(u) { u = Math.max(0, Math.min(1, u)); return 1 - Math.pow(1 - u, 3); }
+  function uptimeStr(t) {
+    const s = Math.floor(t / 1000), m = Math.floor(s / 60), r = s % 60;
+    return String(m).padStart(2, '0') + ':' + String(r).padStart(2, '0');
+  }
+  function hole(c, x, y) {
+    R(c, x, y, 7, 7, RC.pin); R(c, x + 1, y + 1, 5, 5, '#05070a'); R(c, x + 2, y + 2, 3, 3, '#101317');
+  }
+  function header(c, y) {
+    R(c, 14, y, 292, 9, '#08090b'); R(c, 14, y, 292, 1, '#2a323a');
+    for (let k = 0; k < 32; k++) {
+      const x = 18 + k * 9;
+      R(c, x - 1, y + 2, 5, 5, '#1a1f25'); R(c, x, y + 3, 3, 3, RC.pin); R(c, x + 1, y + 4, 1, 1, '#05070a');
+    }
+  }
+  function box(c, x, y, w, h, fill, hi) {
+    R(c, x + 2, y + 3, w, h, 'rgba(0,0,0,.45)');
+    R(c, x, y, w, h, fill);
+    R(c, x, y, w, 1, hi || '#3b4650'); R(c, x, y, 1, h, hi || '#3b4650');
+    R(c, x, y + h - 1, w, 1, '#05070a'); R(c, x + w - 1, y, 1, h, '#05070a');
+  }
+  function rr(c, x, y, w, h, r, col) {
+    /* crude rounded rect via fill (r small) */
+    R(c, x + r, y, w - 2 * r, h, col); R(c, x, y + r, w, h - 2 * r, col);
+    R(c, x, y, r, r, col); R(c, x + w - r, y, r, r, col);
+    R(c, x, y + h - r, r, r, col); R(c, x + w - r, y + h - r, r, r, col);
+  }
+
+  function botAt(i) {
+    const col = i % GRID.cols, row = Math.floor(i / GRID.cols);
+    return { x: GRID.x0 + col * GRID.cw, y: GRID.y0 + row * GRID.ch, i };
+  }
+
+  /* ----- power / status bars: team uses BOTS·UPTIME·LINK; bots use HITS·UPTIME·SIGNAL/DUTY — stepped LED fill, tip blinks ----- */
+  function teamBars(t, grow) {
+    const sig = 0.8 + 0.06 * Math.sin(t / 700);
+    return [
+      { k: 'BOTS',   v: (READY / BOTS.length) * grow, txt: READY + '/' + BOTS.length },
+      { k: 'UPTIME', v: (1 - Math.exp(-(t / 1000) / 90)) * grow, txt: uptimeStr(t) },
+      { k: 'LINK',   v: sig * grow, txt: Math.round(sig * 100) + '%' }
+    ];
+  }
+  function botBars(i, t, grow) {
+    const b = BOTS[i];
+    const hits = (((i * 37 + 11) % 70) + 20) / 100;
+    const sig = Math.min(0.97, 0.5 + ((i * 29) % 40) / 100 + 0.05 * Math.sin(t / 700 + i));
+    /* hold bots keep a lower duty; limited sit mid; ready fill high */
+    const stMul = b.st === 'hold' ? 0.35 : b.st === 'limited' ? 0.62 : 1;
+    return [
+      { k: 'HITS',   v: hits * stMul * grow, txt: String(Math.round(hits * stMul * 60)).padStart(3, '0') },
+      { k: 'UPTIME', v: (1 - Math.exp(-(t / 1000) / 90)) * grow, txt: uptimeStr(t) },
+      { k: b.radio ? 'DUTY' : 'SIGNAL', v: sig * stMul * grow, txt: Math.round(sig * stMul * 100) + '%' }
+    ];
+  }
+
+  function drawLedBar(c, x, y, bw, bh, st, col, t) {
+    const N = Math.floor((bw - 4) / 6);
+    const lit = Math.round(st.v * N);
+    ptext(c, st.k, x, y - 8, 1, mix(INT_SILK, col, 0.4));
+    ptext(c, st.txt, x + bw, y - 8, 1, mix(col, '#ffffff', 0.5), 'right');
+    R(c, x, y, bw, bh, '#0a0c0f');
+    R(c, x, y + 2, 2, bh - 4, '#8e98a2');
+    R(c, x + bw - 2, y + 2, 2, bh - 4, '#8e98a2');
+    for (let n = 0; n < N; n++) {
+      let cc = '#1c2733';
+      if (n < lit) {
+        if (n === lit - 1) cc = Math.floor(t / 260) % 2 ? '#ffffff' : mix(col, '#ffffff', 0.45);
+        else if (n > N * 0.8) cc = mix(col, '#ffffff', 0.25);
+        else cc = col;
+      }
+      R(c, x + 3 + n * 6, y + 2, 5, bh - 4, cc);
+    }
+  }
+
+  /* Gibson face (ivory + shades) — compact for module / photo */
+  function drawGibsonFace(c, cx, cy, z, t) {
+    const w = 7 * z, h = 7 * z;
+    const ox = Math.round(cx - w / 2), oy = Math.round(cy - h / 2);
+    R(c, ox, oy, w, h, GIBSON_C);
+    R(c, ox, oy + h - z, w, z, '#C9C3B2');
+    R(c, ox + z, oy + 2 * z, 2 * z, 2 * z, '#0b0b0b');
+    R(c, ox + 4 * z, oy + 2 * z, 2 * z, 2 * z, '#0b0b0b');
+    R(c, ox + 3 * z, oy + 2 * z, z, z, '#0b0b0b');
+    R(c, ox, oy + 2 * z, z, z, '#0b0b0b');
+    R(c, ox + 6 * z, oy + 2 * z, z, z, '#0b0b0b');
+    const gl = Math.floor(t / 900) % 2;
+    R(c, ox + (1 + gl) * z, oy + 2 * z, z, z, '#6f7b86');
+    R(c, ox + (4 + gl) * z, oy + 2 * z, z, z, '#6f7b86');
+    /* tiny crown */
+    R(c, ox + 2 * z, oy, 3 * z, z, GIBSON_C);
+  }
+
+  function drawBotFace(c, cx, cy, col, t, idx, z) {
+    /* Always a readable cartoon face — never a horizontal dash / toggle silhouette */
+    z = Math.max(1, z || 2);
+    const w = 6 * z, h = 5 * z;
+    const ox = Math.round(cx - w / 2), oy = Math.round(cy - h / 2);
+    R(c, ox - 1, oy - 1, w + 2, h + 2, alpha(col, 0.28));
+    R(c, ox, oy, w, h, col);
+    /* cheek / body inset so color bots (incl. pink/red) still read as a head, not a switch */
+    R(c, ox + z, oy + h - z, w - 2 * z, z, mix(col, '#05070a', 0.25));
+    const look = [0, 0, -1, 0, 1, 0][Math.floor(t / 1100 + idx) % 6];
+    const ew = Math.max(z, 2 * z), eh = Math.max(z, 2 * z);
+    const ey = oy + z;
+    const lx = ox + z + look, rx = ox + 3 * z + look;
+    R(c, lx, ey, ew, eh, '#05070a');
+    R(c, rx, ey, ew, eh, '#05070a');
+    /* pupils / glints — keeps every die looking like eyes, never a single bar */
+    const gx = Math.max(1, Math.floor(z / 1));
+    R(c, lx + gx, ey, gx, gx, '#ffffff');
+    R(c, rx + gx, ey, gx, gx, '#ffffff');
+  }
+
+  /* U1 ESP32 module — Gibson as main MCU die (LEFT side of board) */
+  function drawGibsonModule(c, t, selected) {
+    const { x, y, w, h } = GIB;
+    const pu = (Math.sin(t / 380) + 1) / 2;
+    const gate = !entered; /* Gibson reads as the entrance until opened */
+    const hot = selected || gate;
+    if (hot) {
+      const ac = gate ? NEON : INT_AC;
+      /* multi-layer cyan bloom — FINAL-v1 hot neon, not pale haze */
+      R(c, x - 6, y - 6, w + 12, h + 12, alpha(ac, 0.05 + 0.04 * pu));
+      R(c, x - 4, y - 4, w + 8, h + 8, alpha(ac, 0.12 + 0.1 * pu));
+      R(c, x - 2, y - 2, w + 4, h + 4, alpha(ac, 0.2 + 0.12 * pu));
+      /* marching portal dashes — cartoon doorway on the MCU */
+      const ph = Math.floor(t / 55), n = 4;
+      for (let d = 0, k = 0; d < w + 6; d += n, k++) if ((k + ph) % 2 === 0) {
+        R(c, x - 3 + d, y - 3, Math.min(n, w + 4 - d), 1, ac);
+        R(c, x + w + 2 - d - n + Math.max(0, d + n - (w + 4)), y + h + 2, Math.min(n, w + 4 - d), 1, ac);
+      }
+      for (let d = 0, k = 0; d < h + 6; d += n, k++) if ((k + ph) % 2 === 0) {
+        R(c, x + w + 2, y - 3 + d, 1, Math.min(n, h + 4 - d), ac);
+        R(c, x - 3, y + h + 2 - d - n + Math.max(0, d + n - (h + 4)), 1, Math.min(n, h + 4 - d), ac);
+      }
+    }
+    box(c, x, y, w, h, '#05080c', gate ? mix('#1a4a55', NEON, 0.55) : '#1a222b');
+    /* antenna meander on left of module */
+    for (let k = 0; k < 8; k++) {
+      const ay = y + 10 + k * 8;
+      R(c, x + 6, ay, 22, 2, '#7c8b97');
+      if (k < 7) R(c, k % 2 ? x + 6 : x + 26, ay, 2, 10, '#7c8b97');
+    }
+    ptext(c, 'ANT', x + 8, y + h - 12, 1, RC.silk);
+    /* shield can */
+    box(c, x + 36, y + 8, 72, 62, '#1a2026', '#3d4954');
+    R(c, x + 40, y + 12, 64, 1, '#0f1418');
+    R(c, x + 40, y + 65, 64, 1, '#0f1418');
+    /* castellated pads */
+    for (let k = 0; k < 8; k++) {
+      R(c, x + w - 4, y + 12 + k * 8, 4, 3, RC.pin);
+      R(c, x + 38 + k * 8, y + h - 6, 3, 4, RC.pin);
+    }
+    /* Gibson die inside shield */
+    const dx = x + 50, dy = y + 18;
+    R(c, dx - 2, dy - 2, 48, 44, alpha(GIBSON_C, 0.18 + 0.12 * pu));
+    R(c, dx, dy, 44, 40, '#14181c');
+    drawGibsonFace(c, dx + 22, dy + 18, 4, t);
+    ptext(c, 'GIBSON', x + 72, y + h - 14, 1, (selected || !entered) ? '#00f0ff' : '#C9C3B2', 'center');
+    if (!entered) {
+      /* cartoon entry chevrons on the shield — no instruction words */
+      const cx = x + 72, cy = y + h - 28;
+      const blink = Math.floor(t / 280) % 2;
+      R(c, cx - 6, cy, 4, 2, blink ? '#00f0ff' : '#1a4a55');
+      R(c, cx - 2, cy + 3, 4, 2, blink ? '#00f0ff' : '#1a4a55');
+      R(c, cx + 2, cy + 6, 4, 2, blink ? '#00f0ff' : '#1a4a55');
+    }
+    ptext(c, 'U1', x + w - 14, y + 4, 1, RC.silk);
+    ptext(c, 'ESP32', x + 40, y + 4, 1, '#76828d');
+    /* activity LED (cyan — not a power switch) */
+    R(c, x + 40, y + h - 22, 5, 3, alpha('#00f0ff', 0.2 + 0.2 * pu));
+    R(c, x + 41, y + h - 21, 2, 1, '#00f0ff');
+  }
+
+  /* Bot dies — grid of QFPs on the right (silkscreen chip regions, not a ring) */
+  function drawBotDie(c, i, t) {
+    const p = botAt(i), b = BOTS[i], selected = sel === i + 1;
+    const bx = p.x + 2, by = p.y + 2, bw = 34, bh = 22; /* inset in cell — no overlap */
+    const pu = (Math.sin(t / 340 + i) + 1) / 2;
+    if (selected) {
+      R(c, bx - 4, by - 4, bw + 8, bh + 8, alpha(b.c, 0.08 + 0.06 * pu));
+      R(c, bx - 2, by - 2, bw + 4, bh + 4, alpha(b.c, 0.2 + 0.14 * pu));
+      const ph = Math.floor(t / 70), n = 3;
+      for (let d = 0, k = 0; d < bw + 2; d += n, k++) if ((k + ph) % 2 === 0) {
+        R(c, bx - 1 + d, by - 1, Math.min(n, bw - d), 1, mix(b.c, '#ffffff', 0.35));
+        R(c, bx + bw - d, by + bh, Math.min(n, bw - d + 1), 1, mix(b.c, '#ffffff', 0.35));
+      }
+    }
+    /* leads */
+    for (let k = 0; k < 5; k++) {
+      R(c, bx + 4 + k * 6, by - 2, 2, 3, RC.pin);
+      R(c, bx + 4 + k * 6, by + bh - 1, 2, 3, RC.pin);
+    }
+        R(c, bx, by, bw, bh, '#10151a');
+    R(c, bx, by, bw, 1, mix('#10151a', b.c, 0.5));
+    R(c, bx, by + bh - 1, bw, 1, '#05070a');
+    R(c, bx + 2, by + 2, 2, 2, '#2a323a');
+    /* face centered — always eyes, never a red dash */
+    drawBotFace(c, bx + bw / 2, by + bh / 2, b.c, t, i, 2);
+    ptext(c, 'U' + (i + 2), bx + 2, by + bh - 8, 1, selected ? b.c : INT_SILK);
+    /* tiny activity pixel (cool white/cyan, never a red toggle) */
+    const on = Math.floor(t / 650 + i) % 4 !== 0;
+    R(c, bx + bw - 5, by + 2, 2, 2, on ? mix(b.c, '#ffffff', 0.55) : '#1a1f25');
+  }
+
+  /* U14 companion FLASH die — under Gibson, clear of bot grid + name-tag */
+  function drawFlashDie(c, t, open) {
+    const { x, y, w, h } = FLASH;
+    const pu = (Math.sin(t / 420) + 1) / 2;
+    c.save();
+    c.globalAlpha = 0.4 + 0.6 * Math.max(0, open);
+    /* copper from Gibson bottom into FLASH */
+    const gx = Math.round(GIB.x + GIB.w / 2);
+    R(c, gx - 1, GIB.y + GIB.h, 2, Math.max(1, y - (GIB.y + GIB.h)), mix('#1a222b', NEON, 0.15 + 0.25 * open));
+    R(c, gx - 1, y - 1, 2, 2, RC.pin);
+    /* SOIC pads top + bottom */
+    for (let k = 0; k < 4; k++) {
+      const px = x + 12 + k * 18;
+      R(c, px, y - 3, 3, 4, '#05070a');
+      R(c, px + 1, y - 2, 1, 4, RC.pin);
+      R(c, px, y + h - 1, 3, 4, '#05070a');
+      R(c, px + 1, y + h - 2, 1, 4, RC.pin);
+    }
+    box(c, x, y, w, h, '#080c10', mix('#3a4652', NEON, 0.3));
+    R(c, x + 2, y + 2, w - 4, h - 4, '#10161c');
+    R(c, x + 2, y + 2, w - 4, 1, mix('#2a3844', NEON, 0.4));
+    R(c, x + 3, y + 3, 3, 3, '#05070a'); /* pin-1 */
+    ptext(c, 'U14', x + 8, y + 5, 1, RC.silk);
+    ptext(c, 'FLASH', x + 8, y + 12, 1, mix(RC.silk, NEON, 0.5));
+    const on = Math.floor(t / 480) % 3 !== 0;
+    R(c, x + w - 10, y + 6, 4, 4, on ? alpha(NEON, 0.55 + 0.3 * pu) : '#1a1f25');
+    if (on) R(c, x + w - 9, y + 7, 2, 2, '#ffffff');
+    /* XTAL support circuitry beside FLASH */
+    const xx = x + w + 6, xy = y + 3;
+    R(c, xx, xy, 14, 14, '#1a2026');
+    R(c, xx + 1, xy + 1, 12, 12, '#0a0e12');
+    R(c, xx + 3, xy + 3, 8, 8, '#2a323c');
+    R(c, xx + 5, xy + 5, 4, 4, '#10161b');
+    ptext(c, 'X1', xx + 1, xy + 15, 1, '#4a5560');
+    /* trace toward bot bus */
+    R(c, x + w, Math.round(y + h / 2), Math.max(1, GRID.x0 - (x + w) - 2), 1, mix('#1a222b', NEON, 0.12 + 0.28 * open));
+    c.restore();
+  }
+
+  /* ===== BOTcorps team name-tag (locked ID-badge language) =====
+     Photo · contact chip · stepped power bars · name plate · OLED · icons/barcode
+     Bars grow in and light differently for TEAM vs each bot. */
+  function drawBotcorpsNameTag(c, t) {
+    const { x, y, w, h } = TAG;
+    const team = sel === 0;
+    const bi = team ? -1 : sel - 1;
+    const col = team ? NEON : BOTS[bi].c;
+    const grow = easeOut((performance.now() - growT0) / 700);
+    const rows = team ? teamBars(t, grow) : botBars(bi, t, grow);
+    const tint = mix('#030508', col, team ? 0.08 : 0.1);
+    const edge = mix('#1a222b', col, team ? 0.75 : 0.55);
+    const pu = (Math.sin(t / 380) + 1) / 2;
+
+    /* card shell — deeper black + hot rim so neon reads like FINAL-v1 */
+    if (team) {
+      R(c, x - 3, y - 3, w + 6, h + 6, alpha(NEON, 0.05 + 0.04 * pu));
+      R(c, x - 2, y - 2, w + 4, h + 4, alpha(NEON, 0.1 + 0.06 * pu));
+    }
+    rr(c, x, y, w, h, 6, edge);
+    rr(c, x + 1, y + 1, w - 2, h - 2, 5, '#05070a');
+    rr(c, x + 2, y + 2, w - 4, h - 4, 4, tint);
+    R(c, x + 8, y + 1, w - 16, 1, mix('#ffffff', col, team ? 0.55 : 0.35));
+    R(c, x + 8, y + h - 2, w - 16, 1, alpha(col, team ? 0.45 : 0.25));
+    /* accent side rails (FINAL name-plate language) */
+    R(c, x + 3, y + 14, 2, h - 28, alpha(col, team ? 0.85 : 0.55));
+    R(c, x + w - 5, y + 14, 2, h - 28, alpha(col, team ? 0.85 : 0.55));
+
+    /* lanyard slot */
+    rr(c, x + w / 2 - 20, y + 4, 40, 6, 2, mix('#6d7a87', col, 0.25));
+    rr(c, x + w / 2 - 19, y + 5, 38, 4, 1, '#030508');
+
+    /* photo area — Gibson for TEAM, selected bot face otherwise */
+    const px = x + 10, py = y + 14, pw = 44, ph = 44;
+    R(c, px - 1, py - 1, pw + 2, ph + 2, alpha(col, team ? 0.35 : 0.2));
+    R(c, px, py, pw, ph, '#030508');
+    for (let yy = py + 1; yy < py + ph; yy += 4) R(c, px + 1, yy, pw - 2, 1, '#080d12');
+    [[0, 0, 1, 1], [pw - 1, 0, -1, 1], [0, ph - 1, 1, -1], [pw - 1, ph - 1, -1, -1]].forEach(q => {
+      for (let k = 0; k < 7; k++) {
+        R(c, px + q[0] + k * q[2], py + q[1], 1, 1, team ? NEON : '#aab2ba');
+        R(c, px + q[0], py + q[1] + k * q[3], 1, 1, team ? NEON : '#aab2ba');
+      }
+    });
+    if (team) drawGibsonFace(c, px + pw / 2, py + ph / 2 - 2, 4, t);
+    else drawBotFace(c, px + pw / 2, py + ph / 2 - 2, col, t, bi, 4);
+    R(c, px + pw - 11, py + ph - 10, 8, 7, '#59636d');
+
+    /* contact chip */
+    const cx0 = x + 60, cy0 = y + 18;
+    rr(c, cx0, cy0, 28, 28, 3, mix('#6d7a87', col, 0.35));
+    rr(c, cx0 + 1, cy0 + 1, 26, 26, 2, '#aab2ba');
+    R(c, cx0 + 9, cy0, 1, 28, '#3a444d'); R(c, cx0 + 18, cy0, 1, 28, '#3a444d');
+    R(c, cx0, cy0 + 9, 28, 1, '#3a444d'); R(c, cx0, cy0 + 18, 28, 1, '#3a444d');
+    R(c, cx0 + 7, cy0 + 7, 14, 14, '#0a0e12');
+    R(c, cx0 + 8, cy0 + 8, 12, 12, '#030508');
+    if (team) {
+      R(c, cx0 + 10, cy0 + 10, 8, 8, alpha(NEON, 0.35 + 0.2 * pu));
+      R(c, cx0 + 12, cy0 + 12, 4, 4, NEON);
+      R(c, cx0 + 13, cy0 + 13, 2, 2, '#ffffff');
+    } else drawBotFace(c, cx0 + 14, cy0 + 14, col, t, bi, 1);
+    if (Math.floor(t / 420) % 2) R(c, cx0 + 22, cy0 + 2, 3, 3, col);
+
+    /* traces photo/chip -> bars */
+    R(c, px + pw, py + 22, cx0 - (px + pw), 1, mix('#1a222b', col, 0.55));
+    R(c, cx0 + 28, cy0 + 14, 8, 1, mix('#1a222b', col, 0.55));
+    const pulseX = cx0 + 14 + Math.floor((t / 40) % 20);
+    R(c, Math.min(cx0 + 34, pulseX), cy0 + 13, 3, 3, col);
+
+    /* three stepped power bars */
+    const barX = x + 98, barW = 108;
+    rows.forEach((st, k) => {
+      drawLedBar(c, barX, y + 18 + k * 15, barW, 9, st, col, t);
+    });
+
+    /* OLED target module — polished ALL BOTS / bot short readout */
+    const ox = x + w - 74, oy = y + 14;
+    R(c, ox - 1, oy - 1, 64, 16, alpha(col, team ? 0.35 : 0.18));
+    R(c, ox, oy, 62, 14, '#030508');
+    R(c, ox + 2, oy + 2, 58, 10, '#010305');
+    R(c, ox + 2, oy + 2, 58, 1, alpha(col, 0.55));
+    txt(c, team ? 'ALL BOTS' : BOTS[bi].short, ox + 31, oy + 3, {
+      size: 8, bold: true, align: 'center',
+      color: team ? mix(NEON, '#ffffff', 0.25) : mix(col, '#ffffff', 0.2)
+    });
+    ptext(c, team ? 'TEAM' : ('U' + (bi + 2)), ox, oy + 16, 1, mix(INT_SILK, col, 0.4));
+    /* status pips */
+    for (let k = 0; k < 3; k++) {
+      const on = team ? (k < 2 || Math.floor(t / 400) % 2) : (k === 0 || (k === 1 && Math.floor(t / 500 + bi) % 2));
+      R(c, ox + 40 + k * 7, oy + 16, 4, 3, on ? col : '#1a1f25');
+    }
+
+    /* antenna meander */
+    for (let k = 0; k < 3; k++) {
+      R(c, ox, oy + 24 + k * 4, 36, 1, mix('#7c8b97', col, 0.25));
+      if (k < 2) R(c, k % 2 ? ox : ox + 35, oy + 24 + k * 4, 1, 5, mix('#7c8b97', col, 0.25));
+    }
+
+    /* USB tongue */
+    R(c, x + w - 18, y + 40, 12, 14, '#aab2ba');
+    R(c, x + w - 15, y + 44, 9, 7, '#030508');
+
+    /* name plate — heavier chrome for TEAM, matches bot-tag finish */
+    const nx = x + 60, ny = y + h - 30, nw = w - 74, nh = 24;
+    R(c, nx - 1, ny - 1, nw + 2, nh + 2, alpha(col, team ? 0.4 : 0.2));
+    R(c, nx, ny, nw, nh, mix('#6d7a87', col, team ? 0.45 : 0.2));
+    R(c, nx + 1, ny + 1, nw - 2, nh - 2, '#030508');
+    R(c, nx + 2, ny + 2, nw - 4, 1, alpha(col, 0.55));
+    for (let k = 0; k < 3; k++) {
+      R(c, nx + nw / 2 - 14 + k * 10, ny - 3, 4, 4, RC.pin);
+      R(c, nx + nw / 2 - 13 + k * 10, ny - 2, 2, 2, '#05070a');
+    }
+    const nm = 'BOTcorps';
+    txt(c, nm, nx + nw / 2, ny + 3, {
+      size: 12, bold: true, align: 'center',
+      color: team ? mix(NEON, '#ffffff', 0.45) : mix(col, '#ffffff', 0.35)
+    });
+    ptext(c, team ? 'LV 01 · 12 CREW' : ('LV 01 · ' + BOTS[bi].short),
+          nx + nw / 2, ny + nh - 9, 1, mix(INT_SILK, col, 0.35), 'center');
+    R(c, nx + 3, ny + nh - 3, 8, 1, col);
+    R(c, nx + nw - 11, ny + nh - 3, 8, 1, col);
+
+    /* icon strip + barcode under photo */
+    const ix = x + 10, iy = y + 64;
+    R(c, ix, iy, 44, 22, '#d7dde4');
+    R(c, ix, iy, 44, 9, '#0b1015');
+    R(c, ix + 5, iy + 2, 4, 3, col); R(c, ix + 4, iy + 5, 6, 3, '#8e98a2');
+    R(c, ix + 16, iy + 2, 6, 4, '#8e98a2'); R(c, ix + 17, iy + 6, 4, 2, col);
+    R(c, ix + 28, iy + 3, 6, 5, '#8e98a2'); R(c, ix + 30, iy + 5, 2, 1, '#030508');
+    let bx = ix + 2;
+    for (let k = 0; bx < ix + 42; k++) {
+      const bw = 1 + (k * 7 + (team ? 3 : bi + 2)) % 3;
+      R(c, bx, iy + 11, Math.min(bw, ix + 42 - bx), 9, '#0b1015');
+      bx += bw + 1 + (k % 2);
+    }
+
+    /* TEAM neon rim — hot cyan, not pale wash */
+    if (team) {
+      R(c, x, y, w, 1, alpha(NEON, 0.55 + 0.25 * pu));
+      R(c, x, y + h - 1, w, 1, alpha(NEON, 0.35 + 0.2 * pu));
+      R(c, x, y, 1, h, alpha(NEON, 0.4 + 0.15 * pu));
+      R(c, x + w - 1, y, 1, h, alpha(NEON, 0.4 + 0.15 * pu));
+    }
+  }
+
+  function drawBoard(c, t) {
+    /* deep black field + slight rain — FINAL-v1 hot neon needs pure black ground */
+    R(c, 0, 0, W, H, '#020305');
+    drawRain(c, t);
+    /* PCB face: darker so cyan blooms pop; rain still peeks through */
+    c.fillStyle = 'rgba(5, 8, 12, 0.88)';
+    c.fillRect(4, 4, W - 8, H - 8);
+    R(c, 4, 4, W - 8, 1, mix('#1a222b', NEON, 0.15)); R(c, 4, 4, 1, H - 8, '#1a222b');
+    R(c, 4, H - 5, W - 8, 1, '#010203'); R(c, W - 5, 4, 1, H - 8, '#010203');
+
+    hole(c, 8, 8); hole(c, 305, 8); hole(c, 8, 225); hole(c, 305, 225);
+    header(c, 14);
+    /* bottom header under name-tag edge */
+    header(c, 226);
+
+    ptext(c, 'BOTCORPS', 22, 4, 1, RC.silk);
+    ptext(c, 'S3', 160, 4, 1, '#4a5560', 'center');
+    ptext(c, 'REV A', 268, 4, 1, '#4a5560');
+
+    /* gate open amount */
+    const target = entered ? 1 : 0;
+    gateAnim += (target - gateAnim) * 0.16;
+    if (Math.abs(gateAnim - target) < 0.004) gateAnim = target;
+    const open = gateAnim;
+
+    /* copper hints — only fully lit after entrance */
+    for (let i = 0; i < 12; i++) {
+      const p = botAt(i), b = BOTS[i];
+      const x0 = GIB.x + GIB.w, y0 = GIB.y + 16 + (i % 6) * 10;
+      const x1 = p.x + 17, y1 = p.y + 13;
+      const mid = x0 + 6 + (i % 3) * 5;
+      const lit = open > 0.55 && sel === i + 1;
+      const trc = lit ? mix('#1a222b', b.c, 0.75) : mix('#12181e', '#05070a', 1 - open * 0.45);
+      R(c, x0, y0, Math.max(1, mid - x0), 1, trc);
+      R(c, mid, Math.min(y0, y1), 1, Math.abs(y1 - y0) + 1, trc);
+      R(c, mid, y1, Math.max(1, x1 - mid), 1, trc);
+    }
+
+    /* Gibson always crisp — the entrance */
+    drawGibsonModule(c, t, sel === 0);
+
+    /* companion FLASH + XTAL under Gibson (PCB feels fuller) */
+    drawFlashDie(c, t, open);
+
+    /* bots: ghosted until entered, then full; cells spaced so faces never collide */
+    c.save();
+    c.globalAlpha = 0.22 + 0.78 * open;
+    for (let i = 0; i < 12; i++) drawBotDie(c, i, t);
+    c.restore();
+
+    /* USB on board edge — clear of bot grid (grid ends ~x 310 but USB at right edge mid) */
+    R(c, 304, 108, 10, 14, '#aab2ba');
+    R(c, 306, 111, 8, 8, '#0a0c0f');
+    ptext(c, 'USB', 300, 124, 1, RC.silk);
+
+    /* name-tag — fade in after Gibson entrance */
+    if (open > 0.04) {
+      c.save();
+      c.globalAlpha = Math.min(1, open * 1.2);
+      drawBotcorpsNameTag(c, t);
+      c.restore();
+    }
+    /* closed shutter over tag until entrance */
+    if (open < 0.98) {
+      const cover = 1 - open;
+      const { x, y, w, h } = TAG;
+      c.globalAlpha = cover;
+      R(c, x, y, w, h, '#06080b');
+      R(c, x + 4, y + 4, w - 8, h - 8, '#0c1015');
+      R(c, x + 4, y + 4, w - 8, 1, '#2a323c');
+      for (let k = 0; k < 8; k++) {
+        R(c, x + 16 + k * 34, y + h / 2 - 4, 20, 2, '#1a222b');
+        R(c, x + 16 + k * 34, y + h / 2 + 4, 20, 2, '#1a222b');
+      }
+      /* hinge toward Gibson — visual link that he opens this panel */
+      for (let k = 0; k < 5; k++) {
+        R(c, x + 24 + k * 50, y + 6, 4, 4, RC.pin);
+      }
+      c.globalAlpha = 1;
+    }
+
+    const age = t - pulseT;
+    if (entered && age >= 0 && age < 420) {
+      const a = 1 - age / 420;
+      R(c, 2, 2, W - 4, 2, alpha('#00f0ff', a));
+      R(c, 2, H - 4, W - 4, 2, alpha('#00f0ff', a));
+      R(c, 2, 2, 2, H - 4, alpha('#00f0ff', a));
+      R(c, W - 4, 2, 2, H - 4, alpha('#00f0ff', a));
+    }
+  }
+
+  function setSel(v) { sel = v; growT0 = performance.now(); }
+  function selLabel() {
+    if (!entered) return 'GIBSON (entrance)';
+    return sel === 0 ? 'BOTcorps TEAM' : BOTS[sel - 1].id;
+  }
+  function enterGate() {
+    if (!entered) {
+      entered = true;
+      sel = 0;
+      growT0 = performance.now();
+      pulseT = performance.now() - bootT0;
+      return;
+    }
+    pulseT = performance.now() - bootT0;
+  }
+
+  function frame(t) {
+    drawBoard(ctx, t);
+    const el = document.getElementById('selName');
+    if (el) el.textContent = selLabel();
+    const g = document.getElementById('gateState');
+    if (g) g.textContent = entered ? 'OPEN' : 'CLOSED';
+  }
+  function loop(now) { frame(now - bootT0); requestAnimationFrame(loop); }
+  requestAnimationFrame(loop);
+
+  window.addEventListener('keydown', (e) => {
+    const n = BOTS.length + 1;
+    if (!entered) {
+      if (e.key === 'Enter' || e.key === ' ') { enterGate(); e.preventDefault(); }
+      else if (e.key === 'ArrowRight' || e.key === 'ArrowLeft' || e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+        sel = 0; e.preventDefault(); /* keep focus on Gibson entrance */
+      }
+      return;
+    }
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { setSel((sel + 1) % n); e.preventDefault(); }
+    else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { setSel((sel + n - 1) % n); e.preventDefault(); }
+    else if (e.key === 'Enter') { enterGate(); e.preventDefault(); }
+    else if (e.key === 'Escape') {
+      if (sel !== 0) setSel(0);
+      else { entered = false; gateAnim = Math.min(gateAnim, 0.85); }
+      e.preventDefault();
+    }
+  });
+
+  cv.addEventListener('click', (ev) => {
+    const r = cv.getBoundingClientRect();
+    const sx = (ev.clientX - r.left) * (W / r.width);
+    const sy = (ev.clientY - r.top) * (H / r.height);
+    /* Gibson = entrance */
+    if (sx >= GIB.x && sx < GIB.x + GIB.w && sy >= GIB.y && sy < GIB.y + GIB.h) {
+      sel = 0;
+      if (!entered) enterGate();
+      return;
+    }
+    if (!entered) return;
+    if (sx >= TAG.x && sx < TAG.x + TAG.w && sy >= TAG.y && sy < TAG.y + TAG.h) { setSel(0); return; }
+    for (let i = 0; i < 12; i++) {
+      const p = botAt(i);
+      if (sx >= p.x && sx < p.x + GRID.cw && sy >= p.y && sy < p.y + GRID.ch) { setSel(i + 1); return; }
+    }
+  });
+
+  window.__intro = {
+    sel: () => sel, setSel,
+    entered: () => entered,
+    setEntered: (v) => { entered = !!v; if (v) growT0 = performance.now(); },
+    enterGate, pulse: () => enterGate()
+  };
+})();
+</script>
+</body>
+</html>

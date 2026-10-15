@@ -1178,8 +1178,7 @@ static void paint_one_board(Gfx g, int i, bool sel, bool dim)
     g.fillRect(x + 1, y + h - 1, w - 2, 1, edge);
     g.fillRect(x, y + 1, 1, h - 2, edge);
     g.fillRect(x + w - 1, y + 1, 1, h - 2, edge);
-    /* Sheet-covered rows keep their face. The trace stubs read as stray dashes. */
-    const bool traces = !dim && !(s_sheet && i >= 4);
+    const bool traces = !dim;
     const int longtr[4] = { 1, 3, 5, 6 };
     if (traces) {
         for (int n = 0; n < 4; ++n) {
@@ -1238,7 +1237,7 @@ static void paint_one_board(Gfx g, int i, bool sel, bool dim)
         up[n] = c;
     }
     up[n] = 0;
-    if (!dim && !(s_sheet && i >= 4)) {
+    if (!dim) {
         const int keep = s_px;
         s_px = 6;
         txt(g, up, x + 36, y + 37, silk, lgfx::textdatum::top_center);
@@ -1460,52 +1459,38 @@ static void stroke_round(Gfx g, int x, int y, int w, int h, uint8_t c)
     g.fillRect(x + w - 2, y + h - 3, 1, 1, c);
 }
 
-/* Inclusive border. Ramp from the edge inward: 235, 235, 236, 236.
- * r3 corners stay inside the rect: the outer pixel is left blank,
- * one step in is 230, two steps in is 235. */
-static void frame_mag(Gfx g, int x, int y, int w, int h)
+/* Ramp A, edge inward: 230, 235, 232, 234, 236, 236.
+ * Top rows and the side columns. The 6x6 corner table replaces the
+ * square corner. The bottom edge is painted later, after the hairline. */
+static void sheet_ramp_top(Gfx g, int x, int y, int w, int h)
 {
-    const uint8_t ramp[4] = {
-        PAL_TERM_M35, PAL_TERM_M35, PAL_TERM_M10, PAL_TERM_M10
+    const uint8_t ramp[6] = {
+        PAL_TERM_M, PAL_TERM_M35, PAL_TERM_M22, PAL_TERM_M18, PAL_TERM_M10, PAL_TERM_M10
+    };
+    const uint8_t corn[6][6] = {
+        { PAL_TERM_M35, PAL_TERM_M, PAL_TERM_M, PAL_TERM_M, PAL_TERM_M, PAL_TERM_M },
+        { PAL_TERM_M, PAL_TERM_M10, PAL_TERM_M10, PAL_TERM_M35, PAL_TERM_M35, PAL_TERM_M35 },
+        { PAL_TERM_M, PAL_TERM_M10, PAL_TERM_M10, PAL_TERM_M22, PAL_TERM_M22, PAL_TERM_M22 },
+        { PAL_TERM_M, PAL_TERM_M35, PAL_TERM_M22, PAL_TERM_M18, PAL_TERM_M18, PAL_TERM_M18 },
+        { PAL_TERM_M, PAL_TERM_M35, PAL_TERM_M22, PAL_TERM_M18, PAL_TERM_M10, PAL_TERM_M10 },
+        { PAL_TERM_M, PAL_TERM_M35, PAL_TERM_M22, PAL_TERM_M18, PAL_TERM_M10, PAL_TERM_M10 },
     };
     const int x1 = x + w;
     const int y1 = y + h;
-    for (int i = 0; i < 4; ++i) {
-        const uint8_t c = ramp[i];
-        const int L = x + i;
-        const int R = x1 - i;
-        const int T = y + i;
-        const int B = y1 - i;
-        const int span = R - L + 1;
-        const int tall = B - T + 1;
-        if (span < 1 || tall < 1) continue;
-        if (i == 0) {
-            if (span > 4) {
-                g.fillRect(L + 2, T, span - 4, 1, c);
-                g.fillRect(L + 2, B, span - 4, 1, c);
-            }
-            if (tall > 4) {
-                g.fillRect(L, T + 2, 1, tall - 4, c);
-                g.fillRect(R, T + 2, 1, tall - 4, c);
-            }
-        } else {
-            g.fillRect(L, T, span, 1, c);
-            g.fillRect(L, B, span, 1, c);
-            if (tall > 2) {
-                g.fillRect(L, T + 1, 1, tall - 2, c);
-                g.fillRect(R, T + 1, 1, tall - 2, c);
-            }
-        }
+    for (int i = 0; i < 6; ++i) g.fillRect(x, y + i, w + 1, 1, ramp[i]);
+    const int tall = (y1 - 6) - y + 1;
+    for (int i = 0; i < 6; ++i) {
+        g.fillRect(x + i, y, 1, tall, ramp[i]);
+        g.fillRect(x1 - i, y, 1, tall, ramp[i]);
     }
-    const int cx[4] = { x, x1, x, x1 };
-    const int cy[4] = { y, y, y1, y1 };
-    const int sx[4] = { 1, -1, 1, -1 };
-    const int sy[4] = { 1, 1, -1, -1 };
-    for (int k = 0; k < 4; ++k) {
-        g.fillRect(cx[k] + sx[k], cy[k], 1, 1, PAL_TERM_M);
-        g.fillRect(cx[k], cy[k] + sy[k], 1, 1, PAL_TERM_M);
-        g.fillRect(cx[k] + 2 * sx[k], cy[k], 1, 1, PAL_TERM_M35);
-        g.fillRect(cx[k], cy[k] + 2 * sy[k], 1, 1, PAL_TERM_M35);
+    for (int dy = 0; dy < 6; ++dy) {
+        for (int dx = 0; dx < 6; ++dx) {
+            const uint8_t c = corn[dy][dx];
+            g.fillRect(x + dx, y + dy, 1, 1, c);
+            g.fillRect(x1 - dx, y + dy, 1, 1, c);
+            g.fillRect(x + dx, y1 - dy, 1, 1, c);
+            g.fillRect(x1 - dx, y1 - dy, 1, 1, c);
+        }
     }
 }
 
@@ -1644,9 +1629,8 @@ static void paint_sheet(Gfx g)
     int sel = s_sheet_i;
     if (sel < 0) sel = 0;
     if (sel >= CMD_N) sel = CMD_N - 1;
-    /* Under the sheet: shared slot 8. Tiles that stick out stay as painted. */
+    /* a. Under the sheet is shared slot 8, then each row's own background. */
     g.fillRect(bx + 1, by + 1, w - 1, h - 1, PAL_BG);
-    /* Plain row backgrounds first. A row starts on its own y, not the one above. */
     for (int r = 0; r < nshow; ++r) {
         int hdr = -1;
         int cmd = 0;
@@ -1655,7 +1639,11 @@ static void paint_sheet(Gfx g)
         const int y = by + 5 + r * rh;
         g.fillRect(bx + 4, y, w - 8, rh - 1, PAL_BG);
     }
-    /* CORE header glow, then its 1px rule. Other groups keep their own glow. */
+    /* b. Top rows and side columns, then the 6-step corners. */
+    const int x1 = bx + w;
+    const int y1 = by + h;
+    sheet_ramp_top(g, bx, by, w, h);
+    /* c. CORE glow after the ramp, so it keeps a full 5 px inside x17..49. */
     for (int r = 0; r < nshow; ++r) {
         int hdr = -1;
         int cmd = 0;
@@ -1683,19 +1671,30 @@ static void paint_sheet(Gfx g)
             }
             txt(g, G_NAME[hdr], gx, gy, PAL_TERM_M, lgfx::textdatum::top_left);
             s_px = keepf;
-            /* One pixel, code 232. No downward halo. */
-            g.fillRect(bx + 48, y + 5, w - 60, 1, PAL_TERM_M22);
         } else {
             glow_txt(g, G_NAME[hdr], bx + 8, y + 1, PAL_BG, 6);
-            glow_hline(g, bx + 48, y + 5, w - 60, STEP_RULE);
         }
     }
-    /* Hairline first. The frame's inward 236 then owns y220. */
-    glow_hline(g, bx + 6, by + h - 4, w - 12, STEP_HAIR);
-    frame_mag(g, bx, by, w, h);
-    if (top > 0) blit_ico(g, ARROW_UP, bx + w - 12, by + 2, COL_MUTED);
-    if (top + nshow < rows) blit_ico(g, ARROW_DN, bx + w - 12, by + h - 11, COL_MUTED);
-    /* Selected row after the glow, so y120..121 of row 0 stay 234. */
+    /* d. CORE rule: one pixel of 232. Other groups keep their rule. */
+    for (int r = 0; r < nshow; ++r) {
+        int hdr = -1;
+        int cmd = 0;
+        menu_row(top + r, &hdr, &cmd);
+        if (hdr < 0) continue;
+        const int y = by + 5 + r * rh;
+        if (hdr == 0) g.fillRect(bx + 48, y + 5, w - 60, 1, PAL_TERM_M22);
+        else glow_hline(g, bx + 48, y + 5, w - 60, STEP_RULE);
+    }
+    /* e. Hairline, one pixel of 231. */
+    g.fillRect(bx + 6, y1 - 4, w - 12, 1, PAL_TERM_M28);
+    /* f. Bottom ramp. The hairline keeps x20..299 at y218. */
+    g.fillRect(bx + 1, y1, w - 1, 1, PAL_TERM_M);
+    g.fillRect(bx + 3, y1 - 1, w - 5, 1, PAL_TERM_M35);
+    g.fillRect(bx + 3, y1 - 2, w - 5, 1, PAL_TERM_M22);
+    g.fillRect(bx + 3, y1 - 3, w - 5, 1, PAL_TERM_M18);
+    g.fillRect(x1 - 6, y1 - 4, 1, 1, PAL_TERM_M10);
+    g.fillRect(bx + 5, y1 - 5, w - 9, 1, PAL_TERM_M10);
+    /* g. Selected row clips the ramp on that row. The bar stays whole. */
     for (int r = 0; r < nshow; ++r) {
         int hdr = -1;
         int cmd = 0;
@@ -1705,6 +1704,7 @@ static void paint_sheet(Gfx g)
         g.fillRect(bx + 3, y - 1, w - 6, rh - 1, PAL_TERM_M18);
         g.fillRect(bx + 3, y - 1, 2, rh - 1, PAL_TERM_M);
     }
+    /* h. Text and arrows. Selected command text is shared slot 127. */
     for (int r = 0; r < nshow; ++r) {
         int hdr = -1;
         int cmd = 0;
@@ -1715,14 +1715,15 @@ static void paint_sheet(Gfx g)
         const uint8_t bg = on ? (uint8_t)PAL_TERM_M18 : (uint8_t)PAL_BG;
         const uint8_t ac = accent();
         blit_ico(g, CMD_ICO[cmd], bx + 10, y + 1, on ? (uint8_t)PAL_TERM_M : ac);
-        const uint8_t ink = term_ink();
-        const uint8_t name_c = on ? ink : (uint8_t)PAL_TERM_INK;
-        if (on) txt_bg(g, CMDN[cmd], bx + 25, y + 1, name_c, bg, lgfx::textdatum::top_left);
+        const uint8_t name_c = on ? (uint8_t)127 : (uint8_t)PAL_TERM_INK;
         txt_bg(g, CMDN[cmd], bx + 24, y + 1, name_c, bg, lgfx::textdatum::top_left);
-        const uint8_t pur = (s_color == 1) ? (uint8_t)PAL_AMBER
+        const uint8_t pur = on ? (uint8_t)127
+                             : (s_color == 1) ? (uint8_t)PAL_AMBER
                              : (s_color == 2) ? (uint8_t)PAL_MINT : (uint8_t)PAL_TERM_C;
-        draw_purpose(g, CMDP[cmd], bx + w - 8, y + 1, on ? ink : pur, bg);
+        draw_purpose(g, CMDP[cmd], bx + w - 8, y + 1, pur, bg);
     }
+    if (top > 0) blit_ico(g, ARROW_UP, bx + w - 12, by + 2, COL_MUTED);
+    if (top + nshow < rows) blit_ico(g, ARROW_DN, bx + w - 12, by + h - 11, COL_MUTED);
     s_px = keep;
 }
 
@@ -2050,7 +2051,7 @@ static int s_host_sig = 0;
 /* Top row level at y=55 (dock 31). Bottom row level at y=180 (dock 32).
  * Side icons sit on the lane by the existing bar count:
  * s = clamp(28 + (1 - bars/4) * (L-42), 27, L-11). */
-static int bus_dock(const bus_pt *p, int n, int L, int lane)
+static int bus_dock(const bus_pt *p, int n, int L, int lane, bool wifi)
 {
     (void)p;
     (void)n;
@@ -2060,7 +2061,8 @@ static int bus_dock(const bus_pt *p, int n, int L, int lane)
 #ifdef BOTCORPS_HOST_RENDER
     bi = (lane + s_host_sig) % 3;
 #endif
-    int bars = NEAR_WIFI_B[bi];
+    const uint8_t *barsrc = wifi ? NEAR_WIFI_B : NEAR_BLE_B;
+    int bars = barsrc[bi];
     if (bars > 4) bars = 4;
     if (bars < 0) bars = 0;
     int span = L - 42;
@@ -2248,7 +2250,7 @@ static void bus_paint(Gfx g, bool radar, bool wifi, int shown, int sel)
             const int L = bus_len(tab[lane], BUS_N[lane]);
             int x = 0;
             int y = 0;
-            bus_at(tab[lane], BUS_N[lane], bus_dock(tab[lane], BUS_N[lane], L, lane), &x, &y);
+            bus_at(tab[lane], BUS_N[lane], bus_dock(tab[lane], BUS_N[lane], L, lane, wifi), &x, &y);
             g.fillRect(x - 7, y - 7, 14, 14, PAL_BG);
             g.drawRect(x - 7, y - 7, 14, 14, COL_LINE);
             dev_icon(g, SCAN_TYPE[d], x - 6, y - 6, false);
@@ -2260,12 +2262,15 @@ static void bus_paint(Gfx g, bool radar, bool wifi, int shown, int sel)
     int dmax = 1;
     for (int i = 0; i < 12; ++i) {
         const int L = bus_len(tab[i], BUS_N[i]);
-        docks[i] = bus_dock(tab[i], BUS_N[i], L, i);
+        docks[i] = bus_dock(tab[i], BUS_N[i], L, i, wifi);
         int tgt = docks[i] - 11;
         if (tgt < 8) tgt = 8;
         int span = tgt - 8;
         if (span > dmax) dmax = span;
     }
+#ifdef BOTCORPS_HOST_RENDER
+    if (!radar) printf("scan-dmax %d wifi %d\n", dmax, wifi ? 1 : 0);
+#endif
     for (int i = 0; i < 12; ++i) {
         const int L = bus_len(tab[i], BUS_N[i]);
         int x = 0;
@@ -2314,7 +2319,7 @@ static void bus_paint(Gfx g, bool radar, bool wifi, int shown, int sel)
         const int L = bus_len(tab[lane], BUS_N[lane]);
         int x = 0;
         int y = 0;
-        bus_at(tab[lane], BUS_N[lane], bus_dock(tab[lane], BUS_N[lane], L, lane), &x, &y);
+        bus_at(tab[lane], BUS_N[lane], bus_dock(tab[lane], BUS_N[lane], L, lane, wifi), &x, &y);
         g.drawRect(x - 8, y - 8, 16, 16, ac);
     }
 }
@@ -2340,7 +2345,7 @@ static void paint_radar(Gfx g, bool with_list)
 {
     /* Device path for SCR_SCAN. The full extBus layout lives in paint_bus_scan. */
     if (s_screen == SCR_SCAN) {
-        paint_bus_scan(g, true);
+        paint_bus_scan(g, s_hunt_band == 0);
         return;
     }
     const bool wifi = s_screen != SCR_BT_RADAR;
@@ -4612,6 +4617,7 @@ void botcorps_host_bus(uint8_t *buf)
     host_frame = buf;
     memset(buf, PAL_FIELD, 320u * 240u);
     s_screen = SCR_SCAN;
+    s_hunt_band = 0;
     botcorps_lut_term(false);
     s_sheet = false;
     s_cursor = 0;
@@ -4621,6 +4627,24 @@ void botcorps_host_bus(uint8_t *buf)
     s_info_dev = -1;
     s_bus_t0 = millis() - 4000u;
     paint_ext(Gfx());
+}
+
+void botcorps_host_bus_ble(uint8_t *buf)
+{
+    host_frame = buf;
+    memset(buf, PAL_FIELD, 320u * 240u);
+    s_screen = SCR_SCAN;
+    s_hunt_band = 1;
+    botcorps_lut_term(false);
+    s_sheet = false;
+    s_cursor = 0;
+    s_color = 0;
+    s_act = -1;
+    s_act_dev = -1;
+    s_info_dev = -1;
+    s_bus_t0 = millis() - 4000u;
+    paint_ext(Gfx());
+    s_hunt_band = 0;
 }
 
 void botcorps_host_botscan_n(uint8_t *buf, int bot)

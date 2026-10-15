@@ -283,10 +283,55 @@ int main(void)
         }
     printf("outside-sheet row0 %d row1 %d\n", out0, out1);
     botcorps_host_sheet(sheet, 0);
-    printf("ramp");
-    for (int i = 0; i < 4; ++i) printf(" top%d=%u", i, sheet[(104 + i) * 320 + 100]);
-    for (int i = 0; i < 4; ++i) printf(" left%d=%u", i, sheet[150 * 320 + (14 + i)]);
-    for (int i = 0; i < 4; ++i) printf(" bot%d=%u", i, sheet[(222 - i) * 320 + 100]);
+    static const uint8_t corn[6][6] = {
+        { 235, 230, 230, 230, 230, 230 },
+        { 230, 236, 236, 235, 235, 235 },
+        { 230, 236, 236, 232, 232, 232 },
+        { 230, 235, 232, 234, 234, 234 },
+        { 230, 235, 232, 234, 236, 236 },
+        { 230, 235, 232, 234, 236, 236 },
+    };
+    int corn_bad = 0;
+    const int oxs[4] = { 14, 306, 14, 306 };
+    const int oys[4] = { 104, 104, 222, 222 };
+    const int sxs[4] = { 1, -1, 1, -1 };
+    const int sys[4] = { 1, 1, -1, -1 };
+    for (int k = 0; k < 4; ++k) {
+        for (int dy = 0; dy < 6; ++dy) {
+            for (int dx = 0; dx < 6; ++dx) {
+                const int x = oxs[k] + sxs[k] * dx;
+                const int y = oys[k] + sys[k] * dy;
+                const uint8_t got = sheet[y * 320 + x];
+                if (x >= 17 && x <= 49 && y >= 105 && y <= 121) continue;
+                if (got != corn[dy][dx]) {
+                    corn_bad++;
+                    if (corn_bad <= 16) printf(" corner %d,%d got %u want %u\n", x, y, got, corn[dy][dx]);
+                }
+            }
+        }
+    }
+    printf("corners-bad %d\n", corn_bad);
+    int y105_236 = 0;
+    int y107_234 = 0;
+    for (int x = 17; x <= 49; ++x) {
+        if (sheet[105 * 320 + x] == 236) y105_236++;
+        if (sheet[107 * 320 + x] == 234) y107_234++;
+    }
+    printf("glow y105-236 %d y107-234 %d\n", y105_236, y107_234);
+    printf("bottom");
+    printf(" y222=%u", sheet[222 * 320 + 100]);
+    printf(" y221=%u", sheet[221 * 320 + 100]);
+    printf(" y220=%u", sheet[220 * 320 + 100]);
+    printf(" y219=%u", sheet[219 * 320 + 100]);
+    printf(" y218h=%u", sheet[218 * 320 + 100]);
+    printf(" y218e=%u", sheet[218 * 320 + 18]);
+    printf(" y218g=%u", sheet[218 * 320 + 300]);
+    printf(" y217=%u\n", sheet[217 * 320 + 100]);
+    int n127 = 0;
+    for (int y = 120; y <= 132; ++y)
+        for (int x = 17; x <= 302; ++x)
+            if (sheet[y * 320 + x] == 127) n127++;
+    printf("sel-text-127 %d\n", n127);
     printf(" prompt");
     printf(" %d,%d=%u", 9, 227, sheet[227 * 320 + 9]);
     printf(" %d,%d=%u", 8, 227, sheet[227 * 320 + 8]);
@@ -328,6 +373,19 @@ int main(void)
     int idle170 = 0;
     for (int x = 4; x <= 315; ++x) if (idle[167 * 320 + x] == 170) idle170++;
     printf("tile-outside-diff %d idle-170 %d\n", tile_diff, idle170);
+    int tab_out = 0;
+    botcorps_host_sheet(sheet, 0);
+    botcorps_host_idle(idle);
+    for (int y = 0; y < 240; ++y) {
+        for (int x = 0; x < 320; ++x) {
+            if (x >= 14 && x <= 306 && y >= 104 && y <= 222) continue;
+            if (sheet[y * 320 + x] != idle[y * 320 + x]) {
+                tab_out++;
+                if (tab_out <= 8) printf(" tab-out %d,%d %u %u\n", x, y, sheet[y * 320 + x], idle[y * 320 + x]);
+            }
+        }
+    }
+    printf("tab-open-vs-closed-outside %d\n", tab_out);
     /* Signal docks. Shift rotates the existing bar triple; paint_ext still draws the scan. */
     botcorps_host_sig(0);
     host_set_millis(2500);
@@ -357,5 +415,11 @@ int main(void)
            bus[67 * 320 + (65 - 7)], bus[77 * 320 + (101 - 7)],
            bus[167 * 320 + (47 - 7)], bus[55 * 320 + (140 - 7)]);
     botcorps_host_sig(0);
+    botcorps_host_bus_ble(bus);
+    write_raw("/tmp/bus-ble.rgb", bus, 0);
+    printf("ble-edge 83,67=%u 101,77=%u 65,117=%u 47,167=%u 140,55=%u\n",
+           bus[67 * 320 + (83 - 7)], bus[77 * 320 + (101 - 7)],
+           bus[117 * 320 + (65 - 7)], bus[167 * 320 + (47 - 7)],
+           bus[55 * 320 + (140 - 7)]);
     return 0;
 }

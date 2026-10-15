@@ -192,6 +192,7 @@ void botcorps_host_idle(uint8_t *buf);
 void botcorps_host_hunt(uint8_t *buf);
 void botcorps_host_list(uint8_t *buf);
 void botcorps_host_bus(uint8_t *buf);
+void botcorps_host_bus_ble(uint8_t *buf);
 void botcorps_host_amber(uint8_t *buf);
 void botcorps_host_botscan(uint8_t *buf);
 void botcorps_host_botscan_n(uint8_t *buf, int bot);

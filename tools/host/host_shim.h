@@ -108,7 +108,9 @@ struct HostPrint {
     void println(const char *) {}
 };
 static HostPrint Serial;
-static inline uint32_t millis(void) { return 2500; }
+uint32_t host_millis(void);
+void host_set_millis(uint32_t t);
+static inline uint32_t millis(void) { return host_millis(); }
 
 struct HostKeys {
     bool enter = false;

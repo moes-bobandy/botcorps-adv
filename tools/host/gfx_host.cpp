@@ -297,6 +297,9 @@ bool botcorps_band_live(void) { return false; }
 void botcorps_band_patch(void (*draw)(Gfx), int, int, int, int) { if (draw) draw(Gfx()); }
 void botcorps_band_set_recompose(void (*)(Gfx)) {}
 int botcorps_band_oy(void) { return 0; }
+static uint32_t s_host_ms = 2500;
+void host_set_millis(uint32_t t) { s_host_ms = t; }
+uint32_t host_millis(void) { return s_host_ms; }
 void botcorps_rain_set_hub(bool) {}
 void botcorps_rain_draw(lgfx::v1::LovyanGFX &, int, int) {}
 bool botcorps_rain_step(void) { return false; }

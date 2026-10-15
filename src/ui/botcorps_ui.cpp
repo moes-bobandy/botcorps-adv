@@ -1985,14 +1985,16 @@ static int bus_dev_s(int L)
     return s;
 }
 
-/* Outward of the scouts, still short of the rim. No screen-edge clamp. */
-static int bus_dock(const bus_pt *p, int n, int L)
+/* On the spoke, outward of the hub rest, short of the rim. No screen clamp.
+ * The three top spokes are staggered so their chips are not one tight row. */
+static int bus_dock(const bus_pt *p, int n, int L, int lane)
 {
     (void)p;
     (void)n;
     int dock = (L * 2) / 3;
-    if (dock > L - 16) dock = L - 16;
-    if (dock < 28) dock = 28;
+    if (lane >= 6 && lane <= 8) dock = 22 + (lane - 6) * 12;
+    if (dock > L - 8) dock = L - 8;
+    if (dock < 18) dock = 18;
     return dock;
 }
 
@@ -2005,6 +2007,19 @@ static int bus_scout_s(int L, uint32_t t, int lane, int period)
     int span = L - 16;
     if (span < 1) span = 1;
     return 8 + span * u / half;
+}
+
+static bool box_hit(int ax, int ay, int aw, int ah, int bx, int by, int bw, int bh)
+{
+    return ax < bx + bw && bx < ax + aw && ay < by + bh && by < ay + ah;
+}
+
+static void scout_box(int cx, int cy, int *x, int *y, int *w, int *h)
+{
+    *x = cx - 4;
+    *y = cy - 4;
+    *w = 9;
+    *h = 9;
 }
 
 /* Ten device icons from the v3.2 set. Colours are existing slots. */
@@ -2139,7 +2154,7 @@ static void bus_paint(Gfx g, bool radar, bool wifi, int shown, int sel)
             const int L = bus_len(tab[lane], BUS_N[lane]);
             int x = 0;
             int y = 0;
-            bus_at(tab[lane], BUS_N[lane], bus_dock(tab[lane], BUS_N[lane], L), &x, &y);
+            bus_at(tab[lane], BUS_N[lane], bus_dock(tab[lane], BUS_N[lane], L, lane), &x, &y);
             g.fillRect(x - 7, y - 7, 14, 14, PAL_BG);
             g.drawRect(x - 7, y - 7, 14, 14, COL_LINE);
             dev_icon(g, SCAN_TYPE[d], x - 6, y - 6, false);
@@ -2152,13 +2167,59 @@ static void bus_paint(Gfx g, bool radar, bool wifi, int shown, int sel)
         int x = 0;
         int y = 0;
         int s = bus_scout_s(L, t, i, period);
-        if (!radar) {
-            /* Turn back before the chip so the order stays hub, scout, chip. */
-            int stop = bus_dock(tab[i], BUS_N[i], L) - 24;
-            if (stop < 8) stop = 8;
-            if (s > stop) s = stop;
-        }
+        int sp = bus_scout_s(L, t >= 16u ? t - 16u : 0u, i, period);
+        int px = 0;
+        int py = 0;
+        bus_at(tab[i], BUS_N[i], sp, &px, &py);
         bus_at(tab[i], BUS_N[i], s, &x, &y);
+        if (!radar) {
+            int ex = 0;
+            int ey = 0;
+            int ew = 0;
+            int eh = 0;
+            scout_box(px, py, &ex, &ey, &ew, &eh);
+            /* Erase the previous scout even when that rect sits in a chip. */
+            g.fillRect(ex, ey, ew, eh, PAL_DEEP);
+            const int trL = L;
+            for (int u = 0; u <= trL; ++u) {
+                int tx = 0;
+                int ty = 0;
+                bus_at(tab[i], BUS_N[i], u, &tx, &ty);
+                if (tx < ex || tx >= ex + ew || ty < ey || ty >= ey + eh) continue;
+                g.fillRect(tx + 1, ty + 1, 1, 1, spoke_glow);
+                g.fillRect(tx, ty, 1, 1, spoke);
+            }
+            if (box_hit(ex, ey, ew, eh, 132, 89, 56, 56)) scan_die(g, 160, 117, true);
+            for (int d = 0; d < SCAN_N; ++d) {
+                const int cL = bus_len(tab[d], BUS_N[d]);
+                int cx = 0;
+                int cy = 0;
+                bus_at(tab[d], BUS_N[d], bus_dock(tab[d], BUS_N[d], cL, d), &cx, &cy);
+                const int co = (d == sel) ? 8 : 7;
+                const int cw = (d == sel) ? 16 : 14;
+                if (!box_hit(ex, ey, ew, eh, cx - co, cy - co, cw, cw)) continue;
+                g.fillRect(cx - 7, cy - 7, 14, 14, PAL_BG);
+                g.drawRect(cx - 7, cy - 7, 14, 14, COL_LINE);
+                dev_icon(g, SCAN_TYPE[d], cx - 6, cy - 6, false);
+                if (d == sel) g.drawRect(cx - 8, cy - 8, 16, 16, ac);
+            }
+            int nx = 0;
+            int ny = 0;
+            int nw = 0;
+            int nh = 0;
+            scout_box(x, y, &nx, &ny, &nw, &nh);
+            bool cover = false;
+            for (int d = 0; d < SCAN_N && !cover; ++d) {
+                const int cL = bus_len(tab[d], BUS_N[d]);
+                int cx = 0;
+                int cy = 0;
+                bus_at(tab[d], BUS_N[d], bus_dock(tab[d], BUS_N[d], cL, d), &cx, &cy);
+                const int co = (d == sel) ? 8 : 7;
+                const int cw = (d == sel) ? 16 : 14;
+                cover = box_hit(nx, ny, nw, nh, cx - co, cy - co, cw, cw);
+            }
+            if (cover) continue;
+        }
         draw_blob(g, x, y, 1, bot_color(i), botcorps_shape_for(i), false);
     }
     if (!radar && sel >= 0 && sel < SCAN_N) {
@@ -2166,7 +2227,7 @@ static void bus_paint(Gfx g, bool radar, bool wifi, int shown, int sel)
         const int L = bus_len(tab[lane], BUS_N[lane]);
         int x = 0;
         int y = 0;
-        bus_at(tab[lane], BUS_N[lane], bus_dock(tab[lane], BUS_N[lane], L), &x, &y);
+        bus_at(tab[lane], BUS_N[lane], bus_dock(tab[lane], BUS_N[lane], L, lane), &x, &y);
         g.drawRect(x - 8, y - 8, 16, 16, ac);
     }
 }
@@ -2324,11 +2385,9 @@ static void paint_act_menu(Gfx g)
     for (int j = 0; j < ACT_N; ++j) {
         const int yy = my + 3 + j * 15;
         const bool on = j == s_act;
-        const uint8_t hi = (s_color == 1) ? (uint8_t)PAL_WASH_A
-                           : (s_color == 2) ? (uint8_t)PAL_WASH_M : (uint8_t)PAL_WASH_C;
-        const uint8_t bg = on ? hi : (uint8_t)COL_BG;
+        const uint8_t bg = on ? wire : (uint8_t)COL_BG;
         if (on) {
-            g.fillRect(mx + 4, yy, 86, 14, hi);
+            g.fillRect(mx + 4, yy, 86, 14, wire);
             g.fillRect(mx + 2, yy, 2, 14, accent());
         }
         blit_ico(g, ACT_ICO[j], mx + 8, yy + 3, on ? COL_WHITE : accent());

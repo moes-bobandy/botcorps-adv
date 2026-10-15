@@ -192,5 +192,22 @@ int main(void)
     }
     printf("idle codes 230-248 pixels %d explicit13 %d\n", idle_bad, idle13);
     printf("hunt codes 230-248 pixels %d explicit13 %d\n", hunt_bad, hunt13);
+    /* One out-and-back of the 7000 ms scout period, twelve frames. */
+    static uint8_t seq[320 * 240];
+    for (int f = 0; f < 12; ++f) {
+        host_set_millis((uint32_t)f * (7000u / 12u));
+        botcorps_host_bus(seq);
+        int out = 0;
+        for (int i = 0; i < 320 * 240; ++i) {
+            for (int n = 0; n < botcorps_term_ov_n; ++n) {
+                if (seq[i] == botcorps_term_ov_i[n]) { out++; break; }
+            }
+        }
+        printf("outside-sheet gibson-f%02d %d\n", f, out);
+        char path[64];
+        snprintf(path, sizeof(path), "/tmp/bus-f%02d.rgb", f);
+        write_raw(path, seq, 0);
+    }
+    host_set_millis(2500);
     return 0;
 }

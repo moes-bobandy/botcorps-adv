@@ -37,3 +37,4 @@ Addendum: 80647a0/d02bc4a (pushed during this review) add icon-zone hit tests, b
 - 40-command CORE/COMMS/GAME/SYS list is in the source.
 - INT paint now applies a top-right clip on CYD (incomplete fold; full compact badge still needed).
 - OSK path returns only K_CHAR / K_OK / K_BS (no arrow hotkeys).
+- Touch edge detection + ~50 ms debounce added (fires once per press).

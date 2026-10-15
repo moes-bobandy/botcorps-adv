@@ -322,6 +322,8 @@ static uint32_t s_last_key = 0;
 static bool s_osk_open = false;
 static int s_osk_row = 0;
 static int s_osk_col = 0;
+static uint32_t s_touch_last = 0;
+static bool s_touch_down = false;
 static const char *osk_rows[] = {
     "1234567890",
     "qwertyuiop",
@@ -4979,7 +4981,18 @@ static int read_key(char *typed)
     *typed = 0;
 #ifdef BOTCORPS_CYD
     int tx, ty;
-    if (!botcorps_disp().getTouch(&tx, &ty)) return K_NONE;
+    bool down = botcorps_disp().getTouch(&tx, &ty);
+    uint32_t now = millis();
+    // Edge detect + simple debounce (~50 ms)
+    if (down && !s_touch_down && (now - s_touch_last) > 50) {
+        s_touch_down = true;
+        s_touch_last = now;
+    } else if (!down) {
+        s_touch_down = false;
+        return K_NONE;
+    } else {
+        return K_NONE; // still held
+    }
     // OSK takes priority when open
     if (s_osk_open && ty > 160) {
         int row = (ty - 160) / 16;

@@ -1705,10 +1705,8 @@ static void paint_sheet(Gfx g)
         if (hdr < 0) continue;
         const int y = by + 5 + r * rh;
         if (hdr == 0) {
-            /* Inner two rings hotter. Outer three stay so the corner grid holds. */
-            /* Outer steps pulled up so the neon reads past the glyph. */
             const uint8_t ringc[5] = {
-                PAL_TERM_M, PAL_TERM_M, PAL_TERM_M35, PAL_TERM_M22, PAL_TERM_M18
+                PAL_TERM_M35, PAL_TERM_M22, PAL_TERM_M18, PAL_TERM_M10, PAL_TERM_M10
             };
             const int gx = bx + 8;
             const int gy = y + 1;
@@ -1997,25 +1995,10 @@ static void paint_prompt(Gfx g)
     s_px = keep;
 }
 
-static void dim_under_sheet(Gfx g)
-{
-    /* Only the locked sheet rect. Outside it, tab-open and tab-closed match. */
-    g.setClipRect(14, 104, 293, 119);
-    for (int i = 0; i < 12; ++i) {
-        int x = 0;
-        int y = 0;
-        term_xy(i, &x, &y);
-        if (y + 46 < 104 || y > 222) continue;
-        paint_one_board(g, i, false, true);
-    }
-    g.clearClipRect();
-}
-
 static void paint_terminal(Gfx g)
 {
     paint_term_head(g);
     paint_boards(g);
-    if (s_sheet) dim_under_sheet(g);
     paint_prompt(g);
     if (s_sheet) paint_sheet(g);
 }
@@ -3187,17 +3170,22 @@ static void paint_gibson(Gfx g)
             const int drop = (int)sqrtf((float)(rr * rr - ex * ex));
             ry = cy + (ddy < 0 ? -drop : drop);
         }
-        if (len > 0) g.fillRect(x1, ys, len, 1, wire);
+        if (len > 0) {
+            g.fillRect(x1, ys - 1, len, 1, PAL_LINE);
+            g.fillRect(x1, ys, len, 1, ac);
+            g.fillRect(x1 + len / 2, ys - 2, 3, 3, bot_color(i));
+        }
         if (out) {
             const int y0 = ys < ry ? ys : ry;
-            g.fillRect(left ? x2 : x1 - 1, y0, 1, (ys > ry ? ys - ry : ry - ys) + 1, wire);
+            g.fillRect(left ? x2 : x1 - 1, y0, 1, (ys > ry ? ys - ry : ry - ys) + 1, ac);
         }
         const int travel = len > 0 ? len : 1;
         const int d = (int)((t / 33u + (uint32_t)i * 11u) % (uint32_t)(travel + 10));
         if (d < travel) g.fillRect((left ? x1 + d : x2 - d) - 1, ys - 1, 2, 3, ac);
         via_node(g, left ? x2 - 1 : x1 - 2, (out ? ry : ys) - 1, ac);
-        chip_plate(g, sx, sy, 28, 20, PAL_DEEP, COL_LINE);
-        draw_blob(g, sx + 11, sy + 10, 1, bot_color(i), botcorps_shape_for(i), false);
+        chip_plate(g, sx, sy, 28, 20, PAL_DEEP, bot_color(i));
+        g.drawRect(sx - 1, sy - 1, 30, 22, bot_color(i));
+        draw_blob(g, sx + 14, sy + 10, 1, bot_color(i), botcorps_shape_for(i), false);
         g.fillRect(sx + 21, sy + 7, 4, 4, dot_col(i, t, mood, asleep));
     }
     hub_die(g, cx, cy, 34);
@@ -3388,9 +3376,9 @@ static void gc_run(const char *line)
         arg = sp + 1;
         while (*arg == ' ') ++arg;
     }
-    char echo[30];
-    snprintf(echo, sizeof(echo), "> %.12s%.1s%.12s", cmd, arg ? " " : "", arg ? arg : "");
-    gc_push(-1, echo);
+    char echo[40];
+    snprintf(echo, sizeof(echo), "gibson> %.16s%s%.10s", cmd, (arg && arg[0]) ? " " : "", arg ? arg : "");
+    log_add(echo);
     if (strcmp(cmd, "jackin") == 0) {
         gc_push(12, "jacking you in");
         gc_push(3, "shields up");
@@ -3686,27 +3674,42 @@ static void paint_gchat(Gfx g)
     hub_gibson(g, 56, 78, 5);
     paint_gc_rail(g, ac);
     paint_gc_route(g, ac);
-    g.fillRect(4, 150, 312, 86, PAL_BLACK);
-    g.fillRect(4, 150, 312, 1, (uint32_t)(t - s_bus_t0) < 160u ? ac : (uint8_t)PAL_WIRE_C);
+    g.fillRect(4, 148, 312, 88, PAL_BLACK);
+    g.drawRect(4, 148, 312, 88, ac);
+    g.drawRect(5, 149, 310, 86, PAL_WIRE_C);
+    g.fillRect(6, 150, 250, 1, (uint32_t)(t - s_bus_t0) < 160u ? ac : (uint8_t)PAL_WIRE_C);
+    draw_blob(g, 290, 200, 2, PAL_IVORY, 0, false);
+    g.drawRect(274, 184, 32, 32, ac);
     s_px = 6;
     const int n = s_log_n < 6 ? s_log_n : 6;
     const int start = s_log_n - n;
     for (int k = 0; k < n; ++k) {
         const char *ln = log_line(start + k);
-        const int y = 154 + k * 9;
-        uint8_t col = COL_INK;
-        const char *show = ln;
+        const int y = 156 + k * 9;
         if (ln && ln[0] == '\x01') {
             const int b = (unsigned char)ln[1];
-            col = b >= 12 ? (uint8_t)PAL_IVORY : bot_color(b);
-            show = ln + 2;
-            g.fillRect(8, y + 1, 4, 4, col);
-            txt_bg(g, show, 16, y, col, PAL_BLACK, lgfx::textdatum::top_left);
+            const char *show = ln + 2;
+            if (b >= 0 && b < 12) {
+                draw_blob(g, 16, y + 4, 1, bot_color(b), botcorps_shape_for(b), false);
+                txt_bg(g, BOTS[b].short_name, 24, y, bot_color(b), PAL_BLACK, lgfx::textdatum::top_left);
+                const int nx = 24 + (int)strlen(BOTS[b].short_name) * 6;
+                txt_bg(g, " - ", nx, y, bot_color(b), PAL_BLACK, lgfx::textdatum::top_left);
+                txt_bg(g, show, nx + 18, y, bot_color(b), PAL_BLACK, lgfx::textdatum::top_left);
+            } else {
+                txt_bg(g, "gibson", 10, y, ac, PAL_BLACK, lgfx::textdatum::top_left);
+                txt_bg(g, " - ", 52, y, PAL_IVORY, PAL_BLACK, lgfx::textdatum::top_left);
+                txt_bg(g, show, 76, y, PAL_IVORY, PAL_BLACK, lgfx::textdatum::top_left);
+            }
             continue;
         }
-        txt_bg(g, show, 10, y, col, PAL_BLACK, lgfx::textdatum::top_left);
+        if (ln && strncmp(ln, "gibson>", 7) == 0) {
+            txt_bg(g, "gibson", 10, y, ac, PAL_BLACK, lgfx::textdatum::top_left);
+            txt_bg(g, ln + 6, 52, y, COL_WHITE, PAL_BLACK, lgfx::textdatum::top_left);
+            continue;
+        }
+        txt_bg(g, ln, 10, y, COL_INK, PAL_BLACK, lgfx::textdatum::top_left);
     }
-    const int py = 214;
+    const int py = 216;
     txt(g, "gibson", 10, py, ac, lgfx::textdatum::top_left);
     txt(g, ">", 10 + 7 * 6, py, COL_INK, lgfx::textdatum::top_left);
     txt(g, s_gp_buf, 10 + 9 * 6, py, COL_WHITE, lgfx::textdatum::top_left);
@@ -5395,10 +5398,10 @@ void botcorps_host_gchat(uint8_t *buf)
     s_act = -1;
     s_gp_buf[0] = 0;
     gc_set_count(0);
-    gc_push(12, "> ask drone");
+    log_add("gibson> ask drone");
     gc_push(12, "patching drone in");
     gc_push(5, "ready");
-    gc_push(12, "> scan all");
+    log_add("gibson> scan all");
     gc_push(0, "cafe-guest -42");
     gc_push(1, "earbuds-58 -58");
     s_bus_t0 = 0;

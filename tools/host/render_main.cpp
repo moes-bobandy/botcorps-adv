@@ -507,6 +507,9 @@ int main(void)
     botcorps_host_intro(hit);
     write_raw("/tmp/hit-intro.rgb", hit, 0);
     botcorps_host_sheet(hit, 0);
+    printf("core-col");
+    for (int y = 105; y <= 109; ++y) printf(" %u", hit[y * 320 + 30]);
+    printf("\n");
     write_raw("/tmp/hit-tab0.rgb", hit, 1);
     botcorps_host_sheet(hit, 20);
     write_raw("/tmp/hit-tab20.rgb", hit, 1);

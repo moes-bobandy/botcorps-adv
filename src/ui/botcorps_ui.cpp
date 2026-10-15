@@ -69,7 +69,8 @@ enum {
     SCR_BOT_RADAR,
     SCR_SCAN,
     SCR_CONTROL,
-    SCR_DIAG
+    SCR_DIAG,
+    SCR_GCHAT
 };
 
 struct bot_t {
@@ -158,6 +159,27 @@ static const uint8_t CMD_ARG[CMD_N] = {
 };
 static const int PCMD_N = CMD_N;
 static const char *const *const PCMD = CMDN;
+/* Gibson chat. Own set. jackin is the only game entry. Flash only. */
+static const int GC_N = 19;
+static const int GC_GAT[6] = { 0, 4, 8, 12, 16, 19 };
+static const char *const GC_GN[5] = { "HUB", "ROUTE", "GAME", "ASK", "SYS" };
+static const char *const GC_NM[GC_N] = {
+    "crew", "scan", "status", "mood",
+    "terminal", "go", "load", "control",
+    "jackin", "defend", "lobby", "score",
+    "ask", "hail", "whisper", "why",
+    "clear", "history", "about"
+};
+static const char *const GC_PP[GC_N] = {
+    "roll the crew", "bus sweep", "core link heat", "gibson mood",
+    "open terminal", "terminal|scan|control|hub", "screen|game", "control panel",
+    "enter defend", "beginner|veteran", "game lobby", "best run",
+    "ask a bot", "call a bot", "quiet line", "gibson explains",
+    "wipe the chat", "recent lines", "gibson build"
+};
+static const uint8_t GC_ARG[GC_N] = {
+    0, 1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0
+};
 static const char *const HAIL[13] = {
     "reading you", "channel clear", "link warm", "quiet", "keys ready", "eyes open",
     "airborne", "ping soft", "click armed", "mesh synced", "on hold", "wave ready", "nearby"
@@ -328,6 +350,7 @@ static const char *screen_name(int id)
     case SCR_SCAN: return "scan";
     case SCR_CONTROL: return "control";
     case SCR_DIAG: return "diag";
+    case SCR_GCHAT: return "gchat";
     default: return "screen";
     }
 }
@@ -348,6 +371,7 @@ static int default_back(int id)
     case SCR_SCAN:
     case SCR_CONTROL:
     case SCR_DIAG: return SCR_GIBSON;
+    case SCR_GCHAT: return SCR_GIBSON;
     default: return -1;
     }
 }
@@ -355,7 +379,8 @@ static int default_back(int id)
 static bool wants_rain(void)
 {
     return s_screen != SCR_WIFI_LIST && s_screen != SCR_BT_LIST
-        && s_screen != SCR_DIAG && s_screen != SCR_TERMINAL;
+        && s_screen != SCR_DIAG && s_screen != SCR_TERMINAL
+        && s_screen != SCR_GCHAT;
 }
 
 /* EXT chrome that moves on its own: sweep, pulse, bob, or the prompt caret. */
@@ -371,6 +396,7 @@ static bool ext_animates(void)
     case SCR_BOT_RADAR:
     case SCR_SCAN:
     case SCR_TERMINAL:
+    case SCR_GCHAT:
     case SCR_WIFI_LIST:
     case SCR_BT_LIST:
         return true;
@@ -411,6 +437,7 @@ static int card_bot(void)
     case SCR_BOT:
     case SCR_BOT_RADAR: return s_bot;
     case SCR_TERMINAL: return s_term;
+    case SCR_GCHAT: return -1;
     default: return -1;
     }
 }
@@ -866,6 +893,24 @@ static void run_cmd(const char *line)
     } else if (strcmp(cmd, "clear") == 0) {
         log_clear();
     } else if (strcmp(cmd, "scan") == 0 || strcmp(cmd, "hunt") == 0) {
+        if (strcmp(cmd, "scan") == 0 && arg && strcmp(arg, "all") == 0) {
+            /* Crew sweep stays on the terminal. It does not open a bot screen. */
+            s_mood_until = millis() + 160u;
+            log_add("crew sweep - 12 boards");
+            log_add("scan ################ 100%");
+            log_add("  cafe-guest   -42 dBm");
+            log_add("  printer-2f   -67 dBm");
+            log_add("  earbuds-58   -58 dBm");
+            log_add("[ ok ] all 12 boards swept - 6 new");
+            found_add("cafe-guest");
+            found_add("printer-2f");
+            found_add("earbuds-58");
+            found_add("watch-6");
+            found_add("lobby-ap");
+            found_add("speaker-7");
+            partial_prompt_panel();
+            return;
+        }
         int who = s_term;
         if (arg && arg[0]) {
             who = -1;
@@ -883,6 +928,7 @@ static void run_cmd(const char *line)
         } else {
             const int prev = s_term;
             s_term = who;
+            s_mood_until = millis() + 160u;
             char row[80];
             snprintf(row, sizeof(row), "%s %s", strcmp(cmd, "hunt") == 0 ? "hunting" : "scanning",
                      BOTS[who].short_name);
@@ -1093,14 +1139,11 @@ static void run_cmd(const char *line)
 
 static void open_bot(int index)
 {
+    /* Select stays on the terminal and scans that board in place. */
     if (index < 0 || index > 11) return;
-    s_term = index;
-    if (BOTS[index].radio == 1) enter_screen(SCR_WIFI, SCR_TERMINAL);
-    else if (BOTS[index].radio == 2) enter_screen(SCR_BT, SCR_TERMINAL);
-    else {
-        s_bot = index;
-        enter_screen(SCR_BOT, SCR_TERMINAL);
-    }
+    char line[32];
+    snprintf(line, sizeof(line), "scan %s", BOTS[index].short_name);
+    run_cmd(line);
 }
 
 static void boot_log(void)
@@ -1125,7 +1168,8 @@ static void paint_one_board(Gfx g, int i, bool sel, bool dim)
 {
     int x, y;
     term_xy(i, &x, &y);
-    const bool wh = BOTS[i].radio != 0;
+    /* v3.2 boards are the dark die. Radio no longer lifts a cream tile. */
+    const bool wh = false;
     const uint8_t ac = accent();
     const uint32_t t = millis();
     const int w = 72;
@@ -1541,22 +1585,24 @@ static void paint_term_icons(Gfx g)
 
 static void paint_term_head(Gfx g)
 {
-    g.fillRect(0, 0, 320, 16, PAL_BG);
+    g.fillRect(0, 0, 320, 16, PAL_BLACK);
     {
-        const uint8_t low = (s_color == 1) ? (uint8_t)PAL_WASH_A
-                            : (s_color == 2) ? (uint8_t)PAL_WASH_M : (uint8_t)PAL_WASH_C;
         const uint8_t mid = (s_color == 1) ? (uint8_t)PAL_WIRE_A
                             : (s_color == 2) ? (uint8_t)PAL_WIRE_M : (uint8_t)PAL_WIRE_C;
         g.fillRect(0, 16, 320, 2, accent());
         g.fillRect(0, 18, 320, 1, mid);
+        /* Rolling scanline on the accent bar. Shared slots only. */
+        const int sx = (int)((millis() / 18u) % 300u);
+        g.fillRect(sx, 16, 28, 2, PAL_WHITE);
     }
     /* Header sits outside the sheet, so this glow stays on reserved slots. */
     {
         const int keep = s_px;
         s_px = 8;
-        txt(g, "terminal", 10, 6, PAL_WASH_M, lgfx::textdatum::top_left);
-        txt(g, "terminal", 9, 5, PAL_WIRE_M, lgfx::textdatum::top_left);
-        txt(g, "terminal", 8, 4, PAL_R_E2FF, lgfx::textdatum::top_left);
+        const uint8_t sh = (s_color == 1) ? (uint8_t)PAL_WIRE_A
+                           : (s_color == 2) ? (uint8_t)PAL_WIRE_M : (uint8_t)PAL_WIRE_C;
+        txt(g, "terminal", 9, 5, sh, lgfx::textdatum::top_left);
+        txt(g, "terminal", 8, 4, accent(), lgfx::textdatum::top_left);
         s_px = keep;
     }
     const int keep = s_px;
@@ -1655,8 +1701,9 @@ static void paint_sheet(Gfx g)
         if (hdr < 0) continue;
         const int y = by + 5 + r * rh;
         if (hdr == 0) {
+            /* Inner two rings hotter. Outer three stay so the corner grid holds. */
             const uint8_t ringc[5] = {
-                PAL_TERM_M35, PAL_TERM_M22, PAL_TERM_M18, PAL_TERM_M10, PAL_TERM_M10
+                PAL_TERM_M, PAL_TERM_M35, PAL_TERM_M18, PAL_TERM_M10, PAL_TERM_M10
             };
             const int gx = bx + 8;
             const int gy = y + 1;
@@ -1852,9 +1899,20 @@ static void paint_prompt(Gfx g)
 {
     const int keep = s_px;
     s_px = 6;
-    /* Tiles end at y=165. The plate starts below them. */
-    g.fillRect(4, 168, 312, 68, COL_DEEP);
-    g.fillRect(4, 167, 312, 1, (uint8_t)170);
+    /* Tiles end at y=165. Deep black plate. Enter pulses the hairline cyan. */
+    g.fillRect(4, 168, 312, 68, PAL_BLACK);
+    {
+        const bool pulse = s_mood_until != 0 && (int32_t)(millis() - s_mood_until) < 0;
+        g.fillRect(4, 167, 312, 1, pulse ? accent() : (uint8_t)170);
+    }
+    {
+        const int span = 46;
+        int sy = 171 + (int)((millis() / 28u) % (uint32_t)span);
+        if (sy > 223) sy = 223;
+        g.fillRect(8, sy, 248, 1, (s_color == 1) ? (uint8_t)PAL_WIRE_A
+                                       : (s_color == 2) ? (uint8_t)PAL_WIRE_M
+                                                        : (uint8_t)PAL_WIRE_C);
+    }
     g.fillRect(4, 235, 312, 1, COL_LINE);
     g.fillRect(4, 168, 1, 68, COL_LINE);
     g.fillRect(315, 168, 1, 68, COL_LINE);
@@ -1877,13 +1935,13 @@ static void paint_prompt(Gfx g)
                 if (tn > 11) tn = 11;
                 for (int i = 0; i < tn; ++i) tag[i] = ln[i];
                 tag[tn] = 0;
-                txt_bg(g, tag, 10, ly, (uint8_t)PAL_OK, PAL_DEEP, lgfx::textdatum::top_left);
-                if (rb[1]) txt_bg(g, rb + 1, 10 + tn * 6, ly, COL_INK, PAL_DEEP,
+                txt_bg(g, tag, 10, ly, (uint8_t)PAL_OK, PAL_BLACK, lgfx::textdatum::top_left);
+                if (rb[1]) txt_bg(g, rb + 1, 10 + tn * 6, ly, COL_INK, PAL_BLACK,
                                   lgfx::textdatum::top_left);
                 continue;
             }
         }
-        txt_bg(g, show, 10, ly, ink, PAL_DEEP, lgfx::textdatum::top_left);
+        txt_bg(g, show, 10, ly, ink, PAL_BLACK, lgfx::textdatum::top_left);
     }
     const int y = PROMPT_Y;
     s_px = 6;
@@ -2081,18 +2139,18 @@ static int bus_dock(const bus_pt *p, int n, int L, int lane, bool wifi)
     return s;
 }
 
-/* Scan: 7000 ms. Out to 11 px short of the chip, wait, back to the hub.
- * Radar keeps the older t/16 sweep. */
+/* Scan: 3400 ms. Out to 11 px short of the chip, wait, back to the hub.
+ * Radar keeps the older t/16 sweep (period 3600). */
 static int bus_scout_s(int L, uint32_t t, int lane, int period, int dock, int dmax)
 {
-    if (period >= 7000) {
+    if (period == 3400) {
         int tgt = dock - 11;
         if (tgt < 8) tgt = 8;
         if (dmax < 1) dmax = 1;
-        int l = (int)(t % 7000u) - lane * 140;
-        int to = 420 + (2100 * (tgt - 8)) / dmax;
+        int l = (int)(t % 3400u) - lane * 68;
+        int to = 204 + (1020 * (tgt - 8)) / dmax;
         if (to < 1) to = 1;
-        const int dw = 350;
+        const int dw = 170;
         int s = 8;
         if (l >= 0 && l < to) s = 8 + (tgt - 8) * l / to;
         else if (l >= to && l < to + dw) s = tgt;
@@ -2221,7 +2279,7 @@ static void scan_die(Gfx g, int cx, int cy, bool gibson)
 static void bus_paint(Gfx g, bool radar, bool wifi, int shown, int sel)
 {
     const bus_pt (*tab)[4] = radar ? BUS_R : BUS_F;
-    const int period = radar ? 3600 : 7000;
+    const int period = radar ? 3600 : 3400;
     const uint32_t t = millis();
     const int bx = radar ? 50 : 8;
     const int by = 26;
@@ -2342,8 +2400,9 @@ static void bus_label(Gfx g, bool wifi, int shown, int sel)
     const int tw = (int)strlen(lab) * 6 + 16;
     int x = 160 - tw / 2;
     if (x < 8) x = 8;
-    plate(g, x, 216, tw, 16, COL_BG, shown > 0 ? COL_AMBER : COL_LINE);
-    txt_bg(g, lab, x + tw / 2, 220, shown > 0 ? COL_AMBER : COL_MUTED, COL_BG,
+    /* Above the icon row (y>=209). The banner must not sit on those glyphs. */
+    plate(g, x, 186, tw, 16, PAL_BLACK, shown > 0 ? COL_AMBER : COL_LINE);
+    txt_bg(g, lab, x + tw / 2, 190, shown > 0 ? COL_AMBER : COL_MUTED, PAL_BLACK,
            lgfx::textdatum::top_center);
 }
 
@@ -2387,10 +2446,10 @@ static void paint_scan_hud(Gfx g, bool wifi, int sel)
     const char *const *rssi = wifi ? NEAR_WIFI_R : NEAR_BLE_R;
     const uint8_t *bars = wifi ? NEAR_WIFI_B : NEAR_BLE_B;
     const uint8_t ac = accent();
-    const uint32_t u = (millis() - s_bus_t0) % 7000u;
-    g.fillRect(0, 0, 320, 24, PAL_BG);
+    const uint32_t u = (millis() - s_bus_t0) % 3400u;
+    g.fillRect(0, 0, 320, 24, PAL_BLACK);
     g.fillRect(0, 24, 320, 1, COL_LINE);
-    g.fillRect(0, 24, (int)(320u * u / 7000u), 1, ac);
+    g.fillRect(0, 24, (int)(320u * u / 3400u), 1, ac);
     hub_gibson(g, 14, 12, 1);
     const int keep = s_px;
     s_px = 8;
@@ -2408,7 +2467,7 @@ static void paint_scan_hud(Gfx g, bool wifi, int sel)
     g.drawCircle(296, 12, 5, COL_MUTED);
     g.drawLine(296, 8, 296, 16, COL_MUTED);
     g.drawLine(292, 12, 300, 12, COL_MUTED);
-    g.fillRect(0, 209, 320, 31, PAL_BG);
+    g.fillRect(0, 209, 320, 31, PAL_BLACK);
     g.fillRect(0, 209, 320, 1, COL_LINE);
     int tally[DEV_N];
     for (int i = 0; i < DEV_N; ++i) tally[i] = 0;
@@ -3247,6 +3306,356 @@ static void paint_diag(Gfx g)
     draw_btn(g, 146, 206, ICO_BACK, true);
 }
 
+/* Chat lines live in the unused tail of the terminal log (1920..2047). */
+static int gc_count(void)
+{
+    const unsigned char c = (unsigned char)botcorps_t0_term_log[1920];
+    return c > 4 ? 0 : (int)c;
+}
+
+static void gc_set_count(int n)
+{
+    if (n < 0) n = 0;
+    if (n > 4) n = 4;
+    botcorps_t0_term_log[1920] = (char)n;
+}
+
+static char *gc_line(int i)
+{
+    return botcorps_t0_term_log + 1921 + (i % 4) * 31;
+}
+
+static void gc_push(int bot, const char *s)
+{
+    int n = gc_count();
+    if (n >= 4) {
+        memmove(gc_line(0), gc_line(1), 31u * 3u);
+        n = 3;
+    }
+    char *d = gc_line(n);
+    d[0] = (char)(bot + 1);
+    snprintf(d + 1, 30, "%s", s ? s : "");
+    gc_set_count(n + 1);
+}
+
+static int gc_bot_of(const char *arg)
+{
+    if (!arg || !arg[0]) return -1;
+    if (strcmp(arg, "gibson") == 0 || strcmp(arg, "gib") == 0) return 12;
+    for (int i = 0; i < 12; ++i) {
+        if (strncmp(BOTS[i].short_name, arg, strlen(arg)) == 0) return i;
+    }
+    return -2;
+}
+
+static void gc_run(const char *line)
+{
+    char buf[40];
+    snprintf(buf, sizeof(buf), "%s", line ? line : "");
+    char *cmd = buf;
+    while (*cmd == ' ') ++cmd;
+    if (!cmd[0]) return;
+    hist_push(cmd);
+    char *sp = strchr(cmd, ' ');
+    char *arg = 0;
+    if (sp) {
+        *sp = 0;
+        arg = sp + 1;
+        while (*arg == ' ') ++arg;
+    }
+    char echo[30];
+    snprintf(echo, sizeof(echo), "> %.12s%.1s%.12s", cmd, arg ? " " : "", arg ? arg : "");
+    gc_push(-1, echo);
+    if (strcmp(cmd, "jackin") == 0) {
+        gc_push(12, "jacking you in");
+        gc_push(3, "shields up");
+        gc_push(5, "eyes on the lanes");
+        s_act = 2;
+        s_mood = MOOD_ALERT;
+        s_mood_until = millis() + 2400u;
+        s_bus_t0 = millis();
+        return;
+    }
+    if (strcmp(cmd, "defend") == 0 || strcmp(cmd, "lobby") == 0 || strcmp(cmd, "score") == 0
+        || (strcmp(cmd, "load") == 0 && arg && strcmp(arg, "game") == 0)) {
+        gc_push(12, "jackin to enter");
+        return;
+    }
+    if (strcmp(cmd, "clear") == 0) {
+        gc_set_count(0);
+        return;
+    }
+    if (strcmp(cmd, "crew") == 0) {
+        gc_push(12, "12 boards linked");
+        return;
+    }
+    if (strcmp(cmd, "status") == 0) {
+        gc_push(12, "link up");
+        return;
+    }
+    if (strcmp(cmd, "mood") == 0) {
+        gc_push(12, "crown lit");
+        return;
+    }
+    if (strcmp(cmd, "why") == 0 || strcmp(cmd, "about") == 0) {
+        gc_push(12, strcmp(cmd, "why") == 0 ? "i route the crew" : "gibson chat");
+        return;
+    }
+    if (strcmp(cmd, "history") == 0) {
+        if (s_hist_n <= 0) gc_push(-1, "history empty");
+        else gc_push(-1, botcorps_t0_term_hist[s_hist_n - 1]);
+        return;
+    }
+    if (strcmp(cmd, "terminal") == 0) {
+        enter_screen(SCR_TERMINAL, SCR_GCHAT);
+        boot_log();
+        return;
+    }
+    if (strcmp(cmd, "control") == 0) {
+        enter_screen(SCR_CONTROL, SCR_GCHAT);
+        return;
+    }
+    if (strcmp(cmd, "scan") == 0) {
+        s_act = 1;
+        s_bus_t0 = millis();
+        if (arg && strcmp(arg, "wifi") == 0) {
+            gc_push(0, "cafe-guest -42");
+            gc_push(-1, "[ ok ] wifi sweep");
+        } else if (arg && (strcmp(arg, "ble") == 0 || strcmp(arg, "bluetooth") == 0)) {
+            gc_push(1, "earbuds-58 -58");
+            gc_push(-1, "[ ok ] ble sweep");
+        } else {
+            gc_push(12, "bus sweep - 12 scouts");
+            gc_push(0, "cafe-guest -42");
+            gc_push(-1, "[ ok ] crew sweep");
+        }
+        return;
+    }
+    if (strcmp(cmd, "go") == 0 || strcmp(cmd, "load") == 0) {
+        if (!arg || !arg[0]) {
+            gc_push(12, "terminal scan control hub");
+            return;
+        }
+        if (strcmp(arg, "hub") == 0 || strcmp(arg, "gibson") == 0) {
+            enter_screen(SCR_GIBSON, SCR_GCHAT);
+            return;
+        }
+        if (strcmp(arg, "terminal") == 0) {
+            enter_screen(SCR_TERMINAL, SCR_GCHAT);
+            boot_log();
+            return;
+        }
+        if (strcmp(arg, "scan") == 0 || strcmp(arg, "busscan") == 0) {
+            enter_screen(SCR_SCAN, SCR_GCHAT);
+            return;
+        }
+        if (strcmp(arg, "control") == 0) {
+            enter_screen(SCR_CONTROL, SCR_GCHAT);
+            return;
+        }
+        gc_push(12, "no such screen");
+        return;
+    }
+    if (strcmp(cmd, "ask") == 0 || strcmp(cmd, "hail") == 0 || strcmp(cmd, "whisper") == 0) {
+        const int bot = gc_bot_of(arg);
+        if (bot < 0) {
+            gc_push(12, bot == -1 ? "name a bot" : "no such bot");
+            return;
+        }
+        const char *who = bot == 12 ? "gibson" : BOTS[bot].short_name;
+        char row[30];
+        if (strcmp(cmd, "ask") == 0) {
+            const char *st = bot == 12 ? "ready" : BOTS[bot].st == 2 ? "hold" : "ready";
+            snprintf(row, sizeof(row), "%s %s", who, st);
+        } else if (strcmp(cmd, "whisper") == 0) {
+            snprintf(row, sizeof(row), "%s quiet", who);
+        } else {
+            snprintf(row, sizeof(row), "%s %s", who, HAIL[bot == 12 ? 0 : bot + 1]);
+        }
+        gc_push(bot, row);
+        return;
+    }
+    gc_push(12, "no such command");
+}
+
+static void gc_pick(void)
+{
+    if (s_sheet_i < 0) s_sheet_i = 0;
+    if (s_sheet_i >= GC_N) s_sheet_i = GC_N - 1;
+    s_sheet = false;
+    if (GC_ARG[s_sheet_i]) {
+        snprintf(s_gp_buf, sizeof(s_gp_buf), "%s ", GC_NM[s_sheet_i]);
+        return;
+    }
+    s_gp_buf[0] = 0;
+    gc_run(GC_NM[s_sheet_i]);
+}
+
+static void gc_row_at(int row, int *hdr, int *cmd)
+{
+    int r = 0;
+    for (int g = 0; g < 5; ++g) {
+        if (r == row) {
+            *hdr = g;
+            *cmd = -1;
+            return;
+        }
+        ++r;
+        for (int i = GC_GAT[g]; i < GC_GAT[g + 1]; ++i) {
+            if (r == row) {
+                *hdr = -1;
+                *cmd = i;
+                return;
+            }
+            ++r;
+        }
+    }
+    *hdr = -1;
+    *cmd = 0;
+}
+
+static void paint_gc_sheet(Gfx g)
+{
+    const uint8_t ac = PAL_CYAN;
+    const int rh = 12;
+    const int vis = 8;
+    const int rows = GC_N + 5;
+    int sel = s_sheet_i;
+    if (sel < 0) sel = 0;
+    if (sel >= GC_N) sel = GC_N - 1;
+    int sel_row = 0;
+    int seen = 0;
+    for (int row = 0; row < rows; ++row) {
+        int hdr = -1;
+        int cmd = 0;
+        gc_row_at(row, &hdr, &cmd);
+        if (hdr < 0 && cmd == sel) {
+            sel_row = row;
+            break;
+        }
+        if (hdr < 0) ++seen;
+        (void)seen;
+    }
+    int top = sel_row - 3;
+    if (top < 0) top = 0;
+    if (top > rows - vis) top = rows - vis;
+    const int h = vis * rh + 10;
+    const int bx = 14;
+    const int by = 214 - 5 - h;
+    g.fillRect(bx, by, 292, h, PAL_BLACK);
+    g.drawRect(bx, by, 292, h, ac);
+    g.fillRect(bx + 3, by + h - 3, 286, 1, PAL_WIRE_C);
+    const int keep = s_px;
+    s_px = 6;
+    for (int k = 0; k < vis; ++k) {
+        int hdr = -1;
+        int cmd = 0;
+        gc_row_at(top + k, &hdr, &cmd);
+        const int y = by + 5 + k * rh;
+        if (hdr >= 0) {
+            txt(g, GC_GN[hdr], bx + 8, y, ac, lgfx::textdatum::top_left);
+            g.fillRect(bx + 48, y + 4, 220, 1, PAL_WIRE_C);
+            continue;
+        }
+        const bool on = cmd == sel;
+        if (on) {
+            g.fillRect(bx + 3, y - 1, 286, rh - 1, PAL_BLACK);
+            g.fillRect(bx + 3, y - 1, 2, rh - 1, ac);
+        }
+        txt_bg(g, GC_NM[cmd], bx + 14, y, on ? ac : (uint8_t)COL_INK,
+               PAL_BLACK, lgfx::textdatum::top_left);
+        txt(g, GC_PP[cmd], bx + 84, y, on ? ac : (uint8_t)COL_MUTED, lgfx::textdatum::top_left);
+    }
+    s_px = keep;
+}
+
+static void paint_gc_route(Gfx g, uint8_t ac)
+{
+    const int x = 168;
+    const int y = 22;
+    const int w = 142;
+    const int h = 118;
+    const uint8_t edge = s_act == 2 ? (uint8_t)PAL_HOLD : ac;
+    g.fillRect(x, y, w, h, PAL_BLACK);
+    g.drawRect(x, y, w, h, edge);
+    g.drawRect(x + 2, y + 2, w - 4, h - 4, PAL_LINE);
+    g.fillRect(x + 18, y + 28, w - 36, 1, PAL_LINE);
+    g.fillRect(x + 18, y + 58, w - 36, 1, PAL_LINE);
+    g.fillRect(x + 18, y + 88, w - 36, 1, PAL_LINE);
+    if (s_act == 2) {
+        g.fillRect(x + 28, y + 22, 6, 6, PAL_HOLD);
+        g.fillRect(x + 78, y + 52, 8, 8, PAL_IVORY);
+        g.drawRect(x + 74, y + 48, 16, 16, PAL_HOLD);
+        g.fillRect(x + 36, y + 100, 70, 2, ac);
+    } else if (s_act == 1) {
+        const uint32_t u = (millis() - s_bus_t0) % 1100u;
+        const int px = (int)(u * (uint32_t)(w - 24) / 1100u);
+        g.fillRect(x + 12, y + h - 12, px, 2, ac);
+        draw_blob(g, x + 36, y + 40, 1, bot_color(0), 0, false);
+        draw_blob(g, x + 70, y + 64, 1, bot_color(1), 0, false);
+        draw_blob(g, x + 104, y + 48, 1, bot_color(5), 0, false);
+    } else {
+        g.fillRect(x + 40, y + 36, 4, 4, ac);
+        g.fillRect(x + 70, y + 54, 4, 4, PAL_WIRE_C);
+        g.fillRect(x + 100, y + 36, 4, 4, ac);
+    }
+}
+
+static void paint_gchat(Gfx g)
+{
+    const uint8_t ac = PAL_CYAN;
+    const uint32_t t = millis();
+    g.fillRect(0, 0, 320, 240, PAL_BLACK);
+    g.fillRect(0, 0, 320, 16, PAL_BLACK);
+    g.fillRect(0, 16, 320, 1, ac);
+    for (int r = 0; r < 7; ++r) {
+        for (int c = 0; c < 13; ++c) {
+            if (GIB_CROWN[r][c] != '#') continue;
+            g.fillRect(4 + c, 2 + r, 1, 1, r >= 5 ? (uint8_t)PAL_CHIN : (uint8_t)PAL_IVORY);
+        }
+    }
+    for (int i = 0; i < 12; ++i) {
+        g.fillRect(28 + i * 9, 5, 6, 5, bot_color(i));
+    }
+    const int sg = 3 + (int)((t / 2500u) % 2u);
+    for (int k = 0; k < 4; ++k) {
+        const int bh = (k + 1) * 2;
+        g.fillRect(236 + k * 4, 12 - bh, 3, bh, k < sg ? ac : (uint8_t)PAL_LINE);
+    }
+    g.fillRect(290, 5, 4, 4, (uint32_t)(t - s_last_key) < 220u ? ac : (uint8_t)PAL_LINE);
+    const int keep = s_px;
+    s_px = 6;
+    txt(g, "RX", 296, 4, (uint32_t)(t - s_last_key) < 220u ? ac : (uint8_t)COL_MUTED,
+        lgfx::textdatum::top_left);
+    s_px = keep;
+    px_ring(g, 70, 74, 40, ac, 2, 3, (int)(t / 90u));
+    px_ring(g, 70, 74, 34, PAL_WIRE_C, 0, 0, 0);
+    hub_gibson(g, 70, 74, 6);
+    paint_gc_route(g, ac);
+    g.fillRect(4, 156, 312, 80, PAL_BLACK);
+    g.fillRect(4, 156, 312, 1, (uint32_t)(t - s_bus_t0) < 160u ? ac : (uint8_t)PAL_WIRE_C);
+    s_px = 6;
+    const int n = gc_count();
+    for (int k = 0; k < n; ++k) {
+        const char *ln = gc_line(k);
+        const int tag = (unsigned char)ln[0];
+        const char *show = ln + 1;
+        uint8_t col = COL_INK;
+        if (tag >= 1 && tag <= 12) col = bot_color(tag - 1);
+        else if (tag == 13) col = PAL_IVORY;
+        const int y = 162 + k * 11;
+        txt_bg(g, show, 10, y, col, PAL_BLACK, lgfx::textdatum::top_left);
+    }
+    const int py = 214;
+    txt(g, "gibson", 10, py, ac, lgfx::textdatum::top_left);
+    txt(g, ">", 10 + 7 * 6, py, COL_INK, lgfx::textdatum::top_left);
+    txt(g, s_gp_buf, 10 + 9 * 6, py, COL_WHITE, lgfx::textdatum::top_left);
+    const int cx = 10 + (9 + (int)strlen(s_gp_buf)) * 6;
+    if ((t / 530u) % 2u == 0u) g.fillRect(cx, py, 5, 8, ac);
+    if (s_sheet) paint_gc_sheet(g);
+    s_px = keep;
+}
+
 static void paint_ext(Gfx g)
 {
     g.clearClipRect();
@@ -3257,7 +3666,8 @@ static void paint_ext(Gfx g)
     }
     const bool hub = s_screen == SCR_GIBSON;
     botcorps_rain_set_hub(hub);
-    if (!wants_rain()) g.fillScreen(COL_BG);
+    if (!wants_rain()) g.fillScreen((s_screen == SCR_TERMINAL || s_screen == SCR_GCHAT)
+                                    ? (uint8_t)PAL_BLACK : (uint8_t)COL_BG);
     else if (hub) g.fillScreen(botcorps_pal_hub_of(COL_FIELD));
     else g.fillScreen(COL_FIELD);
     if (wants_rain() && g.raw()) {
@@ -3267,6 +3677,7 @@ static void paint_ext(Gfx g)
     switch (s_screen) {
     case SCR_RAIN: paint_rain_btn(g); break;
     case SCR_GIBSON: paint_gibson(g); break;
+    case SCR_GCHAT: paint_gchat(g); break;
     case SCR_TERMINAL: paint_terminal(g); break;
     case SCR_WIFI: paint_home(g, 0); break;
     case SCR_BT: paint_home(g, 1); break;
@@ -3330,21 +3741,16 @@ static void tick_ext(Gfx g)
         g.endWrite();
         g.clearClipRect();
     } else if (s_screen == SCR_TERMINAL && !s_sheet) {
+        /* Caret only. A full-line fill here was the grey box on Enter. */
         const int phase = (int)((millis() / 530u) % 2u);
         if (phase != s_prompt_phase) {
             s_prompt_phase = phase;
             const int y = PROMPT_Y;
+            const int n = (int)strlen(botcorps_t0_term_prompt);
+            const int cx = 106 + n * 6 + 2;
             g.startWrite();
-            g.setClipRect(8, y, 300, 10);
-            g.fillRect(8, y, 300, 10, COL_DEEP);
-            g.setFont(&fonts::Font0);
-            g.setTextSize(1);
-            g.setTextColor(accent());
-            g.setCursor(10, y);
-            g.print("user@botcorps:~$ ");
-            g.setTextColor(COL_WHITE);
-            g.print(botcorps_t0_term_prompt);
-            if (phase == 0) g.fillRect(g.getCursorX() + 2, y, 5, 8, accent());
+            g.setClipRect(cx, y, 6, 8);
+            g.fillRect(cx, y, 6, 8, phase == 0 ? accent() : (uint8_t)PAL_BLACK);
             g.endWrite();
             g.clearClipRect();
         }
@@ -3467,7 +3873,7 @@ static void activate(void)
 {
     switch (s_screen) {
     case SCR_RAIN:
-        enter_screen(SCR_GIBSON, -1);
+        enter_screen(SCR_GCHAT, -1);
         break;
     case SCR_GIBSON:
         if (s_cursor == 0) enter_screen(SCR_TERMINAL, SCR_GIBSON);
@@ -3970,6 +4376,14 @@ static int sheet_top_for(int index)
 
 static void on_arrows(int key)
 {
+    if (s_screen == SCR_GCHAT) {
+        if (!s_sheet) return;
+        if (key == 1 || key == 3) s_sheet_i = (s_sheet_i + GC_N - 1) % GC_N;
+        if (key == 2 || key == 4) s_sheet_i = (s_sheet_i + 1) % GC_N;
+        if (s_sheet_i < 0) s_sheet_i = 0;
+        s_dirty = true;
+        return;
+    }
     if (s_screen == SCR_TERMINAL) {
         if (s_sheet && !botcorps_t0_term_prompt[0]) {
             if (key == 1 || key == 3) s_sheet_i = (s_sheet_i + CMD_N - 1) % CMD_N;
@@ -3977,18 +4391,17 @@ static void on_arrows(int key)
             s_dirty = true;
             return;
         }
-        if (botcorps_t0_term_prompt[0] && (key == 1 || key == 2)) {
-            if (s_hist_n <= 0) return;
-            if (s_hist_i < 0) s_hist_i = s_hist_n;
-            s_hist_i += (key == 1) ? -1 : 1;
-            if (s_hist_i < 0) s_hist_i = 0;
-            if (s_hist_i >= s_hist_n) {
-                s_hist_i = -1;
-                botcorps_t0_term_prompt[0] = 0;
-            } else {
+        if (botcorps_t0_term_prompt[0]) {
+            /* Prompt owns the keys. Arrows do not move boards or clear the line. */
+            if (key == 1 || key == 2) {
+                if (s_hist_n <= 0) return;
+                if (s_hist_i < 0) s_hist_i = s_hist_n;
+                s_hist_i += (key == 1) ? -1 : 1;
+                if (s_hist_i < 0) s_hist_i = 0;
+                if (s_hist_i >= s_hist_n) s_hist_i = s_hist_n - 1;
                 snprintf(botcorps_t0_term_prompt, 80, "%s", botcorps_t0_term_hist[s_hist_i]);
+                partial_term_lower();
             }
-            partial_term_lower();
             return;
         }
         if (s_focus_cmds) {
@@ -4182,6 +4595,20 @@ static void on_esc(void)
             return;
         }
     }
+    if (s_screen == SCR_GCHAT) {
+        if (s_sheet) {
+            s_sheet = false;
+            s_dirty = true;
+            return;
+        }
+        if (s_gp_buf[0]) {
+            s_gp_buf[0] = 0;
+            s_dirty = true;
+            return;
+        }
+        enter_screen(SCR_GIBSON, -1);
+        return;
+    }
     if (s_screen == SCR_TERMINAL && (s_sheet || s_focus_cmds)) {
         s_sheet = false;
         s_focus_cmds = false;
@@ -4194,6 +4621,19 @@ static void on_esc(void)
 
 static void on_tab(void)
 {
+    if (s_screen == SCR_GIBSON) {
+        enter_screen(SCR_GCHAT, SCR_GIBSON);
+        s_sheet = true;
+        s_sheet_i = 0;
+        s_dirty = true;
+        return;
+    }
+    if (s_screen == SCR_GCHAT) {
+        s_sheet = !s_sheet;
+        if (s_sheet) s_sheet_i = 0;
+        s_dirty = true;
+        return;
+    }
     if (s_screen != SCR_TERMINAL || s_sheet) return;
     if (!botcorps_t0_term_prompt[0]) {
         s_sheet = !s_sheet;
@@ -4224,6 +4664,16 @@ static void on_tab(void)
 
 static void on_char(char c)
 {
+    if (s_screen == SCR_GCHAT) {
+        if (c >= 'A' && c <= 'Z') c = (char)(c - 'A' + 'a');
+        const size_t n = strlen(s_gp_buf);
+        if (n + 1 < sizeof(s_gp_buf) && c >= 32 && c < 127) {
+            s_gp_buf[n] = c;
+            s_gp_buf[n + 1] = 0;
+        }
+        s_dirty = true;
+        return;
+    }
     if (s_screen == SCR_GIBSON) {
         s_gp_focus = true;
         if (c >= 'A' && c <= 'Z') c = (char)(c - 'A' + 'a');
@@ -4247,6 +4697,12 @@ static void on_char(char c)
 
 static void on_bs(void)
 {
+    if (s_screen == SCR_GCHAT && s_gp_buf[0]) {
+        const size_t n = strlen(s_gp_buf);
+        s_gp_buf[n - 1] = 0;
+        s_dirty = true;
+        return;
+    }
     if (s_screen == SCR_GIBSON && s_gp_buf[0]) {
         s_gp_focus = true;
         const size_t n = strlen(s_gp_buf);
@@ -4283,11 +4739,17 @@ static int read_key(char *typed)
         if (h == 0x50) return K_LT;
         if (h == 0x4F) return K_RT;
     }
+    const bool prompt_owns =
+        (s_screen == SCR_TERMINAL && botcorps_t0_term_prompt[0]) ||
+        s_screen == SCR_GCHAT ||
+        (s_screen == SCR_GIBSON && s_gp_buf[0]);
     for (char c : st.word) {
-        if (c == ';' || c == ':') return K_UP;
-        if (c == '.' || c == '>') return K_DN;
-        if (c == ',' || c == '<') return K_LT;
-        if (c == '/' || c == '?') return K_RT;
+        if (!prompt_owns) {
+            if (c == ';' || c == ':') return K_UP;
+            if (c == '.' || c == '>') return K_DN;
+            if (c == ',' || c == '<') return K_LT;
+            if (c == '/' || c == '?') return K_RT;
+        }
         if (c == '`' || c == '~' || c == 0x1B) return K_ESC;
         if (c == '\t') return K_TAB;
         if (c == '\b' || c == 127) return K_BS;
@@ -4334,9 +4796,10 @@ static int gp_screen(const char *name)
     if (!name || !name[0]) return -1;
     if (strcmp(name, "terminal") == 0) return SCR_TERMINAL;
     if (strcmp(name, "control") == 0) return SCR_CONTROL;
-    if (strcmp(name, "bots") == 0 || strcmp(name, "bot") == 0) return SCR_BOT;
-    if (strcmp(name, "wifi") == 0) return SCR_WIFI;
-    if (strcmp(name, "ble") == 0 || strcmp(name, "bluetooth") == 0) return SCR_BT;
+    if (strcmp(name, "bots") == 0 || strcmp(name, "bot") == 0) return SCR_TERMINAL;
+    if (strcmp(name, "wifi") == 0 || strcmp(name, "ble") == 0 || strcmp(name, "bluetooth") == 0)
+        return SCR_SCAN;
+    if (strcmp(name, "chat") == 0 || strcmp(name, "gchat") == 0) return SCR_GCHAT;
     if (strcmp(name, "scan") == 0 || strcmp(name, "radar") == 0) return SCR_SCAN;
     if (strcmp(name, "wifiradar") == 0) return SCR_WIFI_RADAR;
     if (strcmp(name, "bleradar") == 0) return SCR_BT_RADAR;
@@ -4442,6 +4905,25 @@ void botcorps_ui_input(void)
         s_mood_until = s_last_key + 1500u;
         s_bub[0] = (key == K_CHAR && typed) ? typed : '*';
         s_bub[1] = 0;
+    }
+    if (s_screen == SCR_GCHAT && key == K_OK) {
+        if (s_sheet) {
+            gc_pick();
+            s_dirty = true;
+            return;
+        }
+        if (s_gp_buf[0]) {
+            char line[28];
+            snprintf(line, sizeof(line), "%s", s_gp_buf);
+            s_gp_buf[0] = 0;
+            gc_run(line);
+            s_dirty = true;
+            return;
+        }
+        s_sheet = true;
+        s_sheet_i = 0;
+        s_dirty = true;
+        return;
     }
     if (key == K_OK && s_screen == SCR_GIBSON && s_gp_buf[0]) {
         s_gp_focus = true;
@@ -4781,6 +5263,88 @@ void botcorps_host_sheet_key(uint8_t *buf, int key)
 {
     host_frame = buf;
     on_arrows(key);
+    paint_ext(Gfx());
+}
+
+void botcorps_host_gchat(uint8_t *buf)
+{
+    host_frame = buf;
+    memset(buf, PAL_BLACK, 320u * 240u);
+    s_screen = SCR_GCHAT;
+    s_sheet = false;
+    botcorps_lut_term(false);
+    s_color = 0;
+    s_act = -1;
+    s_gp_buf[0] = 0;
+    gc_set_count(0);
+    gc_push(12, "ready");
+    s_bus_t0 = 0;
+    paint_ext(Gfx());
+}
+
+void botcorps_host_gmenu(uint8_t *buf)
+{
+    botcorps_host_gchat(buf);
+    s_sheet = true;
+    s_sheet_i = 8;
+    paint_ext(Gfx());
+}
+
+void botcorps_host_jackin(uint8_t *buf)
+{
+    botcorps_host_gchat(buf);
+    s_sheet = false;
+    gc_set_count(0);
+    gc_run("jackin");
+    paint_ext(Gfx());
+}
+
+void botcorps_host_scanall(uint8_t *buf)
+{
+    host_frame = buf;
+    memset(buf, PAL_BLACK, 320u * 240u);
+    s_screen = SCR_TERMINAL;
+    s_sheet = false;
+    botcorps_lut_term(false);
+    s_focus_cmds = false;
+    s_term = 2;
+    s_color = 0;
+    s_log_n = 0;
+    s_log_next = 0;
+    botcorps_t0_term_prompt[0] = 0;
+    s_bus_t0 = 0;
+    run_cmd("scan all");
+    paint_ext(Gfx());
+}
+
+void botcorps_host_keyfob(uint8_t *buf)
+{
+    host_frame = buf;
+    memset(buf, PAL_BLACK, 320u * 240u);
+    s_screen = SCR_TERMINAL;
+    s_sheet = false;
+    botcorps_lut_term(false);
+    s_focus_cmds = false;
+    s_term = 2;
+    s_color = 0;
+    s_log_n = 0;
+    s_log_next = 0;
+    botcorps_t0_term_prompt[0] = 0;
+    s_bus_t0 = 0;
+    run_cmd("scan keyfob");
+    paint_ext(Gfx());
+}
+
+void botcorps_host_hub(uint8_t *buf)
+{
+    host_frame = buf;
+    memset(buf, PAL_FIELD, 320u * 240u);
+    s_screen = SCR_GIBSON;
+    s_sheet = false;
+    botcorps_lut_term(false);
+    s_color = 0;
+    s_cursor = 0;
+    s_act = -1;
     paint_ext(Gfx());
 }
 #endif

@@ -491,5 +491,26 @@ int main(void)
            bus[67 * 320 + (83 - 7)], bus[77 * 320 + (101 - 7)],
            bus[117 * 320 + (65 - 7)], bus[167 * 320 + (47 - 7)],
            bus[55 * 320 + (140 - 7)]);
+    static uint8_t hit[320 * 240];
+    botcorps_host_gchat(hit);
+    write_raw("/tmp/hit-gchat.rgb", hit, 0);
+    botcorps_host_gmenu(hit);
+    write_raw("/tmp/hit-gmenu.rgb", hit, 0);
+    botcorps_host_jackin(hit);
+    write_raw("/tmp/hit-jackin.rgb", hit, 0);
+    botcorps_host_scanall(hit);
+    write_raw("/tmp/hit-scanall.rgb", hit, 0);
+    botcorps_host_keyfob(hit);
+    write_raw("/tmp/hit-keyfob.rgb", hit, 0);
+    botcorps_host_hub(hit);
+    write_raw("/tmp/hit-hub.rgb", hit, 0);
+    botcorps_host_sheet(hit, 0);
+    write_raw("/tmp/hit-tab0.rgb", hit, 1);
+    botcorps_host_sheet(hit, 20);
+    write_raw("/tmp/hit-tab20.rgb", hit, 1);
+    botcorps_host_sheet(hit, 39);
+    write_raw("/tmp/hit-tab39.rgb", hit, 1);
+    botcorps_host_idle(hit);
+    write_raw("/tmp/hit-idle.rgb", hit, 0);
     return 0;
 }

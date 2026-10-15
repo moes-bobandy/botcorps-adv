@@ -500,6 +500,52 @@ int main(void)
     write_raw("/tmp/hit-jackin.rgb", hit, 0);
     botcorps_host_scanall(hit);
     write_raw("/tmp/hit-scanall.rgb", hit, 0);
+    {
+        const int rings[4][3] = {
+            { 4, 167, 69 }, { 5, 168, 171 }, { 6, 169, 207 }, { 7, 170, 207 }
+        };
+        int ring_ok = 0;
+        for (int i = 0; i < 4; ++i)
+            if (hit[rings[i][1] * 320 + rings[i][0]] == rings[i][2]) ring_ok++;
+        const int bot = hit[223 * 320 + 4];
+        int prompt_glow = 0;
+        int salmon = 0;
+        for (int y = 224; y < 240; ++y)
+            for (int x = 0; x < 320; ++x) {
+                const uint8_t c = hit[y * 320 + x];
+                if (c == 69 || c == 171 || c == 207) prompt_glow++;
+            }
+        for (int y = 167; y <= 223; ++y) {
+            const uint8_t l = hit[y * 320 + 4];
+            const uint8_t r = hit[y * 320 + 315];
+            if (l == 205 || l == 238) salmon++;
+            if (r == 205 || r == 238) salmon++;
+        }
+        int ov = 0;
+        for (int y = 0; y < 240; ++y)
+            for (int x = 0; x < 320; ++x) {
+                if (x >= 14 && x <= 306 && y >= 104 && y <= 222) continue;
+                const uint8_t c = hit[y * 320 + x];
+                for (int n = 0; n < botcorps_term_ov_n; ++n)
+                    if (c == botcorps_term_ov_i[n]) { ov++; break; }
+            }
+        printf("scan-magenta rings %d/4 bottom %u prompt-glow %d salmon-border %d ov-out %d prompt194 %u\n",
+               ring_ok, bot, prompt_glow, salmon, ov, hit[227 * 320 + 9]);
+    }
+    botcorps_host_scanall_sheet(hit);
+    write_raw("/tmp/hit-scanall-tab.rgb", hit, 1);
+    {
+        int frame = 0;
+        for (int y = 166; y < 240; ++y)
+            for (int x = 0; x < 320; ++x) {
+                if (x >= 14 && x <= 306 && y >= 104 && y <= 222) continue;
+                const uint8_t c = hit[y * 320 + x];
+                if (c == 69 || c == 171 || c == 207) frame++;
+            }
+        printf("tab-covers-log frame-outside %d edge %u\n", frame, hit[167 * 320 + 4]);
+    }
+    botcorps_host_scanall(hit);
+    write_raw("/tmp/hit-scanall.rgb", hit, 0);
     botcorps_host_keyfob(hit);
     write_raw("/tmp/hit-keyfob.rgb", hit, 0);
     botcorps_host_hub(hit);

@@ -203,6 +203,7 @@ void botcorps_host_gchat(uint8_t *buf);
 void botcorps_host_gmenu(uint8_t *buf);
 void botcorps_host_jackin(uint8_t *buf);
 void botcorps_host_scanall(uint8_t *buf);
+void botcorps_host_scanall_sheet(uint8_t *buf);
 void botcorps_host_keyfob(uint8_t *buf);
 void botcorps_host_hub(uint8_t *buf);
 void botcorps_host_intro(uint8_t *buf);

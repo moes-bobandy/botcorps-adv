@@ -1529,10 +1529,8 @@ static void sheet_corner(Gfx g, int x, int y, int sx, int sy)
  * square corner. The bottom edge is painted later, after the hairline. */
 static void sheet_ramp_top(Gfx g, int x, int y, int w, int h)
 {
-    /* Hotter inward steps. The 6x6 corner table is painted after this and
-     * the CORE column at x30,y105-109 is the text halo, not this ramp. */
     const uint8_t ramp[6] = {
-        PAL_TERM_M, PAL_TERM_M, PAL_TERM_M35, PAL_TERM_M22, PAL_TERM_M18, PAL_TERM_M10
+        PAL_TERM_M, PAL_TERM_M35, PAL_TERM_M22, PAL_TERM_M18, PAL_TERM_M10, PAL_TERM_M10
     };
     const int x1 = x + w;
     const int y1 = y + h;
@@ -1910,12 +1908,20 @@ static void paint_prompt(Gfx g)
     s_px = 6;
     /* Tiles end at y=165. Deep black plate. Enter pulses the hairline cyan. */
     g.fillRect(4, 168, 312, 68, PAL_BLACK);
-    /* Pink frame on the log plate. Shared slots, so it stays off the sheet lut. */
-    g.drawRect(2, 165, 316, 73, PAL_HOLD);
-    g.drawRect(3, 166, 314, 71, PAL_BFB72);
-    g.drawRect(4, 167, 312, 69, PAL_BFB72);
-    if (s_mood_until != 0 && (int32_t)(millis() - s_mood_until) < 0)
-        g.fillRect(6, 168, 308, 1, PAL_WHITE);
+    /* Idle keeps the 170 hairline. The magenta glow is the crew-sweep
+     * log only, and only while the Tab sheet is closed. */
+    bool sweep = false;
+    if (!s_sheet) {
+        for (int i = 0; i < s_log_n; ++i) {
+            const char *ln = log_line(i);
+            if (ln && ln[0] == '\x01') ln += 2;
+            if (ln && strstr(ln, "crew sweep")) { sweep = true; break; }
+        }
+    }
+    if (!sweep) {
+        const bool pulse = s_mood_until != 0 && (int32_t)(millis() - s_mood_until) < 0;
+        g.fillRect(4, 167, 312, 1, pulse ? accent() : (uint8_t)170);
+    }
     {
         const int span = 46;
         int sy = 171 + (int)((millis() / 28u) % (uint32_t)span);
@@ -1924,7 +1930,11 @@ static void paint_prompt(Gfx g)
                                        : (s_color == 2) ? (uint8_t)PAL_WIRE_M
                                                         : (uint8_t)PAL_WIRE_C);
     }
-    g.drawRect(5, 168, 310, 67, PAL_HOLD);
+    if (!sweep) {
+        g.fillRect(4, 235, 312, 1, COL_LINE);
+        g.fillRect(4, 168, 1, 68, COL_LINE);
+        g.fillRect(315, 168, 1, 68, COL_LINE);
+    }
     const int n = s_log_n < 6 ? s_log_n : 6;
     const int start = s_log_n - n;
     for (int k = 0; k < n; ++k) {
@@ -1976,23 +1986,38 @@ static void paint_prompt(Gfx g)
     if ((millis() / 530u) % 2u == 0) g.fillRect(cx, y, 6, 8, accent());
     paint_cands(g);
     const bool po = s_focus_cmds && !s_sheet;
-    plate(g, 250, 214, 20, 12, po ? COL_SEL : COL_DEEP, po ? accent() : COL_LINE);
-    for (int k = 0; k < 3; ++k) g.fillRect(255, 217 + k * 3, 10, 1, po ? accent() : COL_MUTED);
+    const int menu_y = sweep ? 198 : 214;
+    plate(g, 250, menu_y, 20, 12, po ? COL_SEL : COL_DEEP, po ? accent() : COL_LINE);
+    for (int k = 0; k < 3; ++k)
+        g.fillRect(255, menu_y + 3 + k * 3, 10, 1, po ? accent() : COL_MUTED);
     if (po) paint_palette(g);
-    /* Companion box, bottom right. Shared slots. The sheet covers what it overlaps. */
+    /* Companion box, bottom right. Shared slots. The sheet covers what it overlaps.
+     * On a crew sweep the box stays inside the log glow, above the prompt. */
     {
         const int bx = 274;
         const int by = 174;
+        const int bh = sweep ? 45 : 60;
+        const int chin = sweep ? 36 : 48;
+        const int blob = sweep ? 22 : 30;
         const uint8_t edge = (s_color == 1) ? (uint8_t)PAL_WIRE_A
                              : (s_color == 2) ? (uint8_t)PAL_WIRE_M : (uint8_t)PAL_WIRE_C;
-        g.fillRect(bx, by, 38, 60, PAL_BG);
+        g.fillRect(bx, by, 38, bh, PAL_BG);
         g.fillRect(bx, by, 38, 1, edge);
-        g.fillRect(bx, by + 59, 38, 1, COL_LINE);
-        g.fillRect(bx, by, 1, 60, COL_LINE);
-        g.fillRect(bx + 37, by, 1, 60, COL_LINE);
+        g.fillRect(bx, by + bh - 1, 38, 1, COL_LINE);
+        g.fillRect(bx, by, 1, bh, COL_LINE);
+        g.fillRect(bx + 37, by, 1, bh, COL_LINE);
         const int bot = s_term >= 0 && s_term <= 11 ? s_term : 0;
-        draw_blob(g, bx + 19, by + 30, 2, bot_color(bot), 0, false);
-        g.fillRect(bx + 9, by + 48, 20, 1, edge);
+        draw_blob(g, bx + 19, by + blob, 2, bot_color(bot), 0, false);
+        g.fillRect(bx + 9, by + chin, 20, 1, edge);
+    }
+    if (sweep) {
+        /* mixE2FF falloff, outer dim to a hot magenta wire.
+         * Bottom pixel is y=223. The prompt at y=227 stays outside.
+         * Shared slots only, so this is not a sheet override. */
+        g.drawRect(4, 167, 312, 57, 69);
+        g.drawRect(5, 168, 310, 55, PAL_SOLID_P);
+        g.drawRect(6, 169, 308, 53, PAL_R_E2FF);
+        g.drawRect(7, 170, 306, 51, PAL_R_E2FF);
     }
     s_px = keep;
 }
@@ -5456,6 +5481,15 @@ void botcorps_host_scanall(uint8_t *buf)
     botcorps_t0_term_prompt[0] = 0;
     s_bus_t0 = 0;
     run_cmd("scan all");
+    paint_ext(Gfx());
+}
+
+void botcorps_host_scanall_sheet(uint8_t *buf)
+{
+    botcorps_host_scanall(buf);
+    s_sheet = true;
+    botcorps_lut_term(true);
+    s_sheet_i = 0;
     paint_ext(Gfx());
 }
 

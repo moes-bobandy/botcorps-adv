@@ -1,21 +1,20 @@
 /*
- * One SD mount path. Features in later slices call botcorps_sd_mount()
- * instead of SD.begin() so the shared-bus policy cannot be skipped.
+ * SD mount. Stubbed on CYD (optional, different pins).
  */
 #include "sd/botcorps_sd.h"
 
-#include "display/botcorps_display.h"
+#ifdef BOTCORPS_CYD
 
+bool botcorps_sd_mounted(void) { return false; }
+bool botcorps_sd_mount(void) { return false; }
+
+#else
+
+#include "display/botcorps_display.h"
 #include <SD.h>
 #include <SPI.h>
 
-/* 20 MHz is reliable on the Cardputer SD ribbon. Slower retries below. */
 static const int BOTCORPS_SD_HZ = 20000000;
-
-/* Arduino HSPI on ESP32-S3 is peripheral index 1, which clocks SPI3
- * (PERIPH_SPI3). LovyanGFX uses IDF SPI3_HOST (numeric 2) for the same
- * peripheral. Do not pass SPI3_HOST into SPIClass, and do not move SD
- * onto FSPI — that is the internal ST7789. */
 static SPIClass s_sd_spi(HSPI);
 static bool s_mounted = false;
 
@@ -36,14 +35,9 @@ static void sd_pins_idle(void)
 
 static bool try_mount(int hz, const char *tag)
 {
-    /* Dual: deselect the ILI9341 before this bus is reused.
-     * Single-screen: quiesce is a no-op; GPIO5 is idled below. */
     botcorps_lcd_quiesce();
 
 #if !BOTCORPS_DUAL_SCREEN
-    /* No panel owns GPIO5. INPUT_PULLUP idles it high (SD enable)
-     * without fighting a Cap hat's NSS or GDO0. Dual builds do not
-     * take this branch — the LCD CS driver holds GPIO5. */
     pinMode(BOTCORPS_PIN_LCD_CS, INPUT_PULLUP);
 #endif
 
@@ -80,3 +74,5 @@ bool botcorps_sd_mount(void)
     }
     return false;
 }
+
+#endif

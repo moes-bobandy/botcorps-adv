@@ -1,9 +1,5 @@
 /*
- * Slice 1R2 boot. Hardware comes up on the rain screen. loop() reads
- * the keyboard and steps the rain. There is no color-fill size probe.
- *
- * Adv dual is the active BOTcorps line. This is not a CYD / COM13 port.
- * A successful flash is not a field PASS — nothing here is flashed.
+ * BOTcorps boot. CYD single-screen or Adv dual.
  */
 
 #include "display/botcorps_display.h"
@@ -11,24 +7,58 @@
 #include "ui/botcorps_band.h"
 #include "ui/botcorps_ui.h"
 
+#ifndef BOTCORPS_VERSION
+#define BOTCORPS_VERSION "0.0.0"
+#endif
+
+#ifdef BOTCORPS_CYD
+
+void setup(void)
+{
+    Serial.begin(115200);
+    delay(100);
+    Serial.printf("\n[botcorps] %s CYD\n", BOTCORPS_VERSION);
+
+    const bool ok = botcorps_dual_begin();
+    Serial.printf("[botcorps] display_ok=%d\n", ok ? 1 : 0);
+    if (!ok) {
+        Serial.println("[botcorps] display fail");
+        while (1) delay(1000);
+    }
+
+    botcorps_band_touch();
+    botcorps_frame_diag();
+    botcorps_band_release();
+    botcorps_probe_run();
+    botcorps_band_rebuild();
+    botcorps_id_strip_alloc();
+    botcorps_ui_mark_dirty();
+
+    botcorps_ui_begin();
+    botcorps_probe_screen("-", "rain");
+    botcorps_ui_draw();
+}
+
+void loop(void)
+{
+    botcorps_ui_input();
+    botcorps_ui_draw();
+    delay(10);
+}
+
+#else
+
 #include <memory>
 #include "utility/Keyboard/KeyboardReader/TCA8418.h"
 
-#ifndef BOTCORPS_VERSION
-#define BOTCORPS_VERSION "0.0.0-s0s1"
-#endif
-
 static void park_ir_led(void)
 {
-    /* Cardputer IR LED on GPIO44. HIGH keeps it off. */
     pinMode(44, OUTPUT);
     digitalWrite(44, HIGH);
 }
 
 static void park_sd_cs(void)
 {
-    /* After M5Cardputer.begin(), before EXT begin. GPIO12 only.
-     * SD is not mounted at boot; a floating card can answer SPI3. */
     pinMode(BOTCORPS_PIN_SD_CS, OUTPUT);
     digitalWrite(BOTCORPS_PIN_SD_CS, HIGH);
 }
@@ -42,14 +72,9 @@ void setup(void)
 
     auto cfg = M5.config();
     M5Cardputer.begin(cfg, true);
-    /* Adv keyboard is TCA8418 on I2C. Forcing that reader keeps a
-     * missed autodetect from taking G3–G7 as a GPIO matrix. Those
-     * pins are the external panel on a dual build. */
     M5Cardputer.Keyboard.begin(std::make_unique<TCA8418KeyboardReader>());
     park_ir_led();
 
-    /* Internal ST7789, landscape, keyboard at the bottom. Do not
-     * change color depth — M5GFX already set RGB565 at boot. */
     M5Cardputer.Display.setRotation(1);
 
     const auto board = M5.getBoard();
@@ -78,8 +103,6 @@ void setup(void)
     Serial.printf("[botcorps] dual_flag=%d ext_ok=%d sd=0\n",
                   BOTCORPS_DUAL_SCREEN, ext ? 1 : 0);
     Serial.println("[botcorps] pins SCK40 MOSI14 CS5 DC6 RST3 SD_CS12 SPI3");
-    Serial.println("[botcorps] cap: LoRa1262 NSS/RST/BUSY G5/G3/G6 and Hydra-on-G5 cannot share this panel");
-    Serial.println("[botcorps] sd mount is on demand, not at boot");
 
     botcorps_band_touch();
     botcorps_frame_diag();
@@ -89,8 +112,6 @@ void setup(void)
     botcorps_id_strip_alloc();
     botcorps_ui_mark_dirty();
 
-    /* Rain boot is the first real screen. loop() owns keys and rain.
-     * The name bar is painted by the UI on the internal panel. */
     botcorps_ui_begin();
     botcorps_probe_screen("-", "rain");
     botcorps_ui_draw();
@@ -103,3 +124,5 @@ void loop(void)
     botcorps_ui_draw();
     delay(10);
 }
+
+#endif

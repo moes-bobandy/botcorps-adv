@@ -150,3 +150,8 @@ bool botcorps_dual_begin(void)
 }
 
 #endif /* BOTCORPS_DUAL_SCREEN */
+
+#ifdef BOTCORPS_CYD
+#include "display/lgfx_cyd.h"
+Botcorps_LGFX_CYD g_cyd;
+#endif

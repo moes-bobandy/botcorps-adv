@@ -188,6 +188,7 @@ enum { BOTCORPS_SURFACE_CONTENT = 1, BOTCORPS_SURFACE_MENU = 0 };
 void botcorps_host_terminal(uint8_t *buf);
 void botcorps_host_idle(uint8_t *buf);
 void botcorps_host_hunt(uint8_t *buf);
+void botcorps_host_list(uint8_t *buf);
 void botcorps_host_bus(uint8_t *buf);
 void botcorps_host_amber(uint8_t *buf);
 void botcorps_host_botscan(uint8_t *buf);

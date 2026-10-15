@@ -1620,7 +1620,9 @@ static void paint_sheet(Gfx g)
         if (tx + 72 <= bx || ty + 46 <= by || tx >= bx + w || ty >= by + h) continue;
         paint_one_board(g, i, (i == s_term) && !s_focus_cmds, true);
     }
-    g.fillRect(bx + 3, by + 3, w - 6, h - 6, PAL_DEEP);
+    /* M10 is the precomputed 0.10 tint. The core stays deep so the rows read. */
+    g.fillRect(bx + 3, by + 3, w - 6, h - 6, PAL_TERM_M10);
+    g.fillRect(bx + 10, by + 10, w - 20, h - 20, PAL_DEEP);
     if (by + h > 168) {
         const int y0 = by > 168 ? by : 168;
         g.fillRect(bx + 1, y0, w - 2, by + h - y0, PAL_DEEP);
@@ -1777,15 +1779,10 @@ static void paint_prompt(Gfx g)
     /* Tiles end at y=165. The plate starts below them. */
     g.fillRect(4, 168, 312, 68, COL_DEEP);
     {
-        const uint8_t wash = (s_color == 1) ? (uint8_t)PAL_WASH_A
-                             : (s_color == 2) ? (uint8_t)PAL_WASH_M : (uint8_t)PAL_WASH_C;
         const uint8_t wire = (s_color == 1) ? (uint8_t)PAL_WIRE_A
                              : (s_color == 2) ? (uint8_t)PAL_WIRE_M : (uint8_t)PAL_WIRE_C;
         g.fillRect(4, 168, 312, 1, accent());
-        g.fillRect(4, 169, 312, 1, (uint8_t)PAL_R_E2FF);
-        g.fillRect(5, 170, 310, 1, wire);
-        g.fillRect(6, 171, 308, 2, wash);
-        g.fillRect(8, 173, 304, 2, wash);
+        g.fillRect(4, 169, 312, 1, wire);
     }
     g.fillRect(4, 235, 312, 1, COL_LINE);
     g.fillRect(4, 168, 1, 68, COL_LINE);
@@ -1988,6 +1985,27 @@ static int bus_dev_s(int L)
     return s;
 }
 
+/* Just past the inner corner, so the spoke keeps running out to the rim. */
+static int bus_dock(const bus_pt *p, int n, int L)
+{
+    int dock = 22;
+    if (n >= 3) {
+        dock = 0;
+        const int corner = n - 2;
+        for (int i = 1; i <= corner; ++i) {
+            const int dx = p[i].x - p[i - 1].x;
+            const int dy = p[i].y - p[i - 1].y;
+            const int adx = dx < 0 ? -dx : dx;
+            const int ady = dy < 0 ? -dy : dy;
+            dock += adx > ady ? adx : ady;
+        }
+        dock += 6;
+    }
+    if (dock > L - 18) dock = L > 36 ? L / 3 : 16;
+    if (dock < 14) dock = 14;
+    return dock;
+}
+
 static int bus_scout_s(int L, uint32_t t, int lane, int period)
 {
     if (period < 2) period = 2;
@@ -2131,16 +2149,10 @@ static void bus_paint(Gfx g, bool radar, bool wifi, int shown, int sel)
             const int L = bus_len(tab[lane], BUS_N[lane]);
             int x = 0;
             int y = 0;
-            bus_at(tab[lane], BUS_N[lane], L, &x, &y);
-            /* 14px chip stays inside the bus so the top and bottom rows do not meet. */
-            if (x < 15) x = 15;
-            if (x > 305) x = 305;
-            if (y < 33) y = 33;
-            if (y > 201) y = 201;
+            bus_at(tab[lane], BUS_N[lane], bus_dock(tab[lane], BUS_N[lane], L), &x, &y);
             g.fillRect(x - 7, y - 7, 14, 14, PAL_BG);
             g.drawRect(x - 7, y - 7, 14, 14, COL_LINE);
             dev_icon(g, SCAN_TYPE[d], x - 6, y - 6, false);
-            if (d == sel) g.drawRect(x - 8, y - 8, 16, 16, ac);
         }
     }
     /* Gibson only on the Gibson scan. A bot scan keeps that bot's sprite. */
@@ -2151,6 +2163,14 @@ static void bus_paint(Gfx g, bool radar, bool wifi, int shown, int sel)
         int y = 0;
         bus_at(tab[i], BUS_N[i], bus_scout_s(L, t, i, period), &x, &y);
         draw_blob(g, x, y, 1, bot_color(i), botcorps_shape_for(i), false);
+    }
+    if (!radar && sel >= 0 && sel < SCAN_N) {
+        const int lane = sel;
+        const int L = bus_len(tab[lane], BUS_N[lane]);
+        int x = 0;
+        int y = 0;
+        bus_at(tab[lane], BUS_N[lane], bus_dock(tab[lane], BUS_N[lane], L), &x, &y);
+        g.drawRect(x - 8, y - 8, 16, 16, ac);
     }
 }
 
@@ -2299,7 +2319,7 @@ static void paint_act_menu(Gfx g)
                          : (s_color == 2) ? (uint8_t)PAL_WIRE_M : (uint8_t)PAL_WIRE_C;
     stroke_round(g, mx - 3, my - 3, 98, mh + 6, wash);
     stroke_round(g, mx - 2, my - 2, 96, mh + 4, wire);
-    stroke_round(g, mx - 1, my - 1, 94, mh + 2, (uint8_t)PAL_R_E2FF);
+    stroke_round(g, mx - 1, my - 1, 94, mh + 2, wash);
     g.fillRect(mx + 2, my, 88, mh, COL_BG);
     g.fillRect(mx, my + 2, 92, mh - 4, COL_BG);
     stroke_round(g, mx, my, 92, mh, accent());
@@ -2307,11 +2327,8 @@ static void paint_act_menu(Gfx g)
     for (int j = 0; j < ACT_N; ++j) {
         const int yy = my + 3 + j * 15;
         const bool on = j == s_act;
-        const uint8_t bg = on ? glow_of(STEP_HUNT) : (uint8_t)COL_BG;
-        if (on) {
-            g.fillRect(mx + 2, yy, 88, 14, bg);
-            g.fillRect(mx + 2, yy, 2, 14, glow_of(STEP_AC));
-        }
+        const uint8_t bg = (uint8_t)COL_BG;
+        if (on) g.fillRect(mx + 2, yy, 2, 14, accent());
         blit_ico(g, ACT_ICO[j], mx + 8, yy + 3, on ? COL_WHITE : accent());
         const char *lab = ACT_NAME[j];
         if (j == 1 && s_act_dev >= 0 && s_dev_fol[band][s_act_dev]) lab = "unfollow";
@@ -2408,9 +2425,8 @@ static void paint_dev_list(Gfx g, bool wifi)
     for (int d = 0; d < LIST_N; ++d) {
         const int y = y0 + d * rh;
         const bool on = d == sel;
-        const uint8_t dimbar = (s_color == 1) ? (uint8_t)PAL_WASH_A
-                               : (s_color == 2) ? (uint8_t)PAL_WASH_M : (uint8_t)PAL_WASH_C;
-        g.fillRect(8, y, 304, rh - 1, on ? dimbar : (uint8_t)((d & 1) ? PAL_BG : PAL_FIELD));
+        g.fillRect(8, y, 304, rh - 1, (uint8_t)((d & 1) ? PAL_BG : PAL_FIELD));
+        if (on) g.drawRect(8, y, 304, rh - 1, ac);
         dev_icon(g, types[d], 13, y + 2, false);
         char who[13];
         snprintf(who, sizeof(who), "%.12s", names[d]);
@@ -4417,6 +4433,22 @@ void botcorps_host_hunt(uint8_t *buf)
     s_color = 0;
     s_act = 0;
     s_act_dev = 2;
+    s_info_dev = -1;
+    s_bus_t0 = 1000;
+    paint_ext(Gfx());
+}
+
+void botcorps_host_list(uint8_t *buf)
+{
+    host_frame = buf;
+    memset(buf, PAL_FIELD, 320u * 240u);
+    s_screen = SCR_WIFI_LIST;
+    botcorps_lut_term(false);
+    s_sheet = false;
+    s_cursor = 2;
+    s_color = 0;
+    s_act = -1;
+    s_act_dev = -1;
     s_info_dev = -1;
     s_bus_t0 = 1000;
     paint_ext(Gfx());

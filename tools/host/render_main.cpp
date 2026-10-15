@@ -87,6 +87,7 @@ int main(void)
 {
     static uint8_t term[320 * 240];
     static uint8_t hunt[320 * 240];
+    static uint8_t list[320 * 240];
     static uint8_t idle[320 * 240];
     static uint8_t bus[320 * 240];
     static uint8_t amber[320 * 240];
@@ -106,6 +107,9 @@ int main(void)
     botcorps_host_hunt(hunt);
     const int hunt_lut = host_term_lut;
     write_raw("/tmp/hunt.rgb", hunt, hunt_lut);
+    botcorps_host_list(list);
+    const int list_lut = host_term_lut;
+    write_raw("/tmp/list.rgb", list, list_lut);
     botcorps_host_bus(bus);
     const int bus_lut = host_term_lut;
     write_raw("/tmp/bus.rgb", bus, bus_lut);
@@ -137,10 +141,10 @@ int main(void)
     /* Tab-open sheet rect at s_sheet_i=2: x=14..306, y=104..222.
      * Override pixels outside that rect must be 0. Frames with no
      * sheet count the whole 320x240. */
-    const int frames_n = 6;
-    const char *names[] = { "tab-open", "idle", "amber", "hunt", "gibson", "botscan" };
-    const uint8_t *frames[] = { term, idle, amber, hunt, bus, bots };
-    const int sheet_on[] = { 1, 0, 1, 0, 0, 0 };
+    const int frames_n = 7;
+    const char *names[] = { "tab-open", "idle", "amber", "hunt", "list", "gibson", "botscan" };
+    const uint8_t *frames[] = { term, idle, amber, hunt, list, bus, bots };
+    const int sheet_on[] = { 1, 0, 1, 0, 0, 0, 0 };
     for (int f = 0; f < frames_n; ++f) {
         int out = 0;
         int by_code[17];

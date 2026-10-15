@@ -4961,6 +4961,10 @@ enum { K_NONE = 0, K_UP = 1, K_DN = 2, K_LT = 3, K_RT = 4, K_OK = 5, K_ESC = 6, 
 static int read_key(char *typed)
 {
     *typed = 0;
+#ifdef BOTCORPS_CYD
+    // Touch handled separately; no physical keyboard by default.
+    return K_NONE;
+#else
     if (!M5Cardputer.Keyboard.isChange()) return K_NONE;
     if (!M5Cardputer.Keyboard.isPressed()) return K_NONE;
     const auto &st = M5Cardputer.Keyboard.keysState();
@@ -4994,6 +4998,7 @@ static int read_key(char *typed)
         }
     }
     return K_NONE;
+#endif
 }
 
 void botcorps_ui_mark_dirty(void)

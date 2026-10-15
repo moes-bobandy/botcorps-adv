@@ -4,6 +4,7 @@
  * A screen change, and an overlay opening or closing, fills the panel
  * before the new chrome is drawn.
  */
+#include "ui/botcorps_frame_cfg.h"
 #ifdef BOTCORPS_HOST_RENDER
 #include "host_shim.h"
 #else
@@ -1985,21 +1986,41 @@ static int bus_dev_s(int L)
     return s;
 }
 
-/* On the spoke, outward of the hub rest, short of the rim. No screen clamp.
- * The three top spokes are staggered so their chips are not one tight row. */
+/* Top row level at y=55 (86-31). Bottom row level at y=180 (148+32).
+ * Side spokes stay at two thirds. No screen-edge clamp. */
 static int bus_dock(const bus_pt *p, int n, int L, int lane)
 {
     (void)p;
     (void)n;
     int dock = (L * 2) / 3;
-    if (lane >= 6 && lane <= 8) dock = 22 + (lane - 6) * 12;
+    if (lane >= 6 && lane <= 8) dock = 31;
+    else if (lane >= 9 && lane <= 11) dock = 32;
     if (dock > L - 8) dock = L - 8;
     if (dock < 18) dock = 18;
     return dock;
 }
 
-static int bus_scout_s(int L, uint32_t t, int lane, int period)
+/* Scan: 7000 ms. Out to 11 px short of the chip, wait, back to the hub.
+ * Radar keeps the older t/16 sweep. */
+static int bus_scout_s(int L, uint32_t t, int lane, int period, int dock, int dmax)
 {
+    if (period >= 7000) {
+        int tgt = dock - 11;
+        if (tgt < 8) tgt = 8;
+        if (dmax < 1) dmax = 1;
+        int l = (int)(t % 7000u) - lane * 140;
+        int to = 420 + (2100 * (tgt - 8)) / dmax;
+        if (to < 1) to = 1;
+        const int dw = 350;
+        int s = 8;
+        if (l >= 0 && l < to) s = 8 + (tgt - 8) * l / to;
+        else if (l >= to && l < to + dw) s = tgt;
+        else if (l >= to + dw && l < to + dw + to)
+            s = tgt - (tgt - 8) * (l - to - dw) / to;
+        if (s > tgt) s = tgt;
+        if (s < 8) s = 8;
+        return s;
+    }
     if (period < 2) period = 2;
     const uint32_t phase = (t / 16u + (uint32_t)lane * 37u) % (uint32_t)period;
     const int half = period / 2;
@@ -2009,6 +2030,7 @@ static int bus_scout_s(int L, uint32_t t, int lane, int period)
     return 8 + span * u / half;
 }
 
+#if BOTCORPS_FRAME_MODE == FRAME
 static bool box_hit(int ax, int ay, int aw, int ah, int bx, int by, int bw, int bh)
 {
     return ax < bx + bw && bx < ax + aw && ay < by + bh && by < ay + ah;
@@ -2021,6 +2043,7 @@ static void scout_box(int cx, int cy, int *x, int *y, int *w, int *h)
     *w = 9;
     *h = 9;
 }
+#endif
 
 /* Ten device icons from the v3.2 set. Colours are existing slots. */
 enum {
@@ -2162,26 +2185,35 @@ static void bus_paint(Gfx g, bool radar, bool wifi, int shown, int sel)
     }
     /* Gibson only on the Gibson scan. A bot scan keeps that bot's sprite. */
     scan_die(g, 160, 117, s_screen == SCR_SCAN);
+    int docks[12];
+    int dmax = 1;
+    for (int i = 0; i < 12; ++i) {
+        const int L = bus_len(tab[i], BUS_N[i]);
+        docks[i] = bus_dock(tab[i], BUS_N[i], L, i);
+        int tgt = docks[i] - 11;
+        if (tgt < 8) tgt = 8;
+        int span = tgt - 8;
+        if (span > dmax) dmax = span;
+    }
     for (int i = 0; i < 12; ++i) {
         const int L = bus_len(tab[i], BUS_N[i]);
         int x = 0;
         int y = 0;
-        int s = bus_scout_s(L, t, i, period);
-        int sp = bus_scout_s(L, t >= 16u ? t - 16u : 0u, i, period);
-        int px = 0;
-        int py = 0;
-        bus_at(tab[i], BUS_N[i], sp, &px, &py);
+        const int s = bus_scout_s(L, t, i, period, docks[i], dmax);
         bus_at(tab[i], BUS_N[i], s, &x, &y);
+#if BOTCORPS_FRAME_MODE == FRAME
         if (!radar) {
+            const int sp = bus_scout_s(L, t >= 16u ? t - 16u : 0u, i, period, docks[i], dmax);
+            int px = 0;
+            int py = 0;
+            bus_at(tab[i], BUS_N[i], sp, &px, &py);
             int ex = 0;
             int ey = 0;
             int ew = 0;
             int eh = 0;
             scout_box(px, py, &ex, &ey, &ew, &eh);
-            /* Erase the previous scout even when that rect sits in a chip. */
             g.fillRect(ex, ey, ew, eh, PAL_DEEP);
-            const int trL = L;
-            for (int u = 0; u <= trL; ++u) {
+            for (int u = 0; u <= L; ++u) {
                 int tx = 0;
                 int ty = 0;
                 bus_at(tab[i], BUS_N[i], u, &tx, &ty);
@@ -2191,10 +2223,9 @@ static void bus_paint(Gfx g, bool radar, bool wifi, int shown, int sel)
             }
             if (box_hit(ex, ey, ew, eh, 132, 89, 56, 56)) scan_die(g, 160, 117, true);
             for (int d = 0; d < SCAN_N; ++d) {
-                const int cL = bus_len(tab[d], BUS_N[d]);
                 int cx = 0;
                 int cy = 0;
-                bus_at(tab[d], BUS_N[d], bus_dock(tab[d], BUS_N[d], cL, d), &cx, &cy);
+                bus_at(tab[d], BUS_N[d], docks[d], &cx, &cy);
                 const int co = (d == sel) ? 8 : 7;
                 const int cw = (d == sel) ? 16 : 14;
                 if (!box_hit(ex, ey, ew, eh, cx - co, cy - co, cw, cw)) continue;
@@ -2203,23 +2234,8 @@ static void bus_paint(Gfx g, bool radar, bool wifi, int shown, int sel)
                 dev_icon(g, SCAN_TYPE[d], cx - 6, cy - 6, false);
                 if (d == sel) g.drawRect(cx - 8, cy - 8, 16, 16, ac);
             }
-            int nx = 0;
-            int ny = 0;
-            int nw = 0;
-            int nh = 0;
-            scout_box(x, y, &nx, &ny, &nw, &nh);
-            bool cover = false;
-            for (int d = 0; d < SCAN_N && !cover; ++d) {
-                const int cL = bus_len(tab[d], BUS_N[d]);
-                int cx = 0;
-                int cy = 0;
-                bus_at(tab[d], BUS_N[d], bus_dock(tab[d], BUS_N[d], cL, d), &cx, &cy);
-                const int co = (d == sel) ? 8 : 7;
-                const int cw = (d == sel) ? 16 : 14;
-                cover = box_hit(nx, ny, nw, nh, cx - co, cy - co, cw, cw);
-            }
-            if (cover) continue;
         }
+#endif
         draw_blob(g, x, y, 1, bot_color(i), botcorps_shape_for(i), false);
     }
     if (!radar && sel >= 0 && sel < SCAN_N) {
@@ -2385,10 +2401,11 @@ static void paint_act_menu(Gfx g)
     for (int j = 0; j < ACT_N; ++j) {
         const int yy = my + 3 + j * 15;
         const bool on = j == s_act;
-        const uint8_t bg = on ? wire : (uint8_t)COL_BG;
+        /* PAL_LINE fill. Bar is shared slot 151, the word nearest #8ab4d8. */
+        const uint8_t bg = on ? (uint8_t)PAL_LINE : (uint8_t)COL_BG;
         if (on) {
-            g.fillRect(mx + 4, yy, 86, 14, wire);
-            g.fillRect(mx + 2, yy, 2, 14, accent());
+            g.fillRect(mx + 4, yy, 86, 14, PAL_LINE);
+            g.fillRect(mx + 2, yy, 2, 14, (uint8_t)151);
         }
         blit_ico(g, ACT_ICO[j], mx + 8, yy + 3, on ? COL_WHITE : accent());
         const char *lab = ACT_NAME[j];
@@ -2487,7 +2504,12 @@ static void paint_dev_list(Gfx g, bool wifi)
         const int y = y0 + d * rh;
         const bool on = d == sel;
         g.fillRect(8, y, 304, rh - 1, (uint8_t)((d & 1) ? PAL_BG : PAL_FIELD));
-        if (on) g.drawRect(8, y, 304, rh - 1, ac);
+        if (on) {
+            g.fillRect(10, y + 1, 302, 14, PAL_SEL);
+            g.fillRect(8, y, 304, 1, PAL_STEEL);
+            g.fillRect(8, y + 15, 304, 1, PAL_STEEL);
+            g.fillRect(8, y + 1, 2, 14, ac);
+        }
         dev_icon(g, types[d], 13, y + 2, false);
         char who[13];
         snprintf(who, sizeof(who), "%.12s", names[d]);

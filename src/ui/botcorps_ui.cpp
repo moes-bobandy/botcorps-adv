@@ -1750,6 +1750,26 @@ static void paint_sheet(Gfx g)
     g.fillRect(bx + 3, y1 - 3, w - 5, 1, PAL_TERM_M18);
     g.fillRect(x1 - 6, y1 - 4, 1, 1, PAL_TERM_M10);
     g.fillRect(bx + 5, y1 - 5, w - 9, 1, PAL_TERM_M10);
+    /* Inner halo on pixels the ramp does not own. Corners, the 6px
+     * ramp, the rules, and the CORE column stay as painted above. */
+    {
+        int hdr0 = -1;
+        int cmd0 = 0;
+        menu_row(top, &hdr0, &cmd0);
+        if (hdr0 >= 0)
+            g.fillRect(bx + 40, by + 6, w - 70, 3, PAL_TERM_M10);
+        for (int r = 0; r < nshow; ++r) {
+            int hdr = -1;
+            int cmd = 0;
+            menu_row(top + r, &hdr, &cmd);
+            if (hdr >= 0) continue;
+            const int y = by + 5 + r * rh;
+            g.fillRect(bx + 6, y, 2, rh - 1, PAL_TERM_M10);
+            g.fillRect(x1 - 6, y, 1, rh - 1, PAL_TERM_M10);
+        }
+        g.fillRect(bx + 8, y1 - 6, w - 16, 1, PAL_TERM_M10);
+        g.fillRect(bx + 8, y1 - 7, w - 28, 1, PAL_TERM_M10);
+    }
     /* g. Selected row clips the ramp on that row. The bar stays whole. */
     for (int r = 0; r < nshow; ++r) {
         int hdr = -1;
@@ -1910,14 +1930,13 @@ static void paint_prompt(Gfx g)
     g.fillRect(4, 168, 312, 68, PAL_BLACK);
     /* Idle keeps the 170 hairline. The magenta glow is the crew-sweep
      * log only, and only while the Tab sheet is closed. */
-    bool sweep = false;
-    if (!s_sheet) {
-        for (int i = 0; i < s_log_n; ++i) {
-            const char *ln = log_line(i);
-            if (ln && ln[0] == '\x01') ln += 2;
-            if (ln && strstr(ln, "crew sweep")) { sweep = true; break; }
-        }
+    bool sweep_log = false;
+    for (int i = 0; i < s_log_n; ++i) {
+        const char *ln = log_line(i);
+        if (ln && ln[0] == '\x01') ln += 2;
+        if (ln && strstr(ln, "crew sweep")) { sweep_log = true; break; }
     }
+    const bool sweep = sweep_log && !s_sheet;
     if (!sweep) {
         const bool pulse = s_mood_until != 0 && (int32_t)(millis() - s_mood_until) < 0;
         g.fillRect(4, 167, 312, 1, pulse ? accent() : (uint8_t)170);
@@ -1926,7 +1945,9 @@ static void paint_prompt(Gfx g)
         const int span = 46;
         int sy = 171 + (int)((millis() / 28u) % (uint32_t)span);
         if (sy > 223) sy = 223;
-        g.fillRect(8, sy, 248, 1, (s_color == 1) ? (uint8_t)PAL_WIRE_A
+        const int sx = sweep ? 18 : 8;
+        const int sw = sweep ? 230 : 248;
+        g.fillRect(sx, sy, sw, 1, (s_color == 1) ? (uint8_t)PAL_WIRE_A
                                        : (s_color == 2) ? (uint8_t)PAL_WIRE_M
                                                         : (uint8_t)PAL_WIRE_C);
     }
@@ -1937,6 +1958,7 @@ static void paint_prompt(Gfx g)
     }
     const int n = s_log_n < 6 ? s_log_n : 6;
     const int start = s_log_n - n;
+    const int lx = sweep ? 20 : (s_sheet && sweep_log) ? 16 : 10;
     for (int k = 0; k < n; ++k) {
         const char *ln = log_line(start + k);
         const int ly = 171 + k * 8;
@@ -1954,13 +1976,13 @@ static void paint_prompt(Gfx g)
                 if (tn > 11) tn = 11;
                 for (int i = 0; i < tn; ++i) tag[i] = ln[i];
                 tag[tn] = 0;
-                txt_bg(g, tag, 10, ly, (uint8_t)PAL_OK, PAL_BLACK, lgfx::textdatum::top_left);
-                if (rb[1]) txt_bg(g, rb + 1, 10 + tn * 6, ly, COL_INK, PAL_BLACK,
+                txt_bg(g, tag, lx, ly, (uint8_t)PAL_OK, PAL_BLACK, lgfx::textdatum::top_left);
+                if (rb[1]) txt_bg(g, rb + 1, lx + tn * 6, ly, COL_INK, PAL_BLACK,
                                   lgfx::textdatum::top_left);
                 continue;
             }
         }
-        txt_bg(g, show, 10, ly, ink, PAL_BLACK, lgfx::textdatum::top_left);
+        txt_bg(g, show, lx, ly, ink, PAL_BLACK, lgfx::textdatum::top_left);
     }
     const int y = PROMPT_Y;
     s_px = 6;
@@ -1994,30 +2016,32 @@ static void paint_prompt(Gfx g)
     /* Companion box, bottom right. Shared slots. The sheet covers what it overlaps.
      * On a crew sweep the box stays inside the log glow, above the prompt. */
     {
-        const int bx = 274;
+        const int bx = sweep ? 268 : 274;
         const int by = 174;
-        const int bh = sweep ? 45 : 60;
-        const int chin = sweep ? 36 : 48;
-        const int blob = sweep ? 22 : 30;
+        const int bw = sweep ? 32 : 38;
+        const int bh = sweep ? 44 : 60;
+        const int chin = sweep ? 34 : 48;
+        const int blob = sweep ? 20 : 30;
         const uint8_t edge = (s_color == 1) ? (uint8_t)PAL_WIRE_A
                              : (s_color == 2) ? (uint8_t)PAL_WIRE_M : (uint8_t)PAL_WIRE_C;
-        g.fillRect(bx, by, 38, bh, PAL_BG);
-        g.fillRect(bx, by, 38, 1, edge);
-        g.fillRect(bx, by + bh - 1, 38, 1, COL_LINE);
+        g.fillRect(bx, by, bw, bh, PAL_BG);
+        g.fillRect(bx, by, bw, 1, edge);
+        g.fillRect(bx, by + bh - 1, bw, 1, COL_LINE);
         g.fillRect(bx, by, 1, bh, COL_LINE);
-        g.fillRect(bx + 37, by, 1, bh, COL_LINE);
+        g.fillRect(bx + bw - 1, by, 1, bh, COL_LINE);
         const int bot = s_term >= 0 && s_term <= 11 ? s_term : 0;
         draw_blob(g, bx + 19, by + blob, 2, bot_color(bot), 0, false);
         g.fillRect(bx + 9, by + chin, 20, 1, edge);
     }
     if (sweep) {
-        /* mixE2FF falloff, outer dim to a hot magenta wire.
-         * Bottom pixel is y=223. The prompt at y=227 stays outside.
-         * Shared slots only, so this is not a sheet override. */
-        g.drawRect(4, 167, 312, 57, 69);
-        g.drawRect(5, 168, 310, 55, PAL_SOLID_P);
-        g.drawRect(6, 169, 308, 53, PAL_R_E2FF);
-        g.drawRect(7, 170, 306, 51, PAL_R_E2FF);
+        /* Same magenta as the sheet edge, hot wire then two inward steps.
+         * Every pixel stays inside x14..306, y167..222. Prompt is y=227. */
+        botcorps_lut_term(true);
+        g.drawRect(14, 167, 293, 56, PAL_TERM_M);
+        g.drawRect(15, 168, 291, 54, PAL_TERM_M35);
+        g.drawRect(16, 169, 289, 52, PAL_TERM_M22);
+    } else if (!s_sheet) {
+        botcorps_lut_term(false);
     }
     s_px = keep;
 }

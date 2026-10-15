@@ -1222,7 +1222,8 @@ static void paint_one_board(Gfx g, int i, bool sel, bool dim)
         g.fillRect(x + 12, y + 2, 1, 1, m);
     }
     const int bob = sel ? -((int)((t / 450u) % 2u)) : 0;
-    hub_gibson(g, x + 36, y + 24 + bob, 2);
+    draw_blob(g, x + 36, y + 25 + bob, 2, bot_color(i), botcorps_shape_for(i),
+              sel && sprite_blink(i));
     const int st = BOTS[i].st;
     const bool on = st != 0 || ((t / 700u + (uint32_t)i) % 4u) != 0u;
     uint8_t ledc = led;
@@ -1622,7 +1623,9 @@ static void paint_sheet(Gfx g)
         const uint8_t name_c = on ? ink : (uint8_t)PAL_TERM_INK;
         if (on) txt_bg(g, CMDN[cmd], bx + 25, y + 1, name_c, bg, lgfx::textdatum::top_left);
         txt_bg(g, CMDN[cmd], bx + 24, y + 1, name_c, bg, lgfx::textdatum::top_left);
-        draw_purpose(g, CMDP[cmd], bx + w - 8, y + 1, on ? ink : ac, bg);
+        const uint8_t pur = (s_color == 1) ? (uint8_t)PAL_AMBER
+                             : (s_color == 2) ? (uint8_t)PAL_MINT : (uint8_t)PAL_TERM_C;
+        draw_purpose(g, CMDP[cmd], bx + w - 8, y + 1, on ? ink : pur, bg);
     }
     s_px = keep;
 }
@@ -2000,19 +2003,22 @@ static void scan_die(Gfx g, int cx, int cy, bool gibson)
         g.fillRect(x + i, y + s - 4, 2, 5, PAL_STEEL);
     }
     g.fillRect(x + 7, y + 7, 2, 2, PAL_IVORY);
-    int bot = 0;
-    uint8_t col = PAL_IVORY;
-    int shape = BOTCORPS_SHAPE_ROUND;
-    if (!gibson) {
-        if (s_screen == SCR_BT_RADAR) bot = 1;
-        else if (s_screen == SCR_WIFI_RADAR) bot = 0;
-        else bot = s_bot;
-        if (bot < 0) bot = 0;
-        if (bot > 11) bot = 11;
-        col = bot_color(bot);
-        shape = botcorps_shape_for(bot);
+    if (gibson) {
+        /* 7px source. Scale 5 is 35px; the chin stays inside a 7px margin. */
+        hub_gibson(g, cx, cy, 5);
+        return;
     }
-    draw_blob(g, cx, cy, 6, col, shape, false);
+    int bot = s_bot;
+    if (s_screen == SCR_BT_RADAR) bot = 1;
+    else if (s_screen == SCR_WIFI_RADAR) bot = 0;
+    if (bot < 0) bot = 0;
+    if (bot > 11) bot = 11;
+    const int shape = botcorps_shape_for(bot);
+    static const int sw[4] = { 7, 9, 7, 5 };
+    static const int sh[4] = { 7, 6, 9, 5 };
+    int sc = 1;
+    while ((sc + 1) * sw[shape] <= 42 && (sc + 1) * sh[shape] <= 42) ++sc;
+    draw_blob(g, cx, cy, sc, bot_color(bot), shape, false);
 }
 
 /* Non-circular bus. radar=false is the Gibson scan (extBus). 0 B heap. */
@@ -2044,7 +2050,10 @@ static void bus_paint(Gfx g, bool radar, bool wifi, int shown, int sel)
             const int typ = wifi ? NEAR_WIFI_T[d] : NEAR_BLE_T[d];
             bus_at(tab[lane], BUS_N[lane], bus_dev_s(L), &x, &y);
             dev_icon(g, typ, x - 6, y - 6, false);
-            if (d == sel) g.drawRect(x - 7, y - 7, 14, 14, ac);
+            const int pulse = 9 + (int)((t / 180u + (uint32_t)d) % 3u);
+            g.drawCircle(x, y, pulse, spoke_glow);
+            g.drawCircle(x, y, 8, spoke);
+            if (d == sel) g.drawRect(x - 9, y - 9, 18, 18, spoke);
         }
     } else {
         for (int d = 0; d < SCAN_N; ++d) {
@@ -2316,8 +2325,14 @@ static void paint_dev_list(Gfx g, bool wifi)
                                : (s_color == 2) ? (uint8_t)PAL_WASH_M : (uint8_t)PAL_WASH_C;
         g.fillRect(8, y, 304, rh - 1, on ? dimbar : (uint8_t)((d & 1) ? PAL_BG : PAL_FIELD));
         dev_icon(g, types[d], 13, y + 2, false);
-        txt(g, names[d], 28, y + 4, on ? (uint8_t)COL_WHITE : (uint8_t)COL_INK, lgfx::textdatum::top_left);
-        txt(g, macs[d], 106, y + 4, COL_MUTED, lgfx::textdatum::top_left);
+        char who[13];
+        snprintf(who, sizeof(who), "%.12s", names[d]);
+        txt(g, who, 28, y + 4, on ? (uint8_t)COL_WHITE : (uint8_t)COL_INK, lgfx::textdatum::top_left);
+        /* Full MAC is 17 glyphs and runs under the menu. Drop the last
+         * byte and its colon so the cut is on a byte boundary. */
+        char mac[15];
+        snprintf(mac, sizeof(mac), "%.14s", macs[d]);
+        txt(g, mac, 116, y + 4, COL_MUTED, lgfx::textdatum::top_left);
         txt(g, rssi[d], 222, y + 4, ac, lgfx::textdatum::top_left);
         char chs[8];
         snprintf(chs, sizeof(chs), "ch%02d", ch[d]);
@@ -4325,7 +4340,7 @@ void botcorps_host_bus(uint8_t *buf)
 {
     host_frame = buf;
     memset(buf, PAL_FIELD, 320u * 240u);
-    s_screen = SCR_WIFI_LIST;
+    s_screen = SCR_SCAN;
     botcorps_lut_term(false);
     s_sheet = false;
     s_cursor = 0;
@@ -4333,22 +4348,27 @@ void botcorps_host_bus(uint8_t *buf)
     s_act = -1;
     s_act_dev = -1;
     s_info_dev = -1;
-    s_bus_t0 = 1000;
-    paint_bus_scan(Gfx(), true);
+    s_bus_t0 = millis() - 4000u;
+    paint_radar(Gfx(), false);
 }
 
-void botcorps_host_botscan(uint8_t *buf)
+void botcorps_host_botscan_n(uint8_t *buf, int bot)
 {
     host_frame = buf;
     memset(buf, PAL_FIELD, 320u * 240u);
     s_screen = SCR_BOT_RADAR;
-    s_bot = 2;
+    s_bot = bot;
     s_color = 0;
     s_sheet = false;
     botcorps_lut_term(false);
     s_cursor = 0;
-    s_bus_t0 = 1000;
+    s_bus_t0 = millis() - 4000u;
     paint_radar(Gfx(), false);
+}
+
+void botcorps_host_botscan(uint8_t *buf)
+{
+    botcorps_host_botscan_n(buf, 2);
 }
 
 void botcorps_host_amber(uint8_t *buf)

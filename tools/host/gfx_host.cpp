@@ -224,21 +224,34 @@ uint16_t botcorps_pal_native(uint8_t idx)
 }
 
 static void touch_native(uint8_t c) { (void)botcorps_pal_native(c); }
-void botcorps_sprite_draw(lgfx::v1::LovyanGFX &, int x, int y, int, int scale, uint8_t color, bool blink)
+/* Same bitmaps as src/ui/botcorps_sprite.cpp. 1 body, 2 eye. */
+static const int SPR_W[4] = { 7, 9, 7, 5 };
+static const int SPR_H[4] = { 7, 6, 9, 5 };
+static const char *const SPR_ROW[4][9] = {
+    { "...1...", ".11111.", "1111111", "1221221", "1221221", "1111111", ".11111." },
+    { "....1....", ".1111111.", "112211221", "112211221", "111111111", ".1111111." },
+    { "...1...", "1111111", "1221221", "1221221", "1111111", ".11111.", ".11111.", ".11.11.", ".11.11." },
+    { "11111", "12121", "11111", "11111", "11111" },
+};
+
+void botcorps_sprite_draw(lgfx::v1::LovyanGFX &, int x, int y, int shape, int scale, uint8_t color, bool blink)
 {
+    if (shape < 0 || shape > 3) shape = 0;
     const int s = scale < 1 ? 1 : scale;
-    const int ox = x - 3 * s;
-    const int oy = y - 3 * s;
-    for (int yy = 0; yy < 7 * s; ++yy)
-        for (int xx = 0; xx < 7 * s; ++xx) {
-            const int cx = xx - 3 * s;
-            const int cy = yy - 3 * s;
-            if (cx * cx + cy * cy > (3 * s) * (3 * s)) continue;
-            put_px(ox + xx, oy + yy, color);
+    const int w = SPR_W[shape];
+    const int h = SPR_H[shape];
+    const int ox = x - (w * s) / 2;
+    const int oy = y - (h * s) / 2;
+    for (int row = 0; row < h; ++row) {
+        const char *line = SPR_ROW[shape][row];
+        for (int col = 0; col < w; ++col) {
+            const char v = line[col];
+            if (v != '1' && !(v == '2' && !blink)) continue;
+            const uint8_t ink = (v == '2') ? 36 : color;
+            for (int sy = 0; sy < s; ++sy)
+                for (int sx = 0; sx < s; ++sx)
+                    put_px(ox + col * s + sx, oy + row * s + sy, ink);
         }
-    if (!blink) {
-        fill_raw(x - s, y - s, s, s, 0);
-        fill_raw(x + s, y - s, s, s, 0);
     }
 }
 uint8_t botcorps_pal_hub_of(uint8_t idx) { return idx; }
@@ -246,7 +259,11 @@ void botcorps_rain_set_covers(const botcorps_cover_t *, int, bool) {}
 void botcorps_probe_screen(const char *, const char *) {}
 void botcorps_rain_set_mode(int) {}
 int botcorps_rain_mode(void) { return 0; }
-int botcorps_shape_for(int) { return 0; }
+int botcorps_shape_for(int index)
+{
+    if (index < 0) index = 0;
+    return index % 4;
+}
 void botcorps_rain_set_mix(int) {}
 void botcorps_rain_set_shape(int) {}
 uint8_t botcorps_rain_palette(int) { return 123; }

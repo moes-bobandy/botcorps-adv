@@ -121,6 +121,13 @@ int main(void)
            amber_237, amber_123, amber_213, amber_229);
     botcorps_host_botscan(bots);
     write_raw("/tmp/bots.rgb", bots, host_term_lut);
+    static uint8_t onebot[320 * 240];
+    for (int b = 0; b < 12; ++b) {
+        char path[64];
+        snprintf(path, sizeof(path), "/tmp/bot-%02d.rgb", b);
+        botcorps_host_botscan_n(onebot, b);
+        write_raw(path, onebot, host_term_lut);
+    }
     /* Sheet body is y=104..222, x=14..306. Glow is 4px, so the sheet
      * region counted as inside is x=8..312, y=98..228. */
     const int frames_n = 6;

@@ -1,9 +1,9 @@
 # BOTcorps CYD Touch Port Report
 
 ## Tip SHA
-fd972ea
+96f7b2d
 
-Rebuilt `pio run -e cyd` in this session on the tree at 6b0b2d1 (firmware e040ee7). This commit only records the numbers.
+Interactive mock of the current CYD build: mocks/CYD-current-interactive.html
 Built by: Super Grok session (no Cursor/agent hand-off)
 
 ## Build

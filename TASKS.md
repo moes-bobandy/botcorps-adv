@@ -647,3 +647,46 @@ D. Leave LV as `"LV 01"` until Dirt decides (2). No merge/flash.
 ```
 On grok/cyd-touch-port tip 486e070 (fw still acfc0e3): good call deferring LV and keeping stub honesty. Stop tip-only commits — a commit can't hold its own SHA, so REPORT should cite the Firmware SHA (acfc0e3) and only change when src/ changes. Next real work: (1) XPT2046 touch calibration saved to NVS, tap targets only, no instruction text on screen; (2) real CYD host frame dumps in tools/host (vendor/stub LovyanGFX fonts) so we can check screens against mocks; (3) leave "LV 01" until I decide what LV means. Push only to grok/cyd-touch-port, no merge/flash.
 ```
+
+---
+
+## GIBSONbot review — tip 8708588 / fw 383f368 (2026-10-16 ~6:35 PM ET)
+
+Reviewed on box `/tmp/bca` at `grok/cyd-touch-port` tip `8708588f477c43e974038d1794cbe7ff91076b9e` (last reviewed `757ac0c`). Diff span `757ac0c..8708588`: `src/ui/botcorps_ui.cpp` (+47), `tools/host/lgfx/Fonts/*` (2 stub headers), `tools/host/render_cyd.sh`, `BRIDGE.md`, `builds/cyd/REPORT.md`, mock subtitle. Host type gate **PASS** (`cyd osk table ok keys=42 clip_y=151`; `host cyd type gate passed`). Memory not re-measured on box. Nothing merged or flashed by this watch; only this TASKS note is pushed.
+
+### Commits in this batch
+| SHA | What |
+|-----|------|
+| 383f368 | CYD: XPT2046 cal NVS load/save/map (`tcal=1`); stub LovyanGFX font headers for host |
+| 2249eba | REPORT/BRIDGE cite firmware SHA 383f368 |
+| 0964064 | REPORT/BRIDGE measured RAM 72,092 / flash 1,404,539 / bin 1,404,944 |
+| 8708588 | BRIDGE corrected RAM/flash + tip |
+
+All Super Grok. Branch only.
+
+### MATCH
+1. First real `src/` change in ~9 h (since `acfc0e3`, 9:13 AM ET).
+2. REPORT now cites the **Firmware SHA** (`383f368`) instead of chasing HEAD — closes prior miss 1.
+3. No instruction text added to the 320×240 screen; "LV 01" left alone pending Dirt — correct.
+4. Touch path still one event per press; host typing gate still PASS (typing never fires hotkeys).
+5. Memory delta is tiny (+16 B RAM, +508 B flash, Super Grok-reported); still 22.0% RAM / 44.6% flash.
+6. Honest: no hardware claims, frames still called stubs.
+
+### MISS / fix notes (numbered)
+1. **Double-mapping bug (blocker for cal).** LovyanGFX `getTouch()` already returns *screen* pixels using the `x_min/x_max/y_min/y_max` in `lgfx_cyd.h`. The new `map_touch()` in `read_key` then treats those 0..319 / 0..239 screen coords as raw 300..3900 values and remaps them again. Harmless today (`tcal=0` → no-op), but the moment `tcal=1` is saved every tap collapses to the left/top edge (e.g. screen x=160 → (160−300)·320/3600 → clamped 0). **Fix:** delete `map_touch()` and its call in `read_key`.
+2. **Duplicate calibration store with clashing types.** A loader already existed: `botcorps_cyd_load_touch_cal()` in `src/display/botcorps_display.cpp` (called from `botcorps_dual_begin()` before `g_cyd.begin()`), reading the *same* keys with `getUShort` (`tx0/tx1/ty0/ty1`) and `getUChar` (`tcal`, `trot`) and feeding `g_cyd.apply_touch_cal()`. The new code reads/writes those keys as `getInt/putInt`. ESP32 `Preferences` is type-strict, so a `save_touch_cal()` write (Int32) would be unreadable by the display loader (UShort) → it silently falls back to 300..3900 placeholders. **Fix:** delete `load_touch_cal()` / `save_touch_cal()` / `s_tx0..s_trot` from `botcorps_ui.cpp`; add the save side next to the existing loader in `botcorps_display.cpp` using `putUShort`/`putUChar`, and call `g_cyd.apply_touch_cal()` live after saving.
+3. **Cal still not usable.** `save_touch_cal()` is never called and `s_trot` is never applied; there is no tap-target flow, so `tcal` can never become 1. Item B from the last paste order is still open. **Fix:** build a 4-corner (or 2-corner) tap-target flow on top of the existing loader — crosshair targets only, no instruction text on screen — reading raw values via the XPT2046 raw read (not `getTouch()`, which is already mapped).
+4. **Host frame dumps still not real.** The vendored "fonts" are empty declarations (`struct Font { int id; }`, `extern` only), and `render_cyd.sh` now just prints a message. Nothing renders. Also its check uses a repo-relative path (`tools/host/lgfx/...`) instead of `"$root/tools/host/..."`, so it only works when run from the repo root. Prior miss 5 still open.
+5. **Meta churn continues.** 3 of 4 commits were REPORT/BRIDGE number fixes. Fold doc updates into the code commit.
+6. **Still open from before:** LV meaning (Dirt HOLD), device/glass pass, memory box-verify.
+
+### Next Super Grok paste order
+A. Remove `map_touch` + the duplicate NVS block from `botcorps_ui.cpp` (fixes 1, 2).
+B. Tap-target cal flow using raw XPT2046 reads, saving via a new `botcorps_cyd_save_touch_cal()` beside the existing loader with matching key types, then `apply_touch_cal()` live (fixes 3).
+C. Real host CYD frame dumps (fixes 4).
+D. One commit per round, docs included. LV stays "LV 01". No merge/flash.
+
+### Follow-up one-liner (Dirt → Super Grok)
+```
+On grok/cyd-touch-port tip 8708588 (fw 383f368): good that REPORT cites the fw SHA now, but the touch cal is wrong — getTouch() already returns screen pixels from lgfx_cyd.h's x_min/x_max, so map_touch() double-maps and would pin every tap to the edge once tcal=1, and botcorps_cyd_load_touch_cal() in botcorps_display.cpp already loads the same NVS keys as UShort/UChar while your code uses Int (Preferences is type-strict). Remove map_touch and the duplicate load/save from botcorps_ui.cpp, then add a save function beside the existing loader with matching types plus a tap-target cal flow (raw XPT2046 reads, crosshairs only, no instruction text) that calls apply_touch_cal() live. After that, real host CYD frame dumps. One commit per round, LV stays "LV 01", push only to grok/cyd-touch-port, no merge/flash.
+```

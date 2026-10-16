@@ -1,5 +1,10 @@
 /*
- * BOTcorps boot. CYD single-screen or Adv dual.
+ * BOTcorps boot. Hardware comes up on the rain screen. loop() reads
+ * input and steps the UI. There is no color-fill size probe.
+ *
+ * Adv dual is the active BOTcorps line. CYD is a single-panel port
+ * behind BOTCORPS_CYD. A successful flash is not a field PASS —
+ * nothing here is flashed.
  */
 
 #include "display/botcorps_display.h"
@@ -31,7 +36,7 @@ void setup(void)
     botcorps_band_release();
     botcorps_probe_run();
     botcorps_band_rebuild();
-    botcorps_id_strip_alloc();
+    /* No INT ID-card strip. The compact badge is painted with the terminal. */
     botcorps_ui_mark_dirty();
 
     botcorps_ui_begin();
@@ -53,12 +58,15 @@ void loop(void)
 
 static void park_ir_led(void)
 {
+    /* Cardputer IR LED on GPIO44. HIGH keeps it off. */
     pinMode(44, OUTPUT);
     digitalWrite(44, HIGH);
 }
 
 static void park_sd_cs(void)
 {
+    /* After M5Cardputer.begin(), before EXT begin. GPIO12 only.
+     * SD is not mounted at boot; a floating card can answer SPI3. */
     pinMode(BOTCORPS_PIN_SD_CS, OUTPUT);
     digitalWrite(BOTCORPS_PIN_SD_CS, HIGH);
 }
@@ -72,9 +80,14 @@ void setup(void)
 
     auto cfg = M5.config();
     M5Cardputer.begin(cfg, true);
+    /* Adv keyboard is TCA8418 on I2C. Forcing that reader keeps a
+     * missed autodetect from taking G3–G7 as a GPIO matrix. Those
+     * pins are the external panel on a dual build. */
     M5Cardputer.Keyboard.begin(std::make_unique<TCA8418KeyboardReader>());
     park_ir_led();
 
+    /* Internal ST7789, landscape, keyboard at the bottom. Do not
+     * change color depth — M5GFX already set RGB565 at boot. */
     M5Cardputer.Display.setRotation(1);
 
     const auto board = M5.getBoard();
@@ -103,6 +116,8 @@ void setup(void)
     Serial.printf("[botcorps] dual_flag=%d ext_ok=%d sd=0\n",
                   BOTCORPS_DUAL_SCREEN, ext ? 1 : 0);
     Serial.println("[botcorps] pins SCK40 MOSI14 CS5 DC6 RST3 SD_CS12 SPI3");
+    Serial.println("[botcorps] cap: LoRa1262 NSS/RST/BUSY G5/G3/G6 and Hydra-on-G5 cannot share this panel");
+    Serial.println("[botcorps] sd mount is on demand, not at boot");
 
     botcorps_band_touch();
     botcorps_frame_diag();
@@ -112,6 +127,8 @@ void setup(void)
     botcorps_id_strip_alloc();
     botcorps_ui_mark_dirty();
 
+    /* Rain boot is the first real screen. loop() owns keys and rain.
+     * The name bar is painted by the UI on the internal panel. */
     botcorps_ui_begin();
     botcorps_probe_screen("-", "rain");
     botcorps_ui_draw();

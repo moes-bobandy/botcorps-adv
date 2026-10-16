@@ -153,5 +153,34 @@ bool botcorps_dual_begin(void)
 
 #ifdef BOTCORPS_CYD
 #include "display/lgfx_cyd.h"
+#include <Preferences.h>
+
 Botcorps_LGFX_CYD g_cyd;
+
+void botcorps_cyd_load_touch_cal(void)
+{
+    /* Placeholders until a device pass writes a measured range.
+     * Namespace matches the rain color store. Read-only here. */
+    uint16_t xmin = 300;
+    uint16_t xmax = 3900;
+    uint16_t ymin = 300;
+    uint16_t ymax = 3900;
+    uint8_t rot = 1;
+    Preferences prefs;
+    if (prefs.begin("botcorps", true)) {
+        if (prefs.getUChar("tcal", 0) == 1) {
+            xmin = prefs.getUShort("tx0", xmin);
+            xmax = prefs.getUShort("tx1", xmax);
+            ymin = prefs.getUShort("ty0", ymin);
+            ymax = prefs.getUShort("ty1", ymax);
+            rot = prefs.getUChar("trot", rot);
+        }
+        prefs.end();
+    }
+    g_cyd.apply_touch_cal(xmin, xmax, ymin, ymax, rot);
+    Serial.printf("[botcorps] touch cal x=%u..%u y=%u..%u rot=%u %s\n",
+                  (unsigned)xmin, (unsigned)xmax, (unsigned)ymin, (unsigned)ymax,
+                  (unsigned)rot,
+                  (xmin == 300 && xmax == 3900) ? "placeholder" : "nvs");
+}
 #endif

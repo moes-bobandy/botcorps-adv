@@ -1,45 +1,41 @@
 # BOTcorps CYD Touch Port Report
 
 ## Tip SHA
-f94e599
+Filled by the commit that lands these fixes on top of 9da133b. Read `git rev-parse HEAD` on `grok/cyd-touch-port`.
 
 ## Build
 - Environment: `cyd`
-- Board: ESP32 Dev Module (ESP32-2432S028 CYD)
-- Display: ILI9341 320x240 via LovyanGFX
-- Touch: XPT2046 (calibration placeholders 300..3900; NVS storage pending)
+- Board: ESP32 Dev Module (ESP32-2432S028)
+- Display: ILI9341 320x240, LovyanGFX, 4-wire SPI (MISO 12, `spi_3wire=false`)
+- Touch: XPT2046. Range 300..3900 is a placeholder. `offset_rotation` defaults to 1 to match `setRotation(1)`. NVS namespace `botcorps` keys `tcal`, `tx0`, `tx1`, `ty0`, `ty1`, `trot` override it when `tcal=1`. Not measured on a device.
+- Frame buffer: BANDS (320x120)
 - Partition: huge_app.csv
+- Built with `pio run -e cyd` from this tree. Nothing flashed.
 
 ## Memory
-- RAM: ~72 KB used / 327 KB (≈22%)
-- Flash: ~1.40 MB (fits huge_app)
+- RAM: 72,076 / 327,680 bytes (22.0%)
+- Flash: 1,387,979 / 3,145,728 bytes (44.1%)
+- Image stays in `.pio/build/cyd/firmware.bin`. It is not tracked.
 
-## Screens
-Single 320x240 surface. Adv drawing paths reused where possible.
-- SCR_RAIN (boot / intro)
-- SCR_GIBSON
-- SCR_TERMINAL
-- Wi-Fi / BLE lists, radars
-- Bot screens
-- Compact ID badge (right-hand region) — full INT card skipped on CYD
+## What is actually done
+- Compact ID badge in the terminal companion slot, (274, 174), 42x60. Round glyph, short name, `LV 01`, that bot's palette color. The box does not move or mirror. Full `paint_int` / `botcorps_id_tick` are not called on CYD, and the INT strip sprite is not allocated. The badge is redrawn when the selected bot changes, not every loop. This replaces the top-right "BOT"/"LV" stub.
+- `s_int_dirty` is cleared on CYD.
+- On-screen keyboard uses one rect table (`src/ui/botcorps_cyd_osk.h`): 15px rows from y=165, 30px columns from x=8. SPACE, BKSP, ENTER, TAB, SYM, and HIDE are real filled keys (palette inks). Paint and hit-test share the table. Paint runs when the keyboard opens or the buffer/layer changes. EXT band pushes stop at y=151 while it is open, and the rows are pushed again when it closes.
+- Touch fires once per press (~50 ms). A board tile or icon focuses on the first tap and selects on the second. Crown opens the Gibson hub. RX closes the sheet or the keyboard. A sheet row runs the command, or arms an argument and opens the keyboard. A group header jumps to that group. Arrow taps step the sheet. Top-left is back off the terminal and the rain screen. There is no blanket `K_OK`.
+- Palette `botcorps_pal_ids_ok()` is constexpr without a loop, so the `static_assert` holds under gnu++11 and gnu++17. The CYD env also drops `-std=gnu++11`.
+- `builds/cyd/botcorps-cyd.bin` is untracked.
+- Typing goes through `on_char` only. `botcorps_host_type_letters()` is the UI hook. `tools/host/cyd_osk_test.cpp` checks the key table (`g++ -std=gnu++17`).
+- Terminal bot replies use `log_add_bot` (`\x01` plus the bot index) and `bot_color`. The user prompt plate is palette index 194. Idle boot lines stay `COL_INK`. Not checked on a panel.
+- CYD board silk is only on the focused tile. Adv still labels every tile.
+- Rain stays off on Terminal, both lists, and diag. Boot still uses the full Adv cell rain (gap 6, 54 columns), not the lighter v11 intro (gap 14, every third column skipped).
 
-## Matching / Status (honest)
-- Compact ID badge implemented; full paint_int / id_tick skipped on CYD.
-- OSK uses shared rect table matching paint geometry; real SPACE/BKSP/ENTER/hide; painted only on open/change (not every loop).
-- Touch: focus-then-select on board tiles; top-bar / dropdown / back hit-tests; no blanket K_OK.
-- Palette constexpr assert restored and enabled for CYD.
-- builds/cyd/botcorps-cyd.bin untracked (covered by *.bin).
-- Typing path: OSK → K_CHAR → on_char; hotkey isolation confirmed in code (device verify still needed).
-- Per-bot color path for Terminal replies present (device confirm vs mock).
-- Board labels: focused-tile only (verify on device).
-- Rain: Terminal excluded; intro density vs v11 needs device check.
-- Adv VIEW_MAX / comments restored if previously stripped.
-- NimBLE added to shared deps; Adv envs build check pending.
-- Bus: lgfx_cyd 3-wire vs MISO 12 noted; prefer 4-wire typical for CYD.
-- Optional I2C keyboard not wired.
-- Full visual match to mocks and device flash test still required.
-- Nothing flashed or merged.
+## Not done on a device
+- XPT2046 min/max and rotation are uncalibrated.
+- Visual match to the mocks, including badge size and whether LV should change.
+- Intro rain density versus v11.
+- Adv envs were not rebuilt here. `lib_deps` lists NimBLE-Arduino 2.3.9 once. The CYD link shows that one copy plus LovyanGFX.
+- Optional I2C keyboard is unwired.
+- Host frames do not define `BOTCORPS_CYD`, so they do not paint this badge or keyboard.
 
 ## Build
 `pio run -e cyd`
-Bin (local, not committed): builds/cyd/botcorps-cyd.bin

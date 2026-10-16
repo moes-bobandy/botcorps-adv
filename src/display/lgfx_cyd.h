@@ -21,7 +21,9 @@ public:
             cfg.spi_mode = 0;
             cfg.freq_write = 40000000;
             cfg.freq_read = 16000000;
-            cfg.spi_3wire = true;
+            /* 4-wire. MISO is GPIO12 and the panel is readable.
+             * spi_3wire=true would ignore MISO and fight readable=true. */
+            cfg.spi_3wire = false;
             cfg.use_lock = true;
             cfg.dma_channel = SPI_DMA_CH_AUTO;
             cfg.pin_sclk = 14;
@@ -42,7 +44,10 @@ public:
             cfg.panel_height = 320;
             cfg.offset_x = 0;
             cfg.offset_y = 0;
-            cfg.offset_rotation = 0;
+            /* Match setRotation(1) in botcorps_dual_begin. LovyanGFX adds
+             * this to the touch transform. Confirm on a device; NVS "trot"
+             * overrides it. See botcorps_cyd_load_touch_cal(). */
+            cfg.offset_rotation = 1;
             cfg.dummy_read_pixel = 8;
             cfg.dummy_read_bits = 1;
             cfg.readable = true;
@@ -63,6 +68,8 @@ public:
         }
         {
             auto cfg = _touch.config();
+            /* Uncalibrated placeholders. A stored NVS cal replaces these
+             * before begin(). Do not treat 300..3900 as a measured panel. */
             cfg.x_min = 300;
             cfg.x_max = 3900;
             cfg.y_min = 300;
@@ -80,5 +87,18 @@ public:
             _panel.setTouch(&_touch);
         }
         setPanel(&_panel);
+    }
+
+    /* Call before begin(). Values are the raw XPT2046 range. */
+    void apply_touch_cal(uint16_t xmin, uint16_t xmax, uint16_t ymin, uint16_t ymax,
+                         uint8_t offset_rot)
+    {
+        auto cfg = _touch.config();
+        cfg.x_min = xmin;
+        cfg.x_max = xmax;
+        cfg.y_min = ymin;
+        cfg.y_max = ymax;
+        cfg.offset_rotation = offset_rot;
+        _touch.config(cfg);
     }
 };

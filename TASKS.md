@@ -115,3 +115,12 @@ R5. Clip board/Terminal band pushes so they don't overdraw the badge region (240
 1. R1 + R2 (quick, they block typing and the badge).
 2. R3 + R4 + R5 (finish slice A for real).
 3. Slice C (item 3).
+
+### Closed after tip 9da133b
+R1. OSK cells for BKSP, ENTER, TAB, SYM, and HIDE share `src/ui/botcorps_cyd_osk.h` with paint and hit-test. Space, comma, and period type characters.
+R2. `s_int_dirty` is cleared on CYD before the badge flag is set.
+R3. The badge is patched when the selected bot changes, not on every draw.
+R4. The badge is the terminal companion slot at (274, 174), 42×60: round glyph, short name, `LV 01`, that bot's palette color. It does not mirror. Not the top-right (240, 0) stub.
+R5. EXT band pushes stop at y=151 while the keyboard is open and resume when it closes. The prompt caret clip stops at the badge.
+Slice C. First tap focuses a tile or icon, second selects it. Crown opens the hub, RX closes the sheet or keyboard, a sheet row runs the command, a group header jumps groups, arrow taps step the sheet, top-left is back. No blanket `K_OK`.
+Also: focused-tile silk on CYD, Adv `VIEW_MAX` and boot/SD comments restored, 4-wire CYD bus, touch cal placeholders in NVS, host OSK table test, typing hook `botcorps_host_type_letters()`. `pio run -e cyd` RAM 72,076 flash 1,387,979 BANDS. Nothing flashed or merged. Device checks still open: calibration, intro rain vs v11, glass match.

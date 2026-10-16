@@ -73,6 +73,9 @@ const char *botcorps_band_mode_name(void);
 lgfx::LovyanGFX *botcorps_band_sprite(void);
 /* Draw fn paints world coordinates. The band shifts them. Pushes changed rows. */
 void botcorps_band_present(void (*draw)(Gfx));
+/* Skip pushing world rows at and below y. 240 pushes the whole panel.
+ * Raising the limit dirties those rows so the next present restores them. */
+void botcorps_band_set_push_ymax(int y);
 
 /* Normal-order RGB565 for a named index. Swaps the pre-swapped lut word back. */
 uint16_t botcorps_pal_native(uint8_t idx);

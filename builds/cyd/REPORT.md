@@ -1,7 +1,9 @@
 # BOTcorps CYD Touch Port Report
 
 ## Tip SHA
-Filled by the commit that lands these fixes on top of 9da133b. Read `git rev-parse HEAD` on `grok/cyd-touch-port`.
+d6bc0fefaa7517100ec380c363e6f0f05262cd69
+
+That is the firmware commit on top of 9da133b. A following commit only writes this hash; `git rev-parse HEAD` is the branch tip.
 
 ## Build
 - Environment: `cyd`

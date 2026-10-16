@@ -1,7 +1,7 @@
 # BOTcorps CYD Touch Port Report
 
 ## Tip SHA
-ef62516
+000fca0
 
 Interactive mock of the current CYD build: mocks/CYD-current-interactive.html
 Built by: Super Grok session (no Cursor/agent hand-off)
@@ -56,3 +56,7 @@ Built by: Super Grok session (no Cursor/agent hand-off)
 
 ## Build
 `pio run -e cyd`
+
+## Post-rebase screenshots
+Rendered CYD screens (from host paint path) copied to mocks/shots/cyd/ for review.
+Built by: Super Grok session (no Cursor/agent hand-off)

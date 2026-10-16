@@ -732,3 +732,44 @@ D. Real host frame dumps. One commit per round, docs included, real build number
 ```
 On grok/cyd-touch-port tip 37eee27 (fw 8a1e8db): good — double-map and the type clash are gone and it builds (box: RAM 72076 / flash 1404263). But the cal still can't work: in LovyanGFX the x_min/x_max only become the touch matrix inside touchCalibrate(), which runs once from setTouch() in the constructor, so apply_touch_cal() changing _touch.config() does nothing for x/y — rebuild the matrix after setting cfg (e.g. _panel.setTouch(&_touch) or setTouchCalibrate with the 8 corner values). Also botcorps_cyd_run_touch_cal() has no caller (wire a no-text entry like hold-at-boot or a SYS Terminal "cal" command), the crosshairs sit 20 px in but are saved as screen edges (extrapolate to 0..319/0..239 or use LovyanGFX calibrateTouch), axis/direction/rotation are assumed instead of measured from the taps, and the tap wait needs a timeout. Put real build numbers in BRIDGE. One commit per round, LV stays "LV 01", push only to grok/cyd-touch-port, no merge/flash.
 ```
+
+---
+
+## GIBSONbot review — tip 9b9aca1 / fw 01b9293 (2026-10-16 ~7:45 PM ET)
+
+Reviewed on box `/tmp/bca` at `grok/cyd-touch-port` tip `9b9aca1538a048cc145940265ad22f1214d9b10b` (last reviewed `b437a37`). Diff span `b437a37..9b9aca1`: `src/display/botcorps_display.cpp` (cal flow), `src/display/lgfx_cyd.h` (+3), `src/ui/botcorps_ui.cpp` (+10, `cal` command), `BRIDGE.md`, `builds/cyd/REPORT.md`. Host type gate **PASS** (`cyd osk table ok keys=42 clip_y=151`; `host cyd type gate passed`). **Box build of `env:cyd` at this tip: SUCCESS**, RAM 72,076 / 327,680 (22.0%), flash 1,405,687 / 3,145,728 (44.7%), `firmware.bin` 1,406,096 B (BRIDGE says 1,405,591 / 1,406,000 — 96 B apart, likely build-path strings; fine). Nothing merged or flashed by this watch; only this TASKS note is pushed.
+
+### Commits in this batch
+| SHA | What |
+|-----|------|
+| 01b9293 | CYD: `apply_touch_cal()` now calls `_panel.setTouch(&_touch)`; cal flow gets 15 s per-target timeout, 2 s release cap, inset-to-edge extrapolation; Terminal `cal` command under `#ifdef BOTCORPS_CYD` |
+| 9b9aca1 | REPORT/BRIDGE cite fw 01b9293 + real build numbers |
+
+All Super Grok. Branch only.
+
+### MATCH
+1. Prior fix 1 closed: `setTouch()` in the vendored LovyanGFX (`Panel_Device.inl:402`) runs `touchCalibrate()` → `setCalibrate()`, so the saved x/y range now really rebuilds the touch matrix, both at boot load and right after a cal.
+2. Prior fix 2 closed: the cal flow has a caller (`cal` in `run_cmd`), with no on-screen instruction text (log lines only).
+3. Prior fix 5 mostly closed: tap wait times out after 15 s and returns without saving, so a dead touch or walk-away leaves the old cal alone; release wait is capped at 2 s.
+4. X extrapolation is right: 20 px inset over a 280 px span, out to 0 and 319.
+5. BRIDGE now carries real build numbers (prior fix 6). Typing gate still passes; LV left "LV 01". Memory flat vs last tip.
+
+### MISS / fix notes (numbered)
+1. **Y extrapolation uses the X span (bug).** `ymin`/`ymax` divide by 280, but the Y targets are 20→220, a 200 px span. Y gets under-extrapolated by ~29%, so taps near the top and bottom (OSK rows, badge) land ~6 px off. **Fix:** `dy_down * 20 / 200` and `dy_down * 19 / 200`.
+2. **"Measured axes" is only half true.** The signed deltas are computed, then `if (xmin > xmax) swap` throws the direction away again (LovyanGFX's `setCalibrate` can encode an inverted axis if x_min > x_max is kept), the code still assumes raw X tracks screen X (no check for a swapped axis), and `trot` is still saved as a hard-coded 1 while the constructor uses 0. **Fix:** detect which raw axis moved on TL→TR, keep the min/max order as measured, and derive the rotation from the taps. Hunch on the exact rotation — confirm on glass.
+3. **Chicken-and-egg entry point.** The only way into cal is typing `cal` on the on-screen keyboard, which needs touch that already works. A badly-off or placeholder cal may make that impossible. **Fix:** add a no-text fallback that doesn't need accurate touch (e.g. hold the screen during boot), keep `cal` as the second path.
+4. **First target can grab the Enter press (hunch).** `run_cmd("cal")` is reached from the OSK Enter tap and the flow starts reading raw touch right away with no wait-for-release, so the still-down finger on Enter may be stored as the top-left target. **Fix:** wait for release (with the same timeout) before drawing target 1. Also average the 3 stable reads instead of keeping the last.
+5. **Small:** `cal done` is logged even when the flow timed out without saving — log `cal timeout` on that path (needs a return value). Stray 8-space indent before `if (strcmp(cmd, "help")`. `cal` isn't in the Tab command list / help; fine if intended as hidden, say so in REPORT.
+6. **Still open from before:** real host CYD frame dumps (fonts still stubs, `render_cyd.sh` only prints), LV meaning (Dirt HOLD), device/glass pass of the whole cal.
+
+### Next Super Grok paste order
+A. Fix Y extrapolation span 200 (fix 1).
+B. Keep measured direction, detect axis swap, derive rotation (fix 2).
+C. Wait-for-release before target 1, average reads, timeout log (fixes 4–5).
+D. Add hold-at-boot cal fallback (fix 3).
+E. Real host frame dumps. One commit per round, docs included, real build numbers. LV stays "LV 01". No merge/flash.
+
+### Follow-up one-liner (Dirt → Super Grok)
+```
+On grok/cyd-touch-port tip 9b9aca1 (fw 01b9293): good — setTouch() now really rebuilds the touch matrix, cal is wired to "cal", has a timeout, and it builds (box: RAM 72076 / flash 1405687). Fix next: Y extrapolation divides by 280 but the Y targets span 200 px (20→220), so use /200; the min>max swap throws away the measured direction, there's no axis-swap check, and trot is still hard-coded 1 — keep the measured order, detect which raw axis moved TL→TR, and derive rotation from the taps; wait for the Enter-key finger to lift before target 1 and average the stable reads; log "cal timeout" instead of "cal done" when it times out; and add a no-text hold-at-boot cal fallback since typing "cal" needs touch that already works. One commit per round, LV stays "LV 01", push only to grok/cyd-touch-port, no merge/flash.
+```

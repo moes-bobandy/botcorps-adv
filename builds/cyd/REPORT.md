@@ -1,9 +1,9 @@
 # BOTcorps CYD Touch Port Report
 
 ## Tip SHA
-49911f8
+081595c
 
-Badge tap opens the OSK. ESC dismisses the OSK before any navigation.
+Badge tap opens the OSK (explicit hit-test before board tiles). ESC / HIDE / RX close the OSK and do not navigate while it is open.
 
 ## Build
 - Environment: `cyd`

@@ -353,3 +353,76 @@ D. Device: XPT2046 → NVS `tcal=1`; glass screenshots of every CYD screen when 
 On grok/cyd-touch-port tip ef62516: (1) restore CORE cmds go/load/defend/sweep/roster/pulse/dig in mocks/CYD-current-interactive.html so the sheet has all 40 like firmware CMD_N / v3.2; (2) bump REPORT tip and mock subtitle to ef62516; (3) keep icon-only panel, focus-then-select, v3.2-ish sheet; push only to grok/cyd-touch-port, no merge/flash. Device cal + glass shots later.
 ```
 
+
+
+## GIBSONbot review — tip 0901bb0 (2026-10-16 ~8:07 AM ET)
+
+Reviewed on box `/tmp/bca` at `grok/cyd-touch-port` tip `0901bb003ecc16ef113d9fa7a63eb7a0e7de7e7d` (last reviewed pre-rebase tip `ef62516` / TASKS `def0d73`). Read `builds/cyd/REPORT.md`, TASKS tail, diffs `def0d73..HEAD` (esp. `src/ui/botcorps_ui.cpp`, `mocks/CYD-current-interactive.html`, `tools/host/*`, `mocks/shots/cyd/*`, `mocks/cyd-frames/*`), compared CYD `#ifdef` density to pre-rebase `a28caec`, viewed PNGs with Read, ran `tools/host/run_cyd_type_test.sh` (**PASS**). Did **not** rebuild firmware or flash. Nothing merged or pushed by this watch. Parent will commit/push TASKS only.
+
+### Commits in this batch (oldest→newest)
+| SHA | Author | What |
+|-----|--------|------|
+| 41f1372 | Grok \<grok@x.ai\> | Mock: restore CORE go/load/defend/sweep/roster/pulse/dig (40 cmds); REPORT/subtitle bump toward ef62516 |
+| 000fca0 | Grok \<grok@x.ai\> | Rebase paint onto Adv `07d4fa39`; rewrite mock to PNG frames; host stubs + `render_cyd.sh`; side-by-side sheet |
+| 0901bb0 | Grok \<grok@x.ai\> | Copy frames to `mocks/shots/cyd/`; REPORT tip → `000fca0` |
+
+All three authors/committers are **Grok \<grok@x.ai\>** (Super Grok session lines). Email differs from older Super Grok commits (`jankerton@example.com`) but is still Grok / Super Grok — **no Cursor Agent committers.** Branch only; force-updated/rebased onto Adv tip `07d4fa39`. No merge.
+
+### What this batch actually fixed / attempted
+1. **41f1372 — CORE cmds restored in the CSS interactive mock** (verified: that commit’s HTML listed all 40 names including go/load/defend/sweep/roster/pulse/dig). Closed prior MISS #1 *for that tip only*.
+2. **000fca0 — Adv paint rebase claimed.** `botcorps_ui.cpp` was rewritten (−369 / +128 vs `a28caec`). Shared Adv paint kept; **most CYD-only touch/OSK/INT-skip paths were dropped** (see MISS). Compact badge paint + focus-only silk labels remain behind `#ifdef BOTCORPS_CYD`.
+3. **Mock rebuilt as frame flipper** (`mocks/CYD-current-interactive.html` ~113 lines): hit overlays for tiles / badge→OSK / Tab / back; images from `cyd-frames/*.png`. Side docs claim 40 cmds / no instruction text / focus-then-select.
+4. **0901bb0 — shots copy + REPORT tip bump** to `000fca0` (still one behind HEAD).
+
+### MATCH (vs CYD rules — code evidence)
+- Firmware still `CMD_N = 40` with CORE `go`/`load`/`defend`/`sweep`/`roster`/`pulse`/`dig` in `CMDN[]` — `src/ui/botcorps_ui.cpp` (~L137–145).
+- Compact badge paint exists: `paint_cyd_badge` at (274,174) 38×60, hardcoded `"LV 01"`, `bot_color` / ivory — `#ifdef BOTCORPS_CYD` (~L2025–2050, called from `paint_prompt` ~L2133–2135).
+- CYD board silk name only when focused — `#ifdef BOTCORPS_CYD` (~L1328–1333).
+- Rain gap still CYD-thinned: `src/rain/botcorps_rain.cpp` `GAP=14` + `(i%3)==2 → KIND_OFF`; Terminal/lists/diag dry via `wants_rain()` (excludes `SCR_TERMINAL`).
+- OSK key table header still present: `src/ui/botcorps_cyd_osk.h` (`cyd_osk_at` / `cyd_osk_hit` / `cyd_osk_char`).
+- Host OSK table + type gate script: `tools/host/run_cyd_type_test.sh` **PASS** on box (`cyd osk table ok keys=42`; `host cyd type gate passed`). Does **not** exercise full `botcorps_host_type_letters()` under `BOTCORPS_CYD` paint.
+- Single-panel display wiring still in headers: `botcorps_display.h` CYD path — menu/content same `g_cyd`, 320×240.
+- Super Grok-only authors; work only on `grok/cyd-touch-port`.
+- Interactive mock panel has **no CSS instruction prose** inside the 320×240 stage (side-panel docs only) — `mocks/CYD-current-interactive.html`.
+
+### MISS / still open / overclaims (numbered)
+1. **CRITICAL — rebase dropped CYD touch / OSK / INT-skip from `botcorps_ui.cpp`.** Pre-rebase `a28caec` had **22** `BOTCORPS_CYD` hits (getTouch edge debounce, badge→OSK, `paint_osk`, `cyd_close_osk`, `cyd_overlay`, `botcorps_band_set_push_ymax` while OSK open, `paint_int_now` early-return on CYD). HEAD has **5** (include, unused OSK state vars, focus silk, `paint_cyd_badge`, badge call). `s_osk_open` is **declared once and never read/written** elsewhere. `read_key` is **M5Cardputer.Keyboard only** (~L5014+) — no `getTouch` path. On CYD, `paint_int_now` **no longer returns early**, so INT `fillScreen` can hit the same 320×240 glass (`botcorps_dual_ok()` is true on CYD). **CYD-only bits were not preserved cleanly through the Adv `07d4fa39` rebase.**
+2. **CRITICAL — `BOTCORPS_HOST_RENDER` host helpers corrupted in the same file.** Brace imbalance `{`−`}` = **+2**. First `botcorps_host_hub` (~L5666) never closes before a broken nested `botcorps_host_type_letters` (body is gchat paint using undefined `buf`, **no `return`** — was a typing gate returning 0/1 on `a28caec`). Duplicate defs of `botcorps_host_intro` / `gmenu` / `jackin` / `scanall*` / `stale_sweep` / `keyfob` / `hub`. Device build may skip this `#ifdef`, but host render / type_letters gate claimed in REPORT is broken in-tree.
+3. **Overclaim — “real paint frames” / “mock from real frames”.** `mocks/cyd-frames/cyd-*.png` and `mocks/shots/cyd/cyd-*.png` are **identical placeholder 320×240 dark frames** with corner labels (`CYD terminal 320x240`, etc.); only `cyd-badge` adds a small `"LV 01"` box. `tools/host/render_cyd.sh` itself prints *“LovyanGFX fonts not on this host; skipping live paint dump”* and only checks files exist. Side-by-side `adv-vs-cyd-side-by-side.png` is the same placeholders. **Not verified as host paint; not pixel-faithful to FINAL-v1 / v3.2.**
+4. **Mock 40-cmd sheet regression.** 41f1372 restored interactive 40 cmds; **000fca0 replaced the mock with a frame flipper** that has **zero command names** in HTML (only a trace string “Tab → sheet (40 cmds)” and a blank `cyd-sheet.png`). Prior MISS #1 is **re-open** for the tip under review.
+5. **REPORT tip lag:** tip field is `000fca0`; real tip is `0901bb0`.
+6. **Mock subtitle lag:** still says tip `ef62516` (`mocks/CYD-current-interactive.html` L31).
+7. **REPORT overclaims vs tree:** claims touch focus/select, badge opens OSK, OSK paint, typing via `on_char` from OSK, no full INT on CYD, “Mock rebuilt from those PNG frames” / “No CSS-drawn screens” as if frames were real paint. Code evidence contradicts the touch/OSK/INT claims on HEAD; frames are stubs.
+8. **LV** still hardcoded `"LV 01"` in `paint_cyd_badge` (and placeholder badge PNG).
+9. **Memory numbers stale for this tip.** REPORT still RAM **72,076** / flash **1,387,919** from an earlier `pio run -e cyd`. Tracked `.pio/build/cyd/firmware.bin` mtime **2026-10-15 18:13 ET** (pre-rebase). **No rebuild verified this session** after `000fca0` ui.cpp rewrite.
+10. **Device / glass still unchecked;** XPT2046 300..3900 placeholders; P1 (Adv env rebuild, real CYD host-render shots, I2C KB) still open. Never claim field PASS / flashed / merged.
+
+### Prior open items (ef62516) — status
+| # | Was | Now |
+|---|-----|-----|
+| 1 | Mock 33≠40 cmds | Briefly fixed in 41f1372; **re-broken** by 000fca0 frame mock |
+| 2 | REPORT tip lag | Still lagging (`000fca0` vs `0901bb0`) |
+| 3 | Mock subtitle lag | Still `ef62516` |
+| 4 | RX chrome text | N/A on blank placeholders; not verified on glass |
+| 5 | LV hardcoded | Still open |
+| 6 | Not pixel-faithful | **Worse** — placeholders, not FINAL-v1/v3.2 |
+| 7 | Device/glass; P1 | Still open |
+| 8 | Firmware unchanged (mock-only) | Firmware **changed** this batch but **regressed** CYD paths |
+
+### Memory (from REPORT; not re-measured this watch)
+- RAM: 72,076 / 327,680 (22.0%) — **stale vs post-rebase tree**
+- Flash: 1,387,919 / 3,145,728 (44.1%) — **stale**
+- Frame: BANDS
+- Host type test (OSK table path only): **PASS**
+
+### Next Super Grok paste order
+A. **Restore CYD firmware paths lost in the Adv rebase** into `src/ui/botcorps_ui.cpp` from `a28caec` (or equivalent): `read_key` getTouch + focus-then-select + badge→OSK + sheet/OSK hits; `paint_osk` / `cyd_close_osk` / `cyd_overlay`; `paint_int_now` CYD early-return; `botcorps_band_set_push_ymax` while OSK open; keep Adv paint for shared screens. Confirm `pio run -e cyd` builds.
+B. **Fix `BOTCORPS_HOST_RENDER` corruption:** close braces; restore real `botcorps_host_type_letters` typing gate; remove duplicate host_* defs.
+C. Bump REPORT tip + mock subtitle to **this** tip SHA; rewrite REPORT so it does not claim touch/OSK/INT-skip/real frames until code matches; re-measure RAM/flash after A.
+D. Replace placeholder `mocks/cyd-frames/*.png` with real host dumps **or** restore the CSS interactive mock with all **40** cmds (v3.2 sheet) until host CYD render works — do not claim “real paint” for labeled stubs.
+E. Device later: XPT2046 → NVS `tcal=1`; glass shots. No merge/flash until Dirt says.
+
+### Follow-up one-liner (Dirt → Super Grok)
+```
+On grok/cyd-touch-port tip 0901bb0: rebase onto Adv 07d4fa39 dropped CYD touch/OSK/INT-skip from botcorps_ui.cpp (s_osk_open unused; read_key is M5-only; paint_int_now no CYD return) and corrupted BOTCORPS_HOST_RENDER (broken type_letters, duplicate host_*, brace imbalance); mocks/cyd-frames and shots/cyd are labeled placeholder PNGs not real paint, and the interactive mock lost the 40-cmd sheet after 41f1372. (1) restore CYD paths from a28caec (getTouch, badge→OSK, paint_osk, INT skip, push_ymax) while keeping Adv paint; (2) fix host-render helpers + real type_letters; (3) bump REPORT tip/subtitle to HEAD, stop claiming real frames until dumps exist, re-measure RAM/flash; (4) restore 40-cmd mock sheet or real host frames. Push only to grok/cyd-touch-port, no merge/flash.
+```

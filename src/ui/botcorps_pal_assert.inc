@@ -5,7 +5,7 @@ constexpr uint8_t botcorps_pal_ids[] = {
     PAL_TERM_C, PAL_TERM_C28, PAL_TERM_C22, PAL_TERM_C18, PAL_TERM_C35, PAL_TERM_C10,
     PAL_CREAM
 };
-inline bool botcorps_pal_ids_ok(void)
+constexpr bool botcorps_pal_ids_ok(void)
 {
     const int n = (int)(sizeof(botcorps_pal_ids) / sizeof(botcorps_pal_ids[0]));
     for (int i = 0; i < n; ++i) {

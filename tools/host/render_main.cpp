@@ -645,6 +645,7 @@ int main(void)
     botcorps_host_sbox(hit, 0, 3, -95); write_raw("/tmp/sb-hunt-lost.rgb", hit, 0);
     botcorps_host_sbox(hit, 0, 4, 0); write_raw("/tmp/sb-glossary.rgb", hit, 0);
     botcorps_host_sbox(hit, 1, 0, 0); write_raw("/tmp/sb-ble.rgb", hit, 0);
-    botcorps_host_found_alert_b(hit, 1, 0); write_raw("/tmp/sb-found-alert.rgb", hit, 0);
+    botcorps_host_sbox(hit, 0, 5, 0); write_raw("/tmp/sb-wifi-sweep.rgb", hit, 0);
+    botcorps_host_found_alert_b(hit, 1, 2); write_raw("/tmp/sb-found-alert.rgb", hit, 0);
     return 0;
 }

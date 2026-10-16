@@ -1,17 +1,23 @@
 # BOTcorps CYD Touch Port Report
 
 ## Tip SHA
-9106580
+acfc0e3
 
 Interactive mock of the current CYD build: mocks/CYD-current-interactive.html
 Built by: Super Grok session (no Cursor/agent hand-off)
 
-## Adv alignment + CYD restore (this tip)
+## Compile fix + overlay restore (this tip)
+- Fixed orphan #endif after cyd_close_osk and mangled return K_NONE;#endif in read_key so #ifdef BOTCORPS_CYD is terminated.
+- Wrapped cyd_close_osk + paint_osk in #ifdef BOTCORPS_CYD; #endif on its own line after the CYD read_key branch.
+- Restored cyd_overlay + on_esc OSK-close from a28caec (overlay after patch_world so declaration order is valid).
+- Placeholder frames remain; honesty kept until real host dumps exist.
+
+## Adv alignment + CYD restore (previous tip)
 - Rebased onto Adv tip 07d4fa39 then restored CYD touch/OSK/INT-skip paths from a28caec (getTouch in read_key, badge→OSK, paint_osk, paint_int_now early return, push_ymax) while keeping Adv paint code.
 - Fixed BOTCORPS_HOST_RENDER: restored real botcorps_host_type_letters, removed duplicate host_* functions and brace issues.
 - mocks/cyd-frames and mocks/shots/cyd contain placeholder PNGs only. Real host paint dumps are not available on this box (missing LovyanGFX font headers). Do not treat them as live frames until a host renderer with BOTCORPS_CYD can dump them.
 - Interactive mock sheet restored with the 40 CORE commands (go/load/defend/sweep/roster/pulse/dig).
-- RAM/flash not re-measured this session (no pio available). Previous numbers: RAM 72,076 / Flash 1,387,919.
+- RAM/flash re-measured after clean pio run -e cyd (SUCCESS).
 
 ## Build
 - Environment: `cyd`
@@ -24,10 +30,10 @@ Built by: Super Grok session (no Cursor/agent hand-off)
 
 ## Memory
 - RAM: 72,076 / 327,680 bytes (22.0%)
-- Flash: 1,387,919 / 3,145,728 bytes (44.1%)
+- Flash: 1,404,031 / 3,145,728 bytes (44.6%)
 - DRAM .bss 45,880 + .data 26,196 = 72,076
 - Image stays in `.pio/build/cyd/firmware.bin`. It is not tracked.
-- Measured this session with `pio run -e cyd` (SUCCESS, 299 s).
+- Measured this session with clean `pio run -e cyd` (SUCCESS).
 
 ## What is actually done
 - Compact ID badge in the terminal companion slot, (274, 174), 38x60 (mock companion size). Round glyph, short name, `LV 01`, that bot's palette color. The box does not move or mirror. Full `paint_int` / `botcorps_id_tick` are not called on CYD, and the INT strip sprite is not allocated. The badge is redrawn when the selected bot changes, not every loop. Dirt asked for a badge tap to open the OSK; that is the behavior.

@@ -548,3 +548,63 @@ On grok/cyd-touch-port tip cbc040e (fw acfc0e3): ifdef/OSK compile break is fixe
 - Pushed to grok/cyd-touch-port only. No merge/flash.
 Built by: Super Grok session (no Cursor/agent hand-off)
 
+## GIBSONbot review — tip 9cf96fd / fw acfc0e3 (2026-10-16 ~12:06 PM ET)
+
+Reviewed on box `/tmp/bca` at `grok/cyd-touch-port` tip `9cf96fd24cea1e7c26f312d67e71baac6ae85c9a` (last reviewed SHA `6b8a1f7d76196bc4e8f416c5e09c939ce6a0a63c`). Diff span `6b8a1f7..9cf96fd`. **No `src/` changes** — meta/docs only. Host type test **PASS** (`cyd osk table ok keys=42`; `host cyd type gate passed`). Preprocessor balance **OK**. Did **not** re-run `pio` (`pio` not on PATH; local `.pio/build/cyd/firmware.bin` still mtime **2026-10-15 18:13 ET**, size **1,395,584**). Nothing merged, pushed (except this TASKS/BRIDGE note), or flashed by this watch.
+
+### Commits in this batch (oldest→newest)
+| SHA | Author | What |
+|-----|--------|------|
+| f3c64c4 | Grok \<grok@x.ai\> | REPORT tip → `6b8a1f7`; cite firmware.bin 1404432 B; RAM/flash; placeholder honesty; live note (no board) |
+| 53e34aa | Grok \<grok@x.ai\> | BRIDGE Super Grok reply block |
+| de10262 | Grok \<grok@x.ai\> | REPORT/BRIDGE tip → `53e34aa`; final reply block |
+| dd519bb | Grok \<grok@x.ai\> | TASKS local progress note |
+| dddee10 | Grok \<grok@x.ai\> | BRIDGE/REPORT tip → `dd519bb` |
+| 9cf96fd | Grok \<grok@x.ai\> | BRIDGE/REPORT tip → `dddee10` (final) |
+
+All authors/committers **Grok \<grok@x.ai\>**. **No Cursor Agent.** Firmware tip still **`acfc0e3`** (last `src/` change). Branch only. No merge.
+
+### What this batch actually did
+1. **BRIDGE follow-up A mostly done:** REPORT tip field bumped off `acfc0e3` (was lagging HEAD after `cbc040e`).
+2. **firmware.bin byte size cited:** REPORT now quotes **1,404,432** bytes next to map flash **1,404,031** / RAM **72,076** (22.0% / 44.6%).
+3. **Placeholder honesty kept** — frames called stubs, not real paint/UI.
+4. **Mock subtitle** bumped to `dddee10`.
+5. **Live LV:** correctly reports **no board** in sandbox; code-path review only (not a field claim).
+
+### MATCH
+- Host type gate still **PASS**; preprocessor still clean; `cyd_overlay` + `on_esc` OSK-close still present (`BOTCORPS_CYD` hits **15**).
+- No firmware regression (no fw delta).
+- Honesty on placeholders + no-board live note — **MATCH**.
+- Super Grok answered the BRIDGE ask without claiming glass PASS.
+
+### MISS / still open (numbered)
+1. **REPORT tip lag (same pattern):** field is `dddee10`; real tip is `9cf96fd`. Tip-bump commits still never name themselves as HEAD.
+2. **Mock subtitle lag:** same — `dddee10` not `9cf96fd`.
+3. **Memory still not box-verified.** Cited firmware.bin **1,404,432** ≠ local stale bin **1,395,584** (Oct 15). Treat as Super Grok-reported until `pio run -e cyd` runs here or Dirt confirms.
+4. **Frames still placeholders;** LV still hardcoded `"LV 01"`.
+5. **No firmware progress this round** — open CYD product gaps unchanged (device/glass, XPT2046 cal, real host CYD dumps, soft live LV).
+6. **Device / glass unchecked.** Never claim field PASS / flashed / merged.
+
+### Prior open (cbc040e) — status
+| # | Was | Now |
+|---|-----|-----|
+| 1–2 | REPORT/mock tip lag vs `cbc040e` | Bumped, but **still lagging** vs new HEAD `9cf96fd` |
+| 3 | Memory not box-verified | Still Super Grok-reported (+ bin byte size added) |
+| 4–7 | Frames / LV / CYD guard count / device | Unchanged |
+
+### Memory (from REPORT; not re-measured this watch)
+- RAM: 72,076 / 327,680 (22.0%)
+- Flash map: 1,404,031 / 3,145,728 (44.6%) — **Super Grok-reported**
+- firmware.bin: 1,404,432 bytes — **Super Grok-reported**
+- Host type test: **PASS**
+
+### Next Super Grok paste order
+A. Stop the tip-lag loop: set REPORT tip + mock subtitle to the **final** SHA after the last meta commit (or skip tip-only commits and set REPORT only when firmware changes).
+B. Soft: live `LV` from bot state instead of `"LV 01"`.
+C. Soft: real host CYD frame dumps when LovyanGFX fonts are available; until then keep stub honesty.
+D. Device later: XPT2046 → NVS `tcal=1`; glass shots. No merge/flash until Dirt says.
+
+### Follow-up one-liner (Dirt → Super Grok)
+```
+On grok/cyd-touch-port tip 9cf96fd (fw still acfc0e3): BRIDGE follow-up done for bin size + placeholder honesty + no-board live note, but REPORT tip and mock subtitle still lag HEAD (say dddee10; tip is 9cf96fd). No firmware delta this round. Remaining: (1) set REPORT+mock subtitle to the final tip SHA after your last push (or only bump when fw changes); (2) soft — live LV instead of "LV 01"; (3) soft — real CYD host dumps when possible, else keep stub honesty; (4) device/glass later. Push only to grok/cyd-touch-port, no merge/flash.
+```

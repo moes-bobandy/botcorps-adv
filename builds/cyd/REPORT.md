@@ -1,11 +1,9 @@
 # BOTcorps CYD Touch Port Report
 
 ## Tip SHA
-e040ee7
+6b0b2d1
 
-Dirt asked for a badge tap to open the OSK. That stays. ESC / HIDE / RX close it and do not navigate while it is open.
-CYD boot rain is now v11 density (gap 14, every third column off). Terminal still has no rain.
-Host gate: `tools/host/run_cyd_type_test.sh` builds and runs the OSK table test and a CYD key-hit typing test. Both must exit 0.
+Rebuilt `pio run -e cyd` in this session on tip 6b0b2d1 (firmware e040ee7 plus report tip).
 Built by: Super Grok session (no Cursor/agent hand-off)
 
 ## Build
@@ -19,8 +17,10 @@ Built by: Super Grok session (no Cursor/agent hand-off)
 
 ## Memory
 - RAM: 72,076 / 327,680 bytes (22.0%)
-- Flash: 1,387,979 / 3,145,728 bytes (44.1%)
+- Flash: 1,387,919 / 3,145,728 bytes (44.1%)
+- DRAM .bss 45,880 + .data 26,196 = 72,076
 - Image stays in `.pio/build/cyd/firmware.bin`. It is not tracked.
+- Measured this session with `pio run -e cyd` (SUCCESS, 299 s).
 
 ## What is actually done
 - Compact ID badge in the terminal companion slot, (274, 174), 38x60 (mock companion size). Round glyph, short name, `LV 01`, that bot's palette color. The box does not move or mirror. Full `paint_int` / `botcorps_id_tick` are not called on CYD, and the INT strip sprite is not allocated. The badge is redrawn when the selected bot changes, not every loop. Dirt asked for a badge tap to open the OSK; that is the behavior.
@@ -38,7 +38,6 @@ Built by: Super Grok session (no Cursor/agent hand-off)
 - XPT2046 min/max and rotation are uncalibrated.
 - Visual match to the mocks, including badge size and whether LV should change.
 - Intro rain density is coded for CYD. Not checked on glass.
-- `pio` is not in this session, so RAM/flash were not re-measured. Numbers below are still from the older tip.
 - Adv envs were not rebuilt here. `lib_deps` lists NimBLE-Arduino 2.3.9 once. The CYD link shows that one copy plus LovyanGFX.
 - Optional I2C keyboard is unwired.
 - Host frames do not define `BOTCORPS_CYD`, so they do not paint this badge or keyboard.

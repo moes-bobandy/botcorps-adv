@@ -229,3 +229,9 @@ On grok/cyd-touch-port tip 2717130 (fw 081595c): (1) confirm whether a badge tap
 - tools/host/run_cyd_type_test.sh builds and runs the OSK table test and a key-hit typing gate. Passed here.
 - pio is not in this session; RAM/flash not re-measured.
 
+
+## Local progress (Super Grok rebuild)
+- pio run -e cyd SUCCESS in this session.
+- RAM 72,076 / 327,680 (22.0%). Flash 1,387,919 / 3,145,728 (44.1%).
+- Bin not tracked.
+

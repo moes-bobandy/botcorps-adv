@@ -70,3 +70,12 @@ B. Shared OSK rect table + real SPACE/BKSP/ENTER/hide; stop per-loop repaint (cl
 C. Icon-zone focus then select; dropdown/top-bar/back hit-tests — no blanket `K_OK` (closes 3).
 D. Untrack `builds/cyd/botcorps-cyd.bin`; fix REPORT honesty (closes 14, 20).
 E. Restore palette constexpr assert (closes 1).
+
+## Local progress (dc7e08d+)
+- Palette constexpr assert restored and enabled for CYD (item 1 closed).
+- builds/cyd/botcorps-cyd.bin untracked (item 14 closed).
+- REPORT.md updated to honest status (item 20 partial).
+- OSK hit geometry matched to paint (15x30 from 8,165); basic space/comma/period as chars; paint only on dirty (items 5-7 partial).
+- Full paint_int / id_tick skipped on CYD; compact badge stub added (item 2 partial).
+- Icon zones still return K_OK (focus/select split pending — item 3 open).
+

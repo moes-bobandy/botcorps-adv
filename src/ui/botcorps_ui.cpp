@@ -320,6 +320,7 @@ static uint32_t s_mood_until = 0;
 static uint32_t s_last_key = 0;
 #ifdef BOTCORPS_CYD
 static bool s_osk_open = false;
+static bool s_osk_dirty = false;
 static int s_osk_row = 0;
 static int s_osk_col = 0;
 static uint32_t s_touch_last = 0;
@@ -4993,16 +4994,16 @@ static int read_key(char *typed)
     } else {
         return K_NONE; // still held
     }
-    // OSK takes priority when open
-    if (s_osk_open && ty > 160) {
-        int row = (ty - 160) / 16;
-        int col = tx / 32;
+    // OSK takes priority when open — match paint geometry (15 px rows from y=165, 30 px cols from x=8)
+    if (s_osk_open && ty >= 165 && ty < 165 + 5 * 15) {
+        int row = (ty - 165) / 15;
+        int col = (tx - 8) / 30;
         if (row >= 0 && row < 5 && col >= 0 && col < (int)strlen(osk_rows[row])) {
             char c = osk_rows[row][col];
-            if (c == ' ') return K_OK;
-            if (c == ',') return K_BS;
-            if (c == '.') return K_TAB;
-            if (c == '<') { s_osk_open = false; return K_ESC; }
+            if (c == ' ') { *typed = ' '; return K_CHAR; }
+            if (c == ',') { *typed = ','; return K_CHAR; }
+            if (c == '.') { *typed = '.'; return K_CHAR; }
+            if (c == '<') { s_osk_open = false; s_dirty = true; return K_ESC; }
             *typed = c;
             return K_CHAR;
         }
@@ -5015,15 +5016,17 @@ static int read_key(char *typed)
             // Map zone to action: terminal icon opens OSK or navigates
             if (s_screen == SCR_TERMINAL && ty > 160) {
                 s_osk_open = true;
+                s_osk_dirty = true;
                 return K_NONE;
             }
-            // Simple: treat icon tap as select / OK for now
+            // Icon zone: first tap focuses, second selects (simplified — full focus tracking pending)
             return K_OK;
         }
     }
     // Fallback
     if (s_screen == SCR_TERMINAL) {
         s_osk_open = true;
+        s_osk_dirty = true;
         return K_NONE;
     }
     return K_OK;
@@ -5246,6 +5249,18 @@ void botcorps_ui_input(void)
 
 
 #ifdef BOTCORPS_CYD
+static void paint_cyd_badge(void)
+{
+    // Compact ID badge in right-hand region (placeholder — expand to glyph/name/LV/color)
+    auto &d = botcorps_disp();
+    d.fillRect(240, 0, 80, 60, 0x1082);
+    d.setTextColor(0xFFFF);
+    d.setTextSize(1);
+    d.setCursor(248, 8);
+    d.print("BOT");
+    d.setCursor(248, 20);
+    d.print("LV");
+}
 static void paint_osk(void)
 {
     if (!s_osk_open) return;
@@ -5299,9 +5314,12 @@ void botcorps_ui_draw(void)
             patch_world(draw_scan_part, 0, 120, 320, 120);
         }
         if (int_dirty) {
+#ifndef BOTCORPS_CYD
             s_int_dirty = false;
             paint_int_now();
+#endif
         } else {
+#ifndef BOTCORPS_CYD
             fmt_times();
             static char drawn_b[8];
             if (strcmp(drawn_b, s_up) != 0) {
@@ -5317,6 +5335,11 @@ void botcorps_ui_draw(void)
                                      gib ? 0 : bi, gib, gib ? COL_IVORY : bot_color(bi));
                 }
             }
+#endif
+#ifdef BOTCORPS_CYD
+            // Compact ID badge stub — full card skipped
+            paint_cyd_badge();
+#endif
         }
         return;
     }
@@ -5326,9 +5349,11 @@ void botcorps_ui_draw(void)
         paint_ext_full();
     }
     if (int_dirty) {
+#ifndef BOTCORPS_CYD
         s_int_dirty = false;
         paint_int_now();
         return;
+#endif
     }
     if (dirty) return;
     if (botcorps_dual_ok()) {
@@ -5337,6 +5362,7 @@ void botcorps_ui_draw(void)
         botcorps_content().endWrite();
         botcorps_content().clearClipRect();
     }
+#ifndef BOTCORPS_CYD
     fmt_times();
     static char drawn[8];
     if (strcmp(drawn, s_up) != 0) {
@@ -5352,8 +5378,13 @@ void botcorps_ui_draw(void)
                              gib ? 0 : bi, gib, gib ? COL_IVORY : bot_color(bi));
         }
     }
+#endif
 #ifdef BOTCORPS_CYD
-    paint_osk();
+    if (s_osk_dirty) {
+        paint_osk();
+        s_osk_dirty = false;
+    }
+    paint_cyd_badge();
 #endif
 }
 

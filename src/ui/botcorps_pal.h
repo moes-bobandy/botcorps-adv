@@ -20,11 +20,7 @@ enum : uint8_t {
 
 #include "botcorps_pal_assert.inc"
 
-#ifdef BOTCORPS_CYD
-// static_assert(botcorps_pal_ids_ok(), "0 and 255 stay black and RGB332 white");
-#else
 static_assert(botcorps_pal_ids_ok(), "0 and 255 stay black and RGB332 white");
-#endif
 static_assert(PAL_RAMP_N == 4, "each ink reuses 4 steps");
 static_assert(PAL_WHITE == 255, "255 stays RGB332 white");
 static_assert(PAL_BLACK == 0, "0 stays black");

@@ -129,15 +129,32 @@
   .key.wide { flex: 2; }
   .key.space { flex: 6; }
   .sheet {
-    position: absolute; left: 4%; top: 10%; width: 88%; height: 52%;
-    background: #0c1412ee;
-    border: 1px solid var(--line);
-    display: none; overflow: auto; padding: 6px 0;
+    position: absolute; left: 4%; bottom: 12%; width: 88%;
+    background: rgba(9,13,18,.97);
+    border: 1px solid #3ee0e8;
+    border-radius: 3px;
+    display: none; overflow: hidden; padding: 4px 0 6px;
+    box-shadow: 0 4px 14px #000a;
+    z-index: 3;
   }
   .sheet.on { display: block; }
-  .sheet .hdr { color: var(--amber); padding: 4px 12px; font-size: 11px; letter-spacing: .1em; }
-  .sheet .rowc { padding: 3px 12px; font-size: 12px; }
-  .sheet .rowc.on { background: var(--sel); color: #9fd9ff; }
+  .sheet::after {
+    content: ""; position: absolute; left: 18px; bottom: -1px;
+    width: 10px; height: 1px; background: #3ee0e8;
+  }
+  .sheet .hdr {
+    color: #3ee0e8; padding: 1px 8px; font-size: 10px; letter-spacing: .08em;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .sheet .hdr::after { content: ""; flex: 1; height: 1px; background: rgba(62,224,232,.22); }
+  .sheet .rowc {
+    display: flex; justify-content: space-between; gap: 8px;
+    padding: 2px 8px 2px 10px; font-size: 10px; color: #c5d0da;
+  }
+  .sheet .rowc .p { color: #7d9086; }
+  .sheet .rowc.on { background: rgba(62,224,232,.18); box-shadow: inset 2px 0 #3ee0e8; color: #e8f6ff; }
+  .sheet .rowc.on .p { color: #e8f6ff; }
+  .ico { display: block; width: 14px; height: 14px; }
   .side { width: 280px; }
   .side h2 { margin: 0 0 8px; font-size: 13px; }
   .side ul { margin: 0; padding-left: 16px; color: var(--muted); }
@@ -192,10 +209,23 @@ const BOTS = [
   { name: "SAMSUNG", color: "#bd3f7a", st: "limited" }
 ];
 const GROUPS = [
-  ["CORE", ["scan","hunt","help","bots","rain","filter","ping","info","track","sniff","go","load","defend","sweep","roster","pulse","dig"]],
-  ["COMMS", ["hail","say","ask","rollcall","whisper","broadcast","link","mute"]],
-  ["GAME", ["train","hunt-run","score","rank","loadout","lobby","duel","stash"]],
-  ["SYS", ["clear","history","theme","about","cmds","version","uptime"]]
+  ["CORE", [
+    ["scan","sweep wifi|ble|all"], ["hunt","drone|flock|skimmer|deauth"], ["help","list the commands"],
+    ["bots","board status"], ["rain","rain colour|mixed"], ["filter","wifi|ble|threats|strong|off"],
+    ["ping","ping a found device"], ["info","device details"], ["track","pin a device"], ["sniff","list heard"]
+  ]],
+  ["COMMS", [
+    ["hail","greet a bot"], ["say","send a line"], ["ask","query bot status"], ["rollcall","crew check-in"],
+    ["whisper","quiet line"], ["broadcast","speak to the crew"], ["link","open a channel"], ["mute","hush a bot"]
+  ]],
+  ["GAME", [
+    ["train","sealed"], ["hunt-run","sealed"], ["score","sealed"], ["rank","sealed"],
+    ["loadout","sealed"], ["lobby","sealed"], ["duel","sealed"], ["stash","sealed"]
+  ]],
+  ["SYS", [
+    ["clear","wipe the log"], ["history","recent lines"], ["theme","neon look"], ["about","build blurb"],
+    ["cmds","this menu"], ["version","term build"], ["uptime","session clock"]
+  ]]
 ];
 const OSK = [
   ["1","2","3","4","5","6","7","8","9","0"],
@@ -282,48 +312,58 @@ function add(cls, style, text, on) {
 }
 
 function renderRain() {
-  add("bar", "", "BOTcorps  ·  rain");
-  add("hit", "left:0;top:40px;right:0;bottom:0;display:flex;align-items:center;justify-content:center;color:#9fd9b5;letter-spacing:.12em;", "TAP TO ENTER", () => {
+  add("hit", "left:0;top:0;right:0;bottom:0;", "", () => {
     state.screen = "gibson";
     trace("rain tap → Gibson hub");
     render();
   });
 }
 
+function ico(svg) {
+  const d = document.createElement("div");
+  d.className = "ico";
+  d.innerHTML = svg;
+  return d;
+}
+const ICO = {
+  back: '<svg viewBox="0 0 14 14" width="14" height="14"><path d="M9 2 L3 7 L9 12" fill="none" stroke="#e8b15a" stroke-width="1.6"/></svg>',
+  term: '<svg viewBox="0 0 16 14" width="16" height="14"><rect x="1" y="1" width="14" height="12" fill="none" stroke="#3dcea0" stroke-width="1"/><path d="M3 5 L6 7 L3 9" fill="none" stroke="#3dcea0" stroke-width="1"/><path d="M8 9 H13" stroke="#3dcea0" stroke-width="1"/></svg>',
+  wifi: '<svg viewBox="0 0 14 14" width="14" height="14"><path d="M2 6 Q7 2 12 6" fill="none" stroke="#58A6FF" stroke-width="1"/><path d="M4 8 Q7 5.5 10 8" fill="none" stroke="#58A6FF" stroke-width="1"/><circle cx="7" cy="10" r="1" fill="#58A6FF"/></svg>',
+  ble: '<svg viewBox="0 0 14 14" width="14" height="14"><path d="M7 1 L11 5 L7 7 L11 9 L7 13 L7 1 M7 7 L3 5 M7 7 L3 9" fill="none" stroke="#4ECDFA" stroke-width="1"/></svg>',
+  crown: '<svg viewBox="0 0 16 12" width="16" height="12"><path d="M1 9 L3 3 L6 7 L8 2 L10 7 L13 3 L15 9 Z" fill="none" stroke="#d24bff" stroke-width="1"/></svg>'
+};
+
 function renderGibson() {
-  add("bar", "", "");
-  add("hit back", "", "‹ back", () => {
-    state.screen = "rain";
-    trace("Gibson back → rain");
-    render();
-  });
-  add("hit", "left:28%;top:25%;width:44%;height:33%;border:1px solid #2a3a34;display:flex;align-items:center;justify-content:center;color:#d7e6cf;letter-spacing:.2em;", "GIBSON", () => {
-    trace("crown / hub");
-  });
-  add("hit", "left:6%;top:83%;width:25%;height:10%;border:1px solid #3dcea0;display:flex;align-items:center;justify-content:center;color:#3dcea0;", "TERMINAL", () => {
-    state.screen = "terminal";
-    state.focus = -1;
-    trace("Gibson → Terminal");
-    render();
-  });
-  add("hit", "left:37%;top:83%;width:22%;height:10%;border:1px solid #2a3a34;display:flex;align-items:center;justify-content:center;", "WIFI", () => {
-    trace("open Wi-Fi (list stub)");
-  });
-  add("hit", "left:62%;top:83%;width:22%;height:10%;border:1px solid #2a3a34;display:flex;align-items:center;justify-content:center;", "BLE", () => {
-    trace("open BLE (list stub)");
-  });
+  const back = add("hit back", "", "");
+  back.appendChild(ico(ICO.back));
+  back.addEventListener("click", (e) => { e.stopPropagation(); state.screen = "rain"; trace("Gibson back → rain"); render(); });
+  add("hit", "left:28%;top:25%;width:44%;height:33%;", "");
+  const term = add("hit", "left:6%;top:83%;width:12%;height:10%;display:flex;align-items:center;justify-content:center;", "");
+  term.appendChild(ico(ICO.term));
+  term.addEventListener("click", (e) => { e.stopPropagation(); state.screen = "terminal"; state.focus = -1; trace("Gibson → Terminal"); render(); });
+  const wifi = add("hit", "left:22%;top:83%;width:12%;height:10%;display:flex;align-items:center;justify-content:center;", "");
+  wifi.appendChild(ico(ICO.wifi));
+  wifi.addEventListener("click", (e) => { e.stopPropagation(); trace("open Wi-Fi (list stub)"); });
+  const ble = add("hit", "left:38%;top:83%;width:12%;height:10%;display:flex;align-items:center;justify-content:center;", "");
+  ble.appendChild(ico(ICO.ble));
+  ble.addEventListener("click", (e) => { e.stopPropagation(); trace("open BLE (list stub)"); });
 }
 
 function renderTerminal() {
-  add("bar", "", "");
-  add("hit back", "", "‹ back", () => {
+  const back = add("hit back", "", "");
+  back.appendChild(ico(ICO.back));
+  back.addEventListener("click", (e) => {
+    e.stopPropagation();
     if (state.osk) { closeOsk("ESC"); return; }
     if (state.sheet) { state.sheet = false; trace("ESC closes sheet"); render(); return; }
     state.screen = "gibson";
     trace("Terminal back → Gibson");
     render();
   });
-  add("hit crown", "", "CROWN", () => {
+  const crown = add("hit crown", "", "");
+  crown.appendChild(ico(ICO.crown));
+  crown.addEventListener("click", (e) => {
+    e.stopPropagation();
     state.screen = "gibson";
     closeOsk();
     trace("crown → Gibson");
@@ -363,8 +403,7 @@ function renderTerminal() {
       if (state.osk) return;
       if (state.focus !== n) {
         state.focus = n;
-        state.selected = n;
-        trace("focus " + b.name + " (label on)");
+        trace("focus " + b.name + " (label on, not selected)");
       } else {
         state.selected = n;
         state.log.push({ who: b.name.toLowerCase(), text: "selected", color: b.color });
@@ -393,12 +432,10 @@ function renderTerminal() {
     render();
   });
 
-  add("prompt", "", "user@botcorps:~$ " + state.prompt);
-
-  add("hit", "left:78%;top:89%;width:8%;height:5%;font-size:10px;color:#7d9086;display:flex;align-items:center;", "CMDS", (e) => {
+  add("prompt", "", "user@botcorps:~$ " + state.prompt, () => {
     state.sheet = !state.sheet;
     state.osk = false;
-    trace(state.sheet ? "open command sheet" : "close command sheet");
+    trace(state.sheet ? "Tab on empty prompt → sheet" : "close command sheet");
     render();
   });
 
@@ -416,38 +453,46 @@ function closeOsk(why) {
 function renderSheet() {
   const box = add("sheet on");
   let i = 0;
+  const vis = [];
   GROUPS.forEach(([name, cmds]) => {
-    const h = document.createElement("div");
-    h.className = "hdr";
-    h.textContent = name;
-    h.addEventListener("click", (e) => {
+    vis.push({ kind: "h", name });
+    cmds.forEach(([n, p]) => { vis.push({ kind: "c", n, p, idx: i++ }); });
+  });
+  const sel = vis.findIndex(r => r.kind === "c" && r.idx === state.sheetI);
+  const top = Math.max(0, Math.min(vis.length - 9, sel - 3));
+  vis.slice(top, top + 9).forEach((r) => {
+    if (r.kind === "h") {
+      const h = document.createElement("div");
+      h.className = "hdr";
+      h.textContent = r.name;
+      box.appendChild(h);
+      return;
+    }
+    const row = document.createElement("div");
+    row.className = "rowc" + (r.idx === state.sheetI ? " on" : "");
+    const nm = document.createElement("span");
+    nm.textContent = r.n;
+    const pp = document.createElement("span");
+    pp.className = "p";
+    pp.textContent = r.p;
+    row.appendChild(nm);
+    row.appendChild(pp);
+    row.addEventListener("click", (e) => {
       e.stopPropagation();
-      trace("group " + name);
+      state.sheetI = r.idx;
+      state.sheet = false;
+      const needs = ["scan","hunt","rain","filter","ping","info","track","hail","say","ask","whisper","link","mute"].includes(r.n);
+      if (needs) {
+        state.prompt = r.n + " ";
+        state.osk = true;
+        trace(r.n + " arms argument → OSK");
+      } else {
+        state.log.push({ who: "sys", text: r.n, color: "#d7e6cf" });
+        trace("run " + r.n);
+      }
+      render();
     });
-    box.appendChild(h);
-    cmds.forEach((c) => {
-      const r = document.createElement("div");
-      r.className = "rowc" + (i === state.sheetI ? " on" : "");
-      r.textContent = c;
-      const idx = i;
-      r.addEventListener("click", (e) => {
-        e.stopPropagation();
-        state.sheetI = idx;
-        state.sheet = false;
-        const needs = ["scan","hunt","rain","filter","ping","info","track","go","load","defend","sweep","pulse","dig","hail","say","ask","whisper","link","mute"].includes(c);
-        if (needs) {
-          state.prompt = c + " ";
-          state.osk = true;
-          trace(c + " arms argument → OSK");
-        } else {
-          state.log.push({ who: "sys", text: c, color: "#d7e6cf" });
-          trace("run " + c);
-        }
-        render();
-      });
-      box.appendChild(r);
-      i++;
-    });
+    box.appendChild(row);
   });
 }
 

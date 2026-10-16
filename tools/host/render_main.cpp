@@ -674,6 +674,34 @@ int main(void)
             printf("%s screen=%d\n", q.name, botcorps_host_screen_now());
         }
     }
+    {   /* v1016f-2: scan board follows the UI colour (accent) across accents */
+        const char *an[3] = { "cyan", "amber", "mint" };
+        for (int ci = 0; ci < 3; ++ci) {
+            botcorps_host_set_color(ci);
+            botcorps_host_enter(hit, 0);            /* rain */
+            botcorps_host_seq(hit, "\n\x04\n");  /* hub -> scan */
+            char fn[64];
+            snprintf(fn, sizeof(fn), "/tmp/acc-scan-%s.rgb", an[ci]);
+            write_raw(fn, hit, 0);
+            botcorps_host_enter(hit, 1);            /* hub in this accent */
+            snprintf(fn, sizeof(fn), "/tmp/acc-hub-%s.rgb", an[ci]);
+            write_raw(fn, hit, 0);
+        }
+        botcorps_host_set_color(0);
+    }
+    {   /* v1016f-2 (Dirt 7:43): board settings via the REAL dispatcher (hub gibson> control) */
+        const char *an[2] = { "cyan", "amber" };
+        for (int ci = 0; ci < 2; ++ci) {
+            botcorps_host_set_color(ci);
+            botcorps_host_enter(hit, 0);
+            botcorps_host_seq(hit, "\ncontrol\n");
+            char fn[64];
+            snprintf(fn, sizeof(fn), "/tmp/ctl-%s.rgb", an[ci]);
+            write_raw(fn, hit, 0);
+            printf("ctl-%s screen=%d\n", an[ci], botcorps_host_screen_now());
+        }
+        botcorps_host_set_color(0);
+    }
     botcorps_host_sbox(hit, 0, 0, 0); write_raw("/tmp/sb-wifi-icons.rgb", hit, 0);
     botcorps_host_sbox(hit, 0, 1, 0); write_raw("/tmp/sb-selected-prompt.rgb", hit, 0);
     botcorps_host_sbox(hit, 0, 2, 0); write_raw("/tmp/sb-info.rgb", hit, 0);

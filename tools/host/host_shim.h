@@ -219,4 +219,5 @@ int botcorps_host_screen_now(void);
 void botcorps_host_paint(uint8_t *buf);
 void botcorps_host_key(int key, char c);
 void botcorps_host_seq(uint8_t *buf, const char *keys);
+void botcorps_host_set_color(int c);
 void botcorps_host_intro(uint8_t *buf);

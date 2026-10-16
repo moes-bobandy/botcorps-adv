@@ -86,6 +86,12 @@ static void hist_term(const uint8_t *idx)
 
 int main(void)
 {
+    const int type_rc = botcorps_host_type_letters();
+    if (type_rc != 0) {
+        printf("botcorps_host_type_letters failed: %d\n", type_rc);
+        return type_rc;
+    }
+    printf("botcorps_host_type_letters ok\n");
     static uint8_t term[320 * 240];
     static uint8_t hunt[320 * 240];
     static uint8_t list[320 * 240];

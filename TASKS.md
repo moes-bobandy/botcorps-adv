@@ -182,3 +182,10 @@ Reviewed on box `/tmp/bca` at `origin/grok/cyd-touch-port` tip `29f6c05` (firmwa
 ```
 On grok/cyd-touch-port tip 29f6c05 (fw d6bc0fe): (1) hit-test the companion badge so taps there do not open the OSK; (2) fix or remove the false “top-left back on Terminal/Rain” claim and give Terminal a clear touch back (or crown-only + REPORT honesty); (3) shrink badge to mock 38x60 unless Dirt wants 42; (4) add a host test that actually runs botcorps_host_type_letters() and fails CI if it returns nonzero; push only to grok/cyd-touch-port, no merge/flash. Match mocks/BOTcorps-Adv-FINAL-v1.html companion slot and CYD rules (no INT, touch nav, OSK, fixed bot colors, no instruction wording).
 ```
+
+## Local progress (post-9d1a05e)
+- Badge hit-tested: taps in (CYD_BADGE_X, CYD_BADGE_Y, 38x60) return K_NONE and do not open the OSK.
+- Terminal top-left (x<36, y<18) returns K_ESC → go_back to Gibson. REPORT claim corrected (Rain still has no top-left back).
+- Badge shrunk to mock companion 38x60.
+- Host renderer (tools/host/render_main.cpp) calls botcorps_host_type_letters() first and exits nonzero on failure.
+

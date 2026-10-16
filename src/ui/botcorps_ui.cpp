@@ -333,7 +333,7 @@ static bool s_touch_down = false;
 /* Fixed badge. Same box for every bot. The INT card used to mirror. */
 static const int CYD_BADGE_X = 274;
 static const int CYD_BADGE_Y = 174;
-static const int CYD_BADGE_W = 42;
+static const int CYD_BADGE_W = 38;
 static const int CYD_BADGE_H = 60;
 #endif
 static char s_bub[8];
@@ -5218,6 +5218,10 @@ static int read_key(char *typed)
             }
         }
         if (!s_sheet && ty >= 167) {
+            /* Companion badge sits in the right panel. A tap there must not open the OSK. */
+            if (tx >= CYD_BADGE_X && tx < CYD_BADGE_X + CYD_BADGE_W
+                && ty >= CYD_BADGE_Y && ty < CYD_BADGE_Y + CYD_BADGE_H)
+                return K_NONE;
             s_osk_open = true;
             s_osk_dirty = true;
             s_focus_cmds = false;
@@ -5239,7 +5243,8 @@ static int read_key(char *typed)
             return K_NONE;
         }
     }
-    if (s_screen != SCR_RAIN && s_screen != SCR_TERMINAL && tx < 36 && ty < 18)
+    /* Top-left back on Terminal (to Gibson) and on other screens. Rain has none. */
+    if (s_screen != SCR_RAIN && tx < 36 && ty < 18)
         return K_ESC;
     return K_NONE;
 #else

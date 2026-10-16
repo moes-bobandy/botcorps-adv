@@ -198,6 +198,7 @@ void botcorps_host_botscan(uint8_t *buf);
 void botcorps_host_botscan_n(uint8_t *buf, int bot);
 void botcorps_host_sheet(uint8_t *buf, int sel);
 void botcorps_host_sheet_key(uint8_t *buf, int key);
+int botcorps_host_type_letters(void);
 void botcorps_host_sig(int s);
 void botcorps_host_gchat(uint8_t *buf);
 void botcorps_host_gmenu(uint8_t *buf);

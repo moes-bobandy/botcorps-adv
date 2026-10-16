@@ -2135,8 +2135,6 @@ static void paint_prompt(Gfx g)
 #ifdef BOTCORPS_CYD
     /* CYD 38x60 badge in the companion slot. Opens the OSK on tap. */
     paint_cyd_badge(g);
-    paint_osk();
-    botcorps_band_set_push_ymax(s_osk_open ? CYD_OSK_CLIP_Y : 240);
 #else
     /* Companion box, bottom right. Same place with the sheet open or closed. */
     {
@@ -4120,6 +4118,7 @@ static void paint_ext_full(void)
     ext.clearClipRect();
 }
 
+#ifdef BOTCORPS_CYD
 static void cyd_close_osk(void)
 {
     if (!s_osk_open && !s_osk_sym) return;
@@ -4128,7 +4127,6 @@ static void cyd_close_osk(void)
     s_osk_dirty = false;
     s_dirty = true;
 }
-#endif
 
 static void paint_osk(void)
 {
@@ -4169,6 +4167,8 @@ static void paint_osk(void)
     g.clearClipRect();
     g.endWrite();
 }
+
+#endif
 
 static void paint_int_now(void)
 {
@@ -4442,6 +4442,27 @@ static void patch_world(void (*fn)(Gfx), int x, int y, int w, int h)
     fn(g);
     part_end(g);
 }
+
+#ifdef BOTCORPS_CYD
+static void cyd_overlay(bool painted_ext)
+{
+    if (s_screen == SCR_TERMINAL && !s_osk_open) {
+        const int bi = card_bot();
+        if (painted_ext) {
+            s_badge_bot = bi;
+            s_badge_dirty = false;
+        } else if (s_badge_dirty || bi != s_badge_bot) {
+            s_badge_bot = bi;
+            s_badge_dirty = false;
+            patch_world(paint_cyd_badge, CYD_BADGE_X, CYD_BADGE_Y, CYD_BADGE_W, CYD_BADGE_H);
+        }
+    }
+    if (s_osk_open && s_osk_dirty) {
+        paint_osk();
+        s_osk_dirty = false;
+    }
+}
+#endif
 
 static int cursor_icon(int index)
 {
@@ -4933,6 +4954,13 @@ static void on_ok(void)
 
 static void on_esc(void)
 {
+#ifdef BOTCORPS_CYD
+    /* ESC removes the keyboard. It does not navigate while the OSK is up. */
+    if (s_osk_open || s_osk_sym) {
+        cyd_close_osk();
+        return;
+    }
+#endif
     if (s_screen == SCR_WIFI_LIST || s_screen == SCR_BT_LIST) {
         if (s_info_dev >= 0) {
             s_info_dev = -1;
@@ -5276,7 +5304,8 @@ static int read_key(char *typed)
             return K_CHAR;
         }
     }
-    return K_NONE;#endif
+    return K_NONE;
+#endif
 }
 
 
@@ -5462,6 +5491,10 @@ void botcorps_ui_input(void)
 
 void botcorps_ui_draw(void)
 {
+#ifdef BOTCORPS_CYD
+    /* While the keyboard is open, band pushes stop above it. */
+    botcorps_band_set_push_ymax(s_osk_open ? CYD_OSK_CLIP_Y : 240);
+#endif
     botcorps_rain_set_hub(s_screen == SCR_GIBSON);
     layout_covers();
     bool ext_anim = false;
@@ -5497,7 +5530,9 @@ void botcorps_ui_draw(void)
         if (int_dirty) {
             s_int_dirty = false;
             paint_int_now();
-        } else {
+        }
+#ifndef BOTCORPS_CYD
+        else {
             fmt_times();
             static char drawn_b[8];
             if (strcmp(drawn_b, s_up) != 0) {
@@ -5514,6 +5549,10 @@ void botcorps_ui_draw(void)
                 }
             }
         }
+#else
+        cyd_overlay(dirty);
+        (void)pulse;
+#endif
         return;
     }
     if (dirty) {
@@ -5524,15 +5563,24 @@ void botcorps_ui_draw(void)
     if (int_dirty) {
         s_int_dirty = false;
         paint_int_now();
+#ifdef BOTCORPS_CYD
+        cyd_overlay(dirty);
+#endif
         return;
     }
-    if (dirty) return;
+    if (dirty) {
+#ifdef BOTCORPS_CYD
+        cyd_overlay(true);
+#endif
+        return;
+    }
     if (botcorps_dual_ok()) {
         botcorps_set_surface(BOTCORPS_SURFACE_CONTENT);
         tick_ext(botcorps_content());
         botcorps_content().endWrite();
         botcorps_content().clearClipRect();
     }
+#ifndef BOTCORPS_CYD
     fmt_times();
     static char drawn[8];
     if (strcmp(drawn, s_up) != 0) {
@@ -5548,6 +5596,10 @@ void botcorps_ui_draw(void)
                              gib ? 0 : bi, gib, gib ? COL_IVORY : bot_color(bi));
         }
     }
+#else
+    cyd_overlay(false);
+    (void)pulse;
+#endif
 }
 
 #ifdef BOTCORPS_HOST_RENDER

@@ -1,7 +1,7 @@
 # BOTcorps CYD Touch Port Report
 
 ## Tip SHA
-acfc0e3
+383f368
 
 Interactive mock of the current CYD build: mocks/CYD-current-interactive.html
 Built by: Super Grok session (no Cursor/agent hand-off)

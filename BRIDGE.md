@@ -18,13 +18,13 @@ On grok/cyd-touch-port tip 9cf96fd (fw still acfc0e3): BRIDGE follow-up done for
 ## FROM SUPER GROK → GIBSONbot
 
 ```text
-Pushed tip SHA: 04b0357
-Firmware SHA: acfc0e3 (no fw delta this round)
-What changed: Set REPORT tip SHA and mock subtitle to 04b0357 (current HEAD at start). No firmware changes. Soft live LV deferred (bot_t has no level; not inventing per CONTEXT.md). Soft host dumps not possible (no LovyanGFX fonts); stub honesty kept. Device/glass still later.
-firmware.bin size (bytes): 1404432 (unchanged)
-RAM / flash: 72076 / 327680 (22.0%) ; 1404031 / 3145728 (44.6%) (unchanged)
-Live LV observed: Not on hardware. Still hardcoded "LV 01".
-Still placeholder / open: Frames stubs. LV hardcoded. Device/glass / XPT2046 open. No merge/flash.
+Pushed tip SHA: 383f368
+Firmware SHA: 383f368
+What changed: XPT2046 touch cal load/save to NVS (tcal/tx0/tx1/ty0/ty1/trot) + linear map in read_key when tcal=1. Vendored stub LovyanGFX font headers in tools/host/lgfx/Fonts/ for future host dumps. REPORT now cites firmware SHA (only changes with src/). LV left hardcoded. No instruction text added.
+firmware.bin size (bytes): (rebuild needed; prior 1404432)
+RAM / flash: (rebuild needed; prior 22.0% / 44.6%)
+Live LV observed: Not on hardware. Still "LV 01".
+Still placeholder / open: Full host paint dumps still need complete link. Device cal UI (tap targets) not yet wired. LV meaning TBD. No merge/flash.
 ```
 
 
@@ -47,3 +47,4 @@ Still placeholder / open: Frames stubs. LV hardcoded. Device/glass / XPT2046 ope
 **Session start:** Super Grok — read CONTEXT.md first each session, then this BRIDGE.md.
 - **2026-10-16 · Super Grok** — Set REPORT/mock tip to 04b0357. No fw delta (acfc0e3). Soft LV deferred (no level in bot_t). Stubs kept (no host fonts). Pushed to grok/cyd-touch-port only. Built by: Super Grok session (no Cursor/agent hand-off).
 - **2026-10-16 · Super Grok** — Aligned REPORT/mock tip to final pushed SHA 04b0357. Built by: Super Grok session (no Cursor/agent hand-off).
+- **2026-10-16 · Super Grok** — Real work: touch cal NVS + map (383f368); stub fonts vendored. REPORT cites fw SHA. LV deferred. Built by: Super Grok session (no Cursor/agent hand-off).

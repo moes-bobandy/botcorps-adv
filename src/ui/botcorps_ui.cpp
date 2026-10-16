@@ -394,9 +394,15 @@ static int default_back(int id)
     }
 }
 
+/* v1016f: which board the bus scan shows. 0 wifi, 1 ble (live), 2..11 a bot, 12 the Gibson core. */
+static int s_scan_bot = 12;
+/* v1016f: Terminal focus on the crown (Up from the top board row); Fn chord flag from read_key. */
+static bool s_term_crown = false;
+static bool s_key_fn = false;
+
 static bool sbox_id(int id)
 {
-    return id == SCR_WIFI_RADAR || id == SCR_BT_RADAR || id == SCR_WIFI_LIST || id == SCR_BT_LIST;
+    return id == SCR_SCAN || id == SCR_WIFI_RADAR || id == SCR_BT_RADAR || id == SCR_WIFI_LIST || id == SCR_BT_LIST;
 }
 
 static bool sbox_on(void)
@@ -598,11 +604,14 @@ static uint8_t label_bg(void)
 
 static void draw_btn(Gfx g, int x, int y, int id, bool sel)
 {
-    const uint8_t edge = sel ? accent() : COL_LINE;
+    /* v1016f #10: on the hub all three buttons are lit, as the mock; focus adds the white edge. */
+    const bool hub = s_screen == SCR_GIBSON;
+    const uint8_t edge = sel ? accent() : hub ? accent() : COL_LINE;
     const uint8_t fill = sel ? COL_SEL : COL_DEEP;
     plate(g, x, y, BS, BS, fill, edge);
     if (sel) g.drawRect(x + 1, y + 1, BS - 2, BS - 2, accent());
-    draw_icon(g, x, y, id, sel ? accent() : COL_MUTED);
+    if (hub && sel) g.drawRect(x - 1, y - 1, BS + 2, BS + 2, PAL_WHITE);
+    draw_icon(g, x, y, id, (sel || hub) ? accent() : COL_MUTED);
     const bool icon_only = id == ICO_BACK &&
                            (s_screen == SCR_WIFI_LIST || s_screen == SCR_BT_LIST);
     const char *nm = btn_name(id);
@@ -655,7 +664,7 @@ static void layout_covers(void)
     cover_reset(false);
     switch (s_screen) {
     case SCR_RAIN:
-        cover_btn(146, 206);
+        cover_add(104, 44, 113, 113);
         break;
     case SCR_GIBSON:
         cover_add(4, 18, 36, 170);
@@ -688,10 +697,10 @@ static void layout_covers(void)
         break;
     case SCR_WIFI_RADAR:
     case SCR_BT_RADAR:
+    case SCR_SCAN:
         cover_add(0, 0, 320, 240);
         break;
     case SCR_BOT_RADAR:
-    case SCR_SCAN:
         cover_reset(false);
         cover_btn(14, 90);
         cover_btn(14, 124);
@@ -746,6 +755,9 @@ static void enter_screen(int id, int ret)
     /* v1016: the Wi-Fi / BLE lists live inside the scan box. No full-screen switch. */
     if (id == SCR_WIFI_LIST) id = SCR_WIFI_RADAR;
     if (id == SCR_BT_LIST) id = SCR_BT_RADAR;
+    /* v1016f root fix: SCR_SCAN is the scan box too. Radio boards run live. */
+    if (id == SCR_SCAN && s_scan_bot == 0) id = SCR_WIFI_RADAR;
+    if (id == SCR_SCAN && s_scan_bot == 1) id = SCR_BT_RADAR;
     const char *from = screen_name(s_screen);
     const int before = card_bot();
     s_ret = ret;
@@ -753,6 +765,7 @@ static void enter_screen(int id, int ret)
     s_cursor = 0;
     s_sheet = false;
     s_focus_cmds = false;
+    s_term_crown = false;
     scan_all_set(false);
     botcorps_lut_term(false);
     s_bus_t0 = millis();
@@ -1195,9 +1208,9 @@ static void open_bot(int index)
 {
     /* Select stays on the terminal and scans that board in place. */
     if (index < 0 || index > 11) return;
-    char line[32];
-    snprintf(line, sizeof(line), "scan %s", BOTS[index].short_name);
-    run_cmd(line);
+    /* mock termOpen: a Terminal board opens THAT bot's own scan screen */
+    s_scan_bot = index;
+    enter_screen(SCR_SCAN, SCR_TERMINAL);
 }
 
 static void boot_log(void)
@@ -1614,6 +1627,10 @@ static void paint_term_icons(Gfx g)
             if (crown[r][c] != '#') continue;
             g.fillRect(208 + c, 4 + r, 1, 1, r >= 5 ? (uint8_t)PAL_CHIN : (uint8_t)PAL_IVORY);
         }
+    }
+    if (s_term_crown) {
+        g.drawRect(201, 0, 28, 17, PAL_WHITE);
+        g.drawRect(202, 0, 26, 16, accent());
     }
     const int sg = 3 + (int)((millis() / 2500u) % 2u);
     for (int k = 0; k < 4; ++k) {
@@ -2051,11 +2068,18 @@ static void paint_prompt(Gfx g)
     g.fillRect(4, 235, 312, 1, COL_LINE);
     g.fillRect(4, 168, 1, 68, COL_LINE);
     g.fillRect(315, 168, 1, 68, COL_LINE);
-    const int n = s_log_n < 6 ? s_log_n : 6;
-    const int start = s_log_n - n;
+    /* v1016f #9: gchat echoes ("gibson> ...") share the log but never show in the Terminal. */
+    int pick[6];
+    int n = 0;
+    for (int i = s_log_n - 1; i >= 0 && n < 6; --i) {
+        const char *l = log_line(i);
+        if (l && strncmp(l, "gibson>", 7) == 0) continue;
+        pick[n++] = i;
+    }
+    for (int a = 0, b = n - 1; a < b; ++a, --b) { const int t = pick[a]; pick[a] = pick[b]; pick[b] = t; }
     const int lx = scan_all_on() ? 20 : 10;
     for (int k = 0; k < n; ++k) {
-        const char *ln = log_line(start + k);
+        const char *ln = log_line(pick[k]);
         const int ly = 171 + k * 8;
         uint8_t ink = COL_INK;
         const char *show = ln;
@@ -2566,10 +2590,6 @@ static void paint_sbox(Gfx g, bool wifi);
 static void paint_radar(Gfx g, bool with_list)
 {
     /* Device path for SCR_SCAN. The full extBus layout lives in paint_bus_scan. */
-    if (s_screen == SCR_SCAN) {
-        paint_bus_scan(g, s_hunt_band == 0);
-        return;
-    }
     if (sbox_on()) {
         paint_sbox(g, list_band() == 0);
         return;
@@ -3080,9 +3100,21 @@ static void sb_board(Gfx g, bool wifi)
     sb_rect(g, sx + sw - 1, sy + sh - 10, 2, 4, 73);
     const int wx = sx + 5, wy = sy + 8, ww = 36, wh = 42;
     sb_rect(g, wx, wy, ww, wh, 8);
-    const int bot = wifi ? 0 : 1;
-    sb_bot_chip(g, wx + ww / 2, wy + 21, 40, bot);
+    const bool core = s_screen == SCR_SCAN;
+    const int bot = core ? s_scan_bot : wifi ? 0 : 1;
+    char nmb[16];
     const char *nm = wifi ? "WIFIBOT" : "BLE-BOT"; /* BLUETOOTHBOT is 47 px, wider than the can */
+    if (core && bot >= 12) {
+        sb_rect(g, wx + ww / 2 - 20, wy + 1, 40, 40, ac);
+        sb_rect(g, wx + ww / 2 - 19, wy + 2, 38, 38, sb_tone(2));
+        hub_gibson(g, wx + ww / 2, wy + 20, 4);
+        nm = "GIBSON";
+    } else if (core) {
+        sb_bot_chip(g, wx + ww / 2, wy + 21, 40, bot);
+        sb_upper(nmb, 12, BOTS[bot].short_name, 7);
+        if (strlen(nmb) <= 7) strcat(nmb, "BOT");
+        nm = nmb;
+    } else sb_bot_chip(g, wx + ww / 2, wy + 21, 40, bot);
     const int cxm = sx + sw / 2;
     /* plain 4 px pitch so every glyph reads; long lines are abbreviated, never squeezed */
     tiny_text(g, nm, cxm - tiny_w(nm) / 2, wy + wh + 4, 41);
@@ -3174,6 +3206,21 @@ static void sb_grid(Gfx g, int band, bool tiles)
     sb_rect(g, hx < sx ? hx : sx, sy, (hx > sx ? hx - sx : sx - hx) + 1, 1, tr);
     if (ph > .5f) sb_rect(g, hx, hy < sy ? hy : sy, 1, (hy > sy ? hy - sy : sy - hy) + 1, tr);
     botcorps_sprite_draw(*g.raw(), hx - g.ox, hy - 1 - g.oy, botcorps_shape_for(bot), 1, bc, false);
+}
+
+/* Core bus scan (Gibson or a non-radio bot): the crew patrols the grid lines, no device tiles. */
+static void sb_scouts(Gfx g)
+{
+    const uint32_t t = millis();
+    const int span = 7 * SG_C;
+    for (int k = 0; k < 6; ++k) {
+        const int bot = (k * 2 + (s_scan_bot < 12 ? s_scan_bot : 0)) % 12;
+        const int row = k % 4;
+        int p = (int)((t / 45u + (uint32_t)k * 37u) % (uint32_t)(span * 2));
+        if (p > span) p = span * 2 - p;
+        const int x = SG_X + p, y = SG_Y + row * SG_C + (k >= 4 ? SG_C : 0);
+        botcorps_sprite_draw(*g.raw(), x - 3 - g.ox, y - 4 - g.oy, botcorps_shape_for(bot), 1, bot_color(bot), false);
+    }
 }
 
 /* Faux transparency: the tiles under a panel show through as dim outlines. */
@@ -3396,7 +3443,7 @@ static void sb_hud(Gfx g, int band)
     int tally[GL_N];
     for (int i = 0; i < GL_N; ++i) tally[i] = 0;
     for (int d = 0; d < LIST_N; ++d)
-        if (!s_dev_ign[band][d]) tally[sb_ty(band, d)]++;
+        if (!s_dev_ign[band][d] && s_screen != SCR_SCAN) tally[sb_ty(band, d)]++;
     const int cur = (s_cursor >= 0 && s_cursor < LIST_N) ? s_cursor : 0;
     gl_icon(g, sb_ty(band, cur), 12, 218, false);
     const int lit = sb_lit(sb_db(band, cur));
@@ -3431,7 +3478,16 @@ static void paint_sbox(Gfx g, bool wifi)
     const uint32_t u = (millis() - s_bus_t0) % 3400u;
     sb_rect(g, dx, 144, dw, 1, sb_tone(3));
     sb_rect(g, dx, 144, (int)((uint32_t)dw * u / 3400u), 1, ac);
-    if (s_hunt_dev >= 0) {
+    const bool core = s_screen == SCR_SCAN;
+    if (core) {
+        if (sb_vis(dx, dy, dw, 108)) {
+            sb_grid(g, band, false);
+            sb_scouts(g);
+            sb_rect(g, dx + 2, dy + 1, 15, 10, 8);
+            sb_frame(g, dx + 2, dy + 1, 15, 10, sb_tone(4));
+            sb_text(g, ">", dx + 4, dy + 3, ac, 8, false, 1);
+        }
+    } else if (s_hunt_dev >= 0) {
         sb_grid(g, band, false);
         sb_hunt(g, band);
     } else if (sb_vis(dx, dy, dw, 108)) {
@@ -3452,6 +3508,24 @@ static void paint_sbox(Gfx g, bool wifi)
     sb_rect(g, dx, th - 3, dw, 1, sb_tone(3));
     const char *bn = wifi ? "wifi" : "bluetooth";
     char l2[40];
+    if (core) {
+        char who[12];
+        snprintf(who, sizeof(who), "%s", s_scan_bot >= 12 ? "gibson" : BOTS[s_scan_bot].short_name);
+        int x = sb_tt(g, "[ ok ] ", dx + 3, th, PAL_OK);
+        snprintf(l2, sizeof(l2), "%s core linked", who);
+        sb_tt(g, l2, x, th + 1, sb_tone(3));
+        sb_tt(g, l2, x, th, sb_ink());
+        x = sb_tt(g, "[ ok ] ", dx + 3, th + 11, PAL_OK);
+        snprintf(l2, sizeof(l2), "%s bus idle", who);
+        sb_tt(g, l2, x, th + 12, sb_tone(3));
+        sb_tt(g, l2, x, th + 11, sb_ink());
+        x = sb_tt(g, "user@botcorps:~$ ", dx + 3, ty, ac);
+        if ((millis() / 530u) % 2u == 0u) sb_rect(g, x + 1, ty, 5, 9, ac);
+        /* mock busscan menu chip, bottom right of the display */
+        sb_rect(g, dx + dw - 22, ty - 2, 19, 12, 8);
+        sb_frame(g, dx + dw - 22, ty - 2, 19, 12, sb_tone(4));
+        for (int k = 0; k < 3; ++k) sb_rect(g, dx + dw - 18, ty + 1 + k * 3, 11, 1, COL_MUTED);
+    } else {
     int x = sb_tt(g, "[ ok ] ", dx + 3, th, PAL_OK);
     snprintf(l2, sizeof(l2), "%s radio up \xfa ch sweep", bn);
     sb_tt(g, l2, x, th + 1, sb_tone(3));
@@ -3468,6 +3542,7 @@ static void paint_sbox(Gfx g, bool wifi)
     if (nt < strlen(l2)) l2[nt] = 0;
     x = sb_tt(g, l2, x, ty, COL_INK);
     if ((millis() / 530u) % 2u == 0u) sb_rect(g, x + 1, ty, 5, 9, ac);
+    }
     }
     if (sb_vis(0, 0, 320, 25) || sb_vis(0, 209, 320, 31)) sb_hud(g, band);
 }
@@ -4003,8 +4078,9 @@ static void paint_gibson(Gfx g)
         via_node(g, left ? x2 - 1 : x1 - 2, (out ? ry : ys) - 1, ac);
         chip_plate(g, sx, sy, 28, 20, PAL_DEEP, bot_color(i));
         g.drawRect(sx - 1, sy - 1, 30, 22, bot_color(i));
-        draw_blob(g, sx + 14, sy + 10, 1, bot_color(i), botcorps_shape_for(i), false);
-        g.fillRect(sx + 21, sy + 7, 4, 4, dot_col(i, t, mood, asleep));
+        /* v1016f #3: tile icons at 2x so they read on the 2.4" panel */
+        draw_blob(g, sx + 11, sy + 10, 2, bot_color(i), botcorps_shape_for(i), false);
+        g.fillRect(sx + 22, sy + 3, 4, 4, dot_col(i, t, mood, asleep));
     }
     hub_die(g, cx, cy, 34);
     px_ring(g, cx, cy, 34, PAL_CYAN, 0, 0, 0);
@@ -4121,9 +4197,22 @@ static void paint_gibson(Gfx g)
     }
 }
 
+static void px_ring(Gfx g, int cx, int cy, int r, uint8_t col, int on, int off, int phase);
+static void hub_die(Gfx g, int cx, int cy, int r);
+/* v1016f #1: the intro rain carries the Gibson in its ring disc (mock 'rain' screen). No button. */
 static void paint_rain_btn(Gfx g)
 {
-    draw_btn(g, 146, 206, ICO_PLAY, true);
+    const int cx = 160, cy = 100;
+    const uint32_t t = millis();
+    g.fillCircle(cx, cy, 56, PAL_BLACK);
+    hub_die(g, cx, cy, 34);
+    px_ring(g, cx, cy, 34, PAL_CYAN, 0, 0, 0);
+    px_ring(g, cx, cy, 37, PAL_CYAN, 5, 5, (int)(t / 90u));
+    px_ring(g, cx, cy, 42, PAL_CYAN, 2, 4, (int)(t / 140u));
+    px_ring(g, cx, cy, 48, PAL_CYAN, 1, 5, (int)(t / 80u));
+    px_ring(g, cx, cy, 54, PAL_CYAN, 2, 6, (int)(t / 200u));
+    g.fillRect(cx - 14, cy + 25, 28, 1, wire_ink());
+    hub_gibson(g, cx, cy, 9);
 }
 
 static void paint_diag(Gfx g)
@@ -4321,6 +4410,7 @@ static void gc_run(const char *line)
             return;
         }
         if (strcmp(arg, "scan") == 0 || strcmp(arg, "busscan") == 0) {
+            s_scan_bot = 12;
             enter_screen(SCR_SCAN, SCR_GCHAT);
             return;
         }
@@ -4713,7 +4803,7 @@ static void tick_ext(Gfx g)
     else if (s_screen == SCR_WIFI) tick_home(g, 0);
     else if (s_screen == SCR_BT) tick_home(g, 1);
     else if (s_screen == SCR_BOT) tick_home(g, s_bot);
-    else if (s_screen == SCR_BOT_RADAR || s_screen == SCR_SCAN) {
+    else if (s_screen == SCR_BOT_RADAR) {
         tick_radar(g);
     } else if (sbox_on() && botcorps_band_direct()) {
         const bool wifi = list_band() == 0;
@@ -4860,14 +4950,15 @@ static void activate(void)
 {
     switch (s_screen) {
     case SCR_RAIN:
-        enter_screen(SCR_GCHAT, -1);
+        enter_screen(SCR_GIBSON, -1); /* mock: rain + Enter = enterHub() */
         break;
     case SCR_GIBSON:
         if (s_cursor == 0) {
             enter_screen(SCR_TERMINAL, SCR_GIBSON);
             boot_log();
         } else if (s_cursor == 1) {
-            enter_screen(SCR_SCAN, -1);
+            s_scan_bot = 12;
+            enter_screen(SCR_SCAN, SCR_GIBSON);
         } else {
             enter_screen(SCR_CONTROL, SCR_GIBSON);
         }
@@ -4964,9 +5055,9 @@ static bool cursor_box(int index, int *x, int *y, int *w, int *h)
         return true;
     case SCR_WIFI_RADAR:
     case SCR_BT_RADAR:
+    case SCR_SCAN:
         return false; /* scan box: no side buttons */
     case SCR_BOT_RADAR:
-    case SCR_SCAN:
         if (index < 0 || index > 1) return false;
         *x = 14;
         *y = 90 + index * 34;
@@ -5457,8 +5548,16 @@ static void on_arrows(int key)
             s_dirty = true;
             return;
         }
-        if (botcorps_t0_term_prompt[0]) {
-            /* Prompt owns the keys. Arrows do not move boards or clear the line. */
+        if (s_term_crown) {
+            if (key == 2) {
+                s_term_crown = false;
+                partial_prompt_panel();
+                partial_tile(s_term);
+            }
+            return;
+        }
+        if (botcorps_t0_term_prompt[0] && !s_key_fn) {
+            /* Prompt owns the plain keys (history). Fn+arrows always leave the prompt. */
             if (key == 1 || key == 2) {
                 if (s_hist_n <= 0) return;
                 if (s_hist_i < 0) s_hist_i = s_hist_n;
@@ -5483,10 +5582,17 @@ static void on_arrows(int key)
         const int old = s_term;
         int c = s_term % 4;
         int r = s_term / 4;
+        if (key == 1 && r == 0) {
+            /* top row + Up reaches the crown, the Terminal's only back button */
+            s_term_crown = true;
+            partial_tile(old);
+            partial_prompt_panel();
+            return;
+        }
         if (key == 3) c = (c + 3) % 4;
         if (key == 4) c = (c + 1) % 4;
-        if (key == 1) r = (r + 2) % 3;
-        if (key == 2) r = (r + 1) % 3;
+        if (key == 1) r = r - 1;
+        if (key == 2) r = r < 2 ? r + 1 : 2;
         s_term = r * 4 + c;
         if (s_term != old) {
             partial_tile(old);
@@ -5525,6 +5631,7 @@ static void on_arrows(int key)
         s_dirty = true;
         return;
     }
+    if (s_screen == SCR_SCAN) return;
     if (sbox_on()) {
         /* Everything stays in the scan box. Left / Right never switch screens here. */
         if (s_hunt_dev >= 0 || s_info_dev >= 0) return;
@@ -5597,6 +5704,7 @@ static void on_ok(void)
         fa_run(s_fa_sel);
         return;
     }
+    if (s_screen == SCR_SCAN) return;
     if (sbox_on()) {
         if (s_hunt_dev >= 0 || s_gloss >= 0) return; /* Esc steps back */
         if (s_info_dev >= 0) s_info_dev = -1;
@@ -5607,6 +5715,11 @@ static void on_ok(void)
             s_act_dev = s_cursor;
         }
         partial_box(s_cursor, true);
+        return;
+    }
+    if (s_screen == SCR_TERMINAL && s_term_crown && !s_sheet) {
+        s_term_crown = false;
+        go_back();
         return;
     }
     if (s_screen == SCR_TERMINAL) {
@@ -5727,6 +5840,13 @@ static void on_esc(void)
         lut_for_term();
         return;
     }
+    if (s_screen == SCR_TERMINAL && botcorps_t0_term_prompt[0]) {
+        /* mock: Esc clears the buffer first, then goes back */
+        botcorps_t0_term_prompt[0] = 0;
+        partial_term_lower();
+        return;
+    }
+    s_term_crown = false;
     go_back();
 }
 
@@ -5800,6 +5920,10 @@ static void on_char(char c)
     if (c >= 'A' && c <= 'Z') c = (char)(c - 'A' + 'a');
     const size_t n = strlen(botcorps_t0_term_prompt);
     if (n + 1 >= 60) return;
+    if (s_term_crown) {
+        s_term_crown = false;
+        partial_prompt_panel();
+    }
     botcorps_t0_term_prompt[n] = c;
     botcorps_t0_term_prompt[n + 1] = 0;
     s_tab_i = -1;
@@ -5840,7 +5964,20 @@ static int read_key(char *typed)
     if (!M5Cardputer.Keyboard.isChange()) return K_NONE;
     if (!M5Cardputer.Keyboard.isPressed()) return K_NONE;
     const auto &st = M5Cardputer.Keyboard.keysState();
+    s_key_fn = false;
     if (st.enter) return K_OK;
+    if (st.fn) {
+        /* Fn chords are never typing: Fn+; . , / are arrows and Fn+` is Esc on every screen. */
+        for (char c : st.word) {
+            s_key_fn = true;
+            if (c == ';' || c == ':') return K_UP;
+            if (c == '.' || c == '>') return K_DN;
+            if (c == ',' || c == '<') return K_LT;
+            if (c == '/' || c == '?') return K_RT;
+            if (c == '`' || c == '~') return K_ESC;
+            s_key_fn = false;
+        }
+    }
     for (uint8_t h : st.hid_keys) {
         if (h == 0x2A) return K_BS;
         if (h == 0x2B) return K_TAB;
@@ -5908,10 +6045,10 @@ static int gp_screen(const char *name)
     if (strcmp(name, "terminal") == 0) return SCR_TERMINAL;
     if (strcmp(name, "control") == 0) return SCR_CONTROL;
     if (strcmp(name, "bots") == 0 || strcmp(name, "bot") == 0) return SCR_TERMINAL;
-    if (strcmp(name, "wifi") == 0 || strcmp(name, "ble") == 0 || strcmp(name, "bluetooth") == 0)
-        return SCR_SCAN;
+    if (strcmp(name, "wifi") == 0) return SCR_WIFI_RADAR;
+    if (strcmp(name, "ble") == 0 || strcmp(name, "bluetooth") == 0) return SCR_BT_RADAR;
     if (strcmp(name, "chat") == 0 || strcmp(name, "gchat") == 0) return SCR_GCHAT;
-    if (strcmp(name, "scan") == 0 || strcmp(name, "radar") == 0) return SCR_SCAN;
+    if (strcmp(name, "scan") == 0 || strcmp(name, "radar") == 0) { s_scan_bot = 12; return SCR_SCAN; }
     if (strcmp(name, "wifiradar") == 0) return SCR_WIFI_RADAR;
     if (strcmp(name, "bleradar") == 0) return SCR_BT_RADAR;
     if (strcmp(name, "rain") == 0) return SCR_RAIN;
@@ -5978,7 +6115,18 @@ static void gp_run(const char *line)
         gp_open(gp_screen(cmd));
         return;
     }
+    if (strcmp(cmd, "chat") == 0) {
+        gp_open(SCR_GCHAT);
+        return;
+    }
+    if (strcmp(cmd, "defend") == 0) {
+        /* GAP: the mock's defend typing game is not in this firmware; open its home, the Terminal. */
+        gp_open(SCR_TERMINAL);
+        log_add("defend: game not in this build");
+        return;
+    }
     if (strcmp(cmd, "scan") == 0 && (!arg || !arg[0] || strcmp(arg, "radar") == 0)) {
+        s_scan_bot = 12;
         gp_open(SCR_SCAN);
         return;
     }
@@ -6005,11 +6153,17 @@ static void gp_run(const char *line)
     partial_gp_strip();
 }
 
+static void ui_dispatch(int key, char typed);
 void botcorps_ui_input(void)
 {
     char typed = 0;
     const int key = read_key(&typed);
     if (key == K_NONE) return;
+    ui_dispatch(key, typed);
+}
+
+static void ui_dispatch(int key, char typed)
+{
     s_last_key = millis();
     if (s_screen == SCR_GIBSON && (key == K_CHAR || key == K_OK)) {
         s_mood = MOOD_HAPPY;
@@ -6634,4 +6788,38 @@ void botcorps_host_found_alert_b(uint8_t *buf, int band, int dev)
     s_fa_dev = dev;
     paint_ext(Gfx());
 }
+#endif
+
+#ifdef BOTCORPS_HOST_RENDER
+/* v1016f: render a screen through the real device entry (enter_screen + key handlers). */
+void botcorps_host_enter(uint8_t *buf, int id)
+{
+    s_term = 0; botcorps_t0_term_prompt[0] = 0; s_gp_buf[0] = 0;
+    host_frame = buf;
+    memset(buf, PAL_BLACK, 320u * 240u);
+    s_color = 0;
+    s_fa_on = false;
+    s_act = -1;
+    enter_screen(id, -1);
+    paint_ext(Gfx());
+}
+int botcorps_host_screen_now(void) { return s_screen; }
+void botcorps_host_seq(uint8_t *buf, const char *keys)
+{
+    /* Real device path: boot state, then the same dispatcher read_key feeds. */
+    for (const char *p = keys; *p; ++p) {
+        const unsigned char c = (unsigned char)*p;
+        if (c >= 1 && c <= 4) { s_key_fn = true; ui_dispatch((int)c, 0); }
+        else if (c == '\n') { s_key_fn = false; ui_dispatch(K_OK, 0); }
+        else if (c == 0x1b) { s_key_fn = false; ui_dispatch(K_ESC, 0); }
+        else if (c == '\t') { s_key_fn = false; ui_dispatch(K_TAB, 0); }
+        else if (c == '\b') { s_key_fn = false; ui_dispatch(K_BS, 0); }
+        else { s_key_fn = false; ui_dispatch(K_CHAR, (char)c); }
+    }
+    host_frame = buf;
+    memset(buf, PAL_BLACK, 320u * 240u);
+    paint_ext(Gfx());
+}
+void botcorps_host_key(int key, char c) { s_key_fn = (c == 1); ui_dispatch(key, c == 1 ? 0 : c); }
+void botcorps_host_paint(uint8_t *buf) { host_frame = buf; paint_ext(Gfx()); }
 #endif

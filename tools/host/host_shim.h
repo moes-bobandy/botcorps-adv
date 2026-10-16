@@ -116,6 +116,7 @@ struct HostKeys {
     bool enter = false;
     bool del = false;
     bool tab = false;
+    bool fn = false;
     char word[8] = {0};
     struct Empty {
         const uint8_t *begin() const { return nullptr; }
@@ -213,4 +214,9 @@ void botcorps_host_scanall_sheet(uint8_t *buf);
 void botcorps_host_stale_sweep(uint8_t *buf);
 void botcorps_host_keyfob(uint8_t *buf);
 void botcorps_host_hub(uint8_t *buf);
+void botcorps_host_enter(uint8_t *buf, int id);
+int botcorps_host_screen_now(void);
+void botcorps_host_paint(uint8_t *buf);
+void botcorps_host_key(int key, char c);
+void botcorps_host_seq(uint8_t *buf, const char *keys);
 void botcorps_host_intro(uint8_t *buf);

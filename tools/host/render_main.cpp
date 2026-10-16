@@ -638,6 +638,42 @@ int main(void)
     botcorps_host_scan_tint(hit, 2);
     write_raw("/tmp/adv-scan-tint-mint.rgb", hit, 0);
     /* v1016 scan box (icons, selected+prompt, info, hunt in box, glossary, BLE) + found alert */
+    {   /* v1016f: real device entry path */
+        static const char *const nm[15] = { "rain", "gibson", "terminal", "wifi", "wifiradar", "wifilist", "bt", "btradar", "btlist", "bot", "botradar", "scan", "control", "diag", "gchat" };
+        for (int id = 0; id < 15; ++id) {
+            botcorps_host_enter(hit, id);
+            char fn[64];
+            snprintf(fn, sizeof(fn), "/tmp/dev-%02d-%s.rgb", id, nm[id]);
+            write_raw(fn, hit, 0);
+        }
+    }
+    {   /* v1016f: key paths from boot (SCR_RAIN), through the real dispatcher */
+        struct { const char *name, *keys; } P[] = {
+            { "p00-boot", "" },
+            { "p01-enter", "\n" },
+            { "p02-hub-scan", "\n\x04\n" },
+            { "p03-hub-term", "\n\n" },
+            { "p04-term-typed", "\n\nsca" },
+            { "p05-term-fn-down", "\n\nsca\x02\x02" },
+            { "p06-term-crown", "\n\n\x01" },
+            { "p07-crown-ok", "\n\n\x01\n" },
+            { "p08-term-open-bot", "\n\n\x04\x04\n" },
+            { "p09-term-open-wifi", "\n\n\n" },
+            { "p10-gp-defend", "\ndefend\n" },
+            { "p11-gp-scan", "\nscan\n" },
+            { "p12-gp-ble", "\nble\n" },
+            { "p13-term-esc-clear", "\n\nsca\x1b" },
+            { "p14-term-open-gibson", "\n\n\x1b\x04\n" },
+        };
+        for (auto &q : P) {
+            botcorps_host_enter(hit, 0);
+            botcorps_host_seq(hit, q.keys);
+            char fn[64];
+            snprintf(fn, sizeof(fn), "/tmp/%s.rgb", q.name);
+            write_raw(fn, hit, 0);
+            printf("%s screen=%d\n", q.name, botcorps_host_screen_now());
+        }
+    }
     botcorps_host_sbox(hit, 0, 0, 0); write_raw("/tmp/sb-wifi-icons.rgb", hit, 0);
     botcorps_host_sbox(hit, 0, 1, 0); write_raw("/tmp/sb-selected-prompt.rgb", hit, 0);
     botcorps_host_sbox(hit, 0, 2, 0); write_raw("/tmp/sb-info.rgb", hit, 0);

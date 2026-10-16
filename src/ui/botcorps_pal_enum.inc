@@ -57,6 +57,7 @@
     PAL_WASH_A = 44, /* amber accent at 0.22 over the field */
     PAL_WASH_M = 65, /* mint accent at 0.22 over the field */
     PAL_HUB_HEAD = 145, /* dimmed 0xEFF9 head, hue 83 deg, (140,151,122) */
+    PAL_PCB = 14, /* 0x032D #00666c mock board / alert row, v1016d */
     PAL_HUB_IVORY = 178, /* dimmed ivory, hue kept off blue */
     /* Sheet-only indices. k_is_res stays 0 and k_exact_nat stays 0 so the
      * shared 256-word lookup is unchanged. The displayed word lives in

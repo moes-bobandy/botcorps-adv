@@ -2824,10 +2824,17 @@ static void hunt_sample(void)
 static const int SB_X = 108, SB_Y = 54, SB_W = 172, SB_H = 96; /* overlay panel, mock dx+2,dy+12 */
 static const int SG_X = 108, SG_Y = 54, SG_C = 22;             /* 7x4 grid */
 
+/* Patch region of the current scan-box paint. Blocks outside it are skipped. */
+static int s_pc_x = 0, s_pc_y = 0, s_pc_w = 320, s_pc_h = 240;
+static bool sb_vis(int x, int y, int w, int h)
+{
+    return x < s_pc_x + s_pc_w && x + w > s_pc_x && y < s_pc_y + s_pc_h && y + h > s_pc_y;
+}
+
 static uint8_t sb_tone(int which)
 {
     /* 0 board, 1 board texture, 2 grid wash (accent .22), 3 accent .35, 4 accent .8 */
-    static const uint8_t T[3][5] = { { 9, 45, PAL_WASH_C, PAL_WIRE_C, 86 },
+    static const uint8_t T[3][5] = { { PAL_PCB, 45, PAL_WASH_C, PAL_WIRE_C, 86 },
                                      { 104, 108, PAL_WASH_A, PAL_WIRE_A, 177 },
                                      { 13, 45, PAL_WASH_M, PAL_WIRE_M, 90 } };
     const int c = (s_color < 0 || s_color > 2) ? 0 : s_color;
@@ -2868,6 +2875,22 @@ static int sb_tt(Gfx g, const char *s, int x, int y, uint8_t fg)
     return x;
 }
 
+/* Transparent text with a one-pixel halo in the glow ink: the mock's canvas glow, cheaply. */
+static void sb_glow(Gfx g, const char *s, int x, int y, uint8_t fg, uint8_t glow, int size)
+{
+    g.setFont(&fonts::Font0);
+    g.setTextSize(size);
+    g.setTextDatum(lgfx::textdatum::top_left);
+    g.setTextColor(glow);
+    g.drawString(s, x - 1, y);
+    g.drawString(s, x + 1, y);
+    g.drawString(s, x, y - 1);
+    g.drawString(s, x, y + 1);
+    g.setTextColor(fg);
+    g.drawString(s, x, y);
+    g.setTextSize(1);
+}
+
 /* 3x5 etch font for the module silk: 0-9, A-Z, '-'. */
 static const uint16_t TINY3[37] = { 0x7B6F, 0x2C97, 0x73E7, 0x73CF, 0x5BC9, 0x79CF, 0x79EF, 0x7292, 0x7BEF, 0x7BCF, 0x2BED, 0x6BAE, 0x3923, 0x6B6E, 0x79A7, 0x79A4, 0x396B, 0x5BED, 0x7497, 0x126A, 0x5BAD, 0x4927, 0x5FED, 0x6B6D, 0x2B6A, 0x6BA4, 0x2B73, 0x6BAD, 0x388E, 0x7492, 0x5B6F, 0x5B6A, 0x5BFD, 0x5AAD, 0x5A92, 0x72A7, 0x01C0 };
 static int tiny_w(const char *s) { const int n = (int)strlen(s); return n ? n * 4 - 1 : 0; }
@@ -2899,16 +2922,18 @@ static void sb_upper(char *dst, int n, const char *src, int maxc)
 }
 
 /* Mock cell: hash % 28, linear probe in device order. */
+static int8_t s_cell_c[2][SB_N] = { { -1 }, { -1 } };
 static int sb_cell_id(int band, int d)
 {
+    if (s_cell_c[band][0] >= 0) return s_cell_c[band][d];
     bool used[28] = {};
-    int c = 0;
-    for (int k = 0; k <= d; ++k) {
-        c = (int)(sb_hash(sb_name(band, k)) % 28u);
+    for (int k = 0; k < LIST_N; ++k) {
+        int c = (int)(sb_hash(sb_name(band, k)) % 28u);
         while (used[c]) c = (c + 1) % 28;
         used[c] = true;
+        s_cell_c[band][k] = (int8_t)c;
     }
-    return c;
+    return s_cell_c[band][d];
 }
 
 static void sb_cell(int band, int d, int *cx, int *cy)
@@ -2981,8 +3006,10 @@ static void sb_board(Gfx g, bool wifi)
     const uint8_t pcb = sb_tone(0), tex = sb_tone(1);
     const uint8_t gold = 177, goldh = 217, goldd = 104;
     /* soft accent glow ring outside the board edge */
-    sb_frame(g, 16, 28, 288, 179, sb_tone(2));
-    sb_frame(g, 17, 29, 286, 177, sb_tone(3));
+    sb_frame(g, 14, 26, 292, 183, sb_tone(2));
+    sb_frame(g, 15, 27, 290, 181, sb_tone(2));
+    sb_frame(g, 16, 28, 288, 179, sb_tone(3));
+    sb_frame(g, 17, 29, 286, 177, sb_tone(4));
     sb_rect(g, 18, 30, 284, 175, pcb);
     for (int x = 24; x < 300; x += 8) sb_rect(g, x, 31, 1, 173, tex);
     sb_frame(g, 18, 30, 284, 175, ac);
@@ -3048,14 +3075,12 @@ static void sb_board(Gfx g, bool wifi)
     sb_rect(g, wx, wy, ww, wh, 8);
     const int bot = wifi ? 0 : 1;
     sb_bot_chip(g, wx + ww / 2, wy + 21, 40, bot);
-    const char *nm = wifi ? "WIFIBOT" : "BLUETOOTHBOT";
+    const char *nm = wifi ? "WIFIBOT" : "BLE-BOT"; /* BLUETOOTHBOT is 47 px, wider than the can */
     const int cxm = sx + sw / 2;
-    const int tw = sw - 6;
-    const int nw = tiny_w(nm) < tw ? tiny_w(nm) : tw;
-    tiny_text(g, nm, cxm - nw / 2, wy + wh + 4, 68, tw);
-    tiny_text(g, nm, cxm - nw / 2 + 1, wy + wh + 4, 68, tw); /* bold */
-    tiny_text(g, "ESP32-WROOM-32", cxm - tw / 2, wy + wh + 14, 68, tw);
-    tiny_text(g, "FCC ID 2AC7Z", cxm - tiny_w("FCC ID 2AC7Z") / 2, wy + wh + 22, 68, tw);
+    /* plain 4 px pitch so every glyph reads; long lines are abbreviated, never squeezed */
+    tiny_text(g, nm, cxm - tiny_w(nm) / 2, wy + wh + 4, 41);
+    tiny_text(g, "WROOM-32", cxm - tiny_w("WROOM-32") / 2, wy + wh + 14, 41);
+    tiny_text(g, "FCC 2AC7Z", cxm - tiny_w("FCC 2AC7Z") / 2, wy + wh + 22, 41);
     static const char *const PIN_L[12] = { "3V3", "EN", "VP", "VN", "34", "35", "32", "33", "25", "26", "27", "14" };
     int i = 0;
     for (int y = my + 30; y < my + mh - 8; y += 8, ++i) {
@@ -3093,9 +3118,8 @@ static void sb_board(Gfx g, bool wifi)
 
 static int sb_shown(void)
 {
-    /* mock: nShow = 1 + floor(u * 1.6 * 12). Firmware runs the reveal once per scan, then holds 12. */
-    const uint32_t e = millis() - s_bus_t0;
-    if (e >= 3400u) return LIST_N;
+    /* mock: nShow = 1 + floor(u * 1.6 * 12) */
+    const uint32_t e = (millis() - s_bus_t0) % 3400u; /* mock: the sweep loops every 3.4 s */
     int n = 1 + (int)((float)e / 3400.f * 1.6f * 12.f);
     return n > LIST_N ? LIST_N : n;
 }
@@ -3145,12 +3169,27 @@ static void sb_grid(Gfx g, int band, bool tiles)
     botcorps_sprite_draw(*g.raw(), hx - g.ox, hy - 1 - g.oy, botcorps_shape_for(bot), 1, bc, false);
 }
 
+/* Faux transparency: the tiles under a panel show through as dim outlines. */
+static void sb_ghost(Gfx g, int band, int px, int py, int pw, int ph)
+{
+    const int n = sb_shown();
+    for (int d = 0; d < n; ++d) {
+        if (s_dev_ign[band][d]) continue;
+        int cx = 0, cy = 0;
+        sb_cell(band, d, &cx, &cy);
+        if (cx - 10 < px + 1 || cy - 10 < py + 1 || cx + 10 > px + pw - 1 || cy + 10 > py + ph - 1) continue;
+        sb_frame(g, cx - 10, cy - 10, 20, 20, 37);
+        sb_rect(g, cx - 2, cy - 2, 4, 4, 37);
+    }
+}
+
 static void sb_panel(Gfx g, int band)
 {
     const int d = (s_act_dev >= 0 && s_act_dev < LIST_N) ? s_act_dev : 0;
     const uint8_t ac = accent(), sel = sb_tone(3);
     const int x0 = SB_X, y0 = SB_Y, w = SB_W, h = SB_H;
     sb_rect(g, x0, y0, w, h, 4);
+    sb_ghost(g, band, x0, y0 + 21, w, h - 21);
     sb_frame(g, x0, y0, w, h, ac);
     sb_frame(g, x0 + 4, y0 + 3, 16, 16, 149);
     gl_icon(g, sb_ty(band, d), x0 + 6, y0 + 5, false);
@@ -3215,6 +3254,7 @@ static void sb_gloss(Gfx g)
     const uint8_t ac = accent(), sel = sb_tone(3), hd = sb_tone(2);
     const int x0 = SB_X, y0 = SB_Y, w = SB_W, h = SB_H;
     sb_rect(g, x0, y0, w, h, 4);
+    sb_ghost(g, list_band(), x0, y0 + 11, w, h - 11);
     sb_frame(g, x0, y0, w, h, ac);
     sb_rect(g, x0 + 1, y0 + 1, w - 2, 10, hd);
     sb_text(g, ">", x0 + 4, y0 + 3, ac, hd, false, 1);
@@ -3245,6 +3285,12 @@ static void sb_hunt(Gfx g, int band)
     const bool fl = ((millis() / 250u) % 2u) == 1u;
     const int x0 = 106, y0 = 42, w = 176, h = 102;
     sb_rect(g, x0 + 2, y0 + 2, w - 4, h - 4, 4);
+    /* faint board traces behind the panel (the mock shows bot rain at .35 here) */
+    for (int k = 0; k < 7; ++k) {
+        const int yy = y0 + 10 + k * 13, xx = x0 + 6 + (k * 23) % 40;
+        sb_rect(g, xx, yy, x0 + w - 8 - xx - (k * 17) % 50, 1, 37);
+        sb_rect(g, xx, yy - 1, 2, 3, 41);
+    }
     const uint8_t bc = near ? (fl ? (uint8_t)228 : ac) : lost ? (uint8_t)73 : ac;
     sb_frame(g, x0 + 2, y0 + 2, w - 4, h - 4, bc);
     if (near) sb_frame(g, x0 + 3, y0 + 3, w - 6, h - 6, bc);
@@ -3305,7 +3351,9 @@ static void sb_top(Gfx g)
     for (int i = 0; i < 12; ++i) {
         const bool out = u > (float)i * .02f && u < .7f;
         const uint8_t c = bot_color(i);
-        sb_rect(g, 30 + i * 8, 9, 5, 5, out ? c : sb_mix(8, botcorps_rgb565(c), 30));
+        /* dimmed bots stay visible: 38 % of the bot hue over the bar, nearest of all 256 shown colours */
+        static const uint8_t DIM[12] = { 9, 9, 9, 12, 76, 100, 33, 13, 76, 13, 100, 69 };
+        sb_rect(g, 30 + i * 8, 9, 5, 5, out ? c : DIM[i]);
     }
     /* >_ quick terminal chip */
     sb_rect(g, 190, 2, 16, 13, 8);
@@ -3315,9 +3363,7 @@ static void sb_top(Gfx g)
     g.drawCircle(235, 12, 3, ac);
     sb_rect(g, 234, 11, 3, 3, ac);
     sb_text(g, "12", 241, 6, PAL_WHITE, 8, false, 2);
-    g.drawCircle(299, 12, 3, ac);
-    sb_rect(g, 299, 7, 1, 11, ac);
-    sb_rect(g, 294, 12, 11, 1, ac);
+    sb_text(g, "0", 296, 9, ac, 8, false, 1); /* the mock's pixel font draws its target glyph as 0 */
     /* crown plate, mock gibCrown(160, 1, 2) */
     static const char *const CR[7] = { "#.....#.....#", "##...###...##", "###.#####.###", "#############",
                                        "#############", ".###########.", ".###########." };
@@ -3335,7 +3381,8 @@ static void sb_top(Gfx g)
 
 static void sb_hud(Gfx g, int band)
 {
-    sb_top(g);
+    if (sb_vis(0, 0, 320, 25)) sb_top(g);
+    if (!sb_vis(0, 209, 320, 31)) return;
     sb_rect(g, 0, 209, 320, 31, PAL_BLACK);
     sb_rect(g, 0, 209, 320, 1, COL_LINE);
     const uint8_t ac = accent();
@@ -3363,13 +3410,16 @@ static void paint_sbox(Gfx g, bool wifi)
 {
     const int band = wifi ? 0 : 1;
     const uint8_t ac = accent();
-    sb_rect(g, 0, 0, 320, 240, PAL_BLACK);
-    sb_board(g, wifi);
     /* the display: bezel, dark glass, prompt chip, grid, sweep rule, terminal */
     const int dx = 106, dy = 42, dw = 176, dh = 148;
-    sb_rect(g, dx - 9, dy + 44, 5, 44, 41);
-    sb_rect(g, dx - 4, dy - 4, dw + 8, dh + 8, 37);
-    sb_rect(g, dx - 3, dy - 3, dw + 6, dh + 6, 40);
+    const bool in_disp = s_pc_x >= dx && s_pc_y >= dy && s_pc_x + s_pc_w <= dx + dw && s_pc_y + s_pc_h <= dy + dh;
+    if (!in_disp) {
+        sb_rect(g, 0, 0, 320, 240, PAL_BLACK);
+        if (sb_vis(14, 26, 292, 183)) sb_board(g, wifi);
+        sb_rect(g, dx - 9, dy + 44, 5, 44, 41);
+        sb_rect(g, dx - 4, dy - 4, dw + 8, dh + 8, 37);
+        sb_rect(g, dx - 3, dy - 3, dw + 6, dh + 6, 40);
+    }
     sb_rect(g, dx, dy, dw, dh, 8);
     const uint32_t u = (millis() - s_bus_t0) % 3400u;
     sb_rect(g, dx, 144, dw, 1, sb_tone(3));
@@ -3377,7 +3427,7 @@ static void paint_sbox(Gfx g, bool wifi)
     if (s_hunt_dev >= 0) {
         sb_grid(g, band, false);
         sb_hunt(g, band);
-    } else {
+    } else if (sb_vis(dx, dy, dw, 108)) {
         sb_grid(g, band, s_info_dev < 0);
         const bool pf = s_cursor == LIST_N && s_gloss < 0;
         sb_rect(g, dx + 2, dy + 1, 15, 10, pf ? sb_tone(3) : (uint8_t)8);
@@ -3390,25 +3440,29 @@ static void paint_sbox(Gfx g, bool wifi)
     }
     /* terminal strip */
     const int ty = dy + dh - 13, th = ty - 22;
+    if (sb_vis(dx, th - 3, dw, dy + dh - th + 3)) {
     sb_rect(g, dx, th - 3, dw, dy + dh - th + 3, 4);
     sb_rect(g, dx, th - 3, dw, 1, sb_tone(3));
     const char *bn = wifi ? "wifi" : "bluetooth";
     char l2[40];
     int x = sb_tt(g, "[ ok ] ", dx + 3, th, PAL_OK);
     snprintf(l2, sizeof(l2), "%s radio up \xfa ch sweep", bn);
-    sb_tt(g, l2, x, th, COL_INK);
+    sb_tt(g, l2, x, th + 1, 77);
+    sb_tt(g, l2, x, th, PAL_OK);
     x = sb_tt(g, "[ ok ] ", dx + 3, th + 11, PAL_OK);
     snprintf(l2, sizeof(l2), "%s sweep %d/%d", bn, sb_shown(), LIST_N);
-    sb_tt(g, l2, x, th + 11, COL_INK);
+    sb_tt(g, l2, x, th + 12, 77);
+    sb_tt(g, l2, x, th + 11, PAL_OK);
     x = sb_tt(g, "user@botcorps:~$ ", dx + 3, ty, ac);
     /* typed command: one character per 90 ms of the first sweep */
     snprintf(l2, sizeof(l2), "scan %s", wifi ? "wifi" : "ble");
-    const uint32_t e = millis() - s_bus_t0;
+    const uint32_t e = (millis() - s_bus_t0) % 3400u; /* retyped every sweep, as the mock */
     const size_t nt = (size_t)(e / 90u);
     if (nt < strlen(l2)) l2[nt] = 0;
     x = sb_tt(g, l2, x, ty, COL_INK);
     if ((millis() / 530u) % 2u == 0u) sb_rect(g, x + 1, ty, 5, 9, ac);
-    sb_hud(g, band);
+    }
+    if (sb_vis(0, 0, 320, 25) || sb_vis(0, 209, 320, 31)) sb_hud(g, band);
 }
 
 static void paint_found_alert(Gfx g)
@@ -3416,7 +3470,7 @@ static void paint_found_alert(Gfx g)
     if (!s_fa_on) return;
     const uint8_t ac = accent();
     const uint8_t red = 228;                 /* mock #ff2a2a */
-    const uint8_t hi = 9;                    /* hexMix(ac,.55,0) filled selected row */
+    const uint8_t hi = sb_tone(0);           /* #00666c on cyan, hexMix(ac,.55,0) */
     const bool wifi = s_fa_band == 0;
     const int band = wifi ? 0 : 1;
     const int d = (s_fa_dev >= 0 && s_fa_dev < LIST_N) ? s_fa_dev : 0;
@@ -3456,8 +3510,13 @@ static void paint_found_alert(Gfx g)
         blit_ico(g, ACT_ICO[FA_ICO_I[j]], 26, y + 8, on ? (uint8_t)PAL_WHITE : ac);
         char lab[12];
         sb_upper(lab, sizeof(lab), FA_NAME[j], 11);
-        sb_text(g, lab, 42, y + 8, on ? (uint8_t)PAL_WHITE : (uint8_t)COL_INK, row, false, 1);
-        if (on) sb_text(g, lab, 43, y + 8, PAL_WHITE, row, false, 1);
+        if (on) {
+            sb_glow(g, lab, 42, y + 8, PAL_WHITE, sb_tone(4), 1);
+            g.setTextColor(PAL_WHITE);
+            g.drawString(lab, 43, y + 8); /* bold */
+        } else {
+            sb_glow(g, lab, 42, y + 8, COL_INK, sb_tone(3), 1);
+        }
     }
 }
 
@@ -5014,6 +5073,83 @@ static void patch_world(void (*fn)(Gfx), int x, int y, int w, int h)
     part_end(g);
 }
 
+/* Scan box dirty rects: each moving part is patched only when its own key changes. */
+static void sb_patch(int x, int y, int w, int h)
+{
+    s_pc_x = x; s_pc_y = y; s_pc_w = w; s_pc_h = h;
+    patch_world(draw_scan_part, x, y, w, h);
+    s_pc_x = 0; s_pc_y = 0; s_pc_w = 320; s_pc_h = 240;
+}
+
+static void sb_tick(void)
+{
+    static uint32_t k_top = ~0u, k_rule = ~0u, k_srule = ~0u, k_line = ~0u, k_prompt = ~0u;
+    static uint32_t k_grid = ~0u, k_fresh = ~0u, k_scout = ~0u, k_chip = ~0u, k_box = ~0u, k_mod = ~0u, k_led = ~0u;
+    static int s_seen = -1;
+    const int scr = (int)s_screen * 64 + (s_hunt_dev >= 0) * 32 + (s_info_dev >= 0) * 16 + (s_gloss >= 0) * 8 + (s_act >= 0) * 4;
+    if (scr != s_seen) { /* entered fresh: everything was just presented in full */
+        s_seen = scr;
+        k_top = k_rule = k_srule = k_line = k_prompt = k_grid = k_fresh = k_scout = k_chip = k_box = k_mod = k_led = ~0u;
+    }
+    const int band = list_band();
+    const uint32_t t = millis(), e = (t - s_bus_t0) % 3400u;
+    const float u = (float)e / 3400.f;
+    int outn = 0;
+    for (int i = 0; i < 12; ++i) outn += (u > (float)i * .02f && u < .7f) ? 1 : 0;
+    const uint32_t top = (uint32_t)outn * 4u + (t / 400u) % 3u;
+    if (top != k_top) { if (k_top != ~0u) sb_patch(0, 0, 320, 24); k_top = top; }
+    const uint32_t rule = (uint32_t)(320.f * u) / 8u;
+    if (rule != k_rule) { if (k_rule != ~0u) sb_patch(0, 24, 320, 1); k_rule = rule; }
+    const uint32_t sr = (uint32_t)(176.f * u) / 4u;
+    if (sr != k_srule) { if (k_srule != ~0u) sb_patch(106, 144, 176, 1); k_srule = sr; }
+    const int n = sb_shown();
+    if ((uint32_t)n != k_line) { if (k_line != ~0u) sb_patch(106, 163, 176, 11); k_line = (uint32_t)n; }
+    const uint32_t pr = (e / 90u > 9u ? 9u : e / 90u) * 2u + ((t / 530u) % 2u);
+    if (pr != k_prompt) { if (k_prompt != ~0u) sb_patch(106, 175, 176, 13); k_prompt = pr; }
+    /* module: trace pulses and the blinking LED */
+    const uint32_t md = t / 120u;
+    if (md != k_mod) { if (k_mod != ~0u) sb_patch(88, 97, 9, 38); k_mod = md; }
+    const uint32_t ld = (t / 500u) % 2u;
+    if (ld != k_led) { if (k_led != ~0u) sb_patch(93, 54, 5, 3); k_led = ld; }
+    if (s_hunt_dev >= 0) {
+        hunt_sample();
+        const int r = s_hunt_len ? (int)s_hunt_buf[s_hunt_len - 1] : 0;
+        const uint32_t hk = s_hunt_tS * 2u + ((t / 250u) % 2u) + (uint32_t)(r & 0xff);
+        if (hk != k_box) { if (k_box != ~0u) sb_patch(108, 44, 172, 98); k_box = hk; }
+        return;
+    }
+    if (s_info_dev >= 0) { sb_patch(113, 58, 60, 80); return; }   /* moving scan line */
+    const uint32_t ck = (t / 530u) % 2u;
+    if (ck != k_chip) { if (k_chip != ~0u) sb_patch(114, 49, 8, 2); k_chip = ck; }
+    if (s_gloss >= 0) {
+        if (ck != k_box) { if (k_box != ~0u) sb_patch(170, 56, 6, 8); k_box = ck; }
+        return;
+    }
+    if (s_act >= 0) return;                                       /* menu panel is static */
+    if ((uint32_t)n != k_grid) {
+        if (k_grid != ~0u) sb_patch(106, 52, 176, 92);
+        k_grid = (uint32_t)n;
+        k_fresh = k_scout = ~0u;
+        return;
+    }
+    int nx = 0, ny = 0;
+    sb_cell(band, n - 1, &nx, &ny);
+    const uint32_t fk = (t / 110u) % 2u;
+    if (fk != k_fresh) { if (k_fresh != ~0u) sb_patch(nx - 12, ny - 12, 25, 25); k_fresh = fk; }
+    float ph = (float)(t % 900u) / 900.f * 1.4f;
+    if (ph > 1.f) ph = 1.f;
+    const uint32_t sk = (uint32_t)(ph * 24.f);
+    if (sk != k_scout) {
+        if (k_scout != ~0u) {
+            const int sx = SG_X + 11, sy = SG_Y + 3 * SG_C + 11;
+            const int x0 = sx < nx ? sx : nx, x1 = sx < nx ? nx : sx;
+            sb_patch(x0 - 6, sy - 6, x1 - x0 + 13, 13);
+            if (ny < sy - 6) sb_patch(nx - 6, ny - 6, 13, sy - ny);
+        }
+        k_scout = sk;
+    }
+}
+
 static int cursor_icon(int index)
 {
     if (s_screen == SCR_GIBSON) {
@@ -5939,8 +6075,7 @@ void botcorps_ui_draw(void)
             partial_prompt_line();
         } else if (ext_anim && sbox_on()) {
             /* Hunt meter lives in the box; otherwise only the sweep rule and caret move. */
-            patch_world(draw_scan_part, 0, 0, 320, 25);
-            patch_world(draw_scan_part, 103, 38, 184, 152);
+            sb_tick();
         }
         if (int_dirty) {
             s_int_dirty = false;
@@ -6458,7 +6593,7 @@ void botcorps_host_sbox(uint8_t *buf, int band, int mode, int force_dbm)
     memset(s_dev_ign, 0, sizeof(s_dev_ign));
     s_cursor = 0;
     s_bus_t0 = 1000;
-    host_set_millis(mode == 5 ? 1000u + 578u : 9300u);
+    host_set_millis(mode == 5 ? 1000u + 578u : 10400u);
     if (mode == 1) { s_cursor = 0; s_act = 0; s_act_dev = 0; }
     if (mode == 2) { s_cursor = 0; s_info_dev = 0; }
     if (mode == 4) { s_cursor = LIST_N; s_gloss = 8; }
@@ -6473,7 +6608,7 @@ void botcorps_host_sbox(uint8_t *buf, int band, int mode, int force_dbm)
             hunt_sample();
         }
     }
-    if (mode == 3) host_set_millis(5000u + (uint32_t)HUNT_N * 260u + 250u);
+    if (mode == 3) host_set_millis(13900u);
     paint_ext(Gfx());
 }
 void botcorps_host_found_alert_b(uint8_t *buf, int band, int dev)

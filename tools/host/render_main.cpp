@@ -7,12 +7,6 @@
 #include <stdint.h>
 #include <string.h>
 
-/* Sheet x14..306, y104..222 plus the 3px outer falloff. */
-static int sheet_zone(int x, int y)
-{
-    return x >= 11 && x <= 309 && y >= 101 && y <= 225;
-}
-
 static uint16_t pack332(uint8_t i)
 {
     const int r3 = (i >> 5) & 7;
@@ -159,7 +153,7 @@ int main(void)
         int minx = 320, miny = 240, maxx = 0, maxy = 0;
         for (int y = 0; y < 240; ++y) {
             for (int x = 0; x < 320; ++x) {
-                const int inside = sheet_on[f] && sheet_zone(x, y);
+                const int inside = sheet_on[f] && x >= 14 && x <= 306 && y >= 104 && y <= 222;
                 if (inside) continue;
                 const uint8_t c = frames[f][y * 320 + x];
                 for (int n = 0; n < botcorps_term_ov_n; ++n) {
@@ -233,7 +227,7 @@ int main(void)
         int out = 0;
         for (int y = 0; y < 240; ++y) {
             for (int x = 0; x < 320; ++x) {
-                if (sheet_zone(x, y)) continue;
+                if (x >= 14 && x <= 306 && y >= 104 && y <= 222) continue;
                 const uint8_t c = stepped[y * 320 + x];
                 for (int n = 0; n < botcorps_term_ov_n; ++n)
                     if (c == botcorps_term_ov_i[n]) { out++; break; }
@@ -277,14 +271,14 @@ int main(void)
     botcorps_host_sheet(sheet, 0);
     for (int y = 0; y < 240; ++y)
         for (int x = 0; x < 320; ++x) {
-            if (sheet_zone(x, y)) continue;
+            if (x >= 14 && x <= 306 && y >= 104 && y <= 222) continue;
             for (int n = 0; n < botcorps_term_ov_n; ++n)
                 if (sheet[y * 320 + x] == botcorps_term_ov_i[n]) { out0++; break; }
         }
     botcorps_host_sheet(sheet, 1);
     for (int y = 0; y < 240; ++y)
         for (int x = 0; x < 320; ++x) {
-            if (sheet_zone(x, y)) continue;
+            if (x >= 14 && x <= 306 && y >= 104 && y <= 222) continue;
             for (int n = 0; n < botcorps_term_ov_n; ++n)
                 if (sheet[y * 320 + x] == botcorps_term_ov_i[n]) { out1++; break; }
         }
@@ -374,7 +368,7 @@ int main(void)
            glyph_diff, glow236, n194, n5);
     botcorps_host_idle(idle);
     int tile_diff = 0;
-    for (int y = 69; y <= 100; ++y)
+    for (int y = 69; y <= 103; ++y)
         for (int x = 7; x <= 78; ++x)
             if (sheet[y * 320 + x] != idle[y * 320 + x]) tile_diff++;
     int idle170 = 0;
@@ -385,23 +379,14 @@ int main(void)
     botcorps_host_idle(idle);
     for (int y = 0; y < 240; ++y) {
         for (int x = 0; x < 320; ++x) {
-            if (sheet_zone(x, y)) continue;
+            if (x >= 14 && x <= 306 && y >= 104 && y <= 222) continue;
             if (sheet[y * 320 + x] != idle[y * 320 + x]) {
                 tab_out++;
                 if (tab_out <= 8) printf(" tab-out %d,%d %u %u\n", x, y, sheet[y * 320 + x], idle[y * 320 + x]);
             }
         }
     }
-    int tab_rgb = 0;
-    for (int y = 0; y < 240; ++y)
-        for (int x = 0; x < 320; ++x) {
-            if (sheet_zone(x, y)) continue;
-            uint8_t ar, ag, ab, br, bg, bb;
-            rgb_of(sheet[y * 320 + x], 1, &ar, &ag, &ab);
-            rgb_of(idle[y * 320 + x], 0, &br, &bg, &bb);
-            if (ar != br || ag != bg || ab != bb) tab_rgb++;
-        }
-    printf("tab-open-vs-closed-outside %d rgb %d\n", tab_out, tab_rgb);
+    printf("tab-open-vs-closed-outside %d\n", tab_out);
     /* Signal docks. Shift rotates the existing bar triple; paint_ext still draws the scan. */
     botcorps_host_sig(0);
     host_set_millis(2500);
@@ -493,7 +478,7 @@ int main(void)
             int out = 0;
             for (int y = 0; y < 240; ++y)
                 for (int x = 0; x < 320; ++x) {
-                    if (sheet_zone(x, y)) continue;
+                    if (x >= 14 && x <= 306 && y >= 104 && y <= 222) continue;
                     for (int n = 0; n < botcorps_term_ov_n; ++n)
                         if (sheet[y * 320 + x] == botcorps_term_ov_i[n]) { out++; break; }
                 }
@@ -547,7 +532,7 @@ int main(void)
         int ov = 0;
         for (int y = 0; y < 240; ++y)
             for (int x = 0; x < 320; ++x) {
-                if (sheet_zone(x, y)) continue;
+                if (x >= 14 && x <= 306 && y >= 104 && y <= 222) continue;
                 const uint8_t c = hit[y * 320 + x];
                 for (int n = 0; n < botcorps_term_ov_n; ++n)
                     if (c == botcorps_term_ov_i[n]) { ov++; break; }
@@ -567,7 +552,7 @@ int main(void)
                 const uint8_t c = hit[y * 320 + x];
                 const int term = c == 230 || c == 231 || c == 232 || c == 234 || c == 235 || c == 236;
                 if (!term) continue;
-                const int in_sheet = sheet_zone(x, y);
+                const int in_sheet = x >= 14 && x <= 306 && y >= 104 && y <= 222;
                 if (in_sheet) continue;
                 frame++;
                 if (x < minx) minx = x;
@@ -583,7 +568,7 @@ int main(void)
         int diff = 0;
         for (int y = 0; y < 240; ++y)
             for (int x = 0; x < 320; ++x) {
-                if (sheet_zone(x, y)) continue;
+                if (x >= 14 && x <= 306 && y >= 104 && y <= 222) continue;
                 if (sweep_closed[y * 320 + x] != hit[y * 320 + x]) {
                     if (diff < 6)
                         printf(" sweep-out %d,%d %u->%u\n", x, y,
@@ -591,16 +576,7 @@ int main(void)
                     diff++;
                 }
             }
-        int rgb = 0;
-        for (int y = 0; y < 240; ++y)
-            for (int x = 0; x < 320; ++x) {
-                if (sheet_zone(x, y)) continue;
-                uint8_t ar, ag, ab, br, bg, bb;
-                rgb_of(sweep_closed[y * 320 + x], 1, &ar, &ag, &ab);
-                rgb_of(hit[y * 320 + x], 1, &br, &bg, &bb);
-                if (ar != br || ag != bg || ab != bb) rgb++;
-            }
-        printf("sweep-tab-outside %d rgb %d\n", diff, rgb);
+        printf("sweep-tab-outside %d\n", diff);
     }
     botcorps_host_stale_sweep(hit);
     {
@@ -637,19 +613,7 @@ int main(void)
     printf("y109-sel39 %u %u %u %u\n",
            hit[109 * 320 + 20], hit[109 * 320 + 21],
            hit[109 * 320 + 299], hit[109 * 320 + 300]);
-    printf("outer-halo %u %u %u\n",
-           hit[160 * 320 + 13], hit[160 * 320 + 12], hit[160 * 320 + 11]);
     botcorps_host_idle(hit);
-    {
-        int residue = 0;
-        for (int y = 101; y <= 225; ++y)
-            for (int x = 11; x <= 309; ++x) {
-                if (x >= 14 && x <= 306 && y >= 104 && y <= 222) continue;
-                const uint8_t c = hit[y * 320 + x];
-                if (c == 232 || c == 234 || c == 236) residue++;
-            }
-        printf("halo-residue %d\n", residue);
-    }
     write_raw("/tmp/hit-idle.rgb", hit, 0);
     return 0;
 }

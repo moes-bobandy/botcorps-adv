@@ -189,3 +189,8 @@ On grok/cyd-touch-port tip 29f6c05 (fw d6bc0fe): (1) hit-test the companion badg
 - Badge shrunk to mock companion 38x60.
 - Host renderer (tools/host/render_main.cpp) calls botcorps_host_type_letters() first and exits nonzero on failure.
 
+
+## Local progress (badge OSK + ESC)
+- Badge tap (and lower terminal) opens the OSK again.
+- ESC closes the OSK first and does not navigate while it is open.
+

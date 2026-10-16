@@ -4936,6 +4936,15 @@ static void on_ok(void)
 
 static void on_esc(void)
 {
+#ifdef BOTCORPS_CYD
+    if (s_osk_open) {
+        s_osk_open = false;
+        s_osk_sym = false;
+        s_osk_dirty = false;
+        s_dirty = true;
+        return;
+    }
+#endif
     if (s_screen == SCR_WIFI_LIST || s_screen == SCR_BT_LIST) {
         if (s_info_dev >= 0) {
             s_info_dev = -1;
@@ -5218,10 +5227,7 @@ static int read_key(char *typed)
             }
         }
         if (!s_sheet && ty >= 167) {
-            /* Companion badge sits in the right panel. A tap there must not open the OSK. */
-            if (tx >= CYD_BADGE_X && tx < CYD_BADGE_X + CYD_BADGE_W
-                && ty >= CYD_BADGE_Y && ty < CYD_BADGE_Y + CYD_BADGE_H)
-                return K_NONE;
+            /* Companion badge and the rest of the lower terminal open the OSK. */
             s_osk_open = true;
             s_osk_dirty = true;
             s_focus_cmds = false;

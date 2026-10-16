@@ -300,3 +300,56 @@ D. P1 as spare: CYD host-render with `BOTCORPS_CYD`; Adv env rebuild confirm; I2
 ```
 On grok/cyd-touch-port tip a6ede9a: (1) bump REPORT tip to a6ede9a; (2) fix mocks/CYD-current-interactive.html so the 320x240 panel has no instruction text (drop TAP TO ENTER / ‹ back / CROWN/TERMINAL label words — icons only), first tile tap focuses only (select on second), and the command sheet looks more like Terminal v3.2 prompt-anchored Tab dropdown; (3) keep badge-opens-OSK, v11 rain, host type gate as-is; push only to grok/cyd-touch-port, no merge/flash. Device cal + glass shots later.
 ```
+
+## GIBSONbot review — tip ef62516 (2026-10-15 ~10:04 PM ET)
+
+Reviewed on box `/tmp/bca` at `origin/grok/cyd-touch-port` tip `ef625161865eaba49dccedb67be6c7e67a152500` (last-seen `13b101cfafef8855f99b3ce0bab5ff4a4b970a0f`). Diff-only review of mock + REPORT; firmware tree unchanged this tip. Did **not** rebuild or flash. Nothing merged. This commit is TASKS.md review notes only.
+
+### Commits in this batch
+| SHA | Author | What |
+|-----|--------|------|
+| ef62516 | Grok \<jankerton@example.com\> | Mock: drop on-panel instruction words (icons), focus-then-select, v3.2-ish sheet; REPORT tip → a6ede9a |
+
+Author/committer **Grok** (Super Grok). **No Cursor Agent / non-Super-Grok committers.** Branch only; no merge.
+
+### What this tip actually fixed
+1. **No instruction words on the 320×240 panel.** Rain enter is a blank full-screen hit (no "TAP TO ENTER"). Gibson back / Terminal / Wi-Fi / BLE and Terminal back / crown are SVG icons. CMDS label gone; prompt tap opens the sheet (Tab-on-empty-prompt behavior).
+2. **Focus then select.** First tile tap sets focus + silk only; second tap selects and logs. Matches firmware / prior TASKS ask.
+3. **Sheet closer to Terminal v3.2.** Cyan border, name + purpose rows, 9-row windowed scroll, bottom caret, prompt-anchored open. CORE/COMMS/GAME/SYS headers kept.
+4. **REPORT tip** bumped `96f7b2d` → `a6ede9a` (still one behind this tip).
+
+### MATCH (vs CYD rules / mocks)
+- Single 320×240 panel, no INT screen in the interactive mock
+- Touch as main nav; icons instead of direction/instruction prose on panel
+- Focus-then-select on board tiles
+- Fixed per-bot colors; ID badge kept; badge tap → OSK
+- Prompt-anchored command sheet with group headers + purpose blurbs
+- Super Grok-only author; push only on `grok/cyd-touch-port`
+- Firmware still `CMD_N=40` (unchanged this tip)
+
+### MISS / still open
+1. **Mock sheet has 33 commands, not 40.** Dropped CORE `go` / `load` / `defend` / `sweep` / `roster` / `pulse` / `dig`. Firmware `CMD_N=40` and `BOTcorps-Adv-FINAL-v3.2-terminal-commands.html` still have all seven. Restore them in the interactive mock.
+2. **REPORT tip lag:** tip field is `a6ede9a`; real tip is `ef62516`.
+3. **Mock subtitle** still says tip `fd972ea`.
+4. **RX** still literal chrome text on Terminal (Adv mock also has RX; minor vs prior instruction-word ban).
+5. **LV** still hardcoded `"LV 01"` on badge.
+6. **Not pixel-faithful FINAL-v1 / full v3.2** (no per-row command icons; Gibson hub is empty hit rect, not ESP32-chip look).
+7. **Device / glass still unchecked;** P1 (Adv rebuild, CYD host-render shots, I2C KB) still open.
+8. **Firmware unchanged** this tip — mock-only.
+
+### Memory (unchanged; tip is mock-only)
+- RAM: 72,076 / 327,680 (22.0%)
+- Flash: 1,387,919 / 3,145,728 (44.1%)
+- Frame: BANDS
+
+### Next Super Grok paste order
+A. Restore CORE `go`/`load`/`defend`/`sweep`/`roster`/`pulse`/`dig` in `mocks/CYD-current-interactive.html` so the sheet matches firmware `CMD_N=40` / v3.2.
+B. Bump REPORT tip and mock subtitle to `ef62516`.
+C. Optional: icon-ify or keep RX as Adv-style chrome; live LV on badge.
+D. Device: XPT2046 → NVS `tcal=1`; glass screenshots of every CYD screen when build is done.
+
+### Follow-up one-liner (Dirt → Super Grok)
+```
+On grok/cyd-touch-port tip ef62516: (1) restore CORE cmds go/load/defend/sweep/roster/pulse/dig in mocks/CYD-current-interactive.html so the sheet has all 40 like firmware CMD_N / v3.2; (2) bump REPORT tip and mock subtitle to ef62516; (3) keep icon-only panel, focus-then-select, v3.2-ish sheet; push only to grok/cyd-touch-port, no merge/flash. Device cal + glass shots later.
+```
+

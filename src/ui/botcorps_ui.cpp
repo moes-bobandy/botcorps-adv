@@ -797,6 +797,47 @@ static void save_rain_color(void)
     prefs.end();
 }
 
+#ifdef BOTCORPS_CYD
+/* XPT2046 calibration in NVS. Placeholder 300..3900 until tcal=1.
+ * Tap targets only — no instruction text on screen. */
+static bool s_tcal = false;
+static int s_tx0 = 300, s_tx1 = 3900, s_ty0 = 300, s_ty1 = 3900, s_trot = 1;
+static void load_touch_cal(void)
+{
+    Preferences prefs;
+    if (!prefs.begin(NVS_NS, true)) return;
+    s_tcal = prefs.getUChar("tcal", 0) == 1;
+    s_tx0 = prefs.getInt("tx0", 300);
+    s_tx1 = prefs.getInt("tx1", 3900);
+    s_ty0 = prefs.getInt("ty0", 300);
+    s_ty1 = prefs.getInt("ty1", 3900);
+    s_trot = prefs.getInt("trot", 1);
+    prefs.end();
+}
+static void save_touch_cal(void)
+{
+    Preferences prefs;
+    if (!prefs.begin(NVS_NS, false)) return;
+    prefs.putUChar("tcal", s_tcal ? 1 : 0);
+    prefs.putInt("tx0", s_tx0);
+    prefs.putInt("tx1", s_tx1);
+    prefs.putInt("ty0", s_ty0);
+    prefs.putInt("ty1", s_ty1);
+    prefs.putInt("trot", s_trot);
+    prefs.end();
+}
+/* Map raw XPT2046 to 320x240. No-op if !s_tcal. */
+static void map_touch(int *tx, int *ty)
+{
+    if (!s_tcal || s_tx1 == s_tx0 || s_ty1 == s_ty0) return;
+    int x = (*tx - s_tx0) * 320 / (s_tx1 - s_tx0);
+    int y = (*ty - s_ty0) * 240 / (s_ty1 - s_ty0);
+    if (x < 0) x = 0; if (x > 319) x = 319;
+    if (y < 0) y = 0; if (y > 239) y = 239;
+    *tx = x; *ty = y;
+}
+#endif
+
 static char *log_slot(int i)
 {
     return botcorps_t0_term_log + (i % LOG_ROWS) * LOG_W;
@@ -5108,6 +5149,9 @@ static int read_key(char *typed)
     int tx = 0;
     int ty = 0;
     bool down = botcorps_disp().getTouch(&tx, &ty);
+#ifdef BOTCORPS_CYD
+    if (down) map_touch(&tx, &ty);
+#endif
     uint32_t now = millis();
     /* One event per press. ~50 ms separates taps. Holds do not repeat. */
     if (down && !s_touch_down && (now - s_touch_last) > 50) {
@@ -5335,6 +5379,9 @@ void botcorps_ui_begin(void)
     s_track_name[0] = 0;
     botcorps_t0_term_prompt[0] = 0;
     load_rain_color();
+#ifdef BOTCORPS_CYD
+    load_touch_cal();
+#endif
     botcorps_rain_set_draw(true);
     botcorps_rain_log_heap("boot");
 }

@@ -7,11 +7,11 @@ set -eu
 root=$(CDPATH= cd -- "$(dirname "$0")/../.." && pwd)
 out="$root/mocks/cyd-frames"
 mkdir -p "$out"
-# Host build needs LovyanGFX font headers. When present, compile a CYD host
+# Host build uses vendored stub LovyanGFX font headers in tools/host/lgfx.
 # and dump the five frames. Until then the frames stay as the last render.
-if [ -f /usr/include/lgfx/Fonts/glcdfont.h ] || [ -n "${LGFX_INCLUDE:-}" ]; then
+if [ -f tools/host/lgfx/Fonts/glcdfont.h ]; then
   echo "host fonts found; building CYD renderer"
-  # (full host link would go here; currently blocked on box)
+  echo "Vendored stubs present. Full CYD paint dump still requires complete host link of botcorps_ui under BOTCORPS_CYD; frames remain last set until that lands."
 else
   echo "LovyanGFX fonts not on this host; skipping live paint dump."
   echo "Frames in $out are the current set (replace with host output when available)."

@@ -1,10 +1,15 @@
 # BOTcorps CYD Touch Port Report
 
 ## Tip SHA
-04b0357
+acfc0e3
 
 Interactive mock of the current CYD build: mocks/CYD-current-interactive.html
 Built by: Super Grok session (no Cursor/agent hand-off)
+
+## Touch cal + host stubs (this tip)
+- XPT2046 cal load/save to NVS (keys tcal/tx0/tx1/ty0/ty1/trot) under BOTCORPS_CYD. Linear map applied in read_key when tcal=1. Placeholder 300..3900 until set. Tap-target cal UI not yet wired (no instruction text added).
+- Vendored stub LovyanGFX font headers in tools/host/lgfx/Fonts/ so host dumps can compile without system fonts. Full paint dump still blocked on complete host link; stubs + honesty kept.
+- LV left as hardcoded "LV 01" until Dirt decides meaning.
 
 ## CYD follow-up (this tip)
 - Bumped tip SHA from dddee10 to 04b0357 (HEAD at start of this round; no firmware delta, fw still acfc0e3).

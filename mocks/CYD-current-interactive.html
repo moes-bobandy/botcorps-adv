@@ -31,9 +31,11 @@
   h1 { margin: 0; font-size: 16px; font-weight: 600; letter-spacing: .04em; }
   .sub { color: var(--muted); margin-top: 4px; }
   .wrap { display: flex; gap: 24px; padding: 12px 20px 28px; align-items: flex-start; flex-wrap: wrap; }
+  .stage { width: min(640px, 100vw - 24px); }
   .panel {
-    width: 640px;
-    height: 480px;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    height: auto;
     background: var(--field);
     border: 1px solid var(--line);
     position: relative;
@@ -59,20 +61,20 @@
   }
   .hit:hover { outline: 1px dashed #3dcea066; }
   .back {
-    left: 0; top: 0; width: 72px; height: 32px;
+    left: 0; top: 0; width: 11%; height: 7%;
     color: var(--amber);
     display: flex; align-items: center; padding-left: 8px;
     font-size: 11px;
   }
   .crown, .rx {
-    top: 4px; height: 24px; display: flex; align-items: center; justify-content: center;
+    top: 1%; height: 6%; display: flex; align-items: center; justify-content: center;
     font-size: 11px; color: var(--ink);
   }
-  .crown { left: 406px; width: 48px; }
-  .rx { left: 572px; width: 56px; color: var(--muted); }
+  .crown { left: 63%; width: 8%; }
+  .rx { left: 89%; width: 9%; color: var(--muted); }
   .tile {
     position: absolute;
-    width: 144px; height: 92px;
+    width: 22.5%; height: 19.2%;
     background: var(--plate);
     border: 1px solid var(--line);
     display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -89,24 +91,24 @@
   .led { position: absolute; left: 6px; top: 6px; width: 6px; height: 6px; }
   .badge {
     position: absolute;
-    left: 548px; top: 348px; width: 76px; height: 120px;
+    left: 85.6%; top: 72.5%; width: 11.9%; height: 25%;
     background: var(--bg);
     border: 1px solid;
-    display: flex; flex-direction: column; align-items: center; padding-top: 10px;
+    display: flex; flex-direction: column; align-items: center; padding-top: 6px;
     font-size: 11px;
   }
   .badge .g { width: 22px; height: 22px; border-radius: 50%; border: 2px solid currentColor; margin-bottom: 8px; }
   .prompt {
-    position: absolute; left: 16px; top: 334px; right: 160px; height: 24px;
+    position: absolute; left: 2.5%; top: 70%; right: 16%; height: 5%;
     color: var(--pink); font-size: 12px;
   }
   .log {
-    position: absolute; left: 16px; top: 40px; right: 16px; height: 70px;
+    position: absolute; left: 2.5%; top: 8%; right: 2.5%; height: 14%;
     font-size: 11px; color: var(--ink); overflow: hidden;
   }
   .log .bot { }
   .osk {
-    position: absolute; left: 0; right: 0; top: 302px; bottom: 0;
+    position: absolute; left: 0; right: 0; top: 63%; bottom: 0;
     background: #0a1210;
     border-top: 1px solid var(--line);
     padding: 6px 8px 8px;
@@ -127,7 +129,7 @@
   .key.wide { flex: 2; }
   .key.space { flex: 6; }
   .sheet {
-    position: absolute; left: 28px; top: 48px; width: 560px; height: 250px;
+    position: absolute; left: 4%; top: 10%; width: 88%; height: 52%;
     background: #0c1412ee;
     border: 1px solid var(--line);
     display: none; overflow: auto; padding: 6px 0;
@@ -154,9 +156,11 @@
   <div class="sub">Interactive mock of grok/cyd-touch-port tip fd972ea. 320×240 scaled 2×. Not a device flash.</div>
 </header>
 <div class="wrap">
+  <div class="stage">
   <div class="panel" id="panel">
     <canvas class="rain" id="rain" width="640" height="480"></canvas>
     <div class="chrome" id="chrome"></div>
+  </div>
   </div>
   <div class="side">
     <h2>What this shows</h2>
@@ -235,7 +239,10 @@ function trace(msg) {
 }
 
 function tilePos(n) {
-  return { x: (7 + (n % 4) * 78) * 2, y: (19 + Math.floor(n / 4) * 50) * 2 };
+  return {
+    x: (7 + (n % 4) * 78) / 320 * 100,
+    y: (19 + Math.floor(n / 4) * 50) / 240 * 100
+  };
 }
 
 function paintRain() {
@@ -263,11 +270,12 @@ function render() {
   else renderTerminal();
 }
 
-function add(el, cls, style, text, on) {
+function add(cls, style, text, on) {
   const d = document.createElement("div");
-  d.className = cls;
+  d.className = cls || "";
   if (style) d.style.cssText = style;
-  if (text != null) d.textContent = text;
+  if (typeof text === "function") on = text;
+  else if (text != null) d.textContent = text;
   if (on) d.addEventListener("click", (e) => { e.stopPropagation(); on(e); });
   chrome.appendChild(d);
   return d;
@@ -289,19 +297,19 @@ function renderGibson() {
     trace("Gibson back → rain");
     render();
   });
-  add("hit", "left:180px;top:120px;width:280px;height:160px;border:1px solid #2a3a34;display:flex;align-items:center;justify-content:center;color:#d7e6cf;letter-spacing:.2em;", "GIBSON", () => {
+  add("hit", "left:28%;top:25%;width:44%;height:33%;border:1px solid #2a3a34;display:flex;align-items:center;justify-content:center;color:#d7e6cf;letter-spacing:.2em;", "GIBSON", () => {
     trace("crown / hub");
   });
-  add("hit", "left:40px;top:400px;width:160px;height:48px;border:1px solid #3dcea0;display:flex;align-items:center;justify-content:center;color:#3dcea0;", "TERMINAL", () => {
+  add("hit", "left:6%;top:83%;width:25%;height:10%;border:1px solid #3dcea0;display:flex;align-items:center;justify-content:center;color:#3dcea0;", "TERMINAL", () => {
     state.screen = "terminal";
     state.focus = -1;
     trace("Gibson → Terminal");
     render();
   });
-  add("hit", "left:240px;top:400px;width:140px;height:48px;border:1px solid #2a3a34;display:flex;align-items:center;justify-content:center;", "WIFI", () => {
+  add("hit", "left:37%;top:83%;width:22%;height:10%;border:1px solid #2a3a34;display:flex;align-items:center;justify-content:center;", "WIFI", () => {
     trace("open Wi-Fi (list stub)");
   });
-  add("hit", "left:400px;top:400px;width:140px;height:48px;border:1px solid #2a3a34;display:flex;align-items:center;justify-content:center;", "BLE", () => {
+  add("hit", "left:62%;top:83%;width:22%;height:10%;border:1px solid #2a3a34;display:flex;align-items:center;justify-content:center;", "BLE", () => {
     trace("open BLE (list stub)");
   });
 }
@@ -338,7 +346,7 @@ function renderTerminal() {
   BOTS.forEach((b, n) => {
     const p = tilePos(n);
     const on = state.focus === n;
-    const tile = add("tile" + (on ? " focus" : ""), `left:${p.x}px;top:${p.y}px;color:${b.color};`);
+    const tile = add("tile" + (on ? " focus" : ""), `left:${p.x}%;top:${p.y}%;color:${b.color};`);
     const led = document.createElement("div");
     led.className = "led";
     led.style.background = b.st === "hold" ? "#e07a6a" : b.st === "limited" ? "#e8b15a" : "#3dcea0";
@@ -387,7 +395,7 @@ function renderTerminal() {
 
   add("prompt", "", "user@botcorps:~$ " + state.prompt);
 
-  add("hit", "left:500px;top:428px;width:40px;height:24px;font-size:10px;color:#7d9086;display:flex;align-items:center;", "CMDS", (e) => {
+  add("hit", "left:78%;top:89%;width:8%;height:5%;font-size:10px;color:#7d9086;display:flex;align-items:center;", "CMDS", (e) => {
     state.sheet = !state.sheet;
     state.osk = false;
     trace(state.sheet ? "open command sheet" : "close command sheet");

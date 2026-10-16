@@ -1,9 +1,9 @@
 # BOTcorps CYD Touch Port Report
 
 ## Tip SHA
-fd6a54410bf833faf3ea30291a9553b220fbc083
+49911f8
 
-That is the branch tip. Firmware changes are in this commit (badge 38x60, hit-test, Terminal back). Previous firmware was d6bc0fe.
+Badge tap opens the OSK. ESC dismisses the OSK before any navigation.
 
 ## Build
 - Environment: `cyd`

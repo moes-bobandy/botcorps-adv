@@ -1792,11 +1792,21 @@ static void paint_sheet(Gfx g)
             menu_row(top + r, &hdr, &cmd);
             if (hdr >= 0) continue;
             const int y = by + 5 + r * rh;
-            g.fillRect(bx + 6, y, 1, rh - 1, PAL_TERM_M22);
-            g.fillRect(bx + 7, y, 1, rh - 1, PAL_TERM_M18);
-            g.fillRect(bx + 8, y, 1, rh - 1, PAL_TERM_M10);
-            g.fillRect(x1 - 7, y, 1, rh - 1, PAL_TERM_M18);
-            g.fillRect(x1 - 6, y, 1, rh - 1, PAL_TERM_M22);
+            /* The 6-row ramp owns by..by+5. A scrolled command on the
+             * first row would otherwise paint y109. Start at by+6. */
+            int ys = y;
+            int hs = rh - 1;
+            if (ys < by + 6) {
+                const int cut = (by + 6) - ys;
+                ys += cut;
+                hs -= cut;
+            }
+            if (hs <= 0) continue;
+            g.fillRect(bx + 6, ys, 1, hs, PAL_TERM_M22);
+            g.fillRect(bx + 7, ys, 1, hs, PAL_TERM_M18);
+            g.fillRect(bx + 8, ys, 1, hs, PAL_TERM_M10);
+            g.fillRect(x1 - 7, ys, 1, hs, PAL_TERM_M18);
+            g.fillRect(x1 - 6, ys, 1, hs, PAL_TERM_M22);
         }
         g.fillRect(bx + 8, y1 - 8, w - 28, 1, PAL_TERM_M10);
         g.fillRect(bx + 8, y1 - 7, w - 28, 1, PAL_TERM_M18);

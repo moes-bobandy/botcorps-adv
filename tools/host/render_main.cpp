@@ -605,8 +605,14 @@ int main(void)
     write_raw("/tmp/hit-tab0.rgb", hit, 1);
     botcorps_host_sheet(hit, 20);
     write_raw("/tmp/hit-tab20.rgb", hit, 1);
+    printf("y109-sel20 %u %u %u %u\n",
+           hit[109 * 320 + 20], hit[109 * 320 + 21],
+           hit[109 * 320 + 299], hit[109 * 320 + 300]);
     botcorps_host_sheet(hit, 39);
     write_raw("/tmp/hit-tab39.rgb", hit, 1);
+    printf("y109-sel39 %u %u %u %u\n",
+           hit[109 * 320 + 20], hit[109 * 320 + 21],
+           hit[109 * 320 + 299], hit[109 * 320 + 300]);
     botcorps_host_idle(hit);
     write_raw("/tmp/hit-idle.rgb", hit, 0);
     return 0;

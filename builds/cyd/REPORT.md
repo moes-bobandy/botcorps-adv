@@ -1,9 +1,9 @@
 # BOTcorps CYD Touch Port Report
 
 ## Tip SHA
-6b0b2d1
+fd972ea
 
-Rebuilt `pio run -e cyd` in this session on tip 6b0b2d1 (firmware e040ee7 plus report tip).
+Rebuilt `pio run -e cyd` in this session on the tree at 6b0b2d1 (firmware e040ee7). This commit only records the numbers.
 Built by: Super Grok session (no Cursor/agent hand-off)
 
 ## Build

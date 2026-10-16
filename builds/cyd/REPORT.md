@@ -1,7 +1,7 @@
 # BOTcorps CYD Touch Port Report
 
 ## Tip SHA
-(this push)
+e040ee7
 
 Dirt asked for a badge tap to open the OSK. That stays. ESC / HIDE / RX close it and do not navigate while it is open.
 CYD boot rain is now v11 density (gap 14, every third column off). Terminal still has no rain.

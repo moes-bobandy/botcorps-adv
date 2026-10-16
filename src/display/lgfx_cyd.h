@@ -90,6 +90,16 @@ public:
     }
 
     /* Call before begin(). Values are the raw XPT2046 range. */
+
+    /* Raw XPT2046 for calibration. Returns true if a point was read. */
+    bool get_touch_raw(int *x, int *y)
+    {
+        lgfx::touch_point_t tp;
+        if (!_touch.getTouchRaw(&tp, 1)) return false;
+        *x = tp.x;
+        *y = tp.y;
+        return true;
+    }
     void apply_touch_cal(uint16_t xmin, uint16_t xmax, uint16_t ymin, uint16_t ymax,
                          uint8_t offset_rot)
     {

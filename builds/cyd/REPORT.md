@@ -1,10 +1,16 @@
 # BOTcorps CYD Touch Port Report
 
 ## Tip SHA
-383f368
+(pending this commit)
 
 Interactive mock of the current CYD build: mocks/CYD-current-interactive.html
 Built by: Super Grok session (no Cursor/agent hand-off)
+
+## Touch cal fix (this tip)
+- Removed duplicate map_touch / load/save from botcorps_ui.cpp (getTouch already returns mapped pixels; double-map pinned taps).
+- Added botcorps_cyd_save_touch_cal beside the existing loader with matching UShort/UChar types.
+- Added botcorps_cyd_run_touch_cal: four corner crosshairs only, raw XPT2046 reads via get_touch_raw, computes range, saves, and calls apply_touch_cal live. No instruction text.
+- LV remains "LV 01".
 
 ## Touch cal + host stubs (this tip)
 - XPT2046 cal load/save to NVS (keys tcal/tx0/tx1/ty0/ty1/trot) under BOTCORPS_CYD. Linear map applied in read_key when tcal=1. Placeholder 300..3900 until set. Tap-target cal UI not yet wired (no instruction text added).

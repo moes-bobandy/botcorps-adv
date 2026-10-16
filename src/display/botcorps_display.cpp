@@ -157,6 +157,22 @@ bool botcorps_dual_begin(void)
 
 Botcorps_LGFX_CYD g_cyd;
 
+void botcorps_cyd_save_touch_cal(uint16_t xmin, uint16_t xmax, uint16_t ymin, uint16_t ymax, uint8_t rot)
+{
+    Preferences prefs;
+    if (!prefs.begin("botcorps", false)) return;
+    prefs.putUChar("tcal", 1);
+    prefs.putUShort("tx0", xmin);
+    prefs.putUShort("tx1", xmax);
+    prefs.putUShort("ty0", ymin);
+    prefs.putUShort("ty1", ymax);
+    prefs.putUChar("trot", rot);
+    prefs.end();
+    g_cyd.apply_touch_cal(xmin, xmax, ymin, ymax, rot);
+    Serial.printf("[botcorps] touch cal saved x=%u..%u y=%u..%u rot=%u\n",
+                  (unsigned)xmin, (unsigned)xmax, (unsigned)ymin, (unsigned)ymax, (unsigned)rot);
+}
+
 void botcorps_cyd_load_touch_cal(void)
 {
     /* Placeholders until a device pass writes a measured range.
@@ -182,5 +198,50 @@ void botcorps_cyd_load_touch_cal(void)
                   (unsigned)xmin, (unsigned)xmax, (unsigned)ymin, (unsigned)ymax,
                   (unsigned)rot,
                   (xmin == 300 && xmax == 3900) ? "placeholder" : "nvs");
+}
+#endif
+
+#ifdef BOTCORPS_CYD
+/* Tap-target calibration: four corner crosshairs, raw reads, no text.
+ * Call once; it blocks until four taps are collected, then saves and applies live. */
+void botcorps_cyd_run_touch_cal(void)
+{
+    const int targets[4][2] = {{20, 20}, {300, 20}, {20, 220}, {300, 220}};
+    int rawx[4], rawy[4];
+    g_cyd.fillScreen(0x0000);
+    for (int i = 0; i < 4; ++i) {
+        int tx = targets[i][0], ty = targets[i][1];
+        /* Crosshair only */
+        g_cyd.drawLine(tx - 8, ty, tx + 8, ty, 0xFFFF);
+        g_cyd.drawLine(tx, ty - 8, tx, ty + 8, 0xFFFF);
+        g_cyd.drawCircle(tx, ty, 4, 0xFFFF);
+        /* Wait for a stable raw press */
+        int x = 0, y = 0;
+        uint32_t stable = 0;
+        while (stable < 3) {
+            if (g_cyd.get_touch_raw(&x, &y)) {
+                ++stable;
+                delay(30);
+            } else {
+                stable = 0;
+                delay(10);
+            }
+        }
+        rawx[i] = x;
+        rawy[i] = y;
+        /* Brief visual ack: fill the crosshair */
+        g_cyd.fillCircle(tx, ty, 6, 0x07E0);
+        delay(200);
+        while (g_cyd.get_touch_raw(&x, &y)) delay(10); /* wait release */
+    }
+    /* Simple min/max from the four corners (order: TL, TR, BL, BR) */
+    uint16_t xmin = rawx[0] < rawx[2] ? rawx[0] : rawx[2];
+    uint16_t xmax = rawx[1] > rawx[3] ? rawx[1] : rawx[3];
+    uint16_t ymin = rawy[0] < rawy[1] ? rawy[0] : rawy[1];
+    uint16_t ymax = rawy[2] > rawy[3] ? rawy[2] : rawy[3];
+    if (xmin > xmax) { uint16_t t = xmin; xmin = xmax; xmax = t; }
+    if (ymin > ymax) { uint16_t t = ymin; ymin = ymax; ymax = t; }
+    botcorps_cyd_save_touch_cal(xmin, xmax, ymin, ymax, 1);
+    g_cyd.fillScreen(0x0000);
 }
 #endif

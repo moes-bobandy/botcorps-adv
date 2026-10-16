@@ -608,3 +608,42 @@ D. Device later: XPT2046 → NVS `tcal=1`; glass shots. No merge/flash until Dir
 ```
 On grok/cyd-touch-port tip 9cf96fd (fw still acfc0e3): BRIDGE follow-up done for bin size + placeholder honesty + no-board live note, but REPORT tip and mock subtitle still lag HEAD (say dddee10; tip is 9cf96fd). No firmware delta this round. Remaining: (1) set REPORT+mock subtitle to the final tip SHA after your last push (or only bump when fw changes); (2) soft — live LV instead of "LV 01"; (3) soft — real CYD host dumps when possible, else keep stub honesty; (4) device/glass later. Push only to grok/cyd-touch-port, no merge/flash.
 ```
+
+---
+
+## GIBSONbot review — tip 486e070 / fw acfc0e3 (2026-10-16 ~6:05 PM ET)
+
+Reviewed on box `/tmp/bca` at `grok/cyd-touch-port` tip `486e070a6a9201676152a5b85380dad4e8e9b198` (last reviewed SHA `88ed96c5f4be1e7cc132c345914a6ae328709d12`). Diff span `88ed96c..486e070`: `BRIDGE.md`, `builds/cyd/REPORT.md`, `mocks/CYD-current-interactive.html` only. **No `src/` changes** (fw still `acfc0e3`). Host type gate **PASS** (`cyd osk table ok keys=42 clip_y=151`; `host cyd type gate passed`). `BOTCORPS_CYD` hits in `botcorps_ui.cpp` still **15**. `pio` not on PATH here, so memory not re-measured. Nothing merged or flashed by this watch; only this TASKS note is pushed.
+
+### Commits in this batch
+| SHA | Author | What |
+|-----|--------|------|
+| 04b0357 | Grok \<grok@x.ai\> | REPORT/mock/BRIDGE tip → `88ed96c`; soft LV deferred; stubs kept |
+| 486e070 | Grok \<grok@x.ai\> | REPORT/mock/BRIDGE tip → `04b0357` ("final after push") |
+
+Both Super Grok (grok@x.ai). No Cursor Agent. Branch only.
+
+### MATCH
+1. Super Grok read and followed `CONTEXT.md`: deferred live LV instead of inventing a level field ("don't guess TBD") — correct call.
+2. Stub honesty kept (frames still called placeholders; no host LovyanGFX fonts).
+3. Live LV / glass reported as "not on hardware" — no false field PASS.
+4. No firmware regression; host type gate PASS; typing still never fires hotkeys (host gate).
+
+### MISS / still open (numbered)
+1. **Tip lag again.** REPORT + mock subtitle say `04b0357`; HEAD is `486e070`. A commit can never contain its own SHA, so chasing HEAD will always be one behind. **Fix:** stop bumping the tip field on meta-only rounds. REPORT should cite **Firmware SHA** (`acfc0e3`) as the build the numbers belong to, and only change it when `src/` changes.
+2. **Live LV blocked on a decision, not code.** `bot_t` has no level; `"LV 01"` still hardcoded in `botcorps_ui.cpp:2051`, `:3940` and `botcorps_id.cpp:618`. Needs Dirt to say what LV means on CYD (game XP, fixed per bot, or hide) before anyone codes it. HOLD.
+3. **No firmware progress for ~6 h** (last `src/` change `acfc0e3`, 9:13 AM ET). Two meta rounds in a row produced only SHA bumps.
+4. **Memory not box-verified** — RAM 72,076 / 327,680 (22.0%), flash 1,404,031 / 3,145,728 (44.6%), bin 1,404,432 B are Super Grok-reported.
+5. **Frames still stubs**; real CYD host dumps still open.
+6. **Device / glass unchecked:** XPT2046 still 300..3900 placeholders, no NVS cal, nothing flashed.
+
+### Next Super Grok paste order
+A. Drop tip-only commits; REPORT cites Firmware SHA only (closes 1).
+B. XPT2046 calibration flow → NVS `tcal=1`, with on-screen tap targets only (no instruction text on the 320×240 screen) (works toward 6).
+C. Real host CYD frame dumps (vendor or stub the LovyanGFX fonts in `tools/host`) so screens can be checked against mocks without a board (closes 5).
+D. Leave LV as `"LV 01"` until Dirt decides (2). No merge/flash.
+
+### Follow-up one-liner (Dirt → Super Grok)
+```
+On grok/cyd-touch-port tip 486e070 (fw still acfc0e3): good call deferring LV and keeping stub honesty. Stop tip-only commits — a commit can't hold its own SHA, so REPORT should cite the Firmware SHA (acfc0e3) and only change when src/ changes. Next real work: (1) XPT2046 touch calibration saved to NVS, tap targets only, no instruction text on screen; (2) real CYD host frame dumps in tools/host (vendor/stub LovyanGFX fonts) so we can check screens against mocks; (3) leave "LV 01" until I decide what LV means. Push only to grok/cyd-touch-port, no merge/flash.
+```

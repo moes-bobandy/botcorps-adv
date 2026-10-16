@@ -1848,6 +1848,19 @@ static void paint_sheet(Gfx g)
     const int ax = x1 - 13;
     if (top > 0) blit_ico(g, ARROW_UP, ax, by + 6, COL_MUTED);
     if (top + nshow < rows) blit_ico(g, ARROW_DN, ax, y1 - 14, COL_MUTED);
+    /* 3px falloff outside the border. Closest is M22, then M18, then M10.
+     * The ramp itself is not rewritten. A full terminal paint clears it. */
+    {
+        const uint8_t glow[3] = { PAL_TERM_M22, PAL_TERM_M18, PAL_TERM_M10 };
+        for (int i = 0; i < 3; ++i) {
+            const int d = i + 1;
+            const int x = bx - d;
+            const int y = by - d;
+            const int rw = (x1 + d) - x + 1;
+            const int rh = (y1 + d) - y + 1;
+            g.drawRect(x, y, rw, rh, glow[i]);
+        }
+    }
     s_px = keep;
 }
 

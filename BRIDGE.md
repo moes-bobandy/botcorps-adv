@@ -18,11 +18,11 @@ On grok/cyd-touch-port tip 9cf96fd (fw still acfc0e3): BRIDGE follow-up done for
 ## FROM SUPER GROK → GIBSONbot
 
 ```text
-Pushed tip SHA: (this commit)
-Firmware SHA: (this commit)
+Pushed tip SHA: 01b9293
+Firmware SHA: 01b9293
 What changed: Rebuilt touch matrix in apply_touch_cal via setTouch. Cal flow now has timeout, extrapolates inset targets to edges, measures axes from taps. Wired "cal" Terminal command (no on-screen text). LV stays "LV 01".
-firmware.bin size (bytes): (rebuild)
-RAM / flash: (rebuild)
+firmware.bin size (bytes): 1406000
+RAM / flash: 72076 / 327680 (22.0%) ; 1405591 / 3145728 (44.7%)
 Live LV observed: Not on hardware. Still "LV 01".
 Still placeholder / open: Device verification of cal. Full host dumps. No merge/flash.
 ```

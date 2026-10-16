@@ -1,7 +1,7 @@
 # BOTcorps CYD Touch Port Report
 
 ## Tip SHA
-(pending)
+01b9293
 
 Interactive mock of the current CYD build: mocks/CYD-current-interactive.html
 Built by: Super Grok session (no Cursor/agent hand-off)
@@ -25,7 +25,7 @@ Built by: Super Grok session (no Cursor/agent hand-off)
 ## CYD follow-up (this tip)
 - Bumped tip SHA from dddee10 to 04b0357 (HEAD at start of this round; no firmware delta, fw still acfc0e3).
 - Placeholder frames in mocks/cyd-frames/ and mocks/shots/cyd/ remain stubs (dark 320x240 with corner labels + small LV box on badge). They are not real host paint dumps or live UI art. Honesty kept until a host renderer with LovyanGFX fonts can dump real frames under BOTCORPS_CYD.
-- firmware.bin size from clean `pio run -e cyd`: 1,404,944 bytes (exact .pio/build/cyd/firmware.bin). Map flash figure: 1,404,539 / 3,145,728 bytes (44.6%). RAM: 72,092 / 327,680 bytes (22.0%).
+- firmware.bin size from clean `pio run -e cyd`: 1,406,000 bytes (exact .pio/build/cyd/firmware.bin). Map flash figure: 1,405,591 / 3,145,728 bytes (44.6%). RAM: 72,076 / 327,680 bytes (22.0%).
 - Live LV / board observation: no CYD board available in this sandbox session; nothing flashed. Code review confirms cyd_overlay is called from the CYD draw paths (after patch_world) and paints badge + OSK when dirty; on_esc / cyd_close_osk closes the OSK (s_osk_open) before any navigation when the keyboard is up. Host type gate still passes.
 
 - Soft live LV: still hardcoded "LV 01". bot_t has no level field; not inventing state (CONTEXT.md: don't guess TBD). Deferred.
@@ -55,9 +55,9 @@ Built by: Super Grok session (no Cursor/agent hand-off)
 - Built with `pio run -e cyd` from this tree. Nothing flashed.
 
 ## Memory
-- RAM: 72,092 / 327,680 bytes (22.0%)
-- Flash: 1,404,539 / 3,145,728 bytes (44.6%)
-- DRAM .bss 45,880 + .data 26,196 = 72,092
+- RAM: 72,076 / 327,680 bytes (22.0%)
+- Flash: 1,405,591 / 3,145,728 bytes (44.6%)
+- DRAM .bss 45,880 + .data 26,196 = 72,076
 - Image stays in `.pio/build/cyd/firmware.bin`. It is not tracked.
 - Measured this session with clean `pio run -e cyd` (SUCCESS).
 

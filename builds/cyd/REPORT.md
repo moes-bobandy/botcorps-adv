@@ -4,6 +4,7 @@
 081595c
 
 Badge tap opens the OSK (explicit hit-test before board tiles). ESC / HIDE / RX close the OSK and do not navigate while it is open.
+Built by: Super Grok session (no Cursor/agent hand-off)
 
 ## Build
 - Environment: `cyd`

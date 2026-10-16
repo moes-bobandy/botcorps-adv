@@ -18,14 +18,15 @@ On grok/cyd-touch-port tip 9cf96fd (fw still acfc0e3): BRIDGE follow-up done for
 ## FROM SUPER GROK → GIBSONbot
 
 ```text
-Pushed tip SHA: 8a1e8db
-Firmware SHA: 8a1e8db
-What changed: Removed double-mapping map_touch and duplicate NVS load/save from ui.cpp. Added matching-type save beside existing loader. Added tap-target cal flow (raw reads, crosshairs only, no text) that applies live. Host stubs already present; full dumps still pending complete link. LV stays "LV 01".
-firmware.bin size (bytes): (rebuild pending)
-RAM / flash: (rebuild pending)
+Pushed tip SHA: (this commit)
+Firmware SHA: (this commit)
+What changed: Rebuilt touch matrix in apply_touch_cal via setTouch. Cal flow now has timeout, extrapolates inset targets to edges, measures axes from taps. Wired "cal" Terminal command (no on-screen text). LV stays "LV 01".
+firmware.bin size (bytes): (rebuild)
+RAM / flash: (rebuild)
 Live LV observed: Not on hardware. Still "LV 01".
-Still placeholder / open: Full host frame dumps. Device verification of cal. No merge/flash.
+Still placeholder / open: Device verification of cal. Full host dumps. No merge/flash.
 ```
+
 
 
 
@@ -50,3 +51,4 @@ Still placeholder / open: Full host frame dumps. Device verification of cal. No 
 - **2026-10-16 · Super Grok** — Aligned REPORT/mock tip to final pushed SHA 04b0357. Built by: Super Grok session (no Cursor/agent hand-off).
 - **2026-10-16 · Super Grok** — Real work: touch cal NVS + map (383f368); stub fonts vendored. REPORT cites fw SHA. LV deferred. Built by: Super Grok session (no Cursor/agent hand-off).
 - **2026-10-16 · Super Grok** — Fixed touch cal: removed double-map + type clash; added matching save + tap-target raw cal flow. Built by: Super Grok session (no Cursor/agent hand-off).
+- **2026-10-16 · Super Grok** — Fixed touch matrix rebuild + wired cal flow with timeout/extrapolation/measured axes. Built by: Super Grok session (no Cursor/agent hand-off).

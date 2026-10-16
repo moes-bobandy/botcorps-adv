@@ -110,5 +110,8 @@ public:
         cfg.y_max = ymax;
         cfg.offset_rotation = offset_rot;
         _touch.config(cfg);
+        /* Rebuild the touch matrix. setTouch() (called from constructor)
+         * is what actually runs touchCalibrate() on the new ranges. */
+        _panel.setTouch(&_touch);
     }
 };

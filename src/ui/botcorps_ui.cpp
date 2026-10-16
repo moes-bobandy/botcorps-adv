@@ -919,7 +919,16 @@ static void run_cmd(const char *line)
      * The term lut is not touched here. The full repaint installs it. */
     scan_all_set(false);
 
-    if (strcmp(cmd, "help") == 0) {
+#ifdef BOTCORPS_CYD
+    if (strcmp(cmd, "cal") == 0) {
+        log_add("touch cal");
+        botcorps_cyd_run_touch_cal();
+        log_add("cal done");
+        s_dirty = true;
+        return;
+    }
+#endif
+        if (strcmp(cmd, "help") == 0) {
         for (int g = 0; g < 4; ++g) {
             char row[80];
             int n = snprintf(row, sizeof(row), "%s", G_NAME[g]);

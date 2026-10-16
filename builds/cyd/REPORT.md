@@ -1,10 +1,15 @@
 # BOTcorps CYD Touch Port Report
 
 ## Tip SHA
-8a1e8db
+(pending)
 
 Interactive mock of the current CYD build: mocks/CYD-current-interactive.html
 Built by: Super Grok session (no Cursor/agent hand-off)
+
+## Touch matrix + cal wiring (this tip)
+- apply_touch_cal now calls _panel.setTouch(&_touch) after updating cfg so the touch matrix is rebuilt (LovyanGFX only calibrates inside setTouch/touchCalibrate).
+- botcorps_cyd_run_touch_cal: 15s timeout per target, extrapolates 20px-inset crosshairs to full 0..319/0..239, measures axis direction from the four taps.
+- Wired entry: Terminal command "cal" (no instruction text on screen). LV stays "LV 01".
 
 ## Touch cal fix (this tip)
 - Removed duplicate map_touch / load/save from botcorps_ui.cpp (getTouch already returns mapped pixels; double-map pinned taps).

@@ -207,18 +207,21 @@ void botcorps_cyd_load_touch_cal(void)
 void botcorps_cyd_run_touch_cal(void)
 {
     const int targets[4][2] = {{20, 20}, {300, 20}, {20, 220}, {300, 220}};
-    int rawx[4], rawy[4];
+    int rawx[4] = {0}, rawy[4] = {0};
     g_cyd.fillScreen(0x0000);
     for (int i = 0; i < 4; ++i) {
         int tx = targets[i][0], ty = targets[i][1];
-        /* Crosshair only */
         g_cyd.drawLine(tx - 8, ty, tx + 8, ty, 0xFFFF);
         g_cyd.drawLine(tx, ty - 8, tx, ty + 8, 0xFFFF);
         g_cyd.drawCircle(tx, ty, 4, 0xFFFF);
-        /* Wait for a stable raw press */
         int x = 0, y = 0;
         uint32_t stable = 0;
+        uint32_t start_ms = millis();
         while (stable < 3) {
+            if (millis() - start_ms > 15000) { /* 15s timeout per target */
+                g_cyd.fillScreen(0x0000);
+                return;
+            }
             if (g_cyd.get_touch_raw(&x, &y)) {
                 ++stable;
                 delay(30);
@@ -229,19 +232,27 @@ void botcorps_cyd_run_touch_cal(void)
         }
         rawx[i] = x;
         rawy[i] = y;
-        /* Brief visual ack: fill the crosshair */
         g_cyd.fillCircle(tx, ty, 6, 0x07E0);
         delay(200);
-        while (g_cyd.get_touch_raw(&x, &y)) delay(10); /* wait release */
+        uint32_t rel = millis();
+        while (g_cyd.get_touch_raw(&x, &y) && millis() - rel < 2000) delay(10);
     }
-    /* Simple min/max from the four corners (order: TL, TR, BL, BR) */
-    uint16_t xmin = rawx[0] < rawx[2] ? rawx[0] : rawx[2];
-    uint16_t xmax = rawx[1] > rawx[3] ? rawx[1] : rawx[3];
-    uint16_t ymin = rawy[0] < rawy[1] ? rawy[0] : rawy[1];
-    uint16_t ymax = rawy[2] > rawy[3] ? rawy[2] : rawy[3];
-    if (xmin > xmax) { uint16_t t = xmin; xmin = xmax; xmax = t; }
-    if (ymin > ymax) { uint16_t t = ymin; ymin = ymax; ymax = t; }
-    botcorps_cyd_save_touch_cal(xmin, xmax, ymin, ymax, 1);
+    /* Extrapolate from 20px inset targets to full 0..319 / 0..239.
+     * Measure axis direction from the taps instead of assuming. */
+    int dx_right = ((rawx[1] - rawx[0]) + (rawx[3] - rawx[2])) / 2;
+    int dy_down  = ((rawy[2] - rawy[0]) + (rawy[3] - rawy[1])) / 2;
+    /* Scale factor: 280 px span (300-20) maps to the measured delta */
+    int xmin = rawx[0] - (dx_right * 20 / 280);
+    int xmax = rawx[1] + (dx_right * 19 / 280);
+    int ymin = rawy[0] - (dy_down * 20 / 280);
+    int ymax = rawy[2] + (dy_down * 19 / 280);
+    if (xmin > xmax) { int t = xmin; xmin = xmax; xmax = t; }
+    if (ymin > ymax) { int t = ymin; ymin = ymax; ymax = t; }
+    if (xmin < 0) xmin = 0;
+    if (xmax > 4095) xmax = 4095;
+    if (ymin < 0) ymin = 0;
+    if (ymax > 4095) ymax = 4095;
+    botcorps_cyd_save_touch_cal((uint16_t)xmin, (uint16_t)xmax, (uint16_t)ymin, (uint16_t)ymax, 1);
     g_cyd.fillScreen(0x0000);
 }
 #endif

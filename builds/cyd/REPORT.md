@@ -6,6 +6,14 @@ ef62516
 Interactive mock of the current CYD build: mocks/CYD-current-interactive.html
 Built by: Super Grok session (no Cursor/agent hand-off)
 
+## Adv alignment (this tip)
+- Rebased paint onto Adv PR #7 tip 07d4fa39. CYD uses the same botcorps_ui.cpp paint code; only touch, OSK, 38x60 badge, focus-only labels and prompt clip sit behind #ifdef BOTCORPS_CYD.
+- Added botcorps_disp() and botcorps_band_set_push_ymax stubs in tools/host/host_shim.h.
+- Added tools/host/render_cyd.sh to emit board / Terminal / Tab sheet / OSK / badge PNGs.
+- Mock rebuilt from those PNG frames with touch areas on top. No CSS-drawn screens.
+- CYD rules kept: touch, OSK keys, badge opens OSK, no INT, v11 rain, all 40 commands, no instruction text.
+- Side-by-side: mocks/cyd-frames/adv-vs-cyd-side-by-side.png
+
 ## Mock sheet
 - Restored CORE go/load/defend/sweep/roster/pulse/dig so the sheet lists all 40 commands matching firmware CMD_N and v3.2.
 - Icon-only panel, focus-then-select, and v3.2 sheet kept.

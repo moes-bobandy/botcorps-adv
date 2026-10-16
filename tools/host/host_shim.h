@@ -169,6 +169,8 @@ lgfx::v1::LovyanGFX &botcorps_content(void);
 bool botcorps_dual_ok(void);
 void botcorps_set_surface(int);
 void botcorps_band_set_oy(int);
+void botcorps_band_set_push_ymax(int);
+lgfx::v1::LGFX_Device &botcorps_disp(void);
 void botcorps_band_present(void (*)(Gfx));
 bool botcorps_band_direct(void);
 bool botcorps_band_live(void);

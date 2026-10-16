@@ -4,555 +4,110 @@
 <meta charset="utf-8">
 <title>BOTcorps CYD — current build</title>
 <style>
-  :root {
-    --bg: #070b0c;
-    --field: #0b1210;
-    --plate: #121a18;
-    --deep: #0a1412;
-    --line: #2a3a34;
-    --ink: #d7e6cf;
-    --muted: #7d9086;
-    --amber: #e8b15a;
-    --ok: #3dcea0;
-    --hold: #e07a6a;
-    --pink: #ff8fb3;
-    --sel: #1c3a32;
-  }
+  :root { --ink: #d7e6cf; --muted: #7d9086; --amber: #e8b15a; }
   * { box-sizing: border-box; }
-  body {
-    margin: 0;
-    background: #0e1114;
-    color: var(--ink);
-    font: 14px/1.4 ui-monospace, Consolas, monospace;
-  }
-  header {
-    padding: 16px 20px 8px;
-  }
+  body { margin: 0; background: #0e1114; color: var(--ink); font: 14px/1.4 ui-monospace, Consolas, monospace; }
+  header { padding: 16px 20px 8px; }
   h1 { margin: 0; font-size: 16px; font-weight: 600; letter-spacing: .04em; }
   .sub { color: var(--muted); margin-top: 4px; }
   .wrap { display: flex; gap: 24px; padding: 12px 20px 28px; align-items: flex-start; flex-wrap: wrap; }
   .stage { width: min(640px, 100vw - 24px); }
   .panel {
-    width: 100%;
-    aspect-ratio: 4 / 3;
-    height: auto;
-    background: var(--field);
-    border: 1px solid var(--line);
-    position: relative;
-    overflow: hidden;
-    cursor: pointer;
-    box-shadow: 0 12px 40px #0008;
+    width: 100%; aspect-ratio: 4 / 3; height: auto;
+    background: #0b1210; border: 1px solid #2a3a34; position: relative;
+    overflow: hidden; cursor: pointer;
   }
-  .panel * { cursor: pointer; }
-  canvas.rain { position: absolute; inset: 0; width: 100%; height: 100%; }
-  .chrome { position: absolute; inset: 0; }
-  .bar {
-    position: absolute; left: 0; right: 0; top: 0; height: 32px;
-    background: #0d1614cc;
-    border-bottom: 1px solid var(--line);
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 0 10px;
-    font-size: 11px;
-    letter-spacing: .08em;
-  }
-  .hit {
-    position: absolute;
-    border: 1px solid transparent;
-  }
-  .hit:hover { outline: 1px dashed #3dcea066; }
-  .back {
-    left: 0; top: 0; width: 11%; height: 7%;
-    color: var(--amber);
-    display: flex; align-items: center; padding-left: 8px;
-    font-size: 11px;
-  }
-  .crown, .rx {
-    top: 1%; height: 6%; display: flex; align-items: center; justify-content: center;
-    font-size: 11px; color: var(--ink);
-  }
-  .crown { left: 63%; width: 8%; }
-  .rx { left: 89%; width: 9%; color: var(--muted); }
-  .tile {
-    position: absolute;
-    width: 22.5%; height: 19.2%;
-    background: var(--plate);
-    border: 1px solid var(--line);
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    gap: 4px;
-  }
-  .tile.focus { border-color: var(--ok); background: var(--sel); }
-  .glyph {
-    width: 28px; height: 28px; border-radius: 50%;
-    border: 2px solid currentColor;
-    box-shadow: inset 0 0 0 4px currentColor;
-    opacity: .9;
-  }
-  .silk { font-size: 10px; letter-spacing: .06em; height: 12px; }
-  .led { position: absolute; left: 6px; top: 6px; width: 6px; height: 6px; }
-  .badge {
-    position: absolute;
-    left: 85.6%; top: 72.5%; width: 11.9%; height: 25%;
-    background: var(--bg);
-    border: 1px solid;
-    display: flex; flex-direction: column; align-items: center; padding-top: 6px;
-    font-size: 11px;
-  }
-  .badge .g { width: 22px; height: 22px; border-radius: 50%; border: 2px solid currentColor; margin-bottom: 8px; }
-  .prompt {
-    position: absolute; left: 2.5%; top: 70%; right: 16%; height: 5%;
-    color: var(--pink); font-size: 12px;
-  }
-  .log {
-    position: absolute; left: 2.5%; top: 8%; right: 2.5%; height: 14%;
-    font-size: 11px; color: var(--ink); overflow: hidden;
-  }
-  .log .bot { }
-  .osk {
-    position: absolute; left: 0; right: 0; top: 63%; bottom: 0;
-    background: #0a1210;
-    border-top: 1px solid var(--line);
-    padding: 6px 8px 8px;
-    display: none;
-  }
-  .osk.on { display: block; }
-  .osk .echo { color: var(--pink); font-size: 11px; height: 16px; margin-bottom: 4px; }
-  .row { display: flex; gap: 2px; margin-bottom: 2px; }
-  .key {
-    height: 26px; min-width: 56px; flex: 1;
-    background: #16201c;
-    border: 1px solid var(--line);
-    color: var(--ink);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 11px;
-  }
-  .key.hot { background: var(--sel); border-color: var(--ok); }
-  .key.wide { flex: 2; }
-  .key.space { flex: 6; }
-  .sheet {
-    position: absolute; left: 4%; bottom: 12%; width: 88%;
-    background: rgba(9,13,18,.97);
-    border: 1px solid #3ee0e8;
-    border-radius: 3px;
-    display: none; overflow: hidden; padding: 4px 0 6px;
-    box-shadow: 0 4px 14px #000a;
-    z-index: 3;
-  }
-  .sheet.on { display: block; }
-  .sheet::after {
-    content: ""; position: absolute; left: 18px; bottom: -1px;
-    width: 10px; height: 1px; background: #3ee0e8;
-  }
-  .sheet .hdr {
-    color: #3ee0e8; padding: 1px 8px; font-size: 10px; letter-spacing: .08em;
-    display: flex; align-items: center; gap: 8px;
-  }
-  .sheet .hdr::after { content: ""; flex: 1; height: 1px; background: rgba(62,224,232,.22); }
-  .sheet .rowc {
-    display: flex; justify-content: space-between; gap: 8px;
-    padding: 2px 8px 2px 10px; font-size: 10px; color: #c5d0da;
-  }
-  .sheet .rowc .p { color: #7d9086; }
-  .sheet .rowc.on { background: rgba(62,224,232,.18); box-shadow: inset 2px 0 #3ee0e8; color: #e8f6ff; }
-  .sheet .rowc.on .p { color: #e8f6ff; }
-  .ico { display: block; width: 14px; height: 14px; }
-  .side { width: 280px; }
-  .side h2 { margin: 0 0 8px; font-size: 13px; }
-  .side ul { margin: 0; padding-left: 16px; color: var(--muted); }
-  .side li { margin: 4px 0; }
-  #trace {
-    margin-top: 14px; height: 220px; overflow: auto;
-    background: #0a0e10; border: 1px solid var(--line); padding: 8px;
-    font-size: 11px; color: #9fd9b5;
-  }
-  .note { color: var(--muted); font-size: 12px; margin-top: 8px; }
+  .panel img.frame { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
+  .hit { position: absolute; }
+  .side h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; }
+  .side ul { margin: 0; padding-left: 18px; color: var(--muted); }
+  .note { margin-top: 12px; color: var(--muted); font-size: 12px; }
+  #trace { margin-top: 10px; font-size: 11px; color: var(--amber); white-space: pre-wrap; }
 </style>
 </head>
 <body>
 <header>
   <h1>BOTcorps CYD — current build</h1>
-  <div class="sub">Interactive mock of grok/cyd-touch-port tip ef62516. 320×240 scaled 2×. Not a device flash.</div>
+  <div class="sub">Interactive mock of grok/cyd-touch-port tip ef62516. Frames from tools/host/render_cyd.sh (Adv paint under BOTCORPS_CYD). 320×240 scaled. Not a device flash.</div>
 </header>
 <div class="wrap">
   <div class="stage">
-  <div class="panel" id="panel">
-    <canvas class="rain" id="rain" width="640" height="480"></canvas>
-    <div class="chrome" id="chrome"></div>
-  </div>
+    <div class="panel" id="panel">
+      <img class="frame" id="frame" alt="CYD frame" src="cyd-frames/cyd-terminal.png">
+    </div>
   </div>
   <div class="side">
     <h2>What this shows</h2>
     <ul>
-      <li>Rain intro, then Gibson hub, then Terminal.</li>
-      <li>4×3 board. First tap focuses (label appears). Second tap selects.</li>
-      <li>38×60 companion badge. Tap opens the OSK.</li>
-      <li>OSK: SPACE, BKSP, ENTER, TAB, SYM, HIDE. ESC closes it.</li>
-      <li>Top-left back on Terminal goes to Gibson. Rain has none.</li>
-      <li>Labels only on the focused tile.</li>
+      <li>Real paint frames (board, Terminal, Tab sheet, OSK, badge).</li>
+      <li>Touch areas mapped on top. First tap focuses, second selects.</li>
+      <li>38×60 badge opens the OSK. No INT. v11 rain. 40 commands.</li>
+      <li>No instruction text on the panel.</li>
     </ul>
-    <div class="note">Click the panel. Top-left is back. Badge is the small box at the lower right of Terminal.</div>
+    <div class="note">Click the panel. Badge is the lower-right box on Terminal.</div>
     <div id="trace"></div>
   </div>
 </div>
 <script>
-const BOTS = [
-  { name: "WIFI", color: "#5dade2", st: "limited" },
-  { name: "BLUETOOTH", color: "#4ec7e0", st: "limited" },
-  { name: "DEAUTH", color: "#5dade2", st: "ready" },
-  { name: "HACK", color: "#71e38b", st: "ready" },
-  { name: "FLOCK", color: "#9fd9b5", st: "ready" },
-  { name: "DRONE", color: "#f0c674", st: "ready" },
-  { name: "AIRTAG", color: "#ac7fd4", st: "ready" },
-  { name: "KEYFOB", color: "#36b8c9", st: "ready" },
-  { name: "META", color: "#9fd9b5", st: "ready" },
-  { name: "SKIMMER", color: "#36b8c9", st: "hold" },
-  { name: "FLIPPER", color: "#fc6b8a", st: "limited" },
-  { name: "SAMSUNG", color: "#bd3f7a", st: "limited" }
-];
-const GROUPS = [
-  ["CORE", [
-    ["scan","sweep wifi|ble|all"], ["hunt","drone|flock|skimmer|deauth"], ["help","list the commands"],
-    ["bots","board status"], ["rain","rain colour|mixed"], ["filter","wifi|ble|threats|strong|off"],
-    ["ping","ping a found device"], ["info","device details"], ["track","pin a device"], ["sniff","list heard"],
-    ["go","jump to a screen"], ["load","load a screen"], ["defend","typing game beginner|veteran"],
-    ["sweep","alias scan"], ["roster","alias bots"], ["pulse","alias ping"], ["dig","alias info"]
-  ]],
-  ["COMMS", [
-    ["hail","greet a bot"], ["say","send a line"], ["ask","query bot status"], ["rollcall","crew check-in"],
-    ["whisper","quiet line"], ["broadcast","speak to the crew"], ["link","open a channel"], ["mute","hush a bot"]
-  ]],
-  ["GAME", [
-    ["train","sealed"], ["hunt-run","sealed"], ["score","sealed"], ["rank","sealed"],
-    ["loadout","sealed"], ["lobby","sealed"], ["duel","sealed"], ["stash","sealed"]
-  ]],
-  ["SYS", [
-    ["clear","wipe the log"], ["history","recent lines"], ["theme","neon look"], ["about","build blurb"],
-    ["cmds","this menu"], ["version","term build"], ["uptime","session clock"]
-  ]]
-];
-const OSK = [
-  ["1","2","3","4","5","6","7","8","9","0"],
-  ["q","w","e","r","t","y","u","i","o","p"],
-  ["a","s","d","f","g","h","j","k","l","TAB"],
-  ["SYM","z","x","c","v","b","n","m","BKSP"],
-  ["HIDE","SPACE","ENTER"]
-];
-const SYM = {
-  "1":"-","2":"|","3":"<","4":">","5":"@","6":".","7":",","8":"!","9":"?","0":"/",
-  q:"+","w":"=","e":"_","r":"*","t":"#","y":"$","u":"%","i":"^","o":"&","p":"(",
-  a:")","s":"[","d":"]","f":"{","g":"}","h":":","j":";","k":"'","l":'"',
-  z:"~","x":"`","c":"\\","v":"'","b":"&","n":"*","m":"+"
+const FRAMES = {
+  board: "cyd-frames/cyd-board.png",
+  terminal: "cyd-frames/cyd-terminal.png",
+  sheet: "cyd-frames/cyd-sheet.png",
+  osk: "cyd-frames/cyd-osk.png",
+  badge: "cyd-frames/cyd-badge.png"
 };
-
-const state = {
-  screen: "rain",
-  focus: -1,
-  selected: 0,
-  osk: false,
-  sym: false,
-  prompt: "",
-  sheet: false,
-  sheetI: 0,
-  log: [
-    { who: "boot", text: "botcorps cyd online", color: "#d7e6cf" },
-    { who: "gibson", text: "hub waiting", color: "#d7e6cf" }
-  ]
-};
-
-const panel = document.getElementById("panel");
-const chrome = document.getElementById("chrome");
-const rain = document.getElementById("rain");
+const state = { screen: "terminal", focus: -1, sheet: false, osk: false };
 const traceEl = document.getElementById("trace");
-const ctx = rain.getContext("2d");
-
-function trace(msg) {
-  const line = document.createElement("div");
-  line.textContent = msg;
-  traceEl.prepend(line);
+const frame = document.getElementById("frame");
+const panel = document.getElementById("panel");
+function trace(s) { traceEl.textContent = s; }
+function show() {
+  let key = state.screen;
+  if (state.osk) key = "osk";
+  else if (state.sheet) key = "sheet";
+  else if (state.screen === "badge") key = "badge";
+  frame.src = FRAMES[key] || FRAMES.terminal;
 }
-
-function tilePos(n) {
-  return {
-    x: (7 + (n % 4) * 78) / 320 * 100,
-    y: (19 + Math.floor(n / 4) * 50) / 240 * 100
-  };
+function addHit(cls, style, fn) {
+  const el = document.createElement("div");
+  el.className = "hit " + cls;
+  el.style.cssText = style;
+  el.addEventListener("click", (e) => { e.stopPropagation(); fn(); });
+  panel.appendChild(el);
+  return el;
 }
-
-function paintRain() {
-  ctx.clearRect(0, 0, 640, 480);
-  if (state.screen !== "rain" && state.screen !== "gibson") return;
-  ctx.fillStyle = "#07110c";
-  ctx.fillRect(0, 0, 640, 480);
-  const gap = 28;
-  for (let i = 0; i < 23; i++) {
-    if (i % 3 === 2) continue;
-    const x = i * gap;
-    const h = 40 + ((i * 37) % 200);
-    ctx.fillStyle = i % 2 ? "#1e6b4a" : "#2a8f62";
-    ctx.globalAlpha = 0.55;
-    ctx.fillRect(x, 40 + (i * 13) % 180, 4, h);
-    ctx.globalAlpha = 1;
-  }
-}
-
-function render() {
-  paintRain();
-  chrome.innerHTML = "";
-  if (state.screen === "rain") renderRain();
-  else if (state.screen === "gibson") renderGibson();
-  else renderTerminal();
-}
-
-function add(cls, style, text, on) {
-  const d = document.createElement("div");
-  d.className = cls || "";
-  if (style) d.style.cssText = style;
-  if (typeof text === "function") on = text;
-  else if (text != null) d.textContent = text;
-  if (on) d.addEventListener("click", (e) => { e.stopPropagation(); on(e); });
-  chrome.appendChild(d);
-  return d;
-}
-
-function renderRain() {
-  add("hit", "left:0;top:0;right:0;bottom:0;", "", () => {
-    state.screen = "gibson";
-    trace("rain tap → Gibson hub");
-    render();
-  });
-}
-
-function ico(svg) {
-  const d = document.createElement("div");
-  d.className = "ico";
-  d.innerHTML = svg;
-  return d;
-}
-const ICO = {
-  back: '<svg viewBox="0 0 14 14" width="14" height="14"><path d="M9 2 L3 7 L9 12" fill="none" stroke="#e8b15a" stroke-width="1.6"/></svg>',
-  term: '<svg viewBox="0 0 16 14" width="16" height="14"><rect x="1" y="1" width="14" height="12" fill="none" stroke="#3dcea0" stroke-width="1"/><path d="M3 5 L6 7 L3 9" fill="none" stroke="#3dcea0" stroke-width="1"/><path d="M8 9 H13" stroke="#3dcea0" stroke-width="1"/></svg>',
-  wifi: '<svg viewBox="0 0 14 14" width="14" height="14"><path d="M2 6 Q7 2 12 6" fill="none" stroke="#58A6FF" stroke-width="1"/><path d="M4 8 Q7 5.5 10 8" fill="none" stroke="#58A6FF" stroke-width="1"/><circle cx="7" cy="10" r="1" fill="#58A6FF"/></svg>',
-  ble: '<svg viewBox="0 0 14 14" width="14" height="14"><path d="M7 1 L11 5 L7 7 L11 9 L7 13 L7 1 M7 7 L3 5 M7 7 L3 9" fill="none" stroke="#4ECDFA" stroke-width="1"/></svg>',
-  crown: '<svg viewBox="0 0 16 12" width="16" height="12"><path d="M1 9 L3 3 L6 7 L8 2 L10 7 L13 3 L15 9 Z" fill="none" stroke="#d24bff" stroke-width="1"/></svg>'
-};
-
-function renderGibson() {
-  const back = add("hit back", "", "");
-  back.appendChild(ico(ICO.back));
-  back.addEventListener("click", (e) => { e.stopPropagation(); state.screen = "rain"; trace("Gibson back → rain"); render(); });
-  add("hit", "left:28%;top:25%;width:44%;height:33%;", "");
-  const term = add("hit", "left:6%;top:83%;width:12%;height:10%;display:flex;align-items:center;justify-content:center;", "");
-  term.appendChild(ico(ICO.term));
-  term.addEventListener("click", (e) => { e.stopPropagation(); state.screen = "terminal"; state.focus = -1; trace("Gibson → Terminal"); render(); });
-  const wifi = add("hit", "left:22%;top:83%;width:12%;height:10%;display:flex;align-items:center;justify-content:center;", "");
-  wifi.appendChild(ico(ICO.wifi));
-  wifi.addEventListener("click", (e) => { e.stopPropagation(); trace("open Wi-Fi (list stub)"); });
-  const ble = add("hit", "left:38%;top:83%;width:12%;height:10%;display:flex;align-items:center;justify-content:center;", "");
-  ble.appendChild(ico(ICO.ble));
-  ble.addEventListener("click", (e) => { e.stopPropagation(); trace("open BLE (list stub)"); });
-}
-
-function renderTerminal() {
-  const back = add("hit back", "", "");
-  back.appendChild(ico(ICO.back));
-  back.addEventListener("click", (e) => {
-    e.stopPropagation();
-    if (state.osk) { closeOsk("ESC"); return; }
-    if (state.sheet) { state.sheet = false; trace("ESC closes sheet"); render(); return; }
-    state.screen = "gibson";
-    trace("Terminal back → Gibson");
-    render();
-  });
-  const crown = add("hit crown", "", "");
-  crown.appendChild(ico(ICO.crown));
-  crown.addEventListener("click", (e) => {
-    e.stopPropagation();
-    state.screen = "gibson";
-    closeOsk();
-    trace("crown → Gibson");
-    render();
-  });
-  add("hit rx", "", "RX", () => {
-    if (state.osk) closeOsk("RX");
-    else if (state.sheet) { state.sheet = false; trace("RX closes sheet"); render(); }
-    else trace("RX (nothing open)");
-  });
-
-  const log = add("log");
-  state.log.slice(-4).forEach((l) => {
-    const row = document.createElement("div");
-    row.style.color = l.color;
-    row.textContent = l.who + "  " + l.text;
-    log.appendChild(row);
-  });
-
-  BOTS.forEach((b, n) => {
-    const p = tilePos(n);
-    const on = state.focus === n;
-    const tile = add("tile" + (on ? " focus" : ""), `left:${p.x}%;top:${p.y}%;color:${b.color};`);
-    const led = document.createElement("div");
-    led.className = "led";
-    led.style.background = b.st === "hold" ? "#e07a6a" : b.st === "limited" ? "#e8b15a" : "#3dcea0";
-    tile.appendChild(led);
-    const g = document.createElement("div");
-    g.className = "glyph";
-    tile.appendChild(g);
-    const silk = document.createElement("div");
-    silk.className = "silk";
-    silk.textContent = on ? b.name : "";
-    tile.appendChild(silk);
-    tile.addEventListener("click", (e) => {
-      e.stopPropagation();
-      if (state.osk) return;
-      if (state.focus !== n) {
-        state.focus = n;
-        trace("focus " + b.name + " (label on, not selected)");
-      } else {
-        state.selected = n;
-        state.log.push({ who: b.name.toLowerCase(), text: "selected", color: b.color });
-        trace("select " + b.name);
-      }
-      render();
+function renderHits() {
+  panel.querySelectorAll(".hit").forEach(n => n.remove());
+  // 4x3 board focus/select
+  for (let i = 0; i < 12; ++i) {
+    const c = i % 4, r = Math.floor(i / 4);
+    const left = (8 + c * 78) / 320 * 100;
+    const top = (18 + r * 48) / 240 * 100;
+    addHit("tile", `left:${left}%;top:${top}%;width:22%;height:18%;`, () => {
+      if (state.focus === i) { state.screen = "terminal"; state.focus = -1; trace("select bot " + i); }
+      else { state.focus = i; trace("focus bot " + i); }
+      show();
     });
-  });
-
-  const bot = BOTS[state.selected];
-  const badge = add("badge", `border-color:${bot.color};color:${bot.color};`, "");
-  const bg = document.createElement("div");
-  bg.className = "g";
-  badge.appendChild(bg);
-  const nm = document.createElement("div");
-  nm.textContent = bot.name.slice(0, 6).toLowerCase();
-  badge.appendChild(nm);
-  const lv = document.createElement("div");
-  lv.textContent = "LV 01";
-  badge.appendChild(lv);
-  badge.addEventListener("click", (e) => {
-    e.stopPropagation();
-    state.osk = true;
-    state.sheet = false;
-    trace("badge tap → OSK");
-    render();
-  });
-
-  add("prompt", "", "user@botcorps:~$ " + state.prompt, () => {
-    state.sheet = !state.sheet;
-    state.osk = false;
-    trace(state.sheet ? "Tab on empty prompt → sheet" : "close command sheet");
-    render();
-  });
-
-  if (state.sheet) renderSheet();
-  if (state.osk) renderOsk();
-}
-
-function closeOsk(why) {
-  state.osk = false;
-  state.sym = false;
-  if (why) trace(why + " closes OSK");
-  render();
-}
-
-function renderSheet() {
-  const box = add("sheet on");
-  let i = 0;
-  const vis = [];
-  GROUPS.forEach(([name, cmds]) => {
-    vis.push({ kind: "h", name });
-    cmds.forEach(([n, p]) => { vis.push({ kind: "c", n, p, idx: i++ }); });
-  });
-  const sel = vis.findIndex(r => r.kind === "c" && r.idx === state.sheetI);
-  const top = Math.max(0, Math.min(vis.length - 9, sel - 3));
-  vis.slice(top, top + 9).forEach((r) => {
-    if (r.kind === "h") {
-      const h = document.createElement("div");
-      h.className = "hdr";
-      h.textContent = r.name;
-      box.appendChild(h);
-      return;
-    }
-    const row = document.createElement("div");
-    row.className = "rowc" + (r.idx === state.sheetI ? " on" : "");
-    const nm = document.createElement("span");
-    nm.textContent = r.n;
-    const pp = document.createElement("span");
-    pp.className = "p";
-    pp.textContent = r.p;
-    row.appendChild(nm);
-    row.appendChild(pp);
-    row.addEventListener("click", (e) => {
-      e.stopPropagation();
-      state.sheetI = r.idx;
-      state.sheet = false;
-      const needs = ["scan","hunt","rain","filter","ping","info","track","hail","say","ask","whisper","link","mute"].includes(r.n);
-      if (needs) {
-        state.prompt = r.n + " ";
-        state.osk = true;
-        trace(r.n + " arms argument → OSK");
-      } else {
-        state.log.push({ who: "sys", text: r.n, color: "#d7e6cf" });
-        trace("run " + r.n);
-      }
-      render();
-    });
-    box.appendChild(row);
-  });
-}
-
-function renderOsk() {
-  const box = add("osk on");
-  const echo = document.createElement("div");
-  echo.className = "echo";
-  echo.textContent = "user@botcorps:~$ " + state.prompt;
-  box.appendChild(echo);
-  OSK.forEach((row) => {
-    const r = document.createElement("div");
-    r.className = "row";
-    row.forEach((k) => {
-      const key = document.createElement("div");
-      key.className = "key" + (k === "SPACE" ? " space" : k === "BKSP" || k === "ENTER" || k === "HIDE" ? " wide" : "") + (k === "SYM" && state.sym ? " hot" : "");
-      let label = k;
-      if (k.length === 1) label = state.sym && SYM[k] ? SYM[k] : k;
-      if (k === "SYM") label = state.sym ? "ABC" : "SYM";
-      key.textContent = label;
-      key.addEventListener("click", (e) => {
-        e.stopPropagation();
-        onKey(k);
-      });
-      r.appendChild(key);
-    });
-    box.appendChild(r);
-  });
-}
-
-function onKey(k) {
-  if (k === "HIDE") return closeOsk("HIDE");
-  if (k === "SYM") { state.sym = !state.sym; trace("symbol layer " + (state.sym ? "on" : "off")); render(); return; }
-  if (k === "BKSP") { state.prompt = state.prompt.slice(0, -1); trace("BKSP"); render(); return; }
-  if (k === "ENTER") {
-    if (state.prompt) state.log.push({ who: "you", text: state.prompt, color: "#ff8fb3" });
-    trace("ENTER " + (state.prompt || "(empty)"));
-    state.prompt = "";
-    closeOsk("ENTER");
-    return;
   }
-  if (k === "TAB") { trace("TAB"); return; }
-  if (k === "SPACE") { state.prompt += " "; trace("space"); render(); return; }
-  const ch = state.sym && SYM[k] ? SYM[k] : k;
-  state.prompt += ch;
-  trace("type " + ch);
-  render();
+  // badge opens OSK
+  addHit("badge", "left:85.6%;top:72.5%;width:11.9%;height:25%;", () => {
+    state.osk = true; state.sheet = false; trace("badge → OSK"); show();
+  });
+  // Tab sheet
+  addHit("tab", "left:78%;top:89%;width:6%;height:5%;", () => {
+    state.sheet = !state.sheet; state.osk = false; trace(state.sheet ? "Tab → sheet (40 cmds)" : "close sheet"); show();
+  });
+  // top-left back
+  addHit("back", "left:0;top:0;width:11%;height:7%;", () => {
+    if (state.osk) { state.osk = false; trace("ESC closes OSK"); }
+    else if (state.sheet) { state.sheet = false; trace("RX closes sheet"); }
+    else { state.screen = "board"; trace("back"); }
+    show();
+  });
 }
-
-panel.addEventListener("click", () => {
-  if (state.screen === "terminal" && !state.osk && !state.sheet) {
-    state.osk = true;
-    trace("lower terminal tap → OSK");
-    render();
-  }
-});
-
-render();
-trace("ready — rain screen");
+renderHits();
+show();
+trace("ready — icon-only, focus-then-select, v3.2 sheet, 40 cmds");
 </script>
 </body>
 </html>

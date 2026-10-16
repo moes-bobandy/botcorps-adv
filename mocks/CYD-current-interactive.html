@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>BOTcorps CYD — current build</title>
+<style>
+  :root {
+    --bg: #070b0c;
+    --field: #0b1210;
+    --plate: #121a18;
+    --deep: #0a1412;
+    --line: #2a3a34;
+    --ink: #d7e6cf;
+    --muted: #7d9086;
+    --amber: #e8b15a;
+    --ok: #3dcea0;
+    --hold: #e07a6a;
+    --pink: #ff8fb3;
+    --sel: #1c3a32;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: #0e1114;
+    color: var(--ink);
+    font: 14px/1.4 ui-monospace, Consolas, monospace;
+  }
+  header {
+    padding: 16px 20px 8px;
+  }
+  h1 { margin: 0; font-size: 16px; font-weight: 600; letter-spacing: .04em; }
+  .sub { color: var(--muted); margin-top: 4px; }
+  .wrap { display: flex; gap: 24px; padding: 12px 20px 28px; align-items: flex-start; flex-wrap: wrap; }
+  .panel {
+    width: 640px;
+    height: 480px;
+    background: var(--field);
+    border: 1px solid var(--line);
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+    box-shadow: 0 12px 40px #0008;
+  }
+  .panel * { cursor: pointer; }
+  canvas.rain { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .chrome { position: absolute; inset: 0; }
+  .bar {
+    position: absolute; left: 0; right: 0; top: 0; height: 32px;
+    background: #0d1614cc;
+    border-bottom: 1px solid var(--line);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 10px;
+    font-size: 11px;
+    letter-spacing: .08em;
+  }
+  .hit {
+    position: absolute;
+    border: 1px solid transparent;
+  }
+  .hit:hover { outline: 1px dashed #3dcea066; }
+  .back {
+    left: 0; top: 0; width: 72px; height: 32px;
+    color: var(--amber);
+    display: flex; align-items: center; padding-left: 8px;
+    font-size: 11px;
+  }
+  .crown, .rx {
+    top: 4px; height: 24px; display: flex; align-items: center; justify-content: center;
+    font-size: 11px; color: var(--ink);
+  }
+  .crown { left: 406px; width: 48px; }
+  .rx { left: 572px; width: 56px; color: var(--muted); }
+  .tile {
+    position: absolute;
+    width: 144px; height: 92px;
+    background: var(--plate);
+    border: 1px solid var(--line);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 4px;
+  }
+  .tile.focus { border-color: var(--ok); background: var(--sel); }
+  .glyph {
+    width: 28px; height: 28px; border-radius: 50%;
+    border: 2px solid currentColor;
+    box-shadow: inset 0 0 0 4px currentColor;
+    opacity: .9;
+  }
+  .silk { font-size: 10px; letter-spacing: .06em; height: 12px; }
+  .led { position: absolute; left: 6px; top: 6px; width: 6px; height: 6px; }
+  .badge {
+    position: absolute;
+    left: 548px; top: 348px; width: 76px; height: 120px;
+    background: var(--bg);
+    border: 1px solid;
+    display: flex; flex-direction: column; align-items: center; padding-top: 10px;
+    font-size: 11px;
+  }
+  .badge .g { width: 22px; height: 22px; border-radius: 50%; border: 2px solid currentColor; margin-bottom: 8px; }
+  .prompt {
+    position: absolute; left: 16px; top: 334px; right: 160px; height: 24px;
+    color: var(--pink); font-size: 12px;
+  }
+  .log {
+    position: absolute; left: 16px; top: 40px; right: 16px; height: 70px;
+    font-size: 11px; color: var(--ink); overflow: hidden;
+  }
+  .log .bot { }
+  .osk {
+    position: absolute; left: 0; right: 0; top: 302px; bottom: 0;
+    background: #0a1210;
+    border-top: 1px solid var(--line);
+    padding: 6px 8px 8px;
+    display: none;
+  }
+  .osk.on { display: block; }
+  .osk .echo { color: var(--pink); font-size: 11px; height: 16px; margin-bottom: 4px; }
+  .row { display: flex; gap: 2px; margin-bottom: 2px; }
+  .key {
+    height: 26px; min-width: 56px; flex: 1;
+    background: #16201c;
+    border: 1px solid var(--line);
+    color: var(--ink);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px;
+  }
+  .key.hot { background: var(--sel); border-color: var(--ok); }
+  .key.wide { flex: 2; }
+  .key.space { flex: 6; }
+  .sheet {
+    position: absolute; left: 28px; top: 48px; width: 560px; height: 250px;
+    background: #0c1412ee;
+    border: 1px solid var(--line);
+    display: none; overflow: auto; padding: 6px 0;
+  }
+  .sheet.on { display: block; }
+  .sheet .hdr { color: var(--amber); padding: 4px 12px; font-size: 11px; letter-spacing: .1em; }
+  .sheet .rowc { padding: 3px 12px; font-size: 12px; }
+  .sheet .rowc.on { background: var(--sel); color: #9fd9ff; }
+  .side { width: 280px; }
+  .side h2 { margin: 0 0 8px; font-size: 13px; }
+  .side ul { margin: 0; padding-left: 16px; color: var(--muted); }
+  .side li { margin: 4px 0; }
+  #trace {
+    margin-top: 14px; height: 220px; overflow: auto;
+    background: #0a0e10; border: 1px solid var(--line); padding: 8px;
+    font-size: 11px; color: #9fd9b5;
+  }
+  .note { color: var(--muted); font-size: 12px; margin-top: 8px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>BOTcorps CYD — current build</h1>
+  <div class="sub">Interactive mock of grok/cyd-touch-port tip fd972ea. 320×240 scaled 2×. Not a device flash.</div>
+</header>
+<div class="wrap">
+  <div class="panel" id="panel">
+    <canvas class="rain" id="rain" width="640" height="480"></canvas>
+    <div class="chrome" id="chrome"></div>
+  </div>
+  <div class="side">
+    <h2>What this shows</h2>
+    <ul>
+      <li>Rain intro, then Gibson hub, then Terminal.</li>
+      <li>4×3 board. First tap focuses (label appears). Second tap selects.</li>
+      <li>38×60 companion badge. Tap opens the OSK.</li>
+      <li>OSK: SPACE, BKSP, ENTER, TAB, SYM, HIDE. ESC closes it.</li>
+      <li>Top-left back on Terminal goes to Gibson. Rain has none.</li>
+      <li>Labels only on the focused tile.</li>
+    </ul>
+    <div class="note">Click the panel. Top-left is back. Badge is the small box at the lower right of Terminal.</div>
+    <div id="trace"></div>
+  </div>
+</div>
+<script>
+const BOTS = [
+  { name: "WIFI", color: "#5dade2", st: "limited" },
+  { name: "BLUETOOTH", color: "#4ec7e0", st: "limited" },
+  { name: "DEAUTH", color: "#5dade2", st: "ready" },
+  { name: "HACK", color: "#71e38b", st: "ready" },
+  { name: "FLOCK", color: "#9fd9b5", st: "ready" },
+  { name: "DRONE", color: "#f0c674", st: "ready" },
+  { name: "AIRTAG", color: "#ac7fd4", st: "ready" },
+  { name: "KEYFOB", color: "#36b8c9", st: "ready" },
+  { name: "META", color: "#9fd9b5", st: "ready" },
+  { name: "SKIMMER", color: "#36b8c9", st: "hold" },
+  { name: "FLIPPER", color: "#fc6b8a", st: "limited" },
+  { name: "SAMSUNG", color: "#bd3f7a", st: "limited" }
+];
+const GROUPS = [
+  ["CORE", ["scan","hunt","help","bots","rain","filter","ping","info","track","sniff","go","load","defend","sweep","roster","pulse","dig"]],
+  ["COMMS", ["hail","say","ask","rollcall","whisper","broadcast","link","mute"]],
+  ["GAME", ["train","hunt-run","score","rank","loadout","lobby","duel","stash"]],
+  ["SYS", ["clear","history","theme","about","cmds","version","uptime"]]
+];
+const OSK = [
+  ["1","2","3","4","5","6","7","8","9","0"],
+  ["q","w","e","r","t","y","u","i","o","p"],
+  ["a","s","d","f","g","h","j","k","l","TAB"],
+  ["SYM","z","x","c","v","b","n","m","BKSP"],
+  ["HIDE","SPACE","ENTER"]
+];
+const SYM = {
+  "1":"-","2":"|","3":"<","4":">","5":"@","6":".","7":",","8":"!","9":"?","0":"/",
+  q:"+","w":"=","e":"_","r":"*","t":"#","y":"$","u":"%","i":"^","o":"&","p":"(",
+  a:")","s":"[","d":"]","f":"{","g":"}","h":":","j":";","k":"'","l":'"',
+  z:"~","x":"`","c":"\\","v":"'","b":"&","n":"*","m":"+"
+};
+
+const state = {
+  screen: "rain",
+  focus: -1,
+  selected: 0,
+  osk: false,
+  sym: false,
+  prompt: "",
+  sheet: false,
+  sheetI: 0,
+  log: [
+    { who: "boot", text: "botcorps cyd online", color: "#d7e6cf" },
+    { who: "gibson", text: "hub waiting", color: "#d7e6cf" }
+  ]
+};
+
+const panel = document.getElementById("panel");
+const chrome = document.getElementById("chrome");
+const rain = document.getElementById("rain");
+const traceEl = document.getElementById("trace");
+const ctx = rain.getContext("2d");
+
+function trace(msg) {
+  const line = document.createElement("div");
+  line.textContent = msg;
+  traceEl.prepend(line);
+}
+
+function tilePos(n) {
+  return { x: (7 + (n % 4) * 78) * 2, y: (19 + Math.floor(n / 4) * 50) * 2 };
+}
+
+function paintRain() {
+  ctx.clearRect(0, 0, 640, 480);
+  if (state.screen !== "rain" && state.screen !== "gibson") return;
+  ctx.fillStyle = "#07110c";
+  ctx.fillRect(0, 0, 640, 480);
+  const gap = 28;
+  for (let i = 0; i < 23; i++) {
+    if (i % 3 === 2) continue;
+    const x = i * gap;
+    const h = 40 + ((i * 37) % 200);
+    ctx.fillStyle = i % 2 ? "#1e6b4a" : "#2a8f62";
+    ctx.globalAlpha = 0.55;
+    ctx.fillRect(x, 40 + (i * 13) % 180, 4, h);
+    ctx.globalAlpha = 1;
+  }
+}
+
+function render() {
+  paintRain();
+  chrome.innerHTML = "";
+  if (state.screen === "rain") renderRain();
+  else if (state.screen === "gibson") renderGibson();
+  else renderTerminal();
+}
+
+function add(el, cls, style, text, on) {
+  const d = document.createElement("div");
+  d.className = cls;
+  if (style) d.style.cssText = style;
+  if (text != null) d.textContent = text;
+  if (on) d.addEventListener("click", (e) => { e.stopPropagation(); on(e); });
+  chrome.appendChild(d);
+  return d;
+}
+
+function renderRain() {
+  add("bar", "", "BOTcorps  ·  rain");
+  add("hit", "left:0;top:40px;right:0;bottom:0;display:flex;align-items:center;justify-content:center;color:#9fd9b5;letter-spacing:.12em;", "TAP TO ENTER", () => {
+    state.screen = "gibson";
+    trace("rain tap → Gibson hub");
+    render();
+  });
+}
+
+function renderGibson() {
+  add("bar", "", "");
+  add("hit back", "", "‹ back", () => {
+    state.screen = "rain";
+    trace("Gibson back → rain");
+    render();
+  });
+  add("hit", "left:180px;top:120px;width:280px;height:160px;border:1px solid #2a3a34;display:flex;align-items:center;justify-content:center;color:#d7e6cf;letter-spacing:.2em;", "GIBSON", () => {
+    trace("crown / hub");
+  });
+  add("hit", "left:40px;top:400px;width:160px;height:48px;border:1px solid #3dcea0;display:flex;align-items:center;justify-content:center;color:#3dcea0;", "TERMINAL", () => {
+    state.screen = "terminal";
+    state.focus = -1;
+    trace("Gibson → Terminal");
+    render();
+  });
+  add("hit", "left:240px;top:400px;width:140px;height:48px;border:1px solid #2a3a34;display:flex;align-items:center;justify-content:center;", "WIFI", () => {
+    trace("open Wi-Fi (list stub)");
+  });
+  add("hit", "left:400px;top:400px;width:140px;height:48px;border:1px solid #2a3a34;display:flex;align-items:center;justify-content:center;", "BLE", () => {
+    trace("open BLE (list stub)");
+  });
+}
+
+function renderTerminal() {
+  add("bar", "", "");
+  add("hit back", "", "‹ back", () => {
+    if (state.osk) { closeOsk("ESC"); return; }
+    if (state.sheet) { state.sheet = false; trace("ESC closes sheet"); render(); return; }
+    state.screen = "gibson";
+    trace("Terminal back → Gibson");
+    render();
+  });
+  add("hit crown", "", "CROWN", () => {
+    state.screen = "gibson";
+    closeOsk();
+    trace("crown → Gibson");
+    render();
+  });
+  add("hit rx", "", "RX", () => {
+    if (state.osk) closeOsk("RX");
+    else if (state.sheet) { state.sheet = false; trace("RX closes sheet"); render(); }
+    else trace("RX (nothing open)");
+  });
+
+  const log = add("log");
+  state.log.slice(-4).forEach((l) => {
+    const row = document.createElement("div");
+    row.style.color = l.color;
+    row.textContent = l.who + "  " + l.text;
+    log.appendChild(row);
+  });
+
+  BOTS.forEach((b, n) => {
+    const p = tilePos(n);
+    const on = state.focus === n;
+    const tile = add("tile" + (on ? " focus" : ""), `left:${p.x}px;top:${p.y}px;color:${b.color};`);
+    const led = document.createElement("div");
+    led.className = "led";
+    led.style.background = b.st === "hold" ? "#e07a6a" : b.st === "limited" ? "#e8b15a" : "#3dcea0";
+    tile.appendChild(led);
+    const g = document.createElement("div");
+    g.className = "glyph";
+    tile.appendChild(g);
+    const silk = document.createElement("div");
+    silk.className = "silk";
+    silk.textContent = on ? b.name : "";
+    tile.appendChild(silk);
+    tile.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (state.osk) return;
+      if (state.focus !== n) {
+        state.focus = n;
+        state.selected = n;
+        trace("focus " + b.name + " (label on)");
+      } else {
+        state.selected = n;
+        state.log.push({ who: b.name.toLowerCase(), text: "selected", color: b.color });
+        trace("select " + b.name);
+      }
+      render();
+    });
+  });
+
+  const bot = BOTS[state.selected];
+  const badge = add("badge", `border-color:${bot.color};color:${bot.color};`, "");
+  const bg = document.createElement("div");
+  bg.className = "g";
+  badge.appendChild(bg);
+  const nm = document.createElement("div");
+  nm.textContent = bot.name.slice(0, 6).toLowerCase();
+  badge.appendChild(nm);
+  const lv = document.createElement("div");
+  lv.textContent = "LV 01";
+  badge.appendChild(lv);
+  badge.addEventListener("click", (e) => {
+    e.stopPropagation();
+    state.osk = true;
+    state.sheet = false;
+    trace("badge tap → OSK");
+    render();
+  });
+
+  add("prompt", "", "user@botcorps:~$ " + state.prompt);
+
+  add("hit", "left:500px;top:428px;width:40px;height:24px;font-size:10px;color:#7d9086;display:flex;align-items:center;", "CMDS", (e) => {
+    state.sheet = !state.sheet;
+    state.osk = false;
+    trace(state.sheet ? "open command sheet" : "close command sheet");
+    render();
+  });
+
+  if (state.sheet) renderSheet();
+  if (state.osk) renderOsk();
+}
+
+function closeOsk(why) {
+  state.osk = false;
+  state.sym = false;
+  if (why) trace(why + " closes OSK");
+  render();
+}
+
+function renderSheet() {
+  const box = add("sheet on");
+  let i = 0;
+  GROUPS.forEach(([name, cmds]) => {
+    const h = document.createElement("div");
+    h.className = "hdr";
+    h.textContent = name;
+    h.addEventListener("click", (e) => {
+      e.stopPropagation();
+      trace("group " + name);
+    });
+    box.appendChild(h);
+    cmds.forEach((c) => {
+      const r = document.createElement("div");
+      r.className = "rowc" + (i === state.sheetI ? " on" : "");
+      r.textContent = c;
+      const idx = i;
+      r.addEventListener("click", (e) => {
+        e.stopPropagation();
+        state.sheetI = idx;
+        state.sheet = false;
+        const needs = ["scan","hunt","rain","filter","ping","info","track","go","load","defend","sweep","pulse","dig","hail","say","ask","whisper","link","mute"].includes(c);
+        if (needs) {
+          state.prompt = c + " ";
+          state.osk = true;
+          trace(c + " arms argument → OSK");
+        } else {
+          state.log.push({ who: "sys", text: c, color: "#d7e6cf" });
+          trace("run " + c);
+        }
+        render();
+      });
+      box.appendChild(r);
+      i++;
+    });
+  });
+}
+
+function renderOsk() {
+  const box = add("osk on");
+  const echo = document.createElement("div");
+  echo.className = "echo";
+  echo.textContent = "user@botcorps:~$ " + state.prompt;
+  box.appendChild(echo);
+  OSK.forEach((row) => {
+    const r = document.createElement("div");
+    r.className = "row";
+    row.forEach((k) => {
+      const key = document.createElement("div");
+      key.className = "key" + (k === "SPACE" ? " space" : k === "BKSP" || k === "ENTER" || k === "HIDE" ? " wide" : "") + (k === "SYM" && state.sym ? " hot" : "");
+      let label = k;
+      if (k.length === 1) label = state.sym && SYM[k] ? SYM[k] : k;
+      if (k === "SYM") label = state.sym ? "ABC" : "SYM";
+      key.textContent = label;
+      key.addEventListener("click", (e) => {
+        e.stopPropagation();
+        onKey(k);
+      });
+      r.appendChild(key);
+    });
+    box.appendChild(r);
+  });
+}
+
+function onKey(k) {
+  if (k === "HIDE") return closeOsk("HIDE");
+  if (k === "SYM") { state.sym = !state.sym; trace("symbol layer " + (state.sym ? "on" : "off")); render(); return; }
+  if (k === "BKSP") { state.prompt = state.prompt.slice(0, -1); trace("BKSP"); render(); return; }
+  if (k === "ENTER") {
+    if (state.prompt) state.log.push({ who: "you", text: state.prompt, color: "#ff8fb3" });
+    trace("ENTER " + (state.prompt || "(empty)"));
+    state.prompt = "";
+    closeOsk("ENTER");
+    return;
+  }
+  if (k === "TAB") { trace("TAB"); return; }
+  if (k === "SPACE") { state.prompt += " "; trace("space"); render(); return; }
+  const ch = state.sym && SYM[k] ? SYM[k] : k;
+  state.prompt += ch;
+  trace("type " + ch);
+  render();
+}
+
+panel.addEventListener("click", () => {
+  if (state.screen === "terminal" && !state.osk && !state.sheet) {
+    state.osk = true;
+    trace("lower terminal tap → OSK");
+    render();
+  }
+});
+
+render();
+trace("ready — rain screen");
+</script>
+</body>
+</html>

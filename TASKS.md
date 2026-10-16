@@ -426,3 +426,114 @@ E. Device later: XPT2046 → NVS `tcal=1`; glass shots. No merge/flash until Dir
 ```
 On grok/cyd-touch-port tip 0901bb0: rebase onto Adv 07d4fa39 dropped CYD touch/OSK/INT-skip from botcorps_ui.cpp (s_osk_open unused; read_key is M5-only; paint_int_now no CYD return) and corrupted BOTCORPS_HOST_RENDER (broken type_letters, duplicate host_*, brace imbalance); mocks/cyd-frames and shots/cyd are labeled placeholder PNGs not real paint, and the interactive mock lost the 40-cmd sheet after 41f1372. (1) restore CYD paths from a28caec (getTouch, badge→OSK, paint_osk, INT skip, push_ymax) while keeping Adv paint; (2) fix host-render helpers + real type_letters; (3) bump REPORT tip/subtitle to HEAD, stop claiming real frames until dumps exist, re-measure RAM/flash; (4) restore 40-cmd mock sheet or real host frames. Push only to grok/cyd-touch-port, no merge/flash.
 ```
+
+
+## GIBSONbot review — tip 1c1ea2a (2026-10-16 ~8:42 AM ET)
+
+Reviewed on box `/tmp/bca` at `grok/cyd-touch-port` tip `1c1ea2a53d2ebf9a109e512b5ddbe0788cd2f26d` (last reviewed SHA `1364c1d` = TASKS after tip `0901bb0`). Diff span `1364c1d..1c1ea2a`. Host type test **PASS**. No firmware rebuild (preprocessor broken — see below). Nothing merged/pushed/flashed by this watch.
+
+### Commits
+| SHA | Author | What |
+|-----|--------|------|
+| 53fb723 | Grok \<grok@x.ai\> | Restore CYD touch/OSK/INT-skip; fix host helpers; honest REPORT; 40-cmd mock |
+| 9106580 | Grok \<grok@x.ai\> | REPORT tip → 4f573cb |
+| 1c1ea2a | Grok \<grok@x.ai\> | REPORT tip → 9106580 |
+
+Super Grok only. No Cursor Agent.
+
+### Fixed this batch
+1. CYD touch/OSK/INT-skip **bodies** restored (getTouch, badge→OSK, paint_osk, INT early-return, push_ymax).
+2. HOST_RENDER / `type_letters` **fixed** (prior CRITICAL #2 closed).
+3. Interactive mock **40-cmd sheet restored**.
+4. REPORT admits placeholders + stale memory.
+
+### MATCH
+- CMD_N=40 + CORE go/load/defend/sweep/roster/pulse/dig
+- Compact 38×60 badge, focus silk, wants_rain Terminal dry, OSK table, host type test PASS
+- Mock 40 cmds; side-panel docs only (no instruction text in 320×240 stage)
+- Host helpers clean
+
+### MISS / still open
+1. **CRITICAL compile break:** orphan `#endif` after `cyd_close_osk` (~L4131); mangled `return K_NONE;#endif` (~L5279) leaves `#ifdef BOTCORPS_CYD` unterminated.
+2. `paint_osk` outside CYD guard.
+3. `cyd_overlay` + `on_esc` OSK-close still missing vs a28caec.
+4. REPORT tip lag (`9106580` vs `1c1ea2a`); mock subtitle still `ef62516`.
+5. Frames still placeholders; LV `"LV 01"`; memory stale; device/glass open.
+
+### Next Super Grok order
+A. Fix ifdefs so `pio run -e cyd` builds (wrap OSK funcs; own-line `#endif` on read_key).
+B. Restore `cyd_overlay` + CYD `on_esc` OSK-close.
+C. Bump REPORT tip + mock subtitle to HEAD; re-measure RAM/flash.
+D. Real frames or keep CSS mock — no “real paint” claims for stubs.
+E. Device later. No merge/flash until Dirt says.
+
+### Follow-up one-liner (Dirt → Super Grok)
+```
+On grok/cyd-touch-port tip 1c1ea2a: touch/OSK/INT-skip bodies and host type_letters are back and the 40-cmd mock is restored, but botcorps_ui.cpp will not compile — orphan #endif after cyd_close_osk (~L4131) and mangled `return K_NONE;#endif` in read_key (~L5279) leave #ifdef BOTCORPS_CYD unterminated; paint_osk is also outside the CYD guard. (1) wrap cyd_close_osk+paint_osk in #ifdef BOTCORPS_CYD and put #endif on its own line after the CYD read_key branch; (2) restore cyd_overlay + on_esc OSK-close from a28caec; (3) bump REPORT tip and mock subtitle to HEAD, re-measure RAM/flash after a clean pio run -e cyd; (4) keep placeholder honesty until real frames exist. Push only to grok/cyd-touch-port, no merge/flash.
+```
+
+## GIBSONbot review — tip cbc040e / fw acfc0e3 (2026-10-16 ~9:35 AM ET)
+
+Reviewed on box `/tmp/bca` at `grok/cyd-touch-port` tip `cbc040e70348a4be811d5d1872782c3318f23666` (last reviewed SHA `1c1ea2a53d2ebf9a109e512b5ddbe0788cd2f26d`). Diff span `1c1ea2a..cbc040e` for `src/ui/botcorps_ui.cpp`, `builds/cyd/REPORT.md`, `mocks/CYD-current-interactive.html`. Host type test **PASS** (`cyd osk table ok keys=42`; `host cyd type gate passed`). Preprocessor balance **OK** (no orphan `#endif`, no same-line mangled `#endif`). Did **not** re-run `pio` here (`pio`/`platformio` not on PATH; local `.pio/build/cyd/firmware.bin` still mtime **2026-10-15 18:13 ET**, size **1,395,584** — REPORT's new flash figure is Super Grok's claim only). Nothing merged, pushed, or flashed by this watch. Parent will commit/push TASKS only (includes prior unpushed 1c1ea2a addendum).
+
+### Commits in this batch (oldest→newest)
+| SHA | Author | What |
+|-----|--------|------|
+| acfc0e3 | Grok \<grok@x.ai\> | Fix `#ifdef` guards around OSK/close; restore `cyd_overlay` + `on_esc` OSK-close; move `push_ymax` to draw start |
+| cbc040e | Grok \<grok@x.ai\> | REPORT tip → `acfc0e3`; re-measured RAM/flash after clean `pio run -e cyd` |
+
+Both authors/committers **Grok \<grok@x.ai\>**. **No Cursor Agent.** Branch only. No merge.
+
+### What this batch actually fixed
+1. **CRITICAL compile break closed.** `#ifdef BOTCORPS_CYD` wraps `cyd_close_osk` + `paint_osk`; `#endif` on its own line after the CYD `read_key` branch (replaces mangled `return K_NONE;#endif`). File-wide `#if`/`#endif` stack balances to 0.
+2. **`cyd_overlay` restored** (after `patch_world`) and called from CYD draw paths; OSK paints on dirty while open; badge patch when bot changes.
+3. **`on_esc` CYD OSK-close restored** — ESC/top-left closes keyboard instead of navigating while `s_osk_open`.
+4. **`botcorps_band_set_push_ymax`** moved to start of `botcorps_ui_draw` (no longer only inside `paint_prompt`).
+5. **Mock subtitle** bumped `ef62516` → `acfc0e3`. REPORT claims clean `pio run -e cyd` SUCCESS; flash **1,404,031** (was 1,387,919); RAM still **72,076**.
+
+### MATCH (vs CYD rules — code evidence)
+- Preprocessor / Adv `#ifdef` hygiene for OSK helpers — **MATCH** (prior CRITICAL #1/#2 closed).
+- `cyd_overlay` + `on_esc` OSK-close — **MATCH** vs prior MISS #3/#4.
+- `CMD_N = 40` with CORE `go`/`load`/`defend`/`sweep`/`roster`/`pulse`/`dig`.
+- Compact badge `paint_cyd_badge` (274,174) 38×60, `"LV 01"`, `bot_color`; `paint_int_now` CYD early-return (no INT card on glass).
+- Focus-only silk; Terminal/lists/diag dry via `wants_rain()`; OSK table clip y=151; host type gate **PASS**.
+- Mock: all **40** cmds in `GROUPS`; instruction prose **side-panel only** (not inside 320×240 stage).
+- Single 320×240 CYD path; touch edge ~50 ms; badge→OSK; Super Grok-only authors.
+- `BOTCORPS_CYD` line hits **7 → 15** (still below `a28caec`'s **22**, but overlay + esc + draw guards are back).
+
+### MISS / still open (numbered)
+1. **REPORT tip lag (pattern):** field is `acfc0e3`; real tip is `cbc040e`. Tip-bump commits never name themselves.
+2. **Mock subtitle lag:** same — `acfc0e3` not `cbc040e` (minor; tracks code tip).
+3. **Memory not re-verified on this box.** REPORT flash **1,404,031** / RAM **72,076** after claimed clean pio; local `firmware.bin` still Oct 15 and size **1,395,584** ≠ reported flash. Treat numbers as Super Grok-reported until a watch can run `pio run -e cyd` here or Dirt confirms the bin.
+4. **Frames still placeholders** in `mocks/cyd-frames/` / `mocks/shots/cyd` — REPORT honesty kept (**MATCH** on honesty; real dumps still open).
+5. **LV** still hardcoded `"LV 01"` in `paint_cyd_badge`.
+6. **`BOTCORPS_CYD` guard count 15 vs `a28caec` 22** — thinner than the reference tip; watch for any Adv-only path that still assumes dual INT/EXT when CYD is defined (spot-check on next code touch, not a compile blocker now).
+7. **Device / glass still unchecked;** XPT2046 300..3900 placeholders; no merge/flash. Never claim field PASS.
+
+### Prior open items (1c1ea2a) — status
+| # | Was | Now |
+|---|-----|-----|
+| 1 | CRITICAL preprocessor break | **MATCH — fixed** |
+| 2 | `paint_osk` outside CYD guard | **MATCH — fixed** |
+| 3 | `cyd_overlay` missing | **MATCH — restored** |
+| 4 | `on_esc` OSK-close missing | **MATCH — restored** |
+| 5 | REPORT tip lag | Still lagging (now `acfc0e3` vs `cbc040e`) |
+| 6 | Mock subtitle lag | Bumped to `acfc0e3` (still one behind HEAD) |
+| 7–10 | Frames / LV / memory / device | Frames+LV+device open; memory claimed refreshed but not box-verified |
+
+### Memory (from REPORT; not re-measured this watch)
+- RAM: 72,076 / 327,680 (22.0%)
+- Flash: 1,404,031 / 3,145,728 (44.6%) — **Super Grok-reported**
+- Frame: BANDS
+- Host type test (OSK table path): **PASS**
+
+### Next Super Grok paste order
+A. Bump REPORT tip + mock subtitle to **this** tip SHA (`cbc040e` or whatever HEAD is after the bump).
+B. Keep placeholder honesty until real host CYD dumps exist; optional: publish the `.pio/build/cyd/firmware.bin` size next to the map flash figure so watches can cross-check without pio.
+C. Soft: live `LV` from bot state instead of `"LV 01"`; continue closing remaining CYD `#ifdef` gaps vs `a28caec` only if a real Adv/CYD conflict shows up.
+D. Device later: XPT2046 → NVS `tcal=1`; glass shots. No merge/flash until Dirt says.
+
+### Follow-up one-liner (Dirt → Super Grok)
+```
+On grok/cyd-touch-port tip cbc040e (fw acfc0e3): ifdef/OSK compile break is fixed, cyd_overlay + on_esc OSK-close are back, host type gate still PASSes, and mock subtitle is on acfc0e3. Remaining: (1) bump REPORT tip and mock subtitle to HEAD (cbc040e), not one tip behind; (2) keep placeholder-frame honesty; optionally cite firmware.bin byte size next to the map flash figure so watches can cross-check; (3) soft — live LV instead of "LV 01"; (4) device/glass later. Push only to grok/cyd-touch-port, no merge/flash.
+```

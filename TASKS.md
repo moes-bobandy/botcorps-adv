@@ -194,3 +194,8 @@ On grok/cyd-touch-port tip 29f6c05 (fw d6bc0fe): (1) hit-test the companion badg
 - Badge tap (and lower terminal) opens the OSK again.
 - ESC closes the OSK first and does not navigate while it is open.
 
+
+## Local progress (badge open / ESC close)
+- Explicit badge hit-test opens the OSK (checked before board tiles).
+- ESC, HIDE, and RX all go through cyd_close_osk(); ESC does not navigate while the keyboard is up.
+

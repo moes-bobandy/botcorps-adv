@@ -4934,14 +4934,23 @@ static void on_ok(void)
     activate();
 }
 
+#ifdef BOTCORPS_CYD
+static void cyd_close_osk(void)
+{
+    if (!s_osk_open && !s_osk_sym) return;
+    s_osk_open = false;
+    s_osk_sym = false;
+    s_osk_dirty = false;
+    s_dirty = true;
+}
+#endif
+
 static void on_esc(void)
 {
 #ifdef BOTCORPS_CYD
-    if (s_osk_open) {
-        s_osk_open = false;
-        s_osk_sym = false;
-        s_osk_dirty = false;
-        s_dirty = true;
+    /* ESC removes the keyboard. It does not navigate while the OSK is up. */
+    if (s_osk_open || s_osk_sym) {
+        cyd_close_osk();
         return;
     }
 #endif
@@ -5111,10 +5120,7 @@ static int read_key(char *typed)
         if (hit < 0) return K_NONE;
         const CydOskKey k = cyd_osk_at(hit);
         if (k.kind == CYD_OSK_HIDE) {
-            s_osk_open = false;
-            s_osk_sym = false;
-            s_osk_dirty = false;
-            s_dirty = true;
+            cyd_close_osk();
             return K_NONE;
         }
         if (k.kind == CYD_OSK_SYM) {
@@ -5138,9 +5144,7 @@ static int read_key(char *typed)
         }
         if (tx >= 286) {
             if (s_osk_open) {
-                s_osk_open = false;
-                s_osk_dirty = false;
-                s_dirty = true;
+                cyd_close_osk();
                 return K_NONE;
             }
             if (s_sheet || s_focus_cmds) return K_ESC;
@@ -5198,6 +5202,16 @@ static int read_key(char *typed)
         return K_ESC;
     }
     if (s_screen == SCR_TERMINAL) {
+        /* Companion badge opens the OSK. Checked before tile focus so a
+         * badge tap cannot be swallowed as a board hit. */
+        if (!s_sheet
+            && tx >= CYD_BADGE_X && tx < CYD_BADGE_X + CYD_BADGE_W
+            && ty >= CYD_BADGE_Y && ty < CYD_BADGE_Y + CYD_BADGE_H) {
+            s_osk_open = true;
+            s_osk_dirty = true;
+            s_focus_cmds = false;
+            return K_NONE;
+        }
         for (int n = 0; n < 12; ++n) {
             int x, y;
             term_xy(n, &x, &y);

@@ -537,3 +537,14 @@ D. Device later: XPT2046 → NVS `tcal=1`; glass shots. No merge/flash until Dir
 ```
 On grok/cyd-touch-port tip cbc040e (fw acfc0e3): ifdef/OSK compile break is fixed, cyd_overlay + on_esc OSK-close are back, host type gate still PASSes, and mock subtitle is on acfc0e3. Remaining: (1) bump REPORT tip and mock subtitle to HEAD (cbc040e), not one tip behind; (2) keep placeholder-frame honesty; optionally cite firmware.bin byte size next to the map flash figure so watches can cross-check; (3) soft — live LV instead of "LV 01"; (4) device/glass later. Push only to grok/cyd-touch-port, no merge/flash.
 ```
+
+
+## Local progress (de10262 — Super Grok)
+- REPORT tip bumped to 53e34aa (final tip de10262; lag of one meta-commit).
+- firmware.bin exact size cited: 1404432 bytes. RAM 72076 (22.0%), flash 1404031 (44.6%).
+- Placeholder honesty explicit in REPORT.
+- Live board observation not possible (no hardware in session); code review + host type gate PASS.
+- LV still hardcoded "LV 01". Frames still stubs. Device/glass open.
+- Pushed to grok/cyd-touch-port only. No merge/flash.
+Built by: Super Grok session (no Cursor/agent hand-off)
+

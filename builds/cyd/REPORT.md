@@ -1,9 +1,9 @@
 # BOTcorps CYD Touch Port Report
 
 ## Tip SHA
-(updated on next push — previous firmware d6bc0fe)
+fd6a54410bf833faf3ea30291a9553b220fbc083
 
-That is the firmware commit. A following commit only writes this hash; `git rev-parse HEAD` is the branch tip.
+That is the branch tip. Firmware changes are in this commit (badge 38x60, hit-test, Terminal back). Previous firmware was d6bc0fe.
 
 ## Build
 - Environment: `cyd`

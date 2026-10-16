@@ -97,3 +97,21 @@ Still open / for device:
 
 Device flash and mock comparison still required. Nothing merged or flashed.
 
+
+## GIBSONbot review — tip 7b004b0 (2026-10-15 ~8:20 PM ET)
+Good work: palette constexpr assert back on (1 DONE), bin untracked (14 DONE), OSK hit-test now matches paint (5 DONE), OSK repaints only when dirty, full paint_int skipped on CYD.
+
+### Must fix now (regressions and slice A not met)
+R1. **OSK lost Backspace and Enter.** `,` and `.` now type characters (good) but nothing maps to K_BS or K_OK anymore, so you can't delete or run a command from the OSK. Add real BKSP and ENTER key cells (plus TAB and hide) in the same rect table.
+R2. **`s_int_dirty` is never cleared on CYD.** Both `#ifndef` blocks wrap the `s_int_dirty = false;` line, so int_dirty stays true forever: the first draw path then skips the badge entirely, and the second path never returns early. Clear `s_int_dirty` on CYD too.
+R3. **Badge paints every loop (100 Hz).** `paint_cyd_badge()` runs unconditionally at the end of `botcorps_ui_draw()`. Paint it only when the selected bot or LV changes (cache last bot index + LV).
+R4. **Badge is a stub, not the mock.** Literal white "BOT"/"LV" text on raw `0x1082` is not the ID badge. Slice A needs: bot glyph, real bot name, real LV number, the bot's fixed color (palette inks, not raw RGB565), fixed layout that never flips, matching `mocks/BOTcorps-Adv-FINAL-v1.html` badge style.
+R5. Clip board/Terminal band pushes so they don't overdraw the badge region (240,0,80,60), and repaint under the OSK when it closes.
+
+### Still open from before
+3 touch focus-then-select / dropdown / top-bar / back (blanket K_OK still there; the new comment says "first tap focuses" but code still returns K_OK). 6 filled key look. 8 typing host test. 9-13, 15-19 unchanged.
+
+### Next paste order
+1. R1 + R2 (quick, they block typing and the badge).
+2. R3 + R4 + R5 (finish slice A for real).
+3. Slice C (item 3).

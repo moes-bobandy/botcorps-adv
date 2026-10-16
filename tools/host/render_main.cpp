@@ -615,5 +615,27 @@ int main(void)
            hit[109 * 320 + 299], hit[109 * 320 + 300]);
     botcorps_host_idle(hit);
     write_raw("/tmp/hit-idle.rgb", hit, 0);
+
+    /* Master v1016 screens: wifi/ble lists, actions, hunt states, found-alert, hub, scan tint */
+    botcorps_host_list(hit);
+    write_raw("/tmp/adv-wifi-list.rgb", hit, 0);
+    botcorps_host_ble_list(hit);
+    write_raw("/tmp/adv-ble-list.rgb", hit, 0);
+    botcorps_host_hunt(hit);
+    write_raw("/tmp/adv-action-list.rgb", hit, 0);
+    botcorps_host_hunt_view(hit, -62);
+    write_raw("/tmp/adv-hunt.rgb", hit, 0);
+    botcorps_host_hunt_view(hit, -50);
+    write_raw("/tmp/adv-hunt-close.rgb", hit, 0);
+    botcorps_host_hunt_view(hit, -95);
+    write_raw("/tmp/adv-hunt-lost.rgb", hit, 0);
+    botcorps_host_found_alert(hit);
+    write_raw("/tmp/adv-found-alert.rgb", hit, 0);
+    botcorps_host_hub(hit);
+    write_raw("/tmp/adv-gibson-hub.rgb", hit, 0);
+    botcorps_host_scan_tint(hit, 0);
+    write_raw("/tmp/adv-scan-tint-cyan.rgb", hit, 0);
+    botcorps_host_scan_tint(hit, 2);
+    write_raw("/tmp/adv-scan-tint-mint.rgb", hit, 0);
     return 0;
 }

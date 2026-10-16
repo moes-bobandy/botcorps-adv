@@ -289,9 +289,23 @@ static int s_act_dev = -1;
 static int s_info_dev = -1;
 static int s_hunt_dev = -1;
 static int s_hunt_band = 0;
-static uint8_t s_dev_tag[2][3];
-static uint8_t s_dev_ign[2][3];
-static uint8_t s_dev_fol[2][3];
+static const int HUNT_N = 24;
+static const int HUNT_NEAR = -55;
+static const int HUNT_LOST = -90;
+static int8_t s_hunt_buf[HUNT_N];
+static uint8_t s_hunt_len = 0;
+static uint32_t s_hunt_tS = 0;
+static int s_hunt_force = 0; /* 0 = live mock; nonzero = forced dBm for host paints */
+static uint8_t s_dev_tag[2][8];
+static uint8_t s_dev_ign[2][8];
+static uint8_t s_dev_fol[2][8];
+/* Found-alert takeover. Dismiss only via Hunt/Info/Ignore/Back. */
+static const int FA_N = 4;
+static const char *const FA_NAME[FA_N] = { "hunt", "info", "ignore", "back" };
+static bool s_fa_on = false;
+static int s_fa_sel = 0;
+static int s_fa_band = 0;
+static int s_fa_dev = 0;
 /* Nav focus. Drawn in place. Never promotes a full-panel clear. */
 static int s_focus_old = -1;
 static int s_focus_new = -1;
@@ -739,6 +753,9 @@ static void enter_screen(int id, int ret)
     s_info_dev = -1;
     if (id == SCR_WIFI_LIST || id == SCR_BT_LIST) {
         s_hunt_dev = -1;
+        s_hunt_len = 0;
+        s_hunt_tS = 0;
+        s_hunt_force = 0;
         memset(s_dev_tag, 0, sizeof(s_dev_tag));
         memset(s_dev_ign, 0, sizeof(s_dev_ign));
         memset(s_dev_fol, 0, sizeof(s_dev_fol));
@@ -2394,6 +2411,8 @@ static void scan_die(Gfx g, int cx, int cy, bool gibson)
     draw_blob(g, cx, cy, sc, bot_color(bot), shape, false);
 }
 
+static uint16_t mix16(uint16_t a, uint16_t b, int num, int den);
+
 /* Non-circular bus. radar=false is the Gibson scan (extBus). 0 B heap. */
 static void bus_paint(Gfx g, bool radar, bool wifi, int shown, int sel)
 {
@@ -2404,9 +2423,15 @@ static void bus_paint(Gfx g, bool radar, bool wifi, int shown, int sel)
     const int by = 26;
     const int bw = radar ? 220 : 304;
     const int bh = 182;
-    g.fillRect(bx, by, bw, bh, PAL_DEEP);
-    g.drawRect(bx - 1, by - 1, bw + 2, bh + 2, COL_LINE);
     const uint8_t ac = accent();
+    /* Dirt Oct 16: board follows the UI colour (deep saturated tint). */
+    const uint8_t pcb = botcorps_pal_fit(mix16(0, botcorps_rgb565(ac), 62, 100));
+    const uint8_t pcb_tex = botcorps_pal_fit(mix16(0, botcorps_rgb565(ac), 56, 100));
+    const uint8_t pcb_edge = botcorps_pal_fit(mix16(0, botcorps_rgb565(ac), 20, 100));
+    g.fillRect(bx, by, bw, bh, pcb);
+    for (int tx = bx + 6; tx < bx + bw - 4; tx += 8)
+        g.fillRect(tx, by + 2, 1, bh - 4, pcb_tex);
+    g.drawRect(bx - 1, by - 1, bw + 2, bh + 2, pcb_edge);
     /* Chrome follows the accent. Reserved slots only, never the sheet codes. */
     const uint8_t spoke = (s_color == 1) ? (uint8_t)PAL_WIRE_A
                           : (s_color == 2) ? (uint8_t)PAL_WIRE_M : (uint8_t)PAL_WIRE_C;
@@ -2473,7 +2498,7 @@ static void bus_paint(Gfx g, bool radar, bool wifi, int shown, int sel)
             int ew = 0;
             int eh = 0;
             scout_box(px, py, &ex, &ey, &ew, &eh);
-            g.fillRect(ex, ey, ew, eh, PAL_DEEP);
+            g.fillRect(ex, ey, ew, eh, pcb);
             for (int u = 0; u <= L; ++u) {
                 int tx = 0;
                 int ty = 0;
@@ -2772,6 +2797,8 @@ static void paint_dev_list(Gfx g, bool wifi)
     snprintf(cnt, sizeof(cnt), "%d/%d", LIST_N, LIST_N);
     txt(g, cnt, 268, 13, COL_MUTED, lgfx::textdatum::top_left);
     for (int d = 0; d < LIST_N; ++d) {
+        const int band = wifi ? 0 : 1;
+        if (s_dev_ign[band][d]) continue;
         const int y = y0 + d * rh;
         const bool on = d == sel;
         g.fillRect(8, y, 304, rh - 1, (uint8_t)((d & 1) ? PAL_BG : PAL_FIELD));
@@ -2811,20 +2838,188 @@ static void paint_bus_scan(Gfx g, bool wifi)
     paint_scan_hud(g, wifi, 0);
 }
 
+static int hunt_rssi_now(void)
+{
+    if (s_hunt_force != 0) return s_hunt_force;
+    const uint32_t t = millis();
+    const int ph = (s_hunt_dev >= 0 ? s_hunt_dev : 0) * 37;
+    int v = -72 + (int)(22.f * sinf((float)(t + (uint32_t)ph) / 3100.f))
+            + (int)(6.f * sinf((float)(t + (uint32_t)ph) / 700.f))
+            + (int)((t / 250u) % 5u) - 2;
+    if (v < -88) v = -99;
+    return v;
+}
+
+static void hunt_sample(void)
+{
+    const uint32_t t = millis();
+    if (s_hunt_tS != 0 && (uint32_t)(t - s_hunt_tS) < 250u) return;
+    s_hunt_tS = t;
+    const int r = hunt_rssi_now();
+    if (s_hunt_len < HUNT_N) {
+        s_hunt_buf[s_hunt_len++] = (int8_t)r;
+    } else {
+        for (int i = 1; i < HUNT_N; ++i) s_hunt_buf[i - 1] = s_hunt_buf[i];
+        s_hunt_buf[HUNT_N - 1] = (int8_t)r;
+    }
+}
+
+/* Hunt view inside the scan/list area. Primitives only. */
+static void paint_hunt_view(Gfx g, bool wifi)
+{
+    if (s_hunt_dev < 0) return;
+    hunt_sample();
+    const int d = s_hunt_dev;
+    const char *const *names = wifi ? LIST_WIFI_N : LIST_BLE_N;
+    const char *const *macs = wifi ? LIST_WIFI_M : LIST_BLE_M;
+    const uint8_t *types = wifi ? LIST_WIFI_TY : LIST_BLE_TY;
+    const char *name = (d >= 0 && d < LIST_N) ? names[d] : "?";
+    const char *mac = (d >= 0 && d < LIST_N) ? macs[d] : "--";
+    const uint8_t typ = (d >= 0 && d < LIST_N) ? types[d] : (wifi ? DEV_AP : DEV_BT);
+    const uint8_t ac = accent();
+    const uint8_t wash = (s_color == 1) ? (uint8_t)PAL_WASH_A
+                         : (s_color == 2) ? (uint8_t)PAL_WASH_M : (uint8_t)PAL_WASH_C;
+    const int r = s_hunt_len ? (int)s_hunt_buf[s_hunt_len - 1] : hunt_rssi_now();
+    const bool lost = r <= HUNT_LOST;
+    const bool near = !lost && r >= HUNT_NEAR;
+    const bool fl = ((millis() / 250u) % 2u) == 0u;
+    const int x0 = 8, y0 = 8, w = 304, h = 192;
+    g.fillRect(0, 0, 320, 240, PAL_BLACK);
+    g.fillRect(x0 + 2, y0 + 2, w - 4, h - 4, PAL_BG);
+    const uint8_t bc = near ? (fl ? (uint8_t)PAL_HOLD : ac) : (lost ? (uint8_t)COL_MUTED : ac);
+    g.fillRect(x0 + 2, y0 + 2, w - 4, 1, bc);
+    g.fillRect(x0 + 2, y0 + h - 3, w - 4, 1, bc);
+    g.fillRect(x0 + 2, y0 + 2, 1, h - 4, bc);
+    g.fillRect(x0 + w - 3, y0 + 2, 1, h - 4, bc);
+    if (near) {
+        g.fillRect(x0 + 3, y0 + 3, w - 6, 1, bc);
+        g.fillRect(x0 + 3, y0 + h - 4, w - 6, 1, bc);
+        g.fillRect(x0 + 3, y0 + 3, 1, h - 6, bc);
+        g.fillRect(x0 + w - 4, y0 + 3, 1, h - 6, bc);
+    }
+    const int keep = s_px;
+    s_px = 8;
+    dev_icon(g, typ, x0 + 7, y0 + 7, lost);
+    char who[17];
+    snprintf(who, sizeof(who), "%.16s", name);
+    txt_bg(g, who, x0 + 22, y0 + 6, COL_WHITE, COL_BG, lgfx::textdatum::top_left);
+    s_px = 6;
+    txt_bg(g, mac, x0 + 22, y0 + 15, COL_MUTED, COL_BG, lgfx::textdatum::top_left);
+    if (near) {
+        const uint8_t nb = fl ? (uint8_t)PAL_HOLD : wash;
+        g.fillRect(x0 + w - 44, y0 + 6, 38, 11, nb);
+        txt_bg(g, "CLOSE", x0 + w - 40, y0 + 8, COL_WHITE, nb, lgfx::textdatum::top_left);
+    }
+    if (lost) {
+        txt_bg(g, "LOST", x0 + w - 32, y0 + 8, fl ? (uint8_t)PAL_AMBER : (uint8_t)COL_MUTED, COL_BG,
+               lgfx::textdatum::top_left);
+    }
+    s_px = 16;
+    char db[8];
+    if (lost) snprintf(db, sizeof(db), "--");
+    else snprintf(db, sizeof(db), "%d", r);
+    txt_bg(g, db, x0 + 8, y0 + 30, lost ? (uint8_t)COL_MUTED : (near ? (uint8_t)COL_WHITE : ac),
+           COL_BG, lgfx::textdatum::top_left);
+    s_px = 6;
+    const int dlen = (int)strlen(db);
+    txt_bg(g, "dBm", x0 + 8 + dlen * 10 + 4, y0 + 42, COL_MUTED, COL_BG, lgfx::textdatum::top_left);
+    static const uint8_t HOT[10] = {
+        PAL_CYAN, PAL_CYAN, PAL_OK, PAL_OK, PAL_MINT, PAL_MINT, PAL_AMBER, PAL_AMBER, PAL_HOLD, PAL_HOLD
+    };
+    const int mx = x0 + 8, my = y0 + 58, seg = 10;
+    const int sw = (w - 20) / seg;
+    int q = 0;
+    if (!lost) {
+        q = (r + 90) * seg / 35;
+        if (q < 1) q = 1;
+        if (q > seg) q = seg;
+    }
+    for (int k = 0; k < seg; ++k)
+        g.fillRect(mx + k * sw, my, sw - 2, 7, k < q ? HOT[k] : (uint8_t)COL_LINE);
+    const int sx = x0 + w - 8 - HUNT_N * 3, sy = y0 + 30, sh = 20;
+    g.fillRect(sx - 2, sy - 2, HUNT_N * 3 + 3, sh + 4, PAL_DEEP);
+    for (int k = 0; k < (int)s_hunt_len; ++k) {
+        const int v = (int)s_hunt_buf[k];
+        int hh = 1;
+        if (v > HUNT_LOST) {
+            hh = (v + 90) * sh / 45;
+            if (hh < 1) hh = 1;
+            if (hh > sh) hh = sh;
+        }
+        const uint8_t ink = v <= HUNT_LOST ? (uint8_t)COL_MUTED
+                            : v >= HUNT_NEAR ? (uint8_t)PAL_HOLD : ac;
+        g.fillRect(sx + k * 3, sy + sh - hh, 2, hh, ink);
+    }
+    s_px = keep;
+}
+
+static void paint_found_alert(Gfx g)
+{
+    if (!s_fa_on) return;
+    const uint8_t ac = accent();
+    const bool fl = ((millis() / 300u) % 2u) == 0u;
+    const uint8_t bc = fl ? (uint8_t)PAL_HOLD : ac;
+    const uint8_t wash = (s_color == 1) ? (uint8_t)PAL_WASH_A
+                         : (s_color == 2) ? (uint8_t)PAL_WASH_M : (uint8_t)PAL_WASH_C;
+    const bool wifi = s_fa_band == 0;
+    const char *const *names = wifi ? LIST_WIFI_N : LIST_BLE_N;
+    const char *const *macs = wifi ? LIST_WIFI_M : LIST_BLE_M;
+    const char *const *rssi = wifi ? LIST_WIFI_DB : LIST_BLE_DB;
+    const uint8_t *types = wifi ? LIST_WIFI_TY : LIST_BLE_TY;
+    const int d = (s_fa_dev >= 0 && s_fa_dev < LIST_N) ? s_fa_dev : 0;
+    const uint8_t deep = botcorps_pal_fit(mix16(0, botcorps_rgb565(ac), 55, 100));
+    g.fillRect(0, 0, 320, 240, PAL_BLACK);
+    for (int k = 0; k < 3; ++k) {
+        g.fillRect(k, k, 320 - 2 * k, 1, bc);
+        g.fillRect(k, 239 - k, 320 - 2 * k, 1, bc);
+        g.fillRect(k, k, 1, 240 - 2 * k, bc);
+        g.fillRect(319 - k, k, 1, 240 - 2 * k, bc);
+    }
+    const uint8_t hdr = fl ? (uint8_t)PAL_HOLD : wash;
+    g.fillRect(8, 8, 304, 22, hdr);
+    const int keep = s_px;
+    s_px = 12;
+    txt_bg(g, "DEVICE FOUND", 16, 12, COL_WHITE, hdr, lgfx::textdatum::top_left);
+    s_px = 8;
+    txt_bg(g, wifi ? "WI-FI" : "BLE", 268, 15, COL_WHITE, hdr, lgfx::textdatum::top_left);
+    g.fillRect(14, 40, 40, 40, deep);
+    g.drawRect(14, 40, 40, 40, ac);
+    dev_icon(g, types[d], 26, 52, false);
+    char who[19];
+    snprintf(who, sizeof(who), "%.18s", names[d]);
+    s_px = 12;
+    txt_bg(g, who, 64, 42, COL_WHITE, PAL_BLACK, lgfx::textdatum::top_left);
+    s_px = 6;
+    txt_bg(g, macs[d], 64, 62, COL_MUTED, PAL_BLACK, lgfx::textdatum::top_left);
+    char db[16];
+    snprintf(db, sizeof(db), "%s dBm", rssi[d]);
+    txt_bg(g, db, 64, 72, ac, PAL_BLACK, lgfx::textdatum::top_left);
+    s_px = 8;
+    static const int FA_ICO_I[FA_N] = { 0, 3, 4, 5 }; /* hunt/info/ignore/back from ACT_ICO */
+    for (int j = 0; j < FA_N; ++j) {
+        const int y = 96 + j * 30;
+        const bool on = j == s_fa_sel;
+        const uint8_t row = on ? deep : (uint8_t)PAL_DEEP;
+        g.fillRect(14, y, 292, 24, row);
+        g.fillRect(14, y, on ? 3 : 1, 24, ac);
+        blit_ico(g, ACT_ICO[FA_ICO_I[j]], 26, y + 8, on ? COL_WHITE : ac);
+        char lab[12];
+        int n = 0;
+        for (const char *p = FA_NAME[j]; *p && n < 11; ++p)
+            lab[n++] = (*p >= 'a' && *p <= 'z') ? (char)(*p - 32) : *p;
+        lab[n] = 0;
+        txt_bg(g, lab, 42, y + 6, on ? COL_WHITE : COL_INK, row, lgfx::textdatum::top_left);
+    }
+    s_px = keep;
+}
+
 static void paint_list(Gfx g, bool wifi)
 {
+    if (s_hunt_dev >= 0) {
+        paint_hunt_view(g, wifi);
+        return;
+    }
     paint_dev_list(g, wifi);
-    const int bx = (320 - BS) / 2;
-    plate(g, bx, 206, BS, BS, COL_DEEP, accent());
-    const uint8_t acb = accent();
-    const int ax = bx + 8;
-    const int ay = 216;
-    g.fillRect(ax + 6, ay + 3, 10, 2, acb);
-    g.fillRect(ax + 2, ay + 3, 2, 2, acb);
-    g.fillRect(ax + 3, ay + 1, 2, 2, acb);
-    g.fillRect(ax + 3, ay + 5, 2, 2, acb);
-    g.fillRect(ax + 4, ay, 2, 2, acb);
-    g.fillRect(ax + 4, ay + 6, 2, 2, acb);
     paint_act_menu(g);
     paint_info_card(g, wifi);
 }
@@ -3364,9 +3559,55 @@ static void paint_gibson(Gfx g)
         hx += 17;
     }
     gp_strip(g, t, ac);
-    const int ids[3] = { ICO_TERM, ICO_CTRL, ICO_RADAR };
-    const int xs[3] = { 110, 146, 182 };
-    for (int i = 0; i < 3; ++i) draw_btn(g, xs[i], 206, ids[i], s_cursor == i);
+    /* Dirt Oct 16: Terminal, GIBSON Scan, Control — chip/board icons, UI-tinted. No >_ quick button. */
+    static const int xs[3] = { 110, 146, 182 };
+    for (int i = 0; i < 3; ++i) {
+        const int x = xs[i], y = 206;
+        const bool sel = s_cursor == i;
+        const uint8_t face = botcorps_pal_fit(mix16(0, botcorps_rgb565(ac), sel ? 45 : 62, 100));
+        const uint8_t face2 = botcorps_pal_fit(mix16(0, botcorps_rgb565(ac), sel ? 78 : 88, 100));
+        const uint8_t edge = sel ? ac : botcorps_pal_fit(mix16(0, botcorps_rgb565(ac), 35, 100));
+        const uint8_t gold = sel ? (uint8_t)PAL_AMBER : (uint8_t)PAL_WIRE_A;
+        const uint8_t ic = sel ? (uint8_t)COL_WHITE : ac;
+        g.fillRect(x, y, BS, BS, face);
+        g.fillRect(x, y + BS / 2, BS, BS / 2, face2);
+        g.drawRect(x, y, BS, BS, edge);
+        g.fillRect(x + 3, y + 1, BS - 6, 1, ac);
+        if (i == 0) { /* hterm: header pins + screen with > cursor */
+            for (int k = 0; k < 5; ++k) g.fillRect(x + 6 + k * 4, y + 4, 2, 2, gold);
+            g.fillRect(x + 4, y + 8, 20, 15, ic);
+            g.fillRect(x + 5, y + 9, 18, 13, face2);
+            g.fillRect(x + 7, y + 12, 2, 6, ic);
+            g.fillRect(x + 13, y + 18, 5, 1, ic);
+        } else if (i == 1) { /* hscan: square chip + scan grid + sweep */
+            for (int k = 0; k < 4; ++k) {
+                const int o = 8 + k * 4;
+                g.fillRect(x + o, y + 3, 2, 2, gold);
+                g.fillRect(x + o, y + 23, 2, 2, gold);
+                g.fillRect(x + 3, y + o, 2, 2, gold);
+                g.fillRect(x + 23, y + o, 2, 2, gold);
+            }
+            g.fillRect(x + 6, y + 6, 16, 16, ic);
+            g.fillRect(x + 7, y + 7, 14, 14, face2);
+            for (int k = 1; k < 3; ++k) {
+                g.fillRect(x + 7 + k * 5, y + 7, 1, 14, wash);
+                g.fillRect(x + 7, y + 7 + k * 5, 14, 1, wash);
+            }
+            g.fillRect(x + 8, y + 14, 12, 1, ic);
+            g.fillRect(x + 16, y + 10, 2, 2, ic);
+        } else { /* hctl: settings board + chip + jumper */
+            g.fillRect(x + 3, y + 5, 22, 18, ic);
+            g.fillRect(x + 4, y + 6, 20, 16, face2);
+            for (int k = 0; k < 5; ++k) {
+                g.fillRect(x + 6 + k * 4, y + 7, 2, 1, gold);
+                g.fillRect(x + 6 + k * 4, y + 20, 2, 1, gold);
+            }
+            g.fillRect(x + 7, y + 10, 8, 8, ic);
+            g.fillRect(x + 8, y + 11, 6, 6, face2);
+            g.fillRect(x + 18, y + 11, 3, 6, gold);
+            g.fillRect(x + 18, y + 13, 3, 2, ic);
+        }
+    }
 }
 
 static void paint_rain_btn(Gfx g)
@@ -3926,6 +4167,7 @@ static void paint_ext(Gfx g)
     case SCR_CONTROL: paint_control(g); break;
     default: break;
     }
+    if (s_fa_on) paint_found_alert(g);
 }
 
 static void tick_radar(Gfx g)
@@ -4111,10 +4353,14 @@ static void activate(void)
         enter_screen(SCR_GCHAT, -1);
         break;
     case SCR_GIBSON:
-        if (s_cursor == 0) enter_screen(SCR_TERMINAL, SCR_GIBSON);
-        else if (s_cursor == 1) enter_screen(SCR_CONTROL, SCR_GIBSON);
-        else enter_screen(SCR_SCAN, -1);
-        if (s_screen == SCR_TERMINAL) boot_log();
+        if (s_cursor == 0) {
+            enter_screen(SCR_TERMINAL, SCR_GIBSON);
+            boot_log();
+        } else if (s_cursor == 1) {
+            enter_screen(SCR_SCAN, -1);
+        } else {
+            enter_screen(SCR_CONTROL, SCR_GIBSON);
+        }
         break;
     case SCR_WIFI:
     case SCR_BT:
@@ -4278,8 +4524,9 @@ static void paint_cursor_item(Gfx g, int index, bool sel)
     }
     int id = ICO_BACK;
     if (s_screen == SCR_GIBSON) {
-        const int ids[3] = { ICO_TERM, ICO_CTRL, ICO_RADAR };
-        id = ids[index];
+        /* Chip buttons live in paint_gibson; force a full EXT refresh for focus. */
+        s_dirty = true;
+        return;
     } else if (s_screen == SCR_WIFI || s_screen == SCR_BT || s_screen == SCR_BOT) {
         const int ids[4] = { ICO_RADAR, ICO_TERM, ICO_CTRL, ICO_BACK };
         id = ids[index];
@@ -4331,7 +4578,7 @@ static void patch_world(void (*fn)(Gfx), int x, int y, int w, int h)
 static int cursor_icon(int index)
 {
     if (s_screen == SCR_GIBSON) {
-        const int ids[3] = { ICO_TERM, ICO_CTRL, ICO_RADAR };
+        const int ids[3] = { ICO_TERM, ICO_RADAR, ICO_CTRL };
         return ids[index];
     }
     if (s_screen == SCR_WIFI || s_screen == SCR_BT || s_screen == SCR_BOT) {
@@ -4688,7 +4935,14 @@ static void on_arrows(int key)
         }
         return;
     }
+    if (s_fa_on) {
+        if (key == 1 || key == 3) s_fa_sel = (s_fa_sel + FA_N - 1) % FA_N;
+        if (key == 2 || key == 4) s_fa_sel = (s_fa_sel + 1) % FA_N;
+        s_dirty = true;
+        return;
+    }
     if (s_screen == SCR_WIFI_LIST || s_screen == SCR_BT_LIST) {
+        if (s_hunt_dev >= 0) return;
         if (s_info_dev >= 0) return;
         if (s_act >= 0) {
             if (key == 1 || key == 3) s_act = (s_act + ACT_N - 1) % ACT_N;
@@ -4700,9 +4954,9 @@ static void on_arrows(int key)
         const int dir = (key == 1 || key == 3) ? -1 : (key == 2 || key == 4) ? 1 : 0;
         if (dir == 0) return;
         int i = s_cursor;
-        for (int k = 0; k < 4; ++k) {
-            i = (i + dir + 4) % 4;
-            if (i == 3 || !s_dev_ign[band][i]) break;
+        for (int k = 0; k < LIST_N; ++k) {
+            i = (i + dir + LIST_N) % LIST_N;
+            if (!s_dev_ign[band][i]) break;
         }
         if (i != s_cursor) {
             const int old = s_cursor;
@@ -4721,10 +4975,14 @@ static void act_pick(void)
     const int dev = s_act_dev;
     const int which = s_act;
     s_act = -1;
-    if (dev < 0 || dev > 2) return;
+    if (dev < 0 || dev >= LIST_N) return;
     if (which == 0) {
         s_hunt_dev = dev;
         s_hunt_band = band;
+        s_hunt_len = 0;
+        s_hunt_tS = 0;
+        s_hunt_force = 0;
+        s_dirty = true;
     } else if (which == 1) {
         s_dev_fol[band][dev] = s_dev_fol[band][dev] ? 0 : 1;
     } else if (which == 2) {
@@ -4745,9 +5003,16 @@ static void act_pick(void)
     }
 }
 
+static void fa_run(int which);
+
 static void on_ok(void)
 {
+    if (s_fa_on) {
+        fa_run(s_fa_sel);
+        return;
+    }
     if (s_screen == SCR_WIFI_LIST || s_screen == SCR_BT_LIST) {
+        if (s_hunt_dev >= 0) return; /* hunt view: wait for Esc */
         if (s_info_dev >= 0) {
             s_info_dev = -1;
             partial_box(s_cursor, true);
@@ -4758,7 +5023,7 @@ static void on_ok(void)
             partial_box(s_cursor, true);
             return;
         }
-        if (s_cursor >= 0 && s_cursor < 3 && !s_dev_ign[list_band()][s_cursor]) {
+        if (s_cursor >= 0 && s_cursor < LIST_N && !s_dev_ign[list_band()][s_cursor]) {
             s_act = 0;
             s_act_dev = s_cursor;
             partial_box(s_cursor, true);
@@ -4816,9 +5081,45 @@ static void on_ok(void)
     activate();
 }
 
+static void fa_run(int which)
+{
+    const int band = s_fa_band;
+    const int dev = s_fa_dev;
+    s_fa_on = false;
+    if (which == 0) { /* hunt */
+        enter_screen(band == 0 ? SCR_WIFI_LIST : SCR_BT_LIST, -1);
+        s_hunt_dev = dev;
+        s_hunt_band = band;
+        s_hunt_len = 0;
+        s_hunt_tS = 0;
+        s_hunt_force = 0;
+        s_cursor = dev;
+        s_dirty = true;
+    } else if (which == 1) { /* info */
+        enter_screen(band == 0 ? SCR_WIFI_LIST : SCR_BT_LIST, -1);
+        s_info_dev = (dev < 3) ? dev : 0;
+        s_cursor = s_info_dev;
+        s_dirty = true;
+    } else if (which == 2) { /* ignore */
+        if (dev >= 0 && dev < 8) s_dev_ign[band][dev] = 1;
+        s_dirty = true;
+    }
+    /* back / ignore: dismiss only */
+}
+
 static void on_esc(void)
 {
+    if (s_fa_on) {
+        fa_run(3);
+        return;
+    }
     if (s_screen == SCR_WIFI_LIST || s_screen == SCR_BT_LIST) {
+        if (s_hunt_dev >= 0) {
+            s_hunt_dev = -1;
+            s_hunt_len = 0;
+            s_dirty = true;
+            return;
+        }
         if (s_info_dev >= 0) {
             s_info_dev = -1;
             partial_box(s_cursor, true);
@@ -5309,17 +5610,94 @@ void botcorps_host_idle(uint8_t *buf)
 
 void botcorps_host_hunt(uint8_t *buf)
 {
+    /* Action-list popup on the Wi-Fi list (legacy host name). */
     host_frame = buf;
     memset(buf, PAL_FIELD, 320u * 240u);
     s_screen = SCR_WIFI_LIST;
     botcorps_lut_term(false);
     s_sheet = false;
+    s_fa_on = false;
+    s_hunt_dev = -1;
     s_cursor = 2;
     s_color = 0;
     s_act = 0;
     s_act_dev = 2;
     s_info_dev = -1;
     s_bus_t0 = 1000;
+    paint_ext(Gfx());
+}
+
+void botcorps_host_hunt_view(uint8_t *buf, int force_dbm)
+{
+    host_frame = buf;
+    memset(buf, PAL_BLACK, 320u * 240u);
+    s_screen = SCR_WIFI_LIST;
+    botcorps_lut_term(false);
+    s_sheet = false;
+    s_fa_on = false;
+    s_act = -1;
+    s_info_dev = -1;
+    s_color = 0;
+    s_hunt_band = 0;
+    s_hunt_dev = 3; /* tp-link-mesh */
+    s_hunt_len = 0;
+    s_hunt_tS = 0;
+    s_hunt_force = force_dbm;
+    host_set_millis(5000);
+    for (int k = 0; k < HUNT_N; ++k) {
+        s_hunt_tS = 0;
+        host_set_millis(5000u + (uint32_t)k * 260u);
+        hunt_sample();
+    }
+    paint_ext(Gfx());
+}
+
+void botcorps_host_ble_list(uint8_t *buf)
+{
+    host_frame = buf;
+    memset(buf, PAL_FIELD, 320u * 240u);
+    s_screen = SCR_BT_LIST;
+    botcorps_lut_term(false);
+    s_sheet = false;
+    s_fa_on = false;
+    s_hunt_dev = -1;
+    s_cursor = 0;
+    s_color = 0;
+    s_act = -1;
+    s_act_dev = -1;
+    s_info_dev = -1;
+    s_bus_t0 = 1000;
+    paint_ext(Gfx());
+}
+
+void botcorps_host_found_alert(uint8_t *buf)
+{
+    host_frame = buf;
+    memset(buf, PAL_BLACK, 320u * 240u);
+    s_screen = SCR_TERMINAL;
+    botcorps_lut_term(false);
+    s_sheet = false;
+    s_color = 0;
+    s_fa_on = true;
+    s_fa_sel = 0;
+    s_fa_band = 0;
+    s_fa_dev = 3;
+    paint_ext(Gfx());
+}
+
+void botcorps_host_scan_tint(uint8_t *buf, int color)
+{
+    host_frame = buf;
+    memset(buf, PAL_FIELD, 320u * 240u);
+    s_screen = SCR_SCAN;
+    s_hunt_band = 0;
+    botcorps_lut_term(false);
+    s_sheet = false;
+    s_fa_on = false;
+    s_cursor = 0;
+    s_color = color;
+    s_act = -1;
+    s_bus_t0 = millis() - 4000u;
     paint_ext(Gfx());
 }
 
@@ -5330,6 +5708,8 @@ void botcorps_host_list(uint8_t *buf)
     s_screen = SCR_WIFI_LIST;
     botcorps_lut_term(false);
     s_sheet = false;
+    s_fa_on = false;
+    s_hunt_dev = -1;
     s_cursor = 2;
     s_color = 0;
     s_act = -1;
@@ -5617,6 +5997,7 @@ void botcorps_host_hub(uint8_t *buf)
     s_screen = SCR_GIBSON;
     s_sheet = false;
     botcorps_lut_term(false);
+    s_fa_on = false;
     s_color = 0;
     s_cursor = 0;
     s_act = -1;

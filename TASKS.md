@@ -235,3 +235,68 @@ On grok/cyd-touch-port tip 2717130 (fw 081595c): (1) confirm whether a badge tap
 - RAM 72,076 / 327,680 (22.0%). Flash 1,387,919 / 3,145,728 (44.1%).
 - Bin not tracked.
 
+
+
+## GIBSONbot review — tip a6ede9a (2026-10-15 ~9:36 PM ET)
+
+Reviewed on box `/tmp/bca` at `origin/grok/cyd-touch-port` tip `a6ede9a0c3d539fcf38fb20f9a2a1ead2440b40d` (last-seen `18c3962`). Read per-commit diffs, `botcorps_ui.cpp` badge/OSK/touch, `botcorps_rain.cpp` CYD gap, `tools/host/cyd_type_test.cpp` + ran `run_cyd_type_test.sh` (PASS), `builds/cyd/REPORT.md`, `mocks/CYD-current-interactive.html`, Terminal v3.2 + FINAL-v1 presence. Did **not** rebuild firmware (used REPORT memory from fd972ea). Nothing flashed or merged by this watch. This commit is TASKS.md review notes only.
+
+### Commits in this batch (oldest→newest)
+| SHA | Author | What |
+|-----|--------|------|
+| 2a6a391 | Grok \<jankerton@example.com\> | REPORT: Super Grok session build line |
+| e040ee7 | Grok | Firmware: keep badge→OSK; CYD rain GAP=14 + every-3rd OFF; host `cyd_type_test` + `run_cyd_type_test.sh`; TASKS local progress |
+| 6b0b2d1 | Grok | REPORT tip → e040ee7 |
+| fd972ea | Grok | Rebuild note: RAM 72076 flash 1387919; TASKS rebuild bullets |
+| 8babd84 | Grok | REPORT tip → fd972ea |
+| 96f7b2d | Grok | Add `mocks/CYD-current-interactive.html` |
+| a80b1a2 | Grok | REPORT note interactive mock |
+| a6ede9a | Grok | Mock: % layout for phone width; wrap stage |
+
+All eight authors/committers are **Grok \<jankerton@example.com\>** (Super Grok). **No Cursor Agent / non-Super-Grok committers.** Branch only; no merge.
+
+### What this batch actually fixed
+1. **Badge→OSK kept + documented (Dirt rule).** Code still opens OSK on companion hit (274,174 38×60) before tile focus; REPORT + TASKS say Dirt asked for it. Closes prior “confirm badge tap” ambiguity.
+2. **Item 11 rain density (code).** CYD `#ifdef`: `GAP=14`, force `KIND_OFF` when `(i%3)==2`; Terminal/lists/diag still dry via `wants_rain()`. Adv stays gap-6. Not verified on glass.
+3. **Item 8 typing gate (host, CYD OSK path).** `tools/host/cyd_type_test.cpp` walks `cyd_osk_hit`/`cyd_osk_at`/`cyd_osk_char`; `run_cyd_type_test.sh` builds+runs table test + type gate. **Verified on box: both PASS.** Does not build full host renderer / `botcorps_host_type_letters()` under `BOTCORPS_CYD` (still needs LovyanGFX/M5 stubs).
+4. **Memory re-measured.** REPORT: RAM **72,076** / 327,680 (22.0%), flash **1,387,919** / 3,145,728 (44.1%) — flash −60 B vs prior 1,387,979. Bin still untracked.
+5. **Interactive CYD mock added** (`mocks/CYD-current-interactive.html`) for Dirt review of current behavior (rain→Gibson→Terminal, focus/select, badge OSK, sheet, OSK keys). a6ede9a makes layout %-based for phone width.
+
+### MATCH (vs CYD rules / mocks — code evidence)
+- Single 320×240, no INT paint on CYD (compact badge only) — still true
+- Touch main nav: focus-then-select, crown/RX/sheet/group/arrows, Terminal top-left→Gibson, Rain no top-left back
+- OSK shared table; badge tap opens OSK (Dirt)
+- Fixed per-bot colors; badge uses `bot_color`; Terminal `log_add_bot` + `\x01` ink path
+- Companion badge 38×60 at (274,174); no instruction strings found in firmware UI paint
+- Terminal 40 cmds CORE/COMMS/GAME/SYS (`CMD_N=40`)
+- Typing via OSK → chars only; host type gate PASS
+- Memory reported and rebuilt this session
+- Super Grok-only authors; push only on `grok/cyd-touch-port`
+
+### MISS / still open / overclaims
+1. **REPORT tip lag:** tip field is `96f7b2d`; real tip is `a6ede9a`. Bump tip on next REPORT edit.
+2. **Interactive mock is a review aid, not pixel-faithful FINAL-v1 / v3.2:**
+   - On-panel text: `"TAP TO ENTER"`, `"‹ back"`, `"CROWN"`, `"TERMINAL"`, `"WIFI"`, `"BLE"`, `"CMDS"` — violates “no instruction/direction text on screen” if treated as the CYD UI mock (side-panel docs are fine).
+   - Sheet is a simple scroll list, not the prompt-anchored Tab dropdown look of `BOTcorps-Adv-FINAL-v3.2-terminal-commands.html`.
+   - First tile tap sets **both** focus and `selected` (firmware: focus first, select on second).
+   - Subtitle still says tip `fd972ea`.
+3. **LV still hardcoded** `"LV 01"` on badge (firmware + mock).
+4. **Device / glass still unchecked:** XPT2046 300..3900 placeholders; bot reply colors, focused silk, intro rain density, OSK/badge look vs FINAL-v1/v3.2 — code only.
+5. **P1 still open:** Adv envs not rebuilt (NimBLE); no `BOTCORPS_CYD` host-render frames for screenshots; I2C BlackBerry keyboard unwired.
+6. **Full host renderer** still not gated by CI under CYD defines (script covers OSK table + char production only).
+
+### Memory (from REPORT fd972ea rebuild; tip a6ede9a is mock-only)
+- RAM: 72,076 / 327,680 (22.0%)
+- Flash: 1,387,919 / 3,145,728 (44.1%)
+- Frame: BANDS
+
+### Next Super Grok paste order
+A. Bump REPORT tip to current SHA; strip on-panel instruction labels from `CYD-current-interactive.html` (icons/visuals only inside the 320×240 panel; keep side-panel docs); make tile first-tap focus-only; align command sheet closer to v3.2 prompt-anchored Tab dropdown; update mock subtitle tip.
+B. Optional: live LV on badge (or REPORT “LV stub” forever).
+C. Device: measure XPT2046 → NVS `tcal=1`; glass screenshots of every CYD screen vs mocks (Dirt asked for shots when build done).
+D. P1 as spare: CYD host-render with `BOTCORPS_CYD`; Adv env rebuild confirm; I2C KB stub.
+
+### Follow-up one-liner (Dirt → Super Grok)
+```
+On grok/cyd-touch-port tip a6ede9a: (1) bump REPORT tip to a6ede9a; (2) fix mocks/CYD-current-interactive.html so the 320x240 panel has no instruction text (drop TAP TO ENTER / ‹ back / CROWN/TERMINAL label words — icons only), first tile tap focuses only (select on second), and the command sheet looks more like Terminal v3.2 prompt-anchored Tab dropdown; (3) keep badge-opens-OSK, v11 rain, host type gate as-is; push only to grok/cyd-touch-port, no merge/flash. Device cal + glass shots later.
+```

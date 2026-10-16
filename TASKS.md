@@ -199,3 +199,25 @@ On grok/cyd-touch-port tip 29f6c05 (fw d6bc0fe): (1) hit-test the companion badg
 - Explicit badge hit-test opens the OSK (checked before board tiles).
 - ESC, HIDE, and RX all go through cyd_close_osk(); ESC does not navigate while the keyboard is up.
 
+
+## GIBSONbot review — tip 2717130 (fw 081595c), 2026-10-15 9:05 PM ET
+Reviewed fd6a544, 49911f8, 081595c against mocks/BOTcorps-Adv-FINAL-v1.html companion slot, Terminal v3.2 mock, and the CYD rules.
+
+### Matched
+- Badge is now 38x60 at (274,174), the mock companion size. Fixed position, bot's own color, no INT card.
+- Terminal has a touch back: top-left (x<36, y<18) returns ESC to Gibson. Rain still has none. REPORT now says exactly that.
+- ESC, HIDE and RX all close the keyboard through one `cyd_close_osk()`, and ESC does not navigate while the keyboard is up (typing/closing cannot jump screens).
+- `render_main.cpp` calls `botcorps_host_type_letters()` first and exits nonzero on failure.
+- No new instruction wording on screen.
+
+### Fix notes (numbered)
+1. **Badge tap reversed — needs Dirt's call.** Our note 1 asked that a badge tap NOT open the keyboard; fd6a544 did that, then 49911f8/081595c flipped it so the badge explicitly opens the OSK. If Dirt asked for this, keep it and say so in REPORT; if not, restore fd6a544 behavior (badge = display only).
+2. **TASKS.md progress notes contradict each other.** "Local progress (post-9d1a05e)" still says badge taps return K_NONE and do not open the OSK; the code now does the opposite. Delete or correct that bullet.
+3. **Typing test is only half real.** `render_main` runs it, but there is no build script or CI that builds/runs the host renderer, and the host build does not define `BOTCORPS_CYD`, so it tests the Adv `on_char` path, not OSK tap -> K_CHAR. Add a script (or CI job) that builds and runs it, and a CYD-defined case that types through `cyd_osk_at` hits. (GIBSONbot could not build the host renderer on the box: needs LovyanGFX font headers and stubs for `M5Cardputer.h`/`pgmspace.h`.)
+4. **Memory not re-measured.** REPORT RAM 72,076 / Flash 1,387,979 are from an older tip. Rebuild `cyd` and update the numbers for 081595c.
+5. Still open from earlier: LV hardcoded `LV 01`; boot rain is full Adv gap-6, not v11 intro; XPT2046 calibration still placeholder 300..3900; Adv envs not rebuilt; no CYD host-render frames (badge/OSK screenshots); I2C BlackBerry keyboard unwired; colors/labels/rain unchecked on glass.
+
+### Follow-up one-liner (Dirt -> Super Grok)
+```
+On grok/cyd-touch-port tip 2717130 (fw 081595c): (1) confirm whether a badge tap should open the keyboard; if I did not ask for it, restore fd6a544 so the badge is display-only, and either way state it in REPORT; (2) fix the TASKS.md "post-9d1a05e" bullet that now contradicts the code; (3) add a script or CI job that builds and runs the host renderer so botcorps_host_type_letters() actually gates, plus a BOTCORPS_CYD case that types through OSK key hits; (4) rebuild the cyd env and update REPORT RAM/flash for this tip; push only to grok/cyd-touch-port, no merge/flash.
+```

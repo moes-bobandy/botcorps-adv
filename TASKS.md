@@ -184,10 +184,10 @@ On grok/cyd-touch-port tip 29f6c05 (fw d6bc0fe): (1) hit-test the companion badg
 ```
 
 ## Local progress (post-9d1a05e)
-- Badge hit-tested: taps in (CYD_BADGE_X, CYD_BADGE_Y, 38x60) return K_NONE and do not open the OSK.
-- Terminal top-left (x<36, y<18) returns K_ESC → go_back to Gibson. REPORT claim corrected (Rain still has no top-left back).
-- Badge shrunk to mock companion 38x60.
-- Host renderer (tools/host/render_main.cpp) calls botcorps_host_type_letters() first and exits nonzero on failure.
+- Badge hit-tested. Dirt later asked for a badge tap to open the OSK; 49911f8/081595c do that. The badge is not display-only.
+- Terminal top-left (x<36, y<18) is back to Gibson. Rain has no top-left back.
+- Badge is the mock companion 38x60.
+- Host renderer calls botcorps_host_type_letters() and fails if nonzero.
 
 
 ## Local progress (badge OSK + ESC)
@@ -221,3 +221,11 @@ Reviewed fd6a544, 49911f8, 081595c against mocks/BOTcorps-Adv-FINAL-v1.html comp
 ```
 On grok/cyd-touch-port tip 2717130 (fw 081595c): (1) confirm whether a badge tap should open the keyboard; if I did not ask for it, restore fd6a544 so the badge is display-only, and either way state it in REPORT; (2) fix the TASKS.md "post-9d1a05e" bullet that now contradicts the code; (3) add a script or CI job that builds and runs the host renderer so botcorps_host_type_letters() actually gates, plus a BOTCORPS_CYD case that types through OSK key hits; (4) rebuild the cyd env and update REPORT RAM/flash for this tip; push only to grok/cyd-touch-port, no merge/flash.
 ```
+
+## Local progress (Super Grok session, continue)
+- Badge tap opens the OSK. Dirt asked for this; kept and stated in REPORT.
+- Contradicting post-9d1a05e TASKS bullet corrected.
+- CYD boot rain is v11 density (gap 14, every third column off). Terminal still dry.
+- tools/host/run_cyd_type_test.sh builds and runs the OSK table test and a key-hit typing gate. Passed here.
+- pio is not in this session; RAM/flash not re-measured.
+

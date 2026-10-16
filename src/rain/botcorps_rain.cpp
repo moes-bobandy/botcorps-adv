@@ -37,7 +37,12 @@ static const uint16_t SOLID_INK[6] = {
 
 static const char CODE_GLYPHS[] = "01<>[]{}:/\\|+-=*#";
 static const int CODE_N = 18;
+#ifdef BOTCORPS_CYD
+/* v11 intro mock is lighter than Adv EXT rain: 14 px pitch, every third column off. */
+static const int GAP = 14;
+#else
 static const int GAP = 6;
+#endif
 static const int STEP_MS = 140;
 static const int RAIN_COLS = 56;
 static const int CELL = 8;
@@ -189,13 +194,21 @@ static void build_columns(void)
     /* 54 columns, index 0..53. Column 53 starts at x=318 (a 2 px sliver).
      * Column 54 would start at x=324 and is fully off the 320 px panel. */
     s_ncols = (320 + GAP - 1) / GAP;
+#ifndef BOTCORPS_CYD
     if (s_ncols > 54) s_ncols = 54;
     static_assert((320 + 6 - 1) / 6 == 54, "drop only the column at x=324");
+#else
+    if (s_ncols > RAIN_COLS) s_ncols = RAIN_COLS;
+#endif
     memset(botcorps_t0_rain_cell, 0, sizeof(botcorps_t0_rain_cell));
     memset(botcorps_t0_rain_col, 0, sizeof(botcorps_t0_rain_col));
     for (int i = 0; i < s_ncols; ++i) {
         uint8_t *c = col_at(i);
-        const uint8_t kind = kind_for(i);
+        uint8_t kind = kind_for(i);
+#ifdef BOTCORPS_CYD
+        /* v11 intro: skip every third column so boot rain is not full Adv density. */
+        if ((i % 3) == 2) kind = KIND_OFF;
+#endif
         col_set_y(i, (int16_t)rnd_n(s_h));
         c[2] = kind;
         c[3] = (uint8_t)((i >> 1) & 3);

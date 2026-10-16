@@ -402,9 +402,8 @@ static bool wants_rain(void)
 {
     /* Terminal, the two lists, and diag stay dry. That includes the
      * Terminal sheet and the CYD keyboard, which only open on Terminal.
-     * Boot/intro still uses the full Adv EXT cell rain (gap 6, 54 columns).
-     * The v11 intro mock is lighter (gap 14, every third column skipped).
-     * That density is not what this builder draws. See builds/cyd/REPORT.md. */
+     * CYD boot/intro uses the v11 density (gap 14, every third column off).
+     * Adv still uses the full EXT cell rain (gap 6, 54 columns). */
     return s_screen != SCR_WIFI_LIST && s_screen != SCR_BT_LIST
         && s_screen != SCR_DIAG && s_screen != SCR_TERMINAL
         && s_screen != SCR_GCHAT;

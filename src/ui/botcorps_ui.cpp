@@ -2841,6 +2841,13 @@ static uint8_t sb_tone(int which)
     return T[c][which];
 }
 
+/* mock UI.ink: the accent mixed 45 % toward white (#6eeef6 on cyan) */
+static uint8_t sb_ink(void)
+{
+    static const uint8_t K[3] = { 127, 250, 191 };
+    return K[(s_color < 0 || s_color > 2) ? 0 : s_color];
+}
+
 static void sb_frame(Gfx g, int x, int y, int w, int h, uint8_t c)
 {
     sb_rect(g, x, y, w, 1, c);
@@ -3447,12 +3454,12 @@ static void paint_sbox(Gfx g, bool wifi)
     char l2[40];
     int x = sb_tt(g, "[ ok ] ", dx + 3, th, PAL_OK);
     snprintf(l2, sizeof(l2), "%s radio up \xfa ch sweep", bn);
-    sb_tt(g, l2, x, th + 1, 77);
-    sb_tt(g, l2, x, th, PAL_OK);
+    sb_tt(g, l2, x, th + 1, sb_tone(3));
+    sb_tt(g, l2, x, th, sb_ink());
     x = sb_tt(g, "[ ok ] ", dx + 3, th + 11, PAL_OK);
     snprintf(l2, sizeof(l2), "%s sweep %d/%d", bn, sb_shown(), LIST_N);
-    sb_tt(g, l2, x, th + 12, 77);
-    sb_tt(g, l2, x, th + 11, PAL_OK);
+    sb_tt(g, l2, x, th + 12, sb_tone(3));
+    sb_tt(g, l2, x, th + 11, sb_ink());
     x = sb_tt(g, "user@botcorps:~$ ", dx + 3, ty, ac);
     /* typed command: one character per 90 ms of the first sweep */
     snprintf(l2, sizeof(l2), "scan %s", wifi ? "wifi" : "ble");
@@ -3476,6 +3483,8 @@ static void paint_found_alert(Gfx g)
     const int d = (s_fa_dev >= 0 && s_fa_dev < LIST_N) ? s_fa_dev : 0;
     sb_rect(g, 0, 0, 320, 240, 4);
     for (int k = 0; k < 3; ++k) sb_frame(g, k, k, 320 - 2 * k, 240 - 2 * k, red);
+    sb_frame(g, 3, 3, 314, 234, 132);   /* soft red glow off the border */
+    sb_frame(g, 4, 4, 312, 232, 100);
     sb_rect(g, 8, 8, 304, 22, red);
     sb_text(g, "DEVICE FOUND", 16, 12, PAL_WHITE, red, false, 2);
     sb_text(g, wifi ? "WI-FI" : "BLE", 268, 15, PAL_WHITE, red, false, 1);

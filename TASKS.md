@@ -79,3 +79,21 @@ E. Restore palette constexpr assert (closes 1).
 - Full paint_int / id_tick skipped on CYD; compact badge stub added (item 2 partial).
 - Icon zones still return K_OK (focus/select split pending — item 3 open).
 
+
+### Status after 5c5e5ef (Super Grok slice progress)
+Closed or partial:
+1. Palette constexpr + static_assert restored for CYD — DONE.
+2. Full paint_int/id_tick skipped on CYD; compact badge stub in right region — PARTIAL (expand to glyph/name/LV/color).
+5-7. OSK hit matches paint geometry; SPACE/comma/period as chars; paint only when dirty — PARTIAL (add real BKSP/ENTER cells, filled key look, clip bands).
+14. bin untracked — DONE.
+20. REPORT honest — DONE (tip 5c5e5ef).
+
+Still open / for device:
+3. Full focus-then-select + dropdown/top-bar/back hit-tests (no blanket K_OK).
+8. Host/unit test for typing path.
+9-11. Device confirm bot colors, focused labels, rain density.
+12-13. Adv comment restorations (recheck).
+15-19. Calibration NVS, bus, NimBLE, host-render, I2C.
+
+Device flash and mock comparison still required. Nothing merged or flashed.
+

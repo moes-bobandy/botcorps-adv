@@ -690,3 +690,45 @@ D. One commit per round, docs included. LV stays "LV 01". No merge/flash.
 ```
 On grok/cyd-touch-port tip 8708588 (fw 383f368): good that REPORT cites the fw SHA now, but the touch cal is wrong — getTouch() already returns screen pixels from lgfx_cyd.h's x_min/x_max, so map_touch() double-maps and would pin every tap to the edge once tcal=1, and botcorps_cyd_load_touch_cal() in botcorps_display.cpp already loads the same NVS keys as UShort/UChar while your code uses Int (Preferences is type-strict). Remove map_touch and the duplicate load/save from botcorps_ui.cpp, then add a save function beside the existing loader with matching types plus a tap-target cal flow (raw XPT2046 reads, crosshairs only, no instruction text) that calls apply_touch_cal() live. After that, real host CYD frame dumps. One commit per round, LV stays "LV 01", push only to grok/cyd-touch-port, no merge/flash.
 ```
+
+---
+
+## GIBSONbot review — tip 37eee27 / fw 8a1e8db (2026-10-16 ~7:10 PM ET)
+
+Reviewed on box `/tmp/bca` at `grok/cyd-touch-port` tip `37eee27d29f1e9d23879522a3747d9ad0d5d6142` (last reviewed `be0ee58`). Diff span `be0ee58..37eee27`: `src/display/botcorps_display.cpp` (+61), `src/display/botcorps_display.h` (+2), `src/display/lgfx_cyd.h` (+10), `src/ui/botcorps_ui.cpp` (−46), `BRIDGE.md`, `builds/cyd/REPORT.md`. Host type gate **PASS** (`cyd osk table ok keys=42 clip_y=151`; `host cyd type gate passed`). **Box build of `env:cyd` at this tip: SUCCESS**, RAM 72,076 / 327,680 (22.0%), flash 1,404,263 / 3,145,728 (44.6%), `firmware.bin` 1,404,672 B (BRIDGE still says "rebuild pending"). Nothing merged or flashed by this watch; only this TASKS note is pushed.
+
+### Commits in this batch
+| SHA | What |
+|-----|------|
+| 8a1e8db | CYD: remove `map_touch` + duplicate NVS from ui.cpp; add `botcorps_cyd_save_touch_cal` (UShort/UChar) beside loader; add `botcorps_cyd_run_touch_cal` 4-crosshair raw flow; `get_touch_raw()` |
+| 37eee27 | REPORT/BRIDGE cite firmware SHA 8a1e8db |
+
+All Super Grok. Branch only.
+
+### MATCH
+1. Prior fix 1 closed: `map_touch()` and its call in `read_key` are gone, so no double-mapping.
+2. Prior fix 2 closed: the duplicate Int-typed NVS block is gone; the new save uses the same `botcorps` namespace and `putUShort`/`putUChar` keys the loader reads.
+3. Cal screen is crosshairs + circle only, no instruction text — matches the CYD rule.
+4. Raw reads go through `getTouchRaw` (not the already-mapped `getTouch`), as asked.
+5. Docs were folded into the code commit this time; only one small SHA-cite meta commit followed. Better.
+6. Builds clean; memory moved −16 B RAM / −276 B flash vs 383f368. Typing gate still passes. LV left "LV 01".
+
+### MISS / fix notes (numbered)
+1. **Saved cal never actually reaches the touch mapping (blocker).** In the vendored LovyanGFX, `x_min/x_max/y_min/y_max` are only turned into the touch matrix (`_affine`) inside `Panel_Device::touchCalibrate()`, which runs only from `setTouch()` — i.e. once, in the `Botcorps_LGFX_CYD` constructor with the 300..3900 placeholders. `apply_touch_cal()` just rewrites `_touch.config()`; `convertRawXY()` keeps using the old `_affine` (only `offset_rotation` is read live). So both the boot loader and the new "applies live" save are no-ops for x/y, even after reboot. **Fix:** after `_touch.config(cfg)` in `apply_touch_cal()`, re-run the matrix (e.g. `_panel.setTouch(&_touch);` or call `setTouchCalibrate()` with the 8-value corner array). Hunch on exact call — verify against `Panel_Device.inl` lines ~400–470.
+2. **Cal flow is unreachable.** `botcorps_cyd_run_touch_cal()` has no caller anywhere in `src/`, so `tcal` still can never become 1 on a device. **Fix:** wire an entry point that needs no on-screen text (e.g. hold-at-boot, or a Terminal command like `cal` in SYS), and say which in REPORT.
+3. **Targets are inset 20 px but treated as screen edges.** Taps at x=20/300, y=20/220 are saved as the range ends that map to 0/319 and 0/239, so every tap is stretched toward the edges (up to ~20 px off near the borders — enough to miss OSK keys). **Fix:** extrapolate the raw range out to 0..319 / 0..239 from the known target positions, or use LovyanGFX's own `calibrateTouch(uint16_t[8], fg, bg)` + `setTouchCalibrate()` (corner markers only), storing the 8 values.
+4. **Axis/orientation assumed, not measured (hunch, verify on glass).** `getTouchRaw` returns the panel-native axes; with landscape rotation, screen X may come from raw Y. The flow assumes raw X tracks screen X, then swaps min>max away (which also drops any inverted-axis info) and hard-codes `trot=1` (constructor sets touch `offset_rotation = 0`, loader default is 1). **Fix:** detect which raw axis changed between TL→TR, keep direction, and derive rotation from the taps instead of hard-coding 1.
+5. **Blocking loop with no timeout.** The tap wait `while (stable < 3)` never exits if touch is dead or the user walks away. Add a timeout that leaves the old cal untouched. Also average the stable reads instead of keeping the last one.
+6. **BRIDGE/REPORT numbers stale.** RAM/flash say "rebuild pending"; box build above gives the real numbers. REPORT "Tip SHA" now holds the fw SHA under a "Tip" heading — rename the heading "Firmware SHA" so it stops looking wrong.
+7. **Still open from before:** real host CYD frame dumps (fonts still stubs, `render_cyd.sh` only prints), LV meaning (Dirt HOLD), device/glass pass.
+
+### Next Super Grok paste order
+A. Make `apply_touch_cal()` rebuild the touch matrix (fix 1).
+B. Wire a no-text entry to `botcorps_cyd_run_touch_cal()` (fix 2).
+C. Extrapolate to full 320×240 + measured axis/direction/rotation + timeout (fixes 3–5), or switch to LovyanGFX `calibrateTouch`/`setTouchCalibrate` with an 8-value NVS store.
+D. Real host frame dumps. One commit per round, docs included, real build numbers. LV stays "LV 01". No merge/flash.
+
+### Follow-up one-liner (Dirt → Super Grok)
+```
+On grok/cyd-touch-port tip 37eee27 (fw 8a1e8db): good — double-map and the type clash are gone and it builds (box: RAM 72076 / flash 1404263). But the cal still can't work: in LovyanGFX the x_min/x_max only become the touch matrix inside touchCalibrate(), which runs once from setTouch() in the constructor, so apply_touch_cal() changing _touch.config() does nothing for x/y — rebuild the matrix after setting cfg (e.g. _panel.setTouch(&_touch) or setTouchCalibrate with the 8 corner values). Also botcorps_cyd_run_touch_cal() has no caller (wire a no-text entry like hold-at-boot or a SYS Terminal "cal" command), the crosshairs sit 20 px in but are saved as screen edges (extrapolate to 0..319/0..239 or use LovyanGFX calibrateTouch), axis/direction/rotation are assumed instead of measured from the taps, and the tap wait needs a timeout. Put real build numbers in BRIDGE. One commit per round, LV stays "LV 01", push only to grok/cyd-touch-port, no merge/flash.
+```

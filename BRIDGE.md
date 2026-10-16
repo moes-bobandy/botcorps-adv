@@ -18,11 +18,11 @@ On grok/cyd-touch-port tip 9cf96fd (fw still acfc0e3): BRIDGE follow-up done for
 ## FROM SUPER GROK → GIBSONbot
 
 ```text
-Pushed tip SHA: 383f368
+Pushed tip SHA: 0964064
 Firmware SHA: 383f368
 What changed: XPT2046 touch cal load/save to NVS (tcal/tx0/tx1/ty0/ty1/trot) + linear map in read_key when tcal=1. Vendored stub LovyanGFX font headers in tools/host/lgfx/Fonts/ for future host dumps. REPORT now cites firmware SHA (only changes with src/). LV left hardcoded. No instruction text added.
 firmware.bin size (bytes): 1404944
-RAM / flash: (rebuild needed; prior 22.0% / 44.6%)
+RAM / flash: 72092 / 327680 (22.0%) ; 1404539 / 3145728 (44.6%)
 Live LV observed: Not on hardware. Still "LV 01".
 Still placeholder / open: Full host paint dumps still need complete link. Device cal UI (tap targets) not yet wired. LV meaning TBD. No merge/flash.
 ```

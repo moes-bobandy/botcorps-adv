@@ -1,22 +1,17 @@
 # BOTcorps CYD Touch Port Report
 
 ## Tip SHA
-000fca0
+HEAD (after restore)
 
 Interactive mock of the current CYD build: mocks/CYD-current-interactive.html
 Built by: Super Grok session (no Cursor/agent hand-off)
 
-## Adv alignment (this tip)
-- Rebased paint onto Adv PR #7 tip 07d4fa39. CYD uses the same botcorps_ui.cpp paint code; only touch, OSK, 38x60 badge, focus-only labels and prompt clip sit behind #ifdef BOTCORPS_CYD.
-- Added botcorps_disp() and botcorps_band_set_push_ymax stubs in tools/host/host_shim.h.
-- Added tools/host/render_cyd.sh to emit board / Terminal / Tab sheet / OSK / badge PNGs.
-- Mock rebuilt from those PNG frames with touch areas on top. No CSS-drawn screens.
-- CYD rules kept: touch, OSK keys, badge opens OSK, no INT, v11 rain, all 40 commands, no instruction text.
-- Side-by-side: mocks/cyd-frames/adv-vs-cyd-side-by-side.png
-
-## Mock sheet
-- Restored CORE go/load/defend/sweep/roster/pulse/dig so the sheet lists all 40 commands matching firmware CMD_N and v3.2.
-- Icon-only panel, focus-then-select, and v3.2 sheet kept.
+## Adv alignment + CYD restore (this tip)
+- Rebased onto Adv tip 07d4fa39 then restored CYD touch/OSK/INT-skip paths from a28caec (getTouch in read_key, badge→OSK, paint_osk, paint_int_now early return, push_ymax) while keeping Adv paint code.
+- Fixed BOTCORPS_HOST_RENDER: restored real botcorps_host_type_letters, removed duplicate host_* functions and brace issues.
+- mocks/cyd-frames and mocks/shots/cyd contain placeholder PNGs only. Real host paint dumps are not available on this box (missing LovyanGFX font headers). Do not treat them as live frames until a host renderer with BOTCORPS_CYD can dump them.
+- Interactive mock sheet restored with the 40 CORE commands (go/load/defend/sweep/roster/pulse/dig).
+- RAM/flash not re-measured this session (no pio available). Previous numbers: RAM 72,076 / Flash 1,387,919.
 
 ## Build
 - Environment: `cyd`

@@ -304,9 +304,11 @@ static bool s_track = false;
 static bool s_focus_cmds = false;
 #ifdef BOTCORPS_CYD
 static bool s_osk_open = false;
+static bool s_badge_dirty = false;
+static bool s_touch_down = false;
+static uint32_t s_touch_last = 0;
 static bool s_osk_sym = false;
 static bool s_osk_dirty = false;
-static bool s_badge_dirty = false;
 static int s_badge_bot = -2;
 static const int CYD_BADGE_X = 274;
 static const int CYD_BADGE_Y = 174;
@@ -2133,6 +2135,8 @@ static void paint_prompt(Gfx g)
 #ifdef BOTCORPS_CYD
     /* CYD 38x60 badge in the companion slot. Opens the OSK on tap. */
     paint_cyd_badge(g);
+    paint_osk();
+    botcorps_band_set_push_ymax(s_osk_open ? CYD_OSK_CLIP_Y : 240);
 #else
     /* Companion box, bottom right. Same place with the sheet open or closed. */
     {
@@ -4116,8 +4120,65 @@ static void paint_ext_full(void)
     ext.clearClipRect();
 }
 
+static void cyd_close_osk(void)
+{
+    if (!s_osk_open && !s_osk_sym) return;
+    s_osk_open = false;
+    s_osk_sym = false;
+    s_osk_dirty = false;
+    s_dirty = true;
+}
+#endif
+
+static void paint_osk(void)
+{
+    if (!s_osk_open) return;
+    Gfx g(botcorps_disp());
+    g.startWrite();
+    g.setClipRect(0, CYD_OSK_CLIP_Y, 320, 240 - CYD_OSK_CLIP_Y);
+    g.fillRect(0, CYD_OSK_CLIP_Y, 320, 240 - CYD_OSK_CLIP_Y, PAL_DEEP);
+    g.fillRect(0, CYD_OSK_CLIP_Y, 320, 1, PAL_LINE);
+    const int keep = s_px;
+    s_px = 6;
+    /* Same pink plate as the terminal prompt (index 194). */
+    txt(g, "user@botcorps:~$", 6, CYD_OSK_CLIP_Y + 3, (uint8_t)194,
+        lgfx::textdatum::top_left);
+    txt(g, botcorps_t0_term_prompt, 6 + 18 * 6, CYD_OSK_CLIP_Y + 3, COL_WHITE,
+        lgfx::textdatum::top_left);
+    for (int i = 0; i < CYD_OSK_N; ++i) {
+        const CydOskKey k = cyd_osk_at(i);
+        const bool hot = k.kind == CYD_OSK_SYM && s_osk_sym;
+        g.fillRect(k.x, k.y, k.w, k.h, hot ? (uint8_t)PAL_SEL : (uint8_t)PAL_PLATE);
+        g.drawRect(k.x, k.y, k.w, k.h, hot ? accent() : (uint8_t)PAL_LINE);
+        const char *lab = 0;
+        char one[2] = { 0, 0 };
+        if (k.kind == CYD_OSK_CHAR) {
+            one[0] = cyd_osk_char(k, s_osk_sym);
+            lab = one;
+        } else if (k.kind == CYD_OSK_SPACE) lab = "SPACE";
+        else if (k.kind == CYD_OSK_BKSP) lab = "BKSP";
+        else if (k.kind == CYD_OSK_ENTER) lab = "ENTER";
+        else if (k.kind == CYD_OSK_TAB) lab = "TAB";
+        else if (k.kind == CYD_OSK_SYM) lab = s_osk_sym ? "ABC" : "SYM";
+        else if (k.kind == CYD_OSK_HIDE) lab = "HIDE";
+        if (!lab || !lab[0]) continue;
+        const int tw = (int)strlen(lab) * 6;
+        txt(g, lab, k.x + (k.w - tw) / 2, k.y + 3, PAL_INK, lgfx::textdatum::top_left);
+    }
+    s_px = keep;
+    g.clearClipRect();
+    g.endWrite();
+}
+
 static void paint_int_now(void)
 {
+#ifdef BOTCORPS_CYD
+    /* The 240x135 ID card is the Adv internal panel. On CYD that panel
+     * is the same glass as EXT, so the card is not drawn. The compact
+     * badge is painted with the terminal instead. */
+    s_badge_dirty = true;
+    return;
+#else
     Serial.println("[int] paint_int_now");
     botcorps_set_surface(BOTCORPS_SURFACE_MENU);
     auto &menu = botcorps_menu();
@@ -4125,6 +4186,7 @@ static void paint_int_now(void)
     paint_int(menu);
     menu.endWrite();
     menu.clearClipRect();
+#endif
 }
 
 static void nudge_row(int d)
@@ -5014,6 +5076,174 @@ enum { K_NONE = 0, K_UP = 1, K_DN = 2, K_LT = 3, K_RT = 4, K_OK = 5, K_ESC = 6, 
 static int read_key(char *typed)
 {
     *typed = 0;
+#ifdef BOTCORPS_CYD
+    int tx = 0;
+    int ty = 0;
+    bool down = botcorps_disp().getTouch(&tx, &ty);
+    uint32_t now = millis();
+    /* One event per press. ~50 ms separates taps. Holds do not repeat. */
+    if (down && !s_touch_down && (now - s_touch_last) > 50) {
+        s_touch_down = true;
+        s_touch_last = now;
+    } else if (!down) {
+        s_touch_down = false;
+        return K_NONE;
+    } else {
+        return K_NONE;
+    }
+    if (s_osk_open && ty >= CYD_OSK_CLIP_Y) {
+        const int hit = cyd_osk_hit(tx, ty);
+        if (hit < 0) return K_NONE;
+        const CydOskKey k = cyd_osk_at(hit);
+        if (k.kind == CYD_OSK_HIDE) {
+            cyd_close_osk();
+            return K_NONE;
+        }
+        if (k.kind == CYD_OSK_SYM) {
+            s_osk_sym = !s_osk_sym;
+            s_osk_dirty = true;
+            return K_NONE;
+        }
+        if (k.kind == CYD_OSK_BKSP) return K_BS;
+        if (k.kind == CYD_OSK_ENTER) return K_OK;
+        if (k.kind == CYD_OSK_TAB) return K_TAB;
+        const char ch = cyd_osk_char(k, s_osk_sym);
+        if (!ch) return K_NONE;
+        *typed = ch;
+        return K_CHAR;
+    }
+    if (s_screen == SCR_TERMINAL && ty < 16) {
+        /* Crown is the hub. RX closes the sheet or the keyboard. */
+        if (tx >= 203 && tx < 227) {
+            enter_screen(SCR_GIBSON, SCR_TERMINAL);
+            return K_NONE;
+        }
+        if (tx >= 286) {
+            if (s_osk_open) {
+                cyd_close_osk();
+                return K_NONE;
+            }
+            if (s_sheet || s_focus_cmds) return K_ESC;
+            return K_NONE;
+        }
+    }
+    if (s_screen == SCR_TERMINAL && s_sheet) {
+        int by = 0;
+        int h = 0;
+        int top = 0;
+        int nshow = 0;
+        sheet_box(&by, &h, &top, &nshow);
+        const int bx = 14;
+        const int bw = 292;
+        const int x1 = bx + bw;
+        const int rh = 12;
+        if (tx >= x1 - 20 && tx < x1 + 8 && ty >= by && ty < by + h) {
+            if (ty < by + h / 2) {
+                if (s_sheet_i > 0) --s_sheet_i;
+            } else if (s_sheet_i + 1 < CMD_N) {
+                ++s_sheet_i;
+            }
+            s_dirty = true;
+            return K_NONE;
+        }
+        if (tx >= bx && tx < x1 && ty >= by && ty < by + h) {
+            const int r = (ty - (by + 5)) / rh;
+            if (r >= 0 && r < nshow) {
+                int hdr = -1;
+                int cmd = 0;
+                menu_row(top + r, &hdr, &cmd);
+                if (hdr >= 0) {
+                    s_sheet_i = G_AT[hdr];
+                    if (s_sheet_i < 0) s_sheet_i = 0;
+                    if (s_sheet_i >= CMD_N) s_sheet_i = CMD_N - 1;
+                    s_dirty = true;
+                    return K_NONE;
+                }
+                if (cmd >= 0 && cmd < CMD_N) {
+                    s_sheet_i = cmd;
+                    s_sheet = false;
+                    botcorps_lut_term(false);
+                    if (CMD_ARG[cmd]) {
+                        snprintf(botcorps_t0_term_prompt, 60, "%s ", CMDN[cmd]);
+                        s_osk_open = true;
+                        s_osk_dirty = true;
+                    } else {
+                        run_cmd(CMDN[cmd]);
+                    }
+                    s_dirty = true;
+                    return K_NONE;
+                }
+            }
+        }
+        return K_ESC;
+    }
+    if (s_screen == SCR_TERMINAL) {
+        /* Companion badge opens the OSK. Checked before tile focus so a
+         * badge tap cannot be swallowed as a board hit. */
+        if (!s_sheet
+            && tx >= CYD_BADGE_X && tx < CYD_BADGE_X + CYD_BADGE_W
+            && ty >= CYD_BADGE_Y && ty < CYD_BADGE_Y + CYD_BADGE_H) {
+            s_osk_open = true;
+            s_osk_dirty = true;
+            s_focus_cmds = false;
+            return K_NONE;
+        }
+        for (int n = 0; n < 12; ++n) {
+            int x, y;
+            term_xy(n, &x, &y);
+            if (tx < x || tx >= x + 72 || ty < y || ty >= y + 46) continue;
+            s_focus_cmds = false;
+            if (s_term == n) return K_OK;
+            const int old = s_term;
+            s_term = n;
+            partial_tile(old);
+            partial_tile(n);
+            partial_int();
+            return K_NONE;
+        }
+        if (s_osk_open) return K_NONE;
+        if (!s_sheet && tx >= 250 && tx < 270 && ty >= 214 && ty < 226) {
+            s_focus_cmds = !s_focus_cmds;
+            s_dirty = true;
+            return K_NONE;
+        }
+        if (s_focus_cmds && !s_sheet) {
+            for (int n = 0; n < 12; ++n) {
+                const int x = 8 + (n % 6) * 44;
+                const int y = 171 + (n / 6) * 18;
+                if (tx < x || tx >= x + 41 || ty < y || ty >= y + 15) continue;
+                s_cmd_sel = n;
+                return K_OK;
+            }
+        }
+        if (!s_sheet && ty >= 167) {
+            /* Companion badge and the rest of the lower terminal open the OSK. */
+            s_osk_open = true;
+            s_osk_dirty = true;
+            s_focus_cmds = false;
+            return K_NONE;
+        }
+        return K_NONE;
+    }
+    {
+        const int nbtn = button_count();
+        for (int i = 0; i < nbtn; ++i) {
+            int x, y, w, h;
+            if (!cursor_box(i, &x, &y, &w, &h)) continue;
+            const int hh = (h == BS) ? BS + 10 : h;
+            if (tx < x || tx >= x + w || ty < y || ty >= y + hh) continue;
+            if (s_cursor == i) return K_OK;
+            const int old = s_cursor;
+            s_cursor = i;
+            queue_focus(old, i);
+            return K_NONE;
+        }
+    }
+    /* Top-left back on Terminal (to Gibson) and on other screens. Rain has none. */
+    if (s_screen != SCR_RAIN && tx < 36 && ty < 18)
+        return K_ESC;
+    return K_NONE;
+#else
     if (!M5Cardputer.Keyboard.isChange()) return K_NONE;
     if (!M5Cardputer.Keyboard.isPressed()) return K_NONE;
     const auto &st = M5Cardputer.Keyboard.keysState();
@@ -5046,8 +5276,9 @@ static int read_key(char *typed)
             return K_CHAR;
         }
     }
-    return K_NONE;
+    return K_NONE;#endif
 }
+
 
 void botcorps_ui_mark_dirty(void)
 {
@@ -5677,127 +5908,33 @@ void botcorps_host_hub(uint8_t *buf)
     s_mood_until = 0;
     paint_ext(Gfx());
 
+}
+
+
 /* Types every letter plus the symbol-layer characters on Terminal.
  * Returns 0 when the screen stays Terminal and the prompt holds the text. */
 int botcorps_host_type_letters(void)
 {
-    host_frame = buf;
-    memset(buf, PAL_BLACK, 320u * 240u);
-    s_screen = SCR_GCHAT;
-    s_sheet = false;
-    botcorps_lut_term(false);
-    s_color = 0;
-    s_act = -1;
-    s_gp_buf[0] = 0;
-    gc_set_count(0);
-    log_add("gibson> ask drone");
-    gc_push(12, "patching drone in");
-    gc_push(5, "ready");
-    log_add("gibson> scan all");
-    gc_push(0, "cafe-guest -42");
-    gc_push(1, "earbuds-58 -58");
-    s_bus_t0 = 0;
-    paint_ext(Gfx());
-}
-
-void botcorps_host_intro(uint8_t *buf)
-{
-    host_frame = buf;
-    memset(buf, PAL_BLACK, 320u * 240u);
-    s_screen = SCR_RAIN;
-    s_act = 4;
-    s_sheet = false;
-    botcorps_lut_term(false);
-    paint_ext(Gfx());
-    s_act = -1;
-}
-
-void botcorps_host_gmenu(uint8_t *buf)
-{
-    botcorps_host_gchat(buf);
-    s_sheet = true;
-    s_sheet_i = 8;
-    paint_ext(Gfx());
-}
-
-void botcorps_host_jackin(uint8_t *buf)
-{
-    botcorps_host_gchat(buf);
-    s_sheet = false;
-    gc_set_count(0);
-    gc_run("jackin");
-    paint_ext(Gfx());
-}
-
-void botcorps_host_scanall(uint8_t *buf)
-{
-    host_frame = buf;
-    memset(buf, PAL_BLACK, 320u * 240u);
+    const int saved = s_screen;
     s_screen = SCR_TERMINAL;
     s_sheet = false;
-    botcorps_lut_term(false);
     s_focus_cmds = false;
-    s_term = 2;
-    s_color = 0;
-    s_log_n = 0;
-    s_log_next = 0;
     botcorps_t0_term_prompt[0] = 0;
-    s_bus_t0 = 0;
-    run_cmd("scan all");
-    lut_for_term();
-    paint_ext(Gfx());
-}
-
-void botcorps_host_scanall_sheet(uint8_t *buf)
-{
-    botcorps_host_scanall(buf);
-    s_sheet = true;
-    s_sheet_i = 0;
-    lut_for_term();
-    paint_ext(Gfx());
-}
-
-/* Log text says crew sweep, but scan-all mode was never set. */
-void botcorps_host_stale_sweep(uint8_t *buf)
-{
-    botcorps_host_idle(buf);
-    scan_all_set(false);
-    botcorps_lut_term(false);
-    s_mood_until = 0;
-    log_add("crew sweep - 12 boards");
-    paint_ext(Gfx());
-}
-
-void botcorps_host_keyfob(uint8_t *buf)
-{
-    host_frame = buf;
-    memset(buf, PAL_BLACK, 320u * 240u);
-    s_screen = SCR_TERMINAL;
-    s_sheet = false;
-    botcorps_lut_term(false);
-    s_focus_cmds = false;
-    s_term = 2;
-    s_color = 0;
-    s_log_n = 0;
-    s_log_next = 0;
+    const char *letters = "abcdefghijklmnopqrstuvwxyz ,.-|<>@";
+    for (const char *p = letters; *p; ++p) on_char(*p);
+    const int ok = s_screen == SCR_TERMINAL
+        && strcmp(botcorps_t0_term_prompt, letters) == 0;
     botcorps_t0_term_prompt[0] = 0;
-    s_bus_t0 = 0;
-    run_cmd("scan keyfob");
-    paint_ext(Gfx());
+    s_screen = saved;
+    return ok ? 0 : 1;
 }
 
-void botcorps_host_hub(uint8_t *buf)
+/* Bot reply ink. 0 means the slot collapsed to ivory or the index is Gibson. */
+int botcorps_host_reply_ink(int bot)
 {
-    host_frame = buf;
-    memset(buf, PAL_FIELD, 320u * 240u);
-    s_screen = SCR_GIBSON;
-    s_sheet = false;
-    botcorps_lut_term(false);
-    s_color = 0;
-    s_cursor = 0;
-    s_act = -1;
-    s_mood = MOOD_NEUTRAL;
-    s_mood_until = 0;
-    paint_ext(Gfx());
+    if (bot < 0 || bot > 11) return 0;
+    const uint8_t ink = bot_color(bot);
+    if (ink == (uint8_t)PAL_IVORY || ink == (uint8_t)COL_INK) return 0;
+    return (int)ink;
 }
 #endif

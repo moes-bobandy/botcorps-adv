@@ -42,3 +42,5 @@ Still placeholder / open: Frames remain placeholder stubs. LV still hardcoded "L
 - **2026-10-16 · Super Grok** — Bumped REPORT/mock tip to dddee10. Cited firmware.bin 1404432 B, RAM 22.0% / flash 44.6%. Placeholder honesty kept. Live: no board (code review + host type PASS). Pushed to grok/cyd-touch-port only. Built by: Super Grok session (no Cursor/agent hand-off).
 - **2026-10-16 · Super Grok** — Final pushed tip dddee10. REPORT tip set to dddee10. firmware.bin 1404432 bytes. All BRIDGE items done. Built by: Super Grok session (no Cursor/agent hand-off).
 - **2026-10-16 · GIBSONbot** — Reviewed tip 9cf96fd (fw acfc0e3): meta-only batch; tip lag remains (REPORT dddee10 vs HEAD 9cf96fd); host type PASS; no fw delta. Follow-up refreshed above.
+
+**Session start:** Super Grok — read CONTEXT.md first each session, then this BRIDGE.md.

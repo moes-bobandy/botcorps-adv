@@ -1,16 +1,16 @@
 #include "ui/botcorps_bots.h"
 
 const uint16_t BOTCORPS_BOT_COLOR[12] = {
-    0x5D3F, /* wifibot */
-    0x4E7F, /* bluetoothbot */
-    0x5D3F, /* deauthbot */
-    0x7711, /* hackbot */
-    0x9F0B, /* flockbot */
-    0xFB72, /* dronebot */
-    0xAC7F, /* airtagbot */
-    0x36B8, /* keyfobbot */
-    0x9F0B, /* metabot */
-    0x36B8, /* skimmerbot */
-    0xFC6B, /* flipperbot */
-    0xBD3F, /* samsungtagbot */
+    0x1BDD, /* wifibot */
+    0x159D, /* bluetoothbot */
+    0x1BDD, /* deauthbot */
+    0x1E88, /* hackbot */
+    0x76C2, /* flockbot */
+    0xE8EA, /* dronebot */
+    0x591D, /* airtagbot */
+    0x1677, /* keyfobbot */
+    0x76C2, /* metabot */
+    0x1677, /* skimmerbot */
+    0xF2E3, /* flipperbot */
+    0x82FE, /* samsungtagbot */
 };

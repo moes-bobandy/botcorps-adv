@@ -190,13 +190,12 @@ static const char *const HAIL[13] = {
 };
 static const char *const CHAT3[3] = { "copy", "on it", "noted" };
 /* Hunt dropdown on the Gibson scan. Order is the hunt-actions menu. */
-static const int ACT_N = 6;
-static const char *const ACT_NAME[ACT_N] = { "hunt", "follow", "tag", "info", "ignore", "back" };
+static const int ACT_N = 5;
+static const char *const ACT_NAME[ACT_N] = { "hunt", "info", "tag", "ignore", "back" };
 static const uint8_t ACT_ICO[ACT_N][8] = {
     { 0x3c, 0x42, 0x99, 0xbd, 0xbd, 0x99, 0x42, 0x3c },
-    { 0x40, 0x7c, 0x7e, 0x7c, 0x40, 0x40, 0x40, 0x40 },
-    { 0x00, 0xfe, 0x83, 0xb1, 0xb3, 0xfe, 0x00, 0x00 },
     { 0x3c, 0x5a, 0x81, 0x99, 0x99, 0x99, 0x42, 0x3c },
+    { 0x00, 0xfe, 0x83, 0xb1, 0xb3, 0xfe, 0x00, 0x00 },
     { 0x81, 0x42, 0x24, 0x18, 0x18, 0x24, 0x42, 0x81 },
     { 0x00, 0x10, 0x30, 0x7f, 0x30, 0x10, 0x00, 0x00 },
 };
@@ -296,9 +295,10 @@ static int8_t s_hunt_buf[HUNT_N];
 static uint8_t s_hunt_len = 0;
 static uint32_t s_hunt_tS = 0;
 static int s_hunt_force = 0; /* 0 = live mock; nonzero = forced dBm for host paints */
-static uint8_t s_dev_tag[2][8];
-static uint8_t s_dev_ign[2][8];
-static uint8_t s_dev_fol[2][8];
+static const int SB_N = 12;   /* devices per band in the scan box */
+static uint8_t s_dev_tag[2][SB_N];
+static uint8_t s_dev_ign[2][SB_N];
+static int s_gloss = -1;      /* glossary row, -1 closed */
 /* Found-alert takeover. Dismiss only via Hunt/Info/Ignore/Back. */
 static const int FA_N = 4;
 static const char *const FA_NAME[FA_N] = { "hunt", "info", "ignore", "back" };
@@ -394,9 +394,19 @@ static int default_back(int id)
     }
 }
 
+static bool sbox_id(int id)
+{
+    return id == SCR_WIFI_RADAR || id == SCR_BT_RADAR || id == SCR_WIFI_LIST || id == SCR_BT_LIST;
+}
+
+static bool sbox_on(void)
+{
+    return sbox_id(s_screen);
+}
+
 static bool wants_rain(void)
 {
-    return s_screen != SCR_WIFI_LIST && s_screen != SCR_BT_LIST
+    return !sbox_on()
         && s_screen != SCR_DIAG && s_screen != SCR_TERMINAL
         && s_screen != SCR_GCHAT;
 }
@@ -580,7 +590,7 @@ static bool btn_locked(int id)
 
 static uint8_t label_bg(void)
 {
-    if (s_screen == SCR_WIFI_LIST || s_screen == SCR_BT_LIST) return COL_DEEP;
+    if (sbox_on()) return COL_DEEP;
     if (s_screen == SCR_GIBSON) return botcorps_pal_hub_of(COL_FIELD);
     if (!wants_rain()) return COL_BG;
     return COL_FIELD;
@@ -678,12 +688,7 @@ static void layout_covers(void)
         break;
     case SCR_WIFI_RADAR:
     case SCR_BT_RADAR:
-        cover_reset(false);
-        cover_btn(14, 72);
-        cover_btn(14, 106);
-        cover_btn(14, 140);
-        cover_add(50, 26, 220, 182);
-        cover_add(40, 210, 240, 22);
+        cover_add(0, 0, 320, 240);
         break;
     case SCR_BOT_RADAR:
     case SCR_SCAN:
@@ -721,7 +726,7 @@ static int button_count(void)
     case SCR_BT:
     case SCR_BOT: return 4;
     case SCR_WIFI_RADAR:
-    case SCR_BT_RADAR: return 3;
+    case SCR_BT_RADAR: return 0;
     case SCR_BOT_RADAR:
     case SCR_SCAN: return 2;
     case SCR_WIFI_LIST:
@@ -738,6 +743,9 @@ static void scan_all_set(bool on);
 static void enter_screen(int id, int ret)
 {
     if (id < 0) return;
+    /* v1016: the Wi-Fi / BLE lists live inside the scan box. No full-screen switch. */
+    if (id == SCR_WIFI_LIST) id = SCR_WIFI_RADAR;
+    if (id == SCR_BT_LIST) id = SCR_BT_RADAR;
     const char *from = screen_name(s_screen);
     const int before = card_bot();
     s_ret = ret;
@@ -751,14 +759,14 @@ static void enter_screen(int id, int ret)
     s_act = -1;
     s_act_dev = -1;
     s_info_dev = -1;
-    if (id == SCR_WIFI_LIST || id == SCR_BT_LIST) {
+    s_gloss = -1;
+    if (sbox_id(id)) {
         s_hunt_dev = -1;
         s_hunt_len = 0;
         s_hunt_tS = 0;
         s_hunt_force = 0;
         memset(s_dev_tag, 0, sizeof(s_dev_tag));
         memset(s_dev_ign, 0, sizeof(s_dev_ign));
-        memset(s_dev_fol, 0, sizeof(s_dev_fol));
     }
     s_dirty = true;
     /* Same bot: partial_int returns. A real card change redraws in strips. */
@@ -2552,11 +2560,18 @@ static void bus_label(Gfx g, bool wifi, int shown, int sel)
 
 static void paint_bus_scan(Gfx g, bool wifi);
 
+static int list_band(void);
+static void paint_sbox(Gfx g, bool wifi);
+
 static void paint_radar(Gfx g, bool with_list)
 {
     /* Device path for SCR_SCAN. The full extBus layout lives in paint_bus_scan. */
     if (s_screen == SCR_SCAN) {
         paint_bus_scan(g, s_hunt_band == 0);
+        return;
+    }
+    if (sbox_on()) {
+        paint_sbox(g, list_band() == 0);
         return;
     }
     const bool wifi = s_screen != SCR_BT_RADAR;
@@ -2657,180 +2672,122 @@ static void blit_ico(Gfx g, const uint8_t *bits, int x, int y, uint8_t col)
 
 static int list_band(void)
 {
-    return s_screen == SCR_BT_LIST ? 1 : 0;
+    return (s_screen == SCR_BT_LIST || s_screen == SCR_BT_RADAR) ? 1 : 0;
 }
 
-static void act_origin(int dev, int *mx, int *my)
-{
-    const int rh = 17;
-    const int y0 = 32;
-    if (dev < 0) dev = 0;
-    const int ry = y0 + dev * rh;
-    const int mh = ACT_N * 15 + 6;
-    int y = ry + rh;
-    if (y + mh > 204) y = ry - mh - 1;
-    if (y < 28) y = 28;
-    *mx = 214;
-    *my = y;
-}
+static inline void sb_rect(Gfx g, int x, int y, int w, int h, uint8_t c) { g.fillRect(x, y, w, h, c); }
+static inline void sb_circ(Gfx g, int x, int y, int r, uint8_t c) { g.fillCircle(x, y, r, c); }
 
-static void paint_act_menu(Gfx g)
+/* v1016 scan box. Thirteen glossary types, one 12x12 icon each, three inks.
+ * Six rows reuse the v3.2 set above; phone, laptop, speaker, watch, car,
+ * dev board and printer are new. Inks are fixed deep saturated indexes. */
+enum {
+    GL_AP = 0, GL_PHONE, GL_LAPTOP, GL_TV, GL_SPEAKER, GL_TRACKER, GL_WATCH,
+    GL_CAMERA, GL_CAR, GL_UNKNOWN, GL_DRONE, GL_DEVBOARD, GL_PRINTER, GL_N
+};
+static const char *const GL_LABEL[GL_N] = {
+    "WI-FI AP", "PHONE", "LAPTOP", "TV", "SPEAKER", "TRACKER", "WATCH",
+    "CAMERA", "CAR", "UNKNOWN", "DRONE", "DEV BOARD", "PRINTER"
+};
+static const char *const GL_NEW[7][12] = {
+    { "...aaaaaa...", "..abbbbbba..", "..abccccba..", "..abccccba..", "..abccccba..", "..abccccba..", "..abccccba..", "..abccccba..", "..abbbbbba..", "..abbaabba..", "...aaaaaa...", "............" },
+    { "............", "..aaaaaaaa..", "..abbbbbba..", "..abccccba..", "..abccccba..", "..abccccba..", "..abbbbbba..", "..aaaaaaaa..", ".aaaaaaaaaa.", "aaabbbbbbaaa", "aaaaaaaaaaaa", "............" },
+    { "...aaaaaa...", "..abbbbbba..", "..abbccbba..", "..abbbbbba..", "..abaaaaba..", "..aabbbbaa..", "..abbccbba..", "..abcbbcba..", "..abbccbba..", "..aabbbbaa..", "...aaaaaa...", "............" },
+    { "....aaaa....", "....abba....", "...aaaaaa...", "..abbbbbba..", "..abbcbbba..", "..abbcccba..", "..abbbbbba..", "..abbbbbba..", "...aaaaaa...", "....abba....", "....aaaa....", "............" },
+    { "............", "............", "...aaaaaa...", "..abbbbbba..", ".aabbbbbbaa.", "aaaaaaaaaaaa", "acccaaaaccca", "aaaaaaaaaaaa", ".bbb....bbb.", ".bcb....bcb.", "............", "............" },
+    { ".c.c.c.c.c.c", "aaaaaaaaaaaa", "abbbbbaaaaaa", "abbbbbaaccaa", "abbbbbaaccaa", "abbbbbaaaaaa", "aaaaaaaaaaaa", "aacaaaaaacaa", "aaaaaaaaaaaa", ".c.c.c.c.c.c", "............", "............" },
+    { "...cccccc...", "...cccccc...", ".aaaaaaaaaa.", "aaaaaaaaaaaa", "aaaaaaaaabaa", "aaaaaaaaaaaa", "aabbbbbbbbaa", "aabccccccbaa", "..cccccccc..", "..cbbbbbbc..", "..cccccccc..", "............" },
+};
+/* a = neon body, b = deep shade, c = highlight. RGB332 / reserved slots nearest the mock neon. */
+static const uint8_t GL_INK[GL_N][3] = {
+    { 31, 1, 255 },    /* ap #00F0FF */
+    { 92, 36, 255 },   /* phone #39FF14 */
+    { 188, 44, 255 },  /* laptop #C8FF00 */
+    { 30, 1, 255 },    /* tv #00FFA8 */
+    { 240, 44, 255 },  /* speaker #FFA000 */
+    { 252, 68, 255 },  /* tracker #FFF000 */
+    { 231, 64, 255 },  /* watch #FF2BD6 */
+    { 167, 64, 255 },  /* camera #B026FF */
+    { 111, 37, 255 },  /* car #6E74FF */
+    { 243, 64, 255 },  /* unknown #FF8AE8 */
+    { 224, 64, 255 },  /* drone #FF2020 */
+    { 51, 37, 252 },   /* dev board #2EA0FF, gold pins */
+    { 234, 64, 255 },  /* printer #FF4F9A */
+};
+
+static void gl_icon(Gfx g, int type, int x, int y, bool dim)
 {
-    if (s_act < 0 || s_act_dev < 0) return;
-    const int keep = s_px;
-    s_px = 8;
-    int mx = 0;
-    int my = 0;
-    act_origin(s_act_dev, &mx, &my);
-    const int mh = ACT_N * 15 + 6;
-    const uint8_t wash = (s_color == 1) ? (uint8_t)PAL_WASH_A
-                         : (s_color == 2) ? (uint8_t)PAL_WASH_M : (uint8_t)PAL_WASH_C;
-    const uint8_t wire = (s_color == 1) ? (uint8_t)PAL_WIRE_A
-                         : (s_color == 2) ? (uint8_t)PAL_WIRE_M : (uint8_t)PAL_WIRE_C;
-    stroke_round(g, mx - 3, my - 3, 98, mh + 6, wash);
-    stroke_round(g, mx - 2, my - 2, 96, mh + 4, wire);
-    stroke_round(g, mx - 1, my - 1, 94, mh + 2, wash);
-    g.fillRect(mx + 2, my, 88, mh, COL_BG);
-    g.fillRect(mx, my + 2, 92, mh - 4, COL_BG);
-    stroke_round(g, mx, my, 92, mh, accent());
-    const int band = list_band();
-    for (int j = 0; j < ACT_N; ++j) {
-        const int yy = my + 3 + j * 15;
-        const bool on = j == s_act;
-        /* PAL_LINE fill. Bar is shared slot 151, the word nearest #8ab4d8. */
-        const uint8_t bg = on ? (uint8_t)PAL_LINE : (uint8_t)COL_BG;
-        if (on) {
-            g.fillRect(mx + 4, yy, 86, 14, PAL_LINE);
-            g.fillRect(mx + 2, yy, 2, 14, (uint8_t)151);
-        }
-        blit_ico(g, ACT_ICO[j], mx + 8, yy + 3, on ? COL_WHITE : accent());
-        const char *lab = ACT_NAME[j];
-        if (j == 1 && s_act_dev >= 0 && s_dev_fol[band][s_act_dev]) lab = "unfollow";
-        txt_bg(g, lab, mx + 21, yy + 2, on ? COL_WHITE : COL_INK, bg,
-               lgfx::textdatum::top_left);
-        if (j == 2 && s_act_dev >= 0 && s_dev_tag[band][s_act_dev] > 0) {
-            g.fillRect(mx + 80, yy + 4, 6, 6, TAG_COL[s_dev_tag[band][s_act_dev] - 1]);
-        }
-        if (j == ACT_N - 1) g.fillRect(mx + 6, yy - 1, 80, 1, COL_LINE);
+    if (type < 0 || type >= GL_N) type = GL_UNKNOWN;
+    const char *const *rows = nullptr;
+    switch (type) {
+    case GL_AP: rows = DEV_ROW[DEV_AP]; break;
+    case GL_TV: rows = DEV_ROW[DEV_TV]; break;
+    case GL_TRACKER: rows = DEV_ROW[DEV_TAG]; break;
+    case GL_CAMERA: rows = DEV_ROW[DEV_CAM]; break;
+    case GL_UNKNOWN: rows = DEV_ROW[DEV_UNK]; break;
+    case GL_DRONE: rows = DEV_ROW[DEV_DRONE]; break;
+    case GL_PHONE: rows = GL_NEW[0]; break;
+    case GL_LAPTOP: rows = GL_NEW[1]; break;
+    case GL_SPEAKER: rows = GL_NEW[2]; break;
+    case GL_WATCH: rows = GL_NEW[3]; break;
+    case GL_CAR: rows = GL_NEW[4]; break;
+    case GL_DEVBOARD: rows = GL_NEW[5]; break;
+    default: rows = GL_NEW[6]; break;
     }
-    s_px = keep;
-}
-
-static void paint_info_card(Gfx g, bool wifi)
-{
-    if (s_info_dev < 0 || s_info_dev > 2) return;
-    const char *const *names = wifi ? NEAR_WIFI : NEAR_BLE;
-    const char *const *rssi = wifi ? NEAR_WIFI_R : NEAR_BLE_R;
-    const uint8_t *bars = wifi ? NEAR_WIFI_B : NEAR_BLE_B;
-    const int d = s_info_dev;
-    g.fillRect(0, 0, 320, 240, PAL_BLACK);
-    plate(g, 24, 40, 272, 138, COL_BG, accent());
-    g.fillRect(34, 52, 44, 44, PAL_DEEP);
-    g.fillRect(40, 64, 12, 12, accent());
-    txt_bg(g, names[d], 92, 52, COL_WHITE, COL_BG, lgfx::textdatum::top_left);
-    txt_bg(g, rssi[d], 92, 106, COL_INK, COL_BG, lgfx::textdatum::top_left);
-    txt_bg(g, "dBm", 92 + (int)strlen(rssi[d]) * 6 + 4, 112, COL_MUTED, COL_BG,
-           lgfx::textdatum::top_left);
-    for (int k = 0; k < 4; ++k) {
-        const int bh = (k + 1) * 4;
-        g.fillRect(250 + k * 8, 120 - bh, 5, bh, k < bars[d] ? accent() : COL_LINE);
+    const uint8_t *ink = GL_INK[type];
+    for (int r = 0; r < 12; ++r) {
+        for (int c = 0; c < 12; ++c) {
+            const char ch = rows[r][c];
+            if (ch != 'a' && ch != 'b' && ch != 'c') continue;
+            uint8_t k = ink[ch - 'a'];
+            if (type == GL_AP || type == GL_TV || type == GL_CAMERA || type == GL_UNKNOWN || type == GL_TRACKER || type == GL_DRONE) {
+                /* v3.2 rows: 'c' is the outline on AP/drone/unknown; keep the body neon there. */
+                if (ch == 'c' && (type == GL_AP || type == GL_DRONE || type == GL_UNKNOWN)) k = ink[0];
+            }
+            if (dim) k = (ch == 'b') ? (uint8_t)PAL_DEEP : (uint8_t)PAL_LINE;
+            sb_rect(g, x + c, y + r, 1, 1, k);
+        }
     }
-    const int band = wifi ? 0 : 1;
-    if (s_dev_tag[band][d] > 0) g.fillRect(262, 54, 8, 8, TAG_COL[s_dev_tag[band][d] - 1]);
 }
 
-static const int LIST_N = 8;
+static const int LIST_N = SB_N;
 static const char *const LIST_WIFI_N[LIST_N] = {
-    "cafe-guest", "printer-2f", "lobby-ap", "tp-link-mesh",
-    "roku-ultra", "ring-doorbell", "esp32-marauder", "hp-laptop"
+    "home-5g", "cafe-guest", "lobby-ap", "tp-link-mesh", "pixel-8", "hp-laptop",
+    "macbook-air", "roku-ultra", "chromecast", "ring-doorbell", "esp32-marauder", "printer-2f"
 };
 static const char *const LIST_WIFI_M[LIST_N] = {
-    "a4:c1:38:01:4e:20", "b2:11:90:4c:aa:17", "c8:3a:35:71:0d:42", "e8:48:b8:22:6f:09",
-    "d0:3f:27:61:b4:88", "b0:c5:54:63:1a:7e", "24:6f:28:58:c3:11", "3c:22:fb:74:90:5d"
+    "e0:99:41:5c:02:1b", "a4:c1:38:01:4e:20", "c8:3a:35:71:0d:42", "46:b7:30:22:6f:09",
+    "58:24:29:a0:13:77", "3c:22:fb:74:90:5d", "f4:0f:24:3a:51:c6", "d0:3f:27:61:b4:88",
+    "6c:ad:f8:12:9e:34", "b0:c5:54:63:1a:7e", "24:6f:28:58:c3:11", "b2:11:90:4c:aa:17"
 };
 static const char *const LIST_WIFI_DB[LIST_N] = {
-    "-42", "-67", "-71", "-55", "-61", "-63", "-58", "-74"
+    "-49", "-42", "-71", "-55", "-60", "-74", "-66", "-61", "-68", "-63", "-58", "-67"
 };
-static const int LIST_WIFI_CH[LIST_N] = { 6, 11, 1, 6, 44, 1, 6, 11 };
-static const uint8_t LIST_WIFI_BAR[LIST_N] = { 4, 2, 1, 3, 2, 2, 3, 1 };
+static const int LIST_WIFI_CH[LIST_N] = { 6, 6, 1, 6, 11, 11, 36, 44, 1, 1, 6, 11 };
 static const uint8_t LIST_WIFI_TY[LIST_N] = {
-    DEV_AP, DEV_AP, DEV_AP, DEV_AP, DEV_TV, DEV_CAM, DEV_DEAUTH, DEV_AP
+    GL_AP, GL_AP, GL_AP, GL_AP, GL_PHONE, GL_LAPTOP, GL_LAPTOP, GL_TV, GL_TV, GL_CAMERA, GL_DEVBOARD, GL_PRINTER
 };
 static const char *const LIST_BLE_N[LIST_N] = {
-    "earbuds-58", "watch-6", "speaker-7", "airtag-3f",
-    "hc-05-atm", "meta-glasses", "dji-mini", "flock-raven"
+    "jbl-flip", "earbuds-58", "watch-6", "airtag-3f", "tile-mate", "iphone-15",
+    "tesla-m3", "meta-glasses", "dji-mini", "hc-05-atm", "galaxy-s24", "ble-7f3a"
 };
 static const char *const LIST_BLE_M[LIST_N] = {
-    "41:20:88:58:10:3a", "c2:44:10:06:9b:21", "7a:19:b2:07:44:80", "d4:8a:3f:3f:12:6c",
-    "00:18:e4:05:77:01", "ac:de:48:69:3e:55", "60:60:1f:60:ab:08", "f0:72:ea:72:14:9d"
+    "59:bd:8b:5a:10:3a", "41:20:88:58:10:3b", "c2:44:10:06:9b:21", "d4:8a:3f:3f:12:6c",
+    "e1:07:5d:2c:44:90", "7c:04:d0:11:8e:52", "4c:fc:aa:30:61:0d", "ac:de:48:69:3e:55",
+    "60:60:1f:60:ab:08", "00:18:e4:05:77:01", "a8:7d:12:9b:c0:4e", "7f:3a:00:91:2d:6b"
 };
 static const char *const LIST_BLE_DB[LIST_N] = {
-    "-58", "-63", "-74", "-52", "-66", "-69", "-60", "-72"
+    "-61", "-58", "-63", "-52", "-70", "-57", "-75", "-69", "-60", "-66", "-64", "-81"
 };
-static const int LIST_BLE_CH[LIST_N] = { 37, 38, 39, 37, 38, 39, 37, 38 };
-static const uint8_t LIST_BLE_BAR[LIST_N] = { 3, 2, 1, 4, 2, 2, 3, 1 };
+static const int LIST_BLE_CH[LIST_N] = { 37, 38, 39, 37, 38, 39, 37, 38, 39, 37, 38, 39 };
 static const uint8_t LIST_BLE_TY[LIST_N] = {
-    DEV_BT, DEV_BT, DEV_BT, DEV_TAG, DEV_SKIM, DEV_CAM, DEV_DRONE, DEV_FLOCK
+    GL_SPEAKER, GL_SPEAKER, GL_WATCH, GL_TRACKER, GL_TRACKER, GL_PHONE, GL_CAR, GL_CAMERA, GL_DRONE, GL_DEVBOARD, GL_PHONE, GL_UNKNOWN
 };
-
-static void paint_dev_list(Gfx g, bool wifi)
-{
-    const char *const *names = wifi ? LIST_WIFI_N : LIST_BLE_N;
-    const char *const *macs = wifi ? LIST_WIFI_M : LIST_BLE_M;
-    const char *const *rssi = wifi ? LIST_WIFI_DB : LIST_BLE_DB;
-    const int *ch = wifi ? LIST_WIFI_CH : LIST_BLE_CH;
-    const uint8_t *bars = wifi ? LIST_WIFI_BAR : LIST_BLE_BAR;
-    const uint8_t *types = wifi ? LIST_WIFI_TY : LIST_BLE_TY;
-    const int sel = (s_cursor >= 0 && s_cursor < LIST_N) ? s_cursor : 0;
-    const uint8_t ac = accent();
-    const int y0 = 32;
-    const int rh = 17;
-    g.fillRect(8, 8, 304, 19, PAL_BG);
-    g.fillRect(8, 8, 304, 1, ac);
-    g.fillRect(8, 26, 304, 1, COL_LINE);
-    dev_icon(g, wifi ? DEV_AP : DEV_BT, 13, 11, false);
-    const int keep = s_px;
-    s_px = 8;
-    txt(g, wifi ? "WI-FI" : "BLUETOOTH", 32, 12, COL_INK, lgfx::textdatum::top_left);
-    s_px = 6;
-    char cnt[8];
-    snprintf(cnt, sizeof(cnt), "%d/%d", LIST_N, LIST_N);
-    txt(g, cnt, 268, 13, COL_MUTED, lgfx::textdatum::top_left);
-    for (int d = 0; d < LIST_N; ++d) {
-        const int band = wifi ? 0 : 1;
-        if (s_dev_ign[band][d]) continue;
-        const int y = y0 + d * rh;
-        const bool on = d == sel;
-        g.fillRect(8, y, 304, rh - 1, (uint8_t)((d & 1) ? PAL_BG : PAL_FIELD));
-        if (on) {
-            g.fillRect(10, y + 1, 302, 14, PAL_SEL);
-            g.fillRect(8, y, 304, 1, PAL_STEEL);
-            g.fillRect(8, y + 15, 304, 1, PAL_STEEL);
-            g.fillRect(8, y + 1, 2, 14, ac);
-        }
-        dev_icon(g, types[d], 13, y + 2, false);
-        char who[13];
-        snprintf(who, sizeof(who), "%.12s", names[d]);
-        txt(g, who, 28, y + 4, on ? (uint8_t)COL_WHITE : (uint8_t)COL_INK, lgfx::textdatum::top_left);
-        /* Full MAC is 17 glyphs and runs under the menu. Drop the last
-         * byte and its colon so the cut is on a byte boundary. */
-        char mac[15];
-        snprintf(mac, sizeof(mac), "%.14s", macs[d]);
-        txt(g, mac, 116, y + 4, COL_MUTED, lgfx::textdatum::top_left);
-        txt(g, rssi[d], 222, y + 4, ac, lgfx::textdatum::top_left);
-        char chs[8];
-        snprintf(chs, sizeof(chs), "ch%02d", ch[d]);
-        txt(g, chs, 246, y + 4, COL_MUTED, lgfx::textdatum::top_left);
-        for (int k = 0; k < 4; ++k) {
-            const int bh = (k + 1) * 2;
-            g.fillRect(286 + k * 4, y + 12 - bh, 3, bh, k < bars[d] ? ac : COL_LINE);
-        }
-    }
-    const int cy = y0 + LIST_N * rh;
-    txt(g, ">", 14, cy + 4, ac, lgfx::textdatum::top_left);
-    if ((millis() / 420u) % 2u == 0u) g.fillRect(24, cy + 3, 5, 8, ac);
-    s_px = keep;
-}
+/* Grid cell (col 0..6, row 0..3) of each device in the 7x4 scan grid. */
+static const uint8_t SB_CELL[2][LIST_N] = {
+    { 0x00, 0x22, 0x13, 0x30, 0x51, 0x62, 0x23, 0x41, 0x03, 0x63, 0x50, 0x12 },
+    { 0x01, 0x32, 0x20, 0x43, 0x60, 0x11, 0x53, 0x02, 0x40, 0x23, 0x61, 0x33 },
+};
 
 static void paint_bus_scan(Gfx g, bool wifi)
 {
@@ -2864,165 +2821,451 @@ static void hunt_sample(void)
     }
 }
 
-/* Hunt view inside the scan/list area. Primitives only. */
-static void paint_hunt_view(Gfx g, bool wifi)
+/* ===== v1016 scan box: Wi-Fi / BLE. Everything lives inside the box on the board. ===== */
+static const int SB_X = 108, SB_Y = 55, SB_W = 171, SB_H = 92; /* overlay panel */
+static const int SG_X = 108, SG_Y = 54, SG_C = 22;             /* 7x4 grid */
+
+static uint8_t sb_tone(int which)
 {
-    if (s_hunt_dev < 0) return;
+    /* 0 board, 1 board texture, 2 grid wash, 3 grid wire. Per UI colour, deep and saturated. */
+    static const uint8_t T[3][4] = { { 9, 17, PAL_WASH_C, PAL_WIRE_C },
+                                     { 104, 108, PAL_WASH_A, PAL_WIRE_A },
+                                     { 13, 45, PAL_WASH_M, PAL_WIRE_M } };
+    const int c = (s_color < 0 || s_color > 2) ? 0 : s_color;
+    return T[c][which];
+}
+
+static void sb_frame(Gfx g, int x, int y, int w, int h, uint8_t c)
+{
+    sb_rect(g, x, y, w, 1, c);
+    sb_rect(g, x, y + h - 1, w, 1, c);
+    sb_rect(g, x, y, 1, h, c);
+    sb_rect(g, x + w - 1, y, 1, h, c);
+}
+
+static void sb_text(Gfx g, const char *s, int x, int y, uint8_t fg, uint8_t bg, bool big8, int size)
+{
+    g.setFont(big8 ? &fonts::Font8x8C64 : &fonts::Font0);
+    g.setTextSize(size);
+    g.setTextColor(fg, bg);
+    g.setTextDatum(lgfx::textdatum::top_left);
+    g.drawString(s ? s : "", x, y);
+    g.setTextSize(1);
+}
+
+static void sb_upper(char *dst, int n, const char *src, int maxc)
+{
+    int k = 0;
+    for (const char *p = src; p && *p && k < n - 1 && k < maxc; ++p)
+        dst[k++] = (*p >= 'a' && *p <= 'z') ? (char)(*p - 32) : *p;
+    dst[k] = 0;
+}
+
+static void sb_cell(int band, int d, int *cx, int *cy)
+{
+    const uint8_t c = SB_CELL[band][d];
+    *cx = SG_X + 11 + (c >> 4) * SG_C;
+    *cy = SG_Y + 11 + (c & 15) * SG_C;
+}
+
+static void sb_bars(Gfx g, int x, int y, int dbm, uint8_t on)
+{
+    int lit = (dbm + 95) / 12;
+    if (lit < 0) lit = 0;
+    if (lit > 4) lit = 4;
+    for (int q = 0; q < 4; ++q)
+        sb_rect(g, x + q * 4, y + 12 - (q + 1) * 3, 3, (q + 1) * 3, q < lit ? on : (uint8_t)PAL_LINE);
+}
+
+/* ESP32 dev board around the box: header rows, holes, USB, buttons, WROOM module. */
+static void sb_board(Gfx g, bool wifi)
+{
+    const uint8_t ac = accent();
+    const uint8_t pcb = sb_tone(0), tex = sb_tone(1);
+    const uint8_t gold = 208, goldd = 104;
+    sb_rect(g, 18, 30, 284, 175, pcb);
+    for (int y = 33; y < 202; y += 6) sb_rect(g, 20, y, 280, 1, tex);
+    sb_frame(g, 18, 30, 284, 175, ac);
+    /* 2.54 mm headers, top and bottom */
+    for (int x = 37; x < 284; x += 8) {
+        sb_rect(g, x, 34, 4, 4, gold);
+        sb_rect(g, x + 1, 35, 2, 2, PAL_BLACK);
+        sb_rect(g, x, 197, 4, 4, gold);
+        sb_rect(g, x + 1, 198, 2, 2, PAL_BLACK);
+    }
+    sb_rect(g, 33, 32, 254, 1, PAL_BLACK);
+    sb_rect(g, 33, 202, 254, 1, PAL_BLACK);
+    const int hx[4] = { 25, 294, 25, 294 }, hy[4] = { 39, 39, 197, 197 };
+    for (int k = 0; k < 4; ++k) {
+        sb_circ(g, hx[k], hy[k], 4, gold);
+        sb_circ(g, hx[k], hy[k], 2, PAL_BLACK);
+    }
+    /* BOOT / EN buttons and the USB port on the right edge */
+    sb_rect(g, 291, 84, 8, 12, PAL_BLACK);
+    sb_rect(g, 293, 87, 4, 6, PAL_LINE);
+    sb_rect(g, 291, 141, 8, 12, PAL_BLACK);
+    sb_rect(g, 293, 144, 4, 6, PAL_LINE);
+    sb_rect(g, 295, 105, 9, 27, PAL_BLACK);
+    sb_frame(g, 295, 105, 9, 27, ac);
+    sb_rect(g, 298, 110, 3, 17, PAL_LINE);
+    /* WROOM module: dark substrate, gold meander antenna, silver can, the bot as the chip */
+    const int mx = 34, my = 52, mw = 54, mh = 128;
+    sb_rect(g, mx, my, mw, mh, 40);
+    sb_frame(g, mx, my, mw, mh, PAL_LINE);
+    int ax = mx + 5;
+    for (int i = 0; i < 6; ++i) {
+        sb_rect(g, ax, my + 4, 1, 15, gold);
+        sb_rect(g, ax, my + 4, 4, 1, gold);
+        sb_rect(g, ax + 3, my + 4, 1, 15, gold);
+        sb_rect(g, ax + 3, my + 18, 4, 1, gold);
+        ax += 7;
+    }
+    sb_rect(g, mx + 4, my + 20, 3, 3, gold);
+    const int sx = mx + 4, sy = my + 25, sw = mw - 8, sh = mh - 33;
+    sb_rect(g, sx, sy, sw, sh, 178);
+    sb_rect(g, sx, sy, sw, 1, 218);
+    sb_rect(g, sx, sy, 1, sh, 218);
+    sb_rect(g, sx, sy + sh - 1, sw, 1, PAL_STEEL);
+    sb_rect(g, sx + sw - 1, sy, 1, sh, PAL_STEEL);
+    const int bot = wifi ? 0 : 1;
+    const int cx = mx + mw / 2, cy = sy + 8 + 21;
+    sb_rect(g, cx - 17, cy - 17, 34, 34, PAL_BLACK);
+    sb_frame(g, cx - 16, cy - 16, 32, 32, ac);
+    sb_rect(g, cx - 13, cy - 13, 26, 26, bot_color(bot));
+    sb_rect(g, cx - 7, cy - 3, 4, 4, PAL_BLACK);
+    sb_rect(g, cx + 3, cy - 3, 4, 4, PAL_BLACK);
+    for (int k = 0; k < 4; ++k) {
+        sb_rect(g, cx - 12 + k * 7, cy - 19, 3, 2, gold);
+        sb_rect(g, cx - 12 + k * 7, cy + 17, 3, 2, gold);
+    }
+    sb_text(g, wifi ? "WIFIBOT" : "BLE BOT", cx - 21, sy + 56, PAL_BOARD_D, 178, false, 1);
+    sb_text(g, "WROOM32", cx - 21, sy + 68, PAL_STEEL, 178, false, 1);
+    sb_circ(g, sx + 6, sy + sh - 6, 2, PAL_BOARD_D);
+    for (int y = my + 30; y < my + mh - 8; y += 8) {
+        sb_rect(g, mx - 2, y, 4, 4, gold);
+        sb_rect(g, mx + mw - 2, y, 4, 4, gold);
+    }
+    for (int x = mx + 8; x < mx + mw - 8; x += 7) sb_rect(g, x, my + mh - 2, 4, 4, gold);
+    /* traces to the display FPC, LEDs */
+    const uint32_t t = millis();
+    for (int k = 0; k < 5; ++k) {
+        const int y = my + 46 + k * 9;
+        sb_rect(g, mx + mw + 2, y, 100 - 11 - mx - mw - 2 + 9, 1, tex);
+        const int span = 100 - 11 - mx - mw;
+        const int f = (int)((t / 40u + (uint32_t)k * 7u) % (uint32_t)(span > 1 ? span : 1));
+        sb_rect(g, mx + mw + 2 + f, y, 2, 1, ac);
+    }
+    sb_rect(g, 93, 54, 4, 3, ((t / 500u) % 2u) ? ac : tex);
+    sb_rect(g, 93, 63, 4, 3, goldd);
+    sb_rect(g, 93, 72, 4, 3, 47);
+    sb_text(g, "ON", 91, 151, PAL_IVORY, pcb, false, 1);
+    sb_rect(g, 93, 160, 4, 3, 224);
+    sb_rect(g, 93, 170, 4, 3, 92);
+    (void)goldd;
+}
+
+static void sb_grid(Gfx g, int band)
+{
+    const uint8_t wash = sb_tone(2), wire = sb_tone(3), ac = accent();
+    for (int c = 0; c <= 7; ++c) sb_rect(g, SG_X + c * SG_C, SG_Y, 1, 4 * SG_C + 1, wash);
+    for (int r = 0; r <= 4; ++r) sb_rect(g, SG_X, SG_Y + r * SG_C, 7 * SG_C + 1, 1, wash);
+    for (int c = 0; c <= 7; ++c)
+        for (int r = 0; r <= 4; ++r) sb_rect(g, SG_X + c * SG_C - 1, SG_Y + r * SG_C - 1, 3, 3, wire);
+    const uint8_t *types = band ? LIST_BLE_TY : LIST_WIFI_TY;
+    for (int d = 0; d < LIST_N; ++d) {
+        if (s_dev_ign[band][d]) continue;
+        int cx = 0, cy = 0;
+        sb_cell(band, d, &cx, &cy);
+        sb_rect(g, cx - 10, cy - 10, 20, 20, 65);
+        sb_frame(g, cx - 10, cy - 10, 20, 20, 149);
+        sb_rect(g, cx - 12, cy - 5, 2, 2, 149);
+        sb_rect(g, cx + 10, cy + 3, 2, 2, 149);
+        gl_icon(g, types[d], cx - 6, cy - 6, false);
+        if (s_dev_tag[band][d] > 0) sb_rect(g, cx + 5, cy - 9, 4, 4, TAG_COL[s_dev_tag[band][d] - 1]);
+        if (d == s_cursor) {
+            sb_frame(g, cx - 13, cy - 13, 26, 26, ac);
+            sb_frame(g, cx - 12, cy - 12, 24, 24, ac);
+        }
+    }
+}
+
+static void sb_panel(Gfx g, int band)
+{
+    const int d = (s_act_dev >= 0 && s_act_dev < LIST_N) ? s_act_dev : 0;
+    const char *const *names = band ? LIST_BLE_N : LIST_WIFI_N;
+    const char *const *rssi = band ? LIST_BLE_DB : LIST_WIFI_DB;
+    const uint8_t *types = band ? LIST_BLE_TY : LIST_WIFI_TY;
+    const uint8_t ac = accent(), sel = sb_tone(3);
+    const int x0 = SB_X, y0 = SB_Y, w = SB_W, h = SB_H;
+    sb_rect(g, x0, y0, w, h, PAL_BLACK);
+    sb_frame(g, x0, y0, w, h, ac);
+    sb_frame(g, x0 + 4, y0 + 3, 16, 16, 149);
+    gl_icon(g, types[d], x0 + 6, y0 + 5, false);
+    char nm[16];
+    sb_upper(nm, sizeof(nm), names[d], 15);
+    sb_text(g, nm, x0 + 25, y0 + 3, PAL_WHITE, PAL_BLACK, true, 1);
+    sb_text(g, GL_LABEL[types[d]], x0 + 25, y0 + 12, ac, PAL_BLACK, true, 1);
+    sb_bars(g, x0 + w - 20, y0 + 4, atoi(rssi[d]), ac);
+    sb_rect(g, x0 + 2, y0 + 20, w - 4, 1, sel);
+    for (int j = 0; j < ACT_N; ++j) {
+        const int yy = y0 + 22 + j * 14;
+        const bool on = j == s_act;
+        const uint8_t bg = on ? sel : (uint8_t)PAL_BLACK;
+        if (on) {
+            sb_rect(g, x0 + 2, yy, w - 4, 13, sel);
+            sb_rect(g, x0 + 2, yy, 2, 13, ac);
+        }
+        blit_ico(g, ACT_ICO[j], x0 + 9, yy + 3, on ? (uint8_t)PAL_WHITE : ac);
+        sb_text(g, ACT_NAME[j], x0 + 22, yy + 3, on ? (uint8_t)PAL_WHITE : (uint8_t)COL_INK, bg, true, 1);
+        if (j == 2 && s_dev_tag[band][d] > 0) sb_rect(g, x0 + w - 14, yy + 4, 6, 6, TAG_COL[s_dev_tag[band][d] - 1]);
+    }
+}
+
+static void sb_info(Gfx g, int band)
+{
+    const int d = (s_info_dev >= 0 && s_info_dev < LIST_N) ? s_info_dev : 0;
+    const char *const *names = band ? LIST_BLE_N : LIST_WIFI_N;
+    const char *const *macs = band ? LIST_BLE_M : LIST_WIFI_M;
+    const char *const *rssi = band ? LIST_BLE_DB : LIST_WIFI_DB;
+    const int *chs = band ? LIST_BLE_CH : LIST_WIFI_CH;
+    const uint8_t *types = band ? LIST_BLE_TY : LIST_WIFI_TY;
+    const uint8_t ac = accent(), gold = 208;
+    /* left: the device's own little board; right: name, type, signal */
+    const int lx = 112, ly = 58, lw = 62, lh = 82;
+    sb_rect(g, lx, ly, lw, lh, 65);
+    sb_frame(g, lx, ly, lw, lh, 149);
+    for (int k = 0; k < 6; ++k) {
+        sb_rect(g, lx + 6, ly + 6 + k * 8, 2, 2, gold);
+        sb_rect(g, lx + 8, ly + 7 + k * 8, 44, 1, sb_tone(3));
+    }
+    sb_rect(g, lx + 22, ly + 13, 22, 22, PAL_BLACK);
+    for (int k = 0; k < 4; ++k) {
+        sb_rect(g, lx + 19, ly + 16 + k * 5, 3, 2, gold);
+        sb_rect(g, lx + 44, ly + 16 + k * 5, 3, 2, gold);
+    }
+    gl_icon(g, types[d], lx + 27, ly + 18, false);
+    sb_rect(g, lx, ly + 54, lw, 1, ac);
+    sb_rect(g, lx + 1, ly + 55, lw - 2, lh - 56, PAL_DEEP);
+    char nm[14];
+    sb_upper(nm, sizeof(nm), names[d], 13);
+    const int rx = 181;
+    sb_text(g, nm, rx, 62, PAL_WHITE, PAL_BLACK, true, 1);
+    sb_text(g, GL_LABEL[types[d]], rx, 76, ac, PAL_BLACK, true, 1);
+    const int db = atoi(rssi[d]);
+    int lit = (db + 95) / 12;
+    if (lit > 4) lit = 4;
+    for (int q = 0; q < 4; ++q) sb_rect(g, rx + q * 6, 104 - (q + 1) * 4, 4, (q + 1) * 4, q < lit ? ac : (uint8_t)PAL_LINE);
+    sb_text(g, rssi[d], rx + 28, 94, ac, PAL_BLACK, true, 1);
+    char mac[9];
+    snprintf(mac, sizeof(mac), "%.8s", macs[d]);
+    char up[10];
+    sb_upper(up, sizeof(up), mac, 8);
+    sb_text(g, up, rx, 112, COL_MUTED, PAL_BLACK, false, 1);
+    char ch[8];
+    snprintf(ch, sizeof(ch), "CH %d", chs[d]);
+    sb_text(g, ch, rx, 124, COL_MUTED, PAL_BLACK, false, 1);
+}
+
+static void sb_gloss(Gfx g)
+{
+    const uint8_t ac = accent(), sel = sb_tone(3);
+    const int x0 = SB_X, y0 = SB_Y, w = SB_W, h = SB_H;
+    sb_rect(g, x0, y0, w, h, PAL_BLACK);
+    sb_frame(g, x0, y0, w, h, ac);
+    sb_rect(g, x0 + 1, y0 + 1, w - 2, 10, sb_tone(2));
+    sb_text(g, ">", x0 + 4, y0 + 2, ac, sb_tone(2), false, 1);
+    sb_text(g, "GLOSSARY", x0 + 12, y0 + 2, PAL_WHITE, sb_tone(2), false, 1);
+    if ((millis() / 530u) % 2u) sb_rect(g, x0 + 62, y0 + 3, 4, 7, ac);
+    sb_text(g, "13", x0 + w - 17, y0 + 2, COL_MUTED, sb_tone(2), false, 1);
+    const int cw = (w - 6) / 2;
+    for (int i = 0; i < GL_N; ++i) {
+        const int cx = x0 + 3 + (i / 7) * cw, cy = y0 + 12 + (i % 7) * 11;
+        const bool on = i == s_gloss;
+        if (on) {
+            sb_rect(g, cx, cy, cw - 2, 11, sel);
+            sb_rect(g, cx, cy, 1, 11, PAL_WHITE);
+        }
+        gl_icon(g, i, cx + 3, cy, false);
+        sb_text(g, GL_LABEL[i], cx + 19, cy + 2, on ? (uint8_t)PAL_WHITE : (uint8_t)COL_INK, on ? sel : (uint8_t)PAL_BLACK, false, 1);
+    }
+}
+
+static void sb_hunt(Gfx g, int band)
+{
     hunt_sample();
     const int d = s_hunt_dev;
-    const char *const *names = wifi ? LIST_WIFI_N : LIST_BLE_N;
-    const char *const *macs = wifi ? LIST_WIFI_M : LIST_BLE_M;
-    const uint8_t *types = wifi ? LIST_WIFI_TY : LIST_BLE_TY;
-    const char *name = (d >= 0 && d < LIST_N) ? names[d] : "?";
-    const char *mac = (d >= 0 && d < LIST_N) ? macs[d] : "--";
-    const uint8_t typ = (d >= 0 && d < LIST_N) ? types[d] : (wifi ? DEV_AP : DEV_BT);
+    const char *const *names = band ? LIST_BLE_N : LIST_WIFI_N;
+    const char *const *macs = band ? LIST_BLE_M : LIST_WIFI_M;
+    const uint8_t *types = band ? LIST_BLE_TY : LIST_WIFI_TY;
     const uint8_t ac = accent();
-    const uint8_t wash = (s_color == 1) ? (uint8_t)PAL_WASH_A
-                         : (s_color == 2) ? (uint8_t)PAL_WASH_M : (uint8_t)PAL_WASH_C;
     const int r = s_hunt_len ? (int)s_hunt_buf[s_hunt_len - 1] : hunt_rssi_now();
     const bool lost = r <= HUNT_LOST;
     const bool near = !lost && r >= HUNT_NEAR;
     const bool fl = ((millis() / 250u) % 2u) == 0u;
-    const int x0 = 8, y0 = 8, w = 304, h = 192;
-    g.fillRect(0, 0, 320, 240, PAL_BLACK);
-    g.fillRect(x0 + 2, y0 + 2, w - 4, h - 4, PAL_BG);
-    const uint8_t bc = near ? (fl ? (uint8_t)PAL_HOLD : ac) : (lost ? (uint8_t)COL_MUTED : ac);
-    g.fillRect(x0 + 2, y0 + 2, w - 4, 1, bc);
-    g.fillRect(x0 + 2, y0 + h - 3, w - 4, 1, bc);
-    g.fillRect(x0 + 2, y0 + 2, 1, h - 4, bc);
-    g.fillRect(x0 + w - 3, y0 + 2, 1, h - 4, bc);
-    if (near) {
-        g.fillRect(x0 + 3, y0 + 3, w - 6, 1, bc);
-        g.fillRect(x0 + 3, y0 + h - 4, w - 6, 1, bc);
-        g.fillRect(x0 + 3, y0 + 3, 1, h - 6, bc);
-        g.fillRect(x0 + w - 4, y0 + 3, 1, h - 6, bc);
+    const int x0 = 106, y0 = 44, w = 175, h = 101;
+    sb_rect(g, x0, y0, w, h, PAL_BLACK);
+    const uint8_t bc = lost ? (uint8_t)COL_MUTED : (near && fl ? (uint8_t)224 : ac);
+    sb_frame(g, x0, y0, w, h, bc);
+    sb_frame(g, x0 + 1, y0 + 1, w - 2, h - 2, bc);
+    gl_icon(g, types[d], x0 + 5, y0 + 5, lost);
+    char nm[15];
+    sb_upper(nm, sizeof(nm), names[d], 13);
+    sb_text(g, nm, x0 + 20, y0 + 4, PAL_WHITE, PAL_BLACK, true, 1);
+    char mac[9];
+    snprintf(mac, sizeof(mac), "%.8s", macs[d]);
+    char up[10];
+    sb_upper(up, sizeof(up), mac, 8);
+    sb_text(g, up, x0 + 20, y0 + 13, ac, PAL_BLACK, false, 1);
+    if (near || lost) {
+        const char *st = near ? "CLOSE" : "LOST";
+        const uint8_t sb = near ? (fl ? (uint8_t)224 : sb_tone(0)) : (uint8_t)PAL_DEEP;
+        const int sw = (int)strlen(st) * 8 + 6;
+        sb_rect(g, x0 + w - sw - 5, y0 + 4, sw, 12, sb);
+        sb_text(g, st, x0 + w - sw - 2, y0 + 6, lost ? (uint8_t)PAL_AMBER : (uint8_t)PAL_WHITE, sb, true, 1);
     }
-    const int keep = s_px;
-    s_px = 8;
-    dev_icon(g, typ, x0 + 7, y0 + 7, lost);
-    char who[17];
-    snprintf(who, sizeof(who), "%.16s", name);
-    txt_bg(g, who, x0 + 22, y0 + 6, COL_WHITE, COL_BG, lgfx::textdatum::top_left);
-    s_px = 6;
-    txt_bg(g, mac, x0 + 22, y0 + 15, COL_MUTED, COL_BG, lgfx::textdatum::top_left);
-    if (near) {
-        const uint8_t nb = fl ? (uint8_t)PAL_HOLD : wash;
-        g.fillRect(x0 + w - 44, y0 + 6, 38, 11, nb);
-        txt_bg(g, "CLOSE", x0 + w - 40, y0 + 8, COL_WHITE, nb, lgfx::textdatum::top_left);
-    }
-    if (lost) {
-        txt_bg(g, "LOST", x0 + w - 32, y0 + 8, fl ? (uint8_t)PAL_AMBER : (uint8_t)COL_MUTED, COL_BG,
-               lgfx::textdatum::top_left);
-    }
-    s_px = 16;
     char db[8];
     if (lost) snprintf(db, sizeof(db), "--");
     else snprintf(db, sizeof(db), "%d", r);
-    txt_bg(g, db, x0 + 8, y0 + 30, lost ? (uint8_t)COL_MUTED : (near ? (uint8_t)COL_WHITE : ac),
-           COL_BG, lgfx::textdatum::top_left);
-    s_px = 6;
-    const int dlen = (int)strlen(db);
-    txt_bg(g, "dBm", x0 + 8 + dlen * 10 + 4, y0 + 42, COL_MUTED, COL_BG, lgfx::textdatum::top_left);
-    static const uint8_t HOT[10] = {
-        PAL_CYAN, PAL_CYAN, PAL_OK, PAL_OK, PAL_MINT, PAL_MINT, PAL_AMBER, PAL_AMBER, PAL_HOLD, PAL_HOLD
-    };
-    const int mx = x0 + 8, my = y0 + 58, seg = 10;
-    const int sw = (w - 20) / seg;
+    sb_text(g, db, x0 + 7, y0 + 26, lost ? (uint8_t)COL_MUTED : (uint8_t)PAL_WHITE, PAL_BLACK, true, 3);
+    sb_text(g, "DBM", x0 + 9 + (int)strlen(db) * 24, y0 + 40, ac, PAL_BLACK, true, 1);
+    /* 24-sample trend */
+    const int tx = x0 + w - 8 - HUNT_N * 2, ty = y0 + 26, th = 22;
+    sb_rect(g, tx - 2, ty - 2, HUNT_N * 2 + 3, th + 4, PAL_DEEP);
+    for (int k = 0; k < (int)s_hunt_len; ++k) {
+        const int v = (int)s_hunt_buf[k];
+        int hh = 1;
+        if (v > HUNT_LOST) {
+            hh = (v + 90) * th / 45;
+            if (hh < 1) hh = 1;
+            if (hh > th) hh = th;
+        }
+        const uint8_t ink = v <= HUNT_LOST ? (uint8_t)COL_MUTED : v >= HUNT_NEAR ? (uint8_t)224 : ac;
+        sb_rect(g, tx + k * 2, ty + th - hh, 1, hh, ink);
+    }
+    /* cold-to-hot strength bar, ten steps */
+    static const uint8_t HOT[10] = { 47, 51, 23, 26, 57, 152, 248, 240, 232, 224 };
+    const int seg = 10, mx = x0 + 6, my = y0 + 58, sw = (w - 12) / seg;
     int q = 0;
     if (!lost) {
         q = (r + 90) * seg / 35;
         if (q < 1) q = 1;
         if (q > seg) q = seg;
     }
-    for (int k = 0; k < seg; ++k)
-        g.fillRect(mx + k * sw, my, sw - 2, 7, k < q ? HOT[k] : (uint8_t)COL_LINE);
-    const int sx = x0 + w - 8 - HUNT_N * 3, sy = y0 + 30, sh = 20;
-    g.fillRect(sx - 2, sy - 2, HUNT_N * 3 + 3, sh + 4, PAL_DEEP);
-    for (int k = 0; k < (int)s_hunt_len; ++k) {
-        const int v = (int)s_hunt_buf[k];
-        int hh = 1;
-        if (v > HUNT_LOST) {
-            hh = (v + 90) * sh / 45;
-            if (hh < 1) hh = 1;
-            if (hh > sh) hh = sh;
-        }
-        const uint8_t ink = v <= HUNT_LOST ? (uint8_t)COL_MUTED
-                            : v >= HUNT_NEAR ? (uint8_t)PAL_HOLD : ac;
-        g.fillRect(sx + k * 3, sy + sh - hh, 2, hh, ink);
+    for (int k = 0; k < seg; ++k) sb_rect(g, mx + k * sw, my, sw - 2, 8, k < q ? HOT[k] : (uint8_t)PAL_LINE);
+}
+
+static void sb_hud(Gfx g, int band)
+{
+    paint_scan_hud(g, band == 0, -1);
+    sb_rect(g, 0, 209, 320, 31, PAL_BLACK);
+    sb_rect(g, 0, 209, 320, 1, COL_LINE);
+    const uint8_t ac = accent();
+    const uint8_t *types = band ? LIST_BLE_TY : LIST_WIFI_TY;
+    const char *const *rssi = band ? LIST_BLE_DB : LIST_WIFI_DB;
+    int tally[GL_N];
+    for (int i = 0; i < GL_N; ++i) tally[i] = 0;
+    for (int d = 0; d < LIST_N; ++d)
+        if (!s_dev_ign[band][d]) tally[types[d]]++;
+    const int cur = (s_cursor >= 0 && s_cursor < LIST_N) ? s_cursor : 0;
+    gl_icon(g, types[cur], 6, 218, false);
+    sb_bars(g, 22, 216, atoi(rssi[cur]), ac);
+    for (int i = 0; i < GL_N; ++i) {
+        const int x = 42 + i * 21;
+        gl_icon(g, i, x, 218, tally[i] == 0);
+        char num[4];
+        snprintf(num, sizeof(num), "%d", tally[i]);
+        sb_text(g, num, x + 13, 222, tally[i] ? (uint8_t)COL_INK : (uint8_t)COL_MUTED, PAL_BLACK, false, 1);
     }
-    s_px = keep;
+}
+
+static void paint_sbox(Gfx g, bool wifi)
+{
+    const int band = wifi ? 0 : 1;
+    const uint8_t ac = accent();
+    sb_rect(g, 0, 0, 320, 240, PAL_BLACK);
+    sb_board(g, wifi);
+    /* the display: dark glass, prompt chip, grid, sweep rule, terminal lines */
+    sb_rect(g, 103, 38, 184, 159, PAL_BLACK);
+    sb_frame(g, 102, 37, 186, 161, PAL_BOARD_D);
+    if (s_hunt_dev >= 0) {
+        sb_hunt(g, band);
+    } else {
+        const bool pf = s_cursor == LIST_N && s_gloss < 0;
+        sb_rect(g, 108, 43, 15, 10, pf ? sb_tone(3) : (uint8_t)PAL_BLACK);
+        sb_frame(g, 108, 43, 15, 10, ac);
+        sb_text(g, ">", 110, 44, pf ? (uint8_t)PAL_WHITE : ac, pf ? sb_tone(3) : (uint8_t)PAL_BLACK, false, 1);
+        sb_rect(g, 116, 50, 5, 1, pf ? (uint8_t)PAL_WHITE : ac);
+        if (s_info_dev < 0) sb_grid(g, band);
+        if (s_gloss >= 0) sb_gloss(g);
+        else if (s_info_dev >= 0) sb_info(g, band);
+        else if (s_act >= 0) sb_panel(g, band);
+    }
+    const uint32_t u = (millis() - s_bus_t0) % 3400u;
+    sb_rect(g, 103, 148, 184, 1, COL_LINE);
+    sb_rect(g, 103, 148, (int)(184u * u / 3400u), 1, ac);
+    char l2[32];
+    const char *bn = wifi ? "wifi" : "ble";
+    sb_text(g, "[ ok ]", 106, 154, PAL_OK, PAL_BLACK, false, 1);
+    snprintf(l2, sizeof(l2), "%s radio up . sweep", bn);
+    sb_text(g, l2, 148, 154, COL_INK, PAL_BLACK, false, 1);
+    sb_text(g, "[ ok ]", 106, 165, PAL_OK, PAL_BLACK, false, 1);
+    snprintf(l2, sizeof(l2), "%s sweep %d/%d", bn, LIST_N, LIST_N);
+    sb_text(g, l2, 148, 165, COL_INK, PAL_BLACK, false, 1);
+    sb_text(g, "user@botcorps:~$", 106, 177, ac, PAL_BLACK, false, 1);
+    snprintf(l2, sizeof(l2), "scan %s", bn);
+    sb_text(g, l2, 208, 177, COL_INK, PAL_BLACK, false, 1);
+    if ((millis() / 530u) % 2u == 0u) sb_rect(g, 208 + (int)strlen(l2) * 6 + 1, 177, 5, 8, ac);
+    sb_hud(g, band);
 }
 
 static void paint_found_alert(Gfx g)
 {
     if (!s_fa_on) return;
     const uint8_t ac = accent();
-    const bool fl = ((millis() / 300u) % 2u) == 0u;
-    const uint8_t bc = fl ? (uint8_t)PAL_HOLD : ac;
-    const uint8_t wash = (s_color == 1) ? (uint8_t)PAL_WASH_A
-                         : (s_color == 2) ? (uint8_t)PAL_WASH_M : (uint8_t)PAL_WASH_C;
+    const uint8_t red = 224;                 /* deep saturated red, not the salmon hold slot */
+    const uint8_t hi = sb_tone(0);           /* filled selected row */
     const bool wifi = s_fa_band == 0;
     const char *const *names = wifi ? LIST_WIFI_N : LIST_BLE_N;
     const char *const *macs = wifi ? LIST_WIFI_M : LIST_BLE_M;
     const char *const *rssi = wifi ? LIST_WIFI_DB : LIST_BLE_DB;
     const uint8_t *types = wifi ? LIST_WIFI_TY : LIST_BLE_TY;
     const int d = (s_fa_dev >= 0 && s_fa_dev < LIST_N) ? s_fa_dev : 0;
-    const uint8_t deep = botcorps_pal_fit(mix16(0, botcorps_rgb565(ac), 55, 100));
-    g.fillRect(0, 0, 320, 240, PAL_BLACK);
-    for (int k = 0; k < 3; ++k) {
-        g.fillRect(k, k, 320 - 2 * k, 1, bc);
-        g.fillRect(k, 239 - k, 320 - 2 * k, 1, bc);
-        g.fillRect(k, k, 1, 240 - 2 * k, bc);
-        g.fillRect(319 - k, k, 1, 240 - 2 * k, bc);
-    }
-    const uint8_t hdr = fl ? (uint8_t)PAL_HOLD : wash;
-    g.fillRect(8, 8, 304, 22, hdr);
-    const int keep = s_px;
-    s_px = 12;
-    txt_bg(g, "DEVICE FOUND", 16, 12, COL_WHITE, hdr, lgfx::textdatum::top_left);
-    s_px = 8;
-    txt_bg(g, wifi ? "WI-FI" : "BLE", 268, 15, COL_WHITE, hdr, lgfx::textdatum::top_left);
-    g.fillRect(14, 40, 40, 40, deep);
-    g.drawRect(14, 40, 40, 40, ac);
-    dev_icon(g, types[d], 26, 52, false);
-    char who[19];
-    snprintf(who, sizeof(who), "%.18s", names[d]);
-    s_px = 12;
-    txt_bg(g, who, 64, 42, COL_WHITE, PAL_BLACK, lgfx::textdatum::top_left);
-    s_px = 6;
-    txt_bg(g, macs[d], 64, 62, COL_MUTED, PAL_BLACK, lgfx::textdatum::top_left);
+    sb_rect(g, 0, 0, 320, 240, PAL_BLACK);
+    for (int k = 0; k < 3; ++k) sb_frame(g, k, k, 320 - 2 * k, 240 - 2 * k, red);
+    sb_rect(g, 8, 8, 304, 22, red);
+    sb_text(g, "DEVICE FOUND", 16, 11, PAL_WHITE, red, false, 2);
+    sb_text(g, wifi ? "WI-FI" : "BLE", wifi ? 266 : 268, 15, PAL_WHITE, red, true, 1);
+    sb_rect(g, 14, 40, 40, 40, PAL_BLACK);
+    sb_frame(g, 14, 40, 40, 40, ac);
+    gl_icon(g, types[d], 28, 54, false);
+    char who[17];
+    sb_upper(who, sizeof(who), names[d], 15);
+    sb_text(g, who, 64, 42, PAL_WHITE, PAL_BLACK, false, 2);
+    char mac[20];
+    sb_upper(mac, sizeof(mac), macs[d], 11);
+    sb_text(g, mac, 64, 63, ac, PAL_BLACK, true, 1);
     char db[16];
-    snprintf(db, sizeof(db), "%s dBm", rssi[d]);
-    txt_bg(g, db, 64, 72, ac, PAL_BLACK, lgfx::textdatum::top_left);
-    s_px = 8;
-    static const int FA_ICO_I[FA_N] = { 0, 3, 4, 5 }; /* hunt/info/ignore/back from ACT_ICO */
+    snprintf(db, sizeof(db), "%s DBM", rssi[d]);
+    sb_text(g, db, 64, 73, ac, PAL_BLACK, true, 1);
+    static const int FA_ICO_I[FA_N] = { 0, 1, 3, 4 };
     for (int j = 0; j < FA_N; ++j) {
         const int y = 96 + j * 30;
         const bool on = j == s_fa_sel;
-        const uint8_t row = on ? deep : (uint8_t)PAL_DEEP;
-        g.fillRect(14, y, 292, 24, row);
-        g.fillRect(14, y, on ? 3 : 1, 24, ac);
-        blit_ico(g, ACT_ICO[FA_ICO_I[j]], 26, y + 8, on ? COL_WHITE : ac);
+        const uint8_t row = on ? hi : (uint8_t)PAL_DEEP;
+        sb_rect(g, 14, y, 292, 24, row);
+        sb_rect(g, 14, y, on ? 3 : 1, 24, ac);
+        blit_ico(g, ACT_ICO[FA_ICO_I[j]], 26, y + 8, on ? (uint8_t)PAL_WHITE : ac);
         char lab[12];
-        int n = 0;
-        for (const char *p = FA_NAME[j]; *p && n < 11; ++p)
-            lab[n++] = (*p >= 'a' && *p <= 'z') ? (char)(*p - 32) : *p;
-        lab[n] = 0;
-        txt_bg(g, lab, 42, y + 6, on ? COL_WHITE : COL_INK, row, lgfx::textdatum::top_left);
+        sb_upper(lab, sizeof(lab), FA_NAME[j], 11);
+        sb_text(g, lab, 42, y + 8, on ? (uint8_t)PAL_WHITE : (uint8_t)COL_INK, row, true, 1);
     }
-    s_px = keep;
 }
 
 static void paint_list(Gfx g, bool wifi)
 {
-    if (s_hunt_dev >= 0) {
-        paint_hunt_view(g, wifi);
-        return;
-    }
-    paint_dev_list(g, wifi);
-    paint_act_menu(g);
-    paint_info_card(g, wifi);
+    paint_sbox(g, wifi);
 }
+
 
 static const char *const SHAPE_N[5] = { "MIXED", "ROUND", "CLASSIC", "TALL", "MINI" };
 
@@ -4202,11 +4445,10 @@ static void tick_ext(Gfx g)
     else if (s_screen == SCR_WIFI) tick_home(g, 0);
     else if (s_screen == SCR_BT) tick_home(g, 1);
     else if (s_screen == SCR_BOT) tick_home(g, s_bot);
-    else if (s_screen == SCR_WIFI_RADAR || s_screen == SCR_BT_RADAR ||
-             s_screen == SCR_BOT_RADAR || s_screen == SCR_SCAN) {
+    else if (s_screen == SCR_BOT_RADAR || s_screen == SCR_SCAN) {
         tick_radar(g);
-    } else if ((s_screen == SCR_WIFI_LIST || s_screen == SCR_BT_LIST) && botcorps_band_direct()) {
-        const bool wifi = s_screen == SCR_WIFI_LIST;
+    } else if (sbox_on() && botcorps_band_direct()) {
+        const bool wifi = list_band() == 0;
         g.startWrite();
         g.setClipRect(0, 0, 320, 120);
         paint_list(g, wifi);
@@ -4454,10 +4696,7 @@ static bool cursor_box(int index, int *x, int *y, int *w, int *h)
         return true;
     case SCR_WIFI_RADAR:
     case SCR_BT_RADAR:
-        if (index < 0 || index > 2) return false;
-        *x = 14;
-        *y = 72 + index * 34;
-        return true;
+        return false; /* scan box: no side buttons */
     case SCR_BOT_RADAR:
     case SCR_SCAN:
         if (index < 0 || index > 1) return false;
@@ -4553,7 +4792,7 @@ static void draw_focus_part(Gfx g)
 
 static void draw_scan_part(Gfx g)
 {
-    paint_list(g, s_screen == SCR_WIFI_LIST);
+    paint_list(g, list_band() == 0);
 }
 
 static void patch_world(void (*fn)(Gfx), int x, int y, int w, int h)
@@ -4599,7 +4838,7 @@ static int cursor_icon(int index)
 
 static void partial_box(int index, bool sel)
 {
-    if (s_screen == SCR_WIFI_LIST || s_screen == SCR_BT_LIST) {
+    if (sbox_on()) {
         s_part_i = index;
         s_part_sel = sel;
         patch_world(draw_scan_part, 0, 0, 320, 120);
@@ -4941,9 +5180,16 @@ static void on_arrows(int key)
         s_dirty = true;
         return;
     }
-    if (s_screen == SCR_WIFI_LIST || s_screen == SCR_BT_LIST) {
-        if (s_hunt_dev >= 0) return;
-        if (s_info_dev >= 0) return;
+    if (sbox_on()) {
+        /* Everything stays in the scan box. Left / Right never switch screens here. */
+        if (s_hunt_dev >= 0 || s_info_dev >= 0) return;
+        if (s_gloss >= 0) {
+            if (key == 1) s_gloss = (s_gloss + GL_N - 1) % GL_N;
+            if (key == 2) s_gloss = (s_gloss + 1) % GL_N;
+            if (key == 3 || key == 4) s_gloss = s_gloss < 7 ? (s_gloss + 7 < GL_N ? s_gloss + 7 : GL_N - 1) : s_gloss - 7;
+            partial_box(s_cursor, true);
+            return;
+        }
         if (s_act >= 0) {
             if (key == 1 || key == 3) s_act = (s_act + ACT_N - 1) % ACT_N;
             if (key == 2 || key == 4) s_act = (s_act + 1) % ACT_N;
@@ -4953,16 +5199,14 @@ static void on_arrows(int key)
         const int band = list_band();
         const int dir = (key == 1 || key == 3) ? -1 : (key == 2 || key == 4) ? 1 : 0;
         if (dir == 0) return;
+        /* positions: 0..LIST_N-1 devices, LIST_N = the > GLOSSARY prompt */
         int i = s_cursor;
-        for (int k = 0; k < LIST_N; ++k) {
-            i = (i + dir + LIST_N) % LIST_N;
-            if (!s_dev_ign[band][i]) break;
+        for (int k = 0; k <= LIST_N; ++k) {
+            i = (i + dir + LIST_N + 1) % (LIST_N + 1);
+            if (i == LIST_N || !s_dev_ign[band][i]) break;
         }
-        if (i != s_cursor) {
-            const int old = s_cursor;
-            s_cursor = i;
-            queue_focus(old, s_cursor);
-        }
+        s_cursor = i;
+        partial_box(s_cursor, true);
         return;
     }
     if (key == 1 || key == 3) move_cursor(-1);
@@ -4982,18 +5226,15 @@ static void act_pick(void)
         s_hunt_len = 0;
         s_hunt_tS = 0;
         s_hunt_force = 0;
-        s_dirty = true;
     } else if (which == 1) {
-        s_dev_fol[band][dev] = s_dev_fol[band][dev] ? 0 : 1;
+        s_info_dev = dev;
     } else if (which == 2) {
         s_dev_tag[band][dev] = s_dev_tag[band][dev] >= 4 ? 0 : (uint8_t)(s_dev_tag[band][dev] + 1);
     } else if (which == 3) {
-        s_info_dev = dev;
-    } else if (which == 4) {
         s_dev_ign[band][dev] = 1;
         if (s_cursor == dev) {
-            s_cursor = 3;
-            for (int i = 0; i < 3; ++i) {
+            s_cursor = LIST_N;
+            for (int i = 0; i < LIST_N; ++i) {
                 if (!s_dev_ign[band][i]) {
                     s_cursor = i;
                     break;
@@ -5011,24 +5252,17 @@ static void on_ok(void)
         fa_run(s_fa_sel);
         return;
     }
-    if (s_screen == SCR_WIFI_LIST || s_screen == SCR_BT_LIST) {
-        if (s_hunt_dev >= 0) return; /* hunt view: wait for Esc */
-        if (s_info_dev >= 0) {
-            s_info_dev = -1;
-            partial_box(s_cursor, true);
-            return;
-        }
-        if (s_act >= 0) {
-            act_pick();
-            partial_box(s_cursor, true);
-            return;
-        }
-        if (s_cursor >= 0 && s_cursor < LIST_N && !s_dev_ign[list_band()][s_cursor]) {
+    if (sbox_on()) {
+        if (s_hunt_dev >= 0 || s_gloss >= 0) return; /* Esc steps back */
+        if (s_info_dev >= 0) s_info_dev = -1;
+        else if (s_act >= 0) act_pick();
+        else if (s_cursor == LIST_N) s_gloss = 0;
+        else if (s_cursor >= 0 && s_cursor < LIST_N && !s_dev_ign[list_band()][s_cursor]) {
             s_act = 0;
             s_act_dev = s_cursor;
-            partial_box(s_cursor, true);
-            return;
         }
+        partial_box(s_cursor, true);
+        return;
     }
     if (s_screen == SCR_TERMINAL) {
         if (s_sheet) {
@@ -5087,7 +5321,7 @@ static void fa_run(int which)
     const int dev = s_fa_dev;
     s_fa_on = false;
     if (which == 0) { /* hunt */
-        enter_screen(band == 0 ? SCR_WIFI_LIST : SCR_BT_LIST, -1);
+        enter_screen(band == 0 ? SCR_WIFI_RADAR : SCR_BT_RADAR, -1);
         s_hunt_dev = dev;
         s_hunt_band = band;
         s_hunt_len = 0;
@@ -5096,12 +5330,12 @@ static void fa_run(int which)
         s_cursor = dev;
         s_dirty = true;
     } else if (which == 1) { /* info */
-        enter_screen(band == 0 ? SCR_WIFI_LIST : SCR_BT_LIST, -1);
-        s_info_dev = (dev < 3) ? dev : 0;
+        enter_screen(band == 0 ? SCR_WIFI_RADAR : SCR_BT_RADAR, -1);
+        s_info_dev = (dev < LIST_N) ? dev : 0;
         s_cursor = s_info_dev;
         s_dirty = true;
     } else if (which == 2) { /* ignore */
-        if (dev >= 0 && dev < 8) s_dev_ign[band][dev] = 1;
+        if (dev >= 0 && dev < LIST_N) s_dev_ign[band][dev] = 1;
         s_dirty = true;
     }
     /* back / ignore: dismiss only */
@@ -5113,20 +5347,16 @@ static void on_esc(void)
         fa_run(3);
         return;
     }
-    if (s_screen == SCR_WIFI_LIST || s_screen == SCR_BT_LIST) {
+    if (sbox_on()) {
+        bool stepped = true;
         if (s_hunt_dev >= 0) {
             s_hunt_dev = -1;
             s_hunt_len = 0;
-            s_dirty = true;
-            return;
-        }
-        if (s_info_dev >= 0) {
-            s_info_dev = -1;
-            partial_box(s_cursor, true);
-            return;
-        }
-        if (s_act >= 0) {
-            s_act = -1;
+        } else if (s_gloss >= 0) s_gloss = -1;
+        else if (s_info_dev >= 0) s_info_dev = -1;
+        else if (s_act >= 0) s_act = -1;
+        else stepped = false;
+        if (stepped) {
             partial_box(s_cursor, true);
             return;
         }
@@ -5507,9 +5737,10 @@ void botcorps_ui_draw(void)
             botcorps_band_set_oy(0);
         } else if (ext_anim && s_screen == SCR_TERMINAL) {
             partial_prompt_line();
-        } else if (ext_anim && (s_screen == SCR_WIFI_LIST || s_screen == SCR_BT_LIST)) {
-            patch_world(draw_scan_part, 0, 0, 320, 120);
-            patch_world(draw_scan_part, 0, 120, 320, 120);
+        } else if (ext_anim && sbox_on()) {
+            /* Hunt meter lives in the box; otherwise only the sweep rule and caret move. */
+            if (s_hunt_dev >= 0) patch_world(draw_scan_part, 103, 38, 184, 110);
+            patch_world(draw_scan_part, 103, 148, 184, 40);
         }
         if (int_dirty) {
             s_int_dirty = false;
@@ -6003,6 +6234,58 @@ void botcorps_host_hub(uint8_t *buf)
     s_act = -1;
     s_mood = MOOD_NEUTRAL;
     s_mood_until = 0;
+    paint_ext(Gfx());
+}
+#endif
+
+#ifdef BOTCORPS_HOST_RENDER
+/* v1016 scan box host paints. mode: 0 icons, 1 selected+prompt, 2 info, 3 hunt, 4 glossary */
+void botcorps_host_sbox(uint8_t *buf, int band, int mode, int force_dbm)
+{
+    host_frame = buf;
+    memset(buf, PAL_BLACK, 320u * 240u);
+    s_screen = band ? SCR_BT_RADAR : SCR_WIFI_RADAR;
+    botcorps_lut_term(false);
+    s_sheet = false;
+    s_fa_on = false;
+    s_color = 0;
+    s_act = -1;
+    s_act_dev = -1;
+    s_info_dev = -1;
+    s_gloss = -1;
+    s_hunt_dev = -1;
+    memset(s_dev_tag, 0, sizeof(s_dev_tag));
+    memset(s_dev_ign, 0, sizeof(s_dev_ign));
+    s_cursor = band ? 0 : 1;
+    s_bus_t0 = 1000;
+    if (mode == 1) { s_cursor = 0; s_act = 0; s_act_dev = 0; }
+    if (mode == 2) { s_cursor = 0; s_info_dev = 0; }
+    if (mode == 4) { s_cursor = LIST_N; s_gloss = 8; }
+    if (mode == 3) {
+        s_hunt_band = band;
+        s_hunt_dev = 3;
+        s_hunt_len = 0;
+        s_hunt_force = force_dbm;
+        for (int k = 0; k < HUNT_N; ++k) {
+            s_hunt_tS = 0;
+            host_set_millis(5000u + (uint32_t)k * 260u);
+            hunt_sample();
+        }
+    }
+    paint_ext(Gfx());
+}
+void botcorps_host_found_alert_b(uint8_t *buf, int band, int dev)
+{
+    host_frame = buf;
+    memset(buf, PAL_BLACK, 320u * 240u);
+    s_screen = SCR_TERMINAL;
+    botcorps_lut_term(false);
+    s_sheet = false;
+    s_color = 0;
+    s_fa_on = true;
+    s_fa_sel = 0;
+    s_fa_band = band;
+    s_fa_dev = dev;
     paint_ext(Gfx());
 }
 #endif

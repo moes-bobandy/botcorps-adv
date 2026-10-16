@@ -637,5 +637,14 @@ int main(void)
     write_raw("/tmp/adv-scan-tint-cyan.rgb", hit, 0);
     botcorps_host_scan_tint(hit, 2);
     write_raw("/tmp/adv-scan-tint-mint.rgb", hit, 0);
+    /* v1016 scan box (icons, selected+prompt, info, hunt in box, glossary, BLE) + found alert */
+    botcorps_host_sbox(hit, 0, 0, 0); write_raw("/tmp/sb-wifi-icons.rgb", hit, 0);
+    botcorps_host_sbox(hit, 0, 1, 0); write_raw("/tmp/sb-selected-prompt.rgb", hit, 0);
+    botcorps_host_sbox(hit, 0, 2, 0); write_raw("/tmp/sb-info.rgb", hit, 0);
+    botcorps_host_sbox(hit, 0, 3, -50); write_raw("/tmp/sb-hunt.rgb", hit, 0);
+    botcorps_host_sbox(hit, 0, 3, -95); write_raw("/tmp/sb-hunt-lost.rgb", hit, 0);
+    botcorps_host_sbox(hit, 0, 4, 0); write_raw("/tmp/sb-glossary.rgb", hit, 0);
+    botcorps_host_sbox(hit, 1, 0, 0); write_raw("/tmp/sb-ble.rgb", hit, 0);
+    botcorps_host_found_alert_b(hit, 1, 0); write_raw("/tmp/sb-found-alert.rgb", hit, 0);
     return 0;
 }

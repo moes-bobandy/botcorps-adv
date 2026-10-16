@@ -1,13 +1,13 @@
 # Partition table for a firmware that bmorcelli/Launcher can install.
-# The Launcher occupies app0 (test) at 0x10000. This app links into
-# app1 (ota_0) at 0x170000 and is capped at 0x4F0000. Offsets match
-# https://raw.githubusercontent.com/bmorcelli/Launcher/main/support_files/custom_8Mb.csv
-# so a dual-screen launcher and this bin agree on the slot.
-# Building at the wrong offset boots garbage. This is not a flash script.
+# The Launcher occupies app0 (test) at 0x10000 (it needs at most 0x160000;
+# upstream custom_8Mb.csv uses 0x150000 + coredump at 0x160000). This app
+# links into app1 (ota_0) at 0x170000. v1016 max-app: app1 runs to the
+# coredump at 0x7F0000 = 0x680000 (6,815,744 B). The old vfs/spiffs data
+# partitions are gone: BOTcorps keeps settings in NVS and data on SD.
+# The app image is offset-independent; the Launcher installs firmware.bin
+# into its own app slot and ignores this table. Not a flash script.
 # Name,   Type, SubType,  Offset,   Size,      Flags
 nvs,      data, nvs,      0x9000,   0x6000,
 app0,     app,  test,     0x10000,  0x160000,
-app1,     app,  ota_0,    0x170000, 0x4F0000,
-vfs,      data, fat,      0x670000, 0x80000,
-spiffs,   data, spiffs,   0x6F0000, 0x100000,
+app1,     app,  ota_0,    0x170000, 0x680000,
 coredump, data, coredump, 0x7F0000, 0x10000,

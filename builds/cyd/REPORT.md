@@ -1,10 +1,14 @@
 # BOTcorps CYD Touch Port Report
 
 ## Tip SHA
-a6ede9a
+ef62516
 
 Interactive mock of the current CYD build: mocks/CYD-current-interactive.html
 Built by: Super Grok session (no Cursor/agent hand-off)
+
+## Mock sheet
+- Restored CORE go/load/defend/sweep/roster/pulse/dig so the sheet lists all 40 commands matching firmware CMD_N and v3.2.
+- Icon-only panel, focus-then-select, and v3.2 sheet kept.
 
 ## Build
 - Environment: `cyd`

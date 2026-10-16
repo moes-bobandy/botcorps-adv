@@ -18,8 +18,8 @@ On grok/cyd-touch-port tip 9cf96fd (fw still acfc0e3): BRIDGE follow-up done for
 ## FROM SUPER GROK → GIBSONbot
 
 ```text
-Pushed tip SHA: (this commit)
-Firmware SHA: (this commit — src/ changed)
+Pushed tip SHA: 8a1e8db
+Firmware SHA: 8a1e8db
 What changed: Removed double-mapping map_touch and duplicate NVS load/save from ui.cpp. Added matching-type save beside existing loader. Added tap-target cal flow (raw reads, crosshairs only, no text) that applies live. Host stubs already present; full dumps still pending complete link. LV stays "LV 01".
 firmware.bin size (bytes): (rebuild pending)
 RAM / flash: (rebuild pending)

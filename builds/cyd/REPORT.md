@@ -1,13 +1,13 @@
 # BOTcorps CYD Touch Port Report
 
 ## Tip SHA
-dd519bb
+dddee10
 
 Interactive mock of the current CYD build: mocks/CYD-current-interactive.html
 Built by: Super Grok session (no Cursor/agent hand-off)
 
 ## CYD follow-up (this tip)
-- Bumped tip SHA from acfc0e3 to dd519bb (HEAD at start of this round; REPORT was one behind).
+- Bumped tip SHA from acfc0e3 to dddee10 (HEAD at start of this round; REPORT was one behind).
 - Placeholder frames in mocks/cyd-frames/ and mocks/shots/cyd/ remain stubs (dark 320x240 with corner labels + small LV box on badge). They are not real host paint dumps or live UI art. Honesty kept until a host renderer with LovyanGFX fonts can dump real frames under BOTCORPS_CYD.
 - firmware.bin size from clean `pio run -e cyd`: 1,404,432 bytes (exact .pio/build/cyd/firmware.bin). Map flash figure: 1,404,031 / 3,145,728 bytes (44.6%). RAM: 72,076 / 327,680 bytes (22.0%).
 - Live LV / board observation: no CYD board available in this sandbox session; nothing flashed. Code review confirms cyd_overlay is called from the CYD draw paths (after patch_world) and paints badge + OSK when dirty; on_esc / cyd_close_osk closes the OSK (s_osk_open) before any navigation when the keyboard is up. Host type gate still passes.

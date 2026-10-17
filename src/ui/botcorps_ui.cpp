@@ -347,6 +347,13 @@ static char s_gp_buf[20];
 static char s_gp_log[2][28];
 static int s_gp_n = 0;
 static bool s_gp_focus = false;
+/* #9/#11 (Dirt 2026-10-17 9:04-9:08): dynamic "<Name>> Defend" game title + a viewable device
+ * glossary + a per-bot/device attack-prompt menu. The 4 Defend CATEGORIES (A trackers->Triangulate,
+ * B watchers/cameras->Sightlines, C network/Meta-glasses->Firewall, D access-thieves->Rolling Code)
+ * stay MOCK-FIRST per Dirt: the title plumbing, the glossary screen and the attack menu are built as
+ * structural hooks wired to the dynamic title; the category gameplay itself is left as a stub. */
+static int s_defend_bot = 12;    /* which bot/device the active Defend game is for (12 = Gibson) */
+static int s_gc_panel = 0;       /* game-board overlay: 0 none, 1 device glossary, 2 attack prompts */
 /* v1017b (Dirt 8:26-8:28): hub focus zone. 0 = icon row (Left/Right cycle the icons),
  * 1 = prompt, 2 = command menu, 3 = Gibson (Enter = Gibson game). Up/Down walk the zones. */
 static int s_hub_zone = 0;
@@ -3321,6 +3328,167 @@ static void sb_scouts(Gfx g)
     }
 }
 
+/* ===== #5 Per-bot hunt mini game (Dirt locked 2026-10-16, ported from mock cand-1538 botHunt;
+ * re-confirmed 2026-10-17). On each non-scan bot's chip board only THAT bot's own device icons
+ * fall down the code strands, and the bot (in its fixed colour) chases and catches the nearest;
+ * catches show as corner pips, no text. The mock integrates with Math.random()+real dt; here the
+ * same mechanics run on a deterministic fixed-timestep that is idempotent per-millis, so a partial
+ * push matches a full paint pixel-for-pixel (flicker gate S1/S2/S4) and the host renders repeat. */
+#define BH_MAX 4
+/* device icon kind(s) each bot hunts, mock BOT_DEVS mapped to our glossary icons; -1 = unused,
+ * -2 (gibson) = the whole device set. */
+static const int8_t BH_DEV[13][2] = {
+    { GL_AP, -1 },      /* 0 wifi   (never core) */
+    { GL_SPEAKER, -1 }, /* 1 ble    (never core) */
+    { GL_AP, -1 },      /* 2 deauth */
+    { GL_LAPTOP, -1 },  /* 3 hack */
+    { GL_CAMERA, -1 },  /* 4 flock */
+    { GL_UNKNOWN, -1 }, /* 5 drone */
+    { GL_TRACKER, -1 }, /* 6 airtag */
+    { GL_CAR, -1 },     /* 7 keyfob */
+    { GL_WATCH, -1 },   /* 8 meta */
+    { GL_UNKNOWN, -1 }, /* 9 skimmer */
+    { GL_TV, GL_CAR },  /* 10 flipper */
+    { GL_TRACKER, -1 }, /* 11 samsungtag */
+    { -2, -1 },         /* 12 gibson = all kinds */
+};
+static const int8_t BH_GIB[9] = { GL_AP, GL_PHONE, GL_LAPTOP, GL_TV, GL_TRACKER, GL_WATCH, GL_CAMERA, GL_CAR, GL_UNKNOWN };
+/* playfield = the grid interior; everything the game animates stays inside it (so one dirty rect
+ * repaint == the full paint). */
+static const int BH_X = SG_X, BH_Y = SG_Y, BH_W = 7 * SG_C, BH_H = 4 * SG_C, BH_M = 8;
+struct BHDrop { float x, y, v; int8_t k; uint8_t live; };
+static int s_bh_who = -2;
+static uint32_t s_bh_t = 0, s_bh_rng = 0;
+static float s_bh_x = 0.f, s_bh_y = 0.f;
+static int s_bh_score = 0;
+static BHDrop s_bh_d[BH_MAX];
+static float s_bh_fxx[4], s_bh_fxy[4];
+static uint32_t s_bh_fxt[4];
+static int s_bh_fxn = 0;
+
+static int bh_kind(int bot, uint32_t r)
+{
+    if (bot == 12) return BH_GIB[r % 9u];
+    const int8_t a = BH_DEV[bot][0], b = BH_DEV[bot][1];
+    if (b >= 0) return (r & 1u) ? b : a;
+    return a >= 0 ? a : GL_UNKNOWN;
+}
+static uint32_t bh_rng(void) { s_bh_rng = s_bh_rng * 1664525u + 1013904223u; return s_bh_rng; }
+static float bh_rngf(void) { return (float)(bh_rng() >> 8) / 16777216.f; }
+
+static void bh_spawn(BHDrop *d, int bot)
+{
+    d->live = 1;
+    d->x = (float)(BH_X + BH_M) + bh_rngf() * (float)(BH_W - 2 * BH_M - 12);
+    d->y = (float)BH_Y;
+    d->v = 42.f + bh_rngf() * 30.f;
+    d->k = (int8_t)bh_kind(bot, bh_rng());
+}
+
+static void bot_hunt_step(uint32_t t)
+{
+    const int bot = s_scan_bot;
+    if (s_bh_who != bot) {
+        s_bh_who = bot;
+        s_bh_rng = 2166136261u ^ (uint32_t)(bot * 2654435761u);
+        s_bh_t = t;
+        s_bh_score = 1 + (bot & 3);
+        s_bh_fxn = 0;
+        s_bh_x = (float)(BH_X + BH_W / 2);
+        s_bh_y = (float)(BH_Y + BH_H / 2);
+        for (int i = 0; i < BH_MAX; ++i) s_bh_d[i].live = 0;
+        /* seed three drops spread down the strands so the first (one-shot) frame is already alive */
+        for (int i = 0; i < 3; ++i) {
+            bh_spawn(&s_bh_d[i], bot);
+            s_bh_d[i].y = (float)BH_Y + (float)(i + 1) * (float)BH_H / 5.f;
+        }
+        return;
+    }
+    if (t == s_bh_t) return;                       /* idempotent within a frame */
+    float dt = (float)(t - s_bh_t) / 1000.f;
+    s_bh_t = t;
+    if (dt > 0.1f) dt = 0.1f;
+    int nlive = 0;
+    for (int i = 0; i < BH_MAX; ++i) if (s_bh_d[i].live) ++nlive;
+    if (nlive < BH_MAX && bh_rngf() < dt * 1.4f)
+        for (int i = 0; i < BH_MAX; ++i) if (!s_bh_d[i].live) { bh_spawn(&s_bh_d[i], bot); break; }
+    for (int i = 0; i < BH_MAX; ++i) {
+        if (!s_bh_d[i].live) continue;
+        s_bh_d[i].y += s_bh_d[i].v * dt;
+        if (s_bh_d[i].y > (float)(BH_Y + BH_H - BH_M - 10)) s_bh_d[i].live = 0;  /* missed */
+    }
+    int tg = -1;
+    float bd = 1e9f;
+    for (int i = 0; i < BH_MAX; ++i) {
+        if (!s_bh_d[i].live) continue;
+        const float ddx = s_bh_d[i].x + 6.f - s_bh_x, ddy = s_bh_d[i].y + 6.f - s_bh_y;
+        const float q = sqrtf(ddx * ddx + ddy * ddy);
+        if (q < bd) { bd = q; tg = i; }
+    }
+    if (tg >= 0) {
+        const float ddx = s_bh_d[tg].x + 6.f - s_bh_x, ddy = s_bh_d[tg].y + 6.f - s_bh_y;
+        const float L = sqrtf(ddx * ddx + ddy * ddy) < 1.f ? 1.f : sqrtf(ddx * ddx + ddy * ddy);
+        const float sp = 150.f * dt;
+        const float mv = sp < L ? sp : L;
+        s_bh_x += ddx / L * mv;
+        s_bh_y += ddy / L * mv;
+        if (L < 8.f) {
+            if (s_bh_score < 9999) ++s_bh_score;
+            if (s_bh_fxn < 4) { s_bh_fxx[s_bh_fxn] = s_bh_d[tg].x + 6.f; s_bh_fxy[s_bh_fxn] = s_bh_d[tg].y + 6.f; s_bh_fxt[s_bh_fxn] = t; ++s_bh_fxn; }
+            s_bh_d[tg].live = 0;
+        }
+    }
+    if (s_bh_x < (float)(BH_X + BH_M)) s_bh_x = (float)(BH_X + BH_M);
+    if (s_bh_x > (float)(BH_X + BH_W - BH_M)) s_bh_x = (float)(BH_X + BH_W - BH_M);
+    if (s_bh_y < (float)(BH_Y + BH_M)) s_bh_y = (float)(BH_Y + BH_M);
+    if (s_bh_y > (float)(BH_Y + BH_H - BH_M)) s_bh_y = (float)(BH_Y + BH_H - BH_M);
+    int w = 0;                                     /* retire expired catch sparkles */
+    for (int i = 0; i < s_bh_fxn; ++i)
+        if ((uint32_t)(t - s_bh_fxt[i]) < 420u) { s_bh_fxx[w] = s_bh_fxx[i]; s_bh_fxy[w] = s_bh_fxy[i]; s_bh_fxt[w] = s_bh_fxt[i]; ++w; }
+    s_bh_fxn = w;
+}
+
+static void bot_hunt(Gfx g)
+{
+    const uint32_t t = millis();
+    bot_hunt_step(t);
+    const int bot = s_scan_bot;
+    const uint8_t col = bot == 12 ? (uint8_t)PAL_IVORY : bot_color(bot);
+    /* falling device icons + their strand trail (only this bot's own kinds) */
+    for (int i = 0; i < BH_MAX; ++i) {
+        if (!s_bh_d[i].live) continue;
+        const int dx = (int)(s_bh_d[i].x + 0.5f), dy = (int)(s_bh_d[i].y + 0.5f);
+        for (int k = 1; k < 5; ++k) {
+            const int ty = dy - k * 4;
+            if (ty >= BH_Y) sb_rect(g, dx + 3, ty, 2, 2, col);
+        }
+        gl_icon(g, s_bh_d[i].k, dx, dy, false);
+    }
+    /* catch sparkles */
+    for (int i = 0; i < s_bh_fxn; ++i) {
+        const float q = (float)(t - s_bh_fxt[i]) / 420.f;
+        const int r = (int)(2.f + q * 8.f);
+        const int fx = (int)(s_bh_fxx[i] + 0.5f), fy = (int)(s_bh_fxy[i] + 0.5f);
+        const int off[8][2] = { { r, 0 }, { -r, 0 }, { 0, r }, { 0, -r }, { r, r }, { -r, -r }, { r, -r }, { -r, r } };
+        for (int o = 0; o < 8; ++o) {
+            const int px = fx + (int)(off[o][0] * 0.8f), py = fy + (int)(off[o][1] * 0.8f);
+            if (px >= BH_X && px < BH_X + BH_W && py >= BH_Y && py < BH_Y + BH_H) sb_rect(g, px, py, 2, 2, col);
+        }
+    }
+    /* the chasing bot (walk-exempt sprite, like the scouts) */
+    const int hx = (int)(s_bh_x + 0.5f), hy = (int)(s_bh_y + 0.5f);
+#ifdef BOTCORPS_HOST_RENDER
+    host_gate_walk = 1;
+#endif
+    botcorps_sprite_draw(*g.raw(), hx - 4 - g.ox, hy - 4 - g.oy, bot == 12 ? 0 : botcorps_shape_for(bot), 2, col, false);
+#ifdef BOTCORPS_HOST_RENDER
+    host_gate_walk = 0;
+#endif
+    /* catches as corner pips (top-right), no text */
+    const int np = s_bh_score < 12 ? s_bh_score : 12;
+    for (int k = 0; k < np; ++k) sb_rect(g, BH_X + BH_W - 4 - k * 4, BH_Y + 3, 2, 2, col);
+}
+
 /* Faux transparency: the tiles under a panel show through as dim outlines. */
 static void sb_ghost(Gfx g, int band, int px, int py, int pw, int ph)
 {
@@ -3587,9 +3755,10 @@ static void paint_sbox(Gfx g, bool wifi)
     const bool core = s_screen == SCR_SCAN;
     if (core) {
         if (sb_vis(dx, dy, dw, 108)) {
-            /* v1016f-2 #7 / v1016f-4: dense device cloud + bots walking the strands. */
-            sb_grid(g, band, true);
-            sb_scouts(g);
+            /* #5 (Dirt locked): the grid runs this bot's own hunt mini game (only its device icons
+             * fall; the bot in its fixed colour chases/catches them, catches as pips). */
+            sb_grid(g, band, false);
+            bot_hunt(g);
             GATE_BOX(g, "PROMPT", "index", dx + 2, dy + 1, 15, 10, "MINI");
             sb_rect(g, dx + 2, dy + 1, 15, 10, 8);
             sb_frame(g, dx + 2, dy + 1, 15, 10, sb_tone(4));
@@ -4753,6 +4922,14 @@ static void gc_run(const char *line)
         arg = sp + 1;
         while (*arg == ' ') ++arg;
     }
+    /* #9/#10: the Defend board's viewable device glossary and the per-bot attack-prompt menu. */
+    if (strcmp(cmd, "gloss") == 0 || strcmp(cmd, "glossary") == 0) { s_gc_panel = 1; gc_push(12, "device glossary"); return; }
+    if (strcmp(cmd, "attack") == 0 || strcmp(cmd, "prompts") == 0) { s_gc_panel = 2; gc_push(12, "attack prompts"); return; }
+    if (strcmp(cmd, "defend") == 0 && arg && arg[0]) {
+        const int b = gc_bot_of(arg);
+        if (b >= -1) { s_defend_bot = b < 0 ? 12 : b; s_gc_panel = 0; gc_push(12, "defend set"); return; }
+    }
+    s_gc_panel = 0;
     char echo[40];
     snprintf(echo, sizeof(echo), "gibson> %.16s%s%.10s", cmd, (arg && arg[0]) ? " " : "", arg ? arg : "");
     log_add(echo);
@@ -5022,6 +5199,72 @@ static void paint_gc_route(Gfx g, uint8_t ac)
     }
 }
 
+/* #9/#11: build this game's dynamic title, "<Name>> Defend" (Gibson's is "Gibson> Defend"). */
+static void defend_title(char *out, int cap, int bot)
+{
+    char nm[16];
+    const char *src = (bot >= 12 || bot < 0) ? "gibson" : BOTS[bot].id;
+    snprintf(nm, sizeof(nm), "%s", src);
+    if (nm[0] >= 'a' && nm[0] <= 'z') nm[0] = (char)(nm[0] - 'a' + 'A');
+    snprintf(out, cap, "%s> Defend", nm);
+}
+
+/* #9: viewable device glossary - every device icon matched to its label. Reuses the scan-box
+ * glossary set (GL_LABEL / gl_icon). Drawn as an opaque overlay on the Defend board. */
+static void paint_gc_gloss(Gfx g)
+{
+    const uint8_t ac = PAL_CYAN;
+    const int bx = 24, by = 24, bw = 272, bh = 196;
+    GATE_BOX(g, "OCCLUDE", "gcgloss", bx, by, bw, bh, "-");
+    g.fillRect(bx, by, bw, bh, PAL_BLACK);
+    g.drawRect(bx, by, bw, bh, ac);
+    g.drawRect(bx + 1, by + 1, bw - 2, bh - 2, PAL_WIRE_C);
+    g.fillRect(bx + 2, by + 2, bw - 4, 12, PAL_DEEP);
+    const int keep = s_px; s_px = 6;
+    txt(g, "DEVICE GLOSSARY", bx + 8, by + 4, ac, lgfx::textdatum::top_left);
+    char cnt[6]; snprintf(cnt, sizeof(cnt), "%d", GL_N);
+    txt(g, cnt, bx + bw - 24, by + 4, PAL_WHITE, lgfx::textdatum::top_left);
+    const int cw = (bw - 8) / 2;
+    for (int i = 0; i < GL_N; ++i) {
+        const int cx = bx + 4 + (i / 7) * cw, cy = by + 18 + (i % 7) * 25;
+        g.fillRect(cx, cy, 20, 20, PAL_BG);
+        g.drawRect(cx, cy, 20, 20, PAL_WIRE_C);
+        gl_icon(g, i, cx + 4, cy + 4, false);
+        txt(g, GL_LABEL[i], cx + 26, cy + 7, PAL_IVORY, lgfx::textdatum::top_left);
+    }
+    s_px = keep;
+}
+
+/* #10: per-bot/device attack-prompt menu (pulled up from the Terminal command-prompt button). Each
+ * row names a bot, its device target and the Defend category it feeds. The 4 categories are
+ * MOCK-FIRST stubs (Dirt), wired to the dynamic "<Name>> Defend" title; gameplay is not built yet. */
+static const uint8_t ATK_CAT[12] = { 2, 2, 2, 2, 1, 1, 0, 3, 2, 3, 3, 0 };
+static const char *const ATK_CAT_NM[4] = { "TRIANGULATE", "SIGHTLINES", "FIREWALL", "ROLLING CODE" };
+static void paint_gc_attack(Gfx g)
+{
+    const uint8_t ac = PAL_CYAN;
+    const int bx = 10, by = 20, bw = 300, bh = 208;
+    GATE_BOX(g, "OCCLUDE", "gcattack", bx, by, bw, bh, "-");
+    g.fillRect(bx, by, bw, bh, PAL_BLACK);
+    g.drawRect(bx, by, bw, bh, ac);
+    g.fillRect(bx + 2, by + 2, bw - 4, 12, PAL_DEEP);
+    const int keep = s_px; s_px = 6;
+    txt(g, "ATTACK PROMPTS", bx + 8, by + 4, ac, lgfx::textdatum::top_left);
+    txt(g, "mock-first", bx + bw - 64, by + 4, PAL_MUTED, lgfx::textdatum::top_left);
+    for (int i = 0; i < 12; ++i) {
+        const int col = i / 6, row = i % 6;
+        const int cx = bx + 6 + col * 148, cy = by + 18 + row * 31;
+        g.fillRect(cx, cy + 2, 10, 10, bot_color(i));
+        char nm[12]; snprintf(nm, sizeof(nm), "%s", BOTS[i].id);
+        if (nm[0] >= 'a' && nm[0] <= 'z') nm[0] = (char)(nm[0] - 'a' + 'A');
+        txt(g, nm, cx + 16, cy, PAL_IVORY, lgfx::textdatum::top_left);
+        char tg[18]; snprintf(tg, sizeof(tg), "%s", BOTS[i].target);
+        txt(g, tg, cx + 16, cy + 10, PAL_MUTED, lgfx::textdatum::top_left);
+        txt(g, ATK_CAT_NM[ATK_CAT[i]], cx + 16, cy + 20, ac, lgfx::textdatum::top_left);
+    }
+    s_px = keep;
+}
+
 static void paint_gchat(Gfx g)
 {
     const uint8_t ac = PAL_CYAN;
@@ -5049,6 +5292,14 @@ static void paint_gchat(Gfx g)
     txt(g, "RX", 296, 4, (uint32_t)(t - s_last_key) < 220u ? ac : (uint8_t)COL_MUTED,
         lgfx::textdatum::top_left);
     s_px = keep;
+    {   /* #9/#11: dynamic "<Name>> Defend" title for the active Defend game */
+        const int kt = s_px; s_px = 6;
+        char dtitle[20];
+        defend_title(dtitle, sizeof(dtitle), s_defend_bot);
+        txt(g, dtitle, 8, 22, PAL_CYAN, lgfx::textdatum::top_left);
+        g.fillRect(8, 31, (int)strlen(dtitle) * 6, 1, PAL_WIRE_C);
+        s_px = kt;
+    }
     chip_block(g, 56, 78, 36, 12); /* v1016f-4: Gibson block, no disc/ring */
     paint_gc_rail(g, ac);
     paint_gc_route(g, ac);
@@ -5093,6 +5344,8 @@ static void paint_gchat(Gfx g)
     const int cx = 10 + (9 + (int)strlen(s_gp_buf)) * 6;
     if ((t / 530u) % 2u == 0u) g.fillRect(cx, py, 5, 8, ac);
     if (s_sheet) paint_gc_sheet(g);
+    if (s_gc_panel == 1) paint_gc_gloss(g);
+    else if (s_gc_panel == 2) paint_gc_attack(g);
     s_px = keep;
 }
 
@@ -5668,6 +5921,12 @@ static void sb_tick(void)
         return;
     }
     if (s_act >= 0) return;                                       /* menu panel is static */
+    if (s_screen == SCR_SCAN) {                                   /* #5 hunt grid: this bot's icons fall continuously */
+        bot_hunt_step(t);
+        const uint32_t hk = t / 33u;
+        if (hk != k_grid) { if (k_grid != ~0u) sb_patch(BH_X - 1, BH_Y - 1, BH_W + 3, BH_H + 3); k_grid = hk; }
+        return;
+    }
     if ((uint32_t)n != k_grid) {
         if (k_grid != ~0u) sb_patch(106, 52, 176, 92);
         k_grid = (uint32_t)n;
@@ -7113,6 +7372,34 @@ void botcorps_host_gchat(uint8_t *buf)
     paint_ext(Gfx());
 }
 
+void botcorps_host_gc_gloss(uint8_t *buf, int bot)
+{
+    botcorps_host_gchat(buf);
+    s_fa_on = false;
+    s_defend_bot = bot;
+    s_gc_panel = 1;
+    paint_ext(Gfx());
+    s_gc_panel = 0;
+    s_defend_bot = 12;
+}
+void botcorps_host_gc_attack(uint8_t *buf, int bot)
+{
+    botcorps_host_gchat(buf);
+    s_fa_on = false;
+    s_defend_bot = bot;
+    s_gc_panel = 2;
+    paint_ext(Gfx());
+    s_gc_panel = 0;
+    s_defend_bot = 12;
+}
+void botcorps_host_gc_title(uint8_t *buf, int bot)
+{
+    botcorps_host_gchat(buf);
+    s_fa_on = false;
+    s_defend_bot = bot;
+    paint_ext(Gfx());
+    s_defend_bot = 12;
+}
 void botcorps_host_intro(uint8_t *buf)
 {
     host_frame = buf;

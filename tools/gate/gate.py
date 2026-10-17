@@ -233,6 +233,19 @@ for scr in screens:
         if want_gib:
             gb = [b for b in boxes if b['k'] == 'SPR' and b['n'] == 'gibson_block']
             rep(scr, 'C3 Gibson drawn as the square block figure', bool(gb), f'{len(gb)}')
+    # D2 (#5 Dirt locked): the per-bot hunt grid is alive - this bot's falling device icons, the
+    # chasing bot and the catch pips light the grid playfield (bright, non-grid pixels present).
+    if scr.startswith('scanboard-'):
+        p = im.load(); bright = 0
+        for y in range(56, 140, 2):
+            for x in range(110, 258, 2):
+                c = p[x, y]
+                if luma(c) > 100: bright += 1
+        rep(scr, 'D2 hunt grid active (falling icons + chaser + pips)', bright >= 8, f'bright_px={bright}')
+    # D1 (#9/#11 Dirt): the Defend board carries the dynamic "<name>> Defend" title.
+    if scr == 'game-board':
+        has = [t['s'] for t in texts if '> Defend' in t['s']]
+        rep(scr, 'D1 dynamic "<name>> Defend" title present', bool(has), f'{has[:1]}')
     if scr.startswith('scanboard-') or scr.startswith('sbox') or scr.startswith('scan-') or scr.startswith('settings'):
         bd = [b for b in boxes if b['k'] == 'BOARD']
         if bd:

@@ -102,6 +102,9 @@ extern void botcorps_host_set_color(int c);
 extern void botcorps_host_enter(uint8_t *buf, int id);
 extern void botcorps_host_seq(uint8_t *buf, const char *keys);
 extern void botcorps_host_sheet(uint8_t *buf, int sel);
+extern void botcorps_host_gc_gloss(uint8_t *buf, int bot);
+extern void botcorps_host_gc_attack(uint8_t *buf, int bot);
+extern void botcorps_host_gc_title(uint8_t *buf, int bot);
 
 /* gate.sh: render every screen twice (rain on / rain off) at a fixed clock,
  * dumping <name>.rgb, <name>.norain.rgb and <name>.log (element + text bboxes). */
@@ -929,5 +932,11 @@ int main(int argc, char **argv)
     botcorps_host_sbox(hit, 1, 0, 0); write_raw("/tmp/sb-ble.rgb", hit, 0);
     botcorps_host_sbox(hit, 0, 5, 0); write_raw("/tmp/sb-wifi-sweep.rgb", hit, 0);
     botcorps_host_found_alert_b(hit, 1, 2); write_raw("/tmp/sb-found-alert.rgb", hit, 0);
+    /* #9/#10/#11: Defend device glossary, attack-prompt menu, and dynamic per-bot titles */
+    botcorps_host_gc_gloss(hit, 12); write_raw("/tmp/gc-gloss.rgb", hit, 0);
+    botcorps_host_gc_attack(hit, 12); write_raw("/tmp/gc-attack.rgb", hit, 0);
+    botcorps_host_gc_title(hit, 12); write_raw("/tmp/gc-title-gibson.rgb", hit, 0);
+    botcorps_host_gc_title(hit, 4); write_raw("/tmp/gc-title-flock.rgb", hit, 0);
+    botcorps_host_gc_title(hit, 6); write_raw("/tmp/gc-title-airtag.rgb", hit, 0);
     return 0;
 }

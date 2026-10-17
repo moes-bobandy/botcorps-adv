@@ -717,23 +717,24 @@ static void layout_covers(void)
         break;
     case SCR_WIFI:
     case SCR_BT:
-    case SCR_BOT:
-        cover_add(96, 14, 128, 120);
-        cover_btn(12, 133);
-        cover_btn(44, 133);
-        cover_btn(248, 133);
-        cover_btn(280, 133);
+    case SCR_BOT:                          /* v1016l: mock extHome/botPage geometry */
+        cover_add(0, 0, 320, 16);          /* status ticker + crown */
+        cover_add(98, 12, 124, 116);       /* glow ring + portrait */
+        cover_add(78, 126, 164, 42);       /* name plate */
+        cover_add(96, 167, 128, 22);       /* WATCHING pill */
+        cover_add(8, 129, 68, 36);         /* lit buttons + halo */
+        cover_add(244, 129, 36, 36);
+        if (s_screen == SCR_BOT) { cover_add(10, 60, 28, 40); cover_add(282, 60, 28, 40); }
         break;
     case SCR_WIFI_RADAR:
     case SCR_BT_RADAR:
     case SCR_SCAN:
         break;                 /* v1016k: static rain layer, no stepping on the scan box */
-    case SCR_BOT_RADAR:
+    case SCR_BOT_RADAR:                    /* v1016l: Gibson rings in a dense rain field */
         cover_reset(false);
-        cover_btn(14, 90);
-        cover_btn(14, 124);
-        cover_add(50, 26, 220, 182);
-        cover_add(40, 210, 240, 22);
+        cover_add(136, 0, 48, 22);         /* crown */
+        cover_add(100, 48, 120, 120);      /* rings core */
+        cover_add(8, 89, 36, 36);          /* lit track button */
         break;
     case SCR_WIFI_LIST:
     case SCR_BT_LIST:
@@ -2212,24 +2213,9 @@ static void crown_btn(Gfx g, bool sel)
     }
 }
 
-static void paint_home(Gfx g, int bot_index)
-{
-    const bot_t &b = BOTS[bot_index];
-    const int phase = (int)((millis() / 40u) % 14u);
-    g.fillCircle(160, 74, 48, COL_DEEP);
-    g.drawCircle(160, 74, 46, accent());
-    g.drawCircle(160, 74, 53, COL_LINE);
-    g.drawCircle(160, 74, 47 + phase, accent());
-    draw_blob(g, 160, 74, 4, bot_color(bot_index), botcorps_shape_for(bot_index), sprite_blink(bot_index));
-    const int ids[4] = { ICO_RADAR, ICO_TERM, ICO_CTRL, ICO_BACK };
-    const int xs[4] = { 12, 44, 248, 280 };
-    for (int i = 0; i < 3; ++i) draw_btn(g, xs[i], 133, ids[i], s_cursor == i);
-    crown_btn(g, s_cursor == 3);
-    if (s_screen == SCR_BOT) {
-        g.fillTriangle(8, 74, 20, 66, 20, 82, COL_MUTED);
-        g.fillTriangle(312, 74, 300, 66, 300, 82, COL_MUTED);
-    }
-}
+static void paint_home(Gfx g, int bot_index);   /* v1016l: defined after the hub painters */
+static void home_portrait(Gfx g, int bot_index);
+static void paint_bot_radar(Gfx g);
 
 static void hub_gibson(Gfx g, int cx, int cy, int z);
 static void chip_plate(Gfx g, int x, int y, int w, int h, uint8_t fill, uint8_t line);
@@ -4607,6 +4593,237 @@ static void paint_gibson(Gfx g)
     }
 }
 
+
+/* ===================== v1016l: home screens + bot radar, rebuilt from the mock =====================
+ * extHome / botPage / botCtlDraw / gibBtnDraw (master v1016-1604). Keyboard only, crown = back. */
+static uint8_t tint_of(uint8_t col, int pct)
+{
+    const uint16_t c = botcorps_rgb565(col);
+    const int r = ((c >> 11) & 31) * pct / 100, gg = ((c >> 5) & 63) * pct / 100, b = (c & 31) * pct / 100;
+    return botcorps_pal_fit((uint16_t)((r << 11) | (gg << 5) | b));
+}
+
+/* Lit plate (hub nav language): glow halo, 2 px accent rim with cut corners, dark accent face. */
+static void lit_plate(Gfx g, int x, int y, bool sel)
+{
+    /* mock gibBtnDraw as captured: deep teal face, dim-accent rim, soft glow; selected = bright rim */
+    const uint8_t ac = accent();
+    g.drawRect(x - 1, y - 1, BS + 2, BS + 2, wash22(ac));
+    g.fillRect(x + 1, y, BS - 2, BS, sel ? ac : wire_ink());
+    g.fillRect(x, y + 1, BS, BS - 2, sel ? ac : wire_ink());
+    g.fillRect(x + 2, y + 2, BS - 4, BS - 4, sel ? wire_ink() : (uint8_t)PAL_DEEP);
+}
+
+static void lit_btn(Gfx g, int x, int y, int id, bool sel)
+{
+    GATE_BOX(g, "BTN", "litbtn", x, y, BS, BS, "-");
+    lit_plate(g, x, y, sel);
+    const uint8_t ac = accent(), ic = sel ? (uint8_t)PAL_WHITE : ac;
+    (void)ac;
+    if (id == ICO_RADAR) {            /* gauge: arc, ticks, needle */
+        for (int a = 0; a <= 18; ++a) {
+            const float r = 3.14159f * (1.f + (float)a / 18.f);
+            g.fillRect(x + 14 + (int)(cosf(r) * 9.f), y + 18 + (int)(sinf(r) * 9.f), 1, 1, ic);
+            g.fillRect(x + 14 + (int)(cosf(r) * 10.f), y + 18 + (int)(sinf(r) * 10.f), 1, 1, ic);
+        }
+        g.drawLine(x + 14, y + 18, x + 19, y + 11, ic);
+        g.fillRect(x + 13, y + 17, 3, 3, ic);
+        g.fillRect(x + 4, y + 20, 20, 1, ic);
+    } else if (id == ICO_TERM) {      /* framed window, title bar with dots, >_ */
+        g.drawRect(x + 4, y + 6, 20, 16, ic);
+        g.fillRect(x + 5, y + 7, 18, 3, tint_of(ic, 45));
+        for (int k = 0; k < 3; ++k) g.fillRect(x + 7 + k * 3, y + 8, 1, 1, ic);
+        g.drawLine(x + 8, y + 13, x + 10, y + 15, ic);
+        g.drawLine(x + 10, y + 15, x + 8, y + 17, ic);
+        g.fillRect(x + 12, y + 17, 5, 1, ic);
+    } else if (id == ICO_CTRL) {      /* three sliders */
+        static const int kn[3] = { 9, 15, 11 };
+        for (int k = 0; k < 3; ++k) {
+            const int sx = x + 8 + k * 6;
+            g.fillRect(sx, y + 6, 2, 16, ic);
+            g.fillRect(sx - 2, y + kn[k], 6, 4, ic);
+        }
+    } else draw_icon(g, x, y, id, PAL_WHITE);
+}
+
+/* Middle-dot separated run of Font0 words; returns the drawn width. */
+static int dot_run(Gfx g, const char *const *seg, int n, int x, int y, uint8_t col, bool draw, bool bold)
+{
+    int cx = x;
+    for (int i = 0; i < n; ++i) {
+        if (i) {
+            if (draw) g.fillRect(cx + 5, y + 3, 2, 2, col);
+            cx += 13;
+        }
+        if (draw) {
+            txt(g, seg[i], cx, y, col, lgfx::textdatum::top_left);
+            if (bold) txt(g, seg[i], cx + 1, y, col, lgfx::textdatum::top_left);
+        }
+        cx += (int)strlen(seg[i]) * 6 - 1 + (bold ? 1 : 0);
+    }
+    return cx - x;
+}
+
+static void home_ticker(Gfx g)
+{
+    const uint8_t ac = accent();
+    const uint32_t t = millis();
+    g.fillRect(0, 0, 320, 14, PAL_DEEP);
+    g.fillRect(0, 14, 320, 1, tint_of(ac, 50));
+    static const char *const msg[6] = { "LINK OK", "RX OBSERVE ONLY", "NO TX", "SWEEP ARMED", "LOG BUFFER 12%", "" };
+    const int loop = dot_run(g, msg, 6, 0, 0, 0, false, false) + 6;
+    const int off = (int)((t / 40u) % (uint32_t)loop);
+    s_px = 6;
+    const int clips[2][2] = { { 31, 138 }, { 182, 320 } };   /* runs behind a gap for the pinned crown */
+    GATE_BOX(g, "MARQUEE", "LINK_OK|RX_OBSERVE_ONLY|NO_TX|SWEEP_ARMED|LOG_BUFFER_12%", 31, 0, 289, 14, "-");   /* scrolling ticker is clipped by design */
+#ifdef BOTCORPS_HOST_RENDER
+    host_gate_mute = 1;
+#endif
+    for (int c = 0; c < 2; ++c) {
+        g.setClipRect(clips[c][0], 0, clips[c][1] - clips[c][0], 14);
+        for (int k = 0; k < 2; ++k) dot_run(g, msg, 6, 32 - off + k * loop, 4, COL_MUTED, true, false);
+        g.clearClipRect();
+    }
+#ifdef BOTCORPS_HOST_RENDER
+    host_gate_mute = 0;
+#endif
+    g.fillRect(0, 0, 30, 14, PAL_BLACK);
+    g.fillRect(30, 0, 1, 14, COL_LINE);
+    if ((t / 500u) % 2u) g.fillRect(4, 5, 4, 4, ac);
+    else g.fillRect(5, 6, 2, 2, tint_of(ac, 60));
+    txt(g, "RX", 11, 4, ac, lgfx::textdatum::top_left);
+}
+
+static void home_portrait(Gfx g, int bot_index)
+{
+    const uint8_t ac = accent();
+    const uint32_t t = millis();
+    const int cx = 160, cy = 74;
+    const float pu = (sinf((float)t / 380.f) + 1.f) * 0.5f;
+    const int ph = (int)(t % 2400u);
+    g.fillCircle(cx, cy, 55, COL_FIELD);
+    /* accent glow: radial falloff outside the ring (mock radial gradient 14..62) */
+    /* glow bands in the palette's accent washes (22% / 35%), brightest at the ring like the mock gradient */
+    const uint8_t w22 = wash22(ac), w35 = wire_ink();
+    g.fillCircle(cx, cy, 54, w22);                       /* r54: top edge y20 clears the pinned crown */
+    g.fillCircle(cx, cy, 51, pu > 0.5f ? w35 : w22);
+    g.fillCircle(cx, cy, 49, w35);
+    GATE_BOX(g, "HUBCORE", "homering", cx - 54, cy - 54, 108, 108, "-");
+    g.fillCircle(cx, cy, 47, w35);
+    g.fillCircle(cx, cy, 40, w22);
+    g.fillCircle(cx, cy, 28, PAL_DEEP);
+    g.drawCircle(cx, cy, 46, ac);
+    g.drawCircle(cx, cy, 45, pu > 0.5f ? ac : tint_of(ac, 70));
+    px_ring(g, cx, cy, 52, ac, 7, 9, (int)(t / 45u));
+    g.drawCircle(cx, cy, 47 + ph * 6 / 2400, tint_of(ac, 45 * (2400 - ph) / 2400 + 10));
+    /* mock SPR_Z: whole-pixel zoom so every shape fits the ring */
+    const int shp = botcorps_shape_for(bot_index);
+    static const int8_t SW[4] = { 7, 9, 7, 5 }, SH[4] = { 7, 6, 9, 5 }, SZ[4] = { 8, 7, 6, 10 };
+    const int si = shp >= 0 && shp < 4 ? shp : 0;
+    const int sw = SW[si] * SZ[si] * 62 / 100, sy = cy + (SH[si] * SZ[si] + 1) / 2 + 3;
+    g.fillRect(cx - sw / 2, sy, sw, 2, tint_of(ac, 30));   /* floor shadow */
+    draw_blob(g, cx, cy, SZ[si], bot_color(bot_index), botcorps_shape_for(bot_index), sprite_blink(bot_index));
+}
+
+static void paint_home(Gfx g, int bot_index)
+{
+    const bot_t &b = BOTS[bot_index];
+    const uint8_t ac = accent();
+    const uint32_t t = millis();
+    const float pu = (sinf((float)t / 380.f) + 1.f) * 0.5f;
+    home_ticker(g);
+    home_portrait(g, bot_index);
+    /* name plate */
+    GATE_BOX(g, "PLATE", "name", 80, 128, 160, 38, "-");
+    g.drawRect(79, 127, 162, 40, wash22(ac));            /* glow halo */
+    g.fillRect(80, 128, 160, 38, PAL_DEEP);
+    g.drawRect(80, 128, 160, 38, ac);
+    g.fillRect(80, 135, 2, 24, ac);
+    g.fillRect(238, 135, 2, 24, ac);
+    {
+        char nm[24];
+        snprintf(nm, sizeof nm, "%s %s", b.ins, b.id);
+        if ((int)strlen(nm) * 12 > 146) snprintf(nm, sizeof nm, "%s", b.id);   /* mock shrinks to fit; keep size 2 while the name fits */
+        const int n = (int)strlen(nm);
+        g.setFont(&fonts::Font0);
+        g.setTextColor(COL_INK);
+        g.setTextDatum(lgfx::textdatum::top_left);
+        if (n * 12 <= 146) {
+            g.setTextSize(2);
+            const int x = 160 - (n * 12 - 2) / 2;
+            g.drawString(nm, x, 131);
+            g.drawString(nm, x + 1, 131);
+            g.setTextSize(1);
+        } else {
+            g.setFont(&fonts::Font8x8C64);
+            g.setTextSize(1);
+            const int x = 160 - (n * 8) / 2;
+            g.drawString(nm, x, 135);
+            g.drawString(nm, x + 1, 135);
+            g.setFont(&fonts::Font0);
+        }
+    }
+    s_px = 6;
+    {
+        static const char *const lv[2] = { "LV 01", "00 UNIQUE FINDS" };
+        const int w = dot_run(g, lv, 2, 0, 0, 0, false, false);
+        dot_run(g, lv, 2, 160 - w / 2 - 4, 152, COL_MUTED, true, false);
+    }
+    const bool lamp = b.st == 2 || ((t / 700u) % 4u) != 0u;
+    const uint8_t lc = !lamp ? (uint8_t)PAL_LINE : b.st == 2 ? (uint8_t)PAL_HOLD : b.st == 1 ? (uint8_t)PAL_AMBER : (uint8_t)PAL_OK;
+    g.fillRect(229, 156, 7, 7, lc);
+    /* WATCHING pill */
+    {
+        const char *pill[2] = { "WATCHING", b.target };
+        const int w = dot_run(g, pill, 2, 0, 0, 0, false, true);
+        const int cw = w + 16, px = 160 - cw / 2;
+        GATE_BOX(g, "PILL", "watching", px, 169, cw, 18, "-");
+        g.fillRoundRect(px - 1, 168, cw + 2, 20, 10, wash22(ac));   /* glow halo */
+        g.fillRoundRect(px, 169, cw, 18, 9, ac);
+        g.fillRoundRect(px + 1, 170, cw - 2, 16, 8, wire_ink());
+        dot_run(g, pill, 2, px + 8, 175, ac, true, true);
+    }
+    /* lit buttons (mock BOT_BTNS: radar 12, terminal 44, control 248 at y 133); crown = slot 3 */
+    static const int ids[3] = { ICO_RADAR, ICO_TERM, ICO_CTRL };
+    static const int xs[3] = { 12, 44, 248 };
+    for (int i = 0; i < 3; ++i) lit_btn(g, xs[i], 133, ids[i], s_cursor == i);
+    crown_btn(g, s_cursor == 3);
+    if (s_screen == SCR_BOT) {       /* side chevrons + dimmed neighbour bots */
+        const int nudge = (int)((t / 400u) % 2u);
+        for (int k = 0; k < 2; ++k) {
+            const int nb = (bot_index + (k ? 1 : 11)) % 12;
+            const int sx = k ? 296 : 24, dir = k ? 1 : -1, cxs = sx - dir * nudge - 1;
+            for (int r = 0; r < 5; ++r) {
+                const int d = r < 4 - r ? r : 4 - r;
+                g.fillRect(cxs + (k ? d : 2 - d), 74 + 14 + r, 2, 1, ac);
+            }
+            draw_blob(g, sx, 74, 2, tint_of(bot_color(nb), 55), botcorps_shape_for(nb), false);
+        }
+    }
+}
+
+/* bot radar: the mock's Gibson rings core alone in a dense rain field. */
+static void paint_bot_radar(Gfx g)
+{
+    const uint8_t ac = accent();
+    const uint32_t t = millis();
+    const int cx = 160, cy = 108;
+    GATE_BOX(g, "HUBCORE", "rings", cx - 56, cy - 56, 112, 112, "-");
+    g.fillCircle(cx, cy, 58, COL_FIELD);
+    hub_die(g, cx, cy, 34);
+    px_ring(g, cx, cy, 34, PAL_CYAN, 0, 0, 0);
+    px_ring(g, cx, cy, 37, PAL_CYAN, 5, 5, (int)(t / 90u));
+    px_ring(g, cx, cy, 42, PAL_CYAN, 2, 4, (int)(t / 140u));
+    px_ring(g, cx, cy, 48, PAL_CYAN, 1, 5, (int)(t / 80u));
+    px_ring(g, cx, cy, 54, PAL_CYAN, 2, 6, (int)(t / 200u));
+    px_ring(g, cx, cy, 44 + (int)((t % 2400u) * 5u / 2400u), PAL_CYAN, 3, 3, 0);
+    hub_sparks(g, cx, cy, t);
+    hub_gibson(g, cx, cy, 5);
+    (void)ac;
+    lit_btn(g, 12, 92, ICO_TRACK, s_cursor == 0);
+    crown_btn(g, s_cursor == 1);
+}
+
 static void px_ring(Gfx g, int cx, int cy, int r, uint8_t col, int on, int off, int phase);
 static void hub_die(Gfx g, int cx, int cy, int r);
 /* v1016f #1: the intro rain carries the Gibson in its ring disc (mock 'rain' screen). No button. */
@@ -5184,7 +5401,7 @@ static void paint_ext(Gfx g)
     case SCR_BOT: paint_home(g, s_bot); break;
     case SCR_WIFI_RADAR:
     case SCR_BT_RADAR: paint_radar(g, true); break;
-    case SCR_BOT_RADAR:
+    case SCR_BOT_RADAR: paint_bot_radar(g); break;
     case SCR_SCAN: paint_radar(g, false); break;
     case SCR_WIFI_LIST: paint_list(g, true); break;
     case SCR_BT_LIST: paint_list(g, false); break;
@@ -5203,13 +5420,8 @@ static void tick_radar(Gfx g)
 static void tick_home(Gfx g, int bot_index)
 {
     g.startWrite();
-    g.setClipRect(110, 24, 100, 100);
-    g.fillCircle(160, 74, 64, COL_FIELD);
-    g.fillCircle(160, 74, 48, COL_DEEP);
-    g.drawCircle(160, 74, 46, accent());
-    const int phase = (int)((millis() / 40u) % 14u);
-    g.drawCircle(160, 74, 47 + phase, accent());
-    draw_blob(g, 160, 74, 4, bot_color(bot_index), botcorps_shape_for(bot_index), sprite_blink(bot_index));
+    g.setClipRect(98, 15, 124, 112);
+    home_portrait(g, bot_index);
     g.endWrite();
     g.clearClipRect();
 }

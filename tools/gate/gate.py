@@ -61,11 +61,44 @@ def centre_in(a, b):
 def luma(c): return 0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]
 
 results = []   # (screen, item, ok, detail)
+MOCKDIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'release', 'gate', 'mock')
+MOCKREF = {'home-wifi': 'wifi', 'home-ble': 'bluetooth', 'home-bot': 'bot', 'bot-radar': 'bots'}
+HOME_REG = {'ticker': (0, 0, 320, 15), 'ring': (98, 12, 222, 126), 'plate': (80, 128, 240, 166),
+            'pill': (100, 168, 220, 188), 'btnL': (10, 131, 74, 163), 'btnR': (246, 131, 278, 163)}
+RADAR_REG = {'core': (100, 52, 220, 164)}
+
+def mock_img(scr):
+    p = os.path.join(MOCKDIR, MOCKREF[scr] + '.png')
+    if not os.path.exists(p): return None
+    m = Image.open(p).convert('RGB')
+    return m.crop((0, 0, 640, 480)).resize((W, H), Image.BOX) if m.size[0] >= 640 else m.resize((W, H))
+
+def reg_stats(im, r):
+    p = im.load(); n = 0; acc = [0, 0, 0]; bright = 0
+    for y in range(r[1], r[3]):
+        for x in range(r[0], r[2]):
+            c = p[x, y]; n += 1
+            for i in range(3): acc[i] += c[i]
+            if luma(c) > 90: bright += 1
+    return [a / n for a in acc], bright / n
+
+def coloured(c):
+    return luma(c) > 40 and not (c[1] > c[0] + 20 and c[1] > c[2] + 20) and not (c[0] > 200 and c[1] > 200 and c[2] > 200) \
+        and max(c) - min(c) > 60
+
+def mock_rain_colour(m, regs):
+    p = m.load(); n = 0
+    for y in range(H):
+        for x in range(W):
+            if any(r[0] <= x < r[2] and r[1] <= y < r[3] for r in regs): continue
+            if coloured(p[x, y]): n += 1
+    return n
+
 def rep(scr, item, ok, detail=''):
     results.append((scr, item, ok, detail))
 
 OVERLAYS = ('found-alert',)   # full-screen takeover overlay (mock): rain/crown not applicable
-SOLID = ('CHIP', 'BTN', 'TILE', 'PART', 'CROWN', 'HUBCORE', 'PROMPT')
+SOLID = ('CHIP', 'BTN', 'TILE', 'PART', 'CROWN', 'HUBCORE', 'PROMPT', 'PLATE', 'PILL')
 INSTR = re.compile(r'\b(press|hit|use (the )?arrows?|tab to|esc to|enter to|to (select|go back|exit)|instructions?|hint)\b', re.I)
 
 def rain_px(a, b, region=None):
@@ -217,6 +250,53 @@ for scr in screens:
         rep(scr, 'H3 rain carries bots/devices (>=150 coloured px)', col >= 150, f'colour_px={col}')
         tiles = [b for b in boxes if b['k'] == 'TILE' and b['n'] == 'hubbot']
         rep(scr, 'H4 12 bot side tiles', len(tiles) == 12, f'{len(tiles)}')
+    if scr in MOCKREF:
+        m = mock_img(scr)
+        regs = HOME_REG if scr.startswith('home') else RADAR_REG
+        if m is None:
+            rep(scr, 'M1 matches mock regions', False, 'mock reference missing')
+        else:
+            bad, det = [], []
+            for k, r in regs.items():
+                (fm, fb), (mm, mb) = reg_stats(nr, r), reg_stats(m, r)
+                dist = sum(abs(fm[i] - mm[i]) for i in range(3))
+                ratio = (fb + 0.01) / (mb + 0.01)
+                ok = dist <= 60 and 0.4 <= ratio <= 2.5
+                det.append(f'{k}:d{int(dist)} b{ratio:.2f}')
+                if not ok: bad.append(k)
+            rep(scr, 'M1 chrome regions match mock (mean colour d<=60, bright-px ratio 0.4..2.5)', not bad, ' '.join(det) + (f' FAIL={bad}' if bad else ''))
+            # M2 rain density vs the mock: coloured (bot/device) rain px outside the chrome >= 50% of the mock's
+            # (rain px = rain render differs from no-rain render; mock px = coloured px outside the same regions)
+            pa, pb = im.load(), nr.load(); fw = 0
+            for y in range(H):
+                for x in range(W):
+                    if any(r[0] <= x < r[2] and r[1] <= y < r[3] for r in regs.values()): continue
+                    c, d = pa[x, y], pb[x, y]
+                    if abs(c[0] - d[0]) + abs(c[1] - d[1]) + abs(c[2] - d[2]) > 24 and coloured(c): fw += 1
+            mk = mock_rain_colour(m, list(regs.values()))
+            rep(scr, 'M2 rain bot/device density >= 50% of mock', fw >= 0.5 * mk, f'fw={fw} mock={mk} ({fw / max(1, mk):.0%})')
+        if scr.startswith('home'):
+            need = {'HUBCORE': 1, 'PLATE': 1, 'PILL': 1}
+            have = {k: len([b for b in boxes if b['k'] == k]) for k in need}
+            rep(scr, 'M3 mock structure: glow ring + name plate + WATCHING pill', all(have[k] >= 1 for k in need), str(have))
+            strs = ' '.join(t['s'] for t in texts) + ' ' + ' '.join(b['n'].replace('_', ' ') for b in boxes if b['k'] == 'MARQUEE')
+            want = ['RX', 'LV 01', 'UNIQUE FINDS', 'WATCHING', 'OBSERVE ONLY', 'ARMED', 'LOG']
+            miss = [w for w in want if w not in strs]
+            rep(scr, 'M4 status bar + plate + pill strings drawn', not miss, f'missing={miss}' if miss else 'all')
+        else:
+            core = [b for b in boxes if b['k'] == 'HUBCORE']; board = [b for b in boxes if b['k'] == 'BOARD']
+            rep(scr, 'M3 Gibson rings core, no bus board', bool(core) and not board, f'core={len(core)} board={len(board)}')
+        btns = [b for b in boxes if b['k'] == 'BTN' and b['n'] == 'litbtn']
+        p = im.load(); lit = 0; det = []
+        for b in btns:
+            px = [p[x, y] for y in range(b['y'] + 2, b['y'] + b['h'] - 2) for x in range(b['x'] + 2, b['x'] + b['w'] - 2)]
+            mf = [sum(c[i] for c in px) / len(px) for i in range(3)]
+            rim = [p[b['x'] + b['w'] // 2, b['y'] + 1], p[b['x'] + 1, b['y'] + b['h'] // 2], p[b['x'] + b['w'] - 2, b['y'] + b['h'] // 2]]
+            peak = max(luma(c) for c in px)
+            ok = luma(mf) >= 20 and min(luma(e) for e in rim) >= 50 and peak >= 150
+            lit += ok; det.append(f'face{int(luma(mf))}/rim{int(min(luma(e) for e in rim))}/icon{int(peak)}')
+        want_n = 3 if scr.startswith('home') else 1
+        rep(scr, f'L1 {want_n} lit button(s) like the mock capture (face luma>=20, rim>=50, lit icon>=150)', len(btns) == want_n and lit == want_n, ' '.join(det))
     if scr.startswith('scanboard-') or scr.startswith('game-board') or scr.startswith('game-jackin'):
         want_gib = scr.endswith('gibson') or scr.startswith('game')
         chips = [b for b in boxes if b['k'] == 'CHIP' and (b['n'] == 'gibson') == want_gib]

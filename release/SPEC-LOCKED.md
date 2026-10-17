@@ -1,4 +1,4 @@
-# BOTcorps Adv: SPEC-LOCKED (v1016k)
+# BOTcorps Adv: SPEC-LOCKED (v1016l)
 
 This replaces the old rules checklist (release/RULES-CHECKLIST.md R1, "Gibson chip on hub", is **superseded**).
 Run `tools/gate.sh` to check the spec. It renders every screen with the real firmware paint code and the real
@@ -35,6 +35,28 @@ teal or accent-tinted), and the mock's game is disabled (GAME_ENABLED=false). In
 | H3 | Rain on the hub carries enough bots and devices: ≥150 coloured rain px |
 | H4 | 12 bot tiles |
 | | Checked in the UI colour (hub) and in amber (hub-amber) |
+
+## Home screens (home-wifi, home-ble, home-bot): mock extHome / botPage
+| id | rule |
+|---|---|
+| M1 | Chrome regions match the mock capture (release/gate/mock/*.png) on mean colour (d≤60) and bright-pixel ratio (0.4–2.5). Regions: ticker, ring, plate, pill, left buttons, right button |
+| M2 | Rain bot/device density is at least 50% of the mock's (coloured rain px outside the chrome) |
+| M3 | Structure: glow ring core around the bot, name plate, WATCHING pill |
+| M4 | Strings: RX status bar ticker (LINK OK · RX OBSERVE ONLY · NO TX · SWEEP ARMED · LOG BUFFER 12%), "LV 01 · 00 UNIQUE FINDS", "WATCHING · <TARGET>" |
+| L1 | 3 lit buttons (radar, terminal, control) like the mock capture: face luma ≥20, rim ≥50, lit icon ≥150 |
+| | The crown stays the only back button (cursor slot 3) |
+
+## Bot radar (bot-radar)
+| id | rule |
+|---|---|
+| M1 | The core region matches the mock |
+| M2 | Rain density is at least 50% of the mock's |
+| M3 | Gibson rings core, with no bus board |
+| L1 | The track button is lit |
+| | Crown = back |
+
+## Rain (all screens)
+- Bits stay the majority (about 56% of trail cells are 0/1, plus 4% code). Bots (22%) and devices (18%, neon colours) also ride inside the trails, not only as the lead glyph.
 
 ## Scan board, one per bot type (scanboard-<bot>, Gibson included)
 | id | rule |

@@ -94,10 +94,14 @@ static int drop_head(const uint8_t *c, int d) { return (int8_t)c[d * 2]; }
 
 static uint8_t new_glyph(void)
 {
+    /* v1016l: bots + devices ride INSIDE the strands too (mock rainNext), bits stay the majority */
     const int r = rnd_n(100);
-    if (r < 44) return '0';
-    if (r < 88) return '1';
-    return (uint8_t)CODE_GLYPHS[2 + rnd_n(CODE_N - 2)];
+    if (r < 28) return '0';
+    if (r < 56) return '1';                                                                /* bits stay the majority */
+    if (r < 60) return (uint8_t)CODE_GLYPHS[2 + rnd_n(CODE_N - 2)];
+    if (s_mix != BOTCORPS_RAIN_MIX_DEV && r < 82) return (uint8_t)(0x80 | rnd_n(12));      /* bot */
+    if (s_mix != BOTCORPS_RAIN_MIX_BOTS) return (uint8_t)(0xA0 | rnd_n(9));               /* device */
+    return '1';
 }
 
 static uint8_t new_lead(void)
@@ -197,13 +201,38 @@ static void draw_cell(lgfx::LovyanGFX &panel, int col, int row)
         panel.clearClipRect();
         return;
     }
+    const uint8_t gl = *glyph_at(col, row);
+    if (lv >= 2 && gl >= 0x80 && gl < 0x8C) {            /* bot inside the trail, fading with age */
+        const int b = gl & 0x0F;
+        const uint16_t c = BOTCORPS_BOT_COLOR[b];
+        botcorps_sprite_draw(panel, x + 4, ly + 4, botcorps_shape_for(b), 1,
+                             botcorps_pal_fit(lv <= 3 ? c : scale_native(c, lv == 4 ? 2 : 1, 3)), false);
+        panel.clearClipRect();
+        return;
+    }
     uint8_t ink;
-    char ch = (char)*glyph_at(col, row);
+    char ch = (char)gl;
+    if (lv >= 2 && gl >= 0xA0) {                          /* device glyph inside the trail */
+        const int d = (gl & 0x0F) % 9;
+        ch = DEV_GLYPHS[d];
+        const uint16_t dc = BOTCORPS_BOT_COLOR[(d * 5 + 3) % 12];          /* neon device colours like the mock */
+        ink = botcorps_pal_fit(lv <= 3 ? dc : scale_native(dc, lv == 4 ? 2 : 1, 3));
+        const char s2[2] = { ch, 0 };
+        panel.setFont(&fonts::Font0);
+        panel.setTextSize(1);
+        botcorps_pal_text(panel, ink);
+        panel.setCursor(x + 1, ly);
+        panel.print(s2);
+        panel.clearClipRect();
+        return;
+    }
     if (lv == 1 && (lead & 3) == LEAD_DEV) {
-        ink = PAL_DEV;
-        ch = DEV_GLYPHS[(lead >> 2) % 9];
+        const int d = (lead >> 2) % 9;
+        ink = botcorps_pal_fit(BOTCORPS_BOT_COLOR[(d * 5 + 3) % 12]);
+        ch = DEV_GLYPHS[d];
     } else if (lv == 1) {
         ink = PAL_WHITE;                    /* bright lead glyph */
+        if (gl >= 0x80) ch = (gl & 1) ? '1' : '0';   /* icon codes never print as raw glyphs */
     } else {
         static const int AGE[4] = { 0, 5, 9, 13 };
         if (!botcorps_pal_ramp_for(code_native(), AGE[lv - 2], &ink)) ink = botcorps_pal_fit(code_native());

@@ -85,9 +85,15 @@ void Gfx::fillCircle(int x, int y, int r, uint8_t c)
 }
 void Gfx::drawCircle(int x, int y, int r, uint8_t c)
 {
-    for (int a = 0; a < 64; ++a) {
-        const float t = a * 0.098175f;
-        put_px(x - ox + (int)(cosf(t) * r), y - oy + (int)(sinf(t) * r), c);
+    /* midpoint circle, same pixels as LovyanGFX drawCircle (was 64 sparse points: host-only dotting) */
+    int f = 1 - r, ddx = 1, ddy = -2 * r, xx = 0, yy = r;
+    const int cx = x - ox, cy = y - oy;
+    put_px(cx, cy + r, c); put_px(cx, cy - r, c); put_px(cx + r, cy, c); put_px(cx - r, cy, c);
+    while (xx < yy) {
+        if (f >= 0) { yy--; ddy += 2; f += ddy; }
+        xx++; ddx += 2; f += ddx;
+        put_px(cx + xx, cy + yy, c); put_px(cx - xx, cy + yy, c); put_px(cx + xx, cy - yy, c); put_px(cx - xx, cy - yy, c);
+        put_px(cx + yy, cy + xx, c); put_px(cx - yy, cy + xx, c); put_px(cx + yy, cy - xx, c); put_px(cx - yy, cy - xx, c);
     }
 }
 void Gfx::drawLine(int x0, int y0, int x1, int y1, uint8_t c)

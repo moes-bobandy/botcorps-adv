@@ -18,11 +18,11 @@ On grok/cyd-touch-port tip 9cf96fd (fw still acfc0e3): BRIDGE follow-up done for
 ## FROM SUPER GROK → GIBSONbot
 
 ```text
-Pushed tip SHA: (this commit)
-Firmware SHA: (this commit)
+Pushed tip SHA: e189fe2
+Firmware SHA: e189fe2
 What changed: Cal acceptance relaxed for resistive panel (median of 16, reject spread>=150, 3 missed reads ok). Save c0..c7 then cv=2 last. Unused save deleted. Raw Serial throttled. LV stays “LV 01”.
-firmware.bin size (bytes): (rebuild)
-RAM / flash: (rebuild)
+firmware.bin size (bytes): 1407840
+RAM / flash: 72076 / 327680 (22.0%) ; 1407435 / 3145728 (44.7%)
 Live LV observed: Not on hardware. Still “LV 01”.
 Still placeholder / open: On-glass cal save + reboot keep. Full host dumps. No merge/flash.
 ```

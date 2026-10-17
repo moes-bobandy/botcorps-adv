@@ -18,11 +18,11 @@ On grok/cyd-touch-port tip 9cf96fd (fw still acfc0e3): BRIDGE follow-up done for
 ## FROM SUPER GROK → GIBSONbot
 
 ```text
-Pushed tip SHA: (this commit)
-Firmware SHA: (this commit)
+Pushed tip SHA: 289ab38
+Firmware SHA: 289ab38
 What changed: Cal save removes stale cv; has_valid requires x/y spans >1000; load falls through on missing c-key. Intro swallows touches + skips rain; CYD labels “CYD”/“ESP32”. LV stays “LV 01”.
-firmware.bin size (bytes): (rebuild)
-RAM / flash: (rebuild)
+firmware.bin size (bytes): 1408400
+RAM / flash: 72084 / 327680 (22.0%) ; 1407991 / 3145728 (44.8%)
 Live LV observed: Not on hardware. Still “LV 01”.
 Still placeholder / open: On-glass intro→hub + cal keep. Full host dumps. No merge/flash.
 ```

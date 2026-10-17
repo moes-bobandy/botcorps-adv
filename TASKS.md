@@ -890,3 +890,35 @@ Reviewed on box `/tmp/bca` at `grok/cyd-touch-port` tip `c1ecff23867aa2e5d0f096c
 ```
 On grok/cyd-touch-port tip c1ecff2 (fw b80a8bd): good — setTouch overwrite gone, calibrateTouch gives the right corner order/rotation, NVS failures logged, and it builds (box: RAM 72076 / flash 1407055). Fix next: calibrateTouch has no timeout, so "cal" or boot-hold with no taps hangs until reset — copy LovyanGFX calibrate_touch's loop into run_touch_cal (same rotation-offset cancel, native corner order, 20-raw pair check, 16-sample average, setCalibrate) with a 15 s deadline per target, restore rotation on every exit, and return false + log "cal timeout" without saving; fix REPORT's stale "15s timeout" line; add c0..c7 to the NVS key comment in botcorps_display.h and update the run_touch_cal header; drop the redundant apply_touch_cal8 after calibration. One commit per round, LV stays "LV 01", push only to grok/cyd-touch-port, no merge/flash.
 ```
+
+---
+
+## GIBSONbot review — tip 99ce272 / fw 0f6d39b (2026-10-17 ~8:35 AM ET)
+
+Reviewed on box `/tmp/bca` at `grok/cyd-touch-port` tip `99ce272583a11ac5690fd22908efcb4cb9a7addc` (last reviewed `5ec5605`). Diff span `5ec5605..99ce272`: `src/display/botcorps_display.cpp` (+80/−22, custom cal loop), `src/display/botcorps_display.h` (NVS key comment), `BRIDGE.md`, `builds/cyd/REPORT.md`. Host type gate **PASS** (`cyd osk table ok keys=42 clip_y=151`; `host cyd type gate passed`). **Box build of `env:cyd`: SUCCESS**, RAM 72,076 / 327,680 (22.0%), flash 1,406,939 / 3,145,728 (44.7%), `firmware.bin` 1,407,344 B (REPORT 1,406,843 / 1,407,248 — same 96 B build-env gap). One new warning: `botcorps_display.cpp:214: "/*" within comment`. Checked against the LovyanGFX copy in `.pio/libdeps/cyd` (`LGFXBase.cpp` `calibrate_touch`, `Panel_LCD.inl` `setRotation`). Nothing merged or flashed by this watch; only this TASKS note is pushed.
+
+| SHA | What |
+|-----|------|
+| 0f6d39b | CYD: custom cal loop, 15 s per target, 16-sample average, 20-raw jitter check, rotation restore on every exit, no save on timeout; NVS key comment adds c0..c7 |
+| 99ce272 | REPORT/BRIDGE cite fw 0f6d39b + build numbers |
+
+### Matches
+1. Timeout is back: a cal with no taps now returns false and logs `cal timeout` instead of hanging (closes prior fix 1).
+2. Rotation is restored and the screen cleared on every exit path (lift abort, timeout, NVS fail, success).
+3. Nothing is saved on timeout; NVS begin/put failures still logged.
+4. NVS key comment in `botcorps_display.h` now lists c0..c7 (closes prior fix 3, header half).
+5. Redundant second `apply_touch_cal8` gone (closes prior fix 4).
+6. Markers and a green done-dot only, no instruction text. Builds; memory flat (RAM same, flash −116 B vs b80a8bd). Typing gate passes. LV left "LV 01".
+
+### Misses (numbered fixes)
+1. **P0, pre-existing since 29b0e64, missed by earlier reviews: the CYD likely boots to "display fail".** `lgfx_cyd.h` sets the *panel* `cfg.offset_rotation = 1` (comment thinks it's for touch). LovyanGFX adds it to every `setRotation()`: `internal = (r + offset_rotation) & 3`, and only odd values swap width/height. So `botcorps_dual_begin()`'s `setRotation(1)` becomes internal 2, which is 240×320 portrait; `begin` then returns false on its own `width()==320 && height()==240` check and `main.cpp` stops at `while(1)`. Found by reading the library source, not on a device. **Fix:** set the panel `offset_rotation = 0` (keep touch `offset_rotation = 0`), so `setRotation(1)` is 320×240 landscape. Rerun the cal after this, since old c0..c7 were taken in the wrong frame.
+2. **Cal frame now matches only after fix 1.** LovyanGFX cancels offsets with `setRotation(((touch^panel)&4) | (-(touch+panel)&3))`. With panel=1 that is rotation 3, not the hard-coded `setRotation(0)`, so today crosshairs 2 and 4 (y=300) land off the 240-tall screen and the cal can only time out. With fix 1 (both offsets 0) `setRotation(0)` is correct; better to compute it the library's way so it can't drift again.
+3. **Inset targets fed in as true corners.** Crosshairs are at (20,20)/(20,300)/(220,20)/(220,300), but `setCalibrate` treats the 8 raws as the screen corners (0,0)/(0,319)/(239,0)/(239,319). Every tap maps up to ~20 px toward the edge (center fine, edges and small targets off). **Fix:** use true corners `px=(w-1)*((i>>1)&1), py=(h-1)*(i&1)` with partly off-screen markers like LovyanGFX's `draw_calibrate_point`, or keep the inset and extrapolate both raw channels with both direction vectors.
+4. **Jitter retry still resets the 15 s timer.** `deadline` is declared inside the `for` body and `--i; continue;` re-enters it, so a noisy or held finger can loop forever (asked last round). Declare one deadline per target outside the retry, and wait for finger lift after a reject.
+5. **Comment/doc cleanup:** old header line "four corner crosshairs, raw reads, no text. Call once…" is still the first line, and the new nested `/*` triggers `-Wcomment`; merge into one comment. REPORT's "calibrateTouch + no overwrite (this tip)" section now describes code that's gone (three sections all say "this tip"). BRIDGE.md log has literal `\n` text instead of line breaks.
+6. **Still open:** real host CYD frame dumps (fonts still stubs), LV meaning (Dirt HOLD), device/glass pass of boot + cal + touch nav. No merge/flash from this watch.
+
+### Follow-up one-liner (Dirt → Super Grok)
+```
+On grok/cyd-touch-port tip 99ce272 (fw 0f6d39b): good — 15 s cal timeout is back, rotation restored on every exit, no save on timeout, c0..c7 in the NVS comment, and it builds (box: RAM 72076 / flash 1406939). Fix next, P0 first: lgfx_cyd.h sets the PANEL cfg.offset_rotation = 1, and LovyanGFX adds that to setRotation, so setRotation(1) becomes internal rotation 2 = 240x320 portrait and botcorps_dual_begin's 320x240 check fails ("display fail" hang) — set panel offset_rotation = 0 (touch stays 0). Then in run_touch_cal compute the cal rotation the LovyanGFX way ((touch^panel)&4)|(-(touch+panel)&3) instead of hard-coding 0; tap true corners px=(w-1)*((i>>1)&1), py=(h-1)*(i&1) (or extrapolate both raw axes from the 20 px inset) because setCalibrate treats the raws as the exact corners; keep one 15 s deadline per target across jitter retries and wait for lift after a reject; merge the run_touch_cal header into one comment (fixes the -Wcomment warning), mark REPORT's old calibrateTouch section as superseded, and fix the literal \n in BRIDGE's log. One commit per round, LV stays "LV 01", push only to grok/cyd-touch-port, no merge/flash.
+```

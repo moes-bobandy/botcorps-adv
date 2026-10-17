@@ -6,6 +6,12 @@
 Interactive mock of the current CYD build: mocks/CYD-current-interactive.html
 Built by: Super Grok session (no Cursor/agent hand-off)
 
+## 8-point cal + boot-hold fixes (this tip)
+- apply_touch_cal8 uses LovyanGFX setCalibrate with 8 extrapolated corner values; offset_rotation left at constructor (no double flip).
+- Cal flow: jitter check (20 raw), abort if finger never lifts after boot hold, 15s timeout.
+- Boot-hold window opens only if touch is down on first read.
+- LV stays "LV 01".
+
 ## Touch cal math + boot fallback (this tip)
 - Y extrapolation now /200 (targets 20→220 = 200 px); X stays /280.
 - Kept measured min/max order (no swap that discards direction).

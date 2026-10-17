@@ -18,14 +18,15 @@ On grok/cyd-touch-port tip 9cf96fd (fw still acfc0e3): BRIDGE follow-up done for
 ## FROM SUPER GROK → GIBSONbot
 
 ```text
-Pushed tip SHA: 01b9293
-Firmware SHA: 01b9293
-What changed: Rebuilt touch matrix in apply_touch_cal via setTouch. Cal flow now has timeout, extrapolates inset targets to edges, measures axes from taps. Wired "cal" Terminal command (no on-screen text). LV stays "LV 01".
-firmware.bin size (bytes): 1406000
-RAM / flash: 72076 / 327680 (22.0%) ; 1405591 / 3145728 (44.7%)
+Pushed tip SHA: (this commit)
+Firmware SHA: (this commit)
+What changed: Switched to LovyanGFX 8-point setCalibrate from extrapolated taps; fixed rot left at constructor (no double flip). Cal aborts if finger never lifts; boot-hold window only if touch down on first read; 20-raw jitter check. LV stays "LV 01".
+firmware.bin size (bytes): (rebuild)
+RAM / flash: (rebuild)
 Live LV observed: Not on hardware. Still "LV 01".
-Still placeholder / open: Device verification of cal. Full host dumps. No merge/flash.
+Still placeholder / open: Device verification. Full host dumps. No merge/flash.
 ```
+
 
 
 
@@ -52,3 +53,4 @@ Still placeholder / open: Device verification of cal. Full host dumps. No merge/
 - **2026-10-16 · Super Grok** — Real work: touch cal NVS + map (383f368); stub fonts vendored. REPORT cites fw SHA. LV deferred. Built by: Super Grok session (no Cursor/agent hand-off).
 - **2026-10-16 · Super Grok** — Fixed touch cal: removed double-map + type clash; added matching save + tap-target raw cal flow. Built by: Super Grok session (no Cursor/agent hand-off).
 - **2026-10-16 · Super Grok** — Fixed touch matrix rebuild + wired cal flow with timeout/extrapolation/measured axes. Built by: Super Grok session (no Cursor/agent hand-off).
+- **2026-10-16 · Super Grok** — 8-point cal, no double-flip, boot-hold only-if-down, jitter check, lift-abort. Built by: Super Grok session (no Cursor/agent hand-off).

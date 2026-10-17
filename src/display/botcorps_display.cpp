@@ -175,29 +175,37 @@ void botcorps_cyd_save_touch_cal(uint16_t xmin, uint16_t xmax, uint16_t ymin, ui
 
 void botcorps_cyd_load_touch_cal(void)
 {
-    /* Placeholders until a device pass writes a measured range.
-     * Namespace matches the rain color store. Read-only here. */
-    uint16_t xmin = 300;
-    uint16_t xmax = 3900;
-    uint16_t ymin = 300;
-    uint16_t ymax = 3900;
-    uint8_t rot = 1;
     Preferences prefs;
-    if (prefs.begin("botcorps", true)) {
-        if (prefs.getUChar("tcal", 0) == 1) {
-            xmin = prefs.getUShort("tx0", xmin);
-            xmax = prefs.getUShort("tx1", xmax);
-            ymin = prefs.getUShort("ty0", ymin);
-            ymax = prefs.getUShort("ty1", ymax);
-            rot = prefs.getUChar("trot", rot);
+    if (!prefs.begin("botcorps", true)) return;
+    if (prefs.getUChar("tcal", 0) != 1) { prefs.end(); return; }
+    /* Prefer 8-point if present */
+    if (prefs.isKey("c0")) {
+        uint16_t cal[8];
+        bool ok = true;
+        for (int i = 0; i < 8; ++i) {
+            char key[4];
+            snprintf(key, sizeof(key), "c%d", i);
+            if (!prefs.isKey(key)) { ok = false; break; }
+            cal[i] = prefs.getUShort(key, 0);
         }
         prefs.end();
+        if (ok) {
+            g_cyd.apply_touch_cal8(cal);
+            Serial.println("[botcorps] touch cal 8-point from NVS");
+            return;
+        }
+    } else {
+        /* Legacy 4-value path */
+        uint16_t xmin = prefs.getUShort("tx0", 300);
+        uint16_t xmax = prefs.getUShort("tx1", 3900);
+        uint16_t ymin = prefs.getUShort("ty0", 300);
+        uint16_t ymax = prefs.getUShort("ty1", 3900);
+        uint8_t rot = prefs.getUChar("trot", 1);
+        prefs.end();
+        g_cyd.apply_touch_cal(xmin, xmax, ymin, ymax, rot);
+        Serial.printf("[botcorps] touch cal legacy x=%u..%u y=%u..%u\n",
+                      (unsigned)xmin, (unsigned)xmax, (unsigned)ymin, (unsigned)ymax);
     }
-    g_cyd.apply_touch_cal(xmin, xmax, ymin, ymax, rot);
-    Serial.printf("[botcorps] touch cal x=%u..%u y=%u..%u rot=%u %s\n",
-                  (unsigned)xmin, (unsigned)xmax, (unsigned)ymin, (unsigned)ymax,
-                  (unsigned)rot,
-                  (xmin == 300 && xmax == 3900) ? "placeholder" : "nvs");
 }
 #endif
 
@@ -209,82 +217,107 @@ bool botcorps_cyd_run_touch_cal(void)
     const int targets[4][2] = {{20, 20}, {300, 20}, {20, 220}, {300, 220}};
     int rawx[4] = {0}, rawy[4] = {0};
     g_cyd.fillScreen(0x0000);
-    /* Wait for any Enter-key finger to lift before target 1 */
+    /* If finger is still down from boot hold, abort rather than recording it as target 1 */
     {
         int x, y;
-        uint32_t lift = millis();
-        while (g_cyd.get_touch_raw(&x, &y) && millis() - lift < 3000) delay(20);
+        if (g_cyd.get_touch_raw(&x, &y)) {
+            uint32_t t = millis();
+            while (g_cyd.get_touch_raw(&x, &y) && millis() - t < 3000) delay(20);
+            if (g_cyd.get_touch_raw(&x, &y)) {
+                Serial.println("[botcorps] cal abort: finger never lifted");
+                g_cyd.fillScreen(0x0000);
+                return false;
+            }
+        }
     }
     for (int i = 0; i < 4; ++i) {
         int tx = targets[i][0], ty = targets[i][1];
         g_cyd.drawLine(tx - 8, ty, tx + 8, ty, 0xFFFF);
         g_cyd.drawLine(tx, ty - 8, tx, ty + 8, 0xFFFF);
         g_cyd.drawCircle(tx, ty, 4, 0xFFFF);
-        int sx = 0, sy = 0;
-        uint32_t stable = 0;
+        int samples_x[8] = {0}, samples_y[8] = {0};
+        int n = 0;
         uint32_t start_ms = millis();
-        while (stable < 3) {
-            if (millis() - start_ms > 15000) { /* 15s timeout per target */
+        while (n < 5) {
+            if (millis() - start_ms > 15000) {
                 Serial.println("[botcorps] cal timeout");
                 g_cyd.fillScreen(0x0000);
                 return false;
             }
             int x = 0, y = 0;
             if (g_cyd.get_touch_raw(&x, &y)) {
-                sx += x; sy += y;
-                ++stable;
+                samples_x[n] = x;
+                samples_y[n] = y;
+                ++n;
                 delay(30);
             } else {
-                sx = sy = stable = 0;
+                n = 0;
                 delay(10);
             }
         }
-        rawx[i] = sx / 3;
-        rawy[i] = sy / 3;
+        /* 20-raw jitter check */
+        int minx = samples_x[0], maxx = samples_x[0];
+        int miny = samples_y[0], maxy = samples_y[0];
+        for (int k = 1; k < n; ++k) {
+            if (samples_x[k] < minx) minx = samples_x[k];
+            if (samples_x[k] > maxx) maxx = samples_x[k];
+            if (samples_y[k] < miny) miny = samples_y[k];
+            if (samples_y[k] > maxy) maxy = samples_y[k];
+        }
+        if (maxx - minx > 20 || maxy - miny > 20) {
+            Serial.println("[botcorps] cal jitter reject");
+            --i; /* retry this target */
+            continue;
+        }
+        int sx = 0, sy = 0;
+        for (int k = 0; k < n; ++k) { sx += samples_x[k]; sy += samples_y[k]; }
+        rawx[i] = sx / n;
+        rawy[i] = sy / n;
         g_cyd.fillCircle(tx, ty, 6, 0x07E0);
         delay(200);
         uint32_t rel = millis();
         int x, y;
         while (g_cyd.get_touch_raw(&x, &y) && millis() - rel < 2000) delay(10);
     }
-    /* Extrapolate from 20px inset targets to full 0..319 / 0..239.
-     * X span is 280 px (300-20), Y span is 200 px (220-20).
-     * Keep measured order (do not force min<max). Detect which raw axis
-     * moved TL->TR and derive rotation. */
-    int dtx = rawx[1] - rawx[0];
-    int dty = rawy[1] - rawy[0];
-    bool x_is_horizontal = abs(dtx) >= abs(dty);
-    uint8_t rot = 1;
-    if (x_is_horizontal) {
-        rot = (dtx >= 0) ? 0 : 2;
-    } else {
-        rot = (dty >= 0) ? 1 : 3;
+    /* Extrapolate the four inset taps to the true corners (0,0),(319,0),(319,239),(0,239).
+     * Use LovyanGFX 8-point setCalibrate. Keep measured order; do not set rot. */
+    uint16_t cal[8];
+    /* TL, TR, BR, BL */
+    auto extrap = [](int raw_inset, int inset_px, int span, int full) -> int {
+        /* linear from inset to edge */
+        return raw_inset - (raw_inset * inset_px / span); /* rough; better below */
+    };
+    /* Better: scale the measured deltas */
+    int d_right_x = ((rawx[1] - rawx[0]) + (rawx[3] - rawx[2])) / 2;
+    int d_down_y  = ((rawy[2] - rawy[0]) + (rawy[3] - rawy[1])) / 2;
+    /* Extrapolate left/right by 20/280 of the measured span */
+    int tl_x = rawx[0] - d_right_x * 20 / 280;
+    int tr_x = rawx[1] + d_right_x * 19 / 280;
+    int bl_x = rawx[2] - d_right_x * 20 / 280;
+    int br_x = rawx[3] + d_right_x * 19 / 280;
+    int tl_y = rawy[0] - d_down_y * 20 / 200;
+    int tr_y = rawy[1] - d_down_y * 20 / 200;
+    int bl_y = rawy[2] + d_down_y * 19 / 200;
+    int br_y = rawy[3] + d_down_y * 19 / 200;
+    auto clamp = [](int v) { return v < 0 ? 0 : (v > 4095 ? 4095 : v); };
+    cal[0] = (uint16_t)clamp(tl_x); cal[1] = (uint16_t)clamp(tl_y);
+    cal[2] = (uint16_t)clamp(tr_x); cal[3] = (uint16_t)clamp(tr_y);
+    cal[4] = (uint16_t)clamp(br_x); cal[5] = (uint16_t)clamp(br_y);
+    cal[6] = (uint16_t)clamp(bl_x); cal[7] = (uint16_t)clamp(bl_y);
+    /* Save 8 values and apply via setCalibrate. offset_rotation stays at constructor. */
+    Preferences prefs;
+    if (prefs.begin("botcorps", false)) {
+        prefs.putUChar("tcal", 1);
+        for (int i = 0; i < 8; ++i) {
+            char key[4];
+            snprintf(key, sizeof(key), "c%d", i);
+            prefs.putUShort(key, cal[i]);
+        }
+        prefs.end();
     }
-    int dx_right = ((rawx[1] - rawx[0]) + (rawx[3] - rawx[2])) / 2;
-    int dy_down  = ((rawy[2] - rawy[0]) + (rawy[3] - rawy[1])) / 2;
-    /* If axes swapped, the screen-horizontal delta is on raw Y, etc.
-     * For extrapolation we still use the screen-direction deltas. */
-    if (!x_is_horizontal) {
-        /* horizontal movement was on raw Y; vertical on raw X */
-        dx_right = ((rawy[1] - rawy[0]) + (rawy[3] - rawy[2])) / 2;
-        dy_down  = ((rawx[2] - rawx[0]) + (rawx[3] - rawx[1])) / 2;
-    }
-    int xmin = rawx[0] - (dx_right * 20 / 280);
-    int xmax = rawx[1] + (dx_right * 19 / 280);
-    int ymin = rawy[0] - (dy_down * 20 / 200);
-    int ymax = rawy[2] + (dy_down * 19 / 200);
-    /* keep measured order — no min/max swap */
-    if (xmin < 0) xmin = 0;
-    if (xmax > 4095) xmax = 4095;
-    if (ymin < 0) ymin = 0;
-    if (ymax > 4095) ymax = 4095;
-    if (xmax < 0) xmax = 0;
-    if (xmin > 4095) xmin = 4095;
-    if (ymax < 0) ymax = 0;
-    if (ymin > 4095) ymin = 4095;
-    botcorps_cyd_save_touch_cal((uint16_t)xmin, (uint16_t)xmax, (uint16_t)ymin, (uint16_t)ymax, rot);
+    g_cyd.apply_touch_cal8(cal);
     g_cyd.fillScreen(0x0000);
-    Serial.printf("[botcorps] cal done rot=%u x_horiz=%d\n", (unsigned)rot, x_is_horizontal ? 1 : 0);
+    Serial.println("[botcorps] cal done (8-point)");
     return true;
 }
 #endif

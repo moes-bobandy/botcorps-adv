@@ -100,18 +100,25 @@ public:
         *y = tp.y;
         return true;
     }
+    /* 8-point calibrate (TL,TR,BR,BL raw x,y). Leaves offset_rotation at constructor value. */
+    void apply_touch_cal8(const uint16_t cal[8])
+    {
+        /* LovyanGFX setTouchCalibrate expects the 8 raw values for the four corners. */
+        _touch.setCalibrate(cal);
+        /* Ensure the matrix is live. */
+        _panel.setTouch(&_touch);
+    }
+    /* Legacy range path kept for load of old NVS; still rebuilds matrix, fixed rot. */
     void apply_touch_cal(uint16_t xmin, uint16_t xmax, uint16_t ymin, uint16_t ymax,
-                         uint8_t offset_rot)
+                         uint8_t /*offset_rot*/)
     {
         auto cfg = _touch.config();
         cfg.x_min = xmin;
         cfg.x_max = xmax;
         cfg.y_min = ymin;
         cfg.y_max = ymax;
-        cfg.offset_rotation = offset_rot;
+        /* Do not override constructor offset_rotation — min>max already flips the axis. */
         _touch.config(cfg);
-        /* Rebuild the touch matrix. setTouch() (called from constructor)
-         * is what actually runs touchCalibrate() on the new ranges. */
         _panel.setTouch(&_touch);
     }
 };

@@ -1158,3 +1158,28 @@ Reviewed on box `/tmp/bca` at `grok/cyd-touch-port` tip `0e184a93fd32576f200bd9c
 ```
 On grok/cyd-touch-port tip 0e184a9 (fw 21a8cad): good — botcorps_ui_draw now does the intro-to-hub switch itself so band-direct mode can't stick on the intro, and it builds (box: RAM 72084 / flash 1408215); I'll field-test it. Tidy next: set s_act = -1 (not 0) in that switch to match enter_screen, and collapse the now-dead CYD intro-expiry branch in paint_ext back to paint_intro(g); return; so draw is the one owner. Then real host CYD frame dumps. One commit per round, LV stays "LV 01", push only to grok/cyd-touch-port, no merge/flash.
 ```
+
+---
+
+## GIBSONbot review — tip a0ba597 / fw 7db09a5 (2026-10-17 ~4:38 PM ET)
+
+Reviewed on box `/tmp/bca` at `grok/cyd-touch-port` tip `a0ba5971d3ccfd2dece5e0d1892e15078381a864` (last reviewed `3f515b5`). Diff span `3f515b5..a0ba597`: `src/ui/botcorps_ui.cpp` (+1/-14), `BRIDGE.md`, `builds/cyd/REPORT.md`. Host type gate **PASS** (`cyd osk table ok keys=42 clip_y=151`; `host cyd type gate passed`). **Box build of `env:cyd`: SUCCESS**, RAM 72,084 / 327,680 (22.0%), flash 1,408,159 / 3,145,728 (44.8%), `firmware.bin` 1,408,560 B (REPORT 1,408,063 / 1,408,464 — same build-env gap as before). Nothing merged or flashed by this watch; only this TASKS note is pushed.
+
+| SHA | What |
+|-----|------|
+| 7db09a5 | CYD: intro→hub switch in `botcorps_ui_draw` sets `s_act = -1` (matches `enter_screen`); dead `#ifdef BOTCORPS_CYD` intro-expiry branch in `paint_ext` collapsed to `paint_intro(g); return;` |
+| a0ba597 | REPORT/BRIDGE cite fw 7db09a5 + build numbers |
+
+### Matches
+1. Hub entry from the intro now uses `s_act = -1` like every other hub path, so no stale action prompt can open later (prior fix 1).
+2. `paint_ext` has one intro path again and `botcorps_ui_draw` is the only owner of the intro→hub switch (prior fix 2). The Adv path is byte-for-byte what it was (the removed `#else` was the same two lines).
+3. Memory flat (RAM same, flash −56 B vs 21a8cad). Typing gate passes. No instruction text added. LV left "LV 01".
+
+### Misses (numbered fixes)
+1. No new code misses in this round; the intro→hub work is closed on the box side.
+2. **Still open:** glass pass of boot (intro then hub, no flicker, held finger doesn't fire) + auto-cal accepting real presses + reboot-keeps-cal + touch nav (Dirt to flash 7db09a5 and send serial lines if cal still fails), real host CYD frame dumps (fonts still stubs) so screens can be checked against mocks/shots without a device, LV meaning (Dirt HOLD), leave room for the games port once the Adv games build lands. No merge/flash from this watch.
+
+### Follow-up one-liner (Dirt → Super Grok)
+```
+On grok/cyd-touch-port tip a0ba597 (fw 7db09a5): good — the intro-to-hub switch now sets s_act = -1, paint_ext's dead CYD branch is gone so draw owns the switch, and it builds (box: RAM 72084 / flash 1408159); I'll field-test it. Next: real host CYD frame dumps (320x240 single surface, real fonts not stubs) for the intro, hub, a board with focus, Terminal with the OSK open and closed, and the ID badge, saved as PNGs under builds/cyd/shots so they can be checked against mocks/shots. One commit per round, LV stays "LV 01", push only to grok/cyd-touch-port, no merge/flash.
+```

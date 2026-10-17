@@ -69,6 +69,10 @@ uint32_t botcorps_band_largest(void);
 void botcorps_frame_diag(void);
 /* Redraw one world rectangle into the live band and push the changed rows. */
 void botcorps_band_patch(void (*draw)(Gfx), int x, int y, int w, int h);
+/* v1017c: in-place dirty rect. draw MUST paint every pixel of the rect opaquely. Draws the rect
+ * clipped into the sprite at its slice offset and pushes ONLY the rect - never rebuilds (recomposes)
+ * the other slice, never pushes a full row. Must not cross y=120 (caller splits). */
+void botcorps_band_patch_rect(void (*draw)(Gfx), int x, int y, int w, int h);
 const char *botcorps_band_mode_name(void);
 lgfx::LovyanGFX *botcorps_band_sprite(void);
 /* Draw fn paints world coordinates. The band shifts them. Pushes changed rows. */

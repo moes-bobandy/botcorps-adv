@@ -45,6 +45,8 @@ teal or accent-tinted), and the mock's game is disabled (GAME_ENABLED=false). In
 
 ## Rain (all screens)
 - Bits stay the majority (about 56% of trail cells are 0/1, plus 4% code). Bots (22%) and devices (18%, neon colours) also ride inside the trails, not only as the lead glyph.
+- v1017c (Dirt, bug #4): the rain carries ONLY our glyphs: 0/1 bits (~60%), the bots in their fixed colours (22%) and our ten device icons (ap, phone, laptop, tv, speaker, tracker, watch, camera, car, unknown; the mock RAIN_DEV art on the 8x8 cell, RAIN_DEV_NEON inks, 18%). No code symbols and no ASCII stand-ins. On Gibson's screens (hub, Gibson's scan board) the mixed-in bots are ivory Gibsons with black shades and the devices take the RAIN_DEV_GIB inks. Matrix style is unchanged: falling strands, white lead glyph, fading trail.
+- v1017c (bug #6): the Terminal's rain has no bot emblems (bits + devices only), and its prompt panel has no bot emblem.
 
 ## Scan board, one per bot type (scanboard-<bot>, Gibson included)
 | id | rule |
@@ -68,9 +70,12 @@ teal or accent-tinted), and the mock's game is disabled (GAME_ENABLED=false). In
 |---|---|
 | T1 | Log text is pale cyan and "[ ok ]" is green (terminal-typed pixel classes) |
 | | terminal and terminal-tab are frozen (G7) |
-| C1 | v1017a: the commands (≡) button is a cursor stop: Down from the bottom board row (terminal-cmdbtn) |
-| C2 | Enter on it opens the commands menu, the 6x2 chip palette (terminal-cmdmenu) |
-| C3 | Esc closes the menu back onto the button; Up leaves the button to the boards |
+| C1 | v1017c (bug #3, hub model): arrows always move focus. Down from the bottom board row stops on the prompt (terminal-prompt), one more Down on the commands (≡) button (terminal-cmdbtn); Left/Right from either go back to the boards; typing focuses the prompt |
+| C2 | Enter on it opens the commands menu, the 6x2 chip palette (terminal-cmdmenu); Enter on an empty focused prompt does nothing |
+| C3 | Esc closes the menu back onto the button; Up walks button → prompt → boards |
+| K1 | v1017c (bug #2): the prompt shows exactly what was typed: the real read_key on a scripted key matrix (rollover typing, a release + press in one scan, Backspace while a letter is held) types "scan wifi" exactly. Keys are edge-detected presses; a release never produces a key |
+| K2 | One arrow chord (Fn + . released Fn-first) moves focus exactly one stop; plain ; . , / are arrows (never typed) in the Terminal even with text in the prompt |
+| | v1017c: the prompt line has no inline ghost completion (it sat under the caret and read as a stray letter); completions stay in the candidate list |
 | C4 | A command picked in the menu runs |
 | | The prompt line's partial redraw uses the full painter clipped to the line, so it matches a full paint pixel for pixel (S1 terminal-typing) |
 
@@ -90,7 +95,7 @@ teal or accent-tinted), and the mock's game is disabled (GAME_ENABLED=false). In
 | F2 | Enter cycles the focused setting forward through all its values (full cycle checked per setting) |
 | F3 | NVS writes happen on Enter. Tested on settings 3 and 4; in the firmware only rain mode is persisted, which is pre-existing behaviour |
 | | Settings keeps the UI colour selection and the bot colour/shape settings. No MASHUP overflow (G2/G4) |
-| L1 | Layout and look are locked: settings-c0..c7 and settings-amber renders are byte-identical to 675c87d (release/gate/locked-675c87d.sha256, which also locks the terminal, scan, sbox, game and hub renders; v1017b re-locked only the terminal / terminal-typed / terminal-tab hashes (square chip-form tiles) and hub / hub-amber (strong selected-button halo + command-menu stop)) |
+| L1 | Layout and look are locked: settings-c0..c7 and settings-amber renders are byte-identical to 675c87d (release/gate/locked-675c87d.sha256, which also locks the terminal, scan, sbox, game and hub renders; v1017b re-locked only the terminal / terminal-typed / terminal-tab hashes (square chip-form tiles) and hub / hub-amber (strong selected-button halo + command-menu stop); v1017c re-locked every rain-on render (rain glyph set #4, host rain fidelity) with all their .norain twins unchanged, plus terminal.norain / terminal-typed.norain (bugs #2/#3/#6)) |
 
 ## Game screens (game-board, game-menu, game-jackin = GCHAT)
 - C1/C3 square Gibson block, G1–G8.
@@ -104,6 +109,8 @@ slice recomposes it first; only changed rows are pushed. The real draw loop (bot
 per screen, and every push is checked against a full paint at the same millis().
 | id | rule |
 |---|---|
-| S1 | No push shows pixels that differ from a full paint (no flash): scan-gibson, scan-flock, scan-airtag, scan-wifi, scan-ble, game-board, game-jackin, terminal-typing, gibson-game |
+| S1 | No push shows pixels that differ from a full paint (no flash): scan-gibson, scan-flock, scan-airtag, scan-wifi, scan-ble, game-board, game-jackin, terminal-typing, gibson-game, scan-sbox-hunt/info/gloss, control-nav, hub-to-control, control-to-hub |
 | S2 | Scan screens: the idle animation never does a full-screen present (patches only) |
+| S3 | v1017c: every gate screen painted the device way (two 120-row slices, oy 0/120, clipped to the 320x120 sprite) composes to exactly the one-shot frame, rain on and off |
+| S4 | v1017c (bug #1): scan screens' idle ticks draw in place (dirty rect only, botcorps_band_patch_rect): zero slice recomposes in 6 s |
 | | **[device]** The simulator proves the logic. Panel timing, SPI tearing and what you actually see can only be checked on the Adv |

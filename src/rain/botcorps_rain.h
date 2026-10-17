@@ -51,6 +51,11 @@ void botcorps_rain_paint(void);
 void botcorps_rain_draw(lgfx::LovyanGFX &dst, int y0, int y1);
 /* Gibson hub: scale rain inks by 0.58 toward #030706 through the fade table. */
 void botcorps_rain_set_hub(bool on);
+/* v1017c: Gibson's screen (hub, Gibson's scan board): bots in the rain are ivory Gibsons and the
+ * devices take the Gibson-screen inks. */
+void botcorps_rain_set_gibson(bool on);
+/* v1017c: Terminal: no bot emblems in the rain (bit + device glyphs only). */
+void botcorps_rain_set_no_bots(bool on);
 int botcorps_rain_cell_bytes(void);
 
 void botcorps_rain_set_parked(bool parked);

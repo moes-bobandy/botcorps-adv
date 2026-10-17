@@ -28,15 +28,42 @@ static const uint16_t PALETTE[14] = {
     0x76C2, 0xFDC9, 0x1677, 0x591D, 0xE8EA, 0x1BDD, 0xF689,
     0xFA69, 0xE2FF, 0xCF89, 0xF79C, 0xFC43, 0x6BBF, 0x5FF8,
 };
-static const char DEV_GLYPHS[] = "*/#+@%&$X";
+/* v1017c (#4): the rain carries ONLY our glyphs: 0/1 bits, the bots, and our device icons (Dirt's
+ * ten, mock RAIN_DEV order). The old ASCII stand-ins (* / # + @ % & $ X) and the code symbols
+ * (< > [ ] { } : / \ | + - = * #) read as random characters and are gone. Each device is the mock
+ * 12x12 3-ink art redrawn on the 8x8 rain cell: a = body, b = dark fill, c = highlight. */
+enum { DEV_N = 10 };
+static const char DEV_ART[DEV_N][8][9] = {
+    { ".cccccc.", "c......c", "..cccc..", ".c....c.", "...cc...", "aaaaaaaa", "abcbbcba", "aaaaaaaa" }, /* ap */
+    { ".aaaaaa.", ".abbbba.", ".abccba.", ".abccba.", ".abccba.", ".abbbba.", ".abaaba.", ".aaaaaa." }, /* phone */
+    { "........", ".aaaaaa.", ".abccba.", ".abccba.", ".abbbba.", ".aaaaaa.", "aabbbbaa", "aaaaaaaa" }, /* laptop */
+    { "aaaaaaaa", "abbbbbba", "abccccba", "abcbbbba", "abbbbcba", "abbbbbba", "aaaaaaaa", "..aaaa.." }, /* tv */
+    { ".aaaaaa.", ".abccba.", ".abbbba.", ".abccba.", ".acbbca.", ".abccba.", ".abbbba.", ".aaaaaa." }, /* speaker */
+    { "..aaaa..", ".aabbaa.", "aabccbaa", "abcbbcba", "abcbbcba", "aabccbaa", ".aabbaa.", "..aaaa.." }, /* tracker */
+    { "..aaaa..", "..abba..", ".aaaaaa.", ".abbcba.", ".abccba.", ".aaaaaa.", "..abba..", "..aaaa.." }, /* watch */
+    { "........", ".aaa....", "aaaaaaaa", "abbbbbca", "abbccbba", "abcbbcba", "abbccbba", "aaaaaaaa" }, /* camera */
+    { "........", "..aaaa..", ".abbbba.", "aaaaaaaa", "acaaaaca", "aaaaaaaa", ".bb..bb.", "........" }, /* car */
+    { "..cccc..", ".cc..cc.", ".....cc.", "....cc..", "...cc...", "........", "...cc...", "........" }, /* unknown */
+};
+/* RAIN_DEV_NEON (a, a 72% to black, a 12% to white) and, on Gibson's screen, RAIN_DEV_GIB (a, 70% to
+ * black, 35% to white). RGB565. */
+static const uint16_t DEV_NEON[DEV_N][3] = {
+    {0x079F,0x0208,0x1F9F}, {0x3FE2,0x1220,0x57E6}, {0xCFE0,0x3A20,0xCFE3}, {0x07F5,0x0225,0x1FF6}, {0xFD00,0x4160,0xFD43},
+    {0xFF80,0x4200,0xFF83}, {0xF95A,0x4067,0xFA3B}, {0xB13F,0x3048,0xBA1F}, {0x6BBF,0x1908,0x7C3F}, {0xFC5D,0x4128,0xFCDD},
+};
+static const uint16_t DEV_GIB[DEV_N][3] = {
+    {0x069F,0x01E9,0x5F1F}, {0xF95A,0x4868,0xFBBC}, {0x3BDF,0x1129,0x855F}, {0x0734,0x0226,0x5F78}, {0xFC60,0x4940,0xFDAB},
+    {0xF9C6,0x4881,0xFC0F}, {0xC21F,0x3889,0xD41F}, {0xFAF4,0x48E6,0xFCB8}, {0xFE20,0x49C0,0xFECB}, {0x9BDF,0x2929,0xBD5F},
+};
+static const uint16_t GIB_IVORY_N = 0xF79C;   /* GIBSONbot's fixed ivory */
 static int s_shape = 0;
+static bool s_gibson = false;   /* Gibson's screen: the mixed-in bots are ivory Gibsons */
+static bool s_no_bots = false;  /* Terminal: no bot emblems in its rain (bits + devices only) */
 
 static const uint16_t SOLID_INK[6] = {
     0x26E8, 0x269C, 0x331F, 0xB21F, 0xF586, 0xFFFF,
 };
 
-static const char CODE_GLYPHS[] = "01<>[]{}:/\\|+-=*#";
-static const int CODE_N = 18;
 /* v1016f classic code rain: 40x30 cells of 8 px, two drops per column, a white
  * lead glyph, a four-step fading trail, mostly 0/1 bits. Some leads are bots in
  * their own colour or device glyphs. State is the Tier 0 column records (56x8)
@@ -96,11 +123,11 @@ static uint8_t new_glyph(void)
 {
     /* v1016l: bots + devices ride INSIDE the strands too (mock rainNext), bits stay the majority */
     const int r = rnd_n(100);
-    if (r < 28) return '0';
-    if (r < 56) return '1';                                                                /* bits stay the majority */
-    if (r < 60) return (uint8_t)CODE_GLYPHS[2 + rnd_n(CODE_N - 2)];
+    /* v1017c (#4): the old 4% code-symbol share goes to the bits (60%); bots 22%, devices 18% */
+    if (r < 30) return '0';
+    if (r < 60) return '1';                                                                /* bits stay the majority */
     if (s_mix != BOTCORPS_RAIN_MIX_DEV && r < 82) return (uint8_t)(0x80 | rnd_n(12));      /* bot */
-    if (s_mix != BOTCORPS_RAIN_MIX_BOTS) return (uint8_t)(0xA0 | rnd_n(9));               /* device */
+    if (s_mix != BOTCORPS_RAIN_MIX_BOTS) return (uint8_t)(0xA0 | rnd_n(DEV_N));           /* device */
     return '1';
 }
 
@@ -111,7 +138,7 @@ static uint8_t new_lead(void)
     if (s_mix == BOTCORPS_RAIN_MIX_BOTS) { bot = 22; dev = 0; }
     else if (s_mix == BOTCORPS_RAIN_MIX_DEV) { bot = 0; dev = 18; }
     if (r < bot) return (uint8_t)(LEAD_BOT | (rnd_n(12) << 2));
-    if (r < bot + dev) return (uint8_t)(LEAD_DEV | (rnd_n(9) << 2));
+    if (r < bot + dev) return (uint8_t)(LEAD_DEV | (rnd_n(DEV_N) << 2));
     return LEAD_CODE;
 }
 
@@ -194,45 +221,48 @@ static void draw_cell(lgfx::LovyanGFX &panel, int col, int row)
     panel.setClipRect(x, ly < 0 ? 0 : ly, CELL, CELL);
     botcorps_pal_rect(panel, x, ly, CELL, CELL, PAL_FIELD);
     if (lv == 0) { panel.clearClipRect(); return; }
-    if (lv == 1 && (lead & 3) == LEAD_BOT) {
-        const int b = (lead >> 2) % 12;
-        botcorps_sprite_draw(panel, x + 4, ly + 4, botcorps_shape_for(b), 1,
-                             botcorps_pal_fit(BOTCORPS_BOT_COLOR[b]), false);
+    const uint8_t gl = *glyph_at(col, row);
+    const bool lead_bot = lv == 1 && (lead & 3) == LEAD_BOT;
+    const bool trail_bot = lv >= 2 && gl >= 0x80 && gl < 0x8C;
+    if ((lead_bot || trail_bot) && !s_no_bots) {
+        /* bot in its fixed colour (lead bright, trail fading with age); on Gibson's screen an ivory
+         * Gibson with black shades */
+        const int b = lead_bot ? (lead >> 2) % 12 : (gl & 0x0F);
+        const uint16_t c = s_gibson ? GIB_IVORY_N : BOTCORPS_BOT_COLOR[b];
+        const uint8_t body = botcorps_pal_fit(lv <= 3 ? c : scale_native(c, lv == 4 ? 2 : 1, 3));
+        if (s_gibson)
+            botcorps_sprite_draw_inks(panel, x + 4, ly + 4, BOTCORPS_SHAPE_ROUND, 1, body, PAL_BLACK, false);
+        else
+            botcorps_sprite_draw(panel, x + 4, ly + 4, botcorps_shape_for(b), 1, body, false);
         panel.clearClipRect();
         return;
     }
-    const uint8_t gl = *glyph_at(col, row);
-    if (lv >= 2 && gl >= 0x80 && gl < 0x8C) {            /* bot inside the trail, fading with age */
-        const int b = gl & 0x0F;
-        const uint16_t c = BOTCORPS_BOT_COLOR[b];
-        botcorps_sprite_draw(panel, x + 4, ly + 4, botcorps_shape_for(b), 1,
-                             botcorps_pal_fit(lv <= 3 ? c : scale_native(c, lv == 4 ? 2 : 1, 3)), false);
+    const bool lead_dev = lv == 1 && (lead & 3) == LEAD_DEV;
+    const bool trail_dev = lv >= 2 && gl >= 0xA0;
+    if (lead_dev || trail_dev) {
+        const int d = (lead_dev ? (lead >> 2) : (gl & 0x0F)) % DEV_N;
+        const uint16_t *pc = s_gibson ? DEV_GIB[d] : DEV_NEON[d];
+        uint8_t ink3[3];
+        for (int k = 0; k < 3; ++k) ink3[k] = botcorps_pal_fit(lv <= 3 ? pc[k] : scale_native(pc[k], lv == 4 ? 2 : 1, 3));
+        for (int yy = 0; yy < 8; ++yy) {
+            const char *rw = DEV_ART[d][yy];
+            for (int xx = 0; xx < 8;) {
+                const char ch = rw[xx];
+                if (ch == '.') { ++xx; continue; }
+                int e = xx;
+                while (e < 8 && rw[e] == ch) ++e;
+                botcorps_pal_rect(panel, x + xx, ly + yy, e - xx, 1, ink3[ch - 'a']);
+                xx = e;
+            }
+        }
         panel.clearClipRect();
         return;
     }
     uint8_t ink;
     char ch = (char)gl;
-    if (lv >= 2 && gl >= 0xA0) {                          /* device glyph inside the trail */
-        const int d = (gl & 0x0F) % 9;
-        ch = DEV_GLYPHS[d];
-        const uint16_t dc = BOTCORPS_BOT_COLOR[(d * 5 + 3) % 12];          /* neon device colours like the mock */
-        ink = botcorps_pal_fit(lv <= 3 ? dc : scale_native(dc, lv == 4 ? 2 : 1, 3));
-        const char s2[2] = { ch, 0 };
-        panel.setFont(&fonts::Font0);
-        panel.setTextSize(1);
-        botcorps_pal_text(panel, ink);
-        panel.setCursor(x + 1, ly);
-        panel.print(s2);
-        panel.clearClipRect();
-        return;
-    }
-    if (lv == 1 && (lead & 3) == LEAD_DEV) {
-        const int d = (lead >> 2) % 9;
-        ink = botcorps_pal_fit(BOTCORPS_BOT_COLOR[(d * 5 + 3) % 12]);
-        ch = DEV_GLYPHS[d];
-    } else if (lv == 1) {
+    if (gl >= 0x80) ch = (gl & 1) ? '1' : '0';       /* icon codes never print as raw glyphs */
+    if (lv == 1) {
         ink = PAL_WHITE;                    /* bright lead glyph */
-        if (gl >= 0x80) ch = (gl & 1) ? '1' : '0';   /* icon codes never print as raw glyphs */
     } else {
         static const int AGE[4] = { 0, 5, 9, 13 };
         if (!botcorps_pal_ramp_for(code_native(), AGE[lv - 2], &ink)) ink = botcorps_pal_fit(code_native());
@@ -352,6 +382,16 @@ bool botcorps_rain_step(void)
 void botcorps_rain_set_hub(bool on)
 {
     s_hub_on = on;
+}
+
+void botcorps_rain_set_gibson(bool on)
+{
+    s_gibson = on;
+}
+
+void botcorps_rain_set_no_bots(bool on)
+{
+    s_no_bots = on;
 }
 
 void botcorps_rain_draw(lgfx::LovyanGFX &dst, int y0, int y1)

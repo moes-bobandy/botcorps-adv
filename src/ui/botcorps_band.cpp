@@ -556,3 +556,53 @@ void botcorps_band_patch(void (*draw)(Gfx), int x, int y, int w, int h)
     s_resident = slice;
     botcorps_band_set_oy(0);
 }
+
+/* v1017c (#1 scan flicker): the scan board's animated parts tick in BOTH slices (top bar / rules in
+ * slice 0, prompt / caret / line in slice 1). Through botcorps_band_patch every tick in the slice the
+ * sprite was not holding first rebuilt that WHOLE 120-row slice (recompose_slice: field fill, rain,
+ * the full board) and re-pushed every row that differed - ~38 half-screen repaints a second on the
+ * scan screen, i.e. a constant full redraw. A dirty rect needs none of that: its painter is opaque
+ * over the rect, so draw it at the slice offset and push just those pixels. Rows of a slice the
+ * sprite was not holding get the "unknown" hash so the next full present re-pushes them whole. */
+void botcorps_band_patch_rect(void (*draw)(Gfx), int x, int y, int w, int h)
+{
+    if (!draw || !s_live || !s_sp || s_direct || w <= 0 || h <= 0) return;
+    if (x < 0) { w += x; x = 0; }
+    if (x + w > 320) w = 320 - x;
+    if (w <= 0) return;
+    if (SLICE_N > 1 && y < SLICE_H && (y + h) > SLICE_H) {
+        Serial.printf("[botcorps] band_patch_rect refused, crosses y=%d (y=%d h=%d)\n",
+                      SLICE_H, y, h);
+        return;
+    }
+    const int slice = y / SLICE_H;
+    if (slice < 0 || slice >= SLICE_N) return;
+    const int y0 = slice * SLICE_H;
+    const bool held = s_resident == slice;
+    botcorps_band_set_oy(y0);
+    s_sp->setTextWrap(false, false);
+    s_sp->setClipRect(x, y - y0, w, h);
+    draw(Gfx(*s_sp));
+    s_sp->endWrite();
+    s_sp->clearClipRect();
+    if (botcorps_dual_ok()) {
+        const uint8_t *buf = (const uint8_t *)s_sp->getBuffer();
+        if (buf) {
+            const int stride = (int)(s_sp->bufferLength() / (size_t)SLICE_H);
+            auto &panel = botcorps_content();
+            uint16_t line[320];
+            panel.startWrite();
+            for (int r = y - y0; r < y - y0 + h && r < SLICE_H; ++r) {
+                const uint8_t *row = buf + (size_t)r * (size_t)stride;
+                for (int i = 0; i < w; ++i) line[i] = ext_push_word(row[x + i]);
+                panel.pushImage(x, y0 + r, w, 1, line);
+                botcorps_t0_row_hash[y0 + r] = held ? row_hash(row, 320) : 0xffffffffu;
+            }
+            panel.endWrite();
+            panel.clearClipRect();
+        }
+    }
+    /* A rect drawn over the other slice's pixels leaves the sprite holding neither slice whole. */
+    if (!held) s_resident = -1;
+    botcorps_band_set_oy(0);
+}

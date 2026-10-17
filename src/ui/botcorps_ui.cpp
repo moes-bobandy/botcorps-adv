@@ -319,6 +319,9 @@ static bool s_focus_cmds = false;
 /* v1017a: the commands (≡) button is a cursor stop: Down from the bottom board row; Enter opens the
  * commands menu (the 6x2 chip palette, s_focus_cmds). */
 static bool s_cmd_btn = false;
+/* v1017c (#3): the prompt line is a cursor stop too, like the hub: Up/Down walk
+ * boards -> prompt -> commands (≡) button; Left/Right go back to the boards. */
+static bool s_term_prompt = false;
 static bool s_sheet = false;
 static int s_sheet_i = 0;
 static int s_cmd_sel = 0;
@@ -761,7 +764,7 @@ static void enter_screen(int id, int ret)
     s_cursor = 0;
     s_hub_zone = 0;
     s_sheet = false;
-    s_focus_cmds = false; s_cmd_btn = false;
+    s_focus_cmds = false; s_cmd_btn = false; s_term_prompt = false;
     s_term_crown = false;
     scan_all_set(false);
     botcorps_lut_term(false);
@@ -1378,7 +1381,7 @@ static void paint_boards(Gfx g)
 {
     /* v1016f-2 #2: only the focused board is full-bright; the rest are dimmed, like the mock. */
     for (int i = 0; i < 12; ++i) {
-        const bool sel = (i == s_term) && !s_focus_cmds && !s_cmd_btn;
+        const bool sel = (i == s_term) && !s_focus_cmds && !s_cmd_btn && !s_term_prompt;
         paint_one_board(g, i, sel, !sel);
     }
 }
@@ -2124,18 +2127,27 @@ static void paint_prompt(Gfx g)
     }
     txt(g, ":~$", 10 + 13 * 6 + 1, y, accent(), lgfx::textdatum::top_left);
     txt(g, ":~$", 10 + 13 * 6, y, accent(), lgfx::textdatum::top_left);
+    /* v1017c (#2): the prompt line shows exactly the typed characters, in order, and nothing else.
+     * The muted inline completion that used to follow the text (cand_ghost) sat under the caret
+     * (caret at text end + 2 px), so a sliver of the next ghost letter read as a stray glyph
+     * ("sca" + half an 'n'). Completions stay in the candidate list beside the prompt. The caret
+     * x comes from the typed length, not the panel cursor. */
     g.setFont(&fonts::Font0);
     g.setTextSize(1);
     g.setTextColor(COL_WHITE);
     g.setCursor(10 + 16 * 6, y);
     g.print(botcorps_t0_term_prompt);
-    const int cx = g.getCursorX() + 2;
-    const char *ghost = cand_ghost();
-    if (ghost) {
-        g.setTextColor(COL_MUTED);
-        g.print(ghost);
+    const int cx = 10 + 16 * 6 + (int)strlen(botcorps_t0_term_prompt) * 6 + 2;
+    /* v1017c (#3): prompt focus = accent frame over the prompt row (the plate's bottom border closes
+     * it) and a steady caret while there is text, as on the hub prompt strip. */
+    const bool pf = s_term_prompt && !s_sheet && !s_focus_cmds && !s_cmd_btn;
+    if (pf) {
+        g.fillRect(6, 224, 242, 1, accent());
+        g.fillRect(6, 224, 1, 11, accent());
+        g.fillRect(247, 224, 1, 11, accent());
     }
-    if ((millis() / 530u) % 2u == 0) g.fillRect(cx, y, 6, 8, accent());
+    const bool caret = pf && botcorps_t0_term_prompt[0] ? true : (millis() / 530u) % 2u == 0;
+    if (caret) g.fillRect(cx, y, 6, 8, accent());
     paint_cands(g);
     const bool po = (s_focus_cmds || s_cmd_btn) && !s_sheet;
     plate(g, 250, 214, 20, 12, po ? COL_SEL : COL_DEEP, po ? accent() : COL_LINE);
@@ -2152,9 +2164,8 @@ static void paint_prompt(Gfx g)
         g.fillRect(bx, by + 59, 38, 1, COL_LINE);
         g.fillRect(bx, by, 1, 60, COL_LINE);
         g.fillRect(bx + 37, by, 1, 60, COL_LINE);
-        const int bot = s_term >= 0 && s_term <= 11 ? s_term : 0;
-        draw_blob(g, bx + 19, by + 30, 2, bot_color(bot), 0, false);
-        g.fillRect(bx + 9, by + 48, 20, 1, edge);
+        /* v1017c (#6): no bot emblem (and no emblem stand) in the terminal's prompt panel; the
+         * desktop-style companion box chrome stays. */
     }
     if (scan_all_on() && !s_sheet) {
         /* TERM override codes, inside x14..306, y167..222 only. Prompt is y=227.
@@ -5139,6 +5150,14 @@ static void paint_intro(Gfx g)
     s_px = keep;
 }
 
+/* v1017c (#4/#6): rain glyph flags per screen. Gibson's screens (hub, Gibson's scan board) mix in
+ * ivory Gibsons; the Terminal's rain has no bot emblems. */
+static void rain_flags(void)
+{
+    botcorps_rain_set_gibson(s_screen == SCR_GIBSON || (s_screen == SCR_SCAN && s_scan_bot == 12));
+    botcorps_rain_set_no_bots(s_screen == SCR_TERMINAL);
+}
+
 static void paint_ext(Gfx g)
 {
 #ifdef BOTCORPS_HOST_RENDER
@@ -5149,6 +5168,7 @@ static void paint_ext(Gfx g)
     g.setTextWrap(false, false);
     const bool hub = s_screen == SCR_GIBSON;
     botcorps_rain_set_hub(hub);
+    rain_flags();
     /* v1016k (SPEC R1): rain behind EVERY screen. Live (stepped) where it always was;
      * panel screens (terminal, scan box, game, diag, intro) get the same rain painted
      * as a static layer on each full paint, framed by their opaque panels. */
@@ -5529,7 +5549,12 @@ static void paint_cursor_item(Gfx g, int index, bool sel)
     } else if (s_screen == SCR_SCAN) {
         id = index == 0 ? ICO_TRACK : ICO_BACK;
     } else if (s_screen == SCR_CONTROL) {
-        id = index == CP_N ? ICO_TERM : ICO_BACK;
+        /* v1017c (#5, defensive): the control panel's crown / TERM live in paint_control's top bar.
+         * This used to draw the OLD side-button plates (draw_btn "terminal" / "back" with labels) at the
+         * pre-v1017a spots (284,8 / 250,8) - the only code that can put old buttons on this screen. Focus
+         * here is a full present, as it is for every other control-panel stop. */
+        s_dirty = true;
+        return;
     }
     draw_btn(g, x, y, id, sel);
     if (id == ICO_TRACK && sel && s_track) g.fillCircle(x + 14, y, 3, accent());
@@ -5569,11 +5594,33 @@ static void patch_world(void (*fn)(Gfx), int x, int y, int w, int h)
 }
 
 /* Scan box dirty rects: each moving part is patched only when its own key changes. */
-static void sb_patch(int x, int y, int w, int h)
+static void sb_patch_one(int x, int y, int w, int h)
 {
     s_pc_x = x; s_pc_y = y; s_pc_w = w; s_pc_h = h;
-    patch_world(draw_scan_part, x, y, w, h);
+    botcorps_band_patch_rect(draw_scan_part, x, y, w, h);
     s_pc_x = 0; s_pc_y = 0; s_pc_w = 320; s_pc_h = 240;
+}
+
+/* v1017c (#1): scan parts are drawn IN PLACE - each tick paints only its own dirty rect and pushes
+ * only those pixels (botcorps_band_patch_rect). Before, every tick went through band_patch, which
+ * rebuilt the whole non-resident 120-row slice first (sb_tick alternates slices, so nearly every
+ * tick did): a constant half-screen redraw. paint_sbox is opaque over each part rect (proved on the
+ * host band sim by poisoning the rect before the draw: gate S1/S4). */
+static void sb_patch(int x, int y, int w, int h)
+{
+    if (w <= 0 || h <= 0 || !botcorps_dual_ok()) return;
+    if (botcorps_band_direct() || !botcorps_band_live()) {
+        s_pc_x = x; s_pc_y = y; s_pc_w = w; s_pc_h = h;
+        patch_world(draw_scan_part, x, y, w, h);
+        s_pc_x = 0; s_pc_y = 0; s_pc_w = 320; s_pc_h = 240;
+        return;
+    }
+    if (y < 120 && y + h > 120) {
+        sb_patch_one(x, y, w, 120 - y);
+        sb_patch_one(x, 120, w, y + h - 120);
+    } else {
+        sb_patch_one(x, y, w, h);
+    }
 }
 
 static void sb_tick(void)
@@ -5725,7 +5772,11 @@ static void partial_int(void)
 
 static void draw_tile_part(Gfx g)
 {
-    paint_one_board(g, s_part_i, (s_part_i == s_term) && !s_focus_cmds && !s_cmd_btn, false);
+    /* v1017c: same sel / dim as paint_boards. The partial used to pass dim=false, so a board that lost
+     * focus by a partial (focus to the prompt / commands button, or arrows to another board) came back
+     * full-bright instead of dimmed until the next full paint (S1 terminal-typing caught it). */
+    const bool sel = (s_part_i == s_term) && !s_focus_cmds && !s_cmd_btn && !s_term_prompt;
+    paint_one_board(g, s_part_i, sel, !sel);
 }
 
 static void partial_tile(int index)
@@ -5933,19 +5984,6 @@ static void on_arrows(int key)
             }
             return;
         }
-        if (botcorps_t0_term_prompt[0] && !s_key_fn) {
-            /* Prompt owns the plain keys (history). Fn+arrows always leave the prompt. */
-            if (key == 1 || key == 2) {
-                if (s_hist_n <= 0) return;
-                if (s_hist_i < 0) s_hist_i = s_hist_n;
-                s_hist_i += (key == 1) ? -1 : 1;
-                if (s_hist_i < 0) s_hist_i = 0;
-                if (s_hist_i >= s_hist_n) s_hist_i = s_hist_n - 1;
-                snprintf(botcorps_t0_term_prompt, 80, "%s", botcorps_t0_term_hist[s_hist_i]);
-                partial_term_lower();
-            }
-            return;
-        }
         if (s_focus_cmds) {
             const int old = s_cmd_sel;
             const int d = key == 3 ? -1 : key == 4 ? 1 : key == 1 ? -6 : 6;
@@ -5956,21 +5994,32 @@ static void on_arrows(int key)
             }
             return;
         }
+        /* v1017c (#3): arrows always move focus in the Terminal (they used to be swallowed as
+         * history / typed ; . , / once the prompt held text, so the commands menu was unreachable).
+         * Same model as the hub: Up/Down walk boards -> prompt -> commands (≡) button, Up reverses;
+         * Left/Right from the prompt or the button go back to the boards. Arrow history recall
+         * is gone: it is what swallowed Up/Down whenever the prompt held text. */
+        if (s_term_prompt) {
+            s_term_prompt = false;
+            if (key == 2) s_cmd_btn = true;          /* Down: prompt -> commands button */
+            else partial_tile(s_term);               /* Up / Left / Right: back to the boards */
+            partial_term_lower();
+            return;
+        }
         if (s_cmd_btn) {
-            /* v1017a: on the commands button only Up leaves (back to the board above it). */
-            if (key == 1) {
-                s_cmd_btn = false;
-                partial_tile(s_term);
-                partial_term_lower();
-            }
+            s_cmd_btn = false;
+            if (key == 1) s_term_prompt = true;      /* Up: button -> prompt */
+            else if (key == 2) s_cmd_btn = true;     /* Down: bottom of the walk, stay */
+            else partial_tile(s_term);               /* Left / Right: back to the boards */
+            partial_term_lower();
             return;
         }
         const int old = s_term;
         int c = s_term % 4;
         int r = s_term / 4;
         if (key == 2 && r == 2) {
-            /* v1017a: Down from the bottom board row stops on the commands button. */
-            s_cmd_btn = true;
+            /* v1017c: Down from the bottom board row stops on the prompt (then the commands button). */
+            s_term_prompt = true;
             partial_tile(old);
             partial_term_lower();
             return;
@@ -6131,6 +6180,7 @@ static void on_ok(void)
             botcorps_t0_term_prompt[0] = 0;
             return;
         }
+        if (s_term_prompt) return;   /* v1017c: Enter on an empty prompt does nothing (hub: same) */
         if (s_cmd_btn) {
             /* v1017a: Enter on the button opens the commands menu (chip palette). */
             s_cmd_btn = false;
@@ -6317,8 +6367,9 @@ static void on_char(char c)
         s_term_crown = false;
         partial_prompt_panel();
     }
-    if (s_cmd_btn) {
-        s_cmd_btn = false;       /* typing returns focus to the prompt / boards */
+    s_cmd_btn = false;
+    if (!s_term_prompt) {
+        s_term_prompt = true;    /* v1017c: typing puts focus on the prompt (hub: same) */
         partial_tile(s_term);
     }
     botcorps_t0_term_prompt[n] = c;
@@ -6356,56 +6407,76 @@ static void on_bs(void)
 
 enum { K_NONE = 0, K_UP = 1, K_DN = 2, K_LT = 3, K_RT = 4, K_OK = 5, K_ESC = 6, K_TAB = 7, K_BS = 8, K_CHAR = 9 };
 
+/* v1017c (#2/#3) keyboard root cause. The old reader fired whenever the NUMBER of held keys changed
+ * (Keyboard.isChange() compares only keyList().size()) and then answered from keysState(), which
+ * describes ALL keys still held, not the one just pressed:
+ *   - rollover typing ("h" still down when "e" lands) re-emitted the first held char: "he" -> "hh";
+ *   - releasing one key of a chord re-emitted the key still held (a second letter / a second arrow);
+ *   - a held Backspace / Tab / Enter won over a new letter (hid_keys was scanned first);
+ *   - a press and a release in the same scan kept the count equal and was dropped;
+ *   - with text in the prompt, plain ; . , / were typed as characters, and an extra release-emitted
+ *     arrow skipped focus stops, so the commands button could not be reached by arrows.
+ * Now: edge-detect presses against the previous keyList (the TCA8418 reader keeps press order), act
+ * only on the newest newly pressed non-modifier key, and map it from the keymap with the live
+ * Shift / Ctrl / caps state. Releases never produce a key. */
+static Point2D_t s_kprev[16];
+static int s_kprev_n = 0;
 static int read_key(char *typed)
 {
     *typed = 0;
-    if (!M5Cardputer.Keyboard.isChange()) return K_NONE;
-    if (!M5Cardputer.Keyboard.isPressed()) return K_NONE;
-    const auto &st = M5Cardputer.Keyboard.keysState();
+    const auto &kl = M5Cardputer.Keyboard.keyList();
+    int fresh = -1;
+    bool fn = false, shift = false, ctrl = false;
+    for (int i = 0; i < (int)kl.size(); ++i) {
+        const uint8_t v = (uint8_t)M5Cardputer.Keyboard.getKeyValue(kl[i]).value_first;
+        if (v == KEY_FN) { fn = true; continue; }
+        if (v == KEY_LEFT_SHIFT) { shift = true; continue; }
+        if (v == KEY_LEFT_CTRL) { ctrl = true; continue; }
+        if (v == KEY_OPT || v == KEY_LEFT_ALT) continue;
+        bool held = false;
+        for (int j = 0; j < s_kprev_n; ++j) if (s_kprev[j] == kl[i]) { held = true; break; }
+        if (!held) fresh = i;                    /* newest new press wins */
+    }
+    s_kprev_n = 0;
+    for (const auto &p : kl) if (s_kprev_n < 16) s_kprev[s_kprev_n++] = p;
+    if (fresh < 0) return K_NONE;
+    const KeyValue_t kv = M5Cardputer.Keyboard.getKeyValue(kl[fresh]);
+    const uint8_t code = (uint8_t)kv.value_first;
     s_key_fn = false;
-    if (st.enter) return K_OK;
-    if (st.fn) {
+    if (code == KEY_ENTER) return K_OK;
+    if (code == KEY_BACKSPACE) return K_BS;
+    if (code == KEY_TAB) return K_TAB;
+    if (fn) {
         /* Fn chords are never typing: Fn+; . , / are arrows and Fn+` is Esc on every screen. */
-        for (char c : st.word) {
-            s_key_fn = true;
-            if (c == ';' || c == ':') return K_UP;
-            if (c == '.' || c == '>') return K_DN;
-            if (c == ',' || c == '<') return K_LT;
-            if (c == '/' || c == '?') return K_RT;
-            if (c == '`' || c == '~') return K_ESC;
-            s_key_fn = false;
-        }
+        s_key_fn = true;
+        if (code == ';') return K_UP;
+        if (code == '.') return K_DN;
+        if (code == ',') return K_LT;
+        if (code == '/') return K_RT;
+        if (code == '`') return K_ESC;
+        s_key_fn = false;
     }
-    for (uint8_t h : st.hid_keys) {
-        if (h == 0x2A) return K_BS;
-        if (h == 0x2B) return K_TAB;
-        if (h == 0x29) return K_ESC;
-        if (h == 0x52) return K_UP;
-        if (h == 0x51) return K_DN;
-        if (h == 0x50) return K_LT;
-        if (h == 0x4F) return K_RT;
+    const char c = (shift || ctrl || M5Cardputer.Keyboard.capslocked()) ? kv.value_second : kv.value_first;
+    /* Text-entry screens own plain ; . , / once something is typed (hub prompt / Gibson chat). The
+     * Terminal is driven like the hub's walk, so its arrows are always arrows. */
+    const bool prompt_owns = s_screen == SCR_GCHAT || (s_screen == SCR_GIBSON && s_gp_buf[0]);
+    if (!prompt_owns) {
+        if (c == ';' || c == ':') return K_UP;
+        if (c == '.' || c == '>') return K_DN;
+        if (c == ',' || c == '<') return K_LT;
+        if (c == '/' || c == '?') return K_RT;
     }
-    const bool prompt_owns =
-        (s_screen == SCR_TERMINAL && botcorps_t0_term_prompt[0]) ||
-        s_screen == SCR_GCHAT ||
-        (s_screen == SCR_GIBSON && s_gp_buf[0]);
-    for (char c : st.word) {
-        if (!prompt_owns) {
-            if (c == ';' || c == ':') return K_UP;
-            if (c == '.' || c == '>') return K_DN;
-            if (c == ',' || c == '<') return K_LT;
-            if (c == '/' || c == '?') return K_RT;
-        }
-        if (c == '`' || c == '~' || c == 0x1B) return K_ESC;
-        if (c == '\t') return K_TAB;
-        if (c == '\b' || c == 127) return K_BS;
-        if ((unsigned char)c >= 32 && (unsigned char)c < 127) {
-            *typed = c;
-            return K_CHAR;
-        }
+    if (c == '`' || c == '~') return K_ESC;
+    if ((unsigned char)c >= 32 && (unsigned char)c < 127) {
+        *typed = c;
+        return K_CHAR;
     }
     return K_NONE;
 }
+#ifdef BOTCORPS_HOST_RENDER
+/* gate K1: drive the real read_key + dispatcher with a scripted key matrix (host keyboard shim). */
+int botcorps_host_read_key(char *typed) { return read_key(typed); }
+#endif
 
 void botcorps_ui_mark_dirty(void)
 {
@@ -6616,6 +6687,7 @@ static void ui_dispatch(int key, char typed)
 void botcorps_ui_draw(void)
 {
     botcorps_rain_set_hub(s_screen == SCR_GIBSON);
+    rain_flags();
     layout_covers();
     bool ext_anim = false;
     if (botcorps_dual_ok() && !wants_rain() && ext_animates() && anim_step_due())
@@ -7246,6 +7318,7 @@ int botcorps_host_sim(int ms, const char *keys, long *presents, long *pushes, lo
             if (c >= 1 && c <= 4) { s_key_fn = true; ui_dispatch((int)c, 0); }
             else if (c == '\n') { s_key_fn = false; ui_dispatch(K_OK, 0); }
             else if (c == '\b') { s_key_fn = false; ui_dispatch(K_BS, 0); }
+            else if (c == 0x1b) { s_key_fn = false; ui_dispatch(K_ESC, 0); }
             else { s_key_fn = false; ui_dispatch(K_CHAR, (char)c); }
         }
         botcorps_ui_draw();
@@ -7333,14 +7406,17 @@ int botcorps_host_setfn(uint8_t *buf, int cursor, char *before, char *after, int
     return ok;
 }
 int botcorps_host_cp_cycle(void) { return s_cp_cycle; }
-/* v1017a gate: terminal commands button. From board 0: Down x3 must land on the button (and only
- * there), Enter must open the commands menu, Esc returns to the button, Up leaves to the boards. */
+/* v1017a gate: terminal commands button. v1017c (#3): from board 1 Down x3 must land on the prompt
+ * (and only there), one more Down on the button; Enter must open the commands menu, Esc returns to
+ * the button, Up goes button -> prompt -> boards (board 9, above the button). */
 int botcorps_host_cmd_btn(uint8_t *buf, int *reach, int *opened, int *esc_back, int *up_leaves, int *menu_runs)
 {
     botcorps_host_enter(buf, SCR_TERMINAL);
     s_term = 1;
     botcorps_host_seq(buf, "\x02\x02\x02");
-    *reach = s_cmd_btn && !s_focus_cmds && s_screen == SCR_TERMINAL;
+    const bool at_prompt = s_term_prompt && !s_cmd_btn && !s_focus_cmds && s_screen == SCR_TERMINAL;
+    botcorps_host_seq(buf, "\x02");
+    *reach = at_prompt && s_cmd_btn && !s_term_prompt && !s_focus_cmds && s_screen == SCR_TERMINAL;
     botcorps_host_seq(buf, "\n");
     *opened = s_focus_cmds && !s_cmd_btn && s_screen == SCR_TERMINAL;
     {   /* the palette is painted (chip 0 plate at 8,171) */
@@ -7358,13 +7434,74 @@ int botcorps_host_cmd_btn(uint8_t *buf, int *reach, int *opened, int *esc_back, 
     botcorps_host_seq(buf, "\x1b");
     *esc_back = s_cmd_btn && !s_focus_cmds && s_screen == SCR_TERMINAL;
     botcorps_host_seq(buf, "\x01");
-    *up_leaves = !s_cmd_btn && !s_focus_cmds && s_term == 9;
+    const bool up_prompt = s_term_prompt && !s_cmd_btn && !s_focus_cmds;
+    botcorps_host_seq(buf, "\x01");
+    *up_leaves = up_prompt && !s_term_prompt && !s_cmd_btn && !s_focus_cmds && s_term == 9;
     /* menu really runs a command: open, pick chip 'help' (index 2), Enter -> log grows */
-    botcorps_host_seq(buf, "\x02\n\x04\x04");
+    botcorps_host_seq(buf, "\x02\x02\n\x04\x04");
     const int n0 = s_log_next;
     botcorps_host_seq(buf, "\n");
     *menu_runs = s_log_next != n0;
     return s_screen;
+}
+/* v1017c gate K1 (#2/#3): real read_key on a scripted key matrix. Rollover typing (each key pressed
+ * before the previous is released), a press + release landing in one scan, Backspace, and an Fn
+ * arrow chord released Fn-first. The prompt must read exactly what was typed, and each arrow chord
+ * must move focus exactly one stop. Returns 1 on pass; out = prompt text. */
+static void k1_pos(char c, int *x, int *y)
+{
+    for (int r = 0; r < 4; ++r) for (int k = 0; k < 14; ++k)
+        if (_key_value_map[r][k].value_first == c) { *x = k; *y = r; return; }
+    *x = 0; *y = 0;
+}
+static void k1_ev(char c, bool down, bool scan = true)
+{
+    int x, y;
+    k1_pos(c, &x, &y);
+    if (down) M5Cardputer.Keyboard.press(x, y); else M5Cardputer.Keyboard.release(x, y);
+    if (scan) botcorps_ui_input();
+}
+int botcorps_host_k1(uint8_t *buf, char *out, int n, int *focus_ok)
+{
+    botcorps_host_enter(buf, SCR_TERMINAL);
+    s_term = 9;
+    botcorps_t0_term_prompt[0] = 0;
+    M5Cardputer.Keyboard.list.clear();
+    s_kprev_n = 0;
+    /* "scan wifi" with overlapping presses */
+    const char *w = "scan wifi";
+    for (int i = 0; w[i]; ++i) {
+        if (i == 7) {                /* 'i' released and 'f' pressed in the same scan (count equal) */
+            k1_ev(w[6], false, false);
+            k1_ev(w[7], true);
+            continue;
+        }
+        k1_ev(w[i], true);
+        if (i > 0 && w[i - 1] != w[i]) k1_ev(w[i - 1], false);
+    }
+    k1_ev('i', false);
+    /* a stray x then Backspace while x is still held */
+    k1_ev('x', true);
+    k1_ev((char)KEY_BACKSPACE, true);
+    k1_ev('x', false);
+    k1_ev((char)KEY_BACKSPACE, false);
+    const bool f0 = s_term_prompt && !s_cmd_btn;
+    /* Fn + . (Down) released Fn first: exactly one stop (prompt -> button) */
+    k1_ev((char)KEY_FN, true);
+    k1_ev('.', true);
+    k1_ev((char)KEY_FN, false);
+    k1_ev('.', false);
+    const bool f1 = s_cmd_btn && !s_term_prompt && !s_focus_cmds;
+    /* plain ; (Up) with text in the prompt is an arrow, not a typed ';' */
+    k1_ev(';', true);
+    k1_ev(';', false);
+    const bool f2 = s_term_prompt && !s_cmd_btn;
+    snprintf(out, n, "%s", botcorps_t0_term_prompt);
+    *focus_ok = f0 && f1 && f2;
+    host_frame = buf;
+    memset(buf, PAL_BLACK, 320u * 240u);
+    paint_ext(Gfx());
+    return strcmp(botcorps_t0_term_prompt, "scan wifi") == 0 && *focus_ok;
 }
 int botcorps_host_cp_start(void) { uint8_t b[1]; (void)b; static uint8_t buf[320 * 240]; botcorps_host_enter(buf, SCR_CONTROL); return s_cursor; }
 /* v1017a gate: arrows only move. From a stop, press dir; returns the new cursor and whether any
@@ -7385,4 +7522,34 @@ int botcorps_host_cp_move(uint8_t *buf, int from, int dir, int *changed)
 void botcorps_host_set_color(int c){ s_color = (c<0||c>2)?0:c; }
 void botcorps_host_key(int key, char c) { s_key_fn = (c == 1); ui_dispatch(key, c == 1 ? 0 : c); }
 void botcorps_host_paint(uint8_t *buf) { host_frame = buf; paint_ext(Gfx()); }
+/* v1017c S3: the same frame painted the way the device BANDS present does it (two 120-row slices,
+ * Gfx oy = 0 / 120, each clipped to the 320x120 sprite) vs one full paint. Returns differing px. */
+int botcorps_host_slice_diff(void)
+{
+    extern int host_slice_oy, host_slice_h;
+    static uint8_t full[320 * 240], tmp[320 * 240], sl[320 * 240];
+    uint8_t *saved = host_frame;
+    host_frame = full;
+    memset(full, PAL_BLACK, sizeof full);
+    paint_ext(Gfx());
+    for (int s = 0; s < 2; ++s) {
+        host_slice_oy = s * 120;
+        host_slice_h = 120;
+        host_frame = tmp;
+        memset(tmp, PAL_BLACK, sizeof tmp);
+        paint_ext(Gfx());
+        memcpy(sl + s * 120 * 320, tmp, 120 * 320);
+    }
+    host_slice_oy = 0;
+    host_slice_h = 0;
+    host_frame = saved;
+    int bad = 0;
+    for (int i = 0; i < 320 * 240; ++i) bad += full[i] != sl[i];
+    if (bad && getenv("SLICE_DUMP")) {   /* first failing frame only: full | sliced */
+        FILE *f = fopen(getenv("SLICE_DUMP"), "wb");
+        if (f) { fwrite(full, 1, sizeof full, f); fwrite(sl, 1, sizeof sl, f); fclose(f); }
+        unsetenv("SLICE_DUMP");
+    }
+    return bad;
+}
 #endif

@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #include "host_shim.h"
 #include "ui/botcorps_pal.h"
 #include "ui/botcorps_pal_tables.inc"
@@ -116,6 +117,12 @@ static void gate_one(const char *dir, const char *name, int term, void (*fn)(voi
         snprintf(p, sizeof p, "%s/%s%s.rgb", dir, name, pass ? ".norain" : "");
         write_raw(p, g_buf, term);
         if (!pass) { snprintf(p, sizeof p, "%s/%s.log", dir, name); host_gate_dump(p); }
+        /* v1017c S3: device BANDS slice paint must compose to the same frame (rain on and off) */
+        extern int botcorps_host_slice_diff(void);
+        const int sd = botcorps_host_slice_diff();
+        snprintf(p, sizeof p, "%s/slice.txt", dir);
+        FILE *sf = fopen(p, "a");
+        if (sf) { fprintf(sf, "SLICE\t%s%s\t%d\n", name, pass ? ".norain" : "", sd); fclose(sf); }
     }
     host_gate_norain = 0;
     printf("rendered %s\n", name);
@@ -163,8 +170,10 @@ static int run_gate(const char *dir)
     a = { 9, 0, 0, nullptr }; gate_one(dir, "diag", 0, f_enter, &a);
     /* v1017a (rendered last so earlier renders keep their rain RNG order): terminal commands button
      * focused, then opened with Enter; control-panel focus on TERM (8) and crown (9). */
-    a = { 0, 0, 0, "\n\n\x02\x02\x02" }; gate_one(dir, "terminal-cmdbtn", 0, f_enter, &a);
-    a = { 0, 0, 0, "\n\n\x02\x02\x02\n" }; gate_one(dir, "terminal-cmdmenu", 0, f_enter, &a);
+    /* v1017c (#3): boards -> prompt -> commands button, so the button is one Down further */
+    a = { 0, 0, 0, "\n\n\x02\x02\x02" }; gate_one(dir, "terminal-prompt", 0, f_enter, &a);
+    a = { 0, 0, 0, "\n\n\x02\x02\x02\x02" }; gate_one(dir, "terminal-cmdbtn", 0, f_enter, &a);
+    a = { 0, 0, 0, "\n\n\x02\x02\x02\x02\n" }; gate_one(dir, "terminal-cmdmenu", 0, f_enter, &a);
     a = { 8, 0, 0, nullptr }; gate_one(dir, "ctlfocus-term", 0, f_ctl, &a);
     a = { 9, 0, 0, nullptr }; gate_one(dir, "ctlfocus-crown", 0, f_ctl, &a);
     botcorps_host_set_color(0);
@@ -218,6 +227,12 @@ static int run_gate(const char *dir)
                 { "game-board", 2, 0, "help\nscan\n" }, { "game-jackin", 3, 0, "abc\b\n" },
                 { "terminal-typing", 4, 0, "scan wifi\b\b\b\b" },
                 { "gibson-game", 1, 1, "hack\b\n" },
+                /* v1017c #1: the scan box in each of its animated modes (hunt meter, info scan line, glossary) */
+                { "scan-sbox-hunt", 5, 3, nullptr }, { "scan-sbox-info", 5, 2, nullptr }, { "scan-sbox-gloss", 5, 4, nullptr },
+                /* v1017c #5: control panel navigation (every arrow, Enter edits) on the real draw loop */
+                { "control-nav", 1, 8, "\x04\x04\x04\x02\x01\x03\x04\x04\x04\x04\x02\x02\x01\x01\x03" },
+                { "hub-to-control", 1, 1, "\x04\x04\n\x04\x04\n\x02\n\x01\x01\n" },
+                { "control-to-hub", 1, 8, "\x1b\x04\x04" },
             };
             for (auto &q : S) {
                 host_set_millis(20000u);
@@ -225,6 +240,7 @@ static int run_gate(const char *dir)
                 else if (q.kind == 1) botcorps_host_enter(g_buf, q.arg);
                 else if (q.kind == 2) botcorps_host_gchat(g_buf);
                 else if (q.kind == 3) { extern void botcorps_host_jackin(uint8_t *); botcorps_host_jackin(g_buf); }
+                else if (q.kind == 5) botcorps_host_sbox(g_buf, 0, q.arg, q.arg == 3 ? -50 : 0);
                 else botcorps_host_enter(g_buf, 2);
                 long pr = 0, pu = 0, rc = 0, wo = 0;
                 const int bad = botcorps_host_sim(6000, q.keys, &pr, &pu, &rc, &wo);
@@ -250,6 +266,12 @@ static int run_gate(const char *dir)
             int r1 = 0, r2 = 0, r3 = 0, r4 = 0, r5 = 0;
             botcorps_host_cmd_btn(g_buf, &r1, &r2, &r3, &r4, &r5);
             if (f) fprintf(f, "CMDBTN\t%d\t%d\t%d\t%d\t%d\n", r1, r2, r3, r4, r5);
+            /* v1017c K1: real read_key on a scripted key matrix (rollover typing + Fn chord) */
+            extern int botcorps_host_k1(uint8_t *, char *, int, int *);
+            char kp[64] = {0};
+            int kf = 0;
+            const int kok = botcorps_host_k1(g_buf, kp, sizeof kp, &kf);
+            if (f) fprintf(f, "K1\t%d\t%d\t%s\n", kok, kf, kp);
             extern int botcorps_host_cp_start(void);
             if (f) fprintf(f, "CPSTART\t%d\n", botcorps_host_cp_start());
         }
@@ -261,6 +283,15 @@ static int run_gate(const char *dir)
 int main(int argc, char **argv)
 {
     if (argc > 2 && strcmp(argv[1], "gate") == 0) return run_gate(argv[2]);
+    /* v1017c: one-off review render (not a gate item): rend shot <screen id> <out.rgb> [keys] */
+    if (argc > 3 && strcmp(argv[1], "shot") == 0) {
+        host_rain_init(0);
+        host_set_millis(9000u);
+        GArg a = { atoi(argv[2]), 0, 0, argc > 4 ? argv[4] : nullptr };
+        f_enter(&a);
+        write_raw(argv[3], g_buf, 0);
+        return 0;
+    }
     host_rain_init(0); /* v1016i: warm the REAL rain so it shows in renders */
     static uint8_t term[320 * 240];
     static uint8_t hunt[320 * 240];

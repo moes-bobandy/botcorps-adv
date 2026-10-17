@@ -48,10 +48,15 @@ static bool s_bg_on = false;
 static int s_clip_x = 0, s_clip_y = 0, s_clip_w = 320, s_clip_h = 240;
 static bool s_clip = false;
 
+/* v1017c S3: device BANDS paints one 120-row slice at a time with oy = 0 / 120 into a 320x120
+ * sprite. host_slice_h = 120 + host_slice_oy emulate that exactly (Gfx oy, sprite height clip). */
+int host_slice_oy = 0;
+int host_slice_h = 0;
 static void put_px(int x, int y, uint8_t c)
 {
     if (!host_frame) return;
     if (x < 0 || y < 0 || x >= 320 || y >= 240) return;
+    if (host_slice_h && y >= host_slice_h) return;
     if (s_clip && (x < s_clip_x || y < s_clip_y || x >= s_clip_x + s_clip_w || y >= s_clip_y + s_clip_h))
         return;
     host_frame[y * 320 + x] = c;
@@ -66,8 +71,8 @@ static void fill_raw(int x, int y, int w, int h, uint8_t c)
             put_px(xx, yy, c);
 }
 
-Gfx::Gfx() : p(host_rain_panel()), ox(0), oy(0) {}
-Gfx::Gfx(lgfx::v1::LovyanGFX &r) : p(&r), ox(0), oy(0) {}
+Gfx::Gfx() : p(host_rain_panel()), ox(0), oy(host_slice_oy) {}
+Gfx::Gfx(lgfx::v1::LovyanGFX &r) : p(&r), ox(0), oy(host_slice_oy) {}
 void Gfx::fillRect(int x, int y, int w, int h, uint8_t c) { fill_raw(x - ox, y - oy, w, h, c); }
 void Gfx::fillRect(int x, int y, int w, int h, uint16_t) { fill_raw(x - ox, y - oy, w, h, s_fg); }
 void Gfx::drawRect(int x, int y, int w, int h, uint8_t c)
@@ -253,6 +258,7 @@ static const char *const SPR_ROW[4][9] = {
     { "11111", "12121", "11111", "11111", "11111" },
 };
 
+extern bool host_rb_clip_ok(int x, int y);
 void botcorps_sprite_draw(lgfx::v1::LovyanGFX &, int x, int y, int shape, int scale, uint8_t color, bool blink)
 {
     if (shape < 0 || shape > 3) shape = 0;
@@ -270,7 +276,30 @@ void botcorps_sprite_draw(lgfx::v1::LovyanGFX &, int x, int y, int shape, int sc
             const uint8_t ink = (v == '2') ? 36 : color;
             for (int sy = 0; sy < s; ++sy)
                 for (int sx = 0; sx < s; ++sx)
-                    put_px(ox + col * s + sx, oy + row * s + sy, ink);
+                    if (host_rb_clip_ok(ox + col * s + sx, oy + row * s + sy))
+                        put_px(ox + col * s + sx, oy + row * s + sy, ink);
+        }
+    }
+}
+/* v1017c: device-faithful inks variant (rain's ivory Gibsons). Same as src/ui/botcorps_sprite.cpp:
+ * runs go through botcorps_pal_rect on the rain panel, so the hub fade and the cell clip apply. */
+void botcorps_pal_rect(lgfx::v1::LovyanGFX &, int, int, int, int, uint8_t);
+void botcorps_sprite_draw_inks(lgfx::v1::LovyanGFX &d, int x, int y, int shape, int scale, uint8_t body, uint8_t eye, bool blink)
+{
+    if (shape < 0 || shape > 3) shape = 0;
+    const int s = scale < 1 ? 1 : scale;
+    const int w = SPR_W[shape], h = SPR_H[shape];
+    const int ox = x - (w * s) / 2, oy = y - (h * s) / 2;
+    host_gate_box(0, 0, "SPR", "sprite", ox, oy, w * s, h * s, "-");
+    for (int row = 0; row < h; ++row) {
+        const char *line = SPR_ROW[shape][row];
+        for (int col = 0; col < w;) {
+            const char v = line[col];
+            int run = 1;
+            while (col + run < w && line[col + run] == v) ++run;
+            if (v == '1' || (v == '2' && !blink))
+                botcorps_pal_rect(d, ox + col * s, oy + row * s, run * s, s, v == '2' ? eye : body);
+            col += run;
         }
     }
 }
@@ -310,45 +339,71 @@ void botcorps_band_set_oy(int) {}
  * same millis(): pixels the panel newly shows that differ from the reference are a visible glitch. */
 int host_band_sim = 0;
 uint8_t host_sim_panel[320 * 240];
-static uint8_t s_sim_work[320 * 240];
+/* v1017c: the sim is now the device band exactly: ONE 320x120 sprite (rows 0..119 of s_spr), painted
+ * per slice with Gfx oy = 0 / 120 (host_slice_oy) and clipped to the sprite height (host_slice_h),
+ * never cleared between slices/patches - what botcorps_band.cpp does on the ESP32. */
+static uint8_t s_spr[320 * 240];
 static uint8_t s_sim_ref[320 * 240];
 static int s_sim_res = -1;
 static void (*s_sim_recomp)(Gfx) = nullptr;
 long host_sim_presents = 0, host_sim_pushes = 0, host_sim_recomposes = 0, host_sim_bad = 0, host_sim_worst = 0;
+long host_sim_rects = 0;
 extern void botcorps_host_ref_paint(uint8_t *buf);
-static void sim_push(int y0, int y1)
+static void sim_ref(void)
 {
     uint8_t *saved = host_frame;
+    const int so = host_slice_oy, sh = host_slice_h;
+    const bool sc = s_clip;
+    host_slice_oy = 0; host_slice_h = 0; s_clip = false;
     botcorps_host_ref_paint(s_sim_ref);
+    host_slice_oy = so; host_slice_h = sh; s_clip = sc;
     host_frame = saved;
+}
+/* push rows [r0, r1) of the sprite (columns [x0, x1)) to panel rows y0 + r */
+static void sim_push_rect(int y0, int r0, int r1, int x0, int x1)
+{
+    sim_ref();
     long bad = 0;
-    for (int y = y0; y < y1; ++y) {
-        const uint8_t *w = s_sim_work + y * 320, *pn = host_sim_panel + y * 320, *r = s_sim_ref + y * 320;
-        if (!memcmp(w, pn, 320)) continue;               /* row hash unchanged: not pushed */
-        for (int x = 0; x < 320; ++x) bad += (w[x] != pn[x] && w[x] != r[x]);
-        memcpy(host_sim_panel + y * 320, w, 320);
+    for (int r = r0; r < r1; ++r) {
+        const int y = y0 + r;
+        const uint8_t *w = s_spr + r * 320, *pn = host_sim_panel + y * 320, *rf = s_sim_ref + y * 320;
+        if (!memcmp(w + x0, pn + x0, (size_t)(x1 - x0))) continue;   /* row hash unchanged: not pushed */
+        for (int x = x0; x < x1; ++x) bad += (w[x] != pn[x] && w[x] != rf[x]);
+        memcpy(host_sim_panel + y * 320 + x0, w + x0, (size_t)(x1 - x0));
     }
     ++host_sim_pushes;
     if (bad > host_sim_worst) host_sim_worst = bad;
     if (bad > 600) ++host_sim_bad;
 }
+static void sim_push(int y0) { sim_push_rect(y0, 0, 120, 0, 320); }
 void host_sim_reset(void)
 {
     s_sim_res = -1;
     host_sim_presents = host_sim_pushes = host_sim_recomposes = host_sim_bad = host_sim_worst = 0;
+    host_sim_rects = 0;
+}
+static void sim_paint_slice(void (*draw)(Gfx), int slice)
+{
+    uint8_t *saved = host_frame;
+    host_frame = s_spr;
+    host_slice_oy = slice * 120;
+    host_slice_h = 120;
+    s_clip = false;
+    draw(Gfx());
+    s_clip = false;
+    host_slice_oy = 0;
+    host_slice_h = 0;
+    host_frame = saved;
 }
 void botcorps_band_present(void (*draw)(Gfx))
 {
     if (!host_band_sim || !draw) return;
-    uint8_t *saved = host_frame;
-    host_frame = s_sim_work;
-    s_clip = false;
-    draw(Gfx());
-    s_clip = false;
-    host_frame = saved;
     ++host_sim_presents;
-    sim_push(0, 120); sim_push(120, 240);
-    s_sim_res = 1;
+    for (int sl = 0; sl < 2; ++sl) {
+        sim_paint_slice(draw, sl);
+        sim_push(sl * 120);
+        s_sim_res = sl;
+    }
 }
 bool botcorps_band_direct(void) { return !host_band_sim; }
 bool botcorps_band_live(void) { return host_band_sim != 0; }
@@ -358,26 +413,57 @@ void botcorps_band_patch(void (*draw)(Gfx), int x, int y, int w, int h)
     if (!host_band_sim) { draw(Gfx()); return; }
     if (y < 120 && y + h > 120) return;                  /* device refuses a patch across y=120 */
     const int slice = y / 120, y0 = slice * 120;
-    uint8_t *saved = host_frame;
-    host_frame = s_sim_work;
-    if (s_sim_res != slice && s_sim_recomp) {
-        static uint8_t keep[320 * 120];
-        const int oy0 = slice ? 0 : 120;                 /* the other slice is not in the sprite */
-        memcpy(keep, s_sim_work + oy0 * 320, sizeof keep);
-        s_clip = false;
-        s_sim_recomp(Gfx());
-        memcpy(s_sim_work + oy0 * 320, keep, sizeof keep);
+    if (s_sim_res != slice) {
+        if (!s_sim_recomp) return;
+        sim_paint_slice(s_sim_recomp, slice);            /* recompose_slice: full slice paint + push */
+        sim_push(y0);
         ++host_sim_recomposes;
+        s_sim_res = slice;
     }
-    s_clip = true; s_clip_x = x; s_clip_y = y; s_clip_w = w; s_clip_h = h;
+    uint8_t *saved = host_frame;
+    host_frame = s_spr;
+    host_slice_oy = y0;
+    host_slice_h = 120;
+    s_clip = true; s_clip_x = x; s_clip_y = y - y0; s_clip_w = w; s_clip_h = h;
     draw(Gfx());
     s_clip = false;
+    host_slice_oy = 0;
+    host_slice_h = 0;
     host_frame = saved;
-    sim_push(y0, y0 + 120);
+    sim_push(y0);
     s_sim_res = slice;
 }
+/* v1017c: device botcorps_band_patch_rect. When the slice is not the one the sprite holds, the rect
+ * still contains the OTHER slice's pixels on the device; the sim poisons it (0xE3) first, so a painter
+ * that is not opaque over its rect shows up as glitch pixels in the S1 compare. Only the rect is pushed. */
+void botcorps_band_patch_rect(void (*draw)(Gfx), int x, int y, int w, int h)
+{
+    if (!draw || w <= 0 || h <= 0) return;
+    if (!host_band_sim) { draw(Gfx()); return; }
+    if (x < 0) { w += x; x = 0; }
+    if (x + w > 320) w = 320 - x;
+    if (w <= 0) return;
+    if (y < 120 && y + h > 120) return;
+    const int slice = y / 120, y0 = slice * 120;
+    const bool held = s_sim_res == slice;
+    if (!held)
+        for (int r = y - y0; r < y - y0 + h && r < 120; ++r) memset(s_spr + r * 320 + x, 0xE3, (size_t)w);
+    uint8_t *saved = host_frame;
+    host_frame = s_spr;
+    host_slice_oy = y0;
+    host_slice_h = 120;
+    s_clip = true; s_clip_x = x; s_clip_y = y - y0; s_clip_w = w; s_clip_h = h;
+    draw(Gfx());
+    s_clip = false;
+    host_slice_oy = 0;
+    host_slice_h = 0;
+    host_frame = saved;
+    sim_push_rect(y0, y - y0, (y - y0 + h) < 120 ? (y - y0 + h) : 120, x, x + w);
+    ++host_sim_rects;
+    if (!held) s_sim_res = -1;
+}
 void botcorps_band_set_recompose(void (*f)(Gfx)) { s_sim_recomp = f; }
-int botcorps_band_oy(void) { return 0; }
+int botcorps_band_oy(void) { return host_slice_oy; }
 static uint32_t s_host_ms = 2500;
 void host_set_millis(uint32_t t) { s_host_ms = t; }
 uint32_t host_millis(void) { return s_host_ms; }

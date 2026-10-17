@@ -300,6 +300,7 @@ for scr in screens:
 # functional
 fp = os.path.join(D, 'functional.txt')
 cpmove = {}; cpstart = 0
+k1_seen = False
 NSCR = 11
 if os.path.exists(fp):
     for ln in open(fp):
@@ -340,10 +341,17 @@ if os.path.exists(fp):
             cpstart = int(f[1])
         elif f[0] == 'CMDBTN':
             r = [int(x) for x in f[1:6]]
-            rep('functional', 'C1 terminal commands button is a cursor stop (Down from bottom boards)', r[0] == 1, f'reach={r[0]}')
+            rep('functional', 'C1 terminal: Down from the bottom boards stops on the prompt, then the commands button', r[0] == 1, f'reach={r[0]}')
             rep('functional', 'C2 Enter on commands button opens the commands menu', r[1] == 1, f'opened={r[1]}')
-            rep('functional', 'C3 Esc closes the menu back to the button; Up leaves to the boards', r[2] == 1 and r[3] == 1, f'esc={r[2]} up={r[3]}')
+            rep('functional', 'C3 Esc closes the menu back to the button; Up walks button -> prompt -> boards', r[2] == 1 and r[3] == 1, f'esc={r[2]} up={r[3]}')
             rep('functional', 'C4 a command picked in the menu runs', r[4] == 1, f'ran={r[4]}')
+        elif f[0] == 'K1':
+            k1_seen = True
+            got = f[3] if len(f) > 3 else ''
+            rep('functional', 'K1 terminal prompt shows exactly what was typed (rollover, same-scan press, Backspace)',
+                f[1] == '1' and got == 'scan wifi', f'prompt={got!r} (want \'scan wifi\')')
+            rep('functional', 'K2 one arrow chord = one focus stop; arrows stay arrows with text in the prompt',
+                f[2] == '1', f'focus_ok={f[2]}')
         elif f[0] == 'SIM':
             name, bad, pres, push, rec, worst = f[1], int(f[2]), int(f[3]), int(f[4]), int(f[5]), int(f[6])
             rep('functional', f'S1 {name}: no frame-to-frame flash on the band simulator (6 s live loop)', bad == 0 and worst <= 64,
@@ -351,6 +359,20 @@ if os.path.exists(fp):
             if name.startswith('scan-'):
                 rep('functional', f'S2 {name}: idle animation never full-screen presents (patches only)', pres <= 1,
                     f'presents={pres} (1 = the screen-enter paint)')
+                # v1017c (#1): scan parts are drawn in place; a part tick never rebuilds a whole 120-row slice
+                rep('functional', f'S4 {name}: idle ticks draw in place (no slice rebuild / recompose)', rec == 0,
+                    f'recomposes={rec}')
+
+rep('functional', 'K0 keyboard test ran', k1_seen, '' if k1_seen else 'no K1 line in functional.txt')
+
+# v1017c S3: every screen painted the device way (two 120-row band slices, oy 0/120, clipped to the
+# 320x120 sprite) composes to exactly the one-shot frame, rain on and off.
+sp = os.path.join(D, 'slice.txt')
+if os.path.exists(sp):
+    for ln in open(sp):
+        f = ln.rstrip('\n').split('\t')
+        if f[0] == 'SLICE':
+            rep('functional', f'S3 {f[1]}: BANDS slice paint == full frame', int(f[2]) == 0, f'diff={f[2]}px')
 
 if cpmove:
     # v1017a: every control-panel stop reachable from the entry stop by arrows alone; arrows never edit.

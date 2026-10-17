@@ -25,9 +25,13 @@ static int rb_cx = 0, rb_cy = 0;
 static uint8_t rb_fg = 255;
 static inline bool rb_in(int x, int y)
 { return x >= rb_clipx && x < rb_clipx + rb_clipw && y >= rb_clipy && y < rb_clipy + rb_cliph; }
+extern int host_slice_h;   /* v1017c S3: 120-row band sprite height while slice-painting */
 static inline void rb_px(int x, int y, uint8_t c)
-{ if (host_frame && (unsigned)x < 320 && (unsigned)y < 240 && rb_in(x, y)) host_frame[y * 320 + x] = c; }
+{ if (host_frame && (unsigned)x < 320 && (unsigned)y < 240 && (!host_slice_h || y < host_slice_h) && rb_in(x, y)) host_frame[y * 320 + x] = c; }
 
+/* v1017c: the device sprite has ONE clip; the rain's per-cell clip also bounds the bot sprites it
+ * draws (botcorps_sprite_draw on the same panel). The host sprite draw asks here. */
+bool host_rb_clip_ok(int x, int y) { return rb_in(x, y); }
 void lgfx::v1::LovyanGFX::setClipRect(int x, int y, int w, int h)
 { rb_clipx = x; rb_clipy = y; rb_clipw = w; rb_cliph = h; }
 void lgfx::v1::LovyanGFX::clearClipRect(void)
@@ -80,10 +84,12 @@ void botcorps_pal_rect(lgfx::v1::LovyanGFX &d,int x,int y,int w,int h,uint8_t id
 void botcorps_pal_pixel(lgfx::v1::LovyanGFX &d,int x,int y,uint8_t idx){ d.fillRect(x,y,1,1,hub_map(idx)); }
 void botcorps_pal_text(lgfx::v1::LovyanGFX &d,uint8_t idx){ d.setTextColor(hub_map(idx)); }
 
-/* bot colours (REAL, same as src/ui/botcorps_bots.cpp; bots.cpp isn't linked here) */
+/* bot colours (REAL, same as src/ui/botcorps_bots.cpp; bots.cpp isn't linked here).
+ * v1017c: this copy had gone stale (pre-v1016 inks); it now matches the firmware table, so host
+ * rain bots show the fixed bot colours the device draws. */
 extern const uint16_t BOTCORPS_BOT_COLOR[12];
 const uint16_t BOTCORPS_BOT_COLOR[12] = {
- 0x26E8,0x269C,0x331F,0xB21F,0xF586,0xFD20,0x07FF,0xF81F,0x07E0,0xFFE0,0xFC9F,0x9CFF };
+ 0x1BDD,0x159D,0x1BDD,0x1E88,0x76C2,0xE8EA,0x591D,0x1677,0x76C2,0x1677,0xF2E3,0x82FE };
 
 /* warm up + per-frame step, called from render_main */
 void host_rain_init(int mode)

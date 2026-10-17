@@ -512,7 +512,7 @@
   PASS  S1 game-board: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=11 pushes=22 recomposes=0]
   PASS  S1 game-jackin: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=6 pushes=12 recomposes=0]
   PASS  S1 terminal-typing: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=1 pushes=57 recomposes=0]
-  PASS  S1 gibson-game: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=4px, presents=67 pushes=140 recomposes=0]
+  PASS  S1 gibson-game: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=4px, presents=68 pushes=142 recomposes=0]
   PASS  F2 Enter cycles setting 0  [CYAN -> AMBER, full cycle 3 presses (want 3)]
   PASS  F2 Enter cycles setting 1  [BOT + DEVICE -> BOTS, full cycle 3 presses (want 3)]
   PASS  F2 Enter cycles setting 2  [MIXED -> ROUND, full cycle 5 presses (want 5)]

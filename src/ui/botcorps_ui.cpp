@@ -344,6 +344,10 @@ static char s_gp_buf[20];
 static char s_gp_log[2][28];
 static int s_gp_n = 0;
 static bool s_gp_focus = false;
+/* v1017b (Dirt 8:26-8:28): hub focus zone. 0 = icon row (Left/Right cycle the icons),
+ * 1 = prompt, 2 = command menu, 3 = Gibson (Enter = Gibson game). Up/Down walk the zones. */
+static int s_hub_zone = 0;
+static int s_hub_cmd = -1;
 static const int CP_N = 8;
 extern uint8_t botcorps_t0_rain_cell[3][1200];
 static_assert(1120 + 60 <= 1200, "tab scratch fits inside the rain cell plane");
@@ -529,6 +533,7 @@ static void draw_blob(Gfx g, int x, int y, int scale, uint8_t c, int shape, bool
 {
     botcorps_sprite_draw(*g.raw(), x - g.ox, y - g.oy, shape, scale, c, blink);
 }
+static void bot_block(Gfx g, int cx, int cy, int s, uint8_t col, bool blink);
 
 static void draw_icon(Gfx g, int x, int y, int id, uint8_t col)
 {
@@ -754,6 +759,7 @@ static void enter_screen(int id, int ret)
     s_ret = ret;
     s_screen = id;
     s_cursor = 0;
+    s_hub_zone = 0;
     s_sheet = false;
     s_focus_cmds = false; s_cmd_btn = false;
     s_term_crown = false;
@@ -1322,10 +1328,10 @@ static void paint_one_board(Gfx g, int i, bool sel, bool dim)
         g.fillRect(x + 49, y + 13, 1, 24, ac);
     }
     const int bob = sel ? -((int)((t / 450u) % 2u)) : 0;
-    /* Same boxed face on every tile: the round sprite from the flash table,
-     * drawn in this bot's fixed colour. Scan screens keep shape_for. */
-    draw_blob(g, x + 36, y + 25 + bob, 2, bot_color(i), 0,
-              sel && sprite_blink(i));
+    /* v1017b (Dirt 8:20): every terminal tile is the SQUARE chip-form block (the
+     * same block figure Gibson's control-panel / scan-board chip uses), in this
+     * bot's fixed colour on black. Never the round sprite. Terminal tiles only. */
+    bot_block(g, x + 36, y + 25 + bob, 16, bot_color(i), sel && sprite_blink(i));
     const int st = BOTS[i].st;
     const bool on = st != 0 || ((t / 700u + (uint32_t)i) % 4u) != 0u;
     uint8_t ledc = led;
@@ -2488,6 +2494,30 @@ static void scan_die(Gfx g, int cx, int cy, bool gibson)
 }
 
 static uint16_t mix16(uint16_t a, uint16_t b, int num, int den);
+
+/* v1017b (Dirt 8:20): the square chip-form block figure (gib_block geometry: full
+ * square face, lit top row, dark bottom row, black visor band, two steel eyes)
+ * drawn in a bot's fixed colour on a black square. Used by the terminal tiles. */
+static void bot_block(Gfx g, int cx, int cy, int s, uint8_t col, bool blink)
+{
+    const int x = cx - s / 2, y = cy - s / 2;
+    const int lip = s >= 12 ? 2 : 1;
+    g.fillRect(x - 1, y - 1, s + 2, s + 2, PAL_BLACK);  /* black behind the block */
+    GATE_BOX(g, "SPR", "bot_block", x, y, s, s, "-");
+    g.fillRect(x, y, s, s, col);                                                         /* face */
+    g.fillRect(x, y, s, lip, botcorps_pal_fit(mix16(botcorps_rgb565(col), 0xFFFF, 45, 100)));      /* lit top */
+    g.fillRect(x, y + s - lip, s, lip, botcorps_pal_fit(mix16(botcorps_rgb565(col), 0x0000, 45, 100))); /* dark bottom */
+    const int vh = (s * 26) / 100 > 2 ? (s * 26) / 100 : 2;
+    const int vy = y + (s * 34) / 100;
+    g.fillRect(x, vy, s, vh, PAL_BLACK);             /* visor band */
+    const int ew = s / 5 > 2 ? s / 5 : 2;
+    const int gap = s / 4 > ew ? s / 4 : ew;
+    const int gl = (int)((millis() / 900u) % 2u);
+    const int eyc = vy + (vh - ew) / 2;
+    const int eh = blink ? 1 : ew, ey = blink ? eyc + ew - 1 : eyc;
+    g.fillRect(x + gap + gl, ey, ew, eh, PAL_STEEL);
+    g.fillRect(x + s - gap - ew + gl, ey, ew, eh, PAL_STEEL);
+}
 
 /* Non-circular bus. radar=false is the Gibson scan (extBus). 0 B heap. */
 static void bus_paint(Gfx g, bool radar, bool wifi, int shown, int sel)
@@ -4331,6 +4361,13 @@ static void gp_strip(Gfx g, uint32_t t, uint8_t ac)
     const bool caret = s_gp_focus ? (s_gp_buf[0] || (t / 530u) % 2u == 0u)
                                   : (t / 700u) % 2u == 0u;
     if (caret) g.fillRect(after + 1, 191, 5, 8, s_gp_focus ? ac : hair);
+    /* v1017b: hub command-menu stop (Up/Down zone 2), right end of the prompt strip. */
+    const bool cm = s_hub_zone == 2;
+    const int mx = 258, my = 187;
+    g.fillRect(mx, my, 18, 12, PAL_DEEP);
+    g.drawRect(mx, my, 18, 12, cm ? ac : (uint8_t)COL_LINE);
+    if (cm) g.drawRect(mx - 1, my - 1, 20, 14, PAL_WHITE);
+    for (int k = 0; k < 3; ++k) g.fillRect(mx + 4, my + 3 + k * 3, 10, 1, cm ? (uint8_t)PAL_WHITE : (uint8_t)COL_MUTED);
 }
 
 /* chip_plate leaves these four pixels empty. The partial clip would keep them stale. */
@@ -4453,6 +4490,11 @@ static void paint_gibson(Gfx g)
     hub_sparks(g, cx, cy, t);
     g.fillRect(cx - 14, cy + 25, 28, 1, wire);
     hub_gibson(g, cx, cy, 7);
+    if (s_hub_zone == 3) {
+        /* v1017b: Gibson focused (Enter = Gibson game). */
+        g.drawCircle(cx, cy, 31, PAL_WHITE);
+        g.drawCircle(cx, cy, 30, ac);
+    }
     if (asleep) {
         for (int k = 0; k < 3; ++k) {
             const int q = (int)((t / 1500u + (uint32_t)k) % 3u);
@@ -4510,17 +4552,28 @@ static void paint_gibson(Gfx g)
     const uint8_t gold = (uint8_t)PAL_AMBER;
     for (int i = 0; i < 3; ++i) {
         const int x = xs[i], y = 206;
-        const bool sel = s_cursor == i;
+        const bool sel = s_hub_zone == 0 && s_cursor == i;
         GATE_BOX(g, "BTN", "hubnav", x, y, BS, BS, "-");
         /* glow halo */
         g.fillRect(x - 3, y - 2, BS + 6, BS + 4, glow2);
         g.fillRect(x - 2, y - 3, BS + 4, BS + 6, glow2);
-        if (sel) { g.fillRect(x - 2, y - 2, BS + 4, BS + 4, glow1); }
+        if (sel) {
+            /* v1017b (Dirt 8:26): selected hub button must read at a glance - full accent
+             * halo, white outer outline, accent inner ring. */
+            g.fillRect(x - 3, y - 3, BS + 6, BS + 6, ac);
+            g.drawRect(x - 4, y - 4, BS + 8, BS + 8, PAL_WHITE);
+            g.drawRect(x - 2, y - 2, BS + 4, BS + 4, glow1);
+        }
         /* rim (2 px, corners cut) + face */
         g.fillRect(x + 1, y, BS - 2, BS, ac);
         g.fillRect(x, y + 1, BS, BS - 2, ac);
         g.fillRect(x + 2, y + 2, BS - 4, BS - 4, face);
-        if (sel) { g.fillRect(x + 2, y, BS - 4, 1, PAL_WHITE); }
+        if (sel) {
+            g.fillRect(x + 2, y, BS - 4, 1, PAL_WHITE);
+            g.fillRect(x + 2, y + BS - 1, BS - 4, 1, PAL_WHITE);
+            g.fillRect(x, y + 2, 1, BS - 4, PAL_WHITE);
+            g.fillRect(x + BS - 1, y + 2, 1, BS - 4, PAL_WHITE);
+        }
         if (i == 0) {            /* terminal: black screen, white bezel, >_ */
             for (int k = 0; k < 5; ++k) g.fillRect(x + 6 + k * 4, y + 4, 2, 2, gold);
             g.fillRect(x + 4, y + 8, 20, 15, PAL_WHITE);
@@ -5318,6 +5371,19 @@ static void activate(void)
         enter_screen(SCR_GIBSON, -1); /* mock: rain + Enter = enterHub() */
         break;
     case SCR_GIBSON:
+        if (s_hub_zone == 1) break;      /* prompt: Enter runs a typed line (ui_dispatch) */
+        if (s_hub_zone == 2) {           /* command menu: Enter steps to the next command */
+            const int n = (int)(sizeof(GP_CMD) / sizeof(GP_CMD[0]));
+            s_hub_cmd = (s_hub_cmd + 1) % n;
+            snprintf(s_gp_buf, sizeof(s_gp_buf), "%s", GP_CMD[s_hub_cmd]);
+            partial_gp_strip();
+            break;
+        }
+        if (s_hub_zone == 3) {           /* Gibson: Enter enters the Gibson game */
+            enter_screen(SCR_GCHAT, SCR_GIBSON);
+            s_dirty = true;
+            break;
+        }
         if (s_cursor == 0) {
             enter_screen(SCR_TERMINAL, SCR_GIBSON);
             boot_log();
@@ -5838,6 +5904,20 @@ static void on_arrows(int key)
         s_dirty = true;
         return;
     }
+    if (s_screen == SCR_GIBSON) {
+        /* v1017b (Dirt 8:27): Left/Right only cycle the icon row; Up/Down walk
+         * icons -> prompt -> command menu -> Gibson (Down), reverse with Up. */
+        if (key == 3 || key == 4) {
+            const int n = button_count();
+            if (s_hub_zone == 0 && n > 0) s_cursor = (s_cursor + (key == 4 ? 1 : n - 1)) % n;
+            s_hub_zone = 0;
+        } else {
+            s_hub_zone = (s_hub_zone + (key == 2 ? 1 : 3)) % 4;
+        }
+        s_gp_focus = s_hub_zone == 1;
+        s_dirty = true;   /* full present (band diff-push), like the control panel */
+        return;
+    }
     if (s_screen == SCR_TERMINAL) {
         if (s_sheet && !botcorps_t0_term_prompt[0]) {
             if (key == 1 || key == 3) s_sheet_i = (s_sheet_i + CMD_N - 1) % CMD_N;
@@ -6219,6 +6299,7 @@ static void on_char(char c)
     }
     if (s_screen == SCR_GIBSON) {
         s_gp_focus = true;
+        if (s_hub_zone != 1) { s_hub_zone = 1; s_dirty = true; }
         if (c >= 'A' && c <= 'Z') c = (char)(c - 'A' + 'a');
         const size_t n = strlen(s_gp_buf);
         if (n + 1 < sizeof(s_gp_buf) && c >= 32 && c < 127) {
@@ -6256,6 +6337,7 @@ static void on_bs(void)
     }
     if (s_screen == SCR_GIBSON && s_gp_buf[0]) {
         s_gp_focus = true;
+        if (s_hub_zone != 1) { s_hub_zone = 1; s_dirty = true; }
         const size_t n = strlen(s_gp_buf);
         s_gp_buf[n - 1] = 0;
         partial_gp_strip();
@@ -6514,8 +6596,9 @@ static void ui_dispatch(int key, char typed)
         s_dirty = true;
         return;
     }
-    if (key == K_OK && s_screen == SCR_GIBSON && s_gp_buf[0]) {
+    if (key == K_OK && s_screen == SCR_GIBSON && s_gp_buf[0] && s_hub_zone <= 1) {
         s_gp_focus = true;
+        s_hub_zone = 1;
         char line[28];
         snprintf(line, sizeof(line), "%s", s_gp_buf);
         s_gp_buf[0] = 0;

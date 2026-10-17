@@ -90,7 +90,7 @@ teal or accent-tinted), and the mock's game is disabled (GAME_ENABLED=false). In
 | F2 | Enter cycles the focused setting forward through all its values (full cycle checked per setting) |
 | F3 | NVS writes happen on Enter. Tested on settings 3 and 4; in the firmware only rain mode is persisted, which is pre-existing behaviour |
 | | Settings keeps the UI colour selection and the bot colour/shape settings. No MASHUP overflow (G2/G4) |
-| L1 | Layout and look are locked: settings-c0..c7 and settings-amber renders are byte-identical to 675c87d (release/gate/locked-675c87d.sha256, which also locks the terminal, scan, sbox, game and hub renders) |
+| L1 | Layout and look are locked: settings-c0..c7 and settings-amber renders are byte-identical to 675c87d (release/gate/locked-675c87d.sha256, which also locks the terminal, scan, sbox, game and hub renders; v1017b re-locked only the terminal / terminal-typed / terminal-tab hashes (square chip-form tiles) and hub / hub-amber (strong selected-button halo + command-menu stop)) |
 
 ## Game screens (game-board, game-menu, game-jackin = GCHAT)
 - C1/C3 square Gibson block, G1–G8.

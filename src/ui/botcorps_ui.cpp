@@ -402,6 +402,9 @@ static int default_back(int id)
 
 static bool wants_rain(void)
 {
+#ifdef BOTCORPS_CYD
+    if (s_intro_until && (int32_t)(millis() - s_intro_until) < 0) return false;
+#endif
     return s_screen != SCR_WIFI_LIST && s_screen != SCR_BT_LIST
         && s_screen != SCR_DIAG && s_screen != SCR_TERMINAL
         && s_screen != SCR_GCHAT;
@@ -5140,10 +5143,13 @@ static int read_key(char *typed)
 #ifdef BOTCORPS_CYD
     int tx = 0;
     int ty = 0;
-#ifdef BOTCORPS_CYD
-    if (s_intro_until && (int32_t)(millis() - s_intro_until) < 0) return 0; /* swallow during intro */
-#endif
     bool down = botcorps_disp().getTouch(&tx, &ty);
+    if (s_intro_until && (int32_t)(millis() - s_intro_until) < 0) {
+        /* Swallow, but track state so a held finger doesn't fire on hub */
+        if (down) { s_touch_down = true; s_touch_last = millis(); }
+        else s_touch_down = false;
+        return K_NONE;
+    }
     uint32_t now = millis();
     /* One event per press. ~50 ms separates taps. Holds do not repeat. */
     if (down && !s_touch_down && (now - s_touch_last) > 50) {

@@ -1,10 +1,14 @@
 # BOTcorps CYD Touch Port Report
 
 ## Tip SHA
-289ab38
+(pending)
 
 Interactive mock of the current CYD build: mocks/CYD-current-interactive.html
 Built by: Super Grok session (no Cursor/agent hand-off)
+
+## Intro rain/touch polish (this tip)
+- wants_rain() returns false while s_intro_until is set (no rain-step flicker).
+- Intro still calls getTouch and tracks s_touch_down/s_touch_last before returning K_NONE (held finger won’t fire on hub). Nested #ifdef dropped. LV stays “LV 01”.
 
 ## Cal validity + intro polish (this tip)
 - Cal save removes stale cv first. has_valid_cal requires x and y raw spans > 1000. load falls through to placeholder on missing c-key.

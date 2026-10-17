@@ -193,6 +193,12 @@ screens = [s for s in order if s in screens] + [s for s in screens if s not in o
 stats = {}
 for scr in sorted(set(frozen) - set(screens)):
     rep(scr, 'G7 regression vs approved render', False, 'frozen screen was not rendered')
+# v1019: the UI colour is a theme (NEON GRAPE default; the '-amber' renders use theme 1, HOT PINK).
+# Per theme: accent, selection outline, wire (trace) RGB as rendered.
+THEME_RGB = {0: dict(ac=(181, 36, 255), sel=(181, 36, 255), wire=(90, 36, 99)),
+             1: dict(ac=(222, 0, 173), sel=(222, 0, 173), wire=(107, 0, 82))}
+def theme_of(scr): return THEME_RGB[1 if scr.endswith('-amber') else 0]
+def near(c, ref, tol=28): return all(abs(int(a) - int(b)) <= tol for a, b in zip(c[:3], ref))
 for scr in screens:
     boxes, texts = log(scr)
     im, nr = rgb(scr), rgb(scr + '.norain')
@@ -215,7 +221,7 @@ for scr in screens:
             edge = [p[b['x'] + b['w'] // 2, b['y']], p[b['x'], b['y'] + b['h'] // 2]]
             lum = luma(m)
             det.append(f'{int(m[0])},{int(m[1])},{int(m[2])}')
-            if lum >= 28 and max(luma(e) for e in edge) >= 120: lit += 1
+            if lum >= 28 and (max(luma(e) for e in edge) >= 120 or any(near(e, theme_of(scr)['ac']) for e in edge)): lit += 1
         rep(scr, 'H2 three lit nav buttons (filled face + bright edge)', len(navs) == 3 and lit == 3, 'mean ' + ' | '.join(det))
         rep(scr, 'H3 rain carries bots/devices (>=150 coloured px)', col >= 150, f'colour_px={col}')
         tiles = [b for b in boxes if b['k'] == 'TILE' and b['n'] == 'hubbot']
@@ -282,9 +288,9 @@ for scr in screens:
             s = sel[0]; p = im.load(); n = 0; tot = 0
             for x in range(s['x'], s['x'] + s['w']):
                 for y in (s['y'], s['y'] + s['h'] - 1):
-                    tot += 1; c = p[x, y]; n += (c[2] > 150 and c[1] > 150 and c[0] < 120) if scr != 'settings-amber' else (c[0] > 150)
+                    tot += 1; c = p[x, y]; n += near(c, theme_of(scr)['sel'])
             ok = n >= tot * 0.8; det = f'{n}/{tot} outline px accent'
-        rep(scr, 'P4 selection outline in UI accent (cyan)', ok, det)
+        rep(scr, 'P4 selection outline in the UI theme selection colour', ok, det)
         tr = [b for b in boxes if b['k'] == 'TRACE']
         ok = False; det = 'no TRACE'
         if tr:
@@ -292,7 +298,7 @@ for scr in screens:
             for t in tr:
                 for y in range(t['y'], t['y'] + t['h']):
                     for x in range(t['x'], t['x'] + t['w']):
-                        tot += 1; c = p[x, y]; n += (c[2] > 60 and c[1] > 60 and c[0] < c[2]) if scr != 'settings-amber' else (c[0] > 60 and c[0] > c[2])
+                        tot += 1; c = p[x, y]; th = theme_of(scr); n += near(c, th['ac']) or near(c, th['wire'])
             ok = tot > 0 and n >= tot * 0.6; det = f'{n}/{tot} trace px accent'
         rep(scr, 'P5 accent trace from the selected part', ok, det)
     if scr == 'terminal-typed':
@@ -343,7 +349,8 @@ if os.path.exists(fp):
         elif f[0] == 'SET':
             # v1017a: ENTER cycles the focused setting (arrows only move). Must change the value, stay on
             # the control panel with focus kept, and come back to the start after a full cycle.
-            want_cycle = {'0': 3, '1': 3, '2': 5, '3': 2, '4': 6, '5': 4, '6': 2, '7': 3}[f[1]]
+            # v1019: setting 0 (UI COLOR) cycles the five control-panel themes
+            want_cycle = {'0': 5, '1': 3, '2': 5, '3': 2, '4': 6, '5': 4, '6': 2, '7': 3}[f[1]]
             rep('functional', f'F2 Enter cycles setting {f[1]}', f[4] == '1' and int(f[6]) == want_cycle,
                 f'{f[2]} -> {f[3]}, full cycle {f[6]} presses (want {want_cycle})')
             if f[1] in ('3', '4'):

@@ -31,10 +31,10 @@ teal or accent-tinted), and the mock's game is disabled (GAME_ENABLED=false). In
 | id | rule |
 |---|---|
 | H1 | The centre is the animated moving circles/rings core (HUBCORE), with **no** chip in the centre |
-| H2 | The nav buttons are lit with the cyan/accent face and rim, not dark |
+| H2 | The nav buttons are lit with the theme accent face and rim, not dark (v1019: a rim in the theme accent counts as lit) |
 | H3 | Rain on the hub carries enough bots and devices: ≥150 coloured rain px |
 | H4 | 12 bot tiles |
-| | Checked in the UI colour (hub) and in amber (hub-amber) |
+| | Checked in the default theme (hub, NEON GRAPE) and in theme 1 (hub-amber, HOT PINK; render name kept) |
 
 ## Only Gibson has main screens (HIT LIST #1, Oct 15; ac9c53b)
 | id | rule |
@@ -53,7 +53,8 @@ teal or accent-tinted), and the mock's game is disabled (GAME_ENABLED=false). In
 |---|---|
 | C1 | A square chip_block (w == h) |
 | C2 | The chip's long side is at least 60% of its slot |
-| C3 | Gibson (scanboard-gibson and the game boards): Gibson is drawn as the square block figure filling the chip, with black inside, a black border and steel pins |
+| C3 | v1019 (Dirt LOCKED): every Gibson chip except the hub core and the centre radar die is the standard shape: ivory square face (S-18: 38 px face in the 56 px chip, ~3 px black window, scaled for smaller chips), lit top row, dark chin, square steel eyes raised to ~22% down the face, slim Matrix shades (style 1) over the eye row, slight black border, GOLD pins. The intro ID board keeps its approved dome figure (frozen.txt) |
+| C4 | v1019: every other bot chip uses the same chip look and proportions in the bot's own fixed colour (never the theme), SILVER pins, "Morpheus A" glasses (round gold-rim pince-nez, mirror-steel lenses, thin gold bridge, no temple arms) **[visual]** |
 | B1 | The board is permanent matte black (dominant luma ≤24) and doesn't follow the UI colour |
 | | Other bot chips are square in their fixed bot colour **[visual]** |
 
@@ -85,8 +86,8 @@ teal or accent-tinted), and the mock's game is disabled (GAME_ENABLED=false). In
 | P1 | 8 parts (the 8 settings) |
 | P2 | Pin labels sit on the top rail above the chips |
 | P3 | JUMP, CP and PWR are small parts (not full chips) |
-| P4 | The selection outline is cyan/accent |
-| P5 | The selected trace is cyan/accent |
+| P4 | The selection outline is the theme selection colour (v1019 themes: NEON GRAPE, HOT PINK, DUOTONE, SYNTHWAVE, ULTRAVIOLET; Ultraviolet selects in pink, Duotone/Synthwave draw two-tone/gradient outlines) |
+| P5 | The selected trace is the theme accent / theme wire |
 | B1 | Board is permanent matte black (ESP32 shield look: white silkscreen, gold header pins) |
 | R1 | v1017a: every control (8 settings + TERM + crown) is reachable by the cursor |
 | R2 | Left/Right walk one ring through all 10 stops (incl. SCREEN SAVER U4 and the PWR LED); Up/Down go to the nearest stop above/below |
@@ -95,7 +96,7 @@ teal or accent-tinted), and the mock's game is disabled (GAME_ENABLED=false). In
 | F2 | Enter cycles the focused setting forward through all its values (full cycle checked per setting) |
 | F3 | NVS writes happen on Enter. Tested on settings 3 and 4; in the firmware only rain mode is persisted, which is pre-existing behaviour |
 | | Settings keeps the UI colour selection and the bot colour/shape settings. No MASHUP overflow (G2/G4) |
-| L1 | Layout and look are locked: settings-c0..c7 and settings-amber renders are byte-identical to 675c87d (release/gate/locked-675c87d.sha256, which also locks the terminal, scan, sbox, game and hub renders; v1017b re-locked only the terminal / terminal-typed / terminal-tab hashes (square chip-form tiles) and hub / hub-amber (strong selected-button halo + command-menu stop); v1017c re-locked every rain-on render (rain glyph set #4, host rain fidelity) with all their .norain twins unchanged, plus terminal.norain / terminal-typed.norain (bugs #2/#3/#6)) |
+| L1 | Layout and look are locked: settings-c0..c7 and settings-amber renders are byte-identical to 675c87d (release/gate/locked-675c87d.sha256, which also locks the terminal, scan, sbox, game and hub renders; v1017b re-locked only the terminal / terminal-typed / terminal-tab hashes (square chip-form tiles) and hub / hub-amber (strong selected-button halo + command-menu stop); v1017c re-locked every rain-on render (rain glyph set #4, host rain fidelity) with all their .norain twins unchanged, plus terminal.norain / terminal-typed.norain (bugs #2/#3/#6)); v1019 re-locked the theme (every settings / hub / terminal / scan / sbox / game render), Gibson/bot chip faces, Terminal prompt row + live rain ghost, and the Gibson ticker; a host-only legacy-accent build (HOST_EXTRA=-DBOTCORPS_LEGACY_ACCENT) shows the non-theme diffs are confined to chips/faces, the Terminal tiles + prompt row and the Gibson ticker) |
 
 ## Game screens (game-board, game-menu, game-jackin = GCHAT)
 - C1/C3 square Gibson block, G1–G8.

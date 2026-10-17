@@ -4,6 +4,13 @@
 
 ### Added
 
+- v1019 (Dirt locked): standard Gibson chip (ivory S-18 face, slim Matrix shades, eyes at ~22%, gold pins) everywhere except the hub core, the centre radar die and the intro ID board; every other bot in the same chip form in its own colour with silver pins and Morpheus A glasses (hub tiles, terminal tiles, scan boards, game chips).
+- v1019: five control-panel themes replace CYAN/AMBER/MINT: NEON GRAPE, HOT PINK (circuit), DUOTONE (purple + pink split), SYNTHWAVE (magenta to orange gradient, blue wires), ULTRAVIOLET (pink on selected). The COLOR tile preview bot follows the theme; s_color bounds use THEME_N (5). Bot colours never follow the theme.
+- v1019: Gibson voice/log ticker under his chip on his scan board (patched in place, no full presents).
+- v1019: Terminal rain steps live again, shows faintly through the board tiles (never over the bot face, labels or prompt panel); the empty companion block is gone; the commands (≡) button is at the far right of the prompt row with the attack button beside it. The Gibson game rain steps live too.
+- v1019 field bugs: typing works on the scan box and every sub-scan (help/scan/hunt/info/gloss/defend/terminal/back/clear); every Defend path (hub, Terminal, scan box, game `defend`/`load game`) enters the Gibson game jacked in; arrows drive the hub command menu (Left/Right pick, Enter runs), open the game command sheet, and step the scan board's ≡ commands into its prompt.
+- v1019 prompt audit: `say`/`whisper <bot> <message>` resolve the bot from the first word; comms commands without a bot answer "<cmd> <bot>: name a bot"; hub `help` lists the hub's own commands; game `ask` matches the Terminal's status words.
+
 - Slice 0 scaffold for Cardputer Adv. PlatformIO envs `cardputer-adv`, `cardputer-adv-dual` (`-DBOTCORPS_DUAL_SCREEN=1`), and `cardputer-adv-dual-launcher` (dual firmware linked at launcher `ota_0` `0x170000`).
 - `botcorps_display`: `botcorps_menu()` is the internal ST7789 240×135, `botcorps_content()` is the external ILI9341 320×240 when the panel comes up (ST7789 fallback otherwise), `botcorps_while_content()` paints on content and restores the previous surface. `BotcorpsDisplay` and `SCR_W` / `SCR_H` follow the active surface. Content is native 320×240, not a 240×135 corner, and the boot path does not park all UI on the external panel.
 - External panel on SPI3, pins SCK 40 / MOSI 14 / CS 5 / DC 6 / RST 3 / SD_CS 12. GPIO5 idles HIGH. SD mount is wrapped in `botcorps_lcd_quiesce` / `botcorps_lcd_resume_after_bus`. RGB565 / COLMOD is boot-only.

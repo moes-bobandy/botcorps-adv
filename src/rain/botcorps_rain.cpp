@@ -410,6 +410,45 @@ void botcorps_rain_draw(lgfx::LovyanGFX &dst, int y0, int y1)
     s_slice_y1 = 240;
 }
 
+/* v1019 (Dirt #5): faint "ghost" bits of the LIVE rain drawn over a chrome rect (the Terminal's
+ * board tiles), so the animated rain reads slightly through them. Glyph pixels only (no cell
+ * fill, no clip changes), a 3x5 bit mark per lit cell, one dim ink. World rect; dst pixel
+ * (x, y) is world (x + ox, y + oy), exactly like the Gfx wrapper raw() offsets. Deterministic on the current cell state, so a partial repaint and a
+ * full paint at the same step draw identical pixels. */
+void botcorps_rain_ghost(lgfx::LovyanGFX &dst, int ox, int oy, int rx, int ry, int rw, int rh, uint8_t ink)
+{
+    if (!s_built) build_columns();
+    if (rw <= 0 || rh <= 0) return;
+    static const uint8_t B0[5] = { 7, 5, 5, 5, 7 };   /* 3x5 '0' */
+    static const uint8_t B1[5] = { 2, 6, 2, 2, 7 };   /* 3x5 '1' */
+    const int dh = dst.height();
+    const int c0 = rx / CELL, c1 = (rx + rw - 1) / CELL;
+    const int r0 = ry / CELL, r1 = (ry + rh - 1) / CELL;
+    for (int col = c0; col <= c1 && col < CELL_COLS; ++col) {
+        if (col < 0) continue;
+        for (int row = r0; row <= r1 && row < CELL_ROWS; ++row) {
+            if (row < 0) continue;
+            if (cell_level(col, row, nullptr) <= 0) continue;
+            const uint8_t gl = *glyph_at(col, row);
+            const bool one = gl >= 0x80 ? (gl & 1) != 0 : gl == '1';
+            const uint8_t *bm = one ? B1 : B0;
+            const int gx = col * CELL + 2, gy = row * CELL + 1;
+            for (int j = 0; j < 5; ++j) {
+                const int wy = gy + j;
+                if (wy < ry || wy >= ry + rh) continue;
+                const int ly = wy - oy;
+                if (ly < 0 || ly >= dh) continue;
+                for (int i = 0; i < 3; ++i) {
+                    if (!(bm[j] & (4 >> i))) continue;
+                    const int wx = gx + i;
+                    if (wx < rx || wx >= rx + rw) continue;
+                    botcorps_pal_rect(dst, wx - ox, ly, 1, 1, ink);
+                }
+            }
+        }
+    }
+}
+
 int botcorps_rain_cell_bytes(void)
 {
     return (int)sizeof(botcorps_cell_t);

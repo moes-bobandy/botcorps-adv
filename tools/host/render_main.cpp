@@ -299,9 +299,35 @@ int main(int argc, char **argv)
     if (argc > 3 && strcmp(argv[1], "shot") == 0) {
         host_rain_init(0);
         host_set_millis(9000u);
-        GArg a = { atoi(argv[2]), 0, 0, argc > 4 ? argv[4] : nullptr };
+        GArg a = { atoi(argv[2]), getenv("RC") ? atoi(getenv("RC")) : 0, 0, argc > 4 ? argv[4] : nullptr };
         f_enter(&a);
         write_raw(argv[3], g_buf, 0);
+        return 0;
+    }
+    if (argc > 1 && strcmp(argv[1], "audit") == 0) {
+        extern void botcorps_host_prompt_audit(void);
+        host_rain_init(0);
+        host_set_millis(9000u);
+        botcorps_host_prompt_audit();
+        return 0;
+    }
+    /* v1019: one-off review render of the Defend game title for one bot: rend gtitle <bot> <out> */
+    if (argc > 3 && strcmp(argv[1], "gtitle") == 0) {
+        extern void botcorps_host_gc_title(uint8_t *, int);
+        host_rain_init(0);
+        host_set_millis(9000u);
+        botcorps_host_set_color(getenv("RC") ? atoi(getenv("RC")) : 0);
+        botcorps_host_gc_title(g_buf, atoi(argv[2]));
+        write_raw(argv[3], g_buf, 0);
+        return 0;
+    }
+    /* v1019: one-off review render of the control panel in a UI theme: rend ctl <focus> <theme> <out> */
+    if (argc > 4 && strcmp(argv[1], "ctl") == 0) {
+        host_rain_init(0);
+        host_set_millis(9000u);
+        GArg a = { atoi(argv[2]), atoi(argv[3]), 0, nullptr };
+        f_ctl(&a);
+        write_raw(argv[4], g_buf, 0);
         return 0;
     }
     host_rain_init(0); /* v1016i: warm the REAL rain so it shows in renders */

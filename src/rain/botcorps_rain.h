@@ -56,6 +56,8 @@ void botcorps_rain_set_hub(bool on);
 void botcorps_rain_set_gibson(bool on);
 /* v1017c: Terminal: no bot emblems in the rain (bit + device glyphs only). */
 void botcorps_rain_set_no_bots(bool on);
+/* v1019: faint ghost bits of the live rain over a chrome rect (world coords, dst rows from oy). */
+void botcorps_rain_ghost(lgfx::LovyanGFX &dst, int ox, int oy, int rx, int ry, int rw, int rh, uint8_t ink);
 int botcorps_rain_cell_bytes(void);
 
 void botcorps_rain_set_parked(bool parked);

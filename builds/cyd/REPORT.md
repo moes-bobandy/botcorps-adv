@@ -1,10 +1,13 @@
 # BOTcorps CYD Touch Port Report
 
 ## Tip SHA
-985e82c
+(pending)
 
 Interactive mock of the current CYD build: mocks/CYD-current-interactive.html
 Built by: Super Grok session (no Cursor/agent hand-off)
+
+## Intro→hub dirty trigger (this tip)
+- botcorps_ui_draw on CYD forces the intro→hub switch (s_screen=SCR_GIBSON, s_dirty=true) when s_intro_until expires, so it works in band-direct mode too. LV stays “LV 01”.
 
 ## Intro rain/touch polish (this tip)
 - wants_rain() returns false while s_intro_until is set (no rain-step flicker).

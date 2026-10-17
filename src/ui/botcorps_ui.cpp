@@ -5540,6 +5540,13 @@ void botcorps_ui_input(void)
 void botcorps_ui_draw(void)
 {
 #ifdef BOTCORPS_CYD
+    /* Force the intro→hub switch even in band-direct mode (no rain step). */
+    if (s_intro_until && (int32_t)(millis() - s_intro_until) >= 0) {
+        s_screen = SCR_GIBSON;
+        s_act = 0;
+        s_intro_until = 0;
+        s_dirty = true;
+    }
     /* While the keyboard is open, band pushes stop above it. */
     botcorps_band_set_push_ymax(s_osk_open ? CYD_OSK_CLIP_Y : 240);
 #endif

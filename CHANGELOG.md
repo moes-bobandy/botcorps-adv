@@ -1,0 +1,33 @@
+# Changelog
+
+## [Unreleased]
+
+### Added
+
+- v1019d (Dirt): every non-Gibson bot chip (hub tiles, terminal tiles, scan boards, Defend title chip and recoloured centre board chip) wears the plain control-panel eyes (the COLOR-tile bot's SPR_MINI eyes: two PAL_EYE squares, 1/5 of the face) instead of Morpheus A glasses. Gibson's slim shades are back to the original separated-lens look (thin top rim, two lenses with an open ivory gap; host `GIB_GLASS=2` renders the open-frame candidate B). Scan / game grid sprites stay round. Terminal rain trails are brighter, the tile ghost rain uses a brighter ink, and the live rain shows faintly through the empty rows of the prompt plate (never on log text, the prompt row, buttons or candidates). Gate baselines re-locked for the changed chip / terminal screens only.
+- v1019 (Dirt locked): standard Gibson chip (ivory S-18 face, slim Matrix shades, eyes at ~22%, gold pins) everywhere except the hub core, the centre radar die and the intro ID board; every other bot in the same chip form in its own colour with silver pins and Morpheus A glasses (hub tiles, terminal tiles, scan boards, game chips).
+- v1019: five control-panel themes replace CYAN/AMBER/MINT: NEON GRAPE, HOT PINK (circuit), DUOTONE (purple + pink split), SYNTHWAVE (magenta to orange gradient, blue wires), ULTRAVIOLET (pink on selected). The COLOR tile preview bot follows the theme; s_color bounds use THEME_N (5). Bot colours never follow the theme.
+- v1019: Gibson voice/log ticker under his chip on his scan board (patched in place, no full presents).
+- v1019: Terminal rain steps live again, shows faintly through the board tiles (never over the bot face, labels or prompt panel); the empty companion block is gone; the commands (≡) button is at the far right of the prompt row with the attack button beside it. The Gibson game rain steps live too.
+- v1019 field bugs: typing works on the scan box and every sub-scan (help/scan/hunt/info/gloss/defend/terminal/back/clear); every Defend path (hub, Terminal, scan box, game `defend`/`load game`) enters the Gibson game jacked in; arrows drive the hub command menu (Left/Right pick, Enter runs), open the game command sheet, and step the scan board's ≡ commands into its prompt.
+- v1019 prompt audit: `say`/`whisper <bot> <message>` resolve the bot from the first word; comms commands without a bot answer "<cmd> <bot>: name a bot"; hub `help` lists the hub's own commands; game `ask` matches the Terminal's status words.
+
+- Slice 0 scaffold for Cardputer Adv. PlatformIO envs `cardputer-adv`, `cardputer-adv-dual` (`-DBOTCORPS_DUAL_SCREEN=1`), and `cardputer-adv-dual-launcher` (dual firmware linked at launcher `ota_0` `0x170000`).
+- `botcorps_display`: `botcorps_menu()` is the internal ST7789 240×135, `botcorps_content()` is the external ILI9341 320×240 when the panel comes up (ST7789 fallback otherwise), `botcorps_while_content()` paints on content and restores the previous surface. `BotcorpsDisplay` and `SCR_W` / `SCR_H` follow the active surface. Content is native 320×240, not a 240×135 corner, and the boot path does not park all UI on the external panel.
+- External panel on SPI3, pins SCK 40 / MOSI 14 / CS 5 / DC 6 / RST 3 / SD_CS 12. GPIO5 idles HIGH. SD mount is wrapped in `botcorps_lcd_quiesce` / `botcorps_lcd_resume_after_bus`. RGB565 / COLMOD is boot-only.
+- Slice 1R `botcorps_rain`: boot goes to bot rain. The internal panel shows the name BOTcorps on a slate bar. `loop()` advances the rain on the content panel. The Slice 0 navy and green size plates are not on the boot path.
+- Slice 1R2 matches the approved rain mock: 90 ms steps with remainder carry, dense columns, bots and code only, 14-color bots, green code with a pale head, trails faded in the full-frame sprite (or an 8×8 cell table if that sprite cannot be allocated). The name stays on the internal panel. M5GFX is pinned at 0.2.32 and M5Unified at 0.2.13.
+- Sprite fade and the bot backing rect now byte-swap `rgb565_2Byte` pixels, so field `0x0041` round-trips to near-black instead of being read as dark red. The cell fallback still paints through the library.
+- Internal name bar is Font0 at text size 2, white on `#121821`, redrawn on the menu when that panel is painted. Rain does not draw it.
+- S0 heap probe and S1 foundation. Rain step is 140 ms. INT rain, the intro screen, and the 180×180 radar sprite are gone. SD is not mounted at boot. NimBLE-Arduino 2.3.9 init and a Wi-Fi scan run only as a heap probe. Diagnostic numbers are on the diag screen. GPIO12 is parked high after M5 begin and before EXT begin. Heap lines record the largest free internal block before and after each init.
+- S2 cell-grid rain uses the Tier 0 cell and column buffers and draws straight to the external panel. The 153600-byte rain sprite is gone. S3 puts icon buttons on EXT, the bot ID card on INT, and a terminal with boards, a prompt, and a command palette.
+- Gate fix: DEVICES rain draws device icons, cursor and prompt edits repaint only the changed region, Terminal Esc closes the palette or sheet before leaving, and the radar sweep erases the previous rays instead of refilling the disc. Device icons are whole 12x12 stamps. A scan that changes the board repaints both tiles, an accent change refills the screen, and the INT card updates only its clock and counters each second.
+- P1: EXT draws into an 8-bit band (BANDS default, FRAME selectable in botcorps_frame_cfg.h). Bot sprites come from the mock. Rain mixes are FIELD, CREW, BOTS, and DEVICES. Gibson has terminal, control, and scan. Bot colors are a fixed table.
+- Control panel row `RAIN COLOUR` (NVS namespace `botcorps`, key `rain_col`). Default MULTI keeps the 14-colour rain. Six solid inks are native RGB565 and fade toward field `0x0041`.
+- Mock screens on the same boot path: rain, intro (ENTER powers on), Gibson and role card, terminal, Wi-Fi, Wi-Fi radar, Wi-Fi list, Bluetooth, Bluetooth radar, Bluetooth list, bot, bot radar, and the control panel. Keys are `;` `.` `,` `/`, Enter, and backtick. Wi-Fi and Bluetooth stay radio-off and show the sample list. The external sprite is parked on those screens when the largest free block is under 48 KB.
+- Documented Cap conflict: LoRa1262 (NSS G5 / RST G3 / BUSY G6) and Hydra-on-G5 cannot coexist with this panel. guicmg RST GPIO13 / DC GPIO15 is not this pinout.
+
+### Notes
+
+- Active BOTcorps line is fresh Cardputer Adv dual. CYD / COM13 (`cyd28`) is parked and is not ported here.
+- Build success is not a field PASS. No merge and no flash until Dirt asks.

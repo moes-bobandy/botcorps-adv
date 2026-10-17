@@ -1,0 +1,9 @@
+# Standalone (no Launcher) max-app table for the Cardputer Adv, 8 MB flash.
+# One app slot from 0x10000 to the coredump at 0x7F0000 = 0x7E0000
+# (8,257,536 B). No OTA second slot, no SPIFFS/FAT: settings live in NVS,
+# data on SD. otadata stays at 0xE000 so boot_app0.bin lands where it expects.
+# Name,   Type, SubType,  Offset,   Size,      Flags
+nvs,      data, nvs,      0x9000,   0x5000,
+otadata,  data, ota,      0xE000,   0x2000,
+app0,     app,  ota_0,    0x10000,  0x7E0000,
+coredump, data, coredump, 0x7F0000, 0x10000,

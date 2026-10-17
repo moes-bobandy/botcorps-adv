@@ -1,0 +1,775 @@
+== intro
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=723 colour_px=378]
+  PASS  G6 no instruction text
+  PASS  G7 regression vs approved render  [0 px changed (limit 40)]
+== boot
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=7054 colour_px=3599]
+  PASS  G6 no instruction text
+== hub
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=3902 colour_px=3249]
+  PASS  G6 no instruction text
+  PASS  G8 crown back control present  [1 crown]
+  PASS  H1 centre = animated rings core, not a chip  [core=1 chips=0]
+  PASS  H2 three lit nav buttons (filled face + bright edge)  [mean 76,46,91 | 96,39,112 | 77,25,100]
+  PASS  H3 rain carries bots/devices (>=150 coloured px)  [colour_px=3249]
+  PASS  H4 12 bot side tiles  [12]
+== hub-amber
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=3515 colour_px=2676]
+  PASS  G6 no instruction text
+  PASS  G8 crown back control present  [1 crown]
+  PASS  H1 centre = animated rings core, not a chip  [core=1 chips=0]
+  PASS  H2 three lit nav buttons (filled face + bright edge)  [mean 82,41,79 | 109,27,86 | 89,14,76]
+  PASS  H3 rain carries bots/devices (>=150 coloured px)  [colour_px=2676]
+  PASS  H4 12 bot side tiles  [12]
+== terminal
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=3426 colour_px=1133]
+  PASS  G6 no instruction text
+  PASS  G7 regression vs approved render  [0 px changed (limit 40)]
+  PASS  G8 crown back control present  [1 crown]
+== terminal-typed
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=3342 colour_px=364]
+  PASS  G6 no instruction text
+  PASS  G8 crown back control present  [1 crown]
+  PASS  T1 log pale cyan, "[ ok ]" green  [green_px=50 paleCyan_px=1247 other_px=0]
+== terminal-tab
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=2582 colour_px=321]
+  PASS  G6 no instruction text
+  PASS  G7 regression vs approved render  [0 px changed (limit 40), masked [(4, 167, 316, 240)]]
+  PASS  G8 crown back control present  [1 crown]
+== scan-wifi
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=822 colour_px=411]
+  PASS  G6 no instruction text
+  PASS  G7 regression vs approved render  [0 px changed (limit 40)]
+  PASS  G8 crown back control present  [1 crown]
+  PASS  B1 board is matte black PCB  [dominant=(8, 12, 16)]
+  PASS  S1 device icons (tiles) in the mini screen  [tiles=3]
+  PASS  S2 index = small prompt top-left of mini screen  [[(108, 43)]]
+== scan-ble
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=788 colour_px=500]
+  PASS  G6 no instruction text
+  PASS  G7 regression vs approved render  [0 px changed (limit 40)]
+  PASS  G8 crown back control present  [1 crown]
+  PASS  B1 board is matte black PCB  [dominant=(8, 12, 16)]
+  PASS  S1 device icons (tiles) in the mini screen  [tiles=3]
+  PASS  S2 index = small prompt top-left of mini screen  [[(108, 43)]]
+== sbox-selected
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=990 colour_px=645]
+  PASS  G6 no instruction text
+  PASS  G7 regression vs approved render  [0 px changed (limit 40)]
+  PASS  G8 crown back control present  [1 crown]
+  PASS  B1 board is matte black PCB  [dominant=(0, 8, 8)]
+  PASS  S2 index = small prompt top-left of mini screen  [[(108, 43)]]
+== sbox-info
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=395 colour_px=224]
+  PASS  G6 no instruction text
+  PASS  G7 regression vs approved render  [0 px changed (limit 40)]
+  PASS  G8 crown back control present  [1 crown]
+  PASS  B1 board is matte black PCB  [dominant=(8, 12, 16)]
+  PASS  S2 index = small prompt top-left of mini screen  [[(108, 43)]]
+== sbox-hunt
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=978 colour_px=628]
+  PASS  G6 no instruction text
+  PASS  G7 regression vs approved render  [0 px changed (limit 40)]
+  PASS  G8 crown back control present  [1 crown]
+  PASS  B1 board is matte black PCB  [dominant=(0, 8, 8)]
+  PASS  S3 hunt stays inside the mini screen  [[{'k': 'HUNT', 'n': 'panel', 'x': 106, 'y': 42, 'w': 176, 'h': 102, 'p': 'MINI'}]]
+== sbox-glossary
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=509 colour_px=255]
+  PASS  G6 no instruction text
+  PASS  G7 regression vs approved render  [0 px changed (limit 40)]
+  PASS  G8 crown back control present  [1 crown]
+  PASS  B1 board is matte black PCB  [dominant=(0, 8, 8)]
+  PASS  S2 index = small prompt top-left of mini screen  [[(108, 43)]]
+== found-alert
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  N/A   G5 rain layer present + visible  [logged=True visible_px=0 colour_px=0]
+  PASS  G6 no instruction text
+  PASS  G7 regression vs approved render  [0 px changed (limit 40)]
+== ctlfocus-crown
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=897 colour_px=510]
+  PASS  G6 no instruction text
+  PASS  G8 crown back control present  [1 crown]
+== ctlfocus-term
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=112 colour_px=78]
+  PASS  G6 no instruction text
+  PASS  G8 crown back control present  [1 crown]
+== diag
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=2276 colour_px=1260]
+  PASS  G6 no instruction text
+  PASS  G8 crown back control present  [1 crown]
+== game-board
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=1725 colour_px=818]
+  PASS  G6 no instruction text
+  PASS  G8 crown back control present  [1 crown]
+  PASS  C1 square chip_block present (Gibson)  [[('gibson', 36, 36), ('gibson', 28, 28), ('gibson', 28, 28)]]
+  PASS  C2 figure fills the chip square (major side >=60% of chip)  [fill=0.67]
+  PASS  C3 Gibson drawn as the square block figure  [3]
+  PASS  D1 dynamic "<name>> Defend" title present  [['Gibson> Defend']]
+== game-jackin
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=2626 colour_px=1520]
+  PASS  G6 no instruction text
+  PASS  G8 crown back control present  [1 crown]
+  PASS  C1 square chip_block present (Gibson)  [[('gibson', 36, 36), ('gibson', 28, 28), ('gibson', 28, 28)]]
+  PASS  C2 figure fills the chip square (major side >=60% of chip)  [fill=0.67]
+  PASS  C3 Gibson drawn as the square block figure  [3]
+== game-menu
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=809 colour_px=368]
+  PASS  G6 no instruction text
+  PASS  G8 crown back control present  [1 crown]
+== scanboard-airtag
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=640 colour_px=374]
+  PASS  G6 no instruction text
+  PASS  G7 regression vs approved render  [0 px changed (limit 40)]
+  PASS  G8 crown back control present  [1 crown]
+  PASS  C1 square chip_block present (bot)  [[('bot', 54, 54)]]
+  PASS  C2 figure fills the chip square (major side >=60% of chip)  [fill=0.67]
+  PASS  D2 hunt grid active (falling icons + chaser + pips)  [bright_px=23]
+  PASS  B1 board is matte black PCB  [dominant=(8, 12, 16)]
+== scanboard-deauth
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=250 colour_px=59]
+  PASS  G6 no instruction text
+  PASS  G7 regression vs approved render  [0 px changed (limit 40)]
+  PASS  G8 crown back control present  [1 crown]
+  PASS  C1 square chip_block present (bot)  [[('bot', 54, 54)]]
+  PASS  C2 figure fills the chip square (major side >=60% of chip)  [fill=0.67]
+  PASS  D2 hunt grid active (falling icons + chaser + pips)  [bright_px=50]
+  PASS  B1 board is matte black PCB  [dominant=(8, 12, 16)]
+== scanboard-drone
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=891 colour_px=465]
+  PASS  G6 no instruction text
+  PASS  G7 regression vs approved render  [0 px changed (limit 40)]
+  PASS  G8 crown back control present  [1 crown]
+  PASS  C1 square chip_block present (bot)  [[('bot', 54, 54)]]
+  PASS  C2 figure fills the chip square (major side >=60% of chip)  [fill=0.67]
+  PASS  D2 hunt grid active (falling icons + chaser + pips)  [bright_px=17]
+  PASS  B1 board is matte black PCB  [dominant=(8, 12, 16)]
+== scanboard-flipper
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=455 colour_px=208]
+  PASS  G6 no instruction text
+  PASS  G7 regression vs approved render  [0 px changed (limit 40)]
+  PASS  G8 crown back control present  [1 crown]
+  PASS  C1 square chip_block present (bot)  [[('bot', 54, 54)]]
+  PASS  C2 figure fills the chip square (major side >=60% of chip)  [fill=0.67]
+  PASS  D2 hunt grid active (falling icons + chaser + pips)  [bright_px=60]
+  PASS  B1 board is matte black PCB  [dominant=(8, 12, 16)]
+== scanboard-flock
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=500 colour_px=295]
+  PASS  G6 no instruction text
+  PASS  G7 regression vs approved render  [0 px changed (limit 40)]
+  PASS  G8 crown back control present  [1 crown]
+  PASS  C1 square chip_block present (bot)  [[('bot', 54, 54)]]
+  PASS  C2 figure fills the chip square (major side >=60% of chip)  [fill=0.67]
+  PASS  D2 hunt grid active (falling icons + chaser + pips)  [bright_px=20]
+  PASS  B1 board is matte black PCB  [dominant=(8, 12, 16)]
+== scanboard-gibson
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=602 colour_px=310]
+  PASS  G6 no instruction text
+  PASS  G8 crown back control present  [1 crown]
+  PASS  C1 square chip_block present (Gibson)  [[('gibson', 54, 54)]]
+  PASS  C2 figure fills the chip square (major side >=60% of chip)  [fill=0.67]
+  PASS  C3 Gibson drawn as the square block figure  [1]
+  PASS  D2 hunt grid active (falling icons + chaser + pips)  [bright_px=31]
+  PASS  B1 board is matte black PCB  [dominant=(8, 12, 16)]
+== scanboard-hack
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=1007 colour_px=552]
+  PASS  G6 no instruction text
+  PASS  G7 regression vs approved render  [0 px changed (limit 40)]
+  PASS  G8 crown back control present  [1 crown]
+  PASS  C1 square chip_block present (bot)  [[('bot', 54, 54)]]
+  PASS  C2 figure fills the chip square (major side >=60% of chip)  [fill=0.67]
+  PASS  D2 hunt grid active (falling icons + chaser + pips)  [bright_px=26]
+  PASS  B1 board is matte black PCB  [dominant=(8, 12, 16)]
+== scanboard-hunt-gibson
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=701 colour_px=432]
+  PASS  G6 no instruction text
+  PASS  G8 crown back control present  [1 crown]
+  PASS  C1 square chip_block present (Gibson)  [[('gibson', 54, 54)]]
+  PASS  C2 figure fills the chip square (major side >=60% of chip)  [fill=0.67]
+  PASS  C3 Gibson drawn as the square block figure  [1]
+  PASS  D2 hunt grid active (falling icons + chaser + pips)  [bright_px=29]
+  PASS  B1 board is matte black PCB  [dominant=(8, 12, 16)]
+== scanboard-keyfob
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=713 colour_px=327]
+  PASS  G6 no instruction text
+  PASS  G7 regression vs approved render  [0 px changed (limit 40)]
+  PASS  G8 crown back control present  [1 crown]
+  PASS  C1 square chip_block present (bot)  [[('bot', 54, 54)]]
+  PASS  C2 figure fills the chip square (major side >=60% of chip)  [fill=0.67]
+  PASS  D2 hunt grid active (falling icons + chaser + pips)  [bright_px=53]
+  PASS  B1 board is matte black PCB  [dominant=(8, 12, 16)]
+== scanboard-meta
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=627 colour_px=285]
+  PASS  G6 no instruction text
+  PASS  G7 regression vs approved render  [0 px changed (limit 40)]
+  PASS  G8 crown back control present  [1 crown]
+  PASS  C1 square chip_block present (bot)  [[('bot', 54, 54)]]
+  PASS  C2 figure fills the chip square (major side >=60% of chip)  [fill=0.67]
+  PASS  D2 hunt grid active (falling icons + chaser + pips)  [bright_px=37]
+  PASS  B1 board is matte black PCB  [dominant=(8, 12, 16)]
+== scanboard-samsungtag
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=890 colour_px=511]
+  PASS  G6 no instruction text
+  PASS  G7 regression vs approved render  [0 px changed (limit 40)]
+  PASS  G8 crown back control present  [1 crown]
+  PASS  C1 square chip_block present (bot)  [[('bot', 54, 54)]]
+  PASS  C2 figure fills the chip square (major side >=60% of chip)  [fill=0.67]
+  PASS  D2 hunt grid active (falling icons + chaser + pips)  [bright_px=31]
+  PASS  B1 board is matte black PCB  [dominant=(8, 12, 16)]
+== scanboard-skimmer
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=1148 colour_px=715]
+  PASS  G6 no instruction text
+  PASS  G7 regression vs approved render  [0 px changed (limit 40)]
+  PASS  G8 crown back control present  [1 crown]
+  PASS  C1 square chip_block present (bot)  [[('bot', 54, 54)]]
+  PASS  C2 figure fills the chip square (major side >=60% of chip)  [fill=0.67]
+  PASS  D2 hunt grid active (falling icons + chaser + pips)  [bright_px=55]
+  PASS  B1 board is matte black PCB  [dominant=(8, 12, 16)]
+== settings-amber
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=306 colour_px=141]
+  PASS  G6 no instruction text
+  PASS  G8 crown back control present  [1 crown]
+  PASS  B1 board is matte black PCB  [dominant=(8, 8, 8)]
+  PASS  P1 eight settings parts present  [['s0', 's1', 's2', 's3', 's4', 's5', 's6', 's7']]
+  PASS  P2 top pin labels on the rail above the chips  [10 labels, max bottom 38, chip top 44]
+  PASS  P3 JUMP/CP/PWR are small mock parts (<=22x22)  [{'s3': (20, 10), 's4': (22, 22), 's6': (10, 8)}]
+  PASS  P4 selection outline in the UI theme selection colour  [92/92 outline px accent]
+  PASS  P5 accent trace from the selected part  [618/634 trace px accent]
+== settings-c0
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=503 colour_px=288]
+  PASS  G6 no instruction text
+  PASS  G8 crown back control present  [1 crown]
+  PASS  B1 board is matte black PCB  [dominant=(8, 8, 8)]
+  PASS  P1 eight settings parts present  [['s0', 's1', 's2', 's3', 's4', 's5', 's6', 's7']]
+  PASS  P2 top pin labels on the rail above the chips  [10 labels, max bottom 38, chip top 44]
+  PASS  P3 JUMP/CP/PWR are small mock parts (<=22x22)  [{'s3': (20, 10), 's4': (22, 22), 's6': (10, 8)}]
+  PASS  P4 selection outline in the UI theme selection colour  [92/92 outline px accent]
+  PASS  P5 accent trace from the selected part  [618/634 trace px accent]
+== settings-c1
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=705 colour_px=348]
+  PASS  G6 no instruction text
+  PASS  G8 crown back control present  [1 crown]
+  PASS  B1 board is matte black PCB  [dominant=(8, 8, 8)]
+  PASS  P1 eight settings parts present  [['s0', 's1', 's2', 's3', 's4', 's5', 's6', 's7']]
+  PASS  P2 top pin labels on the rail above the chips  [10 labels, max bottom 38, chip top 44]
+  PASS  P3 JUMP/CP/PWR are small mock parts (<=22x22)  [{'s3': (20, 10), 's4': (22, 22), 's6': (10, 8)}]
+  PASS  P4 selection outline in the UI theme selection colour  [92/92 outline px accent]
+  PASS  P5 accent trace from the selected part  [530/546 trace px accent]
+== settings-c2
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=403 colour_px=162]
+  PASS  G6 no instruction text
+  PASS  G8 crown back control present  [1 crown]
+  PASS  B1 board is matte black PCB  [dominant=(8, 8, 8)]
+  PASS  P1 eight settings parts present  [['s0', 's1', 's2', 's3', 's4', 's5', 's6', 's7']]
+  PASS  P2 top pin labels on the rail above the chips  [10 labels, max bottom 38, chip top 44]
+  PASS  P3 JUMP/CP/PWR are small mock parts (<=22x22)  [{'s3': (20, 10), 's4': (22, 22), 's6': (10, 8)}]
+  PASS  P4 selection outline in the UI theme selection colour  [92/92 outline px accent]
+  PASS  P5 accent trace from the selected part  [442/458 trace px accent]
+== settings-c3
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=470 colour_px=302]
+  PASS  G6 no instruction text
+  PASS  G8 crown back control present  [1 crown]
+  PASS  B1 board is matte black PCB  [dominant=(8, 8, 8)]
+  PASS  P1 eight settings parts present  [['s0', 's1', 's2', 's3', 's4', 's5', 's6', 's7']]
+  PASS  P2 top pin labels on the rail above the chips  [10 labels, max bottom 38, chip top 44]
+  PASS  P3 JUMP/CP/PWR are small mock parts (<=22x22)  [{'s3': (20, 10), 's4': (22, 22), 's6': (10, 8)}]
+  PASS  P4 selection outline in the UI theme selection colour  [52/52 outline px accent]
+  PASS  P5 accent trace from the selected part  [106/122 trace px accent]
+== settings-c4
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=326 colour_px=176]
+  PASS  G6 no instruction text
+  PASS  G8 crown back control present  [1 crown]
+  PASS  B1 board is matte black PCB  [dominant=(8, 8, 8)]
+  PASS  P1 eight settings parts present  [['s0', 's1', 's2', 's3', 's4', 's5', 's6', 's7']]
+  PASS  P2 top pin labels on the rail above the chips  [10 labels, max bottom 38, chip top 44]
+  PASS  P3 JUMP/CP/PWR are small mock parts (<=22x22)  [{'s3': (20, 10), 's4': (22, 22), 's6': (10, 8)}]
+  PASS  P4 selection outline in the UI theme selection colour  [56/56 outline px accent]
+  PASS  P5 accent trace from the selected part  [336/356 trace px accent]
+== settings-c5
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=553 colour_px=320]
+  PASS  G6 no instruction text
+  PASS  G8 crown back control present  [1 crown]
+  PASS  B1 board is matte black PCB  [dominant=(8, 8, 8)]
+  PASS  P1 eight settings parts present  [['s0', 's1', 's2', 's3', 's4', 's5', 's6', 's7']]
+  PASS  P2 top pin labels on the rail above the chips  [10 labels, max bottom 38, chip top 44]
+  PASS  P3 JUMP/CP/PWR are small mock parts (<=22x22)  [{'s3': (20, 10), 's4': (22, 22), 's6': (10, 8)}]
+  PASS  P4 selection outline in the UI theme selection colour  [92/92 outline px accent]
+  PASS  P5 accent trace from the selected part  [354/370 trace px accent]
+== settings-c6
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=123 colour_px=52]
+  PASS  G6 no instruction text
+  PASS  G8 crown back control present  [1 crown]
+  PASS  B1 board is matte black PCB  [dominant=(8, 8, 8)]
+  PASS  P1 eight settings parts present  [['s0', 's1', 's2', 's3', 's4', 's5', 's6', 's7']]
+  PASS  P2 top pin labels on the rail above the chips  [10 labels, max bottom 38, chip top 44]
+  PASS  P3 JUMP/CP/PWR are small mock parts (<=22x22)  [{'s3': (20, 10), 's4': (22, 22), 's6': (10, 8)}]
+  PASS  P4 selection outline in the UI theme selection colour  [32/32 outline px accent]
+  PASS  P5 accent trace from the selected part  [66/76 trace px accent]
+== settings-c7
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=211 colour_px=108]
+  PASS  G6 no instruction text
+  PASS  G8 crown back control present  [1 crown]
+  PASS  B1 board is matte black PCB  [dominant=(8, 8, 8)]
+  PASS  P1 eight settings parts present  [['s0', 's1', 's2', 's3', 's4', 's5', 's6', 's7']]
+  PASS  P2 top pin labels on the rail above the chips  [10 labels, max bottom 38, chip top 44]
+  PASS  P3 JUMP/CP/PWR are small mock parts (<=22x22)  [{'s3': (20, 10), 's4': (22, 22), 's6': (10, 8)}]
+  PASS  P4 selection outline in the UI theme selection colour  [92/92 outline px accent]
+  PASS  P5 accent trace from the selected part  [266/282 trace px accent]
+== terminal-atkbtn
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=3448 colour_px=662]
+  PASS  G6 no instruction text
+  PASS  G8 crown back control present  [1 crown]
+== terminal-atkgloss
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=1203 colour_px=235]
+  PASS  G6 no instruction text
+  PASS  G8 crown back control present  [1 crown]
+== terminal-atkmenu
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=430 colour_px=50]
+  PASS  G6 no instruction text
+  PASS  G8 crown back control present  [1 crown]
+== terminal-cmdbtn
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=3864 colour_px=861]
+  PASS  G6 no instruction text
+  PASS  G8 crown back control present  [1 crown]
+== terminal-cmdmenu
+  N/A   G1 no element/text bbox overlap  [TXT'jacking you 'xTXT'scan'; TXT'jacking you 'xTXT'hunt'; TXT'shields up'xTXT'scan'; TXT'shields up'xTXT'hunt'; TXT'eyes on the 'xTXT'clear'; TXT'eyes on the 'xTXT'ping' (+1)]
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=3257 colour_px=539]
+  PASS  G6 no instruction text
+  PASS  G8 crown back control present  [1 crown]
+== terminal-prompt
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=3819 colour_px=763]
+  PASS  G6 no instruction text
+  PASS  G8 crown back control present  [1 crown]
+== functional
+  PASS  N0 screen table has no per-bot home or bot-radar ids (11 live screens)  [screens=11]
+  PASS  F1 Esc goes back from gibson  [got 0 want 0]
+  PASS  F1 Esc goes back from terminal  [got 1 want 1]
+  PASS  F1 Esc goes back from wifiradar  [got 2 want 2]
+  PASS  F1 Esc goes back from wifilist  [got 2 want 2]
+  PASS  F1 Esc goes back from btradar  [got 2 want 2]
+  PASS  F1 Esc goes back from btlist  [got 2 want 2]
+  PASS  F1 Esc goes back from scan  [got 1 want 1]
+  PASS  F1 Esc goes back from control  [got 1 want 1]
+  PASS  F1 Esc goes back from diag  [got 1 want 1]
+  PASS  F1 Esc goes back from gchat  [got 1 want 1]
+  PASS  N1 go wifi -> scan/chip screen, Esc chain never hits a removed screen  [opened 3 want 3; esc chain 2,1,0,0]
+  PASS  N1 go ble -> scan/chip screen, Esc chain never hits a removed screen  [opened 5 want 5; esc chain 2,1,0,0]
+  PASS  N1 go bots -> scan/chip screen, Esc chain never hits a removed screen  [opened 2 want 2; esc chain 1,0,0,0]
+  PASS  N1 load wifi -> scan/chip screen, Esc chain never hits a removed screen  [opened 3 want 3; esc chain 2,1,0,0]
+  PASS  N1 load ble -> scan/chip screen, Esc chain never hits a removed screen  [opened 5 want 5; esc chain 2,1,0,0]
+  PASS  N1 load bots -> scan/chip screen, Esc chain never hits a removed screen  [opened 2 want 2; esc chain 1,0,0,0]
+  PASS  N1 go diag -> control route, Esc chain never hits a removed screen  [opened 9 want 9; esc chain 2,1,0,0]
+  PASS  N2 terminal Select on board 0 opens that bot's scan screen, Esc back to terminal  [screen 3 want 3, scan_bot 0, esc -> 2]
+  PASS  N2 terminal Select on board 1 opens that bot's scan screen, Esc back to terminal  [screen 5 want 5, scan_bot 1, esc -> 2]
+  PASS  N2 terminal Select on board 2 opens that bot's scan screen, Esc back to terminal  [screen 7 want 7, scan_bot 2, esc -> 2]
+  PASS  N2 terminal Select on board 3 opens that bot's scan screen, Esc back to terminal  [screen 7 want 7, scan_bot 3, esc -> 2]
+  PASS  N2 terminal Select on board 4 opens that bot's scan screen, Esc back to terminal  [screen 7 want 7, scan_bot 4, esc -> 2]
+  PASS  N2 terminal Select on board 5 opens that bot's scan screen, Esc back to terminal  [screen 7 want 7, scan_bot 5, esc -> 2]
+  PASS  N2 terminal Select on board 6 opens that bot's scan screen, Esc back to terminal  [screen 7 want 7, scan_bot 6, esc -> 2]
+  PASS  N2 terminal Select on board 7 opens that bot's scan screen, Esc back to terminal  [screen 7 want 7, scan_bot 7, esc -> 2]
+  PASS  N2 terminal Select on board 8 opens that bot's scan screen, Esc back to terminal  [screen 7 want 7, scan_bot 8, esc -> 2]
+  PASS  N2 terminal Select on board 9 opens that bot's scan screen, Esc back to terminal  [screen 7 want 7, scan_bot 9, esc -> 2]
+  PASS  N2 terminal Select on board 10 opens that bot's scan screen, Esc back to terminal  [screen 7 want 7, scan_bot 10, esc -> 2]
+  PASS  N2 terminal Select on board 11 opens that bot's scan screen, Esc back to terminal  [screen 7 want 7, scan_bot 11, esc -> 2]
+  PASS  S1 scan-gibson: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=1 pushes=343 recomposes=0]
+  PASS  S2 scan-gibson: idle animation never full-screen presents (patches only)  [presents=1 (1 = the screen-enter paint)]
+  PASS  S4 scan-gibson: idle ticks draw in place (no slice rebuild / recompose)  [recomposes=0]
+  PASS  S1 scan-flock: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=1 pushes=321 recomposes=0]
+  PASS  S2 scan-flock: idle animation never full-screen presents (patches only)  [presents=1 (1 = the screen-enter paint)]
+  PASS  S4 scan-flock: idle ticks draw in place (no slice rebuild / recompose)  [recomposes=0]
+  PASS  S1 scan-airtag: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=1 pushes=321 recomposes=0]
+  PASS  S2 scan-airtag: idle animation never full-screen presents (patches only)  [presents=1 (1 = the screen-enter paint)]
+  PASS  S4 scan-airtag: idle ticks draw in place (no slice rebuild / recompose)  [recomposes=0]
+  PASS  S1 scan-wifi: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=1 pushes=323 recomposes=0]
+  PASS  S2 scan-wifi: idle animation never full-screen presents (patches only)  [presents=1 (1 = the screen-enter paint)]
+  PASS  S4 scan-wifi: idle ticks draw in place (no slice rebuild / recompose)  [recomposes=0]
+  PASS  S1 scan-ble: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=1 pushes=336 recomposes=0]
+  PASS  S2 scan-ble: idle animation never full-screen presents (patches only)  [presents=1 (1 = the screen-enter paint)]
+  PASS  S4 scan-ble: idle ticks draw in place (no slice rebuild / recompose)  [recomposes=0]
+  PASS  S1 game-board: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=74 pushes=148 recomposes=0]
+  PASS  S1 game-jackin: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=70 pushes=140 recomposes=0]
+  PASS  S1 terminal-typing: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=67 pushes=150 recomposes=2]
+  PASS  S1 gibson-game: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=4px, presents=68 pushes=142 recomposes=0]
+  PASS  S1 scan-sbox-hunt: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=1 pushes=309 recomposes=0]
+  PASS  S2 scan-sbox-hunt: idle animation never full-screen presents (patches only)  [presents=1 (1 = the screen-enter paint)]
+  PASS  S4 scan-sbox-hunt: idle ticks draw in place (no slice rebuild / recompose)  [recomposes=0]
+  PASS  S1 scan-sbox-info: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=1 pushes=326 recomposes=0]
+  PASS  S2 scan-sbox-info: idle animation never full-screen presents (patches only)  [presents=1 (1 = the screen-enter paint)]
+  PASS  S4 scan-sbox-info: idle ticks draw in place (no slice rebuild / recompose)  [recomposes=0]
+  PASS  S1 scan-sbox-gloss: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=1 pushes=264 recomposes=0]
+  PASS  S2 scan-sbox-gloss: idle animation never full-screen presents (patches only)  [presents=1 (1 = the screen-enter paint)]
+  PASS  S4 scan-sbox-gloss: idle ticks draw in place (no slice rebuild / recompose)  [recomposes=0]
+  PASS  S1 control-nav: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=77 pushes=154 recomposes=0]
+  PASS  S1 hub-to-control: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=74 pushes=148 recomposes=0]
+  PASS  S1 control-to-hub: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=69 pushes=138 recomposes=0]
+  PASS  F2 Enter cycles setting 0  [NEON GRAPE -> HOT PINK, full cycle 5 presses (want 5)]
+  PASS  F2 Enter cycles setting 1  [BOT + DEVICE -> BOTS, full cycle 3 presses (want 3)]
+  PASS  F2 Enter cycles setting 2  [ROUND -> CLASSIC, full cycle 5 presses (want 5)]
+  PASS  F2 Enter cycles setting 3  [SOLID -> MIXED, full cycle 2 presses (want 2)]
+  PASS  F3 setting 3 writes NVS on Enter  [puts=1]
+  PASS  F2 Enter cycles setting 4  [GREEN -> CYAN, full cycle 6 presses (want 6)]
+  PASS  F3 setting 4 writes NVS on Enter  [puts=1]
+  PASS  F2 Enter cycles setting 5  [BOTS -> GIBSON, full cycle 4 presses (want 4)]
+  PASS  F2 Enter cycles setting 6  [ON -> OFF, full cycle 2 presses (want 2)]
+  PASS  F2 Enter cycles setting 7  [25 SEC -> 45 SEC, full cycle 3 presses (want 3)]
+  PASS  C1 terminal: Down from the bottom boards stops on the prompt, then the commands button  [reach=1]
+  PASS  C2 Enter on commands button opens the commands menu  [opened=1]
+  PASS  C3 Esc closes the menu back to the button; Up walks button -> prompt -> boards  [esc=1 up=1]
+  PASS  C4 a command picked in the menu runs  [ran=1]
+  PASS  K1 terminal prompt shows exactly what was typed (rollover, same-scan press, Backspace)  [prompt='scan wifi' (want 'scan wifi')]
+  PASS  K2 one arrow chord = one focus stop; arrows stay arrows with text in the prompt  [focus_ok=1]
+  PASS  K0 keyboard test ran
+  PASS  S3 intro: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 intro.norain: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 boot: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 boot.norain: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 hub: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 hub.norain: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 hub-amber: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 hub-amber.norain: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 terminal: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 terminal.norain: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 terminal-typed: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 terminal-typed.norain: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 terminal-tab: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 terminal-tab.norain: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 scan-wifi: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 scan-wifi.norain: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 scan-ble: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 scan-ble.norain: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 sbox-selected: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 sbox-selected.norain: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 sbox-info: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 sbox-info.norain: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 sbox-hunt: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 sbox-hunt.norain: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 sbox-glossary: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 sbox-glossary.norain: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 found-alert: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 found-alert.norain: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 scanboard-deauth: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 scanboard-deauth.norain: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 scanboard-hack: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 scanboard-hack.norain: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 scanboard-flock: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 scanboard-flock.norain: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 scanboard-drone: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 scanboard-drone.norain: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 scanboard-airtag: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 scanboard-airtag.norain: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 scanboard-keyfob: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 scanboard-keyfob.norain: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 scanboard-meta: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 scanboard-meta.norain: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 scanboard-skimmer: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 scanboard-skimmer.norain: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 scanboard-flipper: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 scanboard-flipper.norain: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 scanboard-samsungtag: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 scanboard-samsungtag.norain: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 scanboard-gibson: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 scanboard-gibson.norain: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 settings-c0: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 settings-c0.norain: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 settings-c1: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 settings-c1.norain: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 settings-c2: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 settings-c2.norain: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 settings-c3: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 settings-c3.norain: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 settings-c4: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 settings-c4.norain: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 settings-c5: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 settings-c5.norain: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 settings-c6: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 settings-c6.norain: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 settings-c7: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 settings-c7.norain: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 settings-amber: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 settings-amber.norain: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 game-board: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 game-board.norain: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 game-menu: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 game-menu.norain: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 game-jackin: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 game-jackin.norain: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 diag: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 diag.norain: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 terminal-prompt: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 terminal-prompt.norain: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 terminal-cmdbtn: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 terminal-cmdbtn.norain: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 terminal-cmdmenu: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 terminal-cmdmenu.norain: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 ctlfocus-term: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 ctlfocus-term.norain: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 ctlfocus-crown: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 ctlfocus-crown.norain: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 terminal-atkbtn: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 terminal-atkbtn.norain: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 terminal-atkmenu: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 terminal-atkmenu.norain: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 terminal-atkgloss: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 terminal-atkgloss.norain: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 scanboard-hunt-gibson: BANDS slice paint == full frame  [diff=0px]
+  PASS  S3 scanboard-hunt-gibson.norain: BANDS slice paint == full frame  [diff=0px]
+  PASS  R1 every control-panel control reachable by the cursor  [reached [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] from 0]
+  PASS  R2 Right alone walks through all 10 stops (incl. SCREEN SAVER U4 + PWR LED)  [[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]]
+  PASS  R3 arrows only move (no arrow changes any setting)  [edits=[]]
+  PASS  R4 arrows never leave the control panel  [left=[]]
+== control-panel
+  PASS  L1 settings-amber.norain.rgb byte-identical to 675c87d
+  PASS  L1 settings-amber.rgb byte-identical to 675c87d
+  PASS  L1 settings-c0.norain.rgb byte-identical to 675c87d
+  PASS  L1 settings-c0.rgb byte-identical to 675c87d
+  PASS  L1 settings-c1.norain.rgb byte-identical to 675c87d
+  PASS  L1 settings-c1.rgb byte-identical to 675c87d
+  PASS  L1 settings-c2.norain.rgb byte-identical to 675c87d
+  PASS  L1 settings-c2.rgb byte-identical to 675c87d
+  PASS  L1 settings-c3.norain.rgb byte-identical to 675c87d
+  PASS  L1 settings-c3.rgb byte-identical to 675c87d
+  PASS  L1 settings-c4.norain.rgb byte-identical to 675c87d
+  PASS  L1 settings-c4.rgb byte-identical to 675c87d
+  PASS  L1 settings-c5.norain.rgb byte-identical to 675c87d
+  PASS  L1 settings-c5.rgb byte-identical to 675c87d
+  PASS  L1 settings-c6.norain.rgb byte-identical to 675c87d
+  PASS  L1 settings-c6.rgb byte-identical to 675c87d
+  PASS  L1 settings-c7.norain.rgb byte-identical to 675c87d
+  PASS  L1 settings-c7.rgb byte-identical to 675c87d
+== locked
+  PASS  L1 terminal-tab.norain.rgb byte-identical to 675c87d
+  PASS  L1 terminal-tab.rgb byte-identical to 675c87d
+  PASS  L1 terminal-typed.norain.rgb byte-identical to 675c87d
+  PASS  L1 terminal-typed.rgb byte-identical to 675c87d
+  PASS  L1 terminal.norain.rgb byte-identical to 675c87d
+  PASS  L1 terminal.rgb byte-identical to 675c87d
+  PASS  L1 scan-ble.norain.rgb byte-identical to 675c87d
+  PASS  L1 scan-ble.rgb byte-identical to 675c87d
+  PASS  L1 scan-wifi.norain.rgb byte-identical to 675c87d
+  PASS  L1 scan-wifi.rgb byte-identical to 675c87d
+  PASS  L1 scanboard-airtag.norain.rgb byte-identical to 675c87d
+  PASS  L1 scanboard-airtag.rgb byte-identical to 675c87d
+  PASS  L1 scanboard-deauth.norain.rgb byte-identical to 675c87d
+  PASS  L1 scanboard-deauth.rgb byte-identical to 675c87d
+  PASS  L1 scanboard-drone.norain.rgb byte-identical to 675c87d
+  PASS  L1 scanboard-drone.rgb byte-identical to 675c87d
+  PASS  L1 scanboard-flipper.norain.rgb byte-identical to 675c87d
+  PASS  L1 scanboard-flipper.rgb byte-identical to 675c87d
+  PASS  L1 scanboard-flock.norain.rgb byte-identical to 675c87d
+  PASS  L1 scanboard-flock.rgb byte-identical to 675c87d
+  PASS  L1 scanboard-gibson.norain.rgb byte-identical to 675c87d
+  PASS  L1 scanboard-gibson.rgb byte-identical to 675c87d
+  PASS  L1 scanboard-hack.norain.rgb byte-identical to 675c87d
+  PASS  L1 scanboard-hack.rgb byte-identical to 675c87d
+  PASS  L1 scanboard-keyfob.norain.rgb byte-identical to 675c87d
+  PASS  L1 scanboard-keyfob.rgb byte-identical to 675c87d
+  PASS  L1 scanboard-meta.norain.rgb byte-identical to 675c87d
+  PASS  L1 scanboard-meta.rgb byte-identical to 675c87d
+  PASS  L1 scanboard-samsungtag.norain.rgb byte-identical to 675c87d
+  PASS  L1 scanboard-samsungtag.rgb byte-identical to 675c87d
+  PASS  L1 scanboard-skimmer.norain.rgb byte-identical to 675c87d
+  PASS  L1 scanboard-skimmer.rgb byte-identical to 675c87d
+  PASS  L1 sbox-glossary.norain.rgb byte-identical to 675c87d
+  PASS  L1 sbox-glossary.rgb byte-identical to 675c87d
+  PASS  L1 sbox-hunt.norain.rgb byte-identical to 675c87d
+  PASS  L1 sbox-hunt.rgb byte-identical to 675c87d
+  PASS  L1 sbox-info.norain.rgb byte-identical to 675c87d
+  PASS  L1 sbox-info.rgb byte-identical to 675c87d
+  PASS  L1 sbox-selected.norain.rgb byte-identical to 675c87d
+  PASS  L1 sbox-selected.rgb byte-identical to 675c87d
+  PASS  L1 game-board.norain.rgb byte-identical to 675c87d
+  PASS  L1 game-board.rgb byte-identical to 675c87d
+  PASS  L1 game-jackin.norain.rgb byte-identical to 675c87d
+  PASS  L1 game-jackin.rgb byte-identical to 675c87d
+  PASS  L1 game-menu.norain.rgb byte-identical to 675c87d
+  PASS  L1 game-menu.rgb byte-identical to 675c87d
+  PASS  L1 hub-amber.norain.rgb byte-identical to 675c87d
+  PASS  L1 hub-amber.rgb byte-identical to 675c87d
+  PASS  L1 hub.norain.rgb byte-identical to 675c87d
+  PASS  L1 hub.rgb byte-identical to 675c87d
+GATE: 722/722 PASS, 0 FAIL, 2 N/A -> PASS

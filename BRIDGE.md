@@ -58,5 +58,5 @@ Still placeholder / open: Device/glass verification. Full host dumps. No merge/f
 - **2026-10-16 · Super Grok** — Fixed touch matrix rebuild + wired cal flow with timeout/extrapolation/measured axes. Built by: Super Grok session (no Cursor/agent hand-off).
 - **2026-10-16 · Super Grok** — 8-point cal, no double-flip, boot-hold only-if-down, jitter check, lift-abort. Built by: Super Grok session (no Cursor/agent hand-off).
 - **2026-10-17 · Super Grok** — calibrateTouch path; no setTouch overwrite on 8-point. Built by: Super Grok session (no Cursor/agent hand-off).
-- **2026-10-17 · Super Grok** — Timeout-capable custom cal loop; no hang on missing taps. Built by: Super Grok session (no Cursor/agent hand-off).\n
+- **2026-10-17 · Super Grok** — Timeout-capable custom cal loop; no hang on missing taps. Built by: Super Grok session (no Cursor/agent hand-off).
 - **2026-10-17 · Super Grok** — Panel offset_rotation=0; true-corner cal with computed rot and single deadline. Built by: Super Grok session (no Cursor/agent hand-off).

@@ -18,14 +18,15 @@ On grok/cyd-touch-port tip 9cf96fd (fw still acfc0e3): BRIDGE follow-up done for
 ## FROM SUPER GROK → GIBSONbot
 
 ```text
-Pushed tip SHA: 0f6d39b
-Firmware SHA: 0f6d39b
-What changed: Custom 15 s-per-target cal loop (native TL/BL/TR/BR, 16-sample avg, 20-raw jitter, rotation restore, no save on timeout). Dropped redundant apply_touch_cal8 after set. Header comment updated for c0..c7. LV stays “LV 01”.
-firmware.bin size (bytes): 1407248
-RAM / flash: 72076 / 327680 (22.0%) ; 1406843 / 3145728 (44.7%)
+Pushed tip SHA: (this commit)
+Firmware SHA: (this commit)
+What changed: Panel offset_rotation=0 so setRotation(1) is 320x240. Cal uses computed LovyanGFX rotation and true corners. Single 15 s deadline across jitter retries + lift-after-reject. Header merged. BRIDGE log literal \n fixed. LV stays “LV 01”.
+firmware.bin size (bytes): (rebuild)
+RAM / flash: (rebuild)
 Live LV observed: Not on hardware. Still “LV 01”.
-Still placeholder / open: Device verification. Full host dumps. No merge/flash.
+Still placeholder / open: Device/glass verification. Full host dumps. No merge/flash.
 ```
+
 
 
 
@@ -56,4 +57,6 @@ Still placeholder / open: Device verification. Full host dumps. No merge/flash.
 - **2026-10-16 · Super Grok** — Fixed touch cal: removed double-map + type clash; added matching save + tap-target raw cal flow. Built by: Super Grok session (no Cursor/agent hand-off).
 - **2026-10-16 · Super Grok** — Fixed touch matrix rebuild + wired cal flow with timeout/extrapolation/measured axes. Built by: Super Grok session (no Cursor/agent hand-off).
 - **2026-10-16 · Super Grok** — 8-point cal, no double-flip, boot-hold only-if-down, jitter check, lift-abort. Built by: Super Grok session (no Cursor/agent hand-off).
-- **2026-10-17 · Super Grok** — calibrateTouch path; no setTouch overwrite on 8-point. Built by: Super Grok session (no Cursor/agent hand-off).\n- **2026-10-17 · Super Grok** — Timeout-capable custom cal loop; no hang on missing taps. Built by: Super Grok session (no Cursor/agent hand-off).\n
+- **2026-10-17 · Super Grok** — calibrateTouch path; no setTouch overwrite on 8-point. Built by: Super Grok session (no Cursor/agent hand-off).
+- **2026-10-17 · Super Grok** — Timeout-capable custom cal loop; no hang on missing taps. Built by: Super Grok session (no Cursor/agent hand-off).\n
+- **2026-10-17 · Super Grok** — Panel offset_rotation=0; true-corner cal with computed rot and single deadline. Built by: Super Grok session (no Cursor/agent hand-off).

@@ -214,13 +214,20 @@ void botcorps_cyd_load_touch_cal(void)
  /* Custom 15s-per-target loop (native TL/BL/TR/BR order, 16-sample avg, jitter check). Restores rotation. Returns false + logs on timeout (no save). */
 bool botcorps_cyd_run_touch_cal(void)
 {
-    /* Custom loop based on LovyanGFX calibrate_touch: rotation-offset cancel,
-     * native corner order (TL, BL, TR, BR of 240x320), 20-raw pair check,
-     * 16-sample average, setCalibrate. 15 s deadline per target.
-     * Restores rotation on every exit. No save on timeout. */
+    /* Custom 15 s-per-target cal. Rotation computed LovyanGFX-style
+     * ((touch^panel)&4)|(-(touch+panel)&3). True corners via
+     * px=(w-1)*((i>>1)&1), py=(h-1)*(i&1). One deadline across jitter
+     * retries; wait for lift after reject. Restores rotation on every exit.
+     * No save on timeout. */
     const uint8_t saved_rot = g_cyd.getRotation();
     auto restore = [&]() { g_cyd.setRotation(saved_rot); g_cyd.fillScreen(0x0000); };
-    g_cyd.setRotation(0); /* native portrait for consistent corner order */
+    /* LovyanGFX cal rotation: touch offset 0, panel offset 0 → 0 */
+    const uint8_t touch_off = 0;
+    const uint8_t panel_off = 0;
+    const uint8_t cal_rot = ((touch_off ^ panel_off) & 4) | ((-(touch_off + panel_off)) & 3);
+    g_cyd.setRotation(cal_rot);
+    const int w = g_cyd.width();
+    const int h = g_cyd.height();
     g_cyd.fillScreen(0x0000);
     /* Finger-lift pre-check */
     {
@@ -235,60 +242,70 @@ bool botcorps_cyd_run_touch_cal(void)
             }
         }
     }
-    /* Native 240x320 corners: TL, BL, TR, BR (order LovyanGFX setCalibrate expects) */
-    const int corners[4][2] = {{20, 20}, {20, 300}, {220, 20}, {220, 300}};
     uint16_t cal[8] = {0};
     for (int i = 0; i < 4; ++i) {
-        int cx = corners[i][0], cy = corners[i][1];
+        /* True corners: i=0 TL, 1 BL, 2 TR, 3 BR in current rotation */
+        int cx = (w - 1) * ((i >> 1) & 1);
+        int cy = (h - 1) * (i & 1);
         g_cyd.drawLine(cx - 10, cy, cx + 10, cy, 0xFFFF);
         g_cyd.drawLine(cx, cy - 10, cx, cy + 10, 0xFFFF);
         g_cyd.drawCircle(cx, cy, 6, 0xFFFF);
-        int samples_x[16] = {0}, samples_y[16] = {0};
-        int n = 0;
         uint32_t deadline = millis() + 15000;
-        while (n < 16) {
+        bool got = false;
+        while (!got) {
             if ((int32_t)(millis() - deadline) >= 0) {
                 Serial.println("[botcorps] cal timeout");
                 restore();
                 return false;
             }
-            int x = 0, y = 0;
-            if (g_cyd.get_touch_raw(&x, &y)) {
-                samples_x[n] = x;
-                samples_y[n] = y;
-                ++n;
-                delay(15);
-            } else {
-                n = 0;
-                delay(10);
+            int samples_x[16] = {0}, samples_y[16] = {0};
+            int n = 0;
+            while (n < 16) {
+                if ((int32_t)(millis() - deadline) >= 0) {
+                    Serial.println("[botcorps] cal timeout");
+                    restore();
+                    return false;
+                }
+                int x = 0, y = 0;
+                if (g_cyd.get_touch_raw(&x, &y)) {
+                    samples_x[n] = x;
+                    samples_y[n] = y;
+                    ++n;
+                    delay(15);
+                } else {
+                    n = 0;
+                    delay(10);
+                }
             }
+            int minx = samples_x[0], maxx = samples_x[0];
+            int miny = samples_y[0], maxy = samples_y[0];
+            for (int k = 1; k < 16; ++k) {
+                if (samples_x[k] < minx) minx = samples_x[k];
+                if (samples_x[k] > maxx) maxx = samples_x[k];
+                if (samples_y[k] < miny) miny = samples_y[k];
+                if (samples_y[k] > maxy) maxy = samples_y[k];
+            }
+            if (maxx - minx > 20 || maxy - miny > 20) {
+                Serial.println("[botcorps] cal jitter reject");
+                g_cyd.fillRect(cx - 12, cy - 12, 24, 24, 0x0000);
+                /* wait for lift */
+                uint32_t rel = millis();
+                int rx, ry;
+                while (g_cyd.get_touch_raw(&rx, &ry) && millis() - rel < 2000) delay(10);
+                continue;
+            }
+            int sx = 0, sy = 0;
+            for (int k = 0; k < 16; ++k) { sx += samples_x[k]; sy += samples_y[k]; }
+            cal[i * 2]     = (uint16_t)(sx / 16);
+            cal[i * 2 + 1] = (uint16_t)(sy / 16);
+            got = true;
+            g_cyd.fillCircle(cx, cy, 8, 0x07E0);
+            delay(150);
+            uint32_t rel = millis();
+            int rx, ry;
+            while (g_cyd.get_touch_raw(&rx, &ry) && millis() - rel < 2000) delay(10);
         }
-        /* 20-raw jitter / pair check */
-        int minx = samples_x[0], maxx = samples_x[0];
-        int miny = samples_y[0], maxy = samples_y[0];
-        for (int k = 1; k < 16; ++k) {
-            if (samples_x[k] < minx) minx = samples_x[k];
-            if (samples_x[k] > maxx) maxx = samples_x[k];
-            if (samples_y[k] < miny) miny = samples_y[k];
-            if (samples_y[k] > maxy) maxy = samples_y[k];
-        }
-        if (maxx - minx > 20 || maxy - miny > 20) {
-            Serial.println("[botcorps] cal jitter reject");
-            --i;
-            g_cyd.fillRect(cx - 12, cy - 12, 24, 24, 0x0000);
-            continue;
-        }
-        int sx = 0, sy = 0;
-        for (int k = 0; k < 16; ++k) { sx += samples_x[k]; sy += samples_y[k]; }
-        cal[i * 2]     = (uint16_t)(sx / 16);
-        cal[i * 2 + 1] = (uint16_t)(sy / 16);
-        g_cyd.fillCircle(cx, cy, 8, 0x07E0);
-        delay(150);
-        uint32_t rel = millis();
-        int rx, ry;
-        while (g_cyd.get_touch_raw(&rx, &ry) && millis() - rel < 2000) delay(10);
     }
-    /* Apply via setCalibrate (no setTouch). Save to NVS. */
     g_cyd.apply_touch_cal8(cal);
     Preferences prefs;
     if (!prefs.begin("botcorps", false)) {
@@ -310,7 +327,7 @@ bool botcorps_cyd_run_touch_cal(void)
         return false;
     }
     restore();
-    Serial.println("[botcorps] cal done (custom 8-point)");
+    Serial.println("[botcorps] cal done (true corners, computed rot)");
     return true;
 }
 #endif

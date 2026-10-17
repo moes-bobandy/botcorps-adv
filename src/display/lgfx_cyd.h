@@ -47,7 +47,7 @@ public:
             /* Match setRotation(1) in botcorps_dual_begin. LovyanGFX adds
              * this to the touch transform. Confirm on a device; NVS "trot"
              * overrides it. See botcorps_cyd_load_touch_cal(). */
-            cfg.offset_rotation = 1;
+            cfg.offset_rotation = 0; /* panel; touch stays 0. setRotation(1) must yield 320x240 */
             cfg.dummy_read_pixel = 8;
             cfg.dummy_read_bits = 1;
             cfg.readable = true;

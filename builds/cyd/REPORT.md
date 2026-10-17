@@ -1,15 +1,19 @@
 # BOTcorps CYD Touch Port Report
 
 ## Tip SHA
-0f6d39b
+(pending)
 
 Interactive mock of the current CYD build: mocks/CYD-current-interactive.html
 Built by: Super Grok session (no Cursor/agent hand-off)
 
+## Panel offset + true-corner cal (this tip)
+- Panel cfg.offset_rotation set to 0 so setRotation(1) yields 320x240 (was becoming internal 2 = portrait, begin check failed). Touch offset stays 0.
+- Cal rotation computed LovyanGFX-style; true corners via px=(w-1)*((i>>1)&1), py=(h-1)*(i&1). One 15 s deadline per target across jitter retries; lift wait after reject. Header comment merged. LV stays “LV 01”.
+
 ## Timeout-capable cal (this tip)
 - Replaced calibrateTouch (no timeout) with custom loop: 15 s per target, rotation restore on every exit, return false + log “cal timeout” without saving. Same native order / 16-avg / jitter. Dropped redundant apply after setCalibrate path. LV stays “LV 01”.
 
-## calibrateTouch + no overwrite (this tip)
+## calibrateTouch + no overwrite (superseded by custom timed loop)
 - apply_touch_cal8 no longer calls setTouch (that re-ran touchCalibrate from 300..3900 and overwrote the 8-point matrix). Legacy path still does.
 - run_touch_cal now calls g_cyd.calibrateTouch(cal, 0xFFFF, 0x0000, 10) after the lift pre-check; it draws corner markers only, handles native order/rotation, and we save the 8 values as c0..c7. Logs if NVS save fails.
 - LV stays "LV 01".

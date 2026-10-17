@@ -18,11 +18,11 @@ On grok/cyd-touch-port tip 9cf96fd (fw still acfc0e3): BRIDGE follow-up done for
 ## FROM SUPER GROK → GIBSONbot
 
 ```text
-Pushed tip SHA: (this commit)
-Firmware SHA: (this commit)
+Pushed tip SHA: 3e62b1e
+Firmware SHA: 3e62b1e
 What changed: Panel offset_rotation=0 so setRotation(1) is 320x240. Cal uses computed LovyanGFX rotation and true corners. Single 15 s deadline across jitter retries + lift-after-reject. Header merged. BRIDGE log literal \n fixed. LV stays “LV 01”.
-firmware.bin size (bytes): (rebuild)
-RAM / flash: (rebuild)
+firmware.bin size (bytes): 1407344
+RAM / flash: 72076 / 327680 (22.0%) ; 1406939 / 3145728 (44.7%)
 Live LV observed: Not on hardware. Still “LV 01”.
 Still placeholder / open: Device/glass verification. Full host dumps. No merge/flash.
 ```

@@ -18,11 +18,11 @@ On grok/cyd-touch-port tip 9cf96fd (fw still acfc0e3): BRIDGE follow-up done for
 ## FROM SUPER GROK → GIBSONbot
 
 ```text
-Pushed tip SHA: (this commit)
-Firmware SHA: (this commit)
+Pushed tip SHA: 50396d1
+Firmware SHA: 50396d1
 What changed: cv=2 now written by run_touch_cal's actual save (checked). Unused save stripped of cv. has_valid_cal checks all c0..c7 and rejects all-equal/zero. Auto-cal no longer every boot. LV stays “LV 01”.
-firmware.bin size (bytes): (rebuild)
-RAM / flash: (rebuild)
+firmware.bin size (bytes): 1407792
+RAM / flash: 72076 / 327680 (22.0%) ; 1407395 / 3145728 (44.7%)
 Live LV observed: Not on hardware. Still “LV 01”.
 Still placeholder / open: On-glass verification. Full host dumps. No merge/flash.
 ```

@@ -816,3 +816,46 @@ E. Real host frame dumps. One commit per round, LV stays "LV 01". No merge/flash
 ```
 On grok/cyd-touch-port tip 147869f (fw 0e02223): good — Y now uses /200, Enter-finger lift wait, averaged reads, cal timeout log and a hold-at-boot path, and it builds (box: RAM 72076 / flash 1406155). Fix next: keeping min>max already flips the axis inside LovyanGFX, so also setting rot=2 flips it twice — keep the measured order and leave offset_rotation at the fixed constructor value; the swapped-axis branch still builds xmin/xmax from rawx[0]/rawx[1], which barely move when axes are swapped, so replace the hand range math with LovyanGFX's 8-point setCalibrate/setTouchCalibrate from the four averaged taps (extrapolated to the true corners) and save those 8 values; if the finger never lifts after the boot hold, abort without saving instead of recording it as target 1; only open the 2.5 s boot-hold window if touch is down on the first read so normal boots don't wait; add a 20-raw jitter check on the stable reads; put real build numbers in BRIDGE/REPORT. One commit per round, LV stays "LV 01", push only to grok/cyd-touch-port, no merge/flash.
 ```
+
+---
+
+## GIBSONbot review — tip f03856e / fw 7ea9802 (2026-10-16 ~10:45 PM ET)
+
+Reviewed on box `/tmp/bca` at `grok/cyd-touch-port` tip `f03856ee168ee4ce86f77d03a6d634c9d2fe31e5` (last reviewed `0387eaa`). Diff span `0387eaa..f03856e`: `src/display/botcorps_display.cpp` (8-point cal), `src/display/lgfx_cyd.h` (`apply_touch_cal8`, legacy path fixed rot), `src/main.cpp` (boot-hold only-if-down), `BRIDGE.md`, `builds/cyd/REPORT.md`. Host type gate **PASS** (`cyd osk table ok keys=42 clip_y=151`; `host cyd type gate passed`). **Box build of `env:cyd` at this tip: SUCCESS**, RAM 72,076 / 327,680 (22.0%), flash 1,407,039 / 3,145,728 (44.7%), `firmware.bin` 1,407,440 B (REPORT says 1,406,943 / 1,407,344 — 96 B apart, likely build-env noise, not a concern). Nothing merged or flashed by this watch; only this TASKS note is pushed.
+
+Reference used: vendored LovyanGFX `Panel_Device.inl` `setCalibrate()`/`setTouch()`/`touchCalibrate()` and `LGFXBase.cpp` `calibrateTouch()`.
+
+### Commits in this batch
+| SHA | What |
+|-----|------|
+| 7ea9802 | CYD: 8-point cal saved as c0..c7, legacy 4-value load kept, no rot override, abort if finger never lifts, 5-sample 20-raw jitter check, boot-hold window only if touch is down at boot |
+| 2164f49 | REPORT/BRIDGE cite fw 7ea9802 + build numbers; `setTouchCalibrate` const fix |
+| f03856e | REPORT tip SHA |
+
+All Super Grok. Branch only.
+
+### MATCH
+1. Prior fix 1 closed: double flip gone; `offset_rotation` stays at the constructor value on both paths.
+2. Prior fix 3 closed: if the finger is still down after 3 s, cal returns false and saves nothing.
+3. Prior fix 4 closed: normal boots skip the 2.5 s window; it only opens when touch is down on the first read, and lifting ends it.
+4. Prior fix 5 closed: 20-raw jitter reject before averaging; BRIDGE/REPORT now carry build numbers.
+5. Direction of prior fix 2 taken (8 values via LovyanGFX's own calibrate). Typing gate still passes; LV "LV 01"; memory flat; still no on-screen instruction text.
+
+### MISS / fix notes (numbered)
+1. **The 8-point cal is thrown away right after it's applied (bug).** `apply_touch_cal8()` calls `setTouchCalibrate(cal)` and then `_panel.setTouch(&_touch)`. In LovyanGFX `setTouch()` runs `touchCalibrate()`, which rebuilds the matrix from the config's `x_min/x_max/y_min/y_max` (still 300..3900), overwriting the 8-point matrix. Same on every boot load. **Fix:** delete the `_panel.setTouch(&_touch)` line from `apply_touch_cal8()` (the touch is already attached by the constructor). Keep it in the legacy 4-value path, where it is needed.
+2. **Corner order is wrong for `setCalibrate` (bug).** LovyanGFX reads the 8 values as point i=0 at (0,0), i=1 at (0,h-1), i=2 at (w-1,0), i=3 at (w-1,h-1) — i.e. TL, BL, TR, BR (`tx = (i&2)?w-1:0`, `ty = (i&1)?h-1:0`; `calibrateTouch()` uses the same order). The code stores TL, TR, BR, BL, so TR and BL land in each other's slots and BR/BL are shifted. **Fix:** store in TL, BL, TR, BR order.
+3. **Frame mismatch (bug, hunch on exact mapping — confirm on glass).** `setCalibrate()` solves raw → the touch's *native* frame (`panel_width` 240 × `panel_height` 320, swapped only if touch `offset_rotation & 1`, which is 0 here), and the display rotation is applied later in `convertRawXY`. The crosshairs are drawn and extrapolated in the rotated 320×240 screen frame. So "screen TL" is not native (0,0). **Fix (recommended, simplest):** call LovyanGFX's own `g_cyd.calibrateTouch(cal, 0xFFFF, 0x0000, 10)` — it draws only corner markers (no instruction text), cancels rotation itself, does its own 20-raw pair check, and returns the 8 values in the right order to save as c0..c7. Keep the existing "finger never lifted" pre-check before it. Trade-off: it has no timeout; if that matters, mirror its approach instead (temporarily `setRotation()` to the touch-native frame as it does, draw at the true corners, read in TL/BL/TR/BR order, restore rotation) and keep your 15 s timeout.
+4. **Extrapolation is single-axis (moot if fix 3 uses true corners).** Each corner's raw X is extrapolated only along the screen-right delta and raw Y only along screen-down. If the raw axes are swapped relative to the screen, both deltas are near zero and the inset taps go in as corners (~20 px error at the edges). If you keep inset targets, extrapolate both raw channels with both direction vectors.
+5. **Small:** unused `extrap` lambda in `botcorps_cyd_run_touch_cal()` — remove. Jitter retry (`--i; continue;`) resets the 15 s timer each pass, so a noisy panel can loop forever; keep one deadline per target across retries. If `prefs.begin()` fails the cal is still applied live but not saved — log it. Old `ui.cpp:2187` unused `b` warning still there.
+6. **Still open from before:** real host CYD frame dumps (fonts still stubs), LV meaning (Dirt HOLD), device/glass pass of the whole cal.
+
+### Next Super Grok paste order
+A. Remove `_panel.setTouch()` from `apply_touch_cal8()` so the 8-point matrix survives (fix 1).
+B. Get order and frame right: use `calibrateTouch()` (text-free) after the lift pre-check, save its 8 values (fixes 2–4).
+C. Cleanups: dead lambda, one deadline per target, log save failure (fix 5).
+D. Real host frame dumps. One commit per round, LV stays "LV 01". No merge/flash.
+
+### Follow-up one-liner (Dirt → Super Grok)
+```
+On grok/cyd-touch-port tip f03856e (fw 7ea9802): good — double flip gone, finger-never-lifted abort, boot window only when touch is down, 20-raw jitter check, build numbers in REPORT, and it builds (box: RAM 72076 / flash 1407039). Fix next: apply_touch_cal8 calls _panel.setTouch() after setTouchCalibrate, and setTouch() reruns touchCalibrate() from the 300..3900 config ranges, so the 8-point matrix is overwritten every time — remove that setTouch line (keep it only in the legacy path); LovyanGFX setCalibrate wants corners in TL, BL, TR, BR order of the touch's native 240x320 frame, but you save TL, TR, BR, BL from the rotated 320x240 screen — simplest fix is to call g_cyd.calibrateTouch(cal, 0xFFFF, 0x0000, 10) (corner markers only, no text, handles rotation and order) after the finger-lift pre-check and save its 8 values as c0..c7; drop the unused extrap lambda, keep one 15 s deadline per target across jitter retries, and log if prefs save fails. One commit per round, LV stays "LV 01", push only to grok/cyd-touch-port, no merge/flash.
+```

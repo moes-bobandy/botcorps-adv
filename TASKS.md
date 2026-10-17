@@ -773,3 +773,46 @@ E. Real host frame dumps. One commit per round, docs included, real build number
 ```
 On grok/cyd-touch-port tip 9b9aca1 (fw 01b9293): good — setTouch() now really rebuilds the touch matrix, cal is wired to "cal", has a timeout, and it builds (box: RAM 72076 / flash 1405687). Fix next: Y extrapolation divides by 280 but the Y targets span 200 px (20→220), so use /200; the min>max swap throws away the measured direction, there's no axis-swap check, and trot is still hard-coded 1 — keep the measured order, detect which raw axis moved TL→TR, and derive rotation from the taps; wait for the Enter-key finger to lift before target 1 and average the stable reads; log "cal timeout" instead of "cal done" when it times out; and add a no-text hold-at-boot cal fallback since typing "cal" needs touch that already works. One commit per round, LV stays "LV 01", push only to grok/cyd-touch-port, no merge/flash.
 ```
+
+---
+
+## GIBSONbot review — tip 147869f / fw 0e02223 (2026-10-16 ~10:15 PM ET)
+
+Reviewed on box `/tmp/bca` at `grok/cyd-touch-port` tip `147869f07cda2c53feaa9ed339b8cae39ea383f1` (last reviewed `b1cc9db`). Diff span `b1cc9db..147869f`: `src/display/botcorps_display.cpp` (cal math), `src/display/botcorps_display.h` (bool return), `src/main.cpp` (+21, hold-at-boot), `src/ui/botcorps_ui.cpp` (cal done/timeout), `builds/cyd/REPORT.md`. Host type gate **PASS** (`cyd osk table ok keys=42 clip_y=151`; `host cyd type gate passed`). **Box build of `env:cyd` at this tip: SUCCESS**, RAM 72,076 / 327,680 (22.0%), flash 1,406,155 / 3,145,728 (44.7%), `firmware.bin` 1,406,560 B. Nothing merged or flashed by this watch; only this TASKS note is pushed.
+
+Reference used: vendored LovyanGFX `Panel_Device.inl` — `touchCalibrate()` maps raw (x_min,y_min)→(0,0), (x_min,y_max)→(0,h-1), (x_max,y_min)→(w-1,0) in the touch's own frame, so an inverted axis is already encoded when x_min > x_max; `offset_rotation` is then applied on top in `convertRawXY`.
+
+### Commits in this batch
+| SHA | What |
+|-----|------|
+| 0e02223 | CYD: Y span /200, keep measured min/max order, derive rot 0–3 from TL→TR taps, average 3 reads, wait-for-lift before target 1, bool return + "cal timeout" log, hold-at-boot fallback in `setup()` |
+| 147869f | REPORT cites fw 0e02223 |
+
+All Super Grok. Branch only.
+
+### MATCH
+1. Prior fix 1 closed: Y extrapolation now divides by the 200 px Y span; X keeps 280.
+2. Prior fix 4 closed: waits for the Enter-key finger to lift before target 1 and averages the 3 stable reads.
+3. Prior fix 5 closed: `botcorps_cyd_run_touch_cal()` returns bool; Terminal logs `cal timeout` vs `cal done`; Serial says which.
+4. Prior fix 3 closed in spirit: a no-text hold-at-boot path exists, so a bad cal can be redone without the keyboard.
+5. `trot` is no longer hard-coded. Typing gate still passes; LV left "LV 01"; memory flat; still no on-screen instruction text.
+
+### MISS / fix notes (numbered)
+1. **Inversion is now applied twice (bug, partly my last note's fault).** Last round asked for both "keep the measured order" and "derive rotation"; those overlap. With the order kept, x_min > x_max already flips the axis inside LovyanGFX's matrix. When TL→TR raw X goes down, the code also sets `rot = 2`, which flips X *and* Y again — X ends up un-flipped (wrong) and Y flipped (wrong). **Fix:** pick one. Simplest: keep the measured min/max order and leave `offset_rotation` at the fixed constructor value; only an axis *swap* needs anything more (see fix 2).
+2. **Swapped-axis path computes the wrong ranges (bug).** When `!x_is_horizontal`, `dx_right`/`dy_down` are re-read from the other raw channel, but `xmin/xmax` still come from `rawx[0]`/`rawx[1]` (TL/TR — which barely differ on raw X in that case) and `ymin` from `rawy[0]` with the raw-X delta. Result is a near-zero-width X range. **Fix (recommended):** stop hand-rolling ranges. Feed the four averaged raw taps (already timed-out and text-free) into LovyanGFX's own 8-point `setCalibrate()`/`setTouchCalibrate()` path, which solves a full affine and handles flips and swaps on its own, and save those 8 values to prefs instead of 4 + rot. Note `setCalibrate()` expects points at the true corners (0 and w-1/h-1) — either extrapolate each tap to its corner first or move the targets to the corners as LovyanGFX's own `calibrateTouch()` does. Hunch on which is cleaner; confirm on glass.
+3. **Held finger can become target 1 (bug).** The hold-at-boot trigger fires while the finger is still down; cal then waits up to 3 s for lift and *continues anyway* on timeout, so a user still holding gets their boot-hold spot stored as the top-left corner. **Fix:** if the finger hasn't lifted in the wait window, return false (no save) instead of proceeding.
+4. **Every boot now waits ~2.5 s.** The fallback loop always runs its full 2.5 s window before `botcorps_ui_begin()`, even with no touch. **Fix:** only enter the window if touch is down on the first read (finger held while powering on); otherwise skip straight to the UI. Comment says "~2s" but the trigger is ~1 s of contact — make them match.
+5. **Small:** stable reads aren't checked for jitter (LovyanGFX's own cal rejects pairs more than 20 raw apart); worth adding before averaging. BRIDGE/REPORT don't carry this round's build numbers (box got RAM 72,076 / flash 1,406,155 / bin 1,406,560). Hold-at-boot ignores the return value (fine, Serial already logs).
+6. **Still open from before:** real host CYD frame dumps (fonts still stubs), LV meaning (Dirt HOLD), device/glass pass of the whole cal.
+
+### Next Super Grok paste order
+A. Drop the double flip: keep measured order, fixed offset_rotation (fix 1).
+B. Replace the hand range math with the 8-point LovyanGFX calibrate path, saved to prefs (fix 2).
+C. Abort cal if the finger never lifts; only open the boot-hold window when touch is down at boot (fixes 3–4).
+D. Jitter check on stable reads; real build numbers in BRIDGE/REPORT (fix 5).
+E. Real host frame dumps. One commit per round, LV stays "LV 01". No merge/flash.
+
+### Follow-up one-liner (Dirt → Super Grok)
+```
+On grok/cyd-touch-port tip 147869f (fw 0e02223): good — Y now uses /200, Enter-finger lift wait, averaged reads, cal timeout log and a hold-at-boot path, and it builds (box: RAM 72076 / flash 1406155). Fix next: keeping min>max already flips the axis inside LovyanGFX, so also setting rot=2 flips it twice — keep the measured order and leave offset_rotation at the fixed constructor value; the swapped-axis branch still builds xmin/xmax from rawx[0]/rawx[1], which barely move when axes are swapped, so replace the hand range math with LovyanGFX's 8-point setCalibrate/setTouchCalibrate from the four averaged taps (extrapolated to the true corners) and save those 8 values; if the finger never lifts after the boot hold, abort without saving instead of recording it as target 1; only open the 2.5 s boot-hold window if touch is down on the first read so normal boots don't wait; add a 20-raw jitter check on the stable reads; put real build numbers in BRIDGE/REPORT. One commit per round, LV stays "LV 01", push only to grok/cyd-touch-port, no merge/flash.
+```

@@ -2680,6 +2680,9 @@ static void chip_block_radar(Gfx g, int cx, int cy, int S, int bot)
     draw_blob(g, cx, cy, sc, bot_color(bot), shape, false);
 }
 
+/* v1019c: when non-zero, the Gibson-form chip face is drawn in this colour (game-board defender chip
+ * recolour only: same frame, pins and shades). 0 = the normal ivory Gibson face. */
+static uint8_t s_gib_face = 0;
 static void chip_block_ex(Gfx g, int cx, int cy, int S, int bot, bool dome)
 {
     const int x = cx - S / 2, y = cy - S / 2;
@@ -2712,7 +2715,7 @@ static void chip_block_ex(Gfx g, int cx, int cy, int S, int bot, bool dome)
     const int gs = S - 2 * fi > 8 ? S - 2 * fi : 8;
     if (bot >= 12) {
         GATE_BOX(g, "SPR", "gibson_block", cx - gs / 2, cy - gs / 2, gs, gs, "-");
-        face_block(g, cx, cy, gs, PAL_IVORY, true, false);
+        face_block(g, cx, cy, gs, s_gib_face ? s_gib_face : (uint8_t)PAL_IVORY, true, false);
         return;
     }
     GATE_BOX(g, "SPR", "bot_face", cx - gs / 2, cy - gs / 2, gs, gs, "-");
@@ -5559,7 +5562,11 @@ static void paint_gc_route(Gfx g, uint8_t ac)
     dev_icon(g, DEV_CAM, x + 36, y + 52, false);
     dev_icon(g, DEV_BT, x + 96, y + 70, false);
     dev_icon(g, DEV_DRONE, x + 140, y + 48, false);
+    /* v1019c (Dirt): the centre defender chip keeps its exact shape (frame, pins, shades); only its
+     * face takes the active bot's own colour. Gibson's own game is unchanged (ivory). */
+    if (s_defend_bot >= 0 && s_defend_bot < 12) s_gib_face = bot_color(s_defend_bot);
     chip_block(g, x + 92, y + 54, 28, 12); /* v1016f-4 (Dirt 8:31): Gibson CPU = square block */
+    s_gib_face = 0;
     for (int k = 0; k < 5; ++k) {
         g.fillRect(x + 16 + k * 8, y + 96, 3, 2, PAL_OK);
         g.fillRect(x + 20 + k * 10, y + h - 14, 6, 2, PAL_HOLD);

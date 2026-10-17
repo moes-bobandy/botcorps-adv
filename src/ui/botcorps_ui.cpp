@@ -3710,14 +3710,16 @@ static void saver_preview(Gfx g, int px, int cy)
 static bool cp_part_rect(int index, int *x, int *y, int *w, int *h)
 {
     switch (index) {
-    case 0: *x = 14;  *y = 42; *w = 46; *h = 54; return true; /* UI COLOR   */
-    case 1: *x = 74;  *y = 42; *w = 46; *h = 54; return true; /* BACKGROUND */
-    case 2: *x = 134; *y = 42; *w = 46; *h = 54; return true; /* BOT SHAPE  */
-    case 5: *x = 194; *y = 42; *w = 46; *h = 54; return true; /* SCREEN SAVER (slot 4) */
-    case 7: *x = 254; *y = 42; *w = 46; *h = 54; return true; /* IDLE (slot 5) */
+    /* v1016h: coords ported from the master mock SB_PARTS (U1..U5 top chips); the three
+       interactive parts laid out so no two bboxes intersect (overlap check in harness). */
+    case 0: *x = 38;  *y = 44;  *w = 40; *h = 72; return true; /* UI COLOR    (mock U1) */
+    case 1: *x = 82;  *y = 44;  *w = 40; *h = 72; return true; /* BACKGROUND  (mock U2) */
+    case 2: *x = 126; *y = 44;  *w = 40; *h = 72; return true; /* BOT SHAPE   (mock U3) */
+    case 5: *x = 170; *y = 44;  *w = 40; *h = 72; return true; /* SCREEN SAVER(mock U4) */
+    case 7: *x = 214; *y = 44;  *w = 40; *h = 72; return true; /* IDLE        (mock U5) */
     case 3: *x = 22;  *y = 150; *w = 66; *h = 30; return true; /* JUMP = RAIN MODE */
-    case 4: *x = 132; *y = 146; *w = 48; *h = 48; return true; /* CP   = RAIN COLOUR */
-    case 6: *x = 200; *y = 150; *w = 54; *h = 30; return true; /* PWR  = SAVER on/off */
+    case 4: *x = 96;  *y = 150; *w = 44; *h = 44; return true; /* CP   = RAIN COLOUR */
+    case 6: *x = 150; *y = 150; *w = 60; *h = 30; return true; /* PWR  = SAVER on/off */
     default: return false;
     }
 }
@@ -3822,6 +3824,24 @@ static void cp_part(Gfx g, int index, bool on)
     }
 }
 
+
+int botcorps_cp_overlap_count(void)
+{
+    /* v1016h: count intersecting pairs among the interactive settings part bboxes */
+    int rx[8], ry[8], rw[8], rh[8], n = 0, idx[8];
+    for (int i = 0; i < CP_N && n < 8; ++i) {
+        int x, y, w, h;
+        if (cp_part_rect(i, &x, &y, &w, &h)) { rx[n]=x; ry[n]=y; rw[n]=w; rh[n]=h; idx[n]=i; ++n; }
+    }
+    int bad = 0;
+    for (int a = 0; a < n; ++a)
+        for (int b = a + 1; b < n; ++b)
+            if (rx[a] < rx[b]+rw[b] && rx[b] < rx[a]+rw[a] &&
+                ry[a] < ry[b]+rh[b] && ry[b] < ry[a]+rh[a]) ++bad;
+    (void)idx;
+    return bad;
+}
+
 static void paint_cp_row(Gfx g, int index, bool on)
 {
     if (index == 0 || index == 1 || index == 2 || index == 5 || index == 7) cp_chip(g, index, on);
@@ -3865,18 +3885,23 @@ static void paint_control(Gfx g)
     for (int x = 16; x < 262; x += 8) g.fillRect(x, 207, 3, 3, gold);
     tiny_text(g, BOT_PINS, 20, 199, silk);
     for (int i = 0; i < CP_N; ++i) paint_cp_row(g, i, s_cursor == i);
-    /* power section: DC jack + 1117C + USB5V (silver/silk on black) */
-    /* power column on the right margin (mock-style), clear of PWR part & pin rails */
-    g.fillRect(274, 148, 24, 16, PAL_DEEP); g.drawRect(274, 148, 24, 16, gold);
-    g.fillCircle(286, 156, 4, PAL_BLACK);
-    tiny_text(g, "DC6 5", 274, 168, silk); g.fillRect(274 + 13, 168 + 5, 1, 1, silk); /* DC6.5 dot */
-    g.fillRect(276, 176, 22, 9, PAL_BLACK); g.drawRect(276, 176, 22, 9, PAL_STEEL);
-    tiny_text(g, "1117C", 274, 188, silk);
-    g.fillRect(280, 194, 14, 8, PAL_STEEL); g.drawRect(280, 194, 14, 8, PAL_LINE);
-    tiny_text(g, "USB5V", 272, 205, silk);
-    g.fillRect(100, 150, 14, 8, gold); tiny_text(g, "C1", 100, 160, silk);
-    g.fillRect(196, 148, 12, 12, PAL_DEEP); g.drawRect(196, 148, 12, 12, PAL_STEEL); tiny_text(g, "BOOT", 190, 162, silk);
-    g.fillRect(196, 176, 12, 12, PAL_DEEP); g.drawRect(196, 176, 12, 12, PAL_STEEL); tiny_text(g, "EN", 196, 190, silk);
+    /* v1016h: decorations at exact mock SB_PARTS coords (clear of the 3 interactive parts) */
+    /* DC jack (mock 270,36,40,36) + DC6.5 label above it */
+    g.fillRect(270, 140, 40, 24, PAL_DEEP); g.drawRect(270, 140, 40, 24, gold);
+    g.fillCircle(290, 152, 5, PAL_BLACK);
+    tiny_text(g, "DC6 5", 276, 168, silk); g.fillRect(276 + 13, 168 + 5, 1, 1, silk); /* DC6.5 dot */
+    /* AMS1117 reg (mock 268,92 -> placed lower-right) labelled 1117C */
+    g.fillRect(270, 176, 30, 10, PAL_BLACK); g.drawRect(270, 176, 30, 10, PAL_STEEL);
+    tiny_text(g, "1117C", 272, 188, silk);
+    /* USB-C (mock 298,172,17,30) + USB5V label */
+    g.fillRect(298, 192, 16, 12, PAL_STEEL); g.drawRect(298, 192, 16, 12, PAL_LINE);
+    tiny_text(g, "USB5V", 280, 205, silk);
+    /* C1 tant (mock 52,156 -> clear slot) */
+    g.fillRect(226, 150, 14, 8, gold); tiny_text(g, "C1", 226, 160, silk);
+    /* BOOT / EN buttons (mock 236,136 and 236,182) with data micro-USB between */
+    g.fillRect(236, 136, 16, 14, PAL_STEEL); g.drawRect(236, 136, 16, 14, PAL_LINE); tiny_text(g, "BOOT", 232, 128, silk);
+    g.fillRect(238, 156, 12, 18, PAL_DEEP);  g.drawRect(238, 156, 12, 18, PAL_STEEL); /* data micro-USB */
+    g.fillRect(236, 182, 16, 14, PAL_STEEL); g.drawRect(236, 182, 16, 14, PAL_LINE); tiny_text(g, "EN", 236, 198, silk);
     char tag[40];
     const int mode = botcorps_rain_mode();
     const bool solid = mode > 0;

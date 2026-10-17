@@ -2,6 +2,7 @@
 #include "ui/botcorps_pal.h"
 #include "ui/botcorps_pal_tables.inc"
 #include "ui/botcorps_term_ov.h"
+extern int botcorps_cp_overlap_count(void);
 
 #include <stdio.h>
 #include <stdint.h>
@@ -701,6 +702,10 @@ int main(void)
             printf("ctl-%s screen=%d\n", an[ci], botcorps_host_screen_now());
         }
         botcorps_host_set_color(0);
+    }
+    {   /* v1016h: harness overlap check — no two settings part bboxes may intersect */
+        const int ov = botcorps_cp_overlap_count();
+        printf("CP_OVERLAP %d %s\n", ov, ov == 0 ? "OK" : "FAIL");
     }
     botcorps_host_sbox(hit, 0, 0, 0); write_raw("/tmp/sb-wifi-icons.rgb", hit, 0);
     botcorps_host_sbox(hit, 0, 1, 0); write_raw("/tmp/sb-selected-prompt.rgb", hit, 0);

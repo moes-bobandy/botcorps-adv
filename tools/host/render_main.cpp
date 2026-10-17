@@ -134,6 +134,8 @@ struct GArg { int a, b, c; const char *keys; };
 extern void botcorps_host_paint(uint8_t *buf);
 static void f_enter(void *v) { GArg *g = (GArg *)v; botcorps_host_set_color(g->b); botcorps_host_enter(g_buf, g->a); if (g->keys) botcorps_host_seq(g_buf, g->keys);
     if (g->c > 0) { host_set_millis(9000u + (uint32_t)g->c); memset(g_buf, 0, sizeof g_buf); botcorps_host_paint(g_buf); } }
+extern void botcorps_host_scan_gibhunt(uint8_t *buf);
+static void f_gibhunt(void *) { botcorps_host_set_color(0); botcorps_host_scan_gibhunt(g_buf); }
 static void f_scan(void *v) { GArg *g = (GArg *)v; botcorps_host_set_color(0); botcorps_host_scan_n(g_buf, g->a); }
 static void f_ctl(void *v) { GArg *g = (GArg *)v; botcorps_host_set_color(g->b); botcorps_host_control(g_buf, g->a); }
 static void f_intro(void *) { botcorps_host_set_color(0); botcorps_host_intro(g_buf); }
@@ -179,6 +181,13 @@ static int run_gate(const char *dir)
     a = { 0, 0, 0, "\n\n\x02\x02\x02\x02\n" }; gate_one(dir, "terminal-cmdmenu", 0, f_enter, &a);
     a = { 8, 0, 0, nullptr }; gate_one(dir, "ctlfocus-term", 0, f_ctl, &a);
     a = { 9, 0, 0, nullptr }; gate_one(dir, "ctlfocus-crown", 0, f_ctl, &a);
+    /* v1018b (rendered after every locked screen so their rain RNG order is unchanged):
+     * #10 Terminal attack-prompt button (one Down past the commands button), Enter = attack
+     * prompts, Right = device glossary; #5 Gibson's board with hunt mode on (mock gibHuntStart). */
+    a = { 0, 0, 0, "\n\n\x02\x02\x02\x02\x02" }; gate_one(dir, "terminal-atkbtn", 0, f_enter, &a);
+    a = { 0, 0, 0, "\n\n\x02\x02\x02\x02\x02\n" }; gate_one(dir, "terminal-atkmenu", 0, f_enter, &a);
+    a = { 0, 0, 0, "\n\n\x02\x02\x02\x02\x02\n\x04" }; gate_one(dir, "terminal-atkgloss", 0, f_enter, &a);
+    a = { 0, 0, 0, nullptr }; gate_one(dir, "scanboard-hunt-gibson", 0, f_gibhunt, &a);
     botcorps_host_set_color(0);
     /* functional: Esc goes back on every screen; each of the 8 settings edits + writes NVS */
     {
@@ -938,5 +947,13 @@ int main(int argc, char **argv)
     botcorps_host_gc_title(hit, 12); write_raw("/tmp/gc-title-gibson.rgb", hit, 0);
     botcorps_host_gc_title(hit, 4); write_raw("/tmp/gc-title-flock.rgb", hit, 0);
     botcorps_host_gc_title(hit, 6); write_raw("/tmp/gc-title-airtag.rgb", hit, 0);
+    botcorps_host_gc_title(hit, 11); write_raw("/tmp/gc-title-samsungtag.rgb", hit, 0);
+    botcorps_host_gc_title(hit, 1); write_raw("/tmp/gc-title-bluetooth.rgb", hit, 0);
+    /* v1018b #10: Terminal attack-prompt button + the overlays it pulls up; #5 Gibson hunt mode */
+    { extern void botcorps_host_term_ovl(uint8_t *, int); extern void botcorps_host_scan_gibhunt(uint8_t *);
+      botcorps_host_term_ovl(hit, 0); write_raw("/tmp/term-atk-btn.rgb", hit, 0);
+      botcorps_host_term_ovl(hit, 2); write_raw("/tmp/term-atk-menu.rgb", hit, 0);
+      botcorps_host_term_ovl(hit, 1); write_raw("/tmp/term-atk-gloss.rgb", hit, 0);
+      botcorps_host_scan_gibhunt(hit); write_raw("/tmp/bh-gibson-hunt.rgb", hit, 0); }
     return 0;
 }

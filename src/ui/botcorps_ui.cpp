@@ -319,6 +319,10 @@ static bool s_focus_cmds = false;
 /* v1017a: the commands (≡) button is a cursor stop: Down from the bottom board row; Enter opens the
  * commands menu (the 6x2 chip palette, s_focus_cmds). */
 static bool s_cmd_btn = false;
+/* #10 (Dirt 9:04): the Terminal's attack-prompt button (under the commands button, in the companion
+ * box) and the overlay it pulls up: 0 none, 1 device glossary, 2 per-bot/device attack prompts. */
+static bool s_atk_btn = false;
+static int s_term_ovl = 0;
 /* v1017c (#3): the prompt line is a cursor stop too, like the hub: Up/Down walk
  * boards -> prompt -> commands (≡) button; Left/Right go back to the boards. */
 static bool s_term_prompt = false;
@@ -409,6 +413,8 @@ static int default_back(int id)
 
 /* v1016f: which board the bus scan shows. 0 wifi, 1 ble (live), 2..11 a bot, 12 the Gibson core. */
 static int s_scan_bot = 12;
+static bool s_gib_hunt = false;      /* #5 mock bus.gHunt: Gibson's board plays the hunt (else orbit-leader) */
+static bool s_gib_hunt_keep = false; /* #5 mock nav.scanKeep: hunt mode survives only the entry that started it */
 /* v1016f: Terminal focus on the crown (Up from the top board row); Fn chord flag from read_key. */
 static bool s_term_crown = false;
 static bool s_key_fn = false;
@@ -764,6 +770,10 @@ static void enter_screen(int id, int ret)
     /* v1016f root fix: SCR_SCAN is the scan box too. Radio boards run live. */
     if (id == SCR_SCAN && s_scan_bot == 0) id = SCR_WIFI_RADAR;
     if (id == SCR_SCAN && s_scan_bot == 1) id = SCR_BT_RADAR;
+    if (id == SCR_SCAN) {   /* #5 mock: entering the scan board clears Gibson hunt mode unless gibHuntStart opened it */
+        if (!(s_gib_hunt_keep && s_scan_bot == 12)) s_gib_hunt = false;
+        s_gib_hunt_keep = false;
+    }
     const char *from = screen_name(s_screen);
     const int before = card_bot();
     s_ret = ret;
@@ -771,7 +781,7 @@ static void enter_screen(int id, int ret)
     s_cursor = 0;
     s_hub_zone = 0;
     s_sheet = false;
-    s_focus_cmds = false; s_cmd_btn = false; s_term_prompt = false;
+    s_focus_cmds = false; s_cmd_btn = false; s_atk_btn = false; s_term_ovl = 0; s_term_prompt = false;
     s_term_crown = false;
     scan_all_set(false);
     botcorps_lut_term(false);
@@ -1135,7 +1145,7 @@ static void run_cmd(const char *line)
     } else if (strcmp(cmd, "cmds") == 0) {
         s_sheet = true;
         s_sheet_i = 0;
-        s_focus_cmds = false; s_cmd_btn = false;
+        s_focus_cmds = false; s_cmd_btn = false; s_atk_btn = false; s_term_ovl = 0;
         s_dirty = true;
         return;
     } else if (strcmp(cmd, "hail") == 0 || strcmp(cmd, "ask") == 0 || strcmp(cmd, "link") == 0 ||
@@ -1388,7 +1398,7 @@ static void paint_boards(Gfx g)
 {
     /* v1016f-2 #2: only the focused board is full-bright; the rest are dimmed, like the mock. */
     for (int i = 0; i < 12; ++i) {
-        const bool sel = (i == s_term) && !s_focus_cmds && !s_cmd_btn && !s_term_prompt;
+        const bool sel = (i == s_term) && !s_focus_cmds && !s_cmd_btn && !s_atk_btn && !s_term_prompt;
         paint_one_board(g, i, sel, !sel);
     }
 }
@@ -2174,6 +2184,18 @@ static void paint_prompt(Gfx g)
         /* v1017c (#6): no bot emblem (and no emblem stand) in the terminal's prompt panel; the
          * desktop-style companion box chrome stays. */
     }
+    {   /* #10: attack-prompt button (target reticle), one stop below the commands button */
+        const bool ao = (s_atk_btn || s_term_ovl) && !s_sheet;
+        const int ax = 283, ay = 220;
+        plate(g, ax, ay, 20, 12, ao ? COL_SEL : COL_DEEP, ao ? accent() : COL_LINE);
+        const uint8_t ic = ao ? accent() : (uint8_t)COL_MUTED;
+        g.drawCircle(ax + 10, ay + 6, 3, ic);
+        g.fillRect(ax + 10, ay + 1, 1, 3, ic);
+        g.fillRect(ax + 10, ay + 9, 1, 2, ic);
+        g.fillRect(ax + 5, ay + 6, 3, 1, ic);
+        g.fillRect(ax + 13, ay + 6, 3, 1, ic);
+        g.fillRect(ax + 10, ay + 6, 1, 1, ao ? (uint8_t)PAL_WHITE : ic);
+    }
     if (scan_all_on() && !s_sheet) {
         /* TERM override codes, inside x14..306, y167..222 only. Prompt is y=227.
          * No lut call here. The full repaint already installed the table. */
@@ -2184,12 +2206,16 @@ static void paint_prompt(Gfx g)
     s_px = keep;
 }
 
+static void paint_gc_gloss(Gfx g);
+static void paint_gc_attack(Gfx g);
 static void paint_terminal(Gfx g)
 {
     paint_term_head(g);
     paint_boards(g);
     paint_prompt(g);
     if (s_sheet) paint_sheet(g);
+    else if (s_term_ovl == 1) paint_gc_gloss(g);     /* #10: pulled up from the attack-prompt button */
+    else if (s_term_ovl == 2) paint_gc_attack(g);
 }
 
 static void gib_crown(Gfx g, int cx, int y);
@@ -2828,6 +2854,7 @@ static const uint8_t GL_INK[GL_N][3] = {
 };
 
 static bool s_gl_mono = false; /* newest scan tile blinks white */
+static int s_gl_clip_y = -32768; /* #5 hunt: rows above this y are clipped (mock display clip) */
 static void gl_icon(Gfx g, int type, int x, int y, bool dim)
 {
     if (type < 0 || type >= GL_N) type = GL_UNKNOWN;
@@ -2859,6 +2886,7 @@ static void gl_icon(Gfx g, int type, int x, int y, bool dim)
             }
             if (dim) k = (ch == 'b') ? (uint8_t)PAL_DEEP : (uint8_t)PAL_LINE;
             if (s_gl_mono) k = PAL_WHITE;
+            if (y + r < s_gl_clip_y) continue;
             sb_rect(g, x + c, y + r, 1, 1, k);
         }
     }
@@ -3328,15 +3356,20 @@ static void sb_scouts(Gfx g)
     }
 }
 
-/* ===== #5 Per-bot hunt mini game (Dirt locked 2026-10-16, ported from mock cand-1538 botHunt;
+/* ===== #5 Per-bot hunt mini game (Dirt locked 2026-10-16, EXACT port of mock cand-1538 botHunt;
  * re-confirmed 2026-10-17). On each non-scan bot's chip board only THAT bot's own device icons
  * fall down the code strands, and the bot (in its fixed colour) chases and catches the nearest;
- * catches show as corner pips, no text. The mock integrates with Math.random()+real dt; here the
- * same mechanics run on a deterministic fixed-timestep that is idempotent per-millis, so a partial
- * push matches a full paint pixel-for-pixel (flicker gate S1/S2/S4) and the host renders repeat. */
+ * catches show as corner pips, no text. v1018b: values ported 1:1 from the mock (same 320x240
+ * canvas): non-live grid 9x5 cells of 19 px at (dx+2, dy+2); drops spawn at dt*1.2/s (max 4) just
+ * above the grid and fall 14..24 px/s; the chaser walks 46 px/s; catch at < 6 px; the strand trail
+ * fades (alpha .23/.18/.13/.08); sparkles 420 ms; pips start at 0. Gibson's board runs the hunt only
+ * in hunt mode (Gibson prompt `hunt`, mock gibHuntStart); otherwise ivory Gibson leads the orbiting
+ * crew through the rain (mock v16 orbit-leader). The mock integrates with Math.random()+real dt;
+ * here the same mechanics run on a deterministic LCG that is idempotent per-millis, so a partial
+ * push matches a full paint pixel-for-pixel (flicker gate S1/S2/S4) and the host renders repeat.
+ * Icon geometry: the mock's 8 px rain icons are our 12 px glossary icons, so icon centre = +6. */
 #define BH_MAX 4
-/* device icon kind(s) each bot hunts, mock BOT_DEVS mapped to our glossary icons; -1 = unused,
- * -2 (gibson) = the whole device set. */
+/* device icon kind(s) each bot hunts, mock BOT_DEVS mapped to our glossary icons; -1 = unused. */
 static const int8_t BH_DEV[13][2] = {
     { GL_AP, -1 },      /* 0 wifi   (never core) */
     { GL_SPEAKER, -1 }, /* 1 ble    (never core) */
@@ -3350,12 +3383,12 @@ static const int8_t BH_DEV[13][2] = {
     { GL_UNKNOWN, -1 }, /* 9 skimmer */
     { GL_TV, GL_CAR },  /* 10 flipper */
     { GL_TRACKER, -1 }, /* 11 samsungtag */
-    { -2, -1 },         /* 12 gibson = all kinds */
+    { -2, -1 },         /* 12 gibson = mock RAIN_DEV (Dirt's ten) */
 };
-static const int8_t BH_GIB[9] = { GL_AP, GL_PHONE, GL_LAPTOP, GL_TV, GL_TRACKER, GL_WATCH, GL_CAMERA, GL_CAR, GL_UNKNOWN };
-/* playfield = the grid interior; everything the game animates stays inside it (so one dirty rect
- * repaint == the full paint). */
-static const int BH_X = SG_X, BH_Y = SG_Y, BH_W = 7 * SG_C, BH_H = 4 * SG_C, BH_M = 8;
+static const int8_t BH_GIB[10] = { GL_AP, GL_PHONE, GL_LAPTOP, GL_TV, GL_SPEAKER, GL_TRACKER, GL_WATCH, GL_CAMERA, GL_CAR, GL_UNKNOWN };
+/* mock non-live grid: C = 19, GC = 9, GR = 5, gx = dx + 2, gy = dy + 2 (display dx 106, dy 42). */
+static const int BH_C = 19, BH_GC = 9, BH_GR = 5;
+static const int BH_X = 108, BH_Y = 44, BH_W = BH_GC * BH_C, BH_H = BH_GR * BH_C, BH_M = 8;
 struct BHDrop { float x, y, v; int8_t k; uint8_t live; };
 static int s_bh_who = -2;
 static uint32_t s_bh_t = 0, s_bh_rng = 0;
@@ -3368,54 +3401,51 @@ static int s_bh_fxn = 0;
 
 static int bh_kind(int bot, uint32_t r)
 {
-    if (bot == 12) return BH_GIB[r % 9u];
+    if (bot == 12) return BH_GIB[r % 10u];
     const int8_t a = BH_DEV[bot][0], b = BH_DEV[bot][1];
     if (b >= 0) return (r & 1u) ? b : a;
     return a >= 0 ? a : GL_UNKNOWN;
 }
 static uint32_t bh_rng(void) { s_bh_rng = s_bh_rng * 1664525u + 1013904223u; return s_bh_rng; }
 static float bh_rngf(void) { return (float)(bh_rng() >> 8) / 16777216.f; }
+static bool bh_orbit(void) { return s_scan_bot == 12 && !s_gib_hunt; }
 
 static void bh_spawn(BHDrop *d, int bot)
 {
     d->live = 1;
-    d->x = (float)(BH_X + BH_M) + bh_rngf() * (float)(BH_W - 2 * BH_M - 12);
-    d->y = (float)BH_Y;
-    d->v = 42.f + bh_rngf() * 30.f;
+    d->x = (float)(BH_X + BH_M + (int)(bh_rngf() * (float)(BH_W - 2 * BH_M - 12)));  /* mock floor(rand*(gw-2M-w)) */
+    d->y = (float)(BH_Y - 12);                                                         /* mock gy - 10, above the grid */
+    d->v = 14.f + bh_rngf() * 10.f;                                                    /* mock 14 + rand*10 px/s */
     d->k = (int8_t)bh_kind(bot, bh_rng());
 }
 
 static void bot_hunt_step(uint32_t t)
 {
     const int bot = s_scan_bot;
-    if (s_bh_who != bot) {
+    if (s_bh_who != bot) {               /* mock: hunt.who !== id -> empty board, score 0, chaser centred */
         s_bh_who = bot;
         s_bh_rng = 2166136261u ^ (uint32_t)(bot * 2654435761u);
         s_bh_t = t;
-        s_bh_score = 1 + (bot & 3);
+        s_bh_score = 0;
         s_bh_fxn = 0;
-        s_bh_x = (float)(BH_X + BH_W / 2);
-        s_bh_y = (float)(BH_Y + BH_H / 2);
+        s_bh_x = (float)BH_X + (float)BH_W / 2.f;
+        s_bh_y = (float)BH_Y + (float)BH_H / 2.f;
         for (int i = 0; i < BH_MAX; ++i) s_bh_d[i].live = 0;
-        /* seed three drops spread down the strands so the first (one-shot) frame is already alive */
-        for (int i = 0; i < 3; ++i) {
-            bh_spawn(&s_bh_d[i], bot);
-            s_bh_d[i].y = (float)BH_Y + (float)(i + 1) * (float)BH_H / 5.f;
-        }
         return;
     }
     if (t == s_bh_t) return;                       /* idempotent within a frame */
     float dt = (float)(t - s_bh_t) / 1000.f;
     s_bh_t = t;
-    if (dt > 0.1f) dt = 0.1f;
+    if (dt > 0.1f) dt = 0.1f;                      /* mock Math.min(.1, dt) */
+    if (bh_orbit()) return;                        /* mock: Gibson's board hunts only in hunt mode */
     int nlive = 0;
     for (int i = 0; i < BH_MAX; ++i) if (s_bh_d[i].live) ++nlive;
-    if (nlive < BH_MAX && bh_rngf() < dt * 1.4f)
+    if (nlive < BH_MAX && bh_rngf() < dt * 1.2f)
         for (int i = 0; i < BH_MAX; ++i) if (!s_bh_d[i].live) { bh_spawn(&s_bh_d[i], bot); break; }
     for (int i = 0; i < BH_MAX; ++i) {
         if (!s_bh_d[i].live) continue;
         s_bh_d[i].y += s_bh_d[i].v * dt;
-        if (s_bh_d[i].y > (float)(BH_Y + BH_H - BH_M - 10)) s_bh_d[i].live = 0;  /* missed */
+        if (s_bh_d[i].y >= (float)(BH_Y + BH_H - BH_M - 10)) s_bh_d[i].live = 0;  /* mock: leaves before the labels */
     }
     int tg = -1;
     float bd = 1e9f;
@@ -3427,12 +3457,13 @@ static void bot_hunt_step(uint32_t t)
     }
     if (tg >= 0) {
         const float ddx = s_bh_d[tg].x + 6.f - s_bh_x, ddy = s_bh_d[tg].y + 6.f - s_bh_y;
-        const float L = sqrtf(ddx * ddx + ddy * ddy) < 1.f ? 1.f : sqrtf(ddx * ddx + ddy * ddy);
-        const float sp = 150.f * dt;
+        const float h = sqrtf(ddx * ddx + ddy * ddy);
+        const float L = h < 1.f ? 1.f : h;
+        const float sp = 46.f * dt;                /* mock chaser 46 px/s */
         const float mv = sp < L ? sp : L;
         s_bh_x += ddx / L * mv;
         s_bh_y += ddy / L * mv;
-        if (L < 8.f) {
+        if (L < 6.f) {                             /* mock catch radius */
             if (s_bh_score < 9999) ++s_bh_score;
             if (s_bh_fxn < 4) { s_bh_fxx[s_bh_fxn] = s_bh_d[tg].x + 6.f; s_bh_fxy[s_bh_fxn] = s_bh_d[tg].y + 6.f; s_bh_fxt[s_bh_fxn] = t; ++s_bh_fxn; }
             s_bh_d[tg].live = 0;
@@ -3442,49 +3473,99 @@ static void bot_hunt_step(uint32_t t)
     if (s_bh_x > (float)(BH_X + BH_W - BH_M)) s_bh_x = (float)(BH_X + BH_W - BH_M);
     if (s_bh_y < (float)(BH_Y + BH_M)) s_bh_y = (float)(BH_Y + BH_M);
     if (s_bh_y > (float)(BH_Y + BH_H - BH_M)) s_bh_y = (float)(BH_Y + BH_H - BH_M);
-    int w = 0;                                     /* retire expired catch sparkles */
+    int w = 0;                                     /* retire expired catch sparkles (mock 420 ms) */
     for (int i = 0; i < s_bh_fxn; ++i)
         if ((uint32_t)(t - s_bh_fxt[i]) < 420u) { s_bh_fxx[w] = s_bh_fxx[i]; s_bh_fxy[w] = s_bh_fxy[i]; s_bh_fxt[w] = s_bh_fxt[i]; ++w; }
     s_bh_fxn = w;
+}
+
+/* colour at mock globalAlpha a (percent) over the display glass (index 8) */
+static uint8_t bh_alpha(uint8_t col, int a_pct)
+{
+    return sb_mix(col, botcorps_rgb565(8), 100 - a_pct);
+}
+
+/* mock non-live grid: 9 x 5 cells of 19 px, teal lines + node dots, sweep bar on the right edge */
+static void bh_grid(Gfx g)
+{
+    for (int c = 0; c <= BH_GC; ++c) sb_rect(g, BH_X + c * BH_C, BH_Y, 1, BH_H + 1, 1);
+    for (int r = 0; r <= BH_GR; ++r) sb_rect(g, BH_X, BH_Y + r * BH_C, BH_W + 1, 1, 1);
+    for (int c = 0; c <= BH_GC; ++c)
+        for (int r = 0; r <= BH_GR; ++r) sb_rect(g, BH_X + c * BH_C - 1, BH_Y + r * BH_C - 1, 3, 3, 65);
+    sb_rect(g, BH_X + BH_W + 1, BH_Y, 1, BH_H, sb_tone(3));
+}
+
+static void bh_sprite(Gfx g, int cx, int cy, int shape, int scale, uint8_t col)
+{
+    const int h = (9 * scale + 1) / 2;   /* half the largest sprite; the draw is centred (mock spriteC) */
+    int x = cx, y = cy;      /* keep the figure inside the playfield (the mock clips at the display) */
+    if (x - h < BH_X + 1) x = BH_X + 1 + h;
+    if (x + h > BH_X + BH_W) x = BH_X + BH_W - h;
+    if (y - h < BH_Y + 1) y = BH_Y + 1 + h;
+    if (y + h > BH_Y + BH_H) y = BH_Y + BH_H - h;
+#ifdef BOTCORPS_HOST_RENDER
+    host_gate_walk = 1;
+#endif
+    botcorps_sprite_draw(*g.raw(), x - g.ox, y - g.oy, shape, scale, col, false);
+#ifdef BOTCORPS_HOST_RENDER
+    host_gate_walk = 0;
+#endif
+}
+
+/* mock v16 (Gibson board, hunt mode off): primary ivory Gibson leads through the rain; the first ten
+ * colour bots trail his path (lag (i+1)*520 ms) and orbit it (o = t/700 + i*.63, r = 6+(i%3)*3). */
+static void bh_orbit_paint(Gfx g, uint32_t t)
+{
+    const float cx = (float)BH_X + (float)BH_W / 2.f, cy = (float)BH_Y + (float)BH_H / 2.f;
+    const float ax = (float)BH_W / 2.f - 16.f, ay = (float)BH_H / 2.f - 14.f;
+    for (int i = 0; i < 10; ++i) {
+        const float tt = (float)t - (float)((i + 1) * 520);
+        const float px = cx + sinf((tt + 5200.f) / 2300.f) * ax, py = cy + sinf((tt + 5200.f) / 1700.f) * ay;
+        const float o = (float)t / 700.f + (float)i * .63f, r = (float)(6 + (i % 3) * 3);
+        const int a = 42 - (i * 5 + 1) / 2;       /* mock alpha .42 - i*.025 */
+        bh_sprite(g, (int)lroundf(px + cosf(o) * r), (int)lroundf(py + sinf(o) * r), botcorps_shape_for(i), 1,
+                  bh_alpha(bot_color(i), a));
+    }
+    const float gx0 = cx + sinf(((float)t + 5200.f) / 2300.f) * ax, gy0 = cy + sinf(((float)t + 5200.f) / 1700.f) * ay;
+    bh_sprite(g, (int)lroundf(gx0), (int)lroundf(gy0), 0, 2, bh_alpha(PAL_IVORY, 62));   /* mock alpha .62 */
 }
 
 static void bot_hunt(Gfx g)
 {
     const uint32_t t = millis();
     bot_hunt_step(t);
+    if (bh_orbit()) { bh_orbit_paint(g, t); return; }
     const int bot = s_scan_bot;
     const uint8_t col = bot == 12 ? (uint8_t)PAL_IVORY : bot_color(bot);
-    /* falling device icons + their strand trail (only this bot's own kinds) */
+    uint8_t trail[5];
+    for (int k = 1; k < 5; ++k) trail[k] = bh_alpha(col, 28 - k * 5);   /* mock fading strand: .28 - k*.05 */
+    /* falling device icons + their fading strand trail (only this bot's own kinds) */
+    s_gl_clip_y = BH_Y;
     for (int i = 0; i < BH_MAX; ++i) {
         if (!s_bh_d[i].live) continue;
-        const int dx = (int)(s_bh_d[i].x + 0.5f), dy = (int)(s_bh_d[i].y + 0.5f);
+        const int dx = (int)lroundf(s_bh_d[i].x), dy = (int)lroundf(s_bh_d[i].y);
         for (int k = 1; k < 5; ++k) {
             const int ty = dy - k * 4;
-            if (ty >= BH_Y) sb_rect(g, dx + 3, ty, 2, 2, col);
+            if (ty >= BH_Y) sb_rect(g, dx + 5, ty, 2, 2, trail[k]);
         }
         gl_icon(g, s_bh_d[i].k, dx, dy, false);
     }
-    /* catch sparkles */
+    s_gl_clip_y = -32768;
+    /* catch sparkles (mock: radius 2..10, fading over 420 ms) */
     for (int i = 0; i < s_bh_fxn; ++i) {
         const float q = (float)(t - s_bh_fxt[i]) / 420.f;
-        const int r = (int)(2.f + q * 8.f);
-        const int fx = (int)(s_bh_fxx[i] + 0.5f), fy = (int)(s_bh_fxy[i] + 0.5f);
+        const int r = (int)lroundf(2.f + q * 8.f);
+        const uint8_t fc = bh_alpha(col, (int)(100.f * (1.f - q)));
+        const int fx = (int)lroundf(s_bh_fxx[i]), fy = (int)lroundf(s_bh_fxy[i]);
         const int off[8][2] = { { r, 0 }, { -r, 0 }, { 0, r }, { 0, -r }, { r, r }, { -r, -r }, { r, -r }, { -r, r } };
         for (int o = 0; o < 8; ++o) {
-            const int px = fx + (int)(off[o][0] * 0.8f), py = fy + (int)(off[o][1] * 0.8f);
-            if (px >= BH_X && px < BH_X + BH_W && py >= BH_Y && py < BH_Y + BH_H) sb_rect(g, px, py, 2, 2, col);
+            const int px = fx + (int)lroundf(off[o][0] * 0.8f), py = fy + (int)lroundf(off[o][1] * 0.8f);
+            if (px >= BH_X && px < BH_X + BH_W && py >= BH_Y && py < BH_Y + BH_H) sb_rect(g, px, py, 2, 2, fc);
         }
     }
     /* the chasing bot (walk-exempt sprite, like the scouts) */
-    const int hx = (int)(s_bh_x + 0.5f), hy = (int)(s_bh_y + 0.5f);
-#ifdef BOTCORPS_HOST_RENDER
-    host_gate_walk = 1;
-#endif
-    botcorps_sprite_draw(*g.raw(), hx - 4 - g.ox, hy - 4 - g.oy, bot == 12 ? 0 : botcorps_shape_for(bot), 2, col, false);
-#ifdef BOTCORPS_HOST_RENDER
-    host_gate_walk = 0;
-#endif
-    /* catches as corner pips (top-right), no text */
+    bh_sprite(g, (int)lroundf(s_bh_x), (int)lroundf(s_bh_y), bot == 12 ? 0 : botcorps_shape_for(bot), 2, col);
+    /* catches as corner pips (top-right), no text; mock min(12, score) */
     const int np = s_bh_score < 12 ? s_bh_score : 12;
     for (int k = 0; k < np; ++k) sb_rect(g, BH_X + BH_W - 4 - k * 4, BH_Y + 3, 2, 2, col);
 }
@@ -3757,7 +3838,7 @@ static void paint_sbox(Gfx g, bool wifi)
         if (sb_vis(dx, dy, dw, 108)) {
             /* #5 (Dirt locked): the grid runs this bot's own hunt mini game (only its device icons
              * fall; the bot in its fixed colour chases/catches them, catches as pips). */
-            sb_grid(g, band, false);
+            bh_grid(g);
             bot_hunt(g);
             GATE_BOX(g, "PROMPT", "index", dx + 2, dy + 1, 15, 10, "MINI");
             sb_rect(g, dx + 2, dy + 1, 15, 10, 8);
@@ -5255,7 +5336,7 @@ static void paint_gc_attack(Gfx g)
         const int col = i / 6, row = i % 6;
         const int cx = bx + 6 + col * 148, cy = by + 18 + row * 31;
         g.fillRect(cx, cy + 2, 10, 10, bot_color(i));
-        char nm[12]; snprintf(nm, sizeof(nm), "%s", BOTS[i].id);
+        char nm[16]; snprintf(nm, sizeof(nm), "%s", BOTS[i].id);
         if (nm[0] >= 'a' && nm[0] <= 'z') nm[0] = (char)(nm[0] - 'a' + 'A');
         txt(g, nm, cx + 16, cy, PAL_IVORY, lgfx::textdatum::top_left);
         char tg[18]; snprintf(tg, sizeof(tg), "%s", BOTS[i].target);
@@ -5292,12 +5373,30 @@ static void paint_gchat(Gfx g)
     txt(g, "RX", 296, 4, (uint32_t)(t - s_last_key) < 220u ? ac : (uint8_t)COL_MUTED,
         lgfx::textdatum::top_left);
     s_px = keep;
-    {   /* #9/#11: dynamic "<Name>> Defend" title for the active Defend game */
+    {   /* #9/#11: dynamic "<Name>> Defend" title for the active Defend game.
+         * v1018b (Dirt-approved): solid matte plate behind the title so it never reads over the
+         * rain glyphs. Sized to the title; a name too long for the 4..105 slot left of the rail
+         * (x 108) wraps at the space onto a second plate line ("Samsungtagbot>" / "Defend"). */
         const int kt = s_px; s_px = 6;
-        char dtitle[20];
+        char dtitle[32];
         defend_title(dtitle, sizeof(dtitle), s_defend_bot);
-        txt(g, dtitle, 8, 22, PAL_CYAN, lgfx::textdatum::top_left);
-        g.fillRect(8, 31, (int)strlen(dtitle) * 6, 1, PAL_WIRE_C);
+        const int len = (int)strlen(dtitle);
+        const int maxc = 16;                       /* 16 x 6 px + padding stays left of the rail */
+        const char *sp = strrchr(dtitle, ' ');
+        const bool wrap = len > maxc && sp != nullptr;
+        char l1[32];
+        const int n1 = wrap ? (int)(sp - dtitle) : len;
+        snprintf(l1, sizeof(l1), "%.*s", n1, dtitle);
+        const char *l2 = wrap ? sp + 1 : "";
+        const int n2 = (int)strlen(l2);
+        const int cols = n1 > n2 ? n1 : n2;
+        const int px = 4, py = 19;
+        const int pw = cols * 6 + 6;
+        const int ph = wrap ? 25 : 15;
+        plate(g, px, py, pw, ph, PAL_DEEP, PAL_WIRE_C);
+        txt(g, l1, px + 3, 22, PAL_CYAN, lgfx::textdatum::top_left);
+        if (wrap) txt(g, l2, px + 3, 32, PAL_CYAN, lgfx::textdatum::top_left);
+        g.fillRect(px + 3, py + ph - 4, (wrap ? n2 : n1) * 6 - 1, 1, PAL_WIRE_C);
         s_px = kt;
     }
     chip_block(g, 56, 78, 36, 12); /* v1016f-4: Gibson block, no disc/ring */
@@ -6034,7 +6133,7 @@ static void draw_tile_part(Gfx g)
     /* v1017c: same sel / dim as paint_boards. The partial used to pass dim=false, so a board that lost
      * focus by a partial (focus to the prompt / commands button, or arrows to another board) came back
      * full-bright instead of dimmed until the next full paint (S1 terminal-typing caught it). */
-    const bool sel = (s_part_i == s_term) && !s_focus_cmds && !s_cmd_btn && !s_term_prompt;
+    const bool sel = (s_part_i == s_term) && !s_focus_cmds && !s_cmd_btn && !s_atk_btn && !s_term_prompt;
     paint_one_board(g, s_part_i, sel, !sel);
 }
 
@@ -6258,6 +6357,18 @@ static void on_arrows(int key)
          * Same model as the hub: Up/Down walk boards -> prompt -> commands (≡) button, Up reverses;
          * Left/Right from the prompt or the button go back to the boards. Arrow history recall
          * is gone: it is what swallowed Up/Down whenever the prompt held text. */
+        if (s_term_ovl) {                            /* #10: Left/Right flip attack prompts <-> glossary */
+            if (key == 3 || key == 4) { s_term_ovl = s_term_ovl == 2 ? 1 : 2; s_dirty = true; }
+            return;
+        }
+        if (s_atk_btn) {
+            s_atk_btn = false;
+            if (key == 1) s_cmd_btn = true;          /* Up: attack button -> commands button */
+            else if (key == 2) s_atk_btn = true;     /* Down: bottom of the walk, stay */
+            else partial_tile(s_term);               /* Left / Right: back to the boards */
+            partial_term_lower();
+            return;
+        }
         if (s_term_prompt) {
             s_term_prompt = false;
             if (key == 2) s_cmd_btn = true;          /* Down: prompt -> commands button */
@@ -6268,7 +6379,7 @@ static void on_arrows(int key)
         if (s_cmd_btn) {
             s_cmd_btn = false;
             if (key == 1) s_term_prompt = true;      /* Up: button -> prompt */
-            else if (key == 2) s_cmd_btn = true;     /* Down: bottom of the walk, stay */
+            else if (key == 2) s_atk_btn = true;     /* #10 Down: commands button -> attack-prompt button */
             else partial_tile(s_term);               /* Left / Right: back to the boards */
             partial_term_lower();
             return;
@@ -6440,6 +6551,15 @@ static void on_ok(void)
             return;
         }
         if (s_term_prompt) return;   /* v1017c: Enter on an empty prompt does nothing (hub: same) */
+        if (s_term_ovl) return;      /* #10: the attack/glossary overlay is a viewer; Esc closes it */
+        if (s_atk_btn) {
+            /* #10: Enter on the attack-prompt button pulls up the per-bot/device attack prompts. */
+            s_atk_btn = false;
+            s_term_ovl = 2;
+            s_dirty = true;
+            lut_for_term();
+            return;
+        }
         if (s_cmd_btn) {
             /* v1017a: Enter on the button opens the commands menu (chip palette). */
             s_cmd_btn = false;
@@ -6532,6 +6652,13 @@ static void on_esc(void)
         enter_screen(SCR_GIBSON, -1);
         return;
     }
+    if (s_screen == SCR_TERMINAL && s_term_ovl && !s_sheet) {
+        s_term_ovl = 0;
+        s_atk_btn = true;        /* #10: Esc closes the attack/glossary overlay back onto its button */
+        s_dirty = true;
+        lut_for_term();
+        return;
+    }
     if (s_screen == SCR_TERMINAL && (s_sheet || s_focus_cmds)) {
         const bool from_menu = s_focus_cmds && !s_sheet;
         s_sheet = false;
@@ -6569,7 +6696,7 @@ static void on_tab(void)
     if (s_screen != SCR_TERMINAL || s_sheet) return;
     if (!botcorps_t0_term_prompt[0]) {
         s_sheet = !s_sheet;
-        s_focus_cmds = false; s_cmd_btn = false;
+        s_focus_cmds = false; s_cmd_btn = false; s_atk_btn = false; s_term_ovl = 0;
         if (s_sheet) s_sheet_i = 0;
         s_tab_i = -1;
         s_dirty = true;
@@ -6627,6 +6754,8 @@ static void on_char(char c)
         partial_prompt_panel();
     }
     s_cmd_btn = false;
+    s_atk_btn = false;
+    if (s_term_ovl) { s_term_ovl = 0; s_dirty = true; }
     if (!s_term_prompt) {
         s_term_prompt = true;    /* v1017c: typing puts focus on the prompt (hub: same) */
         partial_tile(s_term);
@@ -6855,6 +6984,14 @@ static void gp_run(const char *line)
         gp_open(SCR_GCHAT);
         return;
     }
+    if (strcmp(cmd, "hunt") == 0 && (!arg || !arg[0])) {
+        /* #5 mock gibHuntStart: keyboard path to Gibson's hunt game (his scan board, hunt mode on) */
+        s_scan_bot = 12;
+        s_gib_hunt = true;
+        s_gib_hunt_keep = true;
+        gp_open(SCR_SCAN);
+        return;
+    }
     if (strcmp(cmd, "defend") == 0) {
         /* GAP: the mock's defend typing game is not in this firmware; open its home, the Terminal. */
         gp_open(SCR_TERMINAL);
@@ -7043,7 +7180,7 @@ void botcorps_host_terminal(uint8_t *buf)
     s_sheet = true;
     botcorps_lut_term(true);
     s_sheet_i = 2;
-    s_focus_cmds = false; s_cmd_btn = false;
+    s_focus_cmds = false; s_cmd_btn = false; s_atk_btn = false; s_term_ovl = 0;
     s_term = 2;
     s_color = 0;
     s_log_n = 0;
@@ -7062,7 +7199,7 @@ void botcorps_host_idle(uint8_t *buf)
     s_sheet = false;
     botcorps_lut_term(false);
     s_sheet_i = 0;
-    s_focus_cmds = false; s_cmd_btn = false;
+    s_focus_cmds = false; s_cmd_btn = false; s_atk_btn = false; s_term_ovl = 0;
     s_term = 2;
     s_color = 0;
     s_log_n = 0;
@@ -7249,7 +7386,7 @@ void botcorps_host_amber(uint8_t *buf)
     s_sheet = true;
     botcorps_lut_term(true);
     s_sheet_i = 2;
-    s_focus_cmds = false; s_cmd_btn = false;
+    s_focus_cmds = false; s_cmd_btn = false; s_atk_btn = false; s_term_ovl = 0;
     s_term = 2;
     s_color = 1;
     s_log_n = 0;
@@ -7324,7 +7461,7 @@ static void host_sheet_setup(uint8_t *buf)
     s_sheet = true;
     botcorps_lut_term(true);
     s_sheet_i = 0;
-    s_focus_cmds = false; s_cmd_btn = false;
+    s_focus_cmds = false; s_cmd_btn = false; s_atk_btn = false; s_term_ovl = 0;
     s_term = 2;
     s_color = 0;
     s_log_n = 0;
@@ -7392,6 +7529,15 @@ void botcorps_host_gc_attack(uint8_t *buf, int bot)
     s_gc_panel = 0;
     s_defend_bot = 12;
 }
+void botcorps_host_term_ovl(uint8_t *buf, int mode)
+{
+    botcorps_host_enter(buf, SCR_TERMINAL);
+    s_atk_btn = mode == 0;
+    s_term_ovl = mode;
+    paint_ext(Gfx());
+    s_atk_btn = false;
+    s_term_ovl = 0;
+}
 void botcorps_host_gc_title(uint8_t *buf, int bot)
 {
     botcorps_host_gchat(buf);
@@ -7436,7 +7582,7 @@ void botcorps_host_scanall(uint8_t *buf)
     s_screen = SCR_TERMINAL;
     s_sheet = false;
     botcorps_lut_term(false);
-    s_focus_cmds = false; s_cmd_btn = false;
+    s_focus_cmds = false; s_cmd_btn = false; s_atk_btn = false; s_term_ovl = 0;
     s_term = 2;
     s_color = 0;
     s_log_n = 0;
@@ -7475,7 +7621,7 @@ void botcorps_host_keyfob(uint8_t *buf)
     s_screen = SCR_TERMINAL;
     s_sheet = false;
     botcorps_lut_term(false);
-    s_focus_cmds = false; s_cmd_btn = false;
+    s_focus_cmds = false; s_cmd_btn = false; s_atk_btn = false; s_term_ovl = 0;
     s_term = 2;
     s_color = 0;
     s_log_n = 0;
@@ -7643,9 +7789,28 @@ void botcorps_host_seq(uint8_t *buf, const char *keys)
     paint_ext(Gfx());
 }
 /* gate.sh: scan board for one bot type (12 = Gibson); settings with a given cursor */
+/* #5 host renders: the device runs the hunt continuously, so a one-shot host frame shows the board
+ * after 6 s of live play from a fresh (mock: empty, 0 pips) start, stepped at the 33 ms patch rate. */
+static void bh_host_warm(int bot)
+{
+    const uint32_t t1 = millis();
+    s_scan_bot = bot;
+    s_bh_who = -2;
+    bot_hunt_step(t1 - 6000u);
+    for (uint32_t t = t1 - 6000u + 33u; t < t1; t += 33u) bot_hunt_step(t);
+}
 void botcorps_host_scan_n(uint8_t *buf, int bot)
 {
-    s_scan_bot = bot;
+    s_gib_hunt = false;
+    bh_host_warm(bot);
+    botcorps_host_enter(buf, SCR_SCAN);
+}
+/* #5: Gibson's board with hunt mode on (mock gibHuntStart) */
+void botcorps_host_scan_gibhunt(uint8_t *buf)
+{
+    s_gib_hunt = true;
+    bh_host_warm(12);
+    s_gib_hunt_keep = true;
     botcorps_host_enter(buf, SCR_SCAN);
 }
 void botcorps_host_control(uint8_t *buf, int cursor)

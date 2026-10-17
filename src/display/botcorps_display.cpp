@@ -211,11 +211,18 @@ void botcorps_cyd_load_touch_cal(void)
 
 #ifdef BOTCORPS_CYD
 /* Tap-target calibration: four corner crosshairs, raw reads, no text.
- * Call once; it blocks until four taps are collected, then saves and applies live. */
+ /* Custom 15s-per-target loop (native TL/BL/TR/BR order, 16-sample avg, jitter check). Restores rotation. Returns false + logs on timeout (no save). */
 bool botcorps_cyd_run_touch_cal(void)
 {
+    /* Custom loop based on LovyanGFX calibrate_touch: rotation-offset cancel,
+     * native corner order (TL, BL, TR, BR of 240x320), 20-raw pair check,
+     * 16-sample average, setCalibrate. 15 s deadline per target.
+     * Restores rotation on every exit. No save on timeout. */
+    const uint8_t saved_rot = g_cyd.getRotation();
+    auto restore = [&]() { g_cyd.setRotation(saved_rot); g_cyd.fillScreen(0x0000); };
+    g_cyd.setRotation(0); /* native portrait for consistent corner order */
     g_cyd.fillScreen(0x0000);
-    /* If finger is still down from boot hold, abort rather than recording it as target 1 */
+    /* Finger-lift pre-check */
     {
         int x, y;
         if (g_cyd.get_touch_raw(&x, &y)) {
@@ -223,20 +230,70 @@ bool botcorps_cyd_run_touch_cal(void)
             while (g_cyd.get_touch_raw(&x, &y) && millis() - t < 3000) delay(20);
             if (g_cyd.get_touch_raw(&x, &y)) {
                 Serial.println("[botcorps] cal abort: finger never lifted");
-                g_cyd.fillScreen(0x0000);
+                restore();
                 return false;
             }
         }
     }
-    /* LovyanGFX calibrateTouch draws corner markers only (no text), handles
-     * native 240x320 order (TL, BL, TR, BR) and rotation, and fills the 8 values. */
+    /* Native 240x320 corners: TL, BL, TR, BR (order LovyanGFX setCalibrate expects) */
+    const int corners[4][2] = {{20, 20}, {20, 300}, {220, 20}, {220, 300}};
     uint16_t cal[8] = {0};
-    g_cyd.calibrateTouch(cal, 0xFFFF, 0x0000, 10);
-    /* Save the 8 values. Log if NVS fails. */
+    for (int i = 0; i < 4; ++i) {
+        int cx = corners[i][0], cy = corners[i][1];
+        g_cyd.drawLine(cx - 10, cy, cx + 10, cy, 0xFFFF);
+        g_cyd.drawLine(cx, cy - 10, cx, cy + 10, 0xFFFF);
+        g_cyd.drawCircle(cx, cy, 6, 0xFFFF);
+        int samples_x[16] = {0}, samples_y[16] = {0};
+        int n = 0;
+        uint32_t deadline = millis() + 15000;
+        while (n < 16) {
+            if ((int32_t)(millis() - deadline) >= 0) {
+                Serial.println("[botcorps] cal timeout");
+                restore();
+                return false;
+            }
+            int x = 0, y = 0;
+            if (g_cyd.get_touch_raw(&x, &y)) {
+                samples_x[n] = x;
+                samples_y[n] = y;
+                ++n;
+                delay(15);
+            } else {
+                n = 0;
+                delay(10);
+            }
+        }
+        /* 20-raw jitter / pair check */
+        int minx = samples_x[0], maxx = samples_x[0];
+        int miny = samples_y[0], maxy = samples_y[0];
+        for (int k = 1; k < 16; ++k) {
+            if (samples_x[k] < minx) minx = samples_x[k];
+            if (samples_x[k] > maxx) maxx = samples_x[k];
+            if (samples_y[k] < miny) miny = samples_y[k];
+            if (samples_y[k] > maxy) maxy = samples_y[k];
+        }
+        if (maxx - minx > 20 || maxy - miny > 20) {
+            Serial.println("[botcorps] cal jitter reject");
+            --i;
+            g_cyd.fillRect(cx - 12, cy - 12, 24, 24, 0x0000);
+            continue;
+        }
+        int sx = 0, sy = 0;
+        for (int k = 0; k < 16; ++k) { sx += samples_x[k]; sy += samples_y[k]; }
+        cal[i * 2]     = (uint16_t)(sx / 16);
+        cal[i * 2 + 1] = (uint16_t)(sy / 16);
+        g_cyd.fillCircle(cx, cy, 8, 0x07E0);
+        delay(150);
+        uint32_t rel = millis();
+        int rx, ry;
+        while (g_cyd.get_touch_raw(&rx, &ry) && millis() - rel < 2000) delay(10);
+    }
+    /* Apply via setCalibrate (no setTouch). Save to NVS. */
+    g_cyd.apply_touch_cal8(cal);
     Preferences prefs;
     if (!prefs.begin("botcorps", false)) {
         Serial.println("[botcorps] cal NVS begin failed");
-        g_cyd.fillScreen(0x0000);
+        restore();
         return false;
     }
     prefs.putUChar("tcal", 1);
@@ -249,12 +306,11 @@ bool botcorps_cyd_run_touch_cal(void)
     prefs.end();
     if (!ok) {
         Serial.println("[botcorps] cal NVS put failed");
-        g_cyd.fillScreen(0x0000);
+        restore();
         return false;
     }
-    g_cyd.apply_touch_cal8(cal);
-    g_cyd.fillScreen(0x0000);
-    Serial.println("[botcorps] cal done (calibrateTouch 8-point)");
+    restore();
+    Serial.println("[botcorps] cal done (custom 8-point)");
     return true;
 }
 #endif

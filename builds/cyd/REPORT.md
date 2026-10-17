@@ -1,10 +1,13 @@
 # BOTcorps CYD Touch Port Report
 
 ## Tip SHA
-b80a8bd
+(pending)
 
 Interactive mock of the current CYD build: mocks/CYD-current-interactive.html
 Built by: Super Grok session (no Cursor/agent hand-off)
+
+## Timeout-capable cal (this tip)
+- Replaced calibrateTouch (no timeout) with custom loop: 15 s per target, rotation restore on every exit, return false + log “cal timeout” without saving. Same native order / 16-avg / jitter. Dropped redundant apply after setCalibrate path. LV stays “LV 01”.
 
 ## calibrateTouch + no overwrite (this tip)
 - apply_touch_cal8 no longer calls setTouch (that re-ran touchCalibrate from 300..3900 and overwrote the 8-point matrix). Legacy path still does.
@@ -13,7 +16,7 @@ Built by: Super Grok session (no Cursor/agent hand-off)
 
 ## 8-point cal + boot-hold fixes (this tip)
 - apply_touch_cal8 uses LovyanGFX setCalibrate with 8 extrapolated corner values; offset_rotation left at constructor (no double flip).
-- Cal flow: jitter check (20 raw), abort if finger never lifts after boot hold, 15s timeout.
+- Cal flow: custom 15 s deadline per target (no hang), 16-sample average, 20-raw jitter, native corner order, restores rotation, no save on timeout.
 - Boot-hold window opens only if touch is down on first read.
 - LV stays "LV 01".
 

@@ -18,14 +18,15 @@ On grok/cyd-touch-port tip 9cf96fd (fw still acfc0e3): BRIDGE follow-up done for
 ## FROM SUPER GROK → GIBSONbot
 
 ```text
-Pushed tip SHA: b80a8bd
-Firmware SHA: b80a8bd
-What changed: Removed setTouch from apply_touch_cal8 so the 8-point matrix is not overwritten. Switched run_touch_cal to g_cyd.calibrateTouch (corner markers only, correct order/rotation) and save its 8 values. Logs NVS failure. LV stays "LV 01".
-firmware.bin size (bytes): 1407360
-RAM / flash: 72076 / 327680 (22.0%) ; 1406959 / 3145728 (44.7%)
-Live LV observed: Not on hardware. Still "LV 01".
+Pushed tip SHA: (this commit)
+Firmware SHA: (this commit)
+What changed: Custom 15 s-per-target cal loop (native TL/BL/TR/BR, 16-sample avg, 20-raw jitter, rotation restore, no save on timeout). Dropped redundant apply_touch_cal8 after set. Header comment updated for c0..c7. LV stays “LV 01”.
+firmware.bin size (bytes): (rebuild)
+RAM / flash: (rebuild)
+Live LV observed: Not on hardware. Still “LV 01”.
 Still placeholder / open: Device verification. Full host dumps. No merge/flash.
 ```
+
 
 
 
@@ -55,4 +56,4 @@ Still placeholder / open: Device verification. Full host dumps. No merge/flash.
 - **2026-10-16 · Super Grok** — Fixed touch cal: removed double-map + type clash; added matching save + tap-target raw cal flow. Built by: Super Grok session (no Cursor/agent hand-off).
 - **2026-10-16 · Super Grok** — Fixed touch matrix rebuild + wired cal flow with timeout/extrapolation/measured axes. Built by: Super Grok session (no Cursor/agent hand-off).
 - **2026-10-16 · Super Grok** — 8-point cal, no double-flip, boot-hold only-if-down, jitter check, lift-abort. Built by: Super Grok session (no Cursor/agent hand-off).
-- **2026-10-17 · Super Grok** — calibrateTouch path; no setTouch overwrite on 8-point. Built by: Super Grok session (no Cursor/agent hand-off).
+- **2026-10-17 · Super Grok** — calibrateTouch path; no setTouch overwrite on 8-point. Built by: Super Grok session (no Cursor/agent hand-off).\n- **2026-10-17 · Super Grok** — Timeout-capable custom cal loop; no hang on missing taps. Built by: Super Grok session (no Cursor/agent hand-off).\n

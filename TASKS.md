@@ -859,3 +859,34 @@ D. Real host frame dumps. One commit per round, LV stays "LV 01". No merge/flash
 ```
 On grok/cyd-touch-port tip f03856e (fw 7ea9802): good — double flip gone, finger-never-lifted abort, boot window only when touch is down, 20-raw jitter check, build numbers in REPORT, and it builds (box: RAM 72076 / flash 1407039). Fix next: apply_touch_cal8 calls _panel.setTouch() after setTouchCalibrate, and setTouch() reruns touchCalibrate() from the 300..3900 config ranges, so the 8-point matrix is overwritten every time — remove that setTouch line (keep it only in the legacy path); LovyanGFX setCalibrate wants corners in TL, BL, TR, BR order of the touch's native 240x320 frame, but you save TL, TR, BR, BL from the rotated 320x240 screen — simplest fix is to call g_cyd.calibrateTouch(cal, 0xFFFF, 0x0000, 10) (corner markers only, no text, handles rotation and order) after the finger-lift pre-check and save its 8 values as c0..c7; drop the unused extrap lambda, keep one 15 s deadline per target across jitter retries, and log if prefs save fails. One commit per round, LV stays "LV 01", push only to grok/cyd-touch-port, no merge/flash.
 ```
+
+---
+
+## GIBSONbot review — tip c1ecff2 / fw b80a8bd (2026-10-17 ~8:15 AM ET)
+
+Reviewed on box `/tmp/bca` at `grok/cyd-touch-port` tip `c1ecff23867aa2e5d0f096cecd39c2c18fcdaf40` (last reviewed `206e9a1`). Diff span `206e9a1..c1ecff2`: `src/display/botcorps_display.cpp` (−109/+38, cal flow now `calibrateTouch`), `src/display/lgfx_cyd.h` (setTouch line removed from `apply_touch_cal8`), `BRIDGE.md`, `builds/cyd/REPORT.md`. Host type gate **PASS** (`cyd osk table ok keys=42 clip_y=151`; `host cyd type gate passed`). **Box build of `env:cyd` at this tip: SUCCESS**, RAM 72,076 / 327,680 (22.0%), flash 1,407,055 / 3,145,728 (44.7%), `firmware.bin` 1,407,456 B (REPORT says 1,406,959 / 1,407,360 — same 96 B build-env gap as before, fine). Checked against the LovyanGFX copy in `.pio/libdeps/cyd`: `begin()`/`init_impl` only calls `initTouch()` and never reruns `touchCalibrate()`, so the 8-point matrix loaded before `begin()` survives. Nothing merged or flashed by this watch; only this TASKS note is pushed.
+
+| SHA | What |
+|-----|------|
+| b80a8bd | CYD: `run_touch_cal` uses `g_cyd.calibrateTouch(cal, 0xFFFF, 0x0000, 10)` after the lift pre-check, saves c0..c7 with NVS failure logs; `apply_touch_cal8` no longer calls `setTouch()` |
+| c1ecff2 | REPORT/BRIDGE cite fw b80a8bd + build numbers |
+
+### Matches
+1. 8-point matrix is no longer overwritten — `setTouch()` gone from `apply_touch_cal8`, kept only in the legacy path (closes prior fix 1).
+2. Corner order and rotation are now right: LovyanGFX `calibrate_touch` cancels the panel/touch rotation offsets, taps the native-frame corners and calls `setCalibrate` itself (closes prior fix 2).
+3. Hand extrapolation and the unused `extrap` lambda are gone (closes prior fix 3).
+4. NVS begin/put failures are logged and return false (closes prior fix 5).
+5. Finger-lift pre-check kept; markers only, no instruction text on screen.
+6. Builds clean; memory flat (RAM same, flash +16 B vs 7ea9802). Typing gate still passes. LV left "LV 01".
+
+### Misses (numbered fixes)
+1. **No timeout any more.** LovyanGFX `calibrate_touch` loops on `getTouchRaw()` with no deadline, so a `cal` (or boot-hold) with no taps hangs until reset, and the `cal timeout` path can never fire. The 15 s per-target deadline from the last round was lost (my last note asked for both, and `calibrateTouch` can't do both). **Fix:** copy `calibrate_touch`'s loop into `botcorps_cyd_run_touch_cal` (same `setRotation` offset cancel, same native-corner order `px=(w-1)*((i>>1)&1), py=(h-1)*(i&1)`, same 20-raw pair check, 16-sample average, then `setCalibrate`), add one 15 s deadline per target, restore rotation on every exit, and return false + log `cal timeout` without saving.
+2. **REPORT honesty:** the older "8-point cal + boot-hold" section still says "15s timeout"; that's no longer true. Correct it (or make it true with fix 1).
+3. **Stale comments:** `botcorps_display.h` still lists only `tcal, tx0, tx1, ty0, ty1, trot` (add `c0..c7`), and the `run_touch_cal` header still says "four corner crosshairs, raw reads".
+4. **Soft:** `apply_touch_cal8(cal)` right after `calibrateTouch` repeats the `setCalibrate` it already did. Harmless; drop it or leave a one-line comment.
+5. **Device check still open:** cal and touch nav are unproven until Dirt flashes a CYD. No merge/flash from this watch.
+
+### Follow-up one-liner (Dirt → Super Grok)
+```
+On grok/cyd-touch-port tip c1ecff2 (fw b80a8bd): good — setTouch overwrite gone, calibrateTouch gives the right corner order/rotation, NVS failures logged, and it builds (box: RAM 72076 / flash 1407055). Fix next: calibrateTouch has no timeout, so "cal" or boot-hold with no taps hangs until reset — copy LovyanGFX calibrate_touch's loop into run_touch_cal (same rotation-offset cancel, native corner order, 20-raw pair check, 16-sample average, setCalibrate) with a 15 s deadline per target, restore rotation on every exit, and return false + log "cal timeout" without saving; fix REPORT's stale "15s timeout" line; add c0..c7 to the NVS key comment in botcorps_display.h and update the run_touch_cal header; drop the redundant apply_touch_cal8 after calibration. One commit per round, LV stays "LV 01", push only to grok/cyd-touch-port, no merge/flash.
+```

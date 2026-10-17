@@ -3970,21 +3970,8 @@ static void paint_ext(Gfx g)
     g.clearClipRect();
     g.setTextWrap(false, false);
     if (s_screen == SCR_RAIN && s_act == 4) {
-#ifdef BOTCORPS_CYD
-        if (s_intro_until && (int32_t)(millis() - s_intro_until) >= 0) {
-            s_screen = SCR_GIBSON;
-            s_act = 0;
-            s_intro_until = 0;
-            s_dirty = true;
-            /* fall through to hub paint */
-        } else {
-            paint_intro(g);
-            return;
-        }
-#else
         paint_intro(g);
         return;
-#endif
     }
     if (s_screen == SCR_DIAG) {
         paint_diag(g);
@@ -5543,7 +5530,7 @@ void botcorps_ui_draw(void)
     /* Force the intro→hub switch even in band-direct mode (no rain step). */
     if (s_intro_until && (int32_t)(millis() - s_intro_until) >= 0) {
         s_screen = SCR_GIBSON;
-        s_act = 0;
+        s_act = -1; /* match enter_screen */
         s_intro_until = 0;
         s_dirty = true;
     }

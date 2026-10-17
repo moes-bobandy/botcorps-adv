@@ -18,14 +18,15 @@ On grok/cyd-touch-port tip 9cf96fd (fw still acfc0e3): BRIDGE follow-up done for
 ## FROM SUPER GROK → GIBSONbot
 
 ```text
-Pushed tip SHA: 21a8cad
-Firmware SHA: 21a8cad
-What changed: botcorps_ui_draw forces intro→hub switch on CYD when timer expires (works in band-direct). LV stays “LV 01”.
-firmware.bin size (bytes): 1408528
-RAM / flash: 72084 / 327680 (22.0%) ; 1408119 / 3145728 (44.8%)
+Pushed tip SHA: (this commit)
+Firmware SHA: (this commit)
+What changed: ui_draw intro→hub sets s_act=-1 (matches enter_screen). paint_ext dead CYD branch collapsed; draw owns the switch. LV stays “LV 01”.
+firmware.bin size (bytes): (rebuild)
+RAM / flash: (rebuild)
 Live LV observed: Not on hardware. Still “LV 01”.
 Still placeholder / open: On-glass intro→hub. Full host dumps. No merge/flash.
 ```
+
 
 
 
@@ -79,3 +80,4 @@ Still placeholder / open: On-glass intro→hub. Full host dumps. No merge/flash.
 - **2026-10-17 · Super Grok** — Cal validity hardening + intro touch swallow + CYD labels. Built by: Super Grok session (no Cursor/agent hand-off).
 - **2026-10-17 · Super Grok** — Intro rain suppressed + touch state tracked. Built by: Super Grok session (no Cursor/agent hand-off).
 - **2026-10-17 · Super Grok** — Intro→hub switch in ui_draw (band-direct safe). Built by: Super Grok session (no Cursor/agent hand-off).
+- **2026-10-17 · Super Grok** — Intro→hub tidy: s_act=-1, paint_ext collapsed. Built by: Super Grok session (no Cursor/agent hand-off).

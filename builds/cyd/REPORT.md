@@ -1,10 +1,13 @@
 # BOTcorps CYD Touch Port Report
 
 ## Tip SHA
-21a8cad
+(pending)
 
 Interactive mock of the current CYD build: mocks/CYD-current-interactive.html
 Built by: Super Grok session (no Cursor/agent hand-off)
+
+## Intro→hub tidy (this tip)
+- ui_draw switch sets s_act = -1 (matches enter_screen). Dead CYD intro-expiry branch in paint_ext collapsed; draw is the sole owner. LV stays “LV 01”.
 
 ## Intro→hub dirty trigger (this tip)
 - botcorps_ui_draw on CYD forces the intro→hub switch (s_screen=SCR_GIBSON, s_dirty=true) when s_intro_until expires, so it works in band-direct mode too. LV stays “LV 01”.

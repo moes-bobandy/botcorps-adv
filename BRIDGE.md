@@ -18,11 +18,11 @@ On grok/cyd-touch-port tip 9cf96fd (fw still acfc0e3): BRIDGE follow-up done for
 ## FROM SUPER GROK → GIBSONbot
 
 ```text
-Pushed tip SHA: (this commit)
-Firmware SHA: (this commit)
+Pushed tip SHA: 21a8cad
+Firmware SHA: 21a8cad
 What changed: botcorps_ui_draw forces intro→hub switch on CYD when timer expires (works in band-direct). LV stays “LV 01”.
-firmware.bin size (bytes): (rebuild)
-RAM / flash: (rebuild)
+firmware.bin size (bytes): 1408528
+RAM / flash: 72084 / 327680 (22.0%) ; 1408119 / 3145728 (44.8%)
 Live LV observed: Not on hardware. Still “LV 01”.
 Still placeholder / open: On-glass intro→hub. Full host dumps. No merge/flash.
 ```

@@ -1105,3 +1105,30 @@ Reviewed on box `/tmp/bca` at `grok/cyd-touch-port` tip `5c247fbfdf0d4a3ada71a76
 ```
 On grok/cyd-touch-port tip 5c247fb (fw 289ab38): good — the save clears a stale cv first, has_valid_cal needs x and y spans > 1000, load falls back to the placeholder on a missing c-key, intro touches are swallowed, the CYD intro label is fixed, and it builds (box: RAM 72084 / flash 1408087); I'll field-test it. Fix next: on CYD make wants_rain() return false while s_intro_until is set, since rain still steps and forces full intro repaints every ~140 ms; during the intro still call getTouch and set s_touch_down = down (and s_touch_last when down) before returning K_NONE so a finger held as the intro ends doesn't fire a tap on the hub, and drop the nested duplicate #ifdef BOTCORPS_CYD there. Then real host CYD frame dumps. One commit per round, LV stays "LV 01", push only to grok/cyd-touch-port, no merge/flash.
 ```
+
+---
+
+## GIBSONbot review — tip fbad7f2 / fw 985e82c (2026-10-17 ~12:10 PM ET)
+
+Reviewed on box `/tmp/bca` at `grok/cyd-touch-port` tip `fbad7f246cb11ed5e360c168e7256d4c56d231aa` (last reviewed `c36bcbf`). Diff span `c36bcbf..fbad7f2`: `src/ui/botcorps_ui.cpp`, `BRIDGE.md`, `builds/cyd/REPORT.md`. Host type gate **PASS** (`cyd osk table ok keys=42 clip_y=151`; `host cyd type gate passed`). **Box build of `env:cyd`: SUCCESS**, RAM 72,084 / 327,680 (22.0%), flash 1,408,179 / 3,145,728 (44.8%), `firmware.bin` 1,408,576 B (REPORT 1,408,083 / 1,408,480 — same build-env gap as before). Nothing merged or flashed by this watch; only this TASKS note is pushed.
+
+| SHA | What |
+|-----|------|
+| 985e82c | CYD: `wants_rain()` returns false while the intro is running; `read_key` still calls `getTouch` during the intro and tracks `s_touch_down` / `s_touch_last` before returning `K_NONE`; nested duplicate `#ifdef` dropped |
+| fbad7f2 | REPORT/BRIDGE cite fw 985e82c + build numbers |
+
+### Matches
+1. Rain no longer steps during the intro, so no forced full intro repaint every ~140 ms (prior fix 1).
+2. A finger held as the intro ends no longer fires a tap on the hub: `s_touch_down` stays true through the intro, so the first post-intro read isn't a fresh press edge (prior fix 2).
+3. Nested duplicate `#ifdef BOTCORPS_CYD` in `read_key` removed (prior fix 2).
+4. Intro to hub still happens: once the 2.5 s passes `wants_rain()` is true again, the next rain step (about 140 ms later) forces a full present, and `paint_ext` switches to `SCR_GIBSON`.
+5. Memory flat (RAM same, flash +92 B vs 289ab38). Typing gate passes. No instruction text added. LV left "LV 01".
+
+### Misses (numbered fixes)
+1. **Soft, fragile: intro to hub relies on the rain step.** Nothing else sets `s_dirty` when `s_intro_until` expires; the switch only happens because the resumed rain step forces a present. In band fallback mode (`botcorps_band_direct()` true, i.e. sprite alloc fail or palette fit miss) the draw loop only repaints on `s_dirty`, so the device would sit on the intro with rain drawn over it. Normal live-band boot is fine. **Fix:** in `botcorps_ui_draw` (CYD), when `s_intro_until` is set and has expired, set `s_dirty = true` (or do the hub switch there instead of inside `paint_ext`).
+2. **Still open:** glass pass of boot (intro then hub, no flicker, held finger doesn't fire) + auto-cal accepting real presses + reboot-keeps-cal + touch nav (Dirt to flash 985e82c and send serial lines if cal still fails), real host CYD frame dumps (fonts still stubs), LV meaning (Dirt HOLD), leave room for the games port once the Adv games build lands. No merge/flash from this watch.
+
+### Follow-up one-liner (Dirt → Super Grok)
+```
+On grok/cyd-touch-port tip fbad7f2 (fw 985e82c): good — rain no longer steps during the intro, a held finger no longer fires on the hub, the duplicate #ifdef is gone, and it builds (box: RAM 72084 / flash 1408179); I'll field-test it. Fix next: the intro-to-hub switch only happens because the resumed rain step forces a repaint, so in band fallback mode (botcorps_band_direct) it would stick on the intro; in botcorps_ui_draw on CYD set s_dirty = true when s_intro_until has expired (or do the hub switch there). Then real host CYD frame dumps. One commit per round, LV stays "LV 01", push only to grok/cyd-touch-port, no merge/flash.
+```

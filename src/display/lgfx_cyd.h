@@ -99,6 +99,9 @@ public:
         *y = tp.y;
         return true;
     }
+
+    uint8_t panel_offset_rotation(void) const { return _panel.config().offset_rotation; }
+    uint8_t touch_offset_rotation(void) const { return _touch.config().offset_rotation; }
     /* 8-point calibrate (native order TL, BL, TR, BR raw x,y). Leaves offset_rotation at constructor value. */
     void apply_touch_cal8(const uint16_t cal[8])
     {

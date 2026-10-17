@@ -162,6 +162,7 @@ void botcorps_cyd_save_touch_cal(uint16_t xmin, uint16_t xmax, uint16_t ymin, ui
     Preferences prefs;
     if (!prefs.begin("botcorps", false)) return;
     prefs.putUChar("tcal", 1);
+    prefs.putUChar("cv", 2); /* version: true-corner 8-point */
     prefs.putUShort("tx0", xmin);
     prefs.putUShort("tx1", xmax);
     prefs.putUShort("ty0", ymin);
@@ -179,7 +180,7 @@ void botcorps_cyd_load_touch_cal(void)
     if (!prefs.begin("botcorps", true)) return;
     if (prefs.getUChar("tcal", 0) != 1) { prefs.end(); return; }
     /* Prefer 8-point if present */
-    if (prefs.isKey("c0")) {
+    if (prefs.isKey("c0") && prefs.getUChar("cv", 0) == 2) {
         uint16_t cal[8];
         bool ok = true;
         for (int i = 0; i < 8; ++i) {
@@ -221,9 +222,9 @@ bool botcorps_cyd_run_touch_cal(void)
      * No save on timeout. */
     const uint8_t saved_rot = g_cyd.getRotation();
     auto restore = [&]() { g_cyd.setRotation(saved_rot); g_cyd.fillScreen(0x0000); };
-    /* LovyanGFX cal rotation: touch offset 0, panel offset 0 → 0 */
-    const uint8_t touch_off = 0;
-    const uint8_t panel_off = 0;
+    /* Read live offsets from config */
+    const uint8_t touch_off = g_cyd.touch_offset_rotation();
+    const uint8_t panel_off = g_cyd.panel_offset_rotation();
     const uint8_t cal_rot = ((touch_off ^ panel_off) & 4) | ((-(touch_off + panel_off)) & 3);
     g_cyd.setRotation(cal_rot);
     const int w = g_cyd.width();
@@ -247,12 +248,13 @@ bool botcorps_cyd_run_touch_cal(void)
         /* True corners: i=0 TL, 1 BL, 2 TR, 3 BR in current rotation */
         int cx = (w - 1) * ((i >> 1) & 1);
         int cy = (h - 1) * (i & 1);
-        g_cyd.drawLine(cx - 10, cy, cx + 10, cy, 0xFFFF);
-        g_cyd.drawLine(cx, cy - 10, cx, cy + 10, 0xFFFF);
-        g_cyd.drawCircle(cx, cy, 6, 0xFFFF);
         uint32_t deadline = millis() + 15000;
         bool got = false;
         while (!got) {
+            /* Redraw marker every attempt (jitter reject erases it) */
+            g_cyd.drawLine(cx - 10, cy, cx + 10, cy, 0xFFFF);
+            g_cyd.drawLine(cx, cy - 10, cx, cy + 10, 0xFFFF);
+            g_cyd.drawCircle(cx, cy, 6, 0xFFFF);
             if ((int32_t)(millis() - deadline) >= 0) {
                 Serial.println("[botcorps] cal timeout");
                 restore();

@@ -1,10 +1,15 @@
 # BOTcorps CYD Touch Port Report
 
 ## Tip SHA
-3e62b1e
+(pending)
 
 Interactive mock of the current CYD build: mocks/CYD-current-interactive.html
 Built by: Super Grok session (no Cursor/agent hand-off)
+
+## Marker redraw + live offsets + cv=2 (this tip)
+- Crosshair redraws at the top of each while(!got) so jitter rejects don’t leave a blank screen.
+- touch_off/panel_off read from config().offset_rotation. Header comment fixed to offset_rotation 0.
+- Saves cv=2; load ignores older c0..c7 without it. LV stays “LV 01”.
 
 ## Panel offset + true-corner cal (this tip)
 - Panel cfg.offset_rotation set to 0 so setRotation(1) yields 320x240 (was becoming internal 2 = portrait, begin check failed). Touch offset stays 0.

@@ -1,10 +1,13 @@
 # BOTcorps CYD Touch Port Report
 
 ## Tip SHA
-50396d1
+(pending)
 
 Interactive mock of the current CYD build: mocks/CYD-current-interactive.html
 Built by: Super Grok session (no Cursor/agent hand-off)
+
+## pin_int=-1 poll mode (this tip)
+- Touch cfg.pin_int set to -1 so LovyanGFX polls the XPT2046 over SPI instead of gating on IRQ 36 (classic CYD dead-touch cause). get_touch_raw now Serial-prints raw x,y when a point is read. LV stays “LV 01”.
 
 ## cv=2 actually saved (this tip)
 - run_touch_cal's save now writes checked prefs.putUChar("cv", 2). Unused 4-value save no longer writes cv. has_valid_cal checks all c0..c7 and rejects all-equal/zero. Auto-cal no longer loops forever. LV stays “LV 01”.

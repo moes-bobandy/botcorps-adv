@@ -73,7 +73,7 @@ public:
             cfg.x_max = 3900;
             cfg.y_min = 300;
             cfg.y_max = 3900;
-            cfg.pin_int = 36;
+            cfg.pin_int = -1; /* poll SPI; IRQ on 36 is unreliable on many CYD boards */
             cfg.bus_shared = false;
             cfg.offset_rotation = 0;
             cfg.spi_host = VSPI_HOST;
@@ -97,6 +97,7 @@ public:
         if (!_touch.getTouchRaw(&tp, 1)) return false;
         *x = tp.x;
         *y = tp.y;
+        Serial.printf("[botcorps] raw touch %d,%d\n", *x, *y);
         return true;
     }
 

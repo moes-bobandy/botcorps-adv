@@ -214,8 +214,6 @@ void botcorps_cyd_load_touch_cal(void)
  * Call once; it blocks until four taps are collected, then saves and applies live. */
 bool botcorps_cyd_run_touch_cal(void)
 {
-    const int targets[4][2] = {{20, 20}, {300, 20}, {20, 220}, {300, 220}};
-    int rawx[4] = {0}, rawy[4] = {0};
     g_cyd.fillScreen(0x0000);
     /* If finger is still down from boot hold, abort rather than recording it as target 1 */
     {
@@ -230,94 +228,33 @@ bool botcorps_cyd_run_touch_cal(void)
             }
         }
     }
-    for (int i = 0; i < 4; ++i) {
-        int tx = targets[i][0], ty = targets[i][1];
-        g_cyd.drawLine(tx - 8, ty, tx + 8, ty, 0xFFFF);
-        g_cyd.drawLine(tx, ty - 8, tx, ty + 8, 0xFFFF);
-        g_cyd.drawCircle(tx, ty, 4, 0xFFFF);
-        int samples_x[8] = {0}, samples_y[8] = {0};
-        int n = 0;
-        uint32_t start_ms = millis();
-        while (n < 5) {
-            if (millis() - start_ms > 15000) {
-                Serial.println("[botcorps] cal timeout");
-                g_cyd.fillScreen(0x0000);
-                return false;
-            }
-            int x = 0, y = 0;
-            if (g_cyd.get_touch_raw(&x, &y)) {
-                samples_x[n] = x;
-                samples_y[n] = y;
-                ++n;
-                delay(30);
-            } else {
-                n = 0;
-                delay(10);
-            }
-        }
-        /* 20-raw jitter check */
-        int minx = samples_x[0], maxx = samples_x[0];
-        int miny = samples_y[0], maxy = samples_y[0];
-        for (int k = 1; k < n; ++k) {
-            if (samples_x[k] < minx) minx = samples_x[k];
-            if (samples_x[k] > maxx) maxx = samples_x[k];
-            if (samples_y[k] < miny) miny = samples_y[k];
-            if (samples_y[k] > maxy) maxy = samples_y[k];
-        }
-        if (maxx - minx > 20 || maxy - miny > 20) {
-            Serial.println("[botcorps] cal jitter reject");
-            --i; /* retry this target */
-            continue;
-        }
-        int sx = 0, sy = 0;
-        for (int k = 0; k < n; ++k) { sx += samples_x[k]; sy += samples_y[k]; }
-        rawx[i] = sx / n;
-        rawy[i] = sy / n;
-        g_cyd.fillCircle(tx, ty, 6, 0x07E0);
-        delay(200);
-        uint32_t rel = millis();
-        int x, y;
-        while (g_cyd.get_touch_raw(&x, &y) && millis() - rel < 2000) delay(10);
-    }
-    /* Extrapolate the four inset taps to the true corners (0,0),(319,0),(319,239),(0,239).
-     * Use LovyanGFX 8-point setCalibrate. Keep measured order; do not set rot. */
-    uint16_t cal[8];
-    /* TL, TR, BR, BL */
-    auto extrap = [](int raw_inset, int inset_px, int span, int full) -> int {
-        /* linear from inset to edge */
-        return raw_inset - (raw_inset * inset_px / span); /* rough; better below */
-    };
-    /* Better: scale the measured deltas */
-    int d_right_x = ((rawx[1] - rawx[0]) + (rawx[3] - rawx[2])) / 2;
-    int d_down_y  = ((rawy[2] - rawy[0]) + (rawy[3] - rawy[1])) / 2;
-    /* Extrapolate left/right by 20/280 of the measured span */
-    int tl_x = rawx[0] - d_right_x * 20 / 280;
-    int tr_x = rawx[1] + d_right_x * 19 / 280;
-    int bl_x = rawx[2] - d_right_x * 20 / 280;
-    int br_x = rawx[3] + d_right_x * 19 / 280;
-    int tl_y = rawy[0] - d_down_y * 20 / 200;
-    int tr_y = rawy[1] - d_down_y * 20 / 200;
-    int bl_y = rawy[2] + d_down_y * 19 / 200;
-    int br_y = rawy[3] + d_down_y * 19 / 200;
-    auto clamp = [](int v) { return v < 0 ? 0 : (v > 4095 ? 4095 : v); };
-    cal[0] = (uint16_t)clamp(tl_x); cal[1] = (uint16_t)clamp(tl_y);
-    cal[2] = (uint16_t)clamp(tr_x); cal[3] = (uint16_t)clamp(tr_y);
-    cal[4] = (uint16_t)clamp(br_x); cal[5] = (uint16_t)clamp(br_y);
-    cal[6] = (uint16_t)clamp(bl_x); cal[7] = (uint16_t)clamp(bl_y);
-    /* Save 8 values and apply via setCalibrate. offset_rotation stays at constructor. */
+    /* LovyanGFX calibrateTouch draws corner markers only (no text), handles
+     * native 240x320 order (TL, BL, TR, BR) and rotation, and fills the 8 values. */
+    uint16_t cal[8] = {0};
+    g_cyd.calibrateTouch(cal, 0xFFFF, 0x0000, 10);
+    /* Save the 8 values. Log if NVS fails. */
     Preferences prefs;
-    if (prefs.begin("botcorps", false)) {
-        prefs.putUChar("tcal", 1);
-        for (int i = 0; i < 8; ++i) {
-            char key[4];
-            snprintf(key, sizeof(key), "c%d", i);
-            prefs.putUShort(key, cal[i]);
-        }
-        prefs.end();
+    if (!prefs.begin("botcorps", false)) {
+        Serial.println("[botcorps] cal NVS begin failed");
+        g_cyd.fillScreen(0x0000);
+        return false;
+    }
+    prefs.putUChar("tcal", 1);
+    bool ok = true;
+    for (int i = 0; i < 8; ++i) {
+        char key[4];
+        snprintf(key, sizeof(key), "c%d", i);
+        if (!prefs.putUShort(key, cal[i])) ok = false;
+    }
+    prefs.end();
+    if (!ok) {
+        Serial.println("[botcorps] cal NVS put failed");
+        g_cyd.fillScreen(0x0000);
+        return false;
     }
     g_cyd.apply_touch_cal8(cal);
     g_cyd.fillScreen(0x0000);
-    Serial.println("[botcorps] cal done (8-point)");
+    Serial.println("[botcorps] cal done (calibrateTouch 8-point)");
     return true;
 }
 #endif

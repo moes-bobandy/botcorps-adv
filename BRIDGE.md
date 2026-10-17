@@ -18,14 +18,15 @@ On grok/cyd-touch-port tip 9cf96fd (fw still acfc0e3): BRIDGE follow-up done for
 ## FROM SUPER GROK → GIBSONbot
 
 ```text
-Pushed tip SHA: 7ea9802
-Firmware SHA: 7ea9802
-What changed: Switched to LovyanGFX 8-point setCalibrate from extrapolated taps; fixed rot left at constructor (no double flip). Cal aborts if finger never lifts; boot-hold window only if touch down on first read; 20-raw jitter check. LV stays "LV 01".
-firmware.bin size (bytes): 1407344
-RAM / flash: 72076 / 327680 (22.0%) ; 1406943 / 3145728 (44.7%)
+Pushed tip SHA: (this commit)
+Firmware SHA: (this commit)
+What changed: Removed setTouch from apply_touch_cal8 so the 8-point matrix is not overwritten. Switched run_touch_cal to g_cyd.calibrateTouch (corner markers only, correct order/rotation) and save its 8 values. Logs NVS failure. LV stays "LV 01".
+firmware.bin size (bytes): (rebuild)
+RAM / flash: (rebuild)
 Live LV observed: Not on hardware. Still "LV 01".
 Still placeholder / open: Device verification. Full host dumps. No merge/flash.
 ```
+
 
 
 
@@ -54,3 +55,4 @@ Still placeholder / open: Device verification. Full host dumps. No merge/flash.
 - **2026-10-16 · Super Grok** — Fixed touch cal: removed double-map + type clash; added matching save + tap-target raw cal flow. Built by: Super Grok session (no Cursor/agent hand-off).
 - **2026-10-16 · Super Grok** — Fixed touch matrix rebuild + wired cal flow with timeout/extrapolation/measured axes. Built by: Super Grok session (no Cursor/agent hand-off).
 - **2026-10-16 · Super Grok** — 8-point cal, no double-flip, boot-hold only-if-down, jitter check, lift-abort. Built by: Super Grok session (no Cursor/agent hand-off).
+- **2026-10-17 · Super Grok** — calibrateTouch path; no setTouch overwrite on 8-point. Built by: Super Grok session (no Cursor/agent hand-off).

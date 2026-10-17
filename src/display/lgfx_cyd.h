@@ -105,8 +105,8 @@ public:
     {
         /* LovyanGFX setTouchCalibrate expects the 8 raw values for the four corners. */
         setTouchCalibrate(const_cast<uint16_t*>(cal)); /* on LGFX_Device */
-        /* Ensure the matrix is live. */
-        _panel.setTouch(&_touch);
+        /* Do NOT call setTouch() here — it re-runs touchCalibrate() from the
+         * 300..3900 config ranges and overwrites the 8-point matrix. */
     }
     /* Legacy range path kept for load of old NVS; still rebuilds matrix, fixed rot. */
     void apply_touch_cal(uint16_t xmin, uint16_t xmax, uint16_t ymin, uint16_t ymax,

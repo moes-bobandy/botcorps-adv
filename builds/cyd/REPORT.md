@@ -1,10 +1,15 @@
 # BOTcorps CYD Touch Port Report
 
 ## Tip SHA
-7ea9802
+(pending)
 
 Interactive mock of the current CYD build: mocks/CYD-current-interactive.html
 Built by: Super Grok session (no Cursor/agent hand-off)
+
+## calibrateTouch + no overwrite (this tip)
+- apply_touch_cal8 no longer calls setTouch (that re-ran touchCalibrate from 300..3900 and overwrote the 8-point matrix). Legacy path still does.
+- run_touch_cal now calls g_cyd.calibrateTouch(cal, 0xFFFF, 0x0000, 10) after the lift pre-check; it draws corner markers only, handles native order/rotation, and we save the 8 values as c0..c7. Logs if NVS save fails.
+- LV stays "LV 01".
 
 ## 8-point cal + boot-hold fixes (this tip)
 - apply_touch_cal8 uses LovyanGFX setCalibrate with 8 extrapolated corner values; offset_rotation left at constructor (no double flip).

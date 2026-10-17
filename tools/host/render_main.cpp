@@ -145,12 +145,10 @@ static int run_gate(const char *dir)
     a = { 2, 0, 0, nullptr }; gate_one(dir, "terminal", 0, f_enter, &a);
     a = { 0, 0, 0, "\n\nsca" }; gate_one(dir, "terminal-typed", 0, f_enter, &a);
     a = { 0, 0, 0, nullptr }; gate_one(dir, "terminal-tab", 1, f_sheet, &a);
-    a = { 3, 0, 0, nullptr }; gate_one(dir, "home-wifi", 0, f_enter, &a);
-    a = { 6, 0, 0, nullptr }; gate_one(dir, "home-ble", 0, f_enter, &a);
-    a = { 9, 0, 0, nullptr }; gate_one(dir, "home-bot", 0, f_enter, &a);
-    a = { 4, 0, 14000, nullptr }; gate_one(dir, "scan-wifi", 0, f_enter, &a);
-    a = { 7, 0, 14000, nullptr }; gate_one(dir, "scan-ble", 0, f_enter, &a);
-    a = { 10, 0, 0, nullptr }; gate_one(dir, "bot-radar", 0, f_enter, &a);
+    /* v1016n: screen ids after the home/bot-radar removal: 0 rain 1 gibson 2 terminal 3 wifiradar 4 wifilist
+     * 5 btradar 6 btlist 7 scan 8 control 9 diag 10 gchat */
+    a = { 3, 0, 14000, nullptr }; gate_one(dir, "scan-wifi", 0, f_enter, &a);
+    a = { 5, 0, 14000, nullptr }; gate_one(dir, "scan-ble", 0, f_enter, &a);
     a = { 0, 1, 0, nullptr }; gate_one(dir, "sbox-selected", 0, f_sbox, &a);
     a = { 0, 2, 0, nullptr }; gate_one(dir, "sbox-info", 0, f_sbox, &a);
     a = { 0, 3, -50, nullptr }; gate_one(dir, "sbox-hunt", 0, f_sbox, &a);
@@ -162,19 +160,45 @@ static int run_gate(const char *dir)
     a = { 0, 0, 0, nullptr }; gate_one(dir, "game-board", 0, f_gchat, &a);
     a = { 0, 0, 0, nullptr }; gate_one(dir, "game-menu", 0, f_gmenu, &a);
     a = { 0, 0, 0, nullptr }; gate_one(dir, "game-jackin", 0, f_jackin, &a);
-    a = { 13, 0, 0, nullptr }; gate_one(dir, "diag", 0, f_enter, &a);
+    a = { 9, 0, 0, nullptr }; gate_one(dir, "diag", 0, f_enter, &a);
     botcorps_host_set_color(0);
     /* functional: Esc goes back on every screen; each of the 8 settings edits + writes NVS */
     {
         extern int botcorps_host_esc_test(uint8_t *, int, int *);
         extern int botcorps_host_setfn(uint8_t *, int, char *, char *, int *);
-        static const char *nm[15] = { "rain", "gibson", "terminal", "wifi", "wifiradar", "wifilist", "bt", "btradar", "btlist", "bot", "botradar", "scan", "control", "diag", "gchat" };
+        static const char *nm[11] = { "rain", "gibson", "terminal", "wifiradar", "wifilist", "btradar", "btlist", "scan", "control", "diag", "gchat" };
         char p[256]; snprintf(p, sizeof p, "%s/functional.txt", dir);
         FILE *f = fopen(p, "w");
-        for (int id = 1; id < 15; ++id) {
+        if (f) fprintf(f, "SCREENS\t%d\n", 11);
+        for (int id = 1; id < 11; ++id) {
             int ex = -1;
             const int got = botcorps_host_esc_test(g_buf, id, &ex);
             if (f) fprintf(f, "ESC\t%s\t%d\t%d\n", nm[id], got, ex);
+        }
+        /* v1016n NAV: the routes that used to open per-bot screens, then Esc down to the hub;
+         * every screen id seen must be a live one (0..10) and never a removed one. */
+        {
+            struct { const char *name, *keys; } R[] = {
+                { "go-wifi", "\n\ngo wifi\n" }, { "go-ble", "\n\ngo ble\n" }, { "go-bots", "\n\ngo bots\n" },
+                { "load-wifi", "\n\nload wifi\n" }, { "load-ble", "\n\nload ble\n" }, { "load-bots", "\n\nload bots\n" },
+                { "go-diag", "\n\ngo diag\n" },   /* control: proves the typed command really runs */
+            };
+            for (auto &r : R) {
+                botcorps_host_enter(g_buf, 0);
+                botcorps_host_seq(g_buf, r.keys);
+                const int s0 = botcorps_host_screen_now();
+                int chain[4];
+                for (int k = 0; k < 4; ++k) { botcorps_host_seq(g_buf, "\x1b"); chain[k] = botcorps_host_screen_now(); }
+                if (f) fprintf(f, "NAV\t%s\t%d\t%d,%d,%d,%d\n", r.name, s0, chain[0], chain[1], chain[2], chain[3]);
+            }
+            /* terminal Select on each of the 12 boards -> that bot's scan screen */
+            extern int botcorps_host_open_bot(uint8_t *, int, int *);
+            for (int b = 0; b < 12; ++b) {
+                int sb = -1;
+                const int got = botcorps_host_open_bot(g_buf, b, &sb);
+                const int e1 = (botcorps_host_seq(g_buf, "\x1b"), botcorps_host_screen_now());
+                if (f) fprintf(f, "OPEN\t%d\t%d\t%d\t%d\n", b, got, sb, e1);
+            }
         }
         for (int c = 0; c < 8; ++c) {
             char b[32], a[32]; int nv = 0;
@@ -743,8 +767,8 @@ int main(int argc, char **argv)
     write_raw("/tmp/adv-scan-tint-mint.rgb", hit, 0);
     /* v1016 scan box (icons, selected+prompt, info, hunt in box, glossary, BLE) + found alert */
     {   /* v1016f: real device entry path */
-        static const char *const nm[15] = { "rain", "gibson", "terminal", "wifi", "wifiradar", "wifilist", "bt", "btradar", "btlist", "bot", "botradar", "scan", "control", "diag", "gchat" };
-        for (int id = 0; id < 15; ++id) {
+        static const char *const nm[11] = { "rain", "gibson", "terminal", "wifiradar", "wifilist", "btradar", "btlist", "scan", "control", "diag", "gchat" };
+        for (int id = 0; id < 11; ++id) {
             botcorps_host_enter(hit, id);
             char fn[64];
             snprintf(fn, sizeof(fn), "/tmp/dev-%02d-%s.rgb", id, nm[id]);

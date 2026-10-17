@@ -61,44 +61,11 @@ def centre_in(a, b):
 def luma(c): return 0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]
 
 results = []   # (screen, item, ok, detail)
-MOCKDIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'release', 'gate', 'mock')
-MOCKREF = {'home-wifi': 'wifi', 'home-ble': 'bluetooth', 'home-bot': 'bot', 'bot-radar': 'bots'}
-HOME_REG = {'ticker': (0, 0, 320, 15), 'ring': (98, 12, 222, 126), 'plate': (80, 128, 240, 166),
-            'pill': (100, 168, 220, 188), 'btnL': (10, 131, 74, 163), 'btnR': (246, 131, 278, 163)}
-RADAR_REG = {'core': (100, 52, 220, 164)}
-
-def mock_img(scr):
-    p = os.path.join(MOCKDIR, MOCKREF[scr] + '.png')
-    if not os.path.exists(p): return None
-    m = Image.open(p).convert('RGB')
-    return m.crop((0, 0, 640, 480)).resize((W, H), Image.BOX) if m.size[0] >= 640 else m.resize((W, H))
-
-def reg_stats(im, r):
-    p = im.load(); n = 0; acc = [0, 0, 0]; bright = 0
-    for y in range(r[1], r[3]):
-        for x in range(r[0], r[2]):
-            c = p[x, y]; n += 1
-            for i in range(3): acc[i] += c[i]
-            if luma(c) > 90: bright += 1
-    return [a / n for a in acc], bright / n
-
-def coloured(c):
-    return luma(c) > 40 and not (c[1] > c[0] + 20 and c[1] > c[2] + 20) and not (c[0] > 200 and c[1] > 200 and c[2] > 200) \
-        and max(c) - min(c) > 60
-
-def mock_rain_colour(m, regs):
-    p = m.load(); n = 0
-    for y in range(H):
-        for x in range(W):
-            if any(r[0] <= x < r[2] and r[1] <= y < r[3] for r in regs): continue
-            if coloured(p[x, y]): n += 1
-    return n
-
 def rep(scr, item, ok, detail=''):
     results.append((scr, item, ok, detail))
 
 OVERLAYS = ('found-alert',)   # full-screen takeover overlay (mock): rain/crown not applicable
-SOLID = ('CHIP', 'BTN', 'TILE', 'PART', 'CROWN', 'HUBCORE', 'PROMPT', 'PLATE', 'PILL')
+SOLID = ('CHIP', 'BTN', 'TILE', 'PART', 'CROWN', 'HUBCORE', 'PROMPT')
 INSTR = re.compile(r'\b(press|hit|use (the )?arrows?|tab to|esc to|enter to|to (select|go back|exit)|instructions?|hint)\b', re.I)
 
 def rain_px(a, b, region=None):
@@ -217,8 +184,8 @@ if FROZEN and os.path.exists(FROZEN):
         frozen[f[0]] = [tuple(int(v) for v in m[5:].split(',')) for m in f[1:] if m.startswith('mask=')]
 
 screens = sorted({f[:-4] for f in os.listdir(D) if f.endswith('.log')})
-order = ['intro', 'boot', 'hub', 'hub-amber', 'terminal', 'terminal-typed', 'terminal-tab', 'home-wifi', 'home-ble', 'home-bot',
-         'scan-wifi', 'scan-ble', 'bot-radar', 'sbox-selected', 'sbox-info', 'sbox-hunt', 'sbox-glossary', 'found-alert']
+order = ['intro', 'boot', 'hub', 'hub-amber', 'terminal', 'terminal-typed', 'terminal-tab',
+         'scan-wifi', 'scan-ble', 'sbox-selected', 'sbox-info', 'sbox-hunt', 'sbox-glossary', 'found-alert']
 screens = [s for s in order if s in screens] + [s for s in screens if s not in order]
 stats = {}
 for scr in sorted(set(frozen) - set(screens)):
@@ -250,78 +217,6 @@ for scr in screens:
         rep(scr, 'H3 rain carries bots/devices (>=150 coloured px)', col >= 150, f'colour_px={col}')
         tiles = [b for b in boxes if b['k'] == 'TILE' and b['n'] == 'hubbot']
         rep(scr, 'H4 12 bot side tiles', len(tiles) == 12, f'{len(tiles)}')
-    if scr in MOCKREF:
-        m = mock_img(scr)
-        regs = HOME_REG if scr.startswith('home') else RADAR_REG
-        if m is None:
-            rep(scr, 'M1 matches mock regions', False, 'mock reference missing')
-        else:
-            bad, det = [], []
-            for k, r in regs.items():
-                (fm, fb), (mm, mb) = reg_stats(nr, r), reg_stats(m, r)
-                dist = sum(abs(fm[i] - mm[i]) for i in range(3))
-                ratio = (fb + 0.01) / (mb + 0.01)
-                ok = dist <= 60 and 0.4 <= ratio <= 2.5
-                det.append(f'{k}:d{int(dist)} b{ratio:.2f}')
-                if not ok: bad.append(k)
-            rep(scr, 'M1 chrome regions match mock (mean colour d<=60, bright-px ratio 0.4..2.5)', not bad, ' '.join(det) + (f' FAIL={bad}' if bad else ''))
-            # M2 rain density vs the mock: coloured (bot/device) rain px outside the chrome >= 50% of the mock's
-            # (rain px = rain render differs from no-rain render; mock px = coloured px outside the same regions)
-            pa, pb = im.load(), nr.load(); fw = 0
-            for y in range(H):
-                for x in range(W):
-                    if any(r[0] <= x < r[2] and r[1] <= y < r[3] for r in regs.values()): continue
-                    c, d = pa[x, y], pb[x, y]
-                    if abs(c[0] - d[0]) + abs(c[1] - d[1]) + abs(c[2] - d[2]) > 24 and coloured(c): fw += 1
-            mk = mock_rain_colour(m, list(regs.values()))
-            rep(scr, 'M2 rain bot/device density >= 50% of mock', fw >= 0.5 * mk, f'fw={fw} mock={mk} ({fw / max(1, mk):.0%})')
-        if scr.startswith('home'):
-            need = {'HUBCORE': 1, 'PLATE': 1, 'PILL': 1}
-            have = {k: len([b for b in boxes if b['k'] == k]) for k in need}
-            rep(scr, 'M3 mock structure: glow ring + name plate + WATCHING pill', all(have[k] >= 1 for k in need), str(have))
-            strs = ' '.join(t['s'] for t in texts) + ' ' + ' '.join(b['n'].replace('_', ' ') for b in boxes if b['k'] == 'MARQUEE')
-            want = ['RX', 'LV 01', 'UNIQUE FINDS', 'WATCHING', 'OBSERVE ONLY', 'ARMED', 'LOG']
-            miss = [w for w in want if w not in strs]
-            rep(scr, 'M4 status bar + plate + pill strings drawn', not miss, f'missing={miss}' if miss else 'all')
-            pp = nr.load()
-            def lit_px(b, th=60):
-                return sum(1 for y in range(b['y'], b['y'] + b['h']) for x in range(b['x'], b['x'] + b['w']) if luma(pp[x, y]) > th)
-            plate = [b for b in boxes if b['k'] == 'PLATE']
-            icons = [b for b in boxes if b['k'] == 'ICON' and b['n'] == 'plate']
-            okI = bool(plate and icons) and inside(icons[0], plate[0]) and lit_px(icons[0]) >= 8
-            rep(scr, 'I1 device icon drawn on the name plate (inside plate, >=8 lit px)', okI, f'icons={len(icons)} lit={lit_px(icons[0]) if icons else 0}')
-            term = [b for b in boxes if b['k'] == 'BTN' and b['n'] == 'term' and b['x'] >= 180 and b['y'] <= 2]
-            rep(scr, 'T2 terminal button pinned right of the crown', bool(term) and lit_px(term[0], 100) >= 10, f'term={len(term)}')
-            # R2 halo: mean luma of the annulus r46..58 around the portrait vs the mock capture
-            def ann(im):
-                q = im.load(); v = []
-                for y in range(74 - 58, 74 + 59):
-                    for x in range(160 - 58, 160 + 59):
-                        d2 = (x - 160) ** 2 + (y - 74) ** 2
-                        if 46 * 46 <= d2 <= 58 * 58 and y >= 15: v.append(luma(q[x, y]))
-                return sum(v) / len(v)
-            fa, ma = ann(nr), ann(m) if m is not None else 1
-            rep(scr, 'R2 ring halo brightness >= 75% of mock (annulus r46..58)', fa >= 0.75 * ma, f'fw={fa:.0f} mock={ma:.0f} ({fa / max(1, ma):.0%})')
-            if scr == 'home-bot':
-                strip = [b for b in boxes if b['k'] == 'STRIP']
-                tal = [b for b in boxes if b['k'] == 'ICON' and b['n'] == 'tally']
-                tr = [b for b in boxes if b['k'] == 'TRACE']
-                okS = bool(strip and tal and tr) and lit_px(tr[0], 80) >= 10
-                rep(scr, 'S4 live strip: device tally icons + signal trace', okS, f'strip={len(strip)} icons={len(tal)} trace_px={lit_px(tr[0], 80) if tr else 0}')
-        else:
-            core = [b for b in boxes if b['k'] == 'HUBCORE']; board = [b for b in boxes if b['k'] == 'BOARD']
-            rep(scr, 'M3 Gibson rings core, no bus board', bool(core) and not board, f'core={len(core)} board={len(board)}')
-        btns = [b for b in boxes if b['k'] == 'BTN' and b['n'] == 'litbtn']
-        p = im.load(); lit = 0; det = []
-        for b in btns:
-            px = [p[x, y] for y in range(b['y'] + 2, b['y'] + b['h'] - 2) for x in range(b['x'] + 2, b['x'] + b['w'] - 2)]
-            mf = [sum(c[i] for c in px) / len(px) for i in range(3)]
-            rim = [p[b['x'] + b['w'] // 2, b['y'] + 1], p[b['x'] + 1, b['y'] + b['h'] // 2], p[b['x'] + b['w'] - 2, b['y'] + b['h'] // 2]]
-            peak = max(luma(c) for c in px)
-            ok = luma(mf) >= 20 and min(luma(e) for e in rim) >= 50 and peak >= 150
-            lit += ok; det.append(f'face{int(luma(mf))}/rim{int(min(luma(e) for e in rim))}/icon{int(peak)}')
-        want_n = 3 if scr.startswith('home') else 1
-        rep(scr, f'L1 {want_n} lit button(s) like the mock capture (face luma>=20, rim>=50, lit icon>=150)', len(btns) == want_n and lit == want_n, ' '.join(det))
     if scr.startswith('scanboard-') or scr.startswith('game-board') or scr.startswith('game-jackin'):
         want_gib = scr.endswith('gibson') or scr.startswith('game')
         chips = [b for b in boxes if b['k'] == 'CHIP' and (b['n'] == 'gibson') == want_gib]
@@ -401,11 +296,32 @@ for scr in screens:
 
 # functional
 fp = os.path.join(D, 'functional.txt')
+NSCR = 11
 if os.path.exists(fp):
     for ln in open(fp):
         f = ln.rstrip('\n').split('\t')
         if f[0] == 'ESC':
             rep('functional', f'F1 Esc goes back from {f[1]}', f[2] == f[3], f'got {f[2]} want {f[3]}')
+        elif f[0] == 'NAV':
+            # v1016n (HIT LIST #1, ac9c53b): go/load wifi|ble|bots and the Esc chain only ever land on live
+            # screens. Live ids: 0 rain 1 gibson 2 terminal 3 wifiradar 4 wifilist 5 btradar 6 btlist 7 scan
+            # 8 control 9 diag 10 gchat. wifi/ble open that bot's scan box, bots opens the 12 chip tiles.
+            want = {'wifi': 3, 'ble': 5, 'bots': 2, 'diag': 9}[f[1].split('-')[1]]
+            chain = [int(x) for x in f[3].split(',')]
+            seen = [int(f[2])] + chain
+            ok = int(f[2]) == want and all(0 <= x < NSCR for x in seen) and chain[-1] in (0, 1)
+            what = 'control route' if f[1].endswith('diag') else 'scan/chip screen'
+            rep('functional', f'N1 {f[1].replace("-", " ")} -> {what}, Esc chain never hits a removed screen', ok,
+                f'opened {f[2]} want {want}; esc chain {f[3]}')
+        elif f[0] == 'OPEN':
+            b, got, sb, e1 = (int(x) for x in f[1:5])
+            want = 3 if b == 0 else 5 if b == 1 else 7
+            ok = got == want and (b < 2 or sb == b) and e1 == 2
+            rep('functional', f'N2 terminal Select on board {b} opens that bot\'s scan screen, Esc back to terminal', ok,
+                f'screen {got} want {want}, scan_bot {sb}, esc -> {e1}')
+        elif f[0] == 'SCREENS':
+            NSCR = int(f[1])
+            rep('functional', 'N0 screen table has no per-bot home or bot-radar ids (11 live screens)', NSCR == 11, f'screens={NSCR}')
         elif f[0] == 'SET':
             rep('functional', f'F2 setting {f[1]} edits by keyboard', f[4] == '1', f'{f[2]} -> {f[3]}')
             if f[1] in ('3', '4'):

@@ -65,14 +65,12 @@ enum {
     SCR_RAIN = 0,
     SCR_GIBSON,
     SCR_TERMINAL,
-    SCR_WIFI,
+    /* v1016n (HIT LIST #1, Oct 15, ac9c53b): no per-bot home screens and no bot radar.
+     * Only Gibson has a main screen; every other bot lives on its scan screen as a chip. */
     SCR_WIFI_RADAR,
     SCR_WIFI_LIST,
-    SCR_BT,
     SCR_BT_RADAR,
     SCR_BT_LIST,
-    SCR_BOT,
-    SCR_BOT_RADAR,
     SCR_SCAN,
     SCR_CONTROL,
     SCR_DIAG,
@@ -363,14 +361,10 @@ static const char *screen_name(int id)
     case SCR_RAIN: return "rain";
     case SCR_GIBSON: return "gibson";
     case SCR_TERMINAL: return "terminal";
-    case SCR_WIFI: return "wifi";
     case SCR_WIFI_RADAR: return "wifi-radar";
     case SCR_WIFI_LIST: return "wifi-list";
-    case SCR_BT: return "bluetooth";
     case SCR_BT_RADAR: return "bt-radar";
     case SCR_BT_LIST: return "bt-list";
-    case SCR_BOT: return "bot";
-    case SCR_BOT_RADAR: return "bot-radar";
     case SCR_SCAN: return "scan";
     case SCR_CONTROL: return "control";
     case SCR_DIAG: return "diag";
@@ -384,12 +378,8 @@ static int default_back(int id)
     switch (id) {
     case SCR_GIBSON: return SCR_RAIN;
     case SCR_TERMINAL: return SCR_GIBSON;
-    case SCR_WIFI:
-    case SCR_BT:
-    case SCR_BOT: return SCR_TERMINAL;
-    case SCR_WIFI_RADAR: return SCR_WIFI;
-    case SCR_BT_RADAR: return SCR_BT;
-    case SCR_BOT_RADAR: return SCR_BOT;
+    case SCR_WIFI_RADAR:
+    case SCR_BT_RADAR: return SCR_TERMINAL;   /* v1016n: live scan boxes go back to the 12 chip tiles */
     case SCR_WIFI_LIST: return SCR_WIFI_RADAR;
     case SCR_BT_LIST: return SCR_BT_RADAR;
     case SCR_SCAN:
@@ -436,12 +426,8 @@ static bool ext_animates(void)
 {
     switch (s_screen) {
     case SCR_GIBSON:
-    case SCR_WIFI:
-    case SCR_BT:
-    case SCR_BOT:
     case SCR_WIFI_RADAR:
     case SCR_BT_RADAR:
-    case SCR_BOT_RADAR:
     case SCR_SCAN:
     case SCR_TERMINAL:
     case SCR_GCHAT:
@@ -476,14 +462,10 @@ bool botcorps_ui_wants_ext_rain(void)
 static int card_bot(void)
 {
     switch (s_screen) {
-    case SCR_WIFI:
     case SCR_WIFI_RADAR:
     case SCR_WIFI_LIST: return 0;
-    case SCR_BT:
     case SCR_BT_RADAR:
     case SCR_BT_LIST: return 1;
-    case SCR_BOT:
-    case SCR_BOT_RADAR: return s_bot;
     case SCR_TERMINAL: return s_term;
     case SCR_GCHAT: return -1;
     default: return -1;
@@ -715,27 +697,10 @@ static void layout_covers(void)
         cover_add(4, 167, 312, 72);
         if (s_sheet) cover_add(8, 21, 304, 142);
         break;
-    case SCR_WIFI:
-    case SCR_BT:
-    case SCR_BOT:                          /* v1016l: mock extHome/botPage geometry */
-        cover_add(0, 0, 320, 16);          /* status ticker + crown */
-        cover_add(98, 12, 124, 124);       /* glow ring + portrait */
-        cover_add(78, 126, 164, 42);       /* name plate */
-        cover_add(96, 167, 128, 22);       /* WATCHING pill */
-        cover_add(8, 129, 68, 36);         /* lit buttons + halo */
-        cover_add(244, 129, 36, 36);
-        if (s_screen == SCR_BOT) { cover_add(10, 60, 28, 40); cover_add(282, 60, 28, 40); cover_add(14, 212, 292, 26); }
-        break;
     case SCR_WIFI_RADAR:
     case SCR_BT_RADAR:
     case SCR_SCAN:
         break;                 /* v1016k: static rain layer, no stepping on the scan box */
-    case SCR_BOT_RADAR:                    /* v1016l: Gibson rings in a dense rain field */
-        cover_reset(false);
-        cover_add(136, 0, 48, 22);         /* crown */
-        cover_add(100, 48, 120, 120);      /* rings core */
-        cover_add(8, 89, 36, 36);          /* lit track button */
-        break;
     case SCR_WIFI_LIST:
     case SCR_BT_LIST:
         cover_add(0, 0, 320, 24);
@@ -758,12 +723,8 @@ static int button_count(void)
     switch (s_screen) {
     case SCR_RAIN: return 1;
     case SCR_GIBSON: return 3;
-    case SCR_WIFI:
-    case SCR_BT:
-    case SCR_BOT: return 4;
     case SCR_WIFI_RADAR:
     case SCR_BT_RADAR: return 0;
-    case SCR_BOT_RADAR:
     case SCR_SCAN: return 2;
     case SCR_WIFI_LIST:
     case SCR_BT_LIST: return 4;
@@ -1141,14 +1102,15 @@ static void run_cmd(const char *line)
         else if (strcmp(arg, "rain") == 0) id = SCR_RAIN;
         else if (strcmp(arg, "gibson") == 0) id = SCR_GIBSON;
         else if (strcmp(arg, "terminal") == 0) id = SCR_TERMINAL;
-        else if (strcmp(arg, "wifi") == 0) id = SCR_WIFI;
-        else if (strcmp(arg, "ble") == 0) id = SCR_BT;
+        else if (strcmp(arg, "wifi") == 0) { s_scan_bot = 0; id = SCR_SCAN; }   /* v1016n: wifibot's scan screen (live box) */
+        else if (strcmp(arg, "ble") == 0) { s_scan_bot = 1; id = SCR_SCAN; }    /* v1016n: bluetoothbot's scan screen */
         else if (strcmp(arg, "control") == 0) id = SCR_CONTROL;
         else if (strcmp(arg, "diag") == 0) id = SCR_DIAG;
-        else if (strcmp(arg, "bots") == 0) id = SCR_BOT;
+        else if (strcmp(arg, "bots") == 0) id = SCR_TERMINAL;                   /* v1016n: the 12 ESP32 chip tiles */
         else log_add("no such screen");
         if (id >= 0) {
-            enter_screen(id, SCR_TERMINAL);
+            /* v1016n: "go bots" from the terminal is the terminal itself; never make it its own back target */
+            enter_screen(id, id == SCR_TERMINAL ? SCR_GIBSON : SCR_TERMINAL);
             return;
         }
     } else if (strcmp(cmd, "cmds") == 0) {
@@ -2212,10 +2174,6 @@ static void crown_btn(Gfx g, bool sel)
         g.drawRect(142, 1, 36, 18, accent());
     }
 }
-
-static void paint_home(Gfx g, int bot_index);   /* v1016l: defined after the hub painters */
-static void home_portrait(Gfx g, int bot_index);
-static void paint_bot_radar(Gfx g);
 
 static void hub_gibson(Gfx g, int cx, int cy, int z);
 static void chip_plate(Gfx g, int x, int y, int w, int h, uint8_t fill, uint8_t line);
@@ -4594,325 +4552,6 @@ static void paint_gibson(Gfx g)
 }
 
 
-/* ===================== v1016l: home screens + bot radar, rebuilt from the mock =====================
- * extHome / botPage / botCtlDraw / gibBtnDraw (master v1016-1604). Keyboard only, crown = back. */
-static uint8_t tint_of(uint8_t col, int pct)
-{
-    const uint16_t c = botcorps_rgb565(col);
-    const int r = ((c >> 11) & 31) * pct / 100, gg = ((c >> 5) & 63) * pct / 100, b = (c & 31) * pct / 100;
-    return botcorps_pal_fit((uint16_t)((r << 11) | (gg << 5) | b));
-}
-
-/* Lit plate (hub nav language): glow halo, 2 px accent rim with cut corners, dark accent face. */
-static void lit_plate(Gfx g, int x, int y, bool sel)
-{
-    /* mock gibBtnDraw as captured: deep teal face, dim-accent rim, soft glow; selected = bright rim */
-    const uint8_t ac = accent();
-    g.drawRect(x - 1, y - 1, BS + 2, BS + 2, wash22(ac));
-    g.fillRect(x + 1, y, BS - 2, BS, sel ? ac : wire_ink());
-    g.fillRect(x, y + 1, BS, BS - 2, sel ? ac : wire_ink());
-    g.fillRect(x + 2, y + 2, BS - 4, BS - 4, sel ? wire_ink() : (uint8_t)PAL_DEEP);
-}
-
-static void lit_btn(Gfx g, int x, int y, int id, bool sel)
-{
-    GATE_BOX(g, "BTN", "litbtn", x, y, BS, BS, "-");
-    lit_plate(g, x, y, sel);
-    const uint8_t ac = accent(), ic = sel ? (uint8_t)PAL_WHITE : ac;
-    (void)ac;
-    if (id == ICO_RADAR) {            /* gauge: arc, ticks, needle */
-        for (int a = 0; a <= 18; ++a) {
-            const float r = 3.14159f * (1.f + (float)a / 18.f);
-            g.fillRect(x + 14 + (int)(cosf(r) * 9.f), y + 18 + (int)(sinf(r) * 9.f), 1, 1, ic);
-            g.fillRect(x + 14 + (int)(cosf(r) * 10.f), y + 18 + (int)(sinf(r) * 10.f), 1, 1, ic);
-        }
-        g.drawLine(x + 14, y + 18, x + 19, y + 11, ic);
-        g.fillRect(x + 13, y + 17, 3, 3, ic);
-        g.fillRect(x + 4, y + 20, 20, 1, ic);
-    } else if (id == ICO_TERM) {      /* framed window, title bar with dots, >_ */
-        g.drawRect(x + 4, y + 6, 20, 16, ic);
-        g.fillRect(x + 5, y + 7, 18, 3, tint_of(ic, 45));
-        for (int k = 0; k < 3; ++k) g.fillRect(x + 7 + k * 3, y + 8, 1, 1, ic);
-        g.drawLine(x + 8, y + 13, x + 10, y + 15, ic);
-        g.drawLine(x + 10, y + 15, x + 8, y + 17, ic);
-        g.fillRect(x + 12, y + 17, 5, 1, ic);
-    } else if (id == ICO_CTRL) {      /* three sliders */
-        static const int kn[3] = { 9, 15, 11 };
-        for (int k = 0; k < 3; ++k) {
-            const int sx = x + 8 + k * 6;
-            g.fillRect(sx, y + 6, 2, 16, ic);
-            g.fillRect(sx - 2, y + kn[k], 6, 4, ic);
-        }
-    } else draw_icon(g, x, y, id, PAL_WHITE);
-}
-
-/* Middle-dot separated run of Font0 words; returns the drawn width. */
-static int dot_run(Gfx g, const char *const *seg, int n, int x, int y, uint8_t col, bool draw, bool bold)
-{
-    int cx = x;
-    for (int i = 0; i < n; ++i) {
-        if (i) {
-            if (draw) g.fillRect(cx + 5, y + 3, 2, 2, col);
-            cx += 13;
-        }
-        if (draw) {
-            txt(g, seg[i], cx, y, col, lgfx::textdatum::top_left);
-            if (bold) txt(g, seg[i], cx + 1, y, col, lgfx::textdatum::top_left);
-        }
-        cx += (int)strlen(seg[i]) * 6 - 1 + (bold ? 1 : 0);
-    }
-    return cx - x;
-}
-
-static void home_ticker(Gfx g)
-{
-    const uint8_t ac = accent();
-    const uint32_t t = millis();
-    g.fillRect(0, 0, 320, 14, PAL_DEEP);
-    g.fillRect(0, 14, 320, 1, tint_of(ac, 50));
-    static const char *const msg[6] = { "LINK OK", "RX OBSERVE ONLY", "NO TX", "SWEEP ARMED", "LOG BUFFER 12%", "" };
-    const int loop = dot_run(g, msg, 6, 0, 0, 0, false, false) + 6;
-    const int off = (int)((t / 40u) % (uint32_t)loop);
-    s_px = 6;
-    const int clips[2][2] = { { 31, 138 }, { 182, 320 } };   /* runs behind a gap for the pinned crown */
-    GATE_BOX(g, "MARQUEE", "LINK_OK|RX_OBSERVE_ONLY|NO_TX|SWEEP_ARMED|LOG_BUFFER_12%", 31, 0, 289, 14, "-");   /* scrolling ticker is clipped by design */
-#ifdef BOTCORPS_HOST_RENDER
-    host_gate_mute = 1;
-#endif
-    for (int c = 0; c < 2; ++c) {
-        g.setClipRect(clips[c][0], 0, clips[c][1] - clips[c][0], 14);
-        for (int k = 0; k < 2; ++k) dot_run(g, msg, 6, 32 - off + k * loop, 4, COL_MUTED, true, false);
-        g.clearClipRect();
-    }
-#ifdef BOTCORPS_HOST_RENDER
-    host_gate_mute = 0;
-#endif
-    g.fillRect(0, 0, 30, 14, PAL_BLACK);
-    g.fillRect(30, 0, 1, 14, COL_LINE);
-    if ((t / 500u) % 2u) g.fillRect(4, 5, 4, 4, ac);
-    else g.fillRect(5, 6, 2, 2, tint_of(ac, 60));
-    txt(g, "RX", 11, 4, ac, lgfx::textdatum::top_left);
-}
-
-static void home_portrait(Gfx g, int bot_index)
-{
-    const uint8_t ac = accent();
-    const uint32_t t = millis();
-    const int cx = 160, cy = 74;
-    const float pu = (sinf((float)t / 380.f) + 1.f) * 0.5f;
-    const int ph = (int)(t % 2400u);
-    g.fillCircle(cx, cy, 61, COL_FIELD);
-    /* accent glow: radial falloff outside the ring (mock radial gradient 14..62) */
-    /* v1016m: bright, thick halo like the mock capture. tint_of() fits the 3-3-2 palette's own teals
-     * ((0,146,170) (0,182,170) (0,219,255) for cyan), so no new palette slots are needed. */
-    const int pb = (int)(10.f * pu);
-    GATE_BOX(g, "GLOW", "halo", cx - 60, cy - 60, 120, 120, "-");   /* soft halo may pass under the pinned crown */
-    /* cyan UI: the 3-3-2 palette's own teal slots (idx 14 (0,101,107), 18 (0,146,170), 22 (0,182,170),
-     * 27 (0,219,255)); other UI colours use the nearest fit of the scaled accent. */
-    const bool cy_ui = s_color == 0;
-    g.fillCircle(cx, cy, 59, cy_ui ? (uint8_t)14 : tint_of(ac, 26 + pb / 2));
-    g.fillCircle(cx, cy, 56, cy_ui ? (uint8_t)18 : tint_of(ac, 40 + pb));
-    g.fillCircle(cx, cy, 53, cy_ui ? (uint8_t)(pb > 5 ? 27 : 22) : tint_of(ac, 56 + pb));
-    g.fillCircle(cx, cy, 51, cy_ui ? (uint8_t)27 : tint_of(ac, 72 + pb));
-    GATE_BOX(g, "HUBCORE", "homering", cx - 54, cy - 54, 108, 108, "-");
-    g.fillCircle(cx, cy, 49, ac);                          /* solid 2 px ring 47..49 */
-    g.fillCircle(cx, cy, 47, wire_ink());                  /* interior: accent washes, dark core (mock) */
-    g.fillCircle(cx, cy, 43, wash22(ac));
-    g.fillCircle(cx, cy, 36, PAL_DEEP);
-    px_ring(g, cx, cy, 53, PAL_WHITE, 7, 9, (int)(t / 45u));
-    g.drawCircle(cx, cy, 47 + ph * 6 / 2400, tint_of(ac, 45 * (2400 - ph) / 2400 + 10));
-    /* mock SPR_Z: whole-pixel zoom so every shape fits the ring */
-    const int shp = botcorps_shape_for(bot_index);
-    static const int8_t SW[4] = { 7, 9, 7, 5 }, SH[4] = { 7, 6, 9, 5 }, SZ[4] = { 8, 7, 6, 10 };
-    const int si = shp >= 0 && shp < 4 ? shp : 0;
-    const int sw = SW[si] * SZ[si] * 62 / 100, sy = cy + (SH[si] * SZ[si] + 1) / 2 + 3;
-    g.fillRect(cx - sw / 2, sy, sw, 2, tint_of(ac, 30));   /* floor shadow */
-    draw_blob(g, cx, cy, SZ[si], bot_color(bot_index), botcorps_shape_for(bot_index), sprite_blink(bot_index));
-}
-
-/* Bot -> device icon for the name plate (mock BOTS[].ins, drawn as the existing 12x12 device art). */
-static void plate_icon(Gfx g, int bot, int x, int y)
-{
-    static const int8_t MAP[12] = { DEV_AP, DEV_BT, DEV_DEAUTH, DEV_TV, DEV_FLOCK, DEV_DRONE,
-                                    DEV_TAG, -1, DEV_CAM, DEV_SKIM, -2, DEV_TAG };
-    const int m = MAP[bot % 12];
-    const uint8_t c = bot_color(bot);
-    if (m >= 0) { dev_icon(g, m, x, y, false); return; }
-    if (m == -1) {             /* keyfob: fob body + ring + key blade */
-        g.drawCircle(x + 3, y + 3, 2, c);
-        g.fillRect(x + 4, y + 4, 5, 7, c);
-        g.fillRect(x + 5, y + 5, 3, 2, PAL_BLACK);
-        g.fillRect(x + 6, y + 8, 1, 1, PAL_WHITE);
-        return;
-    }
-    /* flipper: rounded body, orange screen frame, d-pad */
-    g.fillRect(x, y + 2, 12, 8, c);
-    g.fillRect(x + 2, y + 3, 5, 4, PAL_BLACK);
-    g.fillRect(x + 3, y + 4, 2, 1, c);
-    g.fillRect(x + 9, y + 4, 1, 3, PAL_BLACK);
-    g.fillRect(x + 8, y + 5, 3, 1, PAL_BLACK);
-}
-
-/* mock liveStrip (bot page only): device tally left, ~60 s signal trace right. Deterministic example data. */
-static void home_strip(Gfx g, int bot)
-{
-    static const int8_t OWN[12] = { DEV_AP, DEV_BT, DEV_AP, DEV_TV, DEV_FLOCK, DEV_DRONE,
-                                    DEV_TAG, DEV_TAG, DEV_CAM, DEV_SKIM, DEV_BT, DEV_TAG };
-    const uint8_t ac = accent();
-    const uint32_t t = millis();
-    const int X = 16, Y = 214, Wd = 288, Ht = 22;
-    GATE_BOX(g, "STRIP", "live", X, Y, Wd, Ht, "-");
-    g.fillRoundRect(X, Y, Wd, Ht, 4, COL_LINE);
-    g.fillRoundRect(X + 1, Y + 1, Wd - 2, Ht - 2, 3, PAL_DEEP);
-    const int types[3] = { OWN[bot % 12], DEV_AP, DEV_BT };
-    const int secs = (int)(t / 1000u);
-    int x = X + 6;
-    s_px = 6;
-    for (int k = 0; k < 3; ++k) {
-        if (k && types[k] == types[0]) continue;
-        const int cnt = (secs * (3 - k) / 4 + bot) % 6 + (k == 0 ? 1 : 0);
-        if (cnt <= 0) continue;
-        GATE_BOX(g, "ICON", "tally", x, Y + 5, 12, 12, "-");
-        dev_icon(g, types[k], x, Y + 5, false);
-        char nb[4];
-        snprintf(nb, sizeof nb, "%d", cnt);
-        txt(g, nb, x + 14, Y + 8, COL_INK, lgfx::textdatum::top_left);
-        x += 14 + (int)strlen(nb) * 6 + 8;
-    }
-    const int TX = X + 178, TW = Wd - 178 - 8, TY = Y + 4, TH = Ht - 8;
-    g.fillRect(TX - 6, Y + 4, 1, Ht - 8, COL_LINE);
-    for (int k = 1; k < 3; ++k) g.fillRect(TX, TY + k * TH / 3, TW, 1, PAL_DEEP);
-    GATE_BOX(g, "TRACE", "signal", TX, TY, TW, TH, "-");
-    int px = -1, py = 0;
-    for (int i = 0; i < 60; ++i) {
-        const float tt = (float)t - (float)(59 - i) * 1000.f;
-        const float v = -62.f + (float)(bot % 5) * 3.f + 6.f * sinf(tt / 2300.f) + 3.f * sinf(tt / 610.f);
-        const int xx = TX + TW - 1 - (59 - i) * (TW - 1) / 59;
-        int yy = TY + TH - 1 - (int)((v + 95.f) / 60.f * (float)(TH - 1));
-        if (yy < TY) yy = TY;
-        if (yy > TY + TH - 1) yy = TY + TH - 1;
-        if (px >= 0) g.drawLine(px, py, xx, yy, ac);
-        px = xx; py = yy;
-    }
-    g.fillRect(TX + TW - 2, py - 1, 3, 3, ((t / 260u) % 2u) ? (uint8_t)PAL_WHITE : ac);
-}
-
-static void paint_home(Gfx g, int bot_index)
-{
-    const bot_t &b = BOTS[bot_index];
-    const uint8_t ac = accent();
-    const uint32_t t = millis();
-    const float pu = (sinf((float)t / 380.f) + 1.f) * 0.5f;
-    home_portrait(g, bot_index);
-    home_ticker(g);              /* after the halo so the bar stays crisp */
-    /* name plate */
-    GATE_BOX(g, "PLATE", "name", 80, 128, 160, 38, "-");
-    g.drawRect(79, 127, 162, 40, wash22(ac));            /* glow halo */
-    g.fillRect(80, 128, 160, 38, PAL_DEEP);
-    g.drawRect(80, 128, 160, 38, ac);
-    g.fillRect(80, 135, 2, 24, ac);
-    g.fillRect(238, 135, 2, 24, ac);
-    {
-        /* v1016m: real device icon (12x12) + name. Size-2 Font0 at 11 px advance while it fits, else 8x8. */
-        const char *nm = b.id;
-        const int n = (int)strlen(nm);
-        const int adv = n * 12 - 1 <= 136 ? 12 : 11;      /* 12 px bold while it fits, 11 px regular for long names */
-        const bool big = n * adv - 1 <= 136;
-        const int tw = big ? n * adv - 1 : n * 8;
-        const int x0 = 160 - (12 + 5 + tw) / 2;
-        GATE_BOX(g, "ICON", "plate", x0, 133, 12, 12, "-");
-        plate_icon(g, bot_index, x0, 133);
-        g.setTextColor(COL_INK);
-        g.setTextDatum(lgfx::textdatum::top_left);
-        if (big) {
-            g.setFont(&fonts::Font0);
-            g.setTextSize(2);
-            for (int k = 0; k < n; ++k) {
-                const char c1[2] = { nm[k], 0 };
-                g.drawString(c1, x0 + 17 + k * adv, 131);
-                if (adv == 12) g.drawString(c1, x0 + 18 + k * adv, 131);
-            }
-            g.setTextSize(1);
-        } else {
-            g.setFont(&fonts::Font8x8C64);
-            g.setTextSize(1);
-            g.drawString(nm, x0 + 17, 135);
-            g.drawString(nm, x0 + 18, 135);
-            g.setFont(&fonts::Font0);
-        }
-    }
-    s_px = 6;
-    {
-        static const char *const lv[2] = { "LV 01", "00 UNIQUE FINDS" };
-        const int w = dot_run(g, lv, 2, 0, 0, 0, false, false);
-        dot_run(g, lv, 2, 160 - w / 2 - 4, 152, COL_MUTED, true, false);
-    }
-    const bool lamp = b.st == 2 || ((t / 700u) % 4u) != 0u;
-    const uint8_t lc = !lamp ? (uint8_t)PAL_LINE : b.st == 2 ? (uint8_t)PAL_HOLD : b.st == 1 ? (uint8_t)PAL_AMBER : (uint8_t)PAL_OK;
-    g.fillRect(229, 156, 7, 7, lc);
-    /* WATCHING pill */
-    {
-        const char *pill[2] = { "WATCHING", b.target };
-        const int w = dot_run(g, pill, 2, 0, 0, 0, false, true);
-        const int cw = w + 16, px = 160 - cw / 2;
-        GATE_BOX(g, "PILL", "watching", px, 169, cw, 18, "-");
-        g.fillRoundRect(px - 1, 168, cw + 2, 20, 10, wash22(ac));   /* glow halo */
-        g.fillRoundRect(px, 169, cw, 18, 9, ac);
-        g.fillRoundRect(px + 1, 170, cw - 2, 16, 8, wire_ink());
-        dot_run(g, pill, 2, px + 8, 175, ac, true, true);
-    }
-    /* lit buttons (mock BOT_BTNS: radar 12, terminal 44, control 248 at y 133); crown = slot 3 */
-    static const int ids[3] = { ICO_RADAR, ICO_TERM, ICO_CTRL };
-    static const int xs[3] = { 12, 44, 248 };
-    for (int i = 0; i < 3; ++i) lit_btn(g, xs[i], 133, ids[i], s_cursor == i);
-    crown_btn(g, s_cursor == 3);
-    {   /* v1016m: pinned terminal button right of the crown (mock chrome); mirrors the terminal slot */
-        const bool tsel = s_cursor == 1;
-        const uint8_t tc = tsel ? (uint8_t)PAL_WHITE : ac;
-        const int tx = 192;
-        GATE_BOX(g, "BTN", "term", tx - 2, 0, 22, 14, "-");
-        g.fillRect(tx - 2, 0, 22, 14, PAL_BLACK);
-        g.drawRect(tx, 1, 18, 11, tc); g.fillRect(tx, 1, 18, 2, tc);
-        g.drawLine(tx + 3, 5, tx + 6, 7, tc); g.drawLine(tx + 6, 7, tx + 3, 9, tc);
-        g.fillRect(tx + 8, 9, 5, 1, tc);
-    }
-    if (s_screen == SCR_BOT) home_strip(g, bot_index);
-    if (s_screen == SCR_BOT) {       /* side chevrons + dimmed neighbour bots */
-        const int nudge = (int)((t / 400u) % 2u);
-        for (int k = 0; k < 2; ++k) {
-            const int nb = (bot_index + (k ? 1 : 11)) % 12;
-            const int sx = k ? 296 : 24, dir = k ? 1 : -1, cxs = sx - dir * nudge - 1;
-            for (int r = 0; r < 5; ++r) {
-                const int d = r < 4 - r ? r : 4 - r;
-                g.fillRect(cxs + (k ? d : 2 - d), 74 + 14 + r, 2, 1, ac);
-            }
-            draw_blob(g, sx, 74, 2, tint_of(bot_color(nb), 55), botcorps_shape_for(nb), false);
-        }
-    }
-}
-
-/* bot radar: the mock's Gibson rings core alone in a dense rain field. */
-static void paint_bot_radar(Gfx g)
-{
-    const uint8_t ac = accent();
-    const uint32_t t = millis();
-    const int cx = 160, cy = 108;
-    GATE_BOX(g, "HUBCORE", "rings", cx - 56, cy - 56, 112, 112, "-");
-    g.fillCircle(cx, cy, 58, COL_FIELD);
-    hub_die(g, cx, cy, 34);
-    px_ring(g, cx, cy, 34, PAL_CYAN, 0, 0, 0);
-    px_ring(g, cx, cy, 37, PAL_CYAN, 5, 5, (int)(t / 90u));
-    px_ring(g, cx, cy, 42, PAL_CYAN, 2, 4, (int)(t / 140u));
-    px_ring(g, cx, cy, 48, PAL_CYAN, 1, 5, (int)(t / 80u));
-    px_ring(g, cx, cy, 54, PAL_CYAN, 2, 6, (int)(t / 200u));
-    px_ring(g, cx, cy, 44 + (int)((t % 2400u) * 5u / 2400u), PAL_CYAN, 3, 3, 0);
-    hub_sparks(g, cx, cy, t);
-    hub_gibson(g, cx, cy, 5);
-    (void)ac;
-    lit_btn(g, 12, 92, ICO_TRACK, s_cursor == 0);
-    crown_btn(g, s_cursor == 1);
-}
-
 static void px_ring(Gfx g, int cx, int cy, int r, uint8_t col, int on, int off, int phase);
 static void hub_die(Gfx g, int cx, int cy, int r);
 /* v1016f #1: the intro rain carries the Gibson in its ring disc (mock 'rain' screen). No button. */
@@ -5485,12 +5124,8 @@ static void paint_ext(Gfx g)
     case SCR_GIBSON: paint_gibson(g); break;
     case SCR_GCHAT: paint_gchat(g); break;
     case SCR_TERMINAL: paint_terminal(g); break;
-    case SCR_WIFI: paint_home(g, 0); break;
-    case SCR_BT: paint_home(g, 1); break;
-    case SCR_BOT: paint_home(g, s_bot); break;
     case SCR_WIFI_RADAR:
     case SCR_BT_RADAR: paint_radar(g, true); break;
-    case SCR_BOT_RADAR: paint_bot_radar(g); break;
     case SCR_SCAN: paint_radar(g, false); break;
     case SCR_WIFI_LIST: paint_list(g, true); break;
     case SCR_BT_LIST: paint_list(g, false); break;
@@ -5498,21 +5133,6 @@ static void paint_ext(Gfx g)
     default: break;
     }
     if (s_fa_on) paint_found_alert(g);
-}
-
-static void tick_radar(Gfx g)
-{
-    /* Scouts move inside paint_radar. A sweep line would cover the bus. */
-    (void)g;
-}
-
-static void tick_home(Gfx g, int bot_index)
-{
-    g.startWrite();
-    g.setClipRect(98, 15, 124, 112);
-    home_portrait(g, bot_index);
-    g.endWrite();
-    g.clearClipRect();
 }
 
 static void tick_gibson(Gfx g)
@@ -5524,12 +5144,7 @@ static void tick_gibson(Gfx g)
 static void tick_ext(Gfx g)
 {
     if (s_screen == SCR_GIBSON) tick_gibson(g);
-    else if (s_screen == SCR_WIFI) tick_home(g, 0);
-    else if (s_screen == SCR_BT) tick_home(g, 1);
-    else if (s_screen == SCR_BOT) tick_home(g, s_bot);
-    else if (s_screen == SCR_BOT_RADAR) {
-        tick_radar(g);
-    } else if (sbox_on() && botcorps_band_direct()) {
+    else if (sbox_on() && botcorps_band_direct()) {
         const bool wifi = list_band() == 0;
         g.startWrite();
         g.setClipRect(0, 0, 320, 120);
@@ -5687,24 +5302,6 @@ static void activate(void)
             enter_screen(SCR_CONTROL, SCR_GIBSON);
         }
         break;
-    case SCR_WIFI:
-    case SCR_BT:
-    case SCR_BOT:
-        if (s_cursor == 0) {
-            enter_screen(s_screen == SCR_WIFI ? SCR_WIFI_RADAR
-                         : s_screen == SCR_BT ? SCR_BT_RADAR : SCR_BOT_RADAR, -1);
-        } else if (s_cursor == 1) {
-            if (s_screen == SCR_WIFI) s_term = 0;
-            else if (s_screen == SCR_BT) s_term = 1;
-            else s_term = s_bot;
-            enter_screen(SCR_TERMINAL, s_screen);
-            boot_log();
-        } else if (s_cursor == 2) {
-            enter_screen(SCR_CONTROL, s_screen);
-        } else {
-            go_back();
-        }
-        break;
     case SCR_WIFI_RADAR:
     case SCR_BT_RADAR:
         if (s_cursor == 0) {
@@ -5716,7 +5313,6 @@ static void activate(void)
             go_back();
         }
         break;
-    case SCR_BOT_RADAR:
     case SCR_SCAN:
         if (s_cursor == 0) {
             s_track = !s_track;
@@ -5761,7 +5357,6 @@ static void part_end(Gfx g)
 static bool cursor_box(int index, int *x, int *y, int *w, int *h)
 {
     const int xs_g[3] = { 110, 146, 182 };
-    const int xs_h[4] = { 12, 44, 248, 280 };
     *w = BS;
     *h = BS;
     switch (s_screen) {
@@ -5770,22 +5365,10 @@ static bool cursor_box(int index, int *x, int *y, int *w, int *h)
         *x = xs_g[index];
         *y = 206;
         return true;
-    case SCR_WIFI:
-    case SCR_BT:
-    case SCR_BOT:
-        if (index < 0 || index > 3) return false;
-        *x = xs_h[index];
-        *y = 133;
-        return true;
     case SCR_WIFI_RADAR:
     case SCR_BT_RADAR:
     case SCR_SCAN:
         return false; /* scan box: no side buttons */
-    case SCR_BOT_RADAR:
-        if (index < 0 || index > 1) return false;
-        *x = 14;
-        *y = 90 + index * 34;
-        return true;
     case SCR_WIFI_LIST:
     case SCR_BT_LIST:
         if (index >= 0 && index < 3) {
@@ -5843,13 +5426,10 @@ static void paint_cursor_item(Gfx g, int index, bool sel)
         /* Chip buttons live in paint_gibson; force a full EXT refresh for focus. */
         s_dirty = true;
         return;
-    } else if (s_screen == SCR_WIFI || s_screen == SCR_BT || s_screen == SCR_BOT) {
-        const int ids[4] = { ICO_RADAR, ICO_TERM, ICO_CTRL, ICO_BACK };
-        id = ids[index];
     } else if (s_screen == SCR_WIFI_RADAR || s_screen == SCR_BT_RADAR) {
         const int ids[3] = { ICO_TRACK, ICO_LIST, ICO_BACK };
         id = ids[index];
-    } else if (s_screen == SCR_BOT_RADAR || s_screen == SCR_SCAN) {
+    } else if (s_screen == SCR_SCAN) {
         id = index == 0 ? ICO_TRACK : ICO_BACK;
     } else if (s_screen == SCR_CONTROL) {
         id = index == CP_N ? ICO_TERM : ICO_BACK;
@@ -5974,15 +5554,11 @@ static int cursor_icon(int index)
         const int ids[3] = { ICO_TERM, ICO_RADAR, ICO_CTRL };
         return ids[index];
     }
-    if (s_screen == SCR_WIFI || s_screen == SCR_BT || s_screen == SCR_BOT) {
-        const int ids[4] = { ICO_RADAR, ICO_TERM, ICO_CTRL, ICO_BACK };
-        return ids[index];
-    }
     if (s_screen == SCR_WIFI_RADAR || s_screen == SCR_BT_RADAR) {
         const int ids[3] = { ICO_TRACK, ICO_LIST, ICO_BACK };
         return ids[index];
     }
-    if (s_screen == SCR_BOT_RADAR || s_screen == SCR_SCAN) return index == 0 ? ICO_TRACK : ICO_BACK;
+    if (s_screen == SCR_SCAN) return index == 0 ? ICO_TRACK : ICO_BACK;
     if (s_screen == SCR_CONTROL) return index == CP_N ? ICO_TERM : ICO_BACK;
     if (s_screen == SCR_WIFI_LIST || s_screen == SCR_BT_LIST) return ICO_BACK;
     if (s_screen == SCR_DIAG) return ICO_BACK;
@@ -6210,23 +5786,6 @@ static void partial_sheet_row(int index, int top)
     patch_world(draw_sheet_row_part, 14, y - 1, 292, 15);
 }
 
-static void draw_portrait_part(Gfx g)
-{
-    g.fillCircle(160, 74, 64, COL_FIELD);
-    g.fillCircle(160, 74, 48, COL_DEEP);
-    g.drawCircle(160, 74, 46, accent());
-    const int phase = (int)((millis() / 40u) % 14u);
-    g.drawCircle(160, 74, 47 + phase, accent());
-    draw_blob(g, 160, 74, 4, bot_color(s_part_i), botcorps_shape_for(s_part_i), sprite_blink(s_part_i));
-}
-
-static void partial_portrait(int bot_index)
-{
-    s_part_i = bot_index;
-    patch_world(draw_portrait_part, 110, 24, 100, 100);
-    partial_int();
-}
-
 static void queue_focus(int old_i, int new_i)
 {
     s_focus_old = old_i;
@@ -6328,18 +5887,6 @@ static void on_arrows(int key)
                 nudge_row(key == 4 ? 1 : -1);
                 queue_focus(s_cursor, s_cursor);
             }
-        }
-        return;
-    }
-    if (s_screen == SCR_BOT && (key == 3 || key == 4)) {
-        int i = s_bot;
-        if (i < 2) i = 2;
-        i += (key == 4) ? 1 : -1;
-        if (i < 2) i = 11;
-        if (i > 11) i = 2;
-        if (i != s_bot) {
-            s_bot = i;
-            partial_portrait(s_bot);
         }
         return;
     }
@@ -7205,7 +6752,8 @@ void botcorps_host_botscan_n(uint8_t *buf, int bot)
 {
     host_frame = buf;
     memset(buf, PAL_FIELD, 320u * 240u);
-    s_screen = SCR_BOT_RADAR;
+    s_screen = SCR_SCAN;          /* v1016n: a bot's own scan screen (bot radar removed) */
+    s_scan_bot = bot;
     s_bot = bot;
     s_color = 0;
     s_sheet = false;
@@ -7272,7 +6820,7 @@ int botcorps_host_int_span(void)
     s_bot = 2;
     host_int_mask = 1;
     const int ids[] = {
-        SCR_TERMINAL, SCR_GIBSON, SCR_WIFI, SCR_BT, SCR_BOT,
+        SCR_TERMINAL, SCR_GIBSON, SCR_WIFI_RADAR, SCR_BT_RADAR, SCR_SCAN,
         SCR_WIFI_LIST, SCR_BT_LIST, SCR_CONTROL, SCR_RAIN, SCR_DIAG
     };
     for (int id : ids) {
@@ -7522,6 +7070,17 @@ void botcorps_host_enter(uint8_t *buf, int id)
     paint_ext(Gfx());
 }
 int botcorps_host_screen_now(void) { return s_screen; }
+/* v1016n gate: terminal Select on board b; returns the screen it opened and the scan bot */
+int botcorps_host_open_bot(uint8_t *buf, int b, int *scan_bot)
+{
+    botcorps_host_enter(buf, SCR_TERMINAL);
+    s_term = b;
+    open_bot(b);
+    *scan_bot = s_scan_bot;
+    host_frame = buf;
+    paint_ext(Gfx());
+    return s_screen;
+}
 void botcorps_host_seq(uint8_t *buf, const char *keys)
 {
     /* Real device path: boot state, then the same dispatcher read_key feeds. */

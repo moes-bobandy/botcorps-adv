@@ -1,4 +1,4 @@
-# BOTcorps Adv: SPEC-LOCKED (v1016l)
+# BOTcorps Adv: SPEC-LOCKED (v1016n)
 
 This replaces the old rules checklist (release/RULES-CHECKLIST.md R1, "Gibson chip on hub", is **superseded**).
 Run `tools/gate.sh` to check the spec. It renders every screen with the real firmware paint code and the real
@@ -36,24 +36,12 @@ teal or accent-tinted), and the mock's game is disabled (GAME_ENABLED=false). In
 | H4 | 12 bot tiles |
 | | Checked in the UI colour (hub) and in amber (hub-amber) |
 
-## Home screens (home-wifi, home-ble, home-bot): mock extHome / botPage
+## Only Gibson has main screens (HIT LIST #1, Oct 15; ac9c53b)
 | id | rule |
 |---|---|
-| M1 | Chrome regions match the mock capture (release/gate/mock/*.png) on mean colour (d≤60) and bright-pixel ratio (0.4–2.5). Regions: ticker, ring, plate, pill, left buttons, right button |
-| M2 | Rain bot/device density is at least 50% of the mock's (coloured rain px outside the chrome) |
-| M3 | Structure: glow ring core around the bot, name plate, WATCHING pill |
-| M4 | Strings: RX status bar ticker (LINK OK · RX OBSERVE ONLY · NO TX · SWEEP ARMED · LOG BUFFER 12%), "LV 01 · 00 UNIQUE FINDS", "WATCHING · <TARGET>" |
-| L1 | 3 lit buttons (radar, terminal, control) like the mock capture: face luma ≥20, rim ≥50, lit icon ≥150 |
-| | The crown stays the only back button (cursor slot 3) |
-
-## Bot radar (bot-radar)
-| id | rule |
-|---|---|
-| M1 | The core region matches the mock |
-| M2 | Rain density is at least 50% of the mock's |
-| M3 | Gibson rings core, with no bus board |
-| L1 | The track button is lit |
-| | Crown = back |
+| N0 | Only Gibson has main screens. Other bots appear only on the scan screen, as square chip blocks. There are no per-bot home screens (no home-wifi / home-ble / home-bot) and no bot radar. The firmware screen table has exactly 11 screens: rain, gibson, terminal, wifiradar, wifilist, btradar, btlist, scan, control, diag, gchat |
+| N1 | `go`/`load wifi` opens wifibot's scan screen (the live Wi-Fi scan box). `go`/`load ble` opens bluetoothbot's scan screen (the live BLE scan box). `go`/`load bots` opens the terminal's 12 ESP32 chip tiles. Esc from each of them steps back terminal → hub → boot and never lands on a removed screen. `go diag` is the control that proves the typed command really runs |
+| N2 | Terminal Select on any of the 12 chip tiles opens THAT bot's scan screen (Wi-Fi and BLE: their live scan box; the others: their matte-black scan board with the square chip). Esc goes back to the terminal |
 
 ## Rain (all screens)
 - Bits stay the majority (about 56% of trail cells are 0/1, plus 4% code). Bots (22%) and devices (18%, neon colours) also ride inside the trails, not only as the lead glyph.

@@ -4,7 +4,7 @@ Dirt's rules OVERRIDE the mock wherever they conflict.
 
 | # | Rule | Where it applies |
 |---|------|------------------|
-| R1 | Gibson is ALWAYS a square control-panel block (`chip_block`) in every chip-form view — including the hub/scan-menu centre core. No round disc or ring anywhere. | intro, hub/scan menu, scan board |
+| R1 | ~~Gibson is ALWAYS a square control-panel block (`chip_block`) in every chip-form view — including the hub/scan-menu centre core. No round disc or ring anywhere.~~ **SUPERSEDED** by release/SPEC-LOCKED.md: the hub centre is the moving rings core (H1); the Gibson square chip stays on the scan board and game boards. | intro, hub/scan menu, scan board |
 | R2 | Black background inside Gibson's square (and inside every bot chip). | all chip views |
 | R3 | Black chip border like the control panel, with a subtle silk outline so the edge reads on a black PCB. Single shared `chip_block()`. | all chip views |
 | R4 | ALL bots inside chips fit the square exactly like Gibson, bot filling the square, each keeping its FIXED colour. | scan board, radar cards |

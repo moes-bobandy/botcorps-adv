@@ -1,10 +1,14 @@
 # BOTcorps CYD Touch Port Report
 
 ## Tip SHA
-3756d3c
+(pending)
 
 Interactive mock of the current CYD build: mocks/CYD-current-interactive.html
 Built by: Super Grok session (no Cursor/agent hand-off)
+
+## Cal validity + intro polish (this tip)
+- Cal save removes stale cv first. has_valid_cal requires x and y raw spans > 1000. load falls through to placeholder on missing c-key.
+- Intro swallows touches (no PLAY hit) and skips rain. CYD intro labels “CYD”/“ESP32”. LV stays “LV 01”.
 
 ## CYD boot: Adv-style intro → Gibson hub (this tip)
 - CYD now starts with the Adv-style centered-Gibson intro (paint_intro) for ~2.5 s, then lands on SCR_GIBSON (hub). No longer boots to the old rain + PLAY screen. LV stays “LV 01”.

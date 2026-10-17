@@ -178,6 +178,10 @@ void botcorps_cyd_load_touch_cal(void)
             Serial.println("[botcorps] touch cal 8-point from NVS");
             return;
         }
+        /* c-key missing — fall through to placeholder */
+        g_cyd.apply_touch_cal(300, 3900, 300, 3900, 1);
+        Serial.println("[botcorps] touch cal placeholder (incomplete 8-point)");
+        return;
     } else {
         /* Legacy 4-value path */
         uint16_t xmin = prefs.getUShort("tx0", 300);
@@ -199,20 +203,23 @@ bool botcorps_cyd_has_valid_cal(void)
     if (prefs.getUChar("tcal", 0) != 1 || prefs.getUChar("cv", 0) != 2)
         { prefs.end(); return false; }
     uint16_t vals[8];
-    bool all_same = true;
-    uint16_t first = 0;
     for (int i = 0; i < 8; ++i) {
         char key[4];
         snprintf(key, sizeof(key), "c%d", i);
         if (!prefs.isKey(key)) { prefs.end(); return false; }
         vals[i] = prefs.getUShort(key, 0);
-        if (i == 0) first = vals[i];
-        else if (vals[i] != first) all_same = false;
     }
     prefs.end();
-    /* Reject all-zero or all-equal (invalid cal) */
-    if (first == 0 && all_same) return false;
-    if (all_same) return false;
+    /* Require x raws (c0,c2,c4,c6) and y raws (c1,c3,c5,c7) each span > 1000 */
+    auto span = [](uint16_t a, uint16_t b, uint16_t c, uint16_t d) {
+        uint16_t mn = a, mx = a;
+        if (b < mn) mn = b; if (b > mx) mx = b;
+        if (c < mn) mn = c; if (c > mx) mx = c;
+        if (d < mn) mn = d; if (d > mx) mx = d;
+        return (int)mx - (int)mn;
+    };
+    if (span(vals[0], vals[2], vals[4], vals[6]) <= 1000) return false;
+    if (span(vals[1], vals[3], vals[5], vals[7]) <= 1000) return false;
     return true;
 }
 
@@ -327,6 +334,7 @@ bool botcorps_cyd_run_touch_cal(void)
         restore();
         return false;
     }
+    prefs.remove("cv"); /* clear stale cv before writing new set */
     prefs.putUChar("tcal", 1);
     bool ok = true;
     for (int i = 0; i < 8; ++i) {

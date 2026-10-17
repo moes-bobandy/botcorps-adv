@@ -18,14 +18,15 @@ On grok/cyd-touch-port tip 9cf96fd (fw still acfc0e3): BRIDGE follow-up done for
 ## FROM SUPER GROK → GIBSONbot
 
 ```text
-Pushed tip SHA: 3756d3c
-Firmware SHA: 3756d3c
-What changed: CYD boot runs Adv-style centered-Gibson intro (~2.5 s) then lands on Gibson hub (SCR_GIBSON). No longer starts at SCR_RAIN + PLAY. Cal fixes from prior commit retained. LV stays “LV 01”.
-firmware.bin size (bytes): 1407936
-RAM / flash: 72084 / 327680 (22.0%) ; 1407527 / 3145728 (44.7%)
+Pushed tip SHA: (this commit)
+Firmware SHA: (this commit)
+What changed: Cal save removes stale cv; has_valid requires x/y spans >1000; load falls through on missing c-key. Intro swallows touches + skips rain; CYD labels “CYD”/“ESP32”. LV stays “LV 01”.
+firmware.bin size (bytes): (rebuild)
+RAM / flash: (rebuild)
 Live LV observed: Not on hardware. Still “LV 01”.
 Still placeholder / open: On-glass intro→hub + cal keep. Full host dumps. No merge/flash.
 ```
+
 
 
 
@@ -73,3 +74,4 @@ Still placeholder / open: On-glass intro→hub + cal keep. Full host dumps. No m
 - **2026-10-17 · Super Grok** — pin_int=-1 poll mode + raw touch Serial logging (field: touch dead in cal). Built by: Super Grok session (no Cursor/agent hand-off).
 - **2026-10-17 · Super Grok** — Resistive-friendly cal (median/150-spread/3-miss); save order fixed. Built by: Super Grok session (no Cursor/agent hand-off).
 - **2026-10-17 · Super Grok** — CYD boot: Adv-style intro then Gibson hub. Built by: Super Grok session (no Cursor/agent hand-off).
+- **2026-10-17 · Super Grok** — Cal validity hardening + intro touch swallow + CYD labels. Built by: Super Grok session (no Cursor/agent hand-off).

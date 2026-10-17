@@ -3911,8 +3911,13 @@ static void paint_intro(Gfx g)
     const int keep = s_px;
     s_px = 6;
     txt(g, "BOTcorps", 14, 6, PAL_MUTED, lgfx::textdatum::top_left);
+#ifdef BOTCORPS_CYD
+    txt(g, "CYD", 150, 6, PAL_LINE, lgfx::textdatum::top_left);
+    txt(g, "ESP32", 250, 6, PAL_LINE, lgfx::textdatum::top_left);
+#else
     txt(g, "S3", 150, 6, PAL_LINE, lgfx::textdatum::top_left);
     txt(g, "REV A", 250, 6, PAL_LINE, lgfx::textdatum::top_left);
+#endif
     g.drawRect(10, 22, 116, 78, ac);
     g.drawRect(12, 24, 112, 74, PAL_WIRE_C);
     for (int d = 0; d < 110; d += 6) {
@@ -5135,6 +5140,9 @@ static int read_key(char *typed)
 #ifdef BOTCORPS_CYD
     int tx = 0;
     int ty = 0;
+#ifdef BOTCORPS_CYD
+    if (s_intro_until && (int32_t)(millis() - s_intro_until) < 0) return 0; /* swallow during intro */
+#endif
     bool down = botcorps_disp().getTouch(&tx, &ty);
     uint32_t now = millis();
     /* One event per press. ~50 ms separates taps. Holds do not repeat. */

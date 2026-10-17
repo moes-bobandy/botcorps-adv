@@ -39,9 +39,12 @@ void setup(void)
     /* No INT ID-card strip. The compact badge is painted with the terminal. */
     botcorps_ui_mark_dirty();
 
-    /* No-text hold-at-boot cal fallback: only open the 2.5s window if touch
-     * is already down on the first read (normal boots don't wait). */
-    {
+    /* Auto-cal on first boot (or when no cv=2 8-point exists).
+     * Hold-at-boot remains as a forced re-cal if finger is already down. */
+    if (!botcorps_cyd_has_valid_cal()) {
+        Serial.println("[botcorps] no valid cv=2 cal — auto-entering cal");
+        botcorps_cyd_run_touch_cal();
+    } else {
         int x, y;
         if (g_cyd.get_touch_raw(&x, &y)) {
             int hold = 1;

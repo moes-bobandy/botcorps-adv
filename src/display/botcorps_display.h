@@ -70,6 +70,7 @@ inline int botcorps_view_h(void) { return 240; }
 void botcorps_cyd_load_touch_cal(void);
 void botcorps_cyd_save_touch_cal(uint16_t xmin, uint16_t xmax, uint16_t ymin, uint16_t ymax, uint8_t rot);
 bool botcorps_cyd_run_touch_cal(void);
+bool botcorps_cyd_has_valid_cal(void);
 
 inline bool botcorps_dual_begin(void) {
     botcorps_cyd_load_touch_cal();

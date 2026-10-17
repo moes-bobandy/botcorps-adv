@@ -1,10 +1,13 @@
 # BOTcorps CYD Touch Port Report
 
 ## Tip SHA
-7336c13
+(pending)
 
 Interactive mock of the current CYD build: mocks/CYD-current-interactive.html
 Built by: Super Grok session (no Cursor/agent hand-off)
+
+## Auto-cal on missing cv=2 (this tip)
+- On boot, if no valid cv=2 8-point cal exists, auto-enters botcorps_cyd_run_touch_cal before the rain/PLAY screen. Hold-at-boot remains for forced re-cal. Touch is polled on the normal path via getTouch in read_key. LV stays “LV 01”.
 
 ## Marker redraw + live offsets + cv=2 (this tip)
 - Crosshair redraws at the top of each while(!got) so jitter rejects don’t leave a blank screen.

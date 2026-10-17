@@ -18,14 +18,15 @@ On grok/cyd-touch-port tip 9cf96fd (fw still acfc0e3): BRIDGE follow-up done for
 ## FROM SUPER GROK → GIBSONbot
 
 ```text
-Pushed tip SHA: 7336c13
-Firmware SHA: 7336c13
-What changed: Marker redraw inside retry loop; offsets read from config; cv=2 version key (ignores older c0..c7); header comment fixed. LV stays “LV 01”.
-firmware.bin size (bytes): 1407408
-RAM / flash: 72076 / 327680 (22.0%) ; 1407003 / 3145728 (44.7%)
+Pushed tip SHA: (this commit)
+Firmware SHA: (this commit)
+What changed: Auto-enter cal on boot when no valid cv=2 8-point exists (before rain/PLAY). Hold-at-boot kept for forced re-cal. Touch is polled normally via getTouch. LV stays “LV 01”.
+firmware.bin size (bytes): (rebuild)
+RAM / flash: (rebuild)
 Live LV observed: Not on hardware. Still “LV 01”.
-Still placeholder / open: Device/glass verification. Full host dumps. No merge/flash.
+Still placeholder / open: On-glass verification of auto-cal. Full host dumps. No merge/flash.
 ```
+
 
 
 
@@ -63,3 +64,4 @@ Still placeholder / open: Device/glass verification. Full host dumps. No merge/f
 - **2026-10-17 · Super Grok** — Panel offset_rotation=0; true-corner cal with computed rot and single deadline. Built by: Super Grok session (no Cursor/agent hand-off).
 - **2026-10-17 · Super Grok** — Comment cleanups: nested -Wcomment fixed, stale offset/order comments updated. Numbers already cite fw 3e62b1e / RAM 72076 / flash 1406939. LV stays “LV 01”. Built by: Super Grok session (no Cursor/agent hand-off).
 - **2026-10-17 · Super Grok** — Marker redraw on retry, live offsets, cv=2. Built by: Super Grok session (no Cursor/agent hand-off).
+- **2026-10-17 · Super Grok** — Auto-cal on missing cv=2 (field: boot to PLAY with dead touch). Built by: Super Grok session (no Cursor/agent hand-off).

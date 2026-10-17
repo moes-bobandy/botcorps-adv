@@ -208,6 +208,18 @@ void botcorps_cyd_load_touch_cal(void)
                       (unsigned)xmin, (unsigned)xmax, (unsigned)ymin, (unsigned)ymax);
     }
 }
+
+bool botcorps_cyd_has_valid_cal(void)
+{
+    Preferences prefs;
+    if (!prefs.begin("botcorps", true)) return false;
+    bool ok = prefs.getUChar("tcal", 0) == 1
+           && prefs.getUChar("cv", 0) == 2
+           && prefs.isKey("c0") && prefs.isKey("c7");
+    prefs.end();
+    return ok;
+}
+
 #endif
 
 #ifdef BOTCORPS_CYD

@@ -719,12 +719,12 @@ static void layout_covers(void)
     case SCR_BT:
     case SCR_BOT:                          /* v1016l: mock extHome/botPage geometry */
         cover_add(0, 0, 320, 16);          /* status ticker + crown */
-        cover_add(98, 12, 124, 116);       /* glow ring + portrait */
+        cover_add(98, 12, 124, 124);       /* glow ring + portrait */
         cover_add(78, 126, 164, 42);       /* name plate */
         cover_add(96, 167, 128, 22);       /* WATCHING pill */
         cover_add(8, 129, 68, 36);         /* lit buttons + halo */
         cover_add(244, 129, 36, 36);
-        if (s_screen == SCR_BOT) { cover_add(10, 60, 28, 40); cover_add(282, 60, 28, 40); }
+        if (s_screen == SCR_BOT) { cover_add(10, 60, 28, 40); cover_add(282, 60, 28, 40); cover_add(14, 212, 292, 26); }
         break;
     case SCR_WIFI_RADAR:
     case SCR_BT_RADAR:
@@ -4701,20 +4701,25 @@ static void home_portrait(Gfx g, int bot_index)
     const int cx = 160, cy = 74;
     const float pu = (sinf((float)t / 380.f) + 1.f) * 0.5f;
     const int ph = (int)(t % 2400u);
-    g.fillCircle(cx, cy, 55, COL_FIELD);
+    g.fillCircle(cx, cy, 61, COL_FIELD);
     /* accent glow: radial falloff outside the ring (mock radial gradient 14..62) */
-    /* glow bands in the palette's accent washes (22% / 35%), brightest at the ring like the mock gradient */
-    const uint8_t w22 = wash22(ac), w35 = wire_ink();
-    g.fillCircle(cx, cy, 54, w22);                       /* r54: top edge y20 clears the pinned crown */
-    g.fillCircle(cx, cy, 51, pu > 0.5f ? w35 : w22);
-    g.fillCircle(cx, cy, 49, w35);
+    /* v1016m: bright, thick halo like the mock capture. tint_of() fits the 3-3-2 palette's own teals
+     * ((0,146,170) (0,182,170) (0,219,255) for cyan), so no new palette slots are needed. */
+    const int pb = (int)(10.f * pu);
+    GATE_BOX(g, "GLOW", "halo", cx - 60, cy - 60, 120, 120, "-");   /* soft halo may pass under the pinned crown */
+    /* cyan UI: the 3-3-2 palette's own teal slots (idx 14 (0,101,107), 18 (0,146,170), 22 (0,182,170),
+     * 27 (0,219,255)); other UI colours use the nearest fit of the scaled accent. */
+    const bool cy_ui = s_color == 0;
+    g.fillCircle(cx, cy, 59, cy_ui ? (uint8_t)14 : tint_of(ac, 26 + pb / 2));
+    g.fillCircle(cx, cy, 56, cy_ui ? (uint8_t)18 : tint_of(ac, 40 + pb));
+    g.fillCircle(cx, cy, 53, cy_ui ? (uint8_t)(pb > 5 ? 27 : 22) : tint_of(ac, 56 + pb));
+    g.fillCircle(cx, cy, 51, cy_ui ? (uint8_t)27 : tint_of(ac, 72 + pb));
     GATE_BOX(g, "HUBCORE", "homering", cx - 54, cy - 54, 108, 108, "-");
-    g.fillCircle(cx, cy, 47, w35);
-    g.fillCircle(cx, cy, 40, w22);
-    g.fillCircle(cx, cy, 28, PAL_DEEP);
-    g.drawCircle(cx, cy, 46, ac);
-    g.drawCircle(cx, cy, 45, pu > 0.5f ? ac : tint_of(ac, 70));
-    px_ring(g, cx, cy, 52, ac, 7, 9, (int)(t / 45u));
+    g.fillCircle(cx, cy, 49, ac);                          /* solid 2 px ring 47..49 */
+    g.fillCircle(cx, cy, 47, wire_ink());                  /* interior: accent washes, dark core (mock) */
+    g.fillCircle(cx, cy, 43, wash22(ac));
+    g.fillCircle(cx, cy, 36, PAL_DEEP);
+    px_ring(g, cx, cy, 53, PAL_WHITE, 7, 9, (int)(t / 45u));
     g.drawCircle(cx, cy, 47 + ph * 6 / 2400, tint_of(ac, 45 * (2400 - ph) / 2400 + 10));
     /* mock SPR_Z: whole-pixel zoom so every shape fits the ring */
     const int shp = botcorps_shape_for(bot_index);
@@ -4725,14 +4730,81 @@ static void home_portrait(Gfx g, int bot_index)
     draw_blob(g, cx, cy, SZ[si], bot_color(bot_index), botcorps_shape_for(bot_index), sprite_blink(bot_index));
 }
 
+/* Bot -> device icon for the name plate (mock BOTS[].ins, drawn as the existing 12x12 device art). */
+static void plate_icon(Gfx g, int bot, int x, int y)
+{
+    static const int8_t MAP[12] = { DEV_AP, DEV_BT, DEV_DEAUTH, DEV_TV, DEV_FLOCK, DEV_DRONE,
+                                    DEV_TAG, -1, DEV_CAM, DEV_SKIM, -2, DEV_TAG };
+    const int m = MAP[bot % 12];
+    const uint8_t c = bot_color(bot);
+    if (m >= 0) { dev_icon(g, m, x, y, false); return; }
+    if (m == -1) {             /* keyfob: fob body + ring + key blade */
+        g.drawCircle(x + 3, y + 3, 2, c);
+        g.fillRect(x + 4, y + 4, 5, 7, c);
+        g.fillRect(x + 5, y + 5, 3, 2, PAL_BLACK);
+        g.fillRect(x + 6, y + 8, 1, 1, PAL_WHITE);
+        return;
+    }
+    /* flipper: rounded body, orange screen frame, d-pad */
+    g.fillRect(x, y + 2, 12, 8, c);
+    g.fillRect(x + 2, y + 3, 5, 4, PAL_BLACK);
+    g.fillRect(x + 3, y + 4, 2, 1, c);
+    g.fillRect(x + 9, y + 4, 1, 3, PAL_BLACK);
+    g.fillRect(x + 8, y + 5, 3, 1, PAL_BLACK);
+}
+
+/* mock liveStrip (bot page only): device tally left, ~60 s signal trace right. Deterministic example data. */
+static void home_strip(Gfx g, int bot)
+{
+    static const int8_t OWN[12] = { DEV_AP, DEV_BT, DEV_AP, DEV_TV, DEV_FLOCK, DEV_DRONE,
+                                    DEV_TAG, DEV_TAG, DEV_CAM, DEV_SKIM, DEV_BT, DEV_TAG };
+    const uint8_t ac = accent();
+    const uint32_t t = millis();
+    const int X = 16, Y = 214, Wd = 288, Ht = 22;
+    GATE_BOX(g, "STRIP", "live", X, Y, Wd, Ht, "-");
+    g.fillRoundRect(X, Y, Wd, Ht, 4, COL_LINE);
+    g.fillRoundRect(X + 1, Y + 1, Wd - 2, Ht - 2, 3, PAL_DEEP);
+    const int types[3] = { OWN[bot % 12], DEV_AP, DEV_BT };
+    const int secs = (int)(t / 1000u);
+    int x = X + 6;
+    s_px = 6;
+    for (int k = 0; k < 3; ++k) {
+        if (k && types[k] == types[0]) continue;
+        const int cnt = (secs * (3 - k) / 4 + bot) % 6 + (k == 0 ? 1 : 0);
+        if (cnt <= 0) continue;
+        GATE_BOX(g, "ICON", "tally", x, Y + 5, 12, 12, "-");
+        dev_icon(g, types[k], x, Y + 5, false);
+        char nb[4];
+        snprintf(nb, sizeof nb, "%d", cnt);
+        txt(g, nb, x + 14, Y + 8, COL_INK, lgfx::textdatum::top_left);
+        x += 14 + (int)strlen(nb) * 6 + 8;
+    }
+    const int TX = X + 178, TW = Wd - 178 - 8, TY = Y + 4, TH = Ht - 8;
+    g.fillRect(TX - 6, Y + 4, 1, Ht - 8, COL_LINE);
+    for (int k = 1; k < 3; ++k) g.fillRect(TX, TY + k * TH / 3, TW, 1, PAL_DEEP);
+    GATE_BOX(g, "TRACE", "signal", TX, TY, TW, TH, "-");
+    int px = -1, py = 0;
+    for (int i = 0; i < 60; ++i) {
+        const float tt = (float)t - (float)(59 - i) * 1000.f;
+        const float v = -62.f + (float)(bot % 5) * 3.f + 6.f * sinf(tt / 2300.f) + 3.f * sinf(tt / 610.f);
+        const int xx = TX + TW - 1 - (59 - i) * (TW - 1) / 59;
+        int yy = TY + TH - 1 - (int)((v + 95.f) / 60.f * (float)(TH - 1));
+        if (yy < TY) yy = TY;
+        if (yy > TY + TH - 1) yy = TY + TH - 1;
+        if (px >= 0) g.drawLine(px, py, xx, yy, ac);
+        px = xx; py = yy;
+    }
+    g.fillRect(TX + TW - 2, py - 1, 3, 3, ((t / 260u) % 2u) ? (uint8_t)PAL_WHITE : ac);
+}
+
 static void paint_home(Gfx g, int bot_index)
 {
     const bot_t &b = BOTS[bot_index];
     const uint8_t ac = accent();
     const uint32_t t = millis();
     const float pu = (sinf((float)t / 380.f) + 1.f) * 0.5f;
-    home_ticker(g);
     home_portrait(g, bot_index);
+    home_ticker(g);              /* after the halo so the bar stays crisp */
     /* name plate */
     GATE_BOX(g, "PLATE", "name", 80, 128, 160, 38, "-");
     g.drawRect(79, 127, 162, 40, wash22(ac));            /* glow halo */
@@ -4741,25 +4813,31 @@ static void paint_home(Gfx g, int bot_index)
     g.fillRect(80, 135, 2, 24, ac);
     g.fillRect(238, 135, 2, 24, ac);
     {
-        char nm[24];
-        snprintf(nm, sizeof nm, "%s %s", b.ins, b.id);
-        if ((int)strlen(nm) * 12 > 146) snprintf(nm, sizeof nm, "%s", b.id);   /* mock shrinks to fit; keep size 2 while the name fits */
+        /* v1016m: real device icon (12x12) + name. Size-2 Font0 at 11 px advance while it fits, else 8x8. */
+        const char *nm = b.id;
         const int n = (int)strlen(nm);
-        g.setFont(&fonts::Font0);
+        const int adv = n * 12 - 1 <= 136 ? 12 : 11;      /* 12 px bold while it fits, 11 px regular for long names */
+        const bool big = n * adv - 1 <= 136;
+        const int tw = big ? n * adv - 1 : n * 8;
+        const int x0 = 160 - (12 + 5 + tw) / 2;
+        GATE_BOX(g, "ICON", "plate", x0, 133, 12, 12, "-");
+        plate_icon(g, bot_index, x0, 133);
         g.setTextColor(COL_INK);
         g.setTextDatum(lgfx::textdatum::top_left);
-        if (n * 12 <= 146) {
+        if (big) {
+            g.setFont(&fonts::Font0);
             g.setTextSize(2);
-            const int x = 160 - (n * 12 - 2) / 2;
-            g.drawString(nm, x, 131);
-            g.drawString(nm, x + 1, 131);
+            for (int k = 0; k < n; ++k) {
+                const char c1[2] = { nm[k], 0 };
+                g.drawString(c1, x0 + 17 + k * adv, 131);
+                if (adv == 12) g.drawString(c1, x0 + 18 + k * adv, 131);
+            }
             g.setTextSize(1);
         } else {
             g.setFont(&fonts::Font8x8C64);
             g.setTextSize(1);
-            const int x = 160 - (n * 8) / 2;
-            g.drawString(nm, x, 135);
-            g.drawString(nm, x + 1, 135);
+            g.drawString(nm, x0 + 17, 135);
+            g.drawString(nm, x0 + 18, 135);
             g.setFont(&fonts::Font0);
         }
     }
@@ -4788,6 +4866,17 @@ static void paint_home(Gfx g, int bot_index)
     static const int xs[3] = { 12, 44, 248 };
     for (int i = 0; i < 3; ++i) lit_btn(g, xs[i], 133, ids[i], s_cursor == i);
     crown_btn(g, s_cursor == 3);
+    {   /* v1016m: pinned terminal button right of the crown (mock chrome); mirrors the terminal slot */
+        const bool tsel = s_cursor == 1;
+        const uint8_t tc = tsel ? (uint8_t)PAL_WHITE : ac;
+        const int tx = 192;
+        GATE_BOX(g, "BTN", "term", tx - 2, 0, 22, 14, "-");
+        g.fillRect(tx - 2, 0, 22, 14, PAL_BLACK);
+        g.drawRect(tx, 1, 18, 11, tc); g.fillRect(tx, 1, 18, 2, tc);
+        g.drawLine(tx + 3, 5, tx + 6, 7, tc); g.drawLine(tx + 6, 7, tx + 3, 9, tc);
+        g.fillRect(tx + 8, 9, 5, 1, tc);
+    }
+    if (s_screen == SCR_BOT) home_strip(g, bot_index);
     if (s_screen == SCR_BOT) {       /* side chevrons + dimmed neighbour bots */
         const int nudge = (int)((t / 400u) % 2u);
         for (int k = 0; k < 2; ++k) {

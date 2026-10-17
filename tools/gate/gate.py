@@ -283,6 +283,31 @@ for scr in screens:
             want = ['RX', 'LV 01', 'UNIQUE FINDS', 'WATCHING', 'OBSERVE ONLY', 'ARMED', 'LOG']
             miss = [w for w in want if w not in strs]
             rep(scr, 'M4 status bar + plate + pill strings drawn', not miss, f'missing={miss}' if miss else 'all')
+            pp = nr.load()
+            def lit_px(b, th=60):
+                return sum(1 for y in range(b['y'], b['y'] + b['h']) for x in range(b['x'], b['x'] + b['w']) if luma(pp[x, y]) > th)
+            plate = [b for b in boxes if b['k'] == 'PLATE']
+            icons = [b for b in boxes if b['k'] == 'ICON' and b['n'] == 'plate']
+            okI = bool(plate and icons) and inside(icons[0], plate[0]) and lit_px(icons[0]) >= 8
+            rep(scr, 'I1 device icon drawn on the name plate (inside plate, >=8 lit px)', okI, f'icons={len(icons)} lit={lit_px(icons[0]) if icons else 0}')
+            term = [b for b in boxes if b['k'] == 'BTN' and b['n'] == 'term' and b['x'] >= 180 and b['y'] <= 2]
+            rep(scr, 'T2 terminal button pinned right of the crown', bool(term) and lit_px(term[0], 100) >= 10, f'term={len(term)}')
+            # R2 halo: mean luma of the annulus r46..58 around the portrait vs the mock capture
+            def ann(im):
+                q = im.load(); v = []
+                for y in range(74 - 58, 74 + 59):
+                    for x in range(160 - 58, 160 + 59):
+                        d2 = (x - 160) ** 2 + (y - 74) ** 2
+                        if 46 * 46 <= d2 <= 58 * 58 and y >= 15: v.append(luma(q[x, y]))
+                return sum(v) / len(v)
+            fa, ma = ann(nr), ann(m) if m is not None else 1
+            rep(scr, 'R2 ring halo brightness >= 75% of mock (annulus r46..58)', fa >= 0.75 * ma, f'fw={fa:.0f} mock={ma:.0f} ({fa / max(1, ma):.0%})')
+            if scr == 'home-bot':
+                strip = [b for b in boxes if b['k'] == 'STRIP']
+                tal = [b for b in boxes if b['k'] == 'ICON' and b['n'] == 'tally']
+                tr = [b for b in boxes if b['k'] == 'TRACE']
+                okS = bool(strip and tal and tr) and lit_px(tr[0], 80) >= 10
+                rep(scr, 'S4 live strip: device tally icons + signal trace', okS, f'strip={len(strip)} icons={len(tal)} trace_px={lit_px(tr[0], 80) if tr else 0}')
         else:
             core = [b for b in boxes if b['k'] == 'HUBCORE']; board = [b for b in boxes if b['k'] == 'BOARD']
             rep(scr, 'M3 Gibson rings core, no bus board', bool(core) and not board, f'core={len(core)} board={len(board)}')

@@ -72,10 +72,13 @@
   PASS  G5 rain layer present + visible  [logged=True visible_px=4031 colour_px=2616]
   PASS  G6 no instruction text
   PASS  G8 crown back control present  [1 crown]
-  PASS  M1 chrome regions match mock (mean colour d<=60, bright-px ratio 0.4..2.5)  [ticker:d37 b1.12 ring:d34 b0.89 plate:d37 b1.11 pill:d40 b0.76 btnL:d40 b0.81 btnR:d29 b1.12]
+  PASS  M1 chrome regions match mock (mean colour d<=60, bright-px ratio 0.4..2.5)  [ticker:d32 b1.17 ring:d19 b1.50 plate:d36 b1.13 pill:d46 b0.73 btnL:d40 b0.81 btnR:d29 b1.12]
   PASS  M2 rain bot/device density >= 50% of mock  [fw=2450 mock=3047 (80%)]
   PASS  M3 mock structure: glow ring + name plate + WATCHING pill  [{'HUBCORE': 1, 'PLATE': 1, 'PILL': 1}]
   PASS  M4 status bar + plate + pill strings drawn  [all]
+  PASS  I1 device icon drawn on the name plate (inside plate, >=8 lit px)  [icons=1 lit=53]
+  PASS  T2 terminal button pinned right of the crown  [term=1]
+  PASS  R2 ring halo brightness >= 75% of mock (annulus r46..58)  [fw=112 mock=57 (197%)]
   PASS  L1 3 lit button(s) like the mock capture (face luma>=20, rim>=50, lit icon>=150)  [face86/rim168/icon255 face35/rim61/icon168 face48/rim61/icon168]
 == home-ble
   PASS  G1 no element/text bbox overlap
@@ -85,23 +88,30 @@
   PASS  G5 rain layer present + visible  [logged=True visible_px=4328 colour_px=2326]
   PASS  G6 no instruction text
   PASS  G8 crown back control present  [1 crown]
-  PASS  M1 chrome regions match mock (mean colour d<=60, bright-px ratio 0.4..2.5)  [ticker:d37 b1.08 ring:d45 b0.76 plate:d44 b1.13 pill:d37 b0.74 btnL:d40 b0.81 btnR:d29 b1.12]
+  PASS  M1 chrome regions match mock (mean colour d<=60, bright-px ratio 0.4..2.5)  [ticker:d33 b1.14 ring:d10 b1.35 plate:d51 b1.00 pill:d42 b0.71 btnL:d40 b0.81 btnR:d29 b1.12]
   PASS  M2 rain bot/device density >= 50% of mock  [fw=2158 mock=3026 (71%)]
   PASS  M3 mock structure: glow ring + name plate + WATCHING pill  [{'HUBCORE': 1, 'PLATE': 1, 'PILL': 1}]
   PASS  M4 status bar + plate + pill strings drawn  [all]
+  PASS  I1 device icon drawn on the name plate (inside plate, >=8 lit px)  [icons=1 lit=24]
+  PASS  T2 terminal button pinned right of the crown  [term=1]
+  PASS  R2 ring halo brightness >= 75% of mock (annulus r46..58)  [fw=112 mock=55 (203%)]
   PASS  L1 3 lit button(s) like the mock capture (face luma>=20, rim>=50, lit icon>=150)  [face86/rim168/icon255 face35/rim61/icon168 face48/rim61/icon168]
 == home-bot
   PASS  G1 no element/text bbox overlap
   PASS  G2 sprites inside their chip/tile
   PASS  G3 no clipped/overrun text
   PASS  G4 nothing past the board/screen edge
-  PASS  G5 rain layer present + visible  [logged=True visible_px=4038 colour_px=2329]
+  PASS  G5 rain layer present + visible  [logged=True visible_px=2909 colour_px=1620]
   PASS  G6 no instruction text
   PASS  G8 crown back control present  [1 crown]
-  PASS  M1 chrome regions match mock (mean colour d<=60, bright-px ratio 0.4..2.5)  [ticker:d36 b1.09 ring:d53 b0.69 plate:d43 b1.14 pill:d48 b0.73 btnL:d40 b0.81 btnR:d29 b1.12]
-  PASS  M2 rain bot/device density >= 50% of mock  [fw=2212 mock=2884 (77%)]
+  PASS  M1 chrome regions match mock (mean colour d<=60, bright-px ratio 0.4..2.5)  [ticker:d32 b1.14 ring:d12 b1.28 plate:d43 b1.13 pill:d54 b0.71 btnL:d40 b0.81 btnR:d29 b1.12]
+  PASS  M2 rain bot/device density >= 50% of mock  [fw=1571 mock=2884 (54%)]
   PASS  M3 mock structure: glow ring + name plate + WATCHING pill  [{'HUBCORE': 1, 'PLATE': 1, 'PILL': 1}]
   PASS  M4 status bar + plate + pill strings drawn  [all]
+  PASS  I1 device icon drawn on the name plate (inside plate, >=8 lit px)  [icons=1 lit=38]
+  PASS  T2 terminal button pinned right of the crown  [term=1]
+  PASS  R2 ring halo brightness >= 75% of mock (annulus r46..58)  [fw=112 mock=58 (192%)]
+  PASS  S4 live strip: device tally icons + signal trace  [strip=1 icons=2 trace_px=108]
   PASS  L1 3 lit button(s) like the mock capture (face luma>=20, rim>=50, lit icon>=150)  [face86/rim168/icon255 face35/rim61/icon168 face48/rim61/icon168]
 == scan-wifi
   PASS  G1 no element/text bbox overlap
@@ -512,5 +522,5 @@
   PASS  F2 setting 5 edits by keyboard  [BOTS -> GIBSON]
   PASS  F2 setting 6 edits by keyboard  [ON -> OFF]
   PASS  F2 setting 7 edits by keyboard  [25 SEC -> 45 SEC]
-GATE: 470/470 PASS, 0 FAIL, 1 N/A -> PASS
+GATE: 480/480 PASS, 0 FAIL, 1 N/A -> PASS
 rc=0

@@ -111,7 +111,20 @@ void Gfx::fillTriangle(int x0, int y0, int x1, int y1, int x2, int y2, uint8_t c
 }
 void Gfx::drawFastHLine(int x, int y, int w, uint8_t c) { fill_raw(x - ox, y - oy, w, 1, c); }
 void Gfx::drawFastVLine(int x, int y, int h, uint8_t c) { fill_raw(x - ox, y - oy, 1, h, c); }
-void Gfx::fillRoundRect(int x, int y, int w, int h, int, uint8_t c) { fill_raw(x - ox, y - oy, w, h, c); }
+void Gfx::fillRoundRect(int x, int y, int w, int h, int r, uint8_t c)
+{
+    /* v1016m: real rounded corners (LovyanGFX fillRoundRect semantics) - was a plain rect */
+    if (r > w / 2) r = w / 2;
+    if (r > h / 2) r = h / 2;
+    if (r < 1) { fill_raw(x - ox, y - oy, w, h, c); return; }
+    fill_raw(x - ox, y - oy + r, w, h - 2 * r, c);
+    for (int dy = 0; dy < r; ++dy) {
+        const float yy = (float)(r - dy) - 0.5f;
+        const int dx = (int)((float)r - sqrtf((float)(r * r) - yy * yy) + 0.5f);
+        fill_raw(x - ox + dx, y - oy + dy, w - 2 * dx, 1, c);
+        fill_raw(x - ox + dx, y - oy + h - 1 - dy, w - 2 * dx, 1, c);
+    }
+}
 void Gfx::fillScreen(uint8_t c) { fill_raw(0, 0, 320, 240, c); }
 void Gfx::setClipRect(int x, int y, int w, int h)
 {

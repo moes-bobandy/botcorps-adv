@@ -1076,3 +1076,32 @@ Reviewed on box `/tmp/bca` at `grok/cyd-touch-port` tip `de108906eb35998eb4501c0
 ```
 On grok/cyd-touch-port tip de10890 (fw 3756d3c): good — the cal now takes the median with a 150 spread and 3 dropped reads, saves c0..c7 before cv=2, the unused saver is gone, the raw log is throttled, boot goes intro then Gibson hub, and it builds (box: RAM 72084 / flash 1407623); I'll field-test it. Fix next: at the start of the cal save do prefs.remove("cv") so a stale cv=2 can't validate a half-written set; in has_valid_cal require x raws (c0,c2,c4,c6) and y raws (c1,c3,c5,c7) to each span > ~1000 and drop the redundant first==0 line; in load_touch_cal fall through to the placeholder apply when a c-key is missing; during the 2.5 s intro swallow touches and skip rain (or give the intro its own screen id) so a tap can't hit the old PLAY button; on CYD replace the intro's "S3"/"REV A" label. One commit per round, LV stays "LV 01", push only to grok/cyd-touch-port, no merge/flash.
 ```
+
+---
+
+## GIBSONbot review — tip 5c247fb / fw 289ab38 (2026-10-17 ~11:40 AM ET)
+
+Reviewed on box `/tmp/bca` at `grok/cyd-touch-port` tip `5c247fbfdf0d4a3ada71a76dedf93611ce838efa` (last reviewed `1ccd1c1`). Diff span `1ccd1c1..5c247fb`: `src/display/botcorps_display.cpp`, `src/ui/botcorps_ui.cpp`, `BRIDGE.md`, `builds/cyd/REPORT.md`. Host type gate **PASS** (`cyd osk table ok keys=42 clip_y=151`; `host cyd type gate passed`). **Box build of `env:cyd`: SUCCESS**, RAM 72,084 / 327,680 (22.0%), flash 1,408,087 / 3,145,728 (44.8%), `firmware.bin` 1,408,496 B (REPORT 1,407,991 / 1,408,400 — same build-env gap as before). Nothing merged or flashed by this watch; only this TASKS note is pushed.
+
+| SHA | What |
+|-----|------|
+| 289ab38 | Cal save does `prefs.remove("cv")` first; `has_valid_cal` requires x and y raw spans > 1000 (redundant line dropped); `load_touch_cal` falls through to the placeholder on a missing c-key; `read_key` swallows touches during the 2.5 s intro; CYD intro header reads "CYD" / "ESP32" |
+| 5c247fb | REPORT/BRIDGE cite fw 289ab38 + build numbers |
+
+### Matches
+1. Stale `cv=2` cleared at the start of the save, `cv=2` still written last and only on success (prior fix 1).
+2. `has_valid_cal` now needs x raws (c0,c2,c4,c6) and y raws (c1,c3,c5,c7) to each span > 1000; redundant `first==0` line gone (prior fix 2).
+3. `load_touch_cal` applies the placeholder when a c-key is missing instead of returning with nothing applied (prior fix 3). `has_valid_cal` is false in that case, so boot auto-cal still runs. Good.
+4. Touches are swallowed during the intro, so a tap can't hit the old PLAY button (prior fix 4, touch half). Rain is not drawn over the intro (`paint_ext` returns after `paint_intro`).
+5. CYD intro header says "CYD" / "ESP32" instead of the Adv "S3" / "REV A" (prior fix 5).
+6. Memory flat (RAM same, flash +464 B vs 3756d3c). Typing gate passes. No instruction text added. LV left "LV 01".
+
+### Misses (numbered fixes)
+1. **Soft: rain still steps during the intro.** REPORT says the intro "skips rain", but `wants_rain()` is unchanged and is true for `SCR_RAIN`, so `botcorps_rain_step()` keeps running every ~140 ms and each step forces a full repaint of the intro (only the rain *draw* is skipped). Watch for intro flicker on glass. **Fix:** on `BOTCORPS_CYD`, make `wants_rain()` return false while `s_intro_until` is set.
+2. **Soft: a finger held as the intro ends fires a tap on the hub.** `read_key` returns before `getTouch`, so `s_touch_down` stays false through the intro and the first read after it counts as a fresh press. **Fix:** during the intro still call `getTouch`, set `s_touch_down = down` (and `s_touch_last = millis()` when down), then return `K_NONE`. Also drop the nested duplicate `#ifdef BOTCORPS_CYD` around that line.
+3. **Still open:** glass pass of boot (intro then hub) + auto-cal accepting real presses + reboot-keeps-cal + touch nav (Dirt to flash 289ab38 and send serial lines if cal still fails), real host CYD frame dumps (fonts still stubs), LV meaning (Dirt HOLD), leave room for the games port once the Adv games build lands. No merge/flash from this watch.
+
+### Follow-up one-liner (Dirt → Super Grok)
+```
+On grok/cyd-touch-port tip 5c247fb (fw 289ab38): good — the save clears a stale cv first, has_valid_cal needs x and y spans > 1000, load falls back to the placeholder on a missing c-key, intro touches are swallowed, the CYD intro label is fixed, and it builds (box: RAM 72084 / flash 1408087); I'll field-test it. Fix next: on CYD make wants_rain() return false while s_intro_until is set, since rain still steps and forces full intro repaints every ~140 ms; during the intro still call getTouch and set s_touch_down = down (and s_touch_last when down) before returning K_NONE so a finger held as the intro ends doesn't fire a tap on the hub, and drop the nested duplicate #ifdef BOTCORPS_CYD there. Then real host CYD frame dumps. One commit per round, LV stays "LV 01", push only to grok/cyd-touch-port, no merge/flash.
+```

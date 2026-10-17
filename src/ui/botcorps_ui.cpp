@@ -5690,7 +5690,10 @@ static void paint_gchat(Gfx g)
         g.fillRect(px + 3, py + ph - 4, (wrap ? n2 : n1) * 6 - 1, 1, PAL_WIRE_C);
         s_px = kt;
     }
-    chip_block(g, 56, 78, 36, 12); /* v1016f-4: Gibson block, no disc/ring */
+    /* v1019b (Dirt): each bot's Defend game shows THAT bot's chip (own colour, silver pins, Morpheus A)
+     * in Gibson's spot; Gibson's own game keeps his gold-pin chip. The chat-corner speaker chip and the
+     * route board CPU stay Gibson. */
+    chip_block(g, 56, 78, 36, (s_defend_bot >= 0 && s_defend_bot < 12) ? s_defend_bot : 12);
     paint_gc_rail(g, ac);
     paint_gc_route(g, ac);
     g.fillRect(4, 148, 312, 88, PAL_BLACK);
@@ -6051,6 +6054,7 @@ static void activate(void)
             break;
         }
         if (s_hub_zone == 3) {           /* Gibson: Enter enters the Gibson game */
+            s_defend_bot = 12;           /* v1019b: Gibson's own game */
             enter_screen(SCR_GCHAT, SCR_GIBSON);
             s_dirty = true;
             break;
@@ -7127,6 +7131,7 @@ static void on_esc(void)
 static void on_tab(void)
 {
     if (s_screen == SCR_GIBSON) {
+        s_defend_bot = 12;               /* v1019b: Gibson's own game */
         enter_screen(SCR_GCHAT, SCR_GIBSON);
         s_sheet = true;
         s_sheet_i = 0;

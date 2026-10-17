@@ -3825,14 +3825,27 @@ static void paint_control(Gfx g)
     const uint8_t gold = 177, silk = 223;
     /* top chrome bar (rain shows behind): crown (BACK) + terminal (TERM) buttons */
     g.fillRect(0, 0, 320, 18, PAL_BLACK);
-    draw_btn(g, 250, 9, ICO_BACK, s_cursor == CP_N + 1);
-    draw_btn(g, 284, 9, ICO_TERM, s_cursor == CP_N);
+    {   /* crown = BACK (R7), terminal chip = TERM */
+        const bool bsel = s_cursor == CP_N + 1;
+        const uint8_t bc = bsel ? (uint8_t)PAL_WHITE : silk;
+        const int bx = 270;
+        g.fillRect(bx, 11, 17, 4, bc);
+        g.fillRect(bx, 5, 3, 8, bc); g.fillRect(bx + 7, 3, 3, 10, bc); g.fillRect(bx + 14, 5, 3, 8, bc);
+        if (bsel) g.drawRect(bx - 2, 1, 21, 16, PAL_WHITE);
+        const bool tsel = s_cursor == CP_N;
+        const uint8_t tc = tsel ? (uint8_t)PAL_WHITE : silk;
+        const int tx = 294;
+        g.drawRect(tx, 3, 18, 12, tc); g.fillRect(tx, 3, 18, 3, tc);
+        g.drawLine(tx + 3, 9, tx + 6, 11, tc); g.drawLine(tx + 6, 11, tx + 3, 13, tc);
+        g.fillRect(tx + 8, 12, 5, 1, tc);
+        if (tsel) g.drawRect(tx - 2, 1, 22, 16, PAL_WHITE);
+    }
     /* matte-black PCB, inset to leave a rain margin on all four sides */
-    g.fillRect(6, 22, 308, 210, PAL_BLACK);
-    for (int x = 14; x < 308; x += 10) g.fillRect(x, 24, 1, 206, PAL_DEEP);
-    g.drawRect(6, 22, 308, 210, gold);
-    g.drawRect(7, 23, 306, 208, PAL_LINE);
-    const int hx[4] = { 12, 308, 12, 308 }, hy[4] = { 28, 28, 226, 226 };
+    g.fillRect(10, 24, 300, 202, PAL_BLACK);
+    for (int x = 18; x < 304; x += 10) g.fillRect(x, 26, 1, 198, PAL_DEEP);
+    g.drawRect(10, 24, 300, 202, gold);
+    g.drawRect(11, 25, 298, 200, PAL_LINE);
+    const int hx[4] = { 16, 304, 16, 304 }, hy[4] = { 30, 30, 222, 222 };
     for (int k = 0; k < 4; ++k) { g.fillCircle(hx[k], hy[k], 3, gold); g.fillCircle(hx[k], hy[k], 1, PAL_BLACK); }
     static const char *TOP_PINS = "D23 D22 TX0 RX0 D21 D19 D18 D5 D17 D16";
     static const char *BOT_PINS = "EN VP VN D34 D35 D32 D33 D25 D26 D27";
@@ -3844,12 +3857,12 @@ static void paint_control(Gfx g)
     tiny_text(g, BOT_PINS, 20, 199, silk);
     for (int i = 0; i < CP_N; ++i) paint_cp_row(g, i, s_cursor == i);
     /* power section: DC jack + 1117C + USB5V (silver/silk on black) */
-    g.fillRect(286, 120, 24, 20, PAL_DEEP); g.drawRect(286, 120, 24, 20, gold);
-    g.fillCircle(298, 130, 4, PAL_BLACK); tiny_text(g, "DC6.5", 284, 142, silk);
-    g.fillRect(286, 150, 20, 10, PAL_BLACK); g.drawRect(286, 150, 20, 10, PAL_STEEL);
-    tiny_text(g, "1117C", 284, 162, silk);
-    g.fillRect(292, 176, 14, 20, PAL_STEEL); g.drawRect(292, 176, 14, 20, PAL_LINE);
-    tiny_text(g, "USB5V", 284, 198, silk);
+    g.fillRect(272, 120, 22, 18, PAL_DEEP); g.drawRect(272, 120, 22, 18, gold);
+    g.fillCircle(283, 129, 4, PAL_BLACK); tiny_text(g, "DC6.5", 270, 140, silk);
+    g.fillRect(272, 150, 20, 10, PAL_BLACK); g.drawRect(272, 150, 20, 10, PAL_STEEL);
+    tiny_text(g, "1117C", 270, 162, silk);
+    g.fillRect(276, 176, 14, 18, PAL_STEEL); g.drawRect(276, 176, 14, 18, PAL_LINE);
+    tiny_text(g, "USB5V", 270, 196, silk);
     g.fillRect(100, 150, 14, 8, gold); tiny_text(g, "C1", 100, 160, silk);
     g.fillRect(196, 148, 12, 12, PAL_DEEP); g.drawRect(196, 148, 12, 12, PAL_STEEL); tiny_text(g, "BOOT", 190, 162, silk);
     g.fillRect(196, 176, 12, 12, PAL_DEEP); g.drawRect(196, 176, 12, 12, PAL_STEEL); tiny_text(g, "EN", 196, 190, silk);
@@ -4696,8 +4709,7 @@ static void paint_gc_route(Gfx g, uint8_t ac)
     dev_icon(g, DEV_CAM, x + 36, y + 52, false);
     dev_icon(g, DEV_BT, x + 96, y + 70, false);
     dev_icon(g, DEV_DRONE, x + 140, y + 48, false);
-    g.drawRect(x + 78, y + 40, 28, 28, PAL_HOLD);
-    hub_gibson(g, x + 92, y + 54, 3);
+    chip_block(g, x + 92, y + 54, 28, 12); /* v1016f-4 (Dirt 8:31): Gibson CPU = square block */
     for (int k = 0; k < 5; ++k) {
         g.fillRect(x + 16 + k * 8, y + 96, 3, 2, PAL_OK);
         g.fillRect(x + 20 + k * 10, y + h - 14, 6, 2, PAL_HOLD);
@@ -4736,19 +4748,14 @@ static void paint_gchat(Gfx g)
     txt(g, "RX", 296, 4, (uint32_t)(t - s_last_key) < 220u ? ac : (uint8_t)COL_MUTED,
         lgfx::textdatum::top_left);
     s_px = keep;
-    px_ring(g, 56, 78, 36, ac, 2, 3, (int)(t / 90u));
-    px_ring(g, 56, 78, 30, PAL_WIRE_C, 0, 0, 0);
-    hub_gibson(g, 56, 78, 5);
+    chip_block(g, 56, 78, 36, 12); /* v1016f-4: Gibson block, no disc/ring */
     paint_gc_rail(g, ac);
     paint_gc_route(g, ac);
     g.fillRect(4, 148, 312, 88, PAL_BLACK);
     g.drawRect(4, 148, 312, 88, ac);
     g.drawRect(5, 149, 310, 86, PAL_WIRE_C);
     g.fillRect(6, 150, 250, 1, (uint32_t)(t - s_bus_t0) < 160u ? ac : (uint8_t)PAL_WIRE_C);
-    g.fillRect(280, 200, 28, 28, PAL_BLACK);
-    g.drawRect(279, 199, 30, 30, ac);
-    g.drawRect(280, 200, 28, 28, PAL_WIRE_C);
-    hub_gibson(g, 294, 214, 3);
+    chip_block(g, 294, 214, 28, 12);
     s_px = 6;
     const int n = s_log_n < 6 ? s_log_n : 6;
     const int start = s_log_n - n;
@@ -4804,7 +4811,7 @@ static void paint_intro(Gfx g)
         g.fillRect(14 + d, 20, 3, 1, ac);
         g.fillRect(14 + d, 100, 3, 1, ac);
     }
-    hub_gibson(g, 68, 58, 6);
+    chip_block(g, 68, 58, 46, 12);
     txt(g, "GIBSON", 48, 86, ac, lgfx::textdatum::top_left);
     g.fillRect(14, 104, 92, 18, PAL_BG);
     g.drawRect(14, 104, 92, 18, PAL_WIRE_C);
@@ -4825,7 +4832,7 @@ static void paint_intro(Gfx g)
     g.fillRect(10, 134, 300, 92, PAL_BLACK);
     g.fillRect(12, 148, 2, 60, ac);
     g.fillRect(298, 148, 2, 60, ac);
-    hub_gibson(g, 36, 176, 4);
+    chip_block(g, 36, 176, 30, 12);
     txt(g, "BOTS", 70, 150, PAL_MUTED, lgfx::textdatum::top_left);
     txt(g, "7/12", 200, 150, ac, lgfx::textdatum::top_left);
     txt(g, "UPTIME", 70, 166, PAL_MUTED, lgfx::textdatum::top_left);

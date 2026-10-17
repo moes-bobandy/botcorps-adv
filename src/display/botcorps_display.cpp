@@ -210,8 +210,8 @@ void botcorps_cyd_load_touch_cal(void)
 #endif
 
 #ifdef BOTCORPS_CYD
-/* Tap-target calibration: four corner crosshairs, raw reads, no text.
- /* Custom 15s-per-target loop (native TL/BL/TR/BR order, 16-sample avg, jitter check). Restores rotation. Returns false + logs on timeout (no save). */
+/* Custom 15 s-per-target cal (native TL/BL/TR/BR order, 16-sample avg,
+ * 20-raw jitter, one deadline across retries, restore rotation, no save on timeout). */
 bool botcorps_cyd_run_touch_cal(void)
 {
     /* Custom 15 s-per-target cal. Rotation computed LovyanGFX-style

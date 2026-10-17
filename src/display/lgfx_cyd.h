@@ -44,10 +44,9 @@ public:
             cfg.panel_height = 320;
             cfg.offset_x = 0;
             cfg.offset_y = 0;
-            /* Match setRotation(1) in botcorps_dual_begin. LovyanGFX adds
-             * this to the touch transform. Confirm on a device; NVS "trot"
-             * overrides it. See botcorps_cyd_load_touch_cal(). */
-            cfg.offset_rotation = 0; /* panel; touch stays 0. setRotation(1) must yield 320x240 */
+            /* Panel offset_rotation = 0 so setRotation(1) yields 320x240.
+             * Touch offset_rotation stays 0 (separate). Not overridden by NVS. */
+            cfg.offset_rotation = 0;
             cfg.dummy_read_pixel = 8;
             cfg.dummy_read_bits = 1;
             cfg.readable = true;
@@ -100,7 +99,7 @@ public:
         *y = tp.y;
         return true;
     }
-    /* 8-point calibrate (TL,TR,BR,BL raw x,y). Leaves offset_rotation at constructor value. */
+    /* 8-point calibrate (native order TL, BL, TR, BR raw x,y). Leaves offset_rotation at constructor value. */
     void apply_touch_cal8(const uint16_t cal[8])
     {
         /* LovyanGFX setTouchCalibrate expects the 8 raw values for the four corners. */

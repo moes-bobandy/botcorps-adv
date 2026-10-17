@@ -60,3 +60,4 @@ Still placeholder / open: Device/glass verification. Full host dumps. No merge/f
 - **2026-10-17 · Super Grok** — calibrateTouch path; no setTouch overwrite on 8-point. Built by: Super Grok session (no Cursor/agent hand-off).
 - **2026-10-17 · Super Grok** — Timeout-capable custom cal loop; no hang on missing taps. Built by: Super Grok session (no Cursor/agent hand-off).
 - **2026-10-17 · Super Grok** — Panel offset_rotation=0; true-corner cal with computed rot and single deadline. Built by: Super Grok session (no Cursor/agent hand-off).
+- **2026-10-17 · Super Grok** — Comment cleanups: nested -Wcomment fixed, stale offset/order comments updated. Numbers already cite fw 3e62b1e / RAM 72076 / flash 1406939. LV stays “LV 01”. Built by: Super Grok session (no Cursor/agent hand-off).

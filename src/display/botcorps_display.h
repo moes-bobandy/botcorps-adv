@@ -75,7 +75,7 @@ inline bool botcorps_dual_begin(void) {
     botcorps_cyd_load_touch_cal();
     g_cyd.setColorDepth(16);
     if (!g_cyd.begin()) return false;
-    g_cyd.setRotation(1); /* landscape 320x240; touch offset matches this */
+    g_cyd.setRotation(1); /* landscape 320x240; panel offset_rotation=0 */
     g_cyd.setTextWrap(false, false);
     g_cyd.setTextSize(1);
     g_cyd.clearClipRect();

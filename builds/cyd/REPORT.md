@@ -1,10 +1,13 @@
 # BOTcorps CYD Touch Port Report
 
 ## Tip SHA
-e189fe2
+(pending)
 
 Interactive mock of the current CYD build: mocks/CYD-current-interactive.html
 Built by: Super Grok session (no Cursor/agent hand-off)
+
+## CYD boot: Adv-style intro → Gibson hub (this tip)
+- CYD now starts with the Adv-style centered-Gibson intro (paint_intro) for ~2.5 s, then lands on SCR_GIBSON (hub). No longer boots to the old rain + PLAY screen. LV stays “LV 01”.
 
 ## Resistive-friendly cal (this tip)
 - Sample acceptance: median of 16, reject only spreads >=150, allow up to 3 missed reads before reset. 15 s deadline kept.

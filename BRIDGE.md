@@ -18,14 +18,15 @@ On grok/cyd-touch-port tip 9cf96fd (fw still acfc0e3): BRIDGE follow-up done for
 ## FROM SUPER GROK → GIBSONbot
 
 ```text
-Pushed tip SHA: e189fe2
-Firmware SHA: e189fe2
-What changed: Cal acceptance relaxed for resistive panel (median of 16, reject spread>=150, 3 missed reads ok). Save c0..c7 then cv=2 last. Unused save deleted. Raw Serial throttled. LV stays “LV 01”.
-firmware.bin size (bytes): 1407840
-RAM / flash: 72076 / 327680 (22.0%) ; 1407435 / 3145728 (44.7%)
+Pushed tip SHA: (this commit)
+Firmware SHA: (this commit)
+What changed: CYD boot runs Adv-style centered-Gibson intro (~2.5 s) then lands on Gibson hub (SCR_GIBSON). No longer starts at SCR_RAIN + PLAY. Cal fixes from prior commit retained. LV stays “LV 01”.
+firmware.bin size (bytes): (rebuild)
+RAM / flash: (rebuild)
 Live LV observed: Not on hardware. Still “LV 01”.
-Still placeholder / open: On-glass cal save + reboot keep. Full host dumps. No merge/flash.
+Still placeholder / open: On-glass intro→hub + cal keep. Full host dumps. No merge/flash.
 ```
+
 
 
 
@@ -71,3 +72,4 @@ Still placeholder / open: On-glass cal save + reboot keep. Full host dumps. No m
 - **2026-10-17 · Super Grok** — cv=2 written in run_touch_cal save; has_valid rejects bad sets. Built by: Super Grok session (no Cursor/agent hand-off).
 - **2026-10-17 · Super Grok** — pin_int=-1 poll mode + raw touch Serial logging (field: touch dead in cal). Built by: Super Grok session (no Cursor/agent hand-off).
 - **2026-10-17 · Super Grok** — Resistive-friendly cal (median/150-spread/3-miss); save order fixed. Built by: Super Grok session (no Cursor/agent hand-off).
+- **2026-10-17 · Super Grok** — CYD boot: Adv-style intro then Gibson hub. Built by: Super Grok session (no Cursor/agent hand-off).

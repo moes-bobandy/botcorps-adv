@@ -273,6 +273,9 @@ static const int LOG_ROWS = 24;
 static const int LOG_W = 80;
 
 static int s_screen = SCR_RAIN;
+#ifdef BOTCORPS_CYD
+static uint32_t s_intro_until = 0;
+#endif
 static int s_cursor = 0;
 static int s_bot = 2;
 static int s_term = 2;
@@ -3959,8 +3962,21 @@ static void paint_ext(Gfx g)
     g.clearClipRect();
     g.setTextWrap(false, false);
     if (s_screen == SCR_RAIN && s_act == 4) {
+#ifdef BOTCORPS_CYD
+        if (s_intro_until && (int32_t)(millis() - s_intro_until) >= 0) {
+            s_screen = SCR_GIBSON;
+            s_act = 0;
+            s_intro_until = 0;
+            s_dirty = true;
+            /* fall through to hub paint */
+        } else {
+            paint_intro(g);
+            return;
+        }
+#else
         paint_intro(g);
         return;
+#endif
     }
     if (s_screen == SCR_DIAG) {
         paint_diag(g);
@@ -5339,7 +5355,13 @@ void botcorps_ui_begin(void)
     s_boot_ms = millis();
     s_last_key = s_boot_ms;
     s_bub[0] = 0;
+#ifdef BOTCORPS_CYD
+    s_screen = SCR_RAIN; /* intro phase: paint_intro when s_act==4 */
+    s_act = 4;
+    s_intro_until = millis() + 2500; /* show Adv-style intro, then hub */
+#else
     s_screen = SCR_RAIN;
+#endif
     s_cursor = 0;
     s_dirty = true;
     s_int_dirty = true;

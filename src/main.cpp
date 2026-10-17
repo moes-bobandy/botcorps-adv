@@ -39,6 +39,27 @@ void setup(void)
     /* No INT ID-card strip. The compact badge is painted with the terminal. */
     botcorps_ui_mark_dirty();
 
+    /* No-text hold-at-boot cal fallback: hold finger ~2s to run cal
+     * (typing "cal" needs working touch). Raw reads only, no on-screen text. */
+    {
+        int hold = 0;
+        uint32_t t0 = millis();
+        while (millis() - t0 < 2500) {
+            int x, y;
+            if (g_cyd.get_touch_raw(&x, &y)) {
+                if (++hold >= 100) { /* ~1s of continuous contact in this window */
+                    Serial.println("[botcorps] hold-at-boot cal");
+                    botcorps_cyd_run_touch_cal();
+                    break;
+                }
+                delay(10);
+            } else {
+                hold = 0;
+                delay(20);
+            }
+        }
+    }
+
     botcorps_ui_begin();
     botcorps_probe_screen("-", "rain");
     botcorps_ui_draw();

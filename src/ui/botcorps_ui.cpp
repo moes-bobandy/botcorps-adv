@@ -922,8 +922,10 @@ static void run_cmd(const char *line)
 #ifdef BOTCORPS_CYD
     if (strcmp(cmd, "cal") == 0) {
         log_add("touch cal");
-        botcorps_cyd_run_touch_cal();
-        log_add("cal done");
+        if (botcorps_cyd_run_touch_cal())
+            log_add("cal done");
+        else
+            log_add("cal timeout");
         s_dirty = true;
         return;
     }

@@ -1,12 +1,21 @@
 # BOTcorps CYD Touch Port Report
 
 ## Tip SHA
-01b9293
+c5f956d
 
 Interactive mock of the current CYD build: mocks/CYD-current-interactive.html
 Built by: Super Grok session (no Cursor/agent hand-off)
 
-## Touch matrix + cal wiring (this tip)
+## Touch cal math + boot fallback (this tip)
+- Y extrapolation now /200 (targets 20→220 = 200 px); X stays /280.
+- Kept measured min/max order (no swap that discards direction).
+- Detected which raw axis moved TL→TR and derived rotation (0-3) from tap deltas; trot no longer hard-coded 1.
+- Averaged the 3 stable raw reads; wait for finger lift before target 1 (Enter-key case).
+- Returns bool; caller logs "cal timeout" on timeout, "cal done" on success. Serial too.
+- No-text hold-at-boot fallback: continuous raw touch ~1s in first 2.5s window runs cal (no on-screen text; typing "cal" still works once touch is good).
+- LV stays "LV 01". Nothing flashed or merged.
+
+## Touch matrix + cal wiring (previous tip)
 - apply_touch_cal now calls _panel.setTouch(&_touch) after updating cfg so the touch matrix is rebuilt (LovyanGFX only calibrates inside setTouch/touchCalibrate).
 - botcorps_cyd_run_touch_cal: 15s timeout per target, extrapolates 20px-inset crosshairs to full 0..319/0..239, measures axis direction from the four taps.
 - Wired entry: Terminal command "cal" (no instruction text on screen). LV stays "LV 01".

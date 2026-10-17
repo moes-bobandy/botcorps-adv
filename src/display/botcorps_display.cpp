@@ -204,55 +204,87 @@ void botcorps_cyd_load_touch_cal(void)
 #ifdef BOTCORPS_CYD
 /* Tap-target calibration: four corner crosshairs, raw reads, no text.
  * Call once; it blocks until four taps are collected, then saves and applies live. */
-void botcorps_cyd_run_touch_cal(void)
+bool botcorps_cyd_run_touch_cal(void)
 {
     const int targets[4][2] = {{20, 20}, {300, 20}, {20, 220}, {300, 220}};
     int rawx[4] = {0}, rawy[4] = {0};
     g_cyd.fillScreen(0x0000);
+    /* Wait for any Enter-key finger to lift before target 1 */
+    {
+        int x, y;
+        uint32_t lift = millis();
+        while (g_cyd.get_touch_raw(&x, &y) && millis() - lift < 3000) delay(20);
+    }
     for (int i = 0; i < 4; ++i) {
         int tx = targets[i][0], ty = targets[i][1];
         g_cyd.drawLine(tx - 8, ty, tx + 8, ty, 0xFFFF);
         g_cyd.drawLine(tx, ty - 8, tx, ty + 8, 0xFFFF);
         g_cyd.drawCircle(tx, ty, 4, 0xFFFF);
-        int x = 0, y = 0;
+        int sx = 0, sy = 0;
         uint32_t stable = 0;
         uint32_t start_ms = millis();
         while (stable < 3) {
             if (millis() - start_ms > 15000) { /* 15s timeout per target */
+                Serial.println("[botcorps] cal timeout");
                 g_cyd.fillScreen(0x0000);
-                return;
+                return false;
             }
+            int x = 0, y = 0;
             if (g_cyd.get_touch_raw(&x, &y)) {
+                sx += x; sy += y;
                 ++stable;
                 delay(30);
             } else {
-                stable = 0;
+                sx = sy = stable = 0;
                 delay(10);
             }
         }
-        rawx[i] = x;
-        rawy[i] = y;
+        rawx[i] = sx / 3;
+        rawy[i] = sy / 3;
         g_cyd.fillCircle(tx, ty, 6, 0x07E0);
         delay(200);
         uint32_t rel = millis();
+        int x, y;
         while (g_cyd.get_touch_raw(&x, &y) && millis() - rel < 2000) delay(10);
     }
     /* Extrapolate from 20px inset targets to full 0..319 / 0..239.
-     * Measure axis direction from the taps instead of assuming. */
+     * X span is 280 px (300-20), Y span is 200 px (220-20).
+     * Keep measured order (do not force min<max). Detect which raw axis
+     * moved TL->TR and derive rotation. */
+    int dtx = rawx[1] - rawx[0];
+    int dty = rawy[1] - rawy[0];
+    bool x_is_horizontal = abs(dtx) >= abs(dty);
+    uint8_t rot = 1;
+    if (x_is_horizontal) {
+        rot = (dtx >= 0) ? 0 : 2;
+    } else {
+        rot = (dty >= 0) ? 1 : 3;
+    }
     int dx_right = ((rawx[1] - rawx[0]) + (rawx[3] - rawx[2])) / 2;
     int dy_down  = ((rawy[2] - rawy[0]) + (rawy[3] - rawy[1])) / 2;
-    /* Scale factor: 280 px span (300-20) maps to the measured delta */
+    /* If axes swapped, the screen-horizontal delta is on raw Y, etc.
+     * For extrapolation we still use the screen-direction deltas. */
+    if (!x_is_horizontal) {
+        /* horizontal movement was on raw Y; vertical on raw X */
+        dx_right = ((rawy[1] - rawy[0]) + (rawy[3] - rawy[2])) / 2;
+        dy_down  = ((rawx[2] - rawx[0]) + (rawx[3] - rawx[1])) / 2;
+    }
     int xmin = rawx[0] - (dx_right * 20 / 280);
     int xmax = rawx[1] + (dx_right * 19 / 280);
-    int ymin = rawy[0] - (dy_down * 20 / 280);
-    int ymax = rawy[2] + (dy_down * 19 / 280);
-    if (xmin > xmax) { int t = xmin; xmin = xmax; xmax = t; }
-    if (ymin > ymax) { int t = ymin; ymin = ymax; ymax = t; }
+    int ymin = rawy[0] - (dy_down * 20 / 200);
+    int ymax = rawy[2] + (dy_down * 19 / 200);
+    /* keep measured order — no min/max swap */
     if (xmin < 0) xmin = 0;
     if (xmax > 4095) xmax = 4095;
     if (ymin < 0) ymin = 0;
     if (ymax > 4095) ymax = 4095;
-    botcorps_cyd_save_touch_cal((uint16_t)xmin, (uint16_t)xmax, (uint16_t)ymin, (uint16_t)ymax, 1);
+    if (xmax < 0) xmax = 0;
+    if (xmin > 4095) xmin = 4095;
+    if (ymax < 0) ymax = 0;
+    if (ymin > 4095) ymin = 4095;
+    botcorps_cyd_save_touch_cal((uint16_t)xmin, (uint16_t)xmax, (uint16_t)ymin, (uint16_t)ymax, rot);
     g_cyd.fillScreen(0x0000);
+    Serial.printf("[botcorps] cal done rot=%u x_horiz=%d\n", (unsigned)rot, x_is_horizontal ? 1 : 0);
+    return true;
 }
 #endif

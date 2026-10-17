@@ -104,7 +104,7 @@ public:
     void apply_touch_cal8(const uint16_t cal[8])
     {
         /* LovyanGFX setTouchCalibrate expects the 8 raw values for the four corners. */
-        _touch.setCalibrate(cal);
+        setTouchCalibrate(const_cast<uint16_t*>(cal)); /* on LGFX_Device */
         /* Ensure the matrix is live. */
         _panel.setTouch(&_touch);
     }

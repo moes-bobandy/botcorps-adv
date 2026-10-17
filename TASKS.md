@@ -955,3 +955,34 @@ Reviewed on box `/tmp/bca` at `grok/cyd-touch-port` tip `0367803b715f26f27a13659
 ```
 On grok/cyd-touch-port tip 0367803 (fw 3e62b1e): good — panel offset_rotation 0 fixes the 320x240 boot, cal rotation computed the LovyanGFX way, true corners, one 15 s deadline across jitter retries with lift wait, -Wcomment gone, REPORT/BRIDGE cleaned, and it builds (box: RAM 72076 / flash 1407035). Fix next: after a jitter reject the fillRect erases the crosshair and the loop never redraws it, so the screen goes blank until timeout — move the marker draws to the top of the while(!got) loop; read touch_off/panel_off from the panel and touch config().offset_rotation instead of hard-coded 0s; fix botcorps_display.h line 69 ("offset_rotation 1" → 0); optionally save a cal version key (cv=2) and ignore older c0..c7 without it. Then real host CYD frame dumps. One commit per round, LV stays "LV 01", push only to grok/cyd-touch-port, no merge/flash.
 ```
+
+---
+
+## GIBSONbot review — tip d3ac1da / fw bd7640c (2026-10-17 ~9:40 AM ET)
+
+Reviewed on box `/tmp/bca` at `grok/cyd-touch-port` tip `d3ac1dad59c523872dbd409fb130381121bdd270` (last reviewed `0367803`, TASKS push `a28674f`). Diff span `a28674f..d3ac1da`: `src/display/botcorps_display.cpp` (marker redraw, cv key, `has_valid_cal`), `src/display/botcorps_display.h`, `src/display/lgfx_cyd.h` (offset getters), `src/main.cpp` (auto-cal on boot), `BRIDGE.md`, `builds/cyd/REPORT.md`. Host type gate **PASS** (`cyd osk table ok keys=42 clip_y=151`; `host cyd type gate passed`). **Box build of `env:cyd`: SUCCESS**, RAM 72,076 / 327,680 (22.0%), flash 1,407,347 / 3,145,728 (44.7%), `firmware.bin` 1,407,744 B (REPORT 1,407,267 / 1,407,664 — same build-env gap). No new warnings (only the old `-Wformat-truncation` ones in `botcorps_ui.cpp`). Nothing merged or flashed by this watch; only this TASKS note is pushed.
+
+| SHA | What |
+|-----|------|
+| 7336c13 | CYD: crosshair redrawn on every attempt; `touch_off`/`panel_off` read from config; `cv=2` version key; header comment fixed |
+| 0f9e89d | REPORT/BRIDGE cite fw 7336c13 |
+| bd7640c | CYD: auto-enter touch cal on boot when no valid `cv=2` cal exists; hold-at-boot kept for forced re-cal |
+| d3ac1da | REPORT/BRIDGE cite fw bd7640c |
+
+### Matches
+1. Crosshair now redraws at the top of every `while (!got)` pass, so a jitter reject no longer leaves a blank screen (closes prior fix 1).
+2. Offsets are read live from panel and touch `config().offset_rotation` via new getters in `lgfx_cyd.h` (closes prior fix 2).
+3. `botcorps_display.h` comment now says `offset_rotation 0` (closes prior fix 3).
+4. Load ignores c0..c7 unless `cv == 2`, so an old saved cal can't be applied silently (closes the load half of prior fix 4).
+5. Auto-cal on first boot is a sensible addition: markers only, no instruction text; a no-tap boot times out after 15 s and continues. Memory flat (RAM same, flash +312 B vs 3e62b1e). Typing gate passes. LV left "LV 01".
+
+### Misses (numbered fixes)
+1. **P0: the cal never saves `cv=2`, so it's lost on every reboot and auto-cal runs on every boot.** `prefs.putUChar("cv", 2)` went into `botcorps_cyd_save_touch_cal` (the old 4-value saver, which nothing calls). The real saver at the end of `botcorps_cyd_run_touch_cal` writes `tcal` and `c0..c7` but no `cv`. So `botcorps_cyd_has_valid_cal()` is always false (auto-cal every boot), and `botcorps_cyd_load_touch_cal()` always skips the 8-point cal and falls back to the 300..3900 placeholders. The fresh cal only works until the next reset. Found by reading the code, not on a device. **Fix:** add `prefs.putUChar("cv", 2)` (checked like the c-key puts) in `run_touch_cal`'s save block, and either delete the unused `botcorps_cyd_save_touch_cal` or drop the `cv` write from it so a 4-value save can't claim to be an 8-point cal.
+2. **Soft: `has_valid_cal` checks only `c0` and `c7`.** Check all eight keys, and reject an obviously bad set (for example all equal, or zeros), so a half-written cal triggers a fresh auto-cal instead of loading garbage.
+3. **Soft: auto-cal before the UI is up.** On a first boot with no taps, the screen sits black with a corner marker for 15 s before PLAY. That's fine per the no-text rule; just confirm on glass it's obvious enough. No change asked.
+4. **Still open:** real host CYD frame dumps (fonts still stubs), LV meaning (Dirt HOLD), device/glass pass of boot + cal + touch nav. No merge/flash from this watch.
+
+### Follow-up one-liner (Dirt → Super Grok)
+```
+On grok/cyd-touch-port tip d3ac1da (fw bd7640c): good — crosshair redraws after a jitter reject, offsets read from config, header says offset_rotation 0, load ignores c0..c7 without cv=2, auto-cal on first boot, and it builds (box: RAM 72076 / flash 1407347). Fix next, P0: run_touch_cal's save block never writes cv=2 (it went into the unused 4-value botcorps_cyd_save_touch_cal), so has_valid_cal is always false, auto-cal runs every boot, and load_touch_cal always falls back to the 300..3900 placeholders — add a checked prefs.putUChar("cv", 2) to run_touch_cal's save, and delete botcorps_cyd_save_touch_cal or remove its cv write. Also make has_valid_cal check all of c0..c7 and reject an all-equal/zero set. Then real host CYD frame dumps. One commit per round, LV stays "LV 01", push only to grok/cyd-touch-port, no merge/flash.
+```

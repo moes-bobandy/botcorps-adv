@@ -162,7 +162,6 @@ void botcorps_cyd_save_touch_cal(uint16_t xmin, uint16_t xmax, uint16_t ymin, ui
     Preferences prefs;
     if (!prefs.begin("botcorps", false)) return;
     prefs.putUChar("tcal", 1);
-    prefs.putUChar("cv", 2); /* version: true-corner 8-point */
     prefs.putUShort("tx0", xmin);
     prefs.putUShort("tx1", xmax);
     prefs.putUShort("ty0", ymin);
@@ -213,11 +212,24 @@ bool botcorps_cyd_has_valid_cal(void)
 {
     Preferences prefs;
     if (!prefs.begin("botcorps", true)) return false;
-    bool ok = prefs.getUChar("tcal", 0) == 1
-           && prefs.getUChar("cv", 0) == 2
-           && prefs.isKey("c0") && prefs.isKey("c7");
+    if (prefs.getUChar("tcal", 0) != 1 || prefs.getUChar("cv", 0) != 2)
+        { prefs.end(); return false; }
+    uint16_t vals[8];
+    bool all_same = true;
+    uint16_t first = 0;
+    for (int i = 0; i < 8; ++i) {
+        char key[4];
+        snprintf(key, sizeof(key), "c%d", i);
+        if (!prefs.isKey(key)) { prefs.end(); return false; }
+        vals[i] = prefs.getUShort(key, 0);
+        if (i == 0) first = vals[i];
+        else if (vals[i] != first) all_same = false;
+    }
     prefs.end();
-    return ok;
+    /* Reject all-zero or all-equal (invalid cal) */
+    if (first == 0 && all_same) return false;
+    if (all_same) return false;
+    return true;
 }
 
 #endif
@@ -328,6 +340,12 @@ bool botcorps_cyd_run_touch_cal(void)
         return false;
     }
     prefs.putUChar("tcal", 1);
+    if (!prefs.putUChar("cv", 2)) {
+        Serial.println("[botcorps] cal NVS cv put failed");
+        prefs.end();
+        restore();
+        return false;
+    }
     bool ok = true;
     for (int i = 0; i < 8; ++i) {
         char key[4];

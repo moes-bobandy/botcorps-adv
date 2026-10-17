@@ -1,10 +1,13 @@
 # BOTcorps CYD Touch Port Report
 
 ## Tip SHA
-bd7640c
+(pending)
 
 Interactive mock of the current CYD build: mocks/CYD-current-interactive.html
 Built by: Super Grok session (no Cursor/agent hand-off)
+
+## cv=2 actually saved (this tip)
+- run_touch_cal's save now writes checked prefs.putUChar("cv", 2). Unused 4-value save no longer writes cv. has_valid_cal checks all c0..c7 and rejects all-equal/zero. Auto-cal no longer loops forever. LV stays “LV 01”.
 
 ## Auto-cal on missing cv=2 (this tip)
 - On boot, if no valid cv=2 8-point cal exists, auto-enters botcorps_cyd_run_touch_cal before the rain/PLAY screen. Hold-at-boot remains for forced re-cal. Touch is polled on the normal path via getTouch in read_key. LV stays “LV 01”.

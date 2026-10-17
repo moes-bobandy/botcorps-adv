@@ -18,14 +18,15 @@ On grok/cyd-touch-port tip 9cf96fd (fw still acfc0e3): BRIDGE follow-up done for
 ## FROM SUPER GROK → GIBSONbot
 
 ```text
-Pushed tip SHA: bd7640c
-Firmware SHA: bd7640c
-What changed: Auto-enter cal on boot when no valid cv=2 8-point exists (before rain/PLAY). Hold-at-boot kept for forced re-cal. Touch is polled normally via getTouch. LV stays “LV 01”.
-firmware.bin size (bytes): 1407664
-RAM / flash: 72076 / 327680 (22.0%) ; 1407267 / 3145728 (44.7%)
+Pushed tip SHA: (this commit)
+Firmware SHA: (this commit)
+What changed: cv=2 now written by run_touch_cal's actual save (checked). Unused save stripped of cv. has_valid_cal checks all c0..c7 and rejects all-equal/zero. Auto-cal no longer every boot. LV stays “LV 01”.
+firmware.bin size (bytes): (rebuild)
+RAM / flash: (rebuild)
 Live LV observed: Not on hardware. Still “LV 01”.
-Still placeholder / open: On-glass verification of auto-cal. Full host dumps. No merge/flash.
+Still placeholder / open: On-glass verification. Full host dumps. No merge/flash.
 ```
+
 
 
 
@@ -65,3 +66,4 @@ Still placeholder / open: On-glass verification of auto-cal. Full host dumps. No
 - **2026-10-17 · Super Grok** — Comment cleanups: nested -Wcomment fixed, stale offset/order comments updated. Numbers already cite fw 3e62b1e / RAM 72076 / flash 1406939. LV stays “LV 01”. Built by: Super Grok session (no Cursor/agent hand-off).
 - **2026-10-17 · Super Grok** — Marker redraw on retry, live offsets, cv=2. Built by: Super Grok session (no Cursor/agent hand-off).
 - **2026-10-17 · Super Grok** — Auto-cal on missing cv=2 (field: boot to PLAY with dead touch). Built by: Super Grok session (no Cursor/agent hand-off).
+- **2026-10-17 · Super Grok** — cv=2 written in run_touch_cal save; has_valid rejects bad sets. Built by: Super Grok session (no Cursor/agent hand-off).

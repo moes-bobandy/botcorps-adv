@@ -1347,6 +1347,10 @@ static uint8_t glow_of(int step);
 
 static void hub_gibson(Gfx g, int cx, int cy, int z);
 
+/* v1019d (Dirt #4): brighter ghost-rain ink for the Terminal (was index 12, (0,89,16), which left the
+ * panel lost in black). Still glyph pixels only, under faces / labels / prompt text, never over. */
+static uint8_t term_ghost_ink(void) { return botcorps_pal_fit(0x2CAA); }   /* ~(40,150,80) */
+static uint8_t term_prompt_ghost_ink(void) { return botcorps_pal_fit(0x0366); }   /* ~(0,108,48) */
 static void paint_one_board(Gfx g, int i, bool sel, bool dim)
 {
     int x, y;
@@ -1450,7 +1454,7 @@ static void paint_one_board(Gfx g, int i, bool sel, bool dim)
 #else
     if (g.raw())
 #endif
-        botcorps_rain_ghost(*g.raw(), g.ox, g.oy, x + 1, y + 1, w - 2, 35, (uint8_t)12);
+        botcorps_rain_ghost(*g.raw(), g.ox, g.oy, x + 1, y + 1, w - 2, 35, term_ghost_ink());
     const int bob = sel ? -((int)((t / 450u) % 2u)) : 0;
     /* v1017b (Dirt 8:20): every terminal tile is the SQUARE chip-form block (the
      * same block figure Gibson's control-panel / scan-board chip uses), in this
@@ -2163,6 +2167,25 @@ static void paint_prompt(Gfx g)
     s_px = 6;
     /* Tiles end at y=165. Deep black plate. Enter pulses the hairline cyan. */
     g.fillRect(4, 168, 312, 68, PAL_BLACK);
+    /* v1019d (Dirt #4): the live rain shows faintly through the empty part of the prompt plate so the
+     * panel no longer sinks into black. Only the rows below the last log line and above the prompt
+     * row (y < 216), drawn before the sweep, text, buttons and candidates, so it never crosses text. */
+    {
+        int nl = 0;
+        for (int i = s_log_n - 1; i >= 0 && nl < 6; --i) {
+            const char *l = log_line(i);
+            if (l && strncmp(l, "gibson>", 7) == 0) continue;
+            ++nl;
+        }
+        /* whole 8 px rain cells only (glyph rows y+1..y+5), so no clipped half-glyphs at either edge */
+        const int gy0 = ((171 + nl * 8 + 1) + 7) / 8 * 8, gy1 = 216;
+#ifdef BOTCORPS_HOST_RENDER
+        if (g.raw() && !host_gate_norain && gy1 > gy0)
+#else
+        if (g.raw() && gy1 > gy0)
+#endif
+            botcorps_rain_ghost(*g.raw(), g.ox, g.oy, 6, gy0, 308, gy1 - gy0, term_prompt_ghost_ink());
+    }
     /* Plate chrome is the same with the sheet open or closed. The scan-all
      * frame, if any, is painted later and only inside the sheet rect. */
     {
@@ -2559,11 +2582,23 @@ static void gib_block_radar(Gfx g, int cx, int cy, int s)
 
 static uint16_t mix16(uint16_t a, uint16_t b, int num, int den);
 /* v1019 (Dirt LOCKED #1/#2): THE chip face. Square face (Gibson ivory, every other bot its own
- * fixed BOT_PAL colour, never the theme), lit top row, dark chin, square steel eyes raised to ~22%
- * down the face. Gibson wears the slim Matrix shades (style 1) over the eye row only; every other
- * bot wears "Morpheus A": small round gold-rim pince-nez, mirror-steel lenses, thin gold bridge,
- * no temple arms. */
+ * fixed BOT_PAL colour, never the theme), lit top row, dark chin.
+ * v1019d (Dirt #1): every non-Gibson bot wears the plain control-panel eyes: exactly the eyes of the
+ * control-panel COLOR-tile bot (botcorps_sprite SPR_MINI, 5x5 grid: two 1-cell PAL_EYE squares on
+ * row 1, columns 1 and 3), scaled to the face. No glasses.
+ * v1019d (Dirt #2): Gibson keeps square steel eyes raised to ~22% under his ORIGINAL slim shades:
+ * two distinct, separated lenses with an open ivory gap between them (not one solid glass bar). */
 static const uint8_t PAL_GOLD_PIN = 177;   /* sb_board gold board edge (182,146,85) */
+/* v1019d: Gibson shades variant. 1 = A (original example: thin top rim across, two dark lenses
+ * hanging from it, open gap between), 2 = B (open wire frames: 1 px rims, eyes visible inside).
+ * Host renders may pick with GIB_GLASS=1|2 to compare; firmware uses the default. */
+static int gib_glass_style(void)
+{
+#ifdef BOTCORPS_HOST_RENDER
+    if (const char *e = getenv("GIB_GLASS")) { const int v = atoi(e); if (v == 1 || v == 2) return v; }
+#endif
+    return 1;
+}
 static void face_block(Gfx g, int cx, int cy, int s, uint8_t col, bool gib, bool blink)
 {
     const int x = cx - s / 2, y = cy - s / 2;
@@ -2575,65 +2610,61 @@ static void face_block(Gfx g, int cx, int cy, int s, uint8_t col, bool gib, bool
     g.fillRect(x, y, s, s, col);                      /* full square face */
     g.fillRect(x, y, s, lip, top);                    /* lit top row */
     g.fillRect(x, y + s - lip, s, lip, chin);         /* dark chin */
+    if (!gib) {
+        /* control-panel eyes: SPR_MINI grid (cell = s/5): margin, eye, gap, eye, margin; row 1 */
+        const int c = s / 5 > 2 ? s / 5 : 2;
+        const int m = (s - 3 * c) / 2;
+        int ey = y + c;
+        if (ey < y + lip) ey = y + lip;
+        const int eh = blink ? 1 : c, eyy = blink ? ey + c - 1 : ey;
+        g.fillRect(x + m, eyy, c, eh, PAL_EYE);
+        g.fillRect(x + m + 2 * c, eyy, c, eh, PAL_EYE);
+        return;
+    }
     const int ew = s / 5 > 2 ? s / 5 : 2;
     const int gap = s / 4 > ew ? s / 4 : ew;
     const int eyc0 = y + (s * 22) / 100;              /* eyes raised into the upper third */
     const int eyc = eyc0 > y + lip + 1 ? eyc0 : y + lip + 1;
     const int lx = x + gap, rx = x + s - gap - ew;
     const int eh = blink ? 1 : ew, ey = blink ? eyc + ew - 1 : eyc;
-    if (gib) {
-        g.fillRect(lx, ey, ew, eh, PAL_STEEL);        /* steel eyes under the shades */
-        g.fillRect(rx, ey, ew, eh, PAL_STEEL);
-        /* slim Matrix shades: two narrow dark lenses over the eyes, bridge, short arms */
-        const int pad = s >= 24 ? 2 : 1;
-        const int lw = ew + pad * 2;
-        const int lh = ew * 3 / 4 + pad > 2 ? ew * 3 / 4 + pad : 2;
-        const int ly = eyc + (ew - lh) / 2;
-        const int l0 = lx - pad, r0 = rx - pad;
-        const int th = s >= 24 ? 2 : 1;
-        g.fillRect(l0, ly, lw, lh, PAL_BLACK);
-        g.fillRect(r0, ly, lw, lh, PAL_BLACK);
-        if (lh >= 4) {                                /* rounded lower outer corners */
-            g.fillRect(l0, ly + lh - 1, 1, 1, col);
-            g.fillRect(r0 + lw - 1, ly + lh - 1, 1, 1, col);
-        }
-        if (r0 > l0 + lw) g.fillRect(l0 + lw, ly, r0 - (l0 + lw), th, PAL_BLACK);   /* bridge */
-        const int tl = s >= 24 ? 3 : 1;               /* short temple arms, not a strap */
-        if (l0 - tl >= x) g.fillRect(l0 - tl, ly, tl, 1, PAL_BLACK);
-        if (r0 + lw + tl <= x + s) g.fillRect(r0 + lw, ly, tl, 1, PAL_BLACK);
-        if (lw >= 6) {                                /* steel glint on each lens */
-            g.fillRect(l0 + 1, ly + 1, 2, 1, PAL_STEEL);
-            g.fillRect(r0 + 1, ly + 1, 2, 1, PAL_STEEL);
-        }
+    g.fillRect(lx, ey, ew, eh, PAL_STEEL);            /* steel eyes under the shades */
+    g.fillRect(rx, ey, ew, eh, PAL_STEEL);
+    /* lenses grow outward only, so the ivory gap between them (the nose) stays open */
+    const int pad = s >= 24 ? 2 : 1;
+    const int lw = ew + pad;
+    const int l0 = lx - pad, r0 = rx;
+    const int tl = s >= 24 ? 3 : 1;                   /* short temple arms */
+    if (gib_glass_style() == 2) {
+        /* B: open wire frames, 1 px black rims, the raised steel eyes show inside each lens */
+        const int lh = ew + 2;
+        const int ly = eyc - 1;
+        g.drawRect(l0 - 1, ly, lw + 2, lh, PAL_BLACK);
+        g.drawRect(r0 - 1, ly, lw + 2, lh, PAL_BLACK);
+        g.fillRect(l0 - 1, ly + lh - 1, 1, 1, col);   /* rounded lower outer corners */
+        g.fillRect(r0 + lw, ly + lh - 1, 1, 1, col);
+        if (r0 - 1 > l0 + lw + 1) g.fillRect(l0 + lw + 1, ly + 1, (r0 - 1) - (l0 + lw + 1), 1, PAL_BLACK); /* bridge */
+        if (l0 - 1 - tl >= x) g.fillRect(l0 - 1 - tl, ly, tl, 1, PAL_BLACK);
+        if (r0 + lw + 1 + tl <= x + s) g.fillRect(r0 + lw + 1, ly, tl, 1, PAL_BLACK);
         return;
     }
-    /* Morpheus A: hand-pixelled round rims (o = gold rim, . = mirror-steel lens) */
-    static const char *const L9[9] = { "   ooo   ", " oo...oo ", " o.....o ", "o.......o", "o.......o",
-                                       "o.......o", " o.....o ", " oo...oo ", "   ooo   " };
-    static const char *const L8[8] = { "  oooo  ", " o....o ", "o......o", "o......o", "o......o",
-                                       "o......o", " o....o ", "  oooo  " };
-    static const char *const L7[7] = { "  ooo  ", " o...o ", "o.....o", "o.....o", "o.....o", " o...o ", "  ooo  " };
-    static const char *const L6[6] = { " oooo ", "o....o", "o....o", "o....o", "o....o", " oooo " };
-    static const char *const L5[5] = { " ooo ", "o...o", "o...o", "o...o", " ooo " };
-    static const char *const L4[4] = { " oo ", "o..o", "o..o", " oo " };
-    const int cl = lx + ew / 2, cr = rx + ew / 2;
-    int d = cr - cl - 1;                              /* leave a 1 px bridge between the rims */
-    if (d > 9) d = 9;
-    if (d < 4) d = 4;
-    const char *const *L = d == 9 ? L9 : d == 8 ? L8 : d == 7 ? L7 : d == 6 ? L6 : d == 5 ? L5 : L4;
-    const int ox0 = cl - d / 2, ox1 = cr - d / 2;
-    int oy = eyc + ew / 2 - d / 2 + (d >= 7 ? 1 : 0);   /* pince-nez sits a touch low on the nose */
-    if (oy < y + lip) oy = y + lip;
-    for (int j = 0; j < d; ++j)
-        for (int i = 0; i < d; ++i) {
-            const char c = L[j][i];
-            if (c == ' ') continue;
-            const uint8_t pc = c == 'o' ? PAL_GOLD_PIN : (blink && j < d / 2 ? col : (uint8_t)PAL_STEEL);
-            g.fillRect(ox0 + i, oy + j, 1, 1, pc);
-            g.fillRect(ox1 + i, oy + j, 1, 1, pc);
-        }
-    const int by = oy + d / 2 - 1;                    /* thin gold bridge, upper-mid */
-    if (ox1 > ox0 + d) g.fillRect(ox0 + d, by, ox1 - (ox0 + d), 1, PAL_GOLD_PIN);
+    /* A: the original example-gibson-chip-glasses look: one thin top rim across the brow (bridge +
+     * arms), two dark lenses hanging from it, open ivory notch between them, steel glint per lens */
+    const int lh = ew * 3 / 4 + pad > 2 ? ew * 3 / 4 + pad : 2;
+    const int ly = eyc + (ew - lh) / 2;
+    const int rl = l0 - tl >= x ? l0 - tl : x, rr = r0 + lw + tl <= x + s ? r0 + lw + tl : x + s;
+    g.fillRect(rl, ly - 1, rr - rl, 1, PAL_BLACK);    /* top rim, bridge and arms in one line */
+    g.fillRect(l0, ly, lw, lh, PAL_BLACK);
+    g.fillRect(r0, ly, lw, lh, PAL_BLACK);
+    if (lh >= 4) {                                    /* rounded lower corners, all four */
+        g.fillRect(l0, ly + lh - 1, 1, 1, col);
+        g.fillRect(l0 + lw - 1, ly + lh - 1, 1, 1, col);
+        g.fillRect(r0, ly + lh - 1, 1, 1, col);
+        g.fillRect(r0 + lw - 1, ly + lh - 1, 1, 1, col);
+    }
+    if (lw >= 6) {                                    /* steel glint on each lens */
+        g.fillRect(l0 + 1, ly + 1, 2, 1, PAL_STEEL);
+        g.fillRect(r0 + 1, ly + 1, 2, 1, PAL_STEEL);
+    }
 }
 
 static void gib_block(Gfx g, int cx, int cy, int s) { face_block(g, cx, cy, s, PAL_IVORY, true, false); }
@@ -2715,7 +2746,8 @@ static void chip_block_ex(Gfx g, int cx, int cy, int S, int bot, bool dome)
     const int gs = S - 2 * fi > 8 ? S - 2 * fi : 8;
     if (bot >= 12) {
         GATE_BOX(g, "SPR", "gibson_block", cx - gs / 2, cy - gs / 2, gs, gs, "-");
-        face_block(g, cx, cy, gs, s_gib_face ? s_gib_face : (uint8_t)PAL_IVORY, true, false);
+        /* v1019d (Dirt #1): a recoloured (non-Gibson) defender chip wears the control-panel eyes */
+        face_block(g, cx, cy, gs, s_gib_face ? s_gib_face : (uint8_t)PAL_IVORY, s_gib_face == 0, false);
         return;
     }
     GATE_BOX(g, "SPR", "bot_face", cx - gs / 2, cy - gs / 2, gs, gs, "-");

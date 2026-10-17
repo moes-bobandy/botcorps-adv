@@ -4,6 +4,7 @@
 
 ### Added
 
+- v1019d (Dirt): every non-Gibson bot chip (hub tiles, terminal tiles, scan boards, Defend title chip and recoloured centre board chip) wears the plain control-panel eyes (the COLOR-tile bot's SPR_MINI eyes: two PAL_EYE squares, 1/5 of the face) instead of Morpheus A glasses. Gibson's slim shades are back to the original separated-lens look (thin top rim, two lenses with an open ivory gap; host `GIB_GLASS=2` renders the open-frame candidate B). Scan / game grid sprites stay round. Terminal rain trails are brighter, the tile ghost rain uses a brighter ink, and the live rain shows faintly through the empty rows of the prompt plate (never on log text, the prompt row, buttons or candidates). Gate baselines re-locked for the changed chip / terminal screens only.
 - v1019 (Dirt locked): standard Gibson chip (ivory S-18 face, slim Matrix shades, eyes at ~22%, gold pins) everywhere except the hub core, the centre radar die and the intro ID board; every other bot in the same chip form in its own colour with silver pins and Morpheus A glasses (hub tiles, terminal tiles, scan boards, game chips).
 - v1019: five control-panel themes replace CYAN/AMBER/MINT: NEON GRAPE, HOT PINK (circuit), DUOTONE (purple + pink split), SYNTHWAVE (magenta to orange gradient, blue wires), ULTRAVIOLET (pink on selected). The COLOR tile preview bot follows the theme; s_color bounds use THEME_N (5). Bot colours never follow the theme.
 - v1019: Gibson voice/log ticker under his chip on his scan board (patched in place, no full presents).

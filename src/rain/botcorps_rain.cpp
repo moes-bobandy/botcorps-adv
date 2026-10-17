@@ -265,7 +265,11 @@ static void draw_cell(lgfx::LovyanGFX &panel, int col, int row)
         ink = PAL_WHITE;                    /* bright lead glyph */
     } else {
         static const int AGE[4] = { 0, 5, 9, 13 };
-        if (!botcorps_pal_ramp_for(code_native(), AGE[lv - 2], &ink)) ink = botcorps_pal_fit(code_native());
+        /* v1019d (Dirt #4): the Terminal's rain (s_no_bots = Terminal only) keeps its trails brighter
+         * so the backdrop lifts the board grid and prompt panel out of the black. */
+        static const int AGE_T[4] = { 0, 2, 5, 8 };
+        const int age = s_no_bots ? AGE_T[lv - 2] : AGE[lv - 2];
+        if (!botcorps_pal_ramp_for(code_native(), age, &ink)) ink = botcorps_pal_fit(code_native());
     }
     const char s[2] = { ch, 0 };
     panel.setFont(&fonts::Font0);

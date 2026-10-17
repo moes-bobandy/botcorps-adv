@@ -1,10 +1,14 @@
 # BOTcorps CYD Touch Port Report
 
 ## Tip SHA
-9e4d951
+(pending)
 
 Interactive mock of the current CYD build: mocks/CYD-current-interactive.html
 Built by: Super Grok session (no Cursor/agent hand-off)
+
+## Resistive-friendly cal (this tip)
+- Sample acceptance: median of 16, reject only spreads >=150, allow up to 3 missed reads before reset. 15 s deadline kept.
+- Save writes c0..c7 first, cv=2 last. Unused 4-value save deleted. Raw touch Serial throttled to ~2 Hz. LV stays “LV 01”.
 
 ## pin_int=-1 poll mode (this tip)
 - Touch cfg.pin_int set to -1 so LovyanGFX polls the XPT2046 over SPI instead of gating on IRQ 36 (classic CYD dead-touch cause). get_touch_raw now Serial-prints raw x,y when a point is read. LV stays “LV 01”.

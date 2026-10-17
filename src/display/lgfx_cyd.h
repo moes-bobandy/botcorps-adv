@@ -97,7 +97,11 @@ public:
         if (!_touch.getTouchRaw(&tp, 1)) return false;
         *x = tp.x;
         *y = tp.y;
-        Serial.printf("[botcorps] raw touch %d,%d\n", *x, *y);
+        static uint32_t last_log = 0;
+        if (millis() - last_log > 500) { /* throttle to ~2 Hz */
+            Serial.printf("[botcorps] raw touch %d,%d\n", *x, *y);
+            last_log = millis();
+        }
         return true;
     }
 

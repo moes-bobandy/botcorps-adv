@@ -157,22 +157,6 @@ bool botcorps_dual_begin(void)
 
 Botcorps_LGFX_CYD g_cyd;
 
-void botcorps_cyd_save_touch_cal(uint16_t xmin, uint16_t xmax, uint16_t ymin, uint16_t ymax, uint8_t rot)
-{
-    Preferences prefs;
-    if (!prefs.begin("botcorps", false)) return;
-    prefs.putUChar("tcal", 1);
-    prefs.putUShort("tx0", xmin);
-    prefs.putUShort("tx1", xmax);
-    prefs.putUShort("ty0", ymin);
-    prefs.putUShort("ty1", ymax);
-    prefs.putUChar("trot", rot);
-    prefs.end();
-    g_cyd.apply_touch_cal(xmin, xmax, ymin, ymax, rot);
-    Serial.printf("[botcorps] touch cal saved x=%u..%u y=%u..%u rot=%u\n",
-                  (unsigned)xmin, (unsigned)xmax, (unsigned)ymin, (unsigned)ymax, (unsigned)rot);
-}
-
 void botcorps_cyd_load_touch_cal(void)
 {
     Preferences prefs;
@@ -286,6 +270,7 @@ bool botcorps_cyd_run_touch_cal(void)
             }
             int samples_x[16] = {0}, samples_y[16] = {0};
             int n = 0;
+            int missed = 0;
             while (n < 16) {
                 if ((int32_t)(millis() - deadline) >= 0) {
                     Serial.println("[botcorps] cal timeout");
@@ -297,33 +282,36 @@ bool botcorps_cyd_run_touch_cal(void)
                     samples_x[n] = x;
                     samples_y[n] = y;
                     ++n;
+                    missed = 0;
                     delay(15);
                 } else {
-                    n = 0;
+                    if (++missed > 3) { /* allow a few drops on resistive panels */
+                        n = 0;
+                        missed = 0;
+                    }
                     delay(10);
                 }
             }
-            int minx = samples_x[0], maxx = samples_x[0];
-            int miny = samples_y[0], maxy = samples_y[0];
-            for (int k = 1; k < 16; ++k) {
-                if (samples_x[k] < minx) minx = samples_x[k];
-                if (samples_x[k] > maxx) maxx = samples_x[k];
-                if (samples_y[k] < miny) miny = samples_y[k];
-                if (samples_y[k] > maxy) maxy = samples_y[k];
-            }
-            if (maxx - minx > 20 || maxy - miny > 20) {
-                Serial.println("[botcorps] cal jitter reject");
+            /* Median of 16; reject only if spread >= 150 */
+            int sx[16], sy[16];
+            for (int k = 0; k < 16; ++k) { sx[k] = samples_x[k]; sy[k] = samples_y[k]; }
+            for (int a = 0; a < 15; ++a)
+                for (int b = a + 1; b < 16; ++b) {
+                    if (sx[a] > sx[b]) { int t = sx[a]; sx[a] = sx[b]; sx[b] = t; }
+                    if (sy[a] > sy[b]) { int t = sy[a]; sy[a] = sy[b]; sy[b] = t; }
+                }
+            int minx = sx[0], maxx = sx[15];
+            int miny = sy[0], maxy = sy[15];
+            if (maxx - minx >= 150 || maxy - miny >= 150) {
+                Serial.println("[botcorps] cal spread reject");
                 g_cyd.fillRect(cx - 12, cy - 12, 24, 24, 0x0000);
-                /* wait for lift */
                 uint32_t rel = millis();
                 int rx, ry;
                 while (g_cyd.get_touch_raw(&rx, &ry) && millis() - rel < 2000) delay(10);
                 continue;
             }
-            int sx = 0, sy = 0;
-            for (int k = 0; k < 16; ++k) { sx += samples_x[k]; sy += samples_y[k]; }
-            cal[i * 2]     = (uint16_t)(sx / 16);
-            cal[i * 2 + 1] = (uint16_t)(sy / 16);
+            cal[i * 2]     = (uint16_t)sx[8]; /* median */
+            cal[i * 2 + 1] = (uint16_t)sy[8];
             got = true;
             g_cyd.fillCircle(cx, cy, 8, 0x07E0);
             delay(150);
@@ -340,18 +328,13 @@ bool botcorps_cyd_run_touch_cal(void)
         return false;
     }
     prefs.putUChar("tcal", 1);
-    if (!prefs.putUChar("cv", 2)) {
-        Serial.println("[botcorps] cal NVS cv put failed");
-        prefs.end();
-        restore();
-        return false;
-    }
     bool ok = true;
     for (int i = 0; i < 8; ++i) {
         char key[4];
         snprintf(key, sizeof(key), "c%d", i);
         if (!prefs.putUShort(key, cal[i])) ok = false;
     }
+    if (ok && !prefs.putUChar("cv", 2)) ok = false; /* cv LAST so partial can't pass */
     prefs.end();
     if (!ok) {
         Serial.println("[botcorps] cal NVS put failed");

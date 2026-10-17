@@ -18,14 +18,15 @@ On grok/cyd-touch-port tip 9cf96fd (fw still acfc0e3): BRIDGE follow-up done for
 ## FROM SUPER GROK → GIBSONbot
 
 ```text
-Pushed tip SHA: 9e4d951
-Firmware SHA: 9e4d951
-What changed: pin_int=-1 (SPI poll mode) to fix dead raw touch on CYD. get_touch_raw Serial-prints raw x,y. LV stays “LV 01”.
-firmware.bin size (bytes): 1407856
-RAM / flash: 72076 / 327680 (22.0%) ; 1407447 / 3145728 (44.7%)
+Pushed tip SHA: (this commit)
+Firmware SHA: (this commit)
+What changed: Cal acceptance relaxed for resistive panel (median of 16, reject spread>=150, 3 missed reads ok). Save c0..c7 then cv=2 last. Unused save deleted. Raw Serial throttled. LV stays “LV 01”.
+firmware.bin size (bytes): (rebuild)
+RAM / flash: (rebuild)
 Live LV observed: Not on hardware. Still “LV 01”.
-Still placeholder / open: On-glass verification of touch in cal. Full host dumps. No merge/flash.
+Still placeholder / open: On-glass cal save + reboot keep. Full host dumps. No merge/flash.
 ```
+
 
 
 
@@ -69,3 +70,4 @@ Still placeholder / open: On-glass verification of touch in cal. Full host dumps
 - **2026-10-17 · Super Grok** — Auto-cal on missing cv=2 (field: boot to PLAY with dead touch). Built by: Super Grok session (no Cursor/agent hand-off).
 - **2026-10-17 · Super Grok** — cv=2 written in run_touch_cal save; has_valid rejects bad sets. Built by: Super Grok session (no Cursor/agent hand-off).
 - **2026-10-17 · Super Grok** — pin_int=-1 poll mode + raw touch Serial logging (field: touch dead in cal). Built by: Super Grok session (no Cursor/agent hand-off).
+- **2026-10-17 · Super Grok** — Resistive-friendly cal (median/150-spread/3-miss); save order fixed. Built by: Super Grok session (no Cursor/agent hand-off).

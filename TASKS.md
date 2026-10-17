@@ -986,3 +986,32 @@ Reviewed on box `/tmp/bca` at `grok/cyd-touch-port` tip `d3ac1dad59c523872dbd409
 ```
 On grok/cyd-touch-port tip d3ac1da (fw bd7640c): good — crosshair redraws after a jitter reject, offsets read from config, header says offset_rotation 0, load ignores c0..c7 without cv=2, auto-cal on first boot, and it builds (box: RAM 72076 / flash 1407347). Fix next, P0: run_touch_cal's save block never writes cv=2 (it went into the unused 4-value botcorps_cyd_save_touch_cal), so has_valid_cal is always false, auto-cal runs every boot, and load_touch_cal always falls back to the 300..3900 placeholders — add a checked prefs.putUChar("cv", 2) to run_touch_cal's save, and delete botcorps_cyd_save_touch_cal or remove its cv write. Also make has_valid_cal check all of c0..c7 and reject an all-equal/zero set. Then real host CYD frame dumps. One commit per round, LV stays "LV 01", push only to grok/cyd-touch-port, no merge/flash.
 ```
+
+---
+
+## GIBSONbot review — tip 8274184 / fw 50396d1 (2026-10-17 ~10:05 AM ET)
+
+Reviewed on box `/tmp/bca` at `grok/cyd-touch-port` tip `82741843abcb549b921c476efa1c21d885ee73e7` (last reviewed `d3ac1da`, TASKS push `7076f52`). Diff span `7076f52..8274184`: `src/display/botcorps_display.cpp` (cv save, `has_valid_cal`), `BRIDGE.md`, `builds/cyd/REPORT.md`. Host type gate **PASS** (`cyd osk table ok keys=42 clip_y=151`; `host cyd type gate passed`). **Box build of `env:cyd`: SUCCESS**, RAM 72,076 / 327,680 (22.0%), flash 1,407,491 / 3,145,728 (44.7%), `firmware.bin` 1,407,888 B (REPORT 1,407,395 / 1,407,792 — same build-env gap). Nothing merged or flashed by this watch; only this TASKS note is pushed.
+
+| SHA | What |
+|-----|------|
+| 50396d1 | CYD: checked `cv=2` write in `run_touch_cal`'s save; `cv` write removed from the unused 4-value saver; `has_valid_cal` checks all c0..c7 and rejects an all-equal/zero set |
+| 8274184 | REPORT/BRIDGE cite fw 50396d1 + build numbers |
+
+### Matches
+1. P0 closed (by reading the code, not on glass): `run_touch_cal` now writes a checked `cv=2`, so a fresh cal survives reboot, `has_valid_cal` turns true, auto-cal stops running every boot, and `load_touch_cal` takes the 8-point path instead of the 300..3900 placeholders (prior fix 1).
+2. The unused `botcorps_cyd_save_touch_cal` no longer writes `cv`, so a 4-value save can't claim to be an 8-point cal (prior fix 1, second half).
+3. `has_valid_cal` checks all eight keys and rejects all-equal (incl. all-zero) sets (prior fix 2).
+4. Memory flat (RAM same, flash +144 B vs bd7640c). Typing gate passes. No instruction text added. LV left "LV 01".
+
+### Misses (numbered fixes)
+1. **Write order: `cv=2` is a commit marker written before the data.** `tcal=1` and `cv=2` are put first, then c0..c7. If any c-key put fails (or power drops mid-save), `cv=2` is already in NVS, and with c-keys left over from an earlier cal `has_valid_cal` can pass on a mixed set. **Fix:** put c0..c7 first, then `tcal=1` and `cv=2` last only if all puts succeeded; on failure `prefs.remove("cv")`.
+2. **Soft: "valid" is only "not all identical."** A stuck/noisy touch can save eight near-equal values that pass. **Fix:** also require a sane spread, e.g. x raws (c0,c2,c4,c6) and y raws (c1,c3,c5,c7) each span > ~1000 raw counts, else treat as invalid and re-cal.
+3. **Soft: `load_touch_cal` dead end.** If `cv==2` and c0 exists but a later key is missing, `ok=false`, prefs are closed, and the function returns without applying anything (no legacy/placeholder apply). Fall through to the placeholder apply instead. Also drop the redundant `if (first == 0 && all_same)` line in `has_valid_cal`.
+4. **Soft: delete `botcorps_cyd_save_touch_cal`** (nothing calls it) and its header declaration, so it can't be wired back in by accident.
+5. **Still open:** real host CYD frame dumps (fonts still stubs), LV meaning (Dirt HOLD), device/glass pass of boot + auto-cal + reboot-keeps-cal + touch nav. No merge/flash from this watch.
+
+### Follow-up one-liner (Dirt → Super Grok)
+```
+On grok/cyd-touch-port tip 8274184 (fw 50396d1): good — run_touch_cal now saves a checked cv=2 so the cal survives reboot and auto-cal stops looping, the 4-value saver no longer writes cv, has_valid_cal checks all c0..c7 and rejects all-equal sets, and it builds (box: RAM 72076 / flash 1407491). Fix next: in run_touch_cal's save, write c0..c7 first and only then tcal=1 + cv=2 (remove cv on any put failure) so a half-written save can't look valid; in has_valid_cal also require x raws (c0,c2,c4,c6) and y raws (c1,c3,c5,c7) to each span > ~1000, and drop the redundant first==0 line; in load_touch_cal fall through to the placeholder apply when a c-key is missing instead of returning with nothing applied; delete the unused botcorps_cyd_save_touch_cal and its header line. Then real host CYD frame dumps. One commit per round, LV stays "LV 01", push only to grok/cyd-touch-port, no merge/flash.
+```

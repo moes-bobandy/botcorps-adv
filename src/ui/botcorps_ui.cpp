@@ -3743,26 +3743,26 @@ static void cp_chip(Gfx g, int index, bool on)
     int x, y, w, h;
     if (!cp_part_rect(index, &x, &y, &w, &h)) return;
     const uint8_t gold = 177, goldh = 217, silk = 223;
-    g.fillRect(x - 3, y - 3, w + 6, h + 6, PAL_BLACK);          /* matte-black PCB under chip */
-    if (on) g.drawRect(x - 3, y - 3, w + 6, h + 6, PAL_WHITE);
-    /* silver WROOM can with a silk outline so the edge reads on black */
-    g.fillRect(x, y, w, 40, PAL_DEEP);
-    g.drawRect(x - 1, y - 1, w + 2, 42, PAL_STEEL);
-    g.drawRect(x, y, w, 40, on ? (uint8_t)PAL_WHITE : (uint8_t)PAL_LINE);
+    const int CH = 40;                                          /* chip can height; selection wraps can+label only */
+    g.fillRect(x - 3, y - 3, w + 6, CH + 22, PAL_BLACK);        /* matte-black PCB under chip */
+    if (on) g.drawRect(x - 3, y - 3, w + 6, CH + 22, PAL_WHITE);/* v1016i: tight selection (no tall bracket) */
+    /* square ESP32 chip (Dirt rule: square chips), silk outline so the edge reads on black */
+    g.fillRect(x, y, w, CH, PAL_DEEP);
+    g.drawRect(x - 1, y - 1, w + 2, CH + 2, PAL_STEEL);
+    g.drawRect(x, y, w, CH, on ? (uint8_t)PAL_WHITE : (uint8_t)PAL_LINE);
     for (int k = 0; k < 5; ++k) {                               /* castellated gold pins */
         g.fillRect(x - 2, y + 4 + k * 7, 2, 3, gold);
         g.fillRect(x + w, y + 4 + k * 7, 2, 3, gold);
     }
-    g.fillRect(x + 4, y + 4, w - 8, 32, PAL_BLACK);
-    g.drawRect(x + 4, y + 4, w - 8, 32, on ? (uint8_t)PAL_WHITE : (uint8_t)PAL_STEEL);
+    g.fillRect(x + 4, y + 4, w - 8, CH - 8, PAL_BLACK);
+    g.drawRect(x + 4, y + 4, w - 8, CH - 8, on ? (uint8_t)PAL_WHITE : (uint8_t)PAL_STEEL);
     g.fillRect(x + 4, y + 4, w - 8, 1, goldh);
-    const int cx = x + w / 2, cy = y + 20;
+    const int cx = x + w / 2, cy = y + CH / 2;
     if (index == 0) {
-        g.fillRect(cx - 11, cy - 11, 22, 22, accent());
-        g.drawRect(cx - 11, cy - 11, 22, 22, PAL_WHITE);
-        draw_blob(g, cx - 6, cy - 6, 2, PAL_BLACK, 0, false); /* bot on the colour tile */
+        /* UI colour = a SQUARE bot in the current accent (mock botSquare) filling the face */
+        botcorps_sprite_draw(*g.raw(), cx - g.ox, cy - g.oy, 3, 4, accent(), false);
     }
-    else if (index == 1) draw_blob(g, cx - 6, cy - 6, 2, bot_color(0), 0, false);
+    else if (index == 1) draw_blob(g, cx - 9, cy - 9, 3, bot_color(0), 0, false);
     else if (index == 2) shape_preview(g, cx, cy);
     else if (index == 5) saver_preview(g, cx, cy);
     else if (index == 7) {
@@ -3825,6 +3825,19 @@ static void cp_part(Gfx g, int index, bool on)
 }
 
 
+int botcorps_cp_edge_overflow_count(void)
+{
+    /* v1016i: count interactive part bboxes that exceed the matte-black PCB bounds
+       (PCB is fillRect(10,24,300,202) in paint_control -> x[10..310], y[24..226]). */
+    int bad = 0;
+    for (int i = 0; i < CP_N; ++i) {
+        int x, y, w, h;
+        if (!cp_part_rect(i, &x, &y, &w, &h)) continue;
+        if (x < 10 || y < 24 || x + w > 310 || y + h > 226) ++bad;
+    }
+    return bad;
+}
+
 int botcorps_cp_overlap_count(void)
 {
     /* v1016h: count intersecting pairs among the interactive settings part bboxes */
@@ -3886,16 +3899,16 @@ static void paint_control(Gfx g)
     tiny_text(g, BOT_PINS, 20, 199, silk);
     for (int i = 0; i < CP_N; ++i) paint_cp_row(g, i, s_cursor == i);
     /* v1016h: decorations at exact mock SB_PARTS coords (clear of the 3 interactive parts) */
-    /* DC jack (mock 270,36,40,36) + DC6.5 label above it */
-    g.fillRect(270, 140, 40, 24, PAL_DEEP); g.drawRect(270, 140, 40, 24, gold);
-    g.fillCircle(290, 152, 5, PAL_BLACK);
-    tiny_text(g, "DC6 5", 276, 168, silk); g.fillRect(276 + 13, 168 + 5, 1, 1, silk); /* DC6.5 dot */
-    /* AMS1117 reg (mock 268,92 -> placed lower-right) labelled 1117C */
-    g.fillRect(270, 176, 30, 10, PAL_BLACK); g.drawRect(270, 176, 30, 10, PAL_STEEL);
-    tiny_text(g, "1117C", 272, 188, silk);
-    /* USB-C (mock 298,172,17,30) + USB5V label */
-    g.fillRect(298, 192, 16, 12, PAL_STEEL); g.drawRect(298, 192, 16, 12, PAL_LINE);
-    tiny_text(g, "USB5V", 280, 205, silk);
+    /* DC jack + DC6.5 label (kept inside the board right edge, x+w <= 306) */
+    g.fillRect(266, 140, 36, 22, PAL_DEEP); g.drawRect(266, 140, 36, 22, gold);
+    g.fillCircle(284, 151, 5, PAL_BLACK);
+    tiny_text(g, "DC6 5", 270, 166, silk); g.fillRect(270 + 13, 166 + 5, 1, 1, silk); /* DC6.5 dot */
+    /* AMS1117 reg labelled 1117C */
+    g.fillRect(266, 174, 30, 10, PAL_BLACK); g.drawRect(266, 174, 30, 10, PAL_STEEL);
+    tiny_text(g, "1117C", 268, 186, silk);
+    /* USB-C + USB5V label (inside the edge) */
+    g.fillRect(288, 192, 14, 11, PAL_STEEL); g.drawRect(288, 192, 14, 11, PAL_LINE);
+    tiny_text(g, "USB5V", 270, 205, silk);
     /* C1 tant (mock 52,156 -> clear slot) */
     g.fillRect(226, 150, 14, 8, gold); tiny_text(g, "C1", 226, 160, silk);
     /* BOOT / EN buttons (mock 236,136 and 236,182) with data micro-USB between */

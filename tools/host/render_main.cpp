@@ -3,6 +3,8 @@
 #include "ui/botcorps_pal_tables.inc"
 #include "ui/botcorps_term_ov.h"
 extern int botcorps_cp_overlap_count(void);
+extern int botcorps_cp_edge_overflow_count(void);
+extern void host_rain_init(int mode);
 
 #include <stdio.h>
 #include <stdint.h>
@@ -87,6 +89,7 @@ static void hist_term(const uint8_t *idx)
 
 int main(void)
 {
+    host_rain_init(0); /* v1016i: warm the REAL rain so it shows in renders */
     static uint8_t term[320 * 240];
     static uint8_t hunt[320 * 240];
     static uint8_t list[320 * 240];
@@ -706,6 +709,8 @@ int main(void)
     {   /* v1016h: harness overlap check — no two settings part bboxes may intersect */
         const int ov = botcorps_cp_overlap_count();
         printf("CP_OVERLAP %d %s\n", ov, ov == 0 ? "OK" : "FAIL");
+        const int eo = botcorps_cp_edge_overflow_count();
+        printf("CP_EDGE_OVERFLOW %d %s\n", eo, eo == 0 ? "OK" : "FAIL");
     }
     botcorps_host_sbox(hit, 0, 0, 0); write_raw("/tmp/sb-wifi-icons.rgb", hit, 0);
     botcorps_host_sbox(hit, 0, 1, 0); write_raw("/tmp/sb-selected-prompt.rgb", hit, 0);

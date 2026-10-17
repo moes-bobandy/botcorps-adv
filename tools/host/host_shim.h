@@ -22,24 +22,25 @@ public:
     template <class F> void setFont(const F *) {}
     void startWrite() {}
     void endWrite() {}
-    void setClipRect(int, int, int, int) {}
-    void clearClipRect() {}
-    int width() const { return 240; }
-    int height() const { return 135; }
+    void setClipRect(int, int, int, int);
+    void clearClipRect();
+    int width() const { return 320; }
+    int height() const { return 240; }
     void fillScreen(uint8_t) {}
     void fillScreen(uint16_t) {}
-    void fillRect(int, int, int, int, uint8_t) {}
+    void fillRect(int, int, int, int, uint8_t);
     void fillRect(int, int, int, int, uint16_t) {}
     void drawFastHLine(int, int, int, uint8_t) {}
     void drawFastHLine(int, int, int, uint16_t) {}
     void setTextSize(float) {}
     void setTextSize(float, float) {}
-    void setTextColor(uint8_t) {}
+    void setTextWrap(bool, bool) {}
+    void setTextColor(uint8_t);
     void setTextColor(uint16_t) {}
     void setTextColor(uint8_t, uint8_t) {}
     void setTextColor(uint16_t, uint16_t) {}
-    void setCursor(int, int) {}
-    void print(const char *) {}
+    void setCursor(int, int);
+    void print(const char *);
     void setTextDatum(textdatum_t) {}
     void drawString(const char *, int, int) {}
 };
@@ -53,6 +54,8 @@ extern const Font Font0;
 extern const Font Font8x8C64;
 }
 void host_note_font(int id);
+lgfx::v1::LovyanGFX *host_rain_panel(void);
+void host_rain_init(int mode);
 
 struct Gfx {
     lgfx::v1::LovyanGFX *p;

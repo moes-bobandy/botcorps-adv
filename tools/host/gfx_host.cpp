@@ -66,8 +66,8 @@ static void fill_raw(int x, int y, int w, int h, uint8_t c)
             put_px(xx, yy, c);
 }
 
-Gfx::Gfx() : p(nullptr), ox(0), oy(0) {}
-Gfx::Gfx(lgfx::v1::LovyanGFX &) : p(nullptr), ox(0), oy(0) {}
+Gfx::Gfx() : p(host_rain_panel()), ox(0), oy(0) {}
+Gfx::Gfx(lgfx::v1::LovyanGFX &r) : p(&r), ox(0), oy(0) {}
 void Gfx::fillRect(int x, int y, int w, int h, uint8_t c) { fill_raw(x - ox, y - oy, w, h, c); }
 void Gfx::fillRect(int x, int y, int w, int h, uint16_t) { fill_raw(x - ox, y - oy, w, h, s_fg); }
 void Gfx::drawRect(int x, int y, int w, int h, uint8_t c)
@@ -217,11 +217,6 @@ static void touch_card(void (*fn)(uint8_t))
     for (unsigned i = 0; i < sizeof(ids); ++i) fn(ids[i]);
 }
 
-uint16_t botcorps_pal_native(uint8_t idx)
-{
-    note_int(idx);
-    return 0;
-}
 
 static void touch_native(uint8_t c) { (void)botcorps_pal_native(c); }
 /* Same bitmaps as src/ui/botcorps_sprite.cpp. 1 body, 2 eye. */
@@ -255,20 +250,12 @@ void botcorps_sprite_draw(lgfx::v1::LovyanGFX &, int x, int y, int shape, int sc
     }
 }
 uint8_t botcorps_pal_hub_of(uint8_t idx) { return idx; }
-void botcorps_rain_set_covers(const botcorps_cover_t *, int, bool) {}
 void botcorps_probe_screen(const char *, const char *) {}
-void botcorps_rain_set_mode(int) {}
-int botcorps_rain_mode(void) { return 0; }
 int botcorps_shape_for(int index)
 {
     if (index < 0) index = 0;
     return index % 4;
 }
-void botcorps_rain_set_mix(int) {}
-void botcorps_rain_set_shape(int) {}
-uint8_t botcorps_rain_palette(int) { return 123; }
-uint8_t botcorps_rain_solid(void) { return 57; }
-int botcorps_rain_mix(void) { return 0; }
 void botcorps_id_paint(Gfx, int, int, bool, uint8_t, int, const char *, const char *)
 {
     if (host_int_mask & 2) touch_card(touch_native);
@@ -300,15 +287,9 @@ int botcorps_band_oy(void) { return 0; }
 static uint32_t s_host_ms = 2500;
 void host_set_millis(uint32_t t) { s_host_ms = t; }
 uint32_t host_millis(void) { return s_host_ms; }
-void botcorps_rain_set_hub(bool) {}
-void botcorps_rain_draw(lgfx::v1::LovyanGFX &, int, int) {}
-bool botcorps_rain_step(void) { return false; }
-void botcorps_rain_set_draw(bool) {}
-void botcorps_rain_log_heap(const char *) {}
 static botcorps_probe_t s_pr = {};
 const botcorps_probe_t *botcorps_probe_get(void) { return &s_pr; }
 void botcorps_glyph_blit(lgfx::v1::LovyanGFX &, int, int, int, uint8_t, uint8_t, uint8_t, bool (*)(int, int)) {}
-uint8_t botcorps_pal_fit(uint16_t) { host_fit_calls++; return 0; }
 
 char botcorps_t0_term_prompt[80];
 char botcorps_t0_term_hist[20][26];

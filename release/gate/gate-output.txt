@@ -140,6 +140,22 @@
   N/A   G5 rain layer present + visible  [logged=True visible_px=0 colour_px=0]
   PASS  G6 no instruction text
   PASS  G7 regression vs approved render  [0 px changed (limit 40)]
+== ctlfocus-crown
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=345 colour_px=238]
+  PASS  G6 no instruction text
+  PASS  G8 crown back control present  [1 crown]
+== ctlfocus-term
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=349 colour_px=160]
+  PASS  G6 no instruction text
+  PASS  G8 crown back control present  [1 crown]
 == diag
   PASS  G1 no element/text bbox overlap
   PASS  G2 sprites inside their chip/tile
@@ -436,6 +452,22 @@
   PASS  P3 JUMP/CP/PWR are small mock parts (<=22x22)  [{'s3': (20, 10), 's4': (22, 22), 's6': (10, 8)}]
   PASS  P4 selection outline in UI accent (cyan)  [92/92 outline px accent]
   PASS  P5 accent trace from the selected part  [266/282 trace px accent]
+== terminal-cmdbtn
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=1063 colour_px=632]
+  PASS  G6 no instruction text
+  PASS  G8 crown back control present  [1 crown]
+== terminal-cmdmenu
+  N/A   G1 no element/text bbox overlap  [TXT'jacking you 'xTXT'scan'; TXT'jacking you 'xTXT'hunt'; TXT'shields up'xTXT'scan'; TXT'shields up'xTXT'hunt'; TXT'eyes on the 'xTXT'clear'; TXT'eyes on the 'xTXT'ping' (+1)]
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=759 colour_px=355]
+  PASS  G6 no instruction text
+  PASS  G8 crown back control present  [1 crown]
 == functional
   PASS  N0 screen table has no per-bot home or bot-radar ids (11 live screens)  [screens=11]
   PASS  F1 Esc goes back from gibson  [got 0 want 0]
@@ -467,14 +499,106 @@
   PASS  N2 terminal Select on board 9 opens that bot's scan screen, Esc back to terminal  [screen 7 want 7, scan_bot 9, esc -> 2]
   PASS  N2 terminal Select on board 10 opens that bot's scan screen, Esc back to terminal  [screen 7 want 7, scan_bot 10, esc -> 2]
   PASS  N2 terminal Select on board 11 opens that bot's scan screen, Esc back to terminal  [screen 7 want 7, scan_bot 11, esc -> 2]
-  PASS  F2 setting 0 edits by keyboard  [CYAN -> AMBER]
-  PASS  F2 setting 1 edits by keyboard  [BOT + DEVICE -> BOTS]
-  PASS  F2 setting 2 edits by keyboard  [MIXED -> ROUND]
-  PASS  F2 setting 3 edits by keyboard  [MIXED -> SOLID]
-  PASS  F3 setting 3 writes NVS  [puts=1]
-  PASS  F2 setting 4 edits by keyboard  [MULTI -> GREEN]
-  PASS  F3 setting 4 writes NVS  [puts=1]
-  PASS  F2 setting 5 edits by keyboard  [BOTS -> GIBSON]
-  PASS  F2 setting 6 edits by keyboard  [ON -> OFF]
-  PASS  F2 setting 7 edits by keyboard  [25 SEC -> 45 SEC]
-GATE: 439/439 PASS, 0 FAIL, 1 N/A -> PASS
+  PASS  S1 scan-gibson: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=1 pushes=324 recomposes=226]
+  PASS  S2 scan-gibson: idle animation never full-screen presents (patches only)  [presents=1 (1 = the screen-enter paint)]
+  PASS  S1 scan-flock: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=1 pushes=335 recomposes=234]
+  PASS  S2 scan-flock: idle animation never full-screen presents (patches only)  [presents=1 (1 = the screen-enter paint)]
+  PASS  S1 scan-airtag: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=1 pushes=335 recomposes=234]
+  PASS  S2 scan-airtag: idle animation never full-screen presents (patches only)  [presents=1 (1 = the screen-enter paint)]
+  PASS  S1 scan-wifi: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=1 pushes=323 recomposes=224]
+  PASS  S2 scan-wifi: idle animation never full-screen presents (patches only)  [presents=1 (1 = the screen-enter paint)]
+  PASS  S1 scan-ble: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=1 pushes=336 recomposes=242]
+  PASS  S2 scan-ble: idle animation never full-screen presents (patches only)  [presents=1 (1 = the screen-enter paint)]
+  PASS  S1 game-board: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=11 pushes=22 recomposes=0]
+  PASS  S1 game-jackin: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=6 pushes=12 recomposes=0]
+  PASS  S1 terminal-typing: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=1 pushes=57 recomposes=0]
+  PASS  S1 gibson-game: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=4px, presents=67 pushes=140 recomposes=0]
+  PASS  F2 Enter cycles setting 0  [CYAN -> AMBER, full cycle 3 presses (want 3)]
+  PASS  F2 Enter cycles setting 1  [BOT + DEVICE -> BOTS, full cycle 3 presses (want 3)]
+  PASS  F2 Enter cycles setting 2  [MIXED -> ROUND, full cycle 5 presses (want 5)]
+  PASS  F2 Enter cycles setting 3  [MIXED -> SOLID, full cycle 2 presses (want 2)]
+  PASS  F3 setting 3 writes NVS on Enter  [puts=1]
+  PASS  F2 Enter cycles setting 4  [MULTI -> GREEN, full cycle 6 presses (want 6)]
+  PASS  F3 setting 4 writes NVS on Enter  [puts=1]
+  PASS  F2 Enter cycles setting 5  [BOTS -> GIBSON, full cycle 4 presses (want 4)]
+  PASS  F2 Enter cycles setting 6  [ON -> OFF, full cycle 2 presses (want 2)]
+  PASS  F2 Enter cycles setting 7  [25 SEC -> 45 SEC, full cycle 3 presses (want 3)]
+  PASS  C1 terminal commands button is a cursor stop (Down from bottom boards)  [reach=1]
+  PASS  C2 Enter on commands button opens the commands menu  [opened=1]
+  PASS  C3 Esc closes the menu back to the button; Up leaves to the boards  [esc=1 up=1]
+  PASS  C4 a command picked in the menu runs  [ran=1]
+  PASS  R1 every control-panel control reachable by the cursor  [reached [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] from 0]
+  PASS  R2 Right alone walks through all 10 stops (incl. SCREEN SAVER U4 + PWR LED)  [[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]]
+  PASS  R3 arrows only move (no arrow changes any setting)  [edits=[]]
+  PASS  R4 arrows never leave the control panel  [left=[]]
+== control-panel
+  PASS  L1 settings-amber.norain.rgb byte-identical to 675c87d
+  PASS  L1 settings-amber.rgb byte-identical to 675c87d
+  PASS  L1 settings-c0.norain.rgb byte-identical to 675c87d
+  PASS  L1 settings-c0.rgb byte-identical to 675c87d
+  PASS  L1 settings-c1.norain.rgb byte-identical to 675c87d
+  PASS  L1 settings-c1.rgb byte-identical to 675c87d
+  PASS  L1 settings-c2.norain.rgb byte-identical to 675c87d
+  PASS  L1 settings-c2.rgb byte-identical to 675c87d
+  PASS  L1 settings-c3.norain.rgb byte-identical to 675c87d
+  PASS  L1 settings-c3.rgb byte-identical to 675c87d
+  PASS  L1 settings-c4.norain.rgb byte-identical to 675c87d
+  PASS  L1 settings-c4.rgb byte-identical to 675c87d
+  PASS  L1 settings-c5.norain.rgb byte-identical to 675c87d
+  PASS  L1 settings-c5.rgb byte-identical to 675c87d
+  PASS  L1 settings-c6.norain.rgb byte-identical to 675c87d
+  PASS  L1 settings-c6.rgb byte-identical to 675c87d
+  PASS  L1 settings-c7.norain.rgb byte-identical to 675c87d
+  PASS  L1 settings-c7.rgb byte-identical to 675c87d
+== locked
+  PASS  L1 terminal-tab.norain.rgb byte-identical to 675c87d
+  PASS  L1 terminal-tab.rgb byte-identical to 675c87d
+  PASS  L1 terminal-typed.norain.rgb byte-identical to 675c87d
+  PASS  L1 terminal-typed.rgb byte-identical to 675c87d
+  PASS  L1 terminal.norain.rgb byte-identical to 675c87d
+  PASS  L1 terminal.rgb byte-identical to 675c87d
+  PASS  L1 scan-ble.norain.rgb byte-identical to 675c87d
+  PASS  L1 scan-ble.rgb byte-identical to 675c87d
+  PASS  L1 scan-wifi.norain.rgb byte-identical to 675c87d
+  PASS  L1 scan-wifi.rgb byte-identical to 675c87d
+  PASS  L1 scanboard-airtag.norain.rgb byte-identical to 675c87d
+  PASS  L1 scanboard-airtag.rgb byte-identical to 675c87d
+  PASS  L1 scanboard-deauth.norain.rgb byte-identical to 675c87d
+  PASS  L1 scanboard-deauth.rgb byte-identical to 675c87d
+  PASS  L1 scanboard-drone.norain.rgb byte-identical to 675c87d
+  PASS  L1 scanboard-drone.rgb byte-identical to 675c87d
+  PASS  L1 scanboard-flipper.norain.rgb byte-identical to 675c87d
+  PASS  L1 scanboard-flipper.rgb byte-identical to 675c87d
+  PASS  L1 scanboard-flock.norain.rgb byte-identical to 675c87d
+  PASS  L1 scanboard-flock.rgb byte-identical to 675c87d
+  PASS  L1 scanboard-gibson.norain.rgb byte-identical to 675c87d
+  PASS  L1 scanboard-gibson.rgb byte-identical to 675c87d
+  PASS  L1 scanboard-hack.norain.rgb byte-identical to 675c87d
+  PASS  L1 scanboard-hack.rgb byte-identical to 675c87d
+  PASS  L1 scanboard-keyfob.norain.rgb byte-identical to 675c87d
+  PASS  L1 scanboard-keyfob.rgb byte-identical to 675c87d
+  PASS  L1 scanboard-meta.norain.rgb byte-identical to 675c87d
+  PASS  L1 scanboard-meta.rgb byte-identical to 675c87d
+  PASS  L1 scanboard-samsungtag.norain.rgb byte-identical to 675c87d
+  PASS  L1 scanboard-samsungtag.rgb byte-identical to 675c87d
+  PASS  L1 scanboard-skimmer.norain.rgb byte-identical to 675c87d
+  PASS  L1 scanboard-skimmer.rgb byte-identical to 675c87d
+  PASS  L1 sbox-glossary.norain.rgb byte-identical to 675c87d
+  PASS  L1 sbox-glossary.rgb byte-identical to 675c87d
+  PASS  L1 sbox-hunt.norain.rgb byte-identical to 675c87d
+  PASS  L1 sbox-hunt.rgb byte-identical to 675c87d
+  PASS  L1 sbox-info.norain.rgb byte-identical to 675c87d
+  PASS  L1 sbox-info.rgb byte-identical to 675c87d
+  PASS  L1 sbox-selected.norain.rgb byte-identical to 675c87d
+  PASS  L1 sbox-selected.rgb byte-identical to 675c87d
+  PASS  L1 game-board.norain.rgb byte-identical to 675c87d
+  PASS  L1 game-board.rgb byte-identical to 675c87d
+  PASS  L1 game-jackin.norain.rgb byte-identical to 675c87d
+  PASS  L1 game-jackin.rgb byte-identical to 675c87d
+  PASS  L1 game-menu.norain.rgb byte-identical to 675c87d
+  PASS  L1 game-menu.rgb byte-identical to 675c87d
+  PASS  L1 hub-amber.norain.rgb byte-identical to 675c87d
+  PASS  L1 hub-amber.rgb byte-identical to 675c87d
+  PASS  L1 hub.norain.rgb byte-identical to 675c87d
+  PASS  L1 hub.rgb byte-identical to 675c87d
+GATE: 556/556 PASS, 0 FAIL, 2 N/A -> PASS

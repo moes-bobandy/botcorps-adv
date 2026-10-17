@@ -1,4 +1,4 @@
-# BOTcorps Adv: SPEC-LOCKED (v1016n)
+# BOTcorps Adv: SPEC-LOCKED (v1017a)
 
 This replaces the old rules checklist (release/RULES-CHECKLIST.md R1, "Gibson chip on hub", is **superseded**).
 Run `tools/gate.sh` to check the spec. It renders every screen with the real firmware paint code and the real
@@ -68,6 +68,11 @@ teal or accent-tinted), and the mock's game is disabled (GAME_ENABLED=false). In
 |---|---|
 | T1 | Log text is pale cyan and "[ ok ]" is green (terminal-typed pixel classes) |
 | | terminal and terminal-tab are frozen (G7) |
+| C1 | v1017a: the commands (≡) button is a cursor stop: Down from the bottom board row (terminal-cmdbtn) |
+| C2 | Enter on it opens the commands menu, the 6x2 chip palette (terminal-cmdmenu) |
+| C3 | Esc closes the menu back onto the button; Up leaves the button to the boards |
+| C4 | A command picked in the menu runs |
+| | The prompt line's partial redraw uses the full painter clipped to the line, so it matches a full paint pixel for pixel (S1 terminal-typing) |
 
 ## Settings / control panel (settings-c0..c7, settings-amber)
 | id | rule |
@@ -78,12 +83,27 @@ teal or accent-tinted), and the mock's game is disabled (GAME_ENABLED=false). In
 | P4 | The selection outline is cyan/accent |
 | P5 | The selected trace is cyan/accent |
 | B1 | Board is permanent matte black (ESP32 shield look: white silkscreen, gold header pins) |
-| F2 | Each setting can be edited |
-| F3 | NVS writes happen. Tested on settings 3 and 4; in the firmware only rain mode is persisted, which is pre-existing behaviour |
+| R1 | v1017a: every control (8 settings + TERM + crown) is reachable by the cursor |
+| R2 | Left/Right walk one ring through all 10 stops (incl. SCREEN SAVER U4 and the PWR LED); Up/Down go to the nearest stop above/below |
+| R3 | Arrows only move focus; no arrow changes a setting |
+| R4 | Arrows never leave the control panel (crown or Esc is back) |
+| F2 | Enter cycles the focused setting forward through all its values (full cycle checked per setting) |
+| F3 | NVS writes happen on Enter. Tested on settings 3 and 4; in the firmware only rain mode is persisted, which is pre-existing behaviour |
 | | Settings keeps the UI colour selection and the bot colour/shape settings. No MASHUP overflow (G2/G4) |
+| L1 | Layout and look are locked: settings-c0..c7 and settings-amber renders are byte-identical to 675c87d (release/gate/locked-675c87d.sha256, which also locks the terminal, scan, sbox, game and hub renders) |
 
 ## Game screens (game-board, game-menu, game-jackin = GCHAT)
 - C1/C3 square Gibson block, G1–G8.
 
 ## Diag
 - G1–G8.
+
+## No flicker (band simulator, v1017a)
+The host harness emulates botcorps_band.cpp: one 120-row slice resident in the sprite; a patch in the other
+slice recomposes it first; only changed rows are pushed. The real draw loop (botcorps_ui_draw) runs for 6 s
+per screen, and every push is checked against a full paint at the same millis().
+| id | rule |
+|---|---|
+| S1 | No push shows pixels that differ from a full paint (no flash): scan-gibson, scan-flock, scan-airtag, scan-wifi, scan-ble, game-board, game-jackin, terminal-typing, gibson-game |
+| S2 | Scan screens: the idle animation never does a full-screen present (patches only) |
+| | **[device]** The simulator proves the logic. Panel timing, SPI tearing and what you actually see can only be checked on the Adv |

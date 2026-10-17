@@ -316,6 +316,9 @@ static int s_focus_new = -1;
 static bool s_focus_pend = false;
 static bool s_track = false;
 static bool s_focus_cmds = false;
+/* v1017a: the commands (≡) button is a cursor stop: Down from the bottom board row; Enter opens the
+ * commands menu (the 6x2 chip palette, s_focus_cmds). */
+static bool s_cmd_btn = false;
 static bool s_sheet = false;
 static int s_sheet_i = 0;
 static int s_cmd_sel = 0;
@@ -752,7 +755,7 @@ static void enter_screen(int id, int ret)
     s_screen = id;
     s_cursor = 0;
     s_sheet = false;
-    s_focus_cmds = false;
+    s_focus_cmds = false; s_cmd_btn = false;
     s_term_crown = false;
     scan_all_set(false);
     botcorps_lut_term(false);
@@ -1116,7 +1119,7 @@ static void run_cmd(const char *line)
     } else if (strcmp(cmd, "cmds") == 0) {
         s_sheet = true;
         s_sheet_i = 0;
-        s_focus_cmds = false;
+        s_focus_cmds = false; s_cmd_btn = false;
         s_dirty = true;
         return;
     } else if (strcmp(cmd, "hail") == 0 || strcmp(cmd, "ask") == 0 || strcmp(cmd, "link") == 0 ||
@@ -1369,7 +1372,7 @@ static void paint_boards(Gfx g)
 {
     /* v1016f-2 #2: only the focused board is full-bright; the rest are dimmed, like the mock. */
     for (int i = 0; i < 12; ++i) {
-        const bool sel = (i == s_term) && !s_focus_cmds;
+        const bool sel = (i == s_term) && !s_focus_cmds && !s_cmd_btn;
         paint_one_board(g, i, sel, !sel);
     }
 }
@@ -1428,6 +1431,9 @@ static void menu_row(int row, int *hdr, int *cmd)
 }
 
 static const int PROMPT_Y = 227;
+/* v1017a: the prompt-line patch rect (inside the plate side borders, row 226..234) */
+static const int PL_X = 5, PL_Y = PROMPT_Y - 1, PL_W = 310, PL_H = 9;
+static void draw_prompt_line_part(Gfx g);
 static void blit_ico(Gfx g, const uint8_t *bits, int x, int y, uint8_t col);
 
 static bool sheet_exact(void)
@@ -2125,10 +2131,10 @@ static void paint_prompt(Gfx g)
     }
     if ((millis() / 530u) % 2u == 0) g.fillRect(cx, y, 6, 8, accent());
     paint_cands(g);
-    const bool po = s_focus_cmds && !s_sheet;
+    const bool po = (s_focus_cmds || s_cmd_btn) && !s_sheet;
     plate(g, 250, 214, 20, 12, po ? COL_SEL : COL_DEEP, po ? accent() : COL_LINE);
     for (int k = 0; k < 3; ++k) g.fillRect(255, 217 + k * 3, 10, 1, po ? accent() : COL_MUTED);
-    if (po) paint_palette(g);
+    if (s_focus_cmds && !s_sheet) paint_palette(g);
     /* Companion box, bottom right. Same place with the sheet open or closed. */
     {
         const int bx = 274;
@@ -5161,12 +5167,11 @@ static void tick_ext(Gfx g)
         const int phase = (int)((millis() / 530u) % 2u);
         if (phase != s_prompt_phase) {
             s_prompt_phase = phase;
-            const int y = PROMPT_Y;
-            const int n = (int)strlen(botcorps_t0_term_prompt);
-            const int cx = 106 + n * 6 + 2;
+            /* v1017a: same painter as the full paint, clipped to the line (the old black erase
+             * blanked the first ghost character on the off phase). */
             g.startWrite();
-            g.setClipRect(cx, y, 6, 8);
-            g.fillRect(cx, y, 6, 8, phase == 0 ? accent() : (uint8_t)PAL_BLACK);
+            g.setClipRect(PL_X, PL_Y, PL_W, PL_H);
+            draw_prompt_line_part(g);
             g.endWrite();
             g.clearClipRect();
         }
@@ -5255,6 +5260,27 @@ static void paint_int_now(void)
     menu.clearClipRect();
 }
 
+/* v1017a control-panel focus map over the EXISTING layout (no re-layout):
+ *   top bar:  crown(9) x160   TERM(8) x196
+ *   chips:    U1 0 x38  U2 1 x82  U3 2 x126  U4 5 x170 (SCREEN SAVER)  U5 7 x214
+ *   lower:    CP qfn 4 x196,150   J1 jumper 3 x268,150   PWR LED 6 x266,194 (SAVER on/off)
+ * Left/Right walk one ring through every stop in reading order, so every control is reachable from
+ * anywhere; Up/Down go to the visually nearest stop above/below (wrapping top<->bottom). */
+static const int8_t CP_RING[CP_N + 2] = { CP_N + 1, CP_N, 0, 1, 2, 5, 7, 4, 3, 6 };
+static const int8_t CP_UP[CP_N + 2]   = { CP_N + 1, CP_N + 1, CP_N + 1, 7, 5, CP_N, 3, CP_N, 6, 6 };
+static const int8_t CP_DN[CP_N + 2]   = { 4, 4, 4, 6, 6, 4, CP_N + 1, 3, 5, 2 };
+static int cp_nav(int cur, int key)
+{
+    if (cur < 0 || cur >= CP_N + 2) return 0;
+    if (key == 1) return CP_UP[cur];
+    if (key == 2) return CP_DN[cur];
+    int at = 0;
+    for (int i = 0; i < CP_N + 2; ++i) if (CP_RING[i] == cur) at = i;
+    if (key == 3) return CP_RING[(at + CP_N + 1) % (CP_N + 2)];
+    if (key == 4) return CP_RING[(at + 1) % (CP_N + 2)];
+    return cur;
+}
+
 static void nudge_row(int d)
 {
     if (s_cursor == 0) s_color = (s_color + d + 3) % 3;
@@ -5326,7 +5352,12 @@ static void activate(void)
         if (s_cursor == 3) go_back();
         break;
     case SCR_CONTROL:
-        if (s_cursor == CP_N) {
+        if (s_cursor >= 0 && s_cursor < CP_N) {
+            /* v1017a: Enter cycles the focused setting forward (rain mode / colour still save NVS). */
+            nudge_row(1);
+            if (s_cursor == 0) s_int_dirty = true;   /* UI colour recolours the INT name bar too */
+            s_dirty = true;
+        } else if (s_cursor == CP_N) {
             const int back_to = s_ret >= 0 ? s_ret : SCR_GIBSON;
             enter_screen(SCR_TERMINAL, back_to);
             boot_log();
@@ -5628,7 +5659,7 @@ static void partial_int(void)
 
 static void draw_tile_part(Gfx g)
 {
-    paint_one_board(g, s_part_i, (s_part_i == s_term) && !s_focus_cmds, false);
+    paint_one_board(g, s_part_i, (s_part_i == s_term) && !s_focus_cmds && !s_cmd_btn, false);
 }
 
 static void partial_tile(int index)
@@ -5640,39 +5671,28 @@ static void partial_tile(int index)
     patch_world(draw_tile_part, x - 2, y - 2, 76, 50);
 }
 
-static void paint_prompt_line(Gfx g)
-{
-    const int y = PROMPT_Y;
-    const int n = (int)strlen(botcorps_t0_term_prompt);
-    char typed[33];
-    snprintf(typed, sizeof(typed), "%-32.32s", botcorps_t0_term_prompt);
-    txt_bg(g, "user@botcorps:~$ ", 10, y, accent(), PAL_DEEP, lgfx::textdatum::top_left);
-    txt_bg(g, typed, 10 + 18 * 6, y, COL_WHITE, PAL_DEEP, lgfx::textdatum::top_left);
-    const char *ghost = cand_ghost();
-    if (ghost && n < 32) {
-        txt_bg(g, ghost, 10 + (18 + n) * 6, y, COL_MUTED, PAL_DEEP, lgfx::textdatum::top_left);
-    }
-    if ((millis() / 530u) % 2u == 0 && n < 32) {
-        const int cx = 10 + (18 + n) * 6;
-        g.fillRect(cx + 2, y, 5, 8, accent());
-    }
-}
-
 static void draw_term_lower(Gfx g)
 {
     paint_boards(g);
     paint_prompt(g);
 }
 
+/* v1017a terminal fix: the prompt-line partial used to call paint_prompt_line, a second layout of the
+ * same line (prompt at x=10 on a PAL_DEEP box, typed text at x=118, no glow, 300 px wide so it also
+ * cut through the companion box), while the full paint draws it via paint_prompt (glow prompt, typed
+ * text at x=106 on the black plate). Every anim tick swapped one layout for the other: the typed line
+ * jumped 12 px and changed background while typing. The partial now runs the full painter's own code
+ * clipped to the line, so a partial is pixel-identical to a full paint at the same millis. */
 static void draw_prompt_line_part(Gfx g)
 {
-    paint_prompt_line(g);
+    paint_prompt(g);
+    if (s_sheet) paint_sheet(g);
 }
 
 static void partial_prompt_line(void)
 {
-    const int y = PROMPT_Y;
-    patch_world(draw_prompt_line_part, 8, y, 300, 10);
+    if (s_screen != SCR_TERMINAL) return;   /* v1017a: never paint the terminal prompt onto another screen */
+    patch_world(draw_prompt_line_part, PL_X, PL_Y, PL_W, PL_H);
 }
 
 static void partial_term_lower(void)
@@ -5856,9 +5876,25 @@ static void on_arrows(int key)
             }
             return;
         }
+        if (s_cmd_btn) {
+            /* v1017a: on the commands button only Up leaves (back to the board above it). */
+            if (key == 1) {
+                s_cmd_btn = false;
+                partial_tile(s_term);
+                partial_term_lower();
+            }
+            return;
+        }
         const int old = s_term;
         int c = s_term % 4;
         int r = s_term / 4;
+        if (key == 2 && r == 2) {
+            /* v1017a: Down from the bottom board row stops on the commands button. */
+            s_cmd_btn = true;
+            partial_tile(old);
+            partial_term_lower();
+            return;
+        }
         if (key == 1 && r == 0) {
             /* top row + Up reaches the crown, the Terminal's only back button */
             s_term_crown = true;
@@ -5879,14 +5915,15 @@ static void on_arrows(int key)
         return;
     }
     if (s_screen == SCR_CONTROL) {
-        if (key == 1) move_cursor(-1);
-        if (key == 2) move_cursor(1);
-        if (key == 3 || key == 4) {
-            if (s_cursor >= CP_N) move_cursor(key == 4 ? 1 : -1);
-            else {
-                nudge_row(key == 4 ? 1 : -1);
-                queue_focus(s_cursor, s_cursor);
-            }
+        /* v1017a: arrows only MOVE focus; Enter changes the focused setting (activate). */
+        const int n = cp_nav(s_cursor, key);
+        if (n != s_cursor) {
+            s_cursor = n;
+            /* Focus shows in the top dots, the part, and its accent feed trace, so a focus move is a
+             * full present (band diff-push: only changed rows reach the panel, no clear). The old
+             * partial_box path drew the crown / TERM highlight at stale coordinates (250,8 / 284,8)
+             * and left the dots + feed on the old part. */
+            s_dirty = true;
         }
         return;
     }
@@ -6014,6 +6051,14 @@ static void on_ok(void)
             botcorps_t0_term_prompt[0] = 0;
             return;
         }
+        if (s_cmd_btn) {
+            /* v1017a: Enter on the button opens the commands menu (chip palette). */
+            s_cmd_btn = false;
+            s_focus_cmds = true;
+            s_dirty = true;
+            lut_for_term();
+            return;
+        }
         if (s_focus_cmds) {
             if (strcmp(CMDS[s_cmd_sel], "cmds") == 0) {
                 s_sheet = true;
@@ -6099,8 +6144,10 @@ static void on_esc(void)
         return;
     }
     if (s_screen == SCR_TERMINAL && (s_sheet || s_focus_cmds)) {
+        const bool from_menu = s_focus_cmds && !s_sheet;
         s_sheet = false;
         s_focus_cmds = false;
+        s_cmd_btn = from_menu;   /* v1017a: Esc closes the commands menu back onto its button */
         s_dirty = true;
         lut_for_term();
         return;
@@ -6133,7 +6180,7 @@ static void on_tab(void)
     if (s_screen != SCR_TERMINAL || s_sheet) return;
     if (!botcorps_t0_term_prompt[0]) {
         s_sheet = !s_sheet;
-        s_focus_cmds = false;
+        s_focus_cmds = false; s_cmd_btn = false;
         if (s_sheet) s_sheet_i = 0;
         s_tab_i = -1;
         s_dirty = true;
@@ -6188,6 +6235,10 @@ static void on_char(char c)
     if (s_term_crown) {
         s_term_crown = false;
         partial_prompt_panel();
+    }
+    if (s_cmd_btn) {
+        s_cmd_btn = false;       /* typing returns focus to the prompt / boards */
+        partial_tile(s_term);
     }
     botcorps_t0_term_prompt[n] = c;
     botcorps_t0_term_prompt[n + 1] = 0;
@@ -6280,10 +6331,18 @@ void botcorps_ui_mark_dirty(void)
     s_int_dirty = true;
 }
 
+/* v1017a flicker fix: the band calls this to rebuild a whole 120-row slice when a patch lands in the
+ * slice that is not resident in the sprite. It used to run with sb_patch's s_pc_* still set to the
+ * small patch rect, so paint_sbox culled the matte board + chrome for the whole slice and push_slice
+ * sent field-only rows to the panel (half-screen flash until the next full present). A recompose is a
+ * full paint: widen s_pc_* to the screen for its duration, then restore the caller's patch rect. */
 static void recompose_ext(Gfx g)
 {
+    const int px = s_pc_x, py = s_pc_y, pw = s_pc_w, ph = s_pc_h;
+    s_pc_x = 0; s_pc_y = 0; s_pc_w = 320; s_pc_h = 240;
     paint_ext(g);
     tick_ext(g);
+    s_pc_x = px; s_pc_y = py; s_pc_w = pw; s_pc_h = ph;
 }
 
 void botcorps_ui_begin(void)
@@ -6570,7 +6629,7 @@ void botcorps_host_terminal(uint8_t *buf)
     s_sheet = true;
     botcorps_lut_term(true);
     s_sheet_i = 2;
-    s_focus_cmds = false;
+    s_focus_cmds = false; s_cmd_btn = false;
     s_term = 2;
     s_color = 0;
     s_log_n = 0;
@@ -6589,7 +6648,7 @@ void botcorps_host_idle(uint8_t *buf)
     s_sheet = false;
     botcorps_lut_term(false);
     s_sheet_i = 0;
-    s_focus_cmds = false;
+    s_focus_cmds = false; s_cmd_btn = false;
     s_term = 2;
     s_color = 0;
     s_log_n = 0;
@@ -6776,7 +6835,7 @@ void botcorps_host_amber(uint8_t *buf)
     s_sheet = true;
     botcorps_lut_term(true);
     s_sheet_i = 2;
-    s_focus_cmds = false;
+    s_focus_cmds = false; s_cmd_btn = false;
     s_term = 2;
     s_color = 1;
     s_log_n = 0;
@@ -6851,7 +6910,7 @@ static void host_sheet_setup(uint8_t *buf)
     s_sheet = true;
     botcorps_lut_term(true);
     s_sheet_i = 0;
-    s_focus_cmds = false;
+    s_focus_cmds = false; s_cmd_btn = false;
     s_term = 2;
     s_color = 0;
     s_log_n = 0;
@@ -6935,7 +6994,7 @@ void botcorps_host_scanall(uint8_t *buf)
     s_screen = SCR_TERMINAL;
     s_sheet = false;
     botcorps_lut_term(false);
-    s_focus_cmds = false;
+    s_focus_cmds = false; s_cmd_btn = false;
     s_term = 2;
     s_color = 0;
     s_log_n = 0;
@@ -6974,7 +7033,7 @@ void botcorps_host_keyfob(uint8_t *buf)
     s_screen = SCR_TERMINAL;
     s_sheet = false;
     botcorps_lut_term(false);
-    s_focus_cmds = false;
+    s_focus_cmds = false; s_cmd_btn = false;
     s_term = 2;
     s_color = 0;
     s_log_n = 0;
@@ -7070,6 +7129,49 @@ void botcorps_host_enter(uint8_t *buf, int id)
     paint_ext(Gfx());
 }
 int botcorps_host_screen_now(void) { return s_screen; }
+/* v1017a flicker sim (tools/host band simulator): full reference paint at the current millis */
+extern int host_band_sim;
+extern long host_sim_presents, host_sim_pushes, host_sim_recomposes, host_sim_bad, host_sim_worst;
+extern uint8_t host_sim_panel[320 * 240];
+void host_sim_reset(void);
+void botcorps_host_ref_paint(uint8_t *buf)
+{
+    const int px = s_pc_x, py = s_pc_y, pw = s_pc_w, ph = s_pc_h;
+    s_pc_x = 0; s_pc_y = 0; s_pc_w = 320; s_pc_h = 240;
+    host_frame = buf;
+    memset(buf, PAL_BLACK, 320u * 240u);
+    paint_ext(Gfx());
+    s_pc_x = px; s_pc_y = py; s_pc_w = pw; s_pc_h = ph;
+}
+/* Run the real device draw loop (botcorps_ui_draw) for ms milliseconds in 10 ms steps on the band
+ * simulator. keys (optional) are fed one per 300 ms. Returns pushes with a visible glitch. */
+int botcorps_host_sim(int ms, const char *keys, long *presents, long *pushes, long *recomp, long *worst)
+{
+    extern int host_gate_norain;
+    host_gate_norain = 1;
+    host_band_sim = 1;
+    host_sim_reset();
+    botcorps_band_set_recompose(recompose_ext);
+    memset(host_sim_panel, 0, sizeof host_sim_panel);
+    s_dirty = true;
+    const uint32_t t0 = millis();
+    const char *k = keys;
+    for (int i = 0; i * 10 < ms; ++i) {
+        host_set_millis(t0 + (uint32_t)i * 10u);
+        if (k && *k && i % 30 == 15) {
+            const unsigned char c = (unsigned char)*k++;
+            if (c >= 1 && c <= 4) { s_key_fn = true; ui_dispatch((int)c, 0); }
+            else if (c == '\n') { s_key_fn = false; ui_dispatch(K_OK, 0); }
+            else if (c == '\b') { s_key_fn = false; ui_dispatch(K_BS, 0); }
+            else { s_key_fn = false; ui_dispatch(K_CHAR, (char)c); }
+        }
+        botcorps_ui_draw();
+    }
+    host_band_sim = 0;
+    host_gate_norain = 0;
+    *presents = host_sim_presents; *pushes = host_sim_pushes; *recomp = host_sim_recomposes; *worst = host_sim_worst;
+    return (int)host_sim_bad;
+}
 /* v1016n gate: terminal Select on board b; returns the screen it opened and the scan bot */
 int botcorps_host_open_bot(uint8_t *buf, int b, int *scan_bot)
 {
@@ -7119,20 +7221,83 @@ int botcorps_host_esc_test(uint8_t *buf, int id, int *expect)
     ui_dispatch(K_ESC, 0);
     return s_screen;
 }
+static int s_cp_cycle = 0;
 int botcorps_host_setfn(uint8_t *buf, int cursor, char *before, char *after, int *nvs)
 {
     botcorps_host_enter(buf, SCR_CONTROL);
     s_cursor = cursor;
+    const int sv[7] = { s_color, s_mix, s_shape, botcorps_rain_mode(), s_saver, s_saver_on, s_idle };
     cp_text(cursor, before, 24);
     const int n0 = host_nvs_puts;
-    s_key_fn = true;
-    ui_dispatch(K_RT, 0);
+    s_key_fn = false;
+    ui_dispatch(K_OK, 0);                      /* v1017a: Enter cycles the focused setting */
     cp_text(cursor, after, 24);
     *nvs = host_nvs_puts - n0;
-    s_cursor = cursor;
-    ui_dispatch(K_LT, 0);
+    /* full cycle: presses until the value after the first press comes round again */
+    int k = 1;
+    char cur[24];
+    for (; k < 12; ++k) {
+        ui_dispatch(K_OK, 0);
+        cp_text(cursor, cur, 24);
+        if (!strcmp(cur, after)) break;
+    }
+    s_cp_cycle = k < 12 ? k : -1;
+    const bool ok = strcmp(before, after) != 0 && s_screen == SCR_CONTROL && s_cursor == cursor;
+    /* restore the defaults so later checks are not affected */
+    s_color = sv[0]; s_mix = sv[1]; s_shape = sv[2]; botcorps_rain_set_mode(sv[3]);
+    s_saver = sv[4]; s_saver_on = sv[5]; s_idle = sv[6];
+    botcorps_rain_set_mix(s_mix); botcorps_rain_set_shape(s_shape);
+    return ok;
+}
+int botcorps_host_cp_cycle(void) { return s_cp_cycle; }
+/* v1017a gate: terminal commands button. From board 0: Down x3 must land on the button (and only
+ * there), Enter must open the commands menu, Esc returns to the button, Up leaves to the boards. */
+int botcorps_host_cmd_btn(uint8_t *buf, int *reach, int *opened, int *esc_back, int *up_leaves, int *menu_runs)
+{
+    botcorps_host_enter(buf, SCR_TERMINAL);
+    s_term = 1;
+    botcorps_host_seq(buf, "\x02\x02\x02");
+    *reach = s_cmd_btn && !s_focus_cmds && s_screen == SCR_TERMINAL;
+    botcorps_host_seq(buf, "\n");
+    *opened = s_focus_cmds && !s_cmd_btn && s_screen == SCR_TERMINAL;
+    {   /* the palette is painted (chip 0 plate at 8,171) */
+        static uint8_t a[320 * 240];
+        memset(a, PAL_BLACK, sizeof a); host_frame = a; paint_ext(Gfx());
+        static uint8_t b2[320 * 240];
+        s_focus_cmds = false; s_cmd_btn = true;
+        memset(b2, PAL_BLACK, sizeof b2); host_frame = b2; paint_ext(Gfx());
+        s_focus_cmds = true; s_cmd_btn = false;
+        int diff = 0;
+        for (int y = 169; y < 207; ++y) for (int x = 5; x < 273; ++x) diff += a[y * 320 + x] != b2[y * 320 + x];
+        *opened = *opened && diff > 500;
+        host_frame = buf;
+    }
+    botcorps_host_seq(buf, "\x1b");
+    *esc_back = s_cmd_btn && !s_focus_cmds && s_screen == SCR_TERMINAL;
+    botcorps_host_seq(buf, "\x01");
+    *up_leaves = !s_cmd_btn && !s_focus_cmds && s_term == 9;
+    /* menu really runs a command: open, pick chip 'help' (index 2), Enter -> log grows */
+    botcorps_host_seq(buf, "\x02\n\x04\x04");
+    const int n0 = s_log_next;
+    botcorps_host_seq(buf, "\n");
+    *menu_runs = s_log_next != n0;
+    return s_screen;
+}
+int botcorps_host_cp_start(void) { uint8_t b[1]; (void)b; static uint8_t buf[320 * 240]; botcorps_host_enter(buf, SCR_CONTROL); return s_cursor; }
+/* v1017a gate: arrows only move. From a stop, press dir; returns the new cursor and whether any
+ * setting text changed (must be 0). */
+int botcorps_host_cp_move(uint8_t *buf, int from, int dir, int *changed)
+{
+    botcorps_host_enter(buf, SCR_CONTROL);
+    s_cursor = from;
+    char b[CP_N][24], a[24];
+    for (int i = 0; i < CP_N; ++i) cp_text(i, b[i], 24);
+    s_key_fn = true;
+    ui_dispatch(dir, 0);
     s_key_fn = false;
-    return strcmp(before, after) != 0;
+    *changed = 0;
+    for (int i = 0; i < CP_N; ++i) { cp_text(i, a, 24); if (strcmp(a, b[i])) *changed = 1; }
+    return s_screen == SCR_CONTROL ? s_cursor : -100 - s_screen;
 }
 void botcorps_host_set_color(int c){ s_color = (c<0||c>2)?0:c; }
 void botcorps_host_key(int key, char c) { s_key_fn = (c == 1); ui_dispatch(key, c == 1 ? 0 : c); }

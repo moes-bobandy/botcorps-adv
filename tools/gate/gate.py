@@ -65,6 +65,9 @@ def rep(scr, item, ok, detail=''):
     results.append((scr, item, ok, detail))
 
 OVERLAYS = ('found-alert',)   # full-screen takeover overlay (mock): rain/crown not applicable
+# v1017a: the commands menu is the approved 6x2 chip palette drawn opaquely OVER the scrollback, so
+# log text boxes under it are expected; G1 overlap is not applicable to that one render.
+G1_SKIP = ('terminal-cmdmenu',)
 SOLID = ('CHIP', 'BTN', 'TILE', 'PART', 'CROWN', 'HUBCORE', 'PROMPT')
 INSTR = re.compile(r'\b(press|hit|use (the )?arrows?|tab to|esc to|enter to|to (select|go back|exit)|instructions?|hint)\b', re.I)
 
@@ -110,7 +113,7 @@ def generic(scr, boxes, texts, im, nr):
             if inter(silk[i], silk[j]): bad.append(f"SILK'{silk[i]['n']}'xSILK'{silk[j]['n']}'")
         for b in sol:
             if inter(silk[i], b) and not inside(silk[i], b): bad.append(f"SILK'{silk[i]['n']}'x{b['k']}:{b['n']}")
-    rep(scr, 'G1 no element/text bbox overlap', not bad, '; '.join(bad[:6]) + (f' (+{len(bad)-6})' if len(bad) > 6 else ''))
+    rep(scr, 'G1 no element/text bbox overlap', None if scr in G1_SKIP else not bad, '; '.join(bad[:6]) + (f' (+{len(bad)-6})' if len(bad) > 6 else ''))
     # G2 sprite inside its chip/tile
     bad = []
     holders = [b for b in boxes if b['k'] in ('CHIP', 'TILE', 'FACE')]
@@ -296,6 +299,7 @@ for scr in screens:
 
 # functional
 fp = os.path.join(D, 'functional.txt')
+cpmove = {}; cpstart = 0
 NSCR = 11
 if os.path.exists(fp):
     for ln in open(fp):
@@ -323,9 +327,59 @@ if os.path.exists(fp):
             NSCR = int(f[1])
             rep('functional', 'N0 screen table has no per-bot home or bot-radar ids (11 live screens)', NSCR == 11, f'screens={NSCR}')
         elif f[0] == 'SET':
-            rep('functional', f'F2 setting {f[1]} edits by keyboard', f[4] == '1', f'{f[2]} -> {f[3]}')
+            # v1017a: ENTER cycles the focused setting (arrows only move). Must change the value, stay on
+            # the control panel with focus kept, and come back to the start after a full cycle.
+            want_cycle = {'0': 3, '1': 3, '2': 5, '3': 2, '4': 6, '5': 4, '6': 2, '7': 3}[f[1]]
+            rep('functional', f'F2 Enter cycles setting {f[1]}', f[4] == '1' and int(f[6]) == want_cycle,
+                f'{f[2]} -> {f[3]}, full cycle {f[6]} presses (want {want_cycle})')
             if f[1] in ('3', '4'):
-                rep('functional', f'F3 setting {f[1]} writes NVS', int(f[5]) > 0, f'puts={f[5]}')
+                rep('functional', f'F3 setting {f[1]} writes NVS on Enter', int(f[5]) > 0, f'puts={f[5]}')
+        elif f[0] == 'CPMOVE':
+            cpmove.setdefault(int(f[1]), {})[int(f[2])] = (int(f[3]), int(f[4]))
+        elif f[0] == 'CPSTART':
+            cpstart = int(f[1])
+        elif f[0] == 'CMDBTN':
+            r = [int(x) for x in f[1:6]]
+            rep('functional', 'C1 terminal commands button is a cursor stop (Down from bottom boards)', r[0] == 1, f'reach={r[0]}')
+            rep('functional', 'C2 Enter on commands button opens the commands menu', r[1] == 1, f'opened={r[1]}')
+            rep('functional', 'C3 Esc closes the menu back to the button; Up leaves to the boards', r[2] == 1 and r[3] == 1, f'esc={r[2]} up={r[3]}')
+            rep('functional', 'C4 a command picked in the menu runs', r[4] == 1, f'ran={r[4]}')
+        elif f[0] == 'SIM':
+            name, bad, pres, push, rec, worst = f[1], int(f[2]), int(f[3]), int(f[4]), int(f[5]), int(f[6])
+            rep('functional', f'S1 {name}: no frame-to-frame flash on the band simulator (6 s live loop)', bad == 0 and worst <= 64,
+                f'glitched pushes={bad} worst={worst}px, presents={pres} pushes={push} recomposes={rec}')
+            if name.startswith('scan-'):
+                rep('functional', f'S2 {name}: idle animation never full-screen presents (patches only)', pres <= 1,
+                    f'presents={pres} (1 = the screen-enter paint)')
+
+if cpmove:
+    # v1017a: every control-panel stop reachable from the entry stop by arrows alone; arrows never edit.
+    seen = {cpstart}; todo = [cpstart]
+    while todo:
+        c = todo.pop()
+        for d, (to, chg) in cpmove.get(c, {}).items():
+            if 0 <= to < 10 and to not in seen: seen.add(to); todo.append(to)
+    rep('functional', 'R1 every control-panel control reachable by the cursor', len(seen) == 10, f'reached {sorted(seen)} from {cpstart}')
+    ring = {cpstart}; c = cpstart
+    for _ in range(10):
+        c = cpmove[c][4][0]; ring.add(c)
+    rep('functional', 'R2 Right alone walks through all 10 stops (incl. SCREEN SAVER U4 + PWR LED)', len(ring) == 10 and 5 in ring and 6 in ring, f'{sorted(ring)}')
+    edits = [(c, d) for c in cpmove for d, (to, chg) in cpmove[c].items() if chg]
+    rep('functional', 'R3 arrows only move (no arrow changes any setting)', not edits, f'edits={edits}')
+    stay = [(c, d) for c in cpmove for d, (to, chg) in cpmove[c].items() if to < 0]
+    rep('functional', 'R4 arrows never leave the control panel', not stay, f'left={stay}')
+
+# v1017a L1: approved renders locked byte-for-byte to the build Dirt flashed (675c87d): the control
+# panel (all 8 focus states + amber), terminal, scan screens, scan boxes, game and hub. Input-only change.
+import hashlib
+LOCK = os.path.join(os.path.dirname(FROZEN or '.'), 'locked-675c87d.sha256')
+if os.path.exists(LOCK):
+    for l in open(LOCK):
+        h, name = l.split()
+        pth = os.path.join(D, name)
+        got = hashlib.sha256(open(pth, 'rb').read()).hexdigest() if os.path.exists(pth) else 'missing'
+        grp = 'control-panel' if name.startswith('settings') else 'locked'
+        rep(grp, f'L1 {name} byte-identical to 675c87d', got == h, '' if got == h else f'sha {got[:12]} != {h[:12]}')
 
 fails = 0; cur = None
 for scr, item, ok, det in results:

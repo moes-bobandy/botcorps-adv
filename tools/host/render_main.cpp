@@ -161,6 +161,12 @@ static int run_gate(const char *dir)
     a = { 0, 0, 0, nullptr }; gate_one(dir, "game-menu", 0, f_gmenu, &a);
     a = { 0, 0, 0, nullptr }; gate_one(dir, "game-jackin", 0, f_jackin, &a);
     a = { 9, 0, 0, nullptr }; gate_one(dir, "diag", 0, f_enter, &a);
+    /* v1017a (rendered last so earlier renders keep their rain RNG order): terminal commands button
+     * focused, then opened with Enter; control-panel focus on TERM (8) and crown (9). */
+    a = { 0, 0, 0, "\n\n\x02\x02\x02" }; gate_one(dir, "terminal-cmdbtn", 0, f_enter, &a);
+    a = { 0, 0, 0, "\n\n\x02\x02\x02\n" }; gate_one(dir, "terminal-cmdmenu", 0, f_enter, &a);
+    a = { 8, 0, 0, nullptr }; gate_one(dir, "ctlfocus-term", 0, f_ctl, &a);
+    a = { 9, 0, 0, nullptr }; gate_one(dir, "ctlfocus-crown", 0, f_ctl, &a);
     botcorps_host_set_color(0);
     /* functional: Esc goes back on every screen; each of the 8 settings edits + writes NVS */
     {
@@ -200,10 +206,52 @@ static int run_gate(const char *dir)
                 if (f) fprintf(f, "OPEN\t%d\t%d\t%d\t%d\n", b, got, sb, e1);
             }
         }
+        /* v1017a SIM: real draw loop on the band simulator; glitch = a push showing pixels that differ
+         * from a full paint at the same millis (what the eye sees as a flash) */
+        {
+            extern int botcorps_host_sim(int, const char *, long *, long *, long *, long *);
+            extern void botcorps_host_scan_n(uint8_t *, int);
+            extern void botcorps_host_gchat(uint8_t *);
+            struct { const char *name; int kind, arg; const char *keys; } S[] = {
+                { "scan-gibson", 0, 12, nullptr }, { "scan-flock", 0, 4, nullptr }, { "scan-airtag", 0, 6, nullptr },
+                { "scan-wifi", 1, 3, nullptr }, { "scan-ble", 1, 5, nullptr },
+                { "game-board", 2, 0, "help\nscan\n" }, { "game-jackin", 3, 0, "abc\b\n" },
+                { "terminal-typing", 4, 0, "scan wifi\b\b\b\b" },
+                { "gibson-game", 1, 1, "hack\b\n" },
+            };
+            for (auto &q : S) {
+                host_set_millis(20000u);
+                if (q.kind == 0) botcorps_host_scan_n(g_buf, q.arg);
+                else if (q.kind == 1) botcorps_host_enter(g_buf, q.arg);
+                else if (q.kind == 2) botcorps_host_gchat(g_buf);
+                else if (q.kind == 3) { extern void botcorps_host_jackin(uint8_t *); botcorps_host_jackin(g_buf); }
+                else botcorps_host_enter(g_buf, 2);
+                long pr = 0, pu = 0, rc = 0, wo = 0;
+                const int bad = botcorps_host_sim(6000, q.keys, &pr, &pu, &rc, &wo);
+                if (f) fprintf(f, "SIM\t%s\t%d\t%ld\t%ld\t%ld\t%ld\n", q.name, bad, pr, pu, rc, wo);
+            }
+        }
         for (int c = 0; c < 8; ++c) {
             char b[32], a[32]; int nv = 0;
             const int ch = botcorps_host_setfn(g_buf, c, b, a, &nv);
-            if (f) fprintf(f, "SET\t%d\t%s\t%s\t%d\t%d\n", c, b, a, ch, nv);
+            extern int botcorps_host_cp_cycle(void);
+            if (f) fprintf(f, "SET\t%d\t%s\t%s\t%d\t%d\t%d\n", c, b, a, ch, nv, botcorps_host_cp_cycle());
+        }
+        /* v1017a CPMOVE: every control-panel stop x every arrow -> new stop; no setting may change */
+        {
+            extern int botcorps_host_cp_move(uint8_t *, int, int, int *);
+            for (int st = 0; st < 10; ++st)
+                for (int d = 1; d <= 4; ++d) {
+                    int chg = 0;
+                    const int to = botcorps_host_cp_move(g_buf, st, d, &chg);
+                    if (f) fprintf(f, "CPMOVE\t%d\t%d\t%d\t%d\n", st, d, to, chg);
+                }
+            extern int botcorps_host_cmd_btn(uint8_t *, int *, int *, int *, int *, int *);
+            int r1 = 0, r2 = 0, r3 = 0, r4 = 0, r5 = 0;
+            botcorps_host_cmd_btn(g_buf, &r1, &r2, &r3, &r4, &r5);
+            if (f) fprintf(f, "CMDBTN\t%d\t%d\t%d\t%d\t%d\n", r1, r2, r3, r4, r5);
+            extern int botcorps_host_cp_start(void);
+            if (f) fprintf(f, "CPSTART\t%d\n", botcorps_host_cp_start());
         }
         if (f) fclose(f);
     }

@@ -303,11 +303,80 @@ lgfx::v1::LovyanGFX &botcorps_content(void) { return s_dummy; }
 bool botcorps_dual_ok(void) { return true; }
 void botcorps_set_surface(int) {}
 void botcorps_band_set_oy(int) {}
-void botcorps_band_present(void (*)(Gfx)) {}
-bool botcorps_band_direct(void) { return true; }
-bool botcorps_band_live(void) { return false; }
-void botcorps_band_patch(void (*draw)(Gfx), int, int, int, int) { if (draw) draw(Gfx()); }
-void botcorps_band_set_recompose(void (*)(Gfx)) {}
+/* ---- v1017a band simulator (gate F*: flicker) --------------------------------------------
+ * host_band_sim=1 emulates botcorps_band.cpp: one 120-row slice resident in the sprite, a patch in
+ * the other slice first recomposes that slice (s_recompose), then draws clipped, then the slice's
+ * changed rows are pushed to the panel. Every push is checked against a full reference paint at the
+ * same millis(): pixels the panel newly shows that differ from the reference are a visible glitch. */
+int host_band_sim = 0;
+uint8_t host_sim_panel[320 * 240];
+static uint8_t s_sim_work[320 * 240];
+static uint8_t s_sim_ref[320 * 240];
+static int s_sim_res = -1;
+static void (*s_sim_recomp)(Gfx) = nullptr;
+long host_sim_presents = 0, host_sim_pushes = 0, host_sim_recomposes = 0, host_sim_bad = 0, host_sim_worst = 0;
+extern void botcorps_host_ref_paint(uint8_t *buf);
+static void sim_push(int y0, int y1)
+{
+    uint8_t *saved = host_frame;
+    botcorps_host_ref_paint(s_sim_ref);
+    host_frame = saved;
+    long bad = 0;
+    for (int y = y0; y < y1; ++y) {
+        const uint8_t *w = s_sim_work + y * 320, *pn = host_sim_panel + y * 320, *r = s_sim_ref + y * 320;
+        if (!memcmp(w, pn, 320)) continue;               /* row hash unchanged: not pushed */
+        for (int x = 0; x < 320; ++x) bad += (w[x] != pn[x] && w[x] != r[x]);
+        memcpy(host_sim_panel + y * 320, w, 320);
+    }
+    ++host_sim_pushes;
+    if (bad > host_sim_worst) host_sim_worst = bad;
+    if (bad > 600) ++host_sim_bad;
+}
+void host_sim_reset(void)
+{
+    s_sim_res = -1;
+    host_sim_presents = host_sim_pushes = host_sim_recomposes = host_sim_bad = host_sim_worst = 0;
+}
+void botcorps_band_present(void (*draw)(Gfx))
+{
+    if (!host_band_sim || !draw) return;
+    uint8_t *saved = host_frame;
+    host_frame = s_sim_work;
+    s_clip = false;
+    draw(Gfx());
+    s_clip = false;
+    host_frame = saved;
+    ++host_sim_presents;
+    sim_push(0, 120); sim_push(120, 240);
+    s_sim_res = 1;
+}
+bool botcorps_band_direct(void) { return !host_band_sim; }
+bool botcorps_band_live(void) { return host_band_sim != 0; }
+void botcorps_band_patch(void (*draw)(Gfx), int x, int y, int w, int h)
+{
+    if (!draw) return;
+    if (!host_band_sim) { draw(Gfx()); return; }
+    if (y < 120 && y + h > 120) return;                  /* device refuses a patch across y=120 */
+    const int slice = y / 120, y0 = slice * 120;
+    uint8_t *saved = host_frame;
+    host_frame = s_sim_work;
+    if (s_sim_res != slice && s_sim_recomp) {
+        static uint8_t keep[320 * 120];
+        const int oy0 = slice ? 0 : 120;                 /* the other slice is not in the sprite */
+        memcpy(keep, s_sim_work + oy0 * 320, sizeof keep);
+        s_clip = false;
+        s_sim_recomp(Gfx());
+        memcpy(s_sim_work + oy0 * 320, keep, sizeof keep);
+        ++host_sim_recomposes;
+    }
+    s_clip = true; s_clip_x = x; s_clip_y = y; s_clip_w = w; s_clip_h = h;
+    draw(Gfx());
+    s_clip = false;
+    host_frame = saved;
+    sim_push(y0, y0 + 120);
+    s_sim_res = slice;
+}
+void botcorps_band_set_recompose(void (*f)(Gfx)) { s_sim_recomp = f; }
 int botcorps_band_oy(void) { return 0; }
 static uint32_t s_host_ms = 2500;
 void host_set_millis(uint32_t t) { s_host_ms = t; }

@@ -464,13 +464,16 @@ static uint32_t row_hash(const uint8_t *row, int n)
     return h;
 }
 
-static void push_slice(int world_y0)
+static void push_slice(int world_y0, bool refresh_ok)
 {
     if (!s_sp || !botcorps_dual_ok()) return;
     const uint8_t *buf = (const uint8_t *)s_sp->getBuffer();
     if (!buf) return;
     const int stride = (int)(s_sp->bufferLength() / (size_t)SLICE_H);
-    const bool full = (s_frame % 64u) == 0u;
+    /* v1017a: the 1-in-64 full refresh belongs to presents only. s_frame does not advance on a patch,
+     * so on a refresh frame EVERY following patch (scan parts tick many times a second) re-pushed all
+     * 120 rows of its slice until the next present: long SPI bursts that tear on a live screen. */
+    const bool full = refresh_ok && (s_frame % 64u) == 0u;
     auto &panel = botcorps_content();
     uint16_t line[320];
     panel.startWrite();
@@ -502,7 +505,7 @@ void botcorps_band_present(void (*draw)(Gfx))
         draw(Gfx(*s_sp));
         s_sp->endWrite();
         s_sp->clearClipRect();
-        push_slice(y0);
+        push_slice(y0, true);
         s_resident = s;
     }
     botcorps_band_set_oy(0);
@@ -519,7 +522,7 @@ static bool recompose_slice(int slice)
     s_recompose(Gfx(*s_sp));
     s_sp->endWrite();
     s_sp->clearClipRect();
-    push_slice(y0);
+    push_slice(y0, false);
     s_resident = slice;
     botcorps_band_set_oy(0);
     return true;
@@ -549,7 +552,7 @@ void botcorps_band_patch(void (*draw)(Gfx), int x, int y, int w, int h)
     s_sp->setClipRect(x, y - y0, w, h);
     draw(Gfx(*s_sp));
     s_sp->clearClipRect();
-    push_slice(y0);
+    push_slice(y0, false);
     s_resident = slice;
     botcorps_band_set_oy(0);
 }

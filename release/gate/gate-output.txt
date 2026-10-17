@@ -1,0 +1,496 @@
+== intro
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=331 colour_px=0]
+  PASS  G6 no instruction text
+  PASS  G7 regression vs approved render  [0 px changed (limit 40)]
+== boot
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=3392 colour_px=348]
+  PASS  G6 no instruction text
+== hub
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=1552 colour_px=1080]
+  PASS  G6 no instruction text
+  PASS  G8 crown back control present  [1 crown]
+  PASS  H1 centre = animated rings core, not a chip  [core=1 chips=0]
+  PASS  H2 three lit nav buttons (filled face + bright edge)  [mean 54,77,80 | 56,98,96 | 39,81,84]
+  PASS  H3 rain carries bots/devices (>=150 coloured px)  [colour_px=1080]
+  PASS  H4 12 bot side tiles  [12]
+== hub-amber
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=1584 colour_px=1056]
+  PASS  G6 no instruction text
+  PASS  G8 crown back control present  [1 crown]
+  PASS  H1 centre = animated rings core, not a chip  [core=1 chips=0]
+  PASS  H2 three lit nav buttons (filled face + bright edge)  [mean 92,78,48 | 123,94,40 | 103,79,31]
+  PASS  H3 rain carries bots/devices (>=150 coloured px)  [colour_px=1056]
+  PASS  H4 12 bot side tiles  [12]
+== terminal
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=240 colour_px=19]
+  PASS  G6 no instruction text
+  PASS  G7 regression vs approved render  [0 px changed (limit 40)]
+  PASS  G8 crown back control present  [1 crown]
+== terminal-typed
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=608 colour_px=48]
+  PASS  G6 no instruction text
+  PASS  G8 crown back control present  [1 crown]
+  PASS  T1 log pale cyan, "[ ok ]" green  [green_px=50 paleCyan_px=1247 other_px=0]
+== terminal-tab
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=232 colour_px=0]
+  PASS  G6 no instruction text
+  PASS  G7 regression vs approved render  [0 px changed (limit 40), masked [(4, 167, 316, 240)]]
+  PASS  G8 crown back control present  [1 crown]
+== home-wifi
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=2677 colour_px=116]
+  PASS  G6 no instruction text
+  PASS  G8 crown back control present  [1 crown]
+== home-ble
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=2475 colour_px=162]
+  PASS  G6 no instruction text
+  PASS  G8 crown back control present  [1 crown]
+== home-bot
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=2563 colour_px=31]
+  PASS  G6 no instruction text
+  PASS  G8 crown back control present  [1 crown]
+== scan-wifi
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=387 colour_px=0]
+  PASS  G6 no instruction text
+  PASS  G7 regression vs approved render  [0 px changed (limit 40)]
+  PASS  G8 crown back control present  [1 crown]
+  PASS  B1 board is matte black PCB  [dominant=(8, 12, 16)]
+  PASS  S1 device icons (tiles) in the mini screen  [tiles=3]
+  PASS  S2 index = small prompt top-left of mini screen  [[(108, 43)]]
+== scan-ble
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=491 colour_px=72]
+  PASS  G6 no instruction text
+  PASS  G7 regression vs approved render  [0 px changed (limit 40)]
+  PASS  G8 crown back control present  [1 crown]
+  PASS  B1 board is matte black PCB  [dominant=(8, 12, 16)]
+  PASS  S1 device icons (tiles) in the mini screen  [tiles=3]
+  PASS  S2 index = small prompt top-left of mini screen  [[(108, 43)]]
+== bot-radar
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=1394 colour_px=57]
+  PASS  G6 no instruction text
+  PASS  G8 crown back control present  [1 crown]
+== sbox-selected
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=506 colour_px=0]
+  PASS  G6 no instruction text
+  PASS  G7 regression vs approved render  [0 px changed (limit 40)]
+  PASS  G8 crown back control present  [1 crown]
+  PASS  B1 board is matte black PCB  [dominant=(0, 8, 8)]
+  PASS  S2 index = small prompt top-left of mini screen  [[(108, 43)]]
+== sbox-info
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=122 colour_px=35]
+  PASS  G6 no instruction text
+  PASS  G7 regression vs approved render  [0 px changed (limit 40)]
+  PASS  G8 crown back control present  [1 crown]
+  PASS  B1 board is matte black PCB  [dominant=(8, 12, 16)]
+  PASS  S2 index = small prompt top-left of mini screen  [[(108, 43)]]
+== sbox-hunt
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=125 colour_px=0]
+  PASS  G6 no instruction text
+  PASS  G7 regression vs approved render  [0 px changed (limit 40)]
+  PASS  G8 crown back control present  [1 crown]
+  PASS  B1 board is matte black PCB  [dominant=(0, 8, 8)]
+  PASS  S3 hunt stays inside the mini screen  [[{'k': 'HUNT', 'n': 'panel', 'x': 106, 'y': 42, 'w': 176, 'h': 102, 'p': 'MINI'}]]
+== sbox-glossary
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=371 colour_px=31]
+  PASS  G6 no instruction text
+  PASS  G7 regression vs approved render  [0 px changed (limit 40)]
+  PASS  G8 crown back control present  [1 crown]
+  PASS  B1 board is matte black PCB  [dominant=(0, 8, 8)]
+  PASS  S2 index = small prompt top-left of mini screen  [[(108, 43)]]
+== found-alert
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  N/A   G5 rain layer present + visible  [logged=True visible_px=0 colour_px=0]
+  PASS  G6 no instruction text
+  PASS  G7 regression vs approved render  [0 px changed (limit 40)]
+== diag
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=1479 colour_px=57]
+  PASS  G6 no instruction text
+  PASS  G8 crown back control present  [1 crown]
+== game-board
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=985 colour_px=89]
+  PASS  G6 no instruction text
+  PASS  G8 crown back control present  [1 crown]
+  PASS  C1 square chip_block present (Gibson)  [[('gibson', 36, 36), ('gibson', 28, 28), ('gibson', 28, 28)]]
+  PASS  C2 figure fills the chip square (major side >=60% of chip)  [fill=0.67]
+  PASS  C3 Gibson drawn as the square block figure  [3]
+== game-jackin
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=597 colour_px=31]
+  PASS  G6 no instruction text
+  PASS  G8 crown back control present  [1 crown]
+  PASS  C1 square chip_block present (Gibson)  [[('gibson', 36, 36), ('gibson', 28, 28), ('gibson', 28, 28)]]
+  PASS  C2 figure fills the chip square (major side >=60% of chip)  [fill=0.67]
+  PASS  C3 Gibson drawn as the square block figure  [3]
+== game-menu
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=639 colour_px=43]
+  PASS  G6 no instruction text
+  PASS  G8 crown back control present  [1 crown]
+== scanboard-airtag
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=320 colour_px=0]
+  PASS  G6 no instruction text
+  PASS  G7 regression vs approved render  [0 px changed (limit 40)]
+  PASS  G8 crown back control present  [1 crown]
+  PASS  C1 square chip_block present (bot)  [[('bot', 54, 54)]]
+  PASS  C2 figure fills the chip square (major side >=60% of chip)  [fill=0.67]
+  PASS  B1 board is matte black PCB  [dominant=(8, 12, 16)]
+== scanboard-deauth
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=336 colour_px=0]
+  PASS  G6 no instruction text
+  PASS  G7 regression vs approved render  [0 px changed (limit 40)]
+  PASS  G8 crown back control present  [1 crown]
+  PASS  C1 square chip_block present (bot)  [[('bot', 54, 54)]]
+  PASS  C2 figure fills the chip square (major side >=60% of chip)  [fill=0.67]
+  PASS  B1 board is matte black PCB  [dominant=(8, 12, 16)]
+== scanboard-drone
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=194 colour_px=0]
+  PASS  G6 no instruction text
+  PASS  G7 regression vs approved render  [0 px changed (limit 40)]
+  PASS  G8 crown back control present  [1 crown]
+  PASS  C1 square chip_block present (bot)  [[('bot', 54, 54)]]
+  PASS  C2 figure fills the chip square (major side >=60% of chip)  [fill=0.67]
+  PASS  B1 board is matte black PCB  [dominant=(8, 12, 16)]
+== scanboard-flipper
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=332 colour_px=26]
+  PASS  G6 no instruction text
+  PASS  G7 regression vs approved render  [0 px changed (limit 40)]
+  PASS  G8 crown back control present  [1 crown]
+  PASS  C1 square chip_block present (bot)  [[('bot', 54, 54)]]
+  PASS  C2 figure fills the chip square (major side >=60% of chip)  [fill=0.67]
+  PASS  B1 board is matte black PCB  [dominant=(8, 12, 16)]
+== scanboard-flock
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=460 colour_px=0]
+  PASS  G6 no instruction text
+  PASS  G7 regression vs approved render  [0 px changed (limit 40)]
+  PASS  G8 crown back control present  [1 crown]
+  PASS  C1 square chip_block present (bot)  [[('bot', 54, 54)]]
+  PASS  C2 figure fills the chip square (major side >=60% of chip)  [fill=0.65]
+  PASS  B1 board is matte black PCB  [dominant=(8, 12, 16)]
+== scanboard-gibson
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=119 colour_px=25]
+  PASS  G6 no instruction text
+  PASS  G8 crown back control present  [1 crown]
+  PASS  C1 square chip_block present (Gibson)  [[('gibson', 54, 54)]]
+  PASS  C2 figure fills the chip square (major side >=60% of chip)  [fill=0.78]
+  PASS  C3 Gibson drawn as the square block figure  [1]
+  PASS  B1 board is matte black PCB  [dominant=(8, 12, 16)]
+== scanboard-hack
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=404 colour_px=0]
+  PASS  G6 no instruction text
+  PASS  G7 regression vs approved render  [0 px changed (limit 40)]
+  PASS  G8 crown back control present  [1 crown]
+  PASS  C1 square chip_block present (bot)  [[('bot', 54, 54)]]
+  PASS  C2 figure fills the chip square (major side >=60% of chip)  [fill=0.74]
+  PASS  B1 board is matte black PCB  [dominant=(8, 12, 16)]
+== scanboard-keyfob
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=331 colour_px=23]
+  PASS  G6 no instruction text
+  PASS  G7 regression vs approved render  [0 px changed (limit 40)]
+  PASS  G8 crown back control present  [1 crown]
+  PASS  C1 square chip_block present (bot)  [[('bot', 54, 54)]]
+  PASS  C2 figure fills the chip square (major side >=60% of chip)  [fill=0.74]
+  PASS  B1 board is matte black PCB  [dominant=(8, 12, 16)]
+== scanboard-meta
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=415 colour_px=0]
+  PASS  G6 no instruction text
+  PASS  G7 regression vs approved render  [0 px changed (limit 40)]
+  PASS  G8 crown back control present  [1 crown]
+  PASS  C1 square chip_block present (bot)  [[('bot', 54, 54)]]
+  PASS  C2 figure fills the chip square (major side >=60% of chip)  [fill=0.65]
+  PASS  B1 board is matte black PCB  [dominant=(8, 12, 16)]
+== scanboard-samsungtag
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=296 colour_px=0]
+  PASS  G6 no instruction text
+  PASS  G7 regression vs approved render  [0 px changed (limit 40)]
+  PASS  G8 crown back control present  [1 crown]
+  PASS  C1 square chip_block present (bot)  [[('bot', 54, 54)]]
+  PASS  C2 figure fills the chip square (major side >=60% of chip)  [fill=0.74]
+  PASS  B1 board is matte black PCB  [dominant=(8, 12, 16)]
+== scanboard-skimmer
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=313 colour_px=0]
+  PASS  G6 no instruction text
+  PASS  G7 regression vs approved render  [0 px changed (limit 40)]
+  PASS  G8 crown back control present  [1 crown]
+  PASS  C1 square chip_block present (bot)  [[('bot', 54, 54)]]
+  PASS  C2 figure fills the chip square (major side >=60% of chip)  [fill=0.67]
+  PASS  B1 board is matte black PCB  [dominant=(8, 12, 16)]
+== settings-amber
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=283 colour_px=0]
+  PASS  G6 no instruction text
+  PASS  G8 crown back control present  [1 crown]
+  PASS  B1 board is matte black PCB  [dominant=(8, 8, 8)]
+  PASS  P1 eight settings parts present  [['s0', 's1', 's2', 's3', 's4', 's5', 's6', 's7']]
+  PASS  P2 top pin labels on the rail above the chips  [10 labels, max bottom 38, chip top 44]
+  PASS  P3 JUMP/CP/PWR are small mock parts (<=22x22)  [{'s3': (20, 10), 's4': (22, 22), 's6': (10, 8)}]
+  PASS  P4 selection outline in UI accent (cyan)  [92/92 outline px accent]
+  PASS  P5 accent trace from the selected part  [618/634 trace px accent]
+== settings-c0
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=290 colour_px=39]
+  PASS  G6 no instruction text
+  PASS  G8 crown back control present  [1 crown]
+  PASS  B1 board is matte black PCB  [dominant=(8, 8, 8)]
+  PASS  P1 eight settings parts present  [['s0', 's1', 's2', 's3', 's4', 's5', 's6', 's7']]
+  PASS  P2 top pin labels on the rail above the chips  [10 labels, max bottom 38, chip top 44]
+  PASS  P3 JUMP/CP/PWR are small mock parts (<=22x22)  [{'s3': (20, 10), 's4': (22, 22), 's6': (10, 8)}]
+  PASS  P4 selection outline in UI accent (cyan)  [92/92 outline px accent]
+  PASS  P5 accent trace from the selected part  [618/634 trace px accent]
+== settings-c1
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=244 colour_px=0]
+  PASS  G6 no instruction text
+  PASS  G8 crown back control present  [1 crown]
+  PASS  B1 board is matte black PCB  [dominant=(8, 8, 8)]
+  PASS  P1 eight settings parts present  [['s0', 's1', 's2', 's3', 's4', 's5', 's6', 's7']]
+  PASS  P2 top pin labels on the rail above the chips  [10 labels, max bottom 38, chip top 44]
+  PASS  P3 JUMP/CP/PWR are small mock parts (<=22x22)  [{'s3': (20, 10), 's4': (22, 22), 's6': (10, 8)}]
+  PASS  P4 selection outline in UI accent (cyan)  [92/92 outline px accent]
+  PASS  P5 accent trace from the selected part  [530/546 trace px accent]
+== settings-c2
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=229 colour_px=0]
+  PASS  G6 no instruction text
+  PASS  G8 crown back control present  [1 crown]
+  PASS  B1 board is matte black PCB  [dominant=(8, 8, 8)]
+  PASS  P1 eight settings parts present  [['s0', 's1', 's2', 's3', 's4', 's5', 's6', 's7']]
+  PASS  P2 top pin labels on the rail above the chips  [10 labels, max bottom 38, chip top 44]
+  PASS  P3 JUMP/CP/PWR are small mock parts (<=22x22)  [{'s3': (20, 10), 's4': (22, 22), 's6': (10, 8)}]
+  PASS  P4 selection outline in UI accent (cyan)  [92/92 outline px accent]
+  PASS  P5 accent trace from the selected part  [442/458 trace px accent]
+== settings-c3
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=255 colour_px=0]
+  PASS  G6 no instruction text
+  PASS  G8 crown back control present  [1 crown]
+  PASS  B1 board is matte black PCB  [dominant=(8, 8, 8)]
+  PASS  P1 eight settings parts present  [['s0', 's1', 's2', 's3', 's4', 's5', 's6', 's7']]
+  PASS  P2 top pin labels on the rail above the chips  [10 labels, max bottom 38, chip top 44]
+  PASS  P3 JUMP/CP/PWR are small mock parts (<=22x22)  [{'s3': (20, 10), 's4': (22, 22), 's6': (10, 8)}]
+  PASS  P4 selection outline in UI accent (cyan)  [52/52 outline px accent]
+  PASS  P5 accent trace from the selected part  [106/122 trace px accent]
+== settings-c4
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=310 colour_px=31]
+  PASS  G6 no instruction text
+  PASS  G8 crown back control present  [1 crown]
+  PASS  B1 board is matte black PCB  [dominant=(8, 8, 8)]
+  PASS  P1 eight settings parts present  [['s0', 's1', 's2', 's3', 's4', 's5', 's6', 's7']]
+  PASS  P2 top pin labels on the rail above the chips  [10 labels, max bottom 38, chip top 44]
+  PASS  P3 JUMP/CP/PWR are small mock parts (<=22x22)  [{'s3': (20, 10), 's4': (22, 22), 's6': (10, 8)}]
+  PASS  P4 selection outline in UI accent (cyan)  [56/56 outline px accent]
+  PASS  P5 accent trace from the selected part  [336/356 trace px accent]
+== settings-c5
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=126 colour_px=0]
+  PASS  G6 no instruction text
+  PASS  G8 crown back control present  [1 crown]
+  PASS  B1 board is matte black PCB  [dominant=(8, 8, 8)]
+  PASS  P1 eight settings parts present  [['s0', 's1', 's2', 's3', 's4', 's5', 's6', 's7']]
+  PASS  P2 top pin labels on the rail above the chips  [10 labels, max bottom 38, chip top 44]
+  PASS  P3 JUMP/CP/PWR are small mock parts (<=22x22)  [{'s3': (20, 10), 's4': (22, 22), 's6': (10, 8)}]
+  PASS  P4 selection outline in UI accent (cyan)  [92/92 outline px accent]
+  PASS  P5 accent trace from the selected part  [354/370 trace px accent]
+== settings-c6
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=126 colour_px=0]
+  PASS  G6 no instruction text
+  PASS  G8 crown back control present  [1 crown]
+  PASS  B1 board is matte black PCB  [dominant=(8, 8, 8)]
+  PASS  P1 eight settings parts present  [['s0', 's1', 's2', 's3', 's4', 's5', 's6', 's7']]
+  PASS  P2 top pin labels on the rail above the chips  [10 labels, max bottom 38, chip top 44]
+  PASS  P3 JUMP/CP/PWR are small mock parts (<=22x22)  [{'s3': (20, 10), 's4': (22, 22), 's6': (10, 8)}]
+  PASS  P4 selection outline in UI accent (cyan)  [32/32 outline px accent]
+  PASS  P5 accent trace from the selected part  [66/76 trace px accent]
+== settings-c7
+  PASS  G1 no element/text bbox overlap
+  PASS  G2 sprites inside their chip/tile
+  PASS  G3 no clipped/overrun text
+  PASS  G4 nothing past the board/screen edge
+  PASS  G5 rain layer present + visible  [logged=True visible_px=193 colour_px=39]
+  PASS  G6 no instruction text
+  PASS  G8 crown back control present  [1 crown]
+  PASS  B1 board is matte black PCB  [dominant=(8, 8, 8)]
+  PASS  P1 eight settings parts present  [['s0', 's1', 's2', 's3', 's4', 's5', 's6', 's7']]
+  PASS  P2 top pin labels on the rail above the chips  [10 labels, max bottom 38, chip top 44]
+  PASS  P3 JUMP/CP/PWR are small mock parts (<=22x22)  [{'s3': (20, 10), 's4': (22, 22), 's6': (10, 8)}]
+  PASS  P4 selection outline in UI accent (cyan)  [92/92 outline px accent]
+  PASS  P5 accent trace from the selected part  [266/282 trace px accent]
+== functional
+  PASS  F1 Esc goes back from gibson  [got 0 want 0]
+  PASS  F1 Esc goes back from terminal  [got 1 want 1]
+  PASS  F1 Esc goes back from wifi  [got 2 want 2]
+  PASS  F1 Esc goes back from wifiradar  [got 3 want 3]
+  PASS  F1 Esc goes back from wifilist  [got 3 want 3]
+  PASS  F1 Esc goes back from bt  [got 2 want 2]
+  PASS  F1 Esc goes back from btradar  [got 6 want 6]
+  PASS  F1 Esc goes back from btlist  [got 6 want 6]
+  PASS  F1 Esc goes back from bot  [got 2 want 2]
+  PASS  F1 Esc goes back from botradar  [got 9 want 9]
+  PASS  F1 Esc goes back from scan  [got 1 want 1]
+  PASS  F1 Esc goes back from control  [got 1 want 1]
+  PASS  F1 Esc goes back from diag  [got 1 want 1]
+  PASS  F1 Esc goes back from gchat  [got 1 want 1]
+  PASS  F2 setting 0 edits by keyboard  [CYAN -> AMBER]
+  PASS  F2 setting 1 edits by keyboard  [BOT + DEVICE -> BOTS]
+  PASS  F2 setting 2 edits by keyboard  [MIXED -> ROUND]
+  PASS  F2 setting 3 edits by keyboard  [MIXED -> SOLID]
+  PASS  F3 setting 3 writes NVS  [puts=1]
+  PASS  F2 setting 4 edits by keyboard  [MULTI -> GREEN]
+  PASS  F3 setting 4 writes NVS  [puts=1]
+  PASS  F2 setting 5 edits by keyboard  [BOTS -> GIBSON]
+  PASS  F2 setting 6 edits by keyboard  [ON -> OFF]
+  PASS  F2 setting 7 edits by keyboard  [25 SEC -> 45 SEC]
+GATE: 451/451 PASS, 0 FAIL, 1 N/A -> PASS

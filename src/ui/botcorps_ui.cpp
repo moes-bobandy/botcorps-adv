@@ -30,6 +30,12 @@ extern char botcorps_t0_term_hist[20][26];
 extern char botcorps_t0_term_log[2048];
 extern char botcorps_t0_term_found[12][28];
 
+#ifdef BOTCORPS_HOST_RENDER
+#define GATE_BOX(g, k, n, x, y, w, h, p) host_gate_box((g).ox, (g).oy, k, n, x, y, w, h, p)
+#else
+#define GATE_BOX(g, k, n, x, y, w, h, p) ((void)0)
+#endif
+
 static const uint8_t COL_BG    = PAL_BG;
 static const uint8_t COL_FIELD = PAL_FIELD;
 static const uint8_t COL_BAR   = PAL_BAR;
@@ -410,11 +416,19 @@ static bool sbox_on(void)
     return sbox_id(s_screen);
 }
 
+static bool rain_static(void);
 static bool wants_rain(void)
 {
     return !sbox_on()
         && s_screen != SCR_DIAG && s_screen != SCR_TERMINAL
         && s_screen != SCR_GCHAT;
+}
+
+/* Panel screens: rain painted once per full paint (no stepping, no covers needed). */
+static bool rain_static(void)
+{
+    return sbox_on() || s_screen == SCR_TERMINAL || s_screen == SCR_GCHAT || s_screen == SCR_DIAG
+        || (s_screen == SCR_RAIN && s_act == 4);
 }
 
 /* EXT chrome that moves on its own: sweep, pulse, bob, or the prompt caret. */
@@ -609,12 +623,13 @@ static void draw_btn(Gfx g, int x, int y, int id, bool sel)
     const uint8_t glow = (s_color == 1) ? (uint8_t)PAL_WASH_A
                         : (s_color == 2) ? (uint8_t)PAL_WASH_M : (uint8_t)PAL_WASH_C;
     const uint8_t edge = sel ? accent() : hub ? accent() : COL_LINE;
-    const uint8_t fill = hub ? (sel ? COL_SEL : glow) : (sel ? COL_SEL : COL_DEEP);
+    const uint8_t fill = hub ? COL_SEL : (sel ? COL_SEL : COL_DEEP); /* v1016j: lit cyan plates */
     if (hub) {
         /* v1016g: brighter lit plate like the mock (halo + filled accent face) */
         g.fillRect(x - 3, y - 3, BS + 6, BS + 6, glow);
         g.fillRect(x - 1, y - 1, BS + 2, BS + 2, glow);
     }
+    GATE_BOX(g, "BTN", hub ? "hubnav" : "btn", x, y, BS, BS, "-");
     plate(g, x, y, BS, BS, fill, edge);
     if (hub) {
         g.drawRect(x, y, BS, BS, accent());
@@ -670,9 +685,14 @@ static void term_xy(int n, int *x, int *y)
     *y = 19 + (n / 4) * 50;
 }
 
+static bool rain_static(void);
 static void layout_covers(void)
 {
     cover_reset(false);
+    if (rain_static()) {           /* v1016k: static rain under opaque panels, never stepped */
+        botcorps_rain_set_covers(s_box, 0, false);
+        return;
+    }
     switch (s_screen) {
     case SCR_RAIN:
         cover_add(104, 44, 113, 113);
@@ -683,9 +703,7 @@ static void layout_covers(void)
         cover_add(110, 20, 100, 140);
         cover_add(38, 164, 244, 38);
         cover_add(90, 152, 140, 14);
-        cover_btn(110, 206);
-        cover_btn(146, 206);
-        cover_btn(182, 206);
+        cover_add(98, 200, 124, 40);   /* lit nav plates + glow halo */
         break;
     case SCR_TERMINAL:
         cover_add(0, 0, 320, 17);
@@ -709,8 +727,7 @@ static void layout_covers(void)
     case SCR_WIFI_RADAR:
     case SCR_BT_RADAR:
     case SCR_SCAN:
-        cover_add(0, 0, 320, 240);
-        break;
+        break;                 /* v1016k: static rain layer, no stepping on the scan box */
     case SCR_BOT_RADAR:
         cover_reset(false);
         cover_btn(14, 90);
@@ -726,9 +743,8 @@ static void layout_covers(void)
         cover_btn(286, 206);
         break;
     case SCR_CONTROL:
-        cover_add(0, 0, 320, 240);
-        cover_btn(284, 8);
-        cover_btn(250, 8);
+        cover_add(0, 0, 320, 17);          /* top chrome */
+        cover_add(8, 20, 304, 216);        /* matte-black board (SB_BX/BY/BW/BH): rain frames it, never paints over it */
         break;
     default:
         break;
@@ -1628,6 +1644,7 @@ static void paint_term_icons(Gfx g)
 {
     const uint8_t off = PAL_LINE;
     /* Crown sits in the header, outside the sheet. Shared slots only. */
+    GATE_BOX(g, "CROWN", "back", 203, 0, 24, 16, "-");
     g.drawRect(203, 0, 24, 16, PAL_WASH_M);
     g.drawRect(204, 0, 22, 16, PAL_WIRE_M);
     g.fillRect(205, 1, 20, 14, PAL_BG);
@@ -1766,6 +1783,7 @@ static void paint_sheet(Gfx g)
     if (sel < 0) sel = 0;
     if (sel >= CMD_N) sel = CMD_N - 1;
     /* a. Under the sheet is shared slot 8, then each row's own background. */
+    GATE_BOX(g, "OCCLUDE", "sheet", bx, by, w + 1, h + 1, "-");
     g.fillRect(bx + 1, by + 1, w - 1, h - 1, PAL_BG);
     for (int r = 0; r < nshow; ++r) {
         int hdr = -1;
@@ -2097,7 +2115,8 @@ static void paint_prompt(Gfx g)
     for (int k = 0; k < n; ++k) {
         const char *ln = log_line(pick[k]);
         const int ly = 171 + k * 8;
-        uint8_t ink = COL_INK;
+        const uint8_t pale = botcorps_pal_fit(0xBFBF);   /* v1016k (SPEC T1): pale cyan log (#bff6ff) */
+        uint8_t ink = pale;
         const char *show = ln;
         if (ln && ln[0] == '\x01') {
             const int b = (unsigned char)ln[1];
@@ -2112,7 +2131,7 @@ static void paint_prompt(Gfx g)
                 for (int i = 0; i < tn; ++i) tag[i] = ln[i];
                 tag[tn] = 0;
                 txt_bg(g, tag, lx, ly, (uint8_t)PAL_OK, PAL_BLACK, lgfx::textdatum::top_left);
-                if (rb[1]) txt_bg(g, rb + 1, lx + tn * 6, ly, COL_INK, PAL_BLACK,
+                if (rb[1]) txt_bg(g, rb + 1, lx + tn * 6, ly, pale, PAL_BLACK,
                                   lgfx::textdatum::top_left);
                 continue;
             }
@@ -2180,6 +2199,19 @@ static void paint_terminal(Gfx g)
     if (s_sheet) paint_sheet(g);
 }
 
+static void gib_crown(Gfx g, int cx, int y);
+/* v1016k (SPEC X1): the crown is the ONLY back control. Screens that had a back icon
+ * keep the same cursor slot, now drawn as the crown at the top centre. */
+static void crown_btn(Gfx g, bool sel)
+{
+    g.fillRect(140, 0, 40, 20, PAL_BLACK);
+    gib_crown(g, 160, 3);
+    if (sel) {
+        g.drawRect(141, 0, 38, 20, PAL_WHITE);
+        g.drawRect(142, 1, 36, 18, accent());
+    }
+}
+
 static void paint_home(Gfx g, int bot_index)
 {
     const bot_t &b = BOTS[bot_index];
@@ -2191,7 +2223,8 @@ static void paint_home(Gfx g, int bot_index)
     draw_blob(g, 160, 74, 4, bot_color(bot_index), botcorps_shape_for(bot_index), sprite_blink(bot_index));
     const int ids[4] = { ICO_RADAR, ICO_TERM, ICO_CTRL, ICO_BACK };
     const int xs[4] = { 12, 44, 248, 280 };
-    for (int i = 0; i < 4; ++i) draw_btn(g, xs[i], 133, ids[i], s_cursor == i);
+    for (int i = 0; i < 3; ++i) draw_btn(g, xs[i], 133, ids[i], s_cursor == i);
+    crown_btn(g, s_cursor == 3);
     if (s_screen == SCR_BOT) {
         g.fillTriangle(8, 74, 20, 66, 20, 82, COL_MUTED);
         g.fillTriangle(312, 74, 300, 66, 300, 82, COL_MUTED);
@@ -2430,9 +2463,36 @@ static void dev_icon(Gfx g, int type, int x, int y, bool dim)
  * chip on every screen draws through this: a square chip window with a BLACK
  * face and black control-panel border + steel castellated pins, the bot (or
  * Gibson) filling the square and keeping its fixed colour. bot 12 = Gibson. */
-static void chip_block(Gfx g, int cx, int cy, int S, int bot)
+/* v1016k (Dirt 9:32): Gibson as a SQUARE BLOCK figure for chips inside boards
+ * (scan/settings/game). Full square face, light top, dark bottom, black visor
+ * band with two steel eyes. Round dome (hub_gibson) stays only in the hub rings. */
+static void gib_block(Gfx g, int cx, int cy, int s)
+{
+    const int x = cx - s / 2, y = cy - s / 2;
+    const int lip = s >= 12 ? 2 : 1;
+    g.fillRect(x, y, s, s, PAL_IVORY);               /* full square face */
+    g.fillRect(x, y, s, lip, PAL_WHITE);             /* lit top row */
+    g.fillRect(x, y + s - lip, s, lip, PAL_CHIN);    /* dark bottom row */
+    const int vh = (s * 26) / 100 > 2 ? (s * 26) / 100 : 2;
+    const int vy = y + (s * 34) / 100;
+    g.fillRect(x, vy, s, vh, PAL_BLACK);             /* visor band */
+    const int ew = s / 5 > 2 ? s / 5 : 2;
+    const int gap = s / 4 > ew ? s / 4 : ew;
+    const int gl = (int)((millis() / 900u) % 2u);
+    const int eyc = vy + (vh - ew) / 2;
+    g.fillRect(x + gap + gl, eyc, ew, ew, PAL_STEEL);
+    g.fillRect(x + s - gap - ew + gl, eyc, ew, ew, PAL_STEEL);
+}
+
+static void hub_gibson(Gfx g, int cx, int cy, int z);
+/* dome=true keeps the intro ID board's approved dome Gibson (mock intro v11); the square
+ * block figure is only for Gibson's scan board + game boards (SPEC C-items). */
+static void chip_block_ex(Gfx g, int cx, int cy, int S, int bot, bool dome);
+static void chip_block(Gfx g, int cx, int cy, int S, int bot) { chip_block_ex(g, cx, cy, S, bot, false); }
+static void chip_block_ex(Gfx g, int cx, int cy, int S, int bot, bool dome)
 {
     const int x = cx - S / 2, y = cy - S / 2;
+    GATE_BOX(g, "CHIP", bot >= 12 ? "gibson" : "bot", x, y, S, S, "-");
     g.fillRect(x + 3, y + 3, S - 6, S - 6, PAL_BG);     /* black face */
     g.drawRect(x - 1, y - 1, S + 2, S + 2, PAL_STEEL);   /* v1016f-4: silk outline reads on black PCB */
     g.drawRect(x, y, S, S, PAL_BLACK);                   /* black outer border */
@@ -2445,9 +2505,15 @@ static void chip_block(Gfx g, int cx, int cy, int S, int bot)
         g.fillRect(x + i, y + S - 4, 2, 5, PAL_STEEL);
     }
     g.fillRect(x + 7, y + 7, 2, 2, PAL_IVORY);
-    if (bot >= 12) {
+    if (bot >= 12 && dome) {
         const int z = S >= 50 ? 5 : S >= 36 ? 4 : S >= 24 ? 3 : 2;
         hub_gibson(g, cx, cy, z);
+        return;
+    }
+    if (bot >= 12) {
+        const int gs = S - 12 > 8 ? S - 12 : 8;   /* square Gibson fills the chip face (v1016k: >=60% of the square) */
+        GATE_BOX(g, "SPR", "gibson_block", cx - gs / 2, cy - gs / 2, gs, gs, "-");
+        gib_block(g, cx, cy, gs);
         return;
     }
     const int shape = botcorps_shape_for(bot);
@@ -2484,10 +2550,10 @@ static void bus_paint(Gfx g, bool radar, bool wifi, int shown, int sel)
     const int bw = radar ? 220 : 304;
     const int bh = 182;
     const uint8_t ac = accent();
-    /* Dirt Oct 16: board follows the UI colour (deep saturated tint). */
-    const uint8_t pcb = botcorps_pal_fit(mix16(0, botcorps_rgb565(ac), 62, 100));
-    const uint8_t pcb_tex = botcorps_pal_fit(mix16(0, botcorps_rgb565(ac), 56, 100));
-    const uint8_t pcb_edge = botcorps_pal_fit(mix16(0, botcorps_rgb565(ac), 20, 100));
+    /* v1016k (SPEC B1): scan boards are permanent matte-black PCB, never the UI colour. */
+    const uint8_t pcb = PAL_BLACK;
+    const uint8_t pcb_tex = PAL_DEEP;
+    const uint8_t pcb_edge = 177;   /* gold board edge, as sb_board */
     g.fillRect(bx, by, bw, bh, pcb);
     for (int tx = bx + 6; tx < bx + bw - 4; tx += 8)
         g.fillRect(tx, by + 2, 1, bh - 4, pcb_tex);
@@ -2632,10 +2698,10 @@ static void paint_radar(Gfx g, bool with_list)
     if (with_list) {
         draw_btn(g, 14, 72, ICO_TRACK, s_cursor == 0);
         draw_btn(g, 14, 106, ICO_LIST, s_cursor == 1);
-        draw_btn(g, 14, 140, ICO_BACK, s_cursor == 2);
+        crown_btn(g, s_cursor == 2);
     } else {
         draw_btn(g, 14, 90, ICO_TRACK, s_cursor == 0);
-        draw_btn(g, 14, 124, ICO_BACK, s_cursor == 1);
+        crown_btn(g, s_cursor == 1);
     }
     if (s_track && shown > 0) {
         const bus_pt (*tab)[4] = BUS_R;
@@ -2952,6 +3018,7 @@ static int tiny_w(const char *s) { const int n = (int)strlen(s); return n ? n * 
 static void tiny_text(Gfx g, const char *s, int x0, int y, uint8_t col, int maxw = 0)
 {
     const int n = (int)strlen(s);
+    GATE_BOX(g, "SILK", s, x0, y, (maxw > 0 && n * 4 - 1 > maxw) ? maxw : n * 4 - 1, 5, "-");
     for (int i = 0; i < n; ++i) {
         /* past maxw the glyphs squeeze, like the mock's maxWidth silk */
         const int x = (maxw > 0 && n * 4 - 1 > maxw) ? x0 + i * (maxw - 2) / (n - 1) : x0 + i * 4;
@@ -3056,6 +3123,7 @@ static void sb_board(Gfx g, bool wifi)
     sb_frame(g, 15, 27, 290, 181, PAL_LINE);
     sb_frame(g, 16, 28, 288, 179, PAL_DEEP);
     sb_frame(g, 17, 29, 286, 177, PAL_DEEP);
+    GATE_BOX(g, "BOARD", "scan", 14, 26, 292, 183, "-");
     sb_rect(g, 18, 30, 284, 175, pcb);
     for (int x = 24; x < 300; x += 8) sb_rect(g, x, 31, 1, 173, tex);
     sb_frame(g, 18, 30, 284, 175, gold); /* gold board edge, fixed */
@@ -3205,6 +3273,7 @@ static void sb_grid(Gfx g, int band, bool tiles)
         int cx = 0, cy = 0;
         sb_cell(band, d, &cx, &cy);
         const int x = cx - 10, y = cy - 10;
+        GATE_BOX(g, "TILE", "dev", x, y, 20, 20, "MINI");
         sb_rect(g, x, y, 20, 20, 149);
         sb_rect(g, x + 1, y + 1, 18, 18, 5);
         for (int q = 0; q < 4; ++q) {
@@ -3231,7 +3300,13 @@ static void sb_grid(Gfx g, int band, bool tiles)
     const int hy = ph < .5f ? sy : sy + (int)((float)(ny - sy) * (ph - .5f) * 2.f);
     sb_rect(g, hx < sx ? hx : sx, sy, (hx > sx ? hx - sx : sx - hx) + 1, 1, tr);
     if (ph > .5f) sb_rect(g, hx, hy < sy ? hy : sy, 1, (hy > sy ? hy - sy : sy - hy) + 1, tr);
+#ifdef BOTCORPS_HOST_RENDER
+    host_gate_walk = 1;
+#endif
     botcorps_sprite_draw(*g.raw(), hx - g.ox, hy - 1 - g.oy, botcorps_shape_for(bot), 1, bc, false);
+#ifdef BOTCORPS_HOST_RENDER
+    host_gate_walk = 0;
+#endif
 }
 
 /* Core bus scan (Gibson or a non-radio bot): the crew patrols the grid lines, no device tiles. */
@@ -3245,7 +3320,13 @@ static void sb_scouts(Gfx g)
         int p = (int)((t / 45u + (uint32_t)k * 37u) % (uint32_t)(span * 2));
         if (p > span) p = span * 2 - p;
         const int x = SG_X + p, y = SG_Y + row * SG_C + (k >= 4 ? SG_C : 0);
+#ifdef BOTCORPS_HOST_RENDER
+        host_gate_walk = 1;
+#endif
         botcorps_sprite_draw(*g.raw(), x - 3 - g.ox, y - 4 - g.oy, botcorps_shape_for(bot), 1, bot_color(bot), false);
+#ifdef BOTCORPS_HOST_RENDER
+        host_gate_walk = 0;
+#endif
     }
 }
 
@@ -3268,6 +3349,7 @@ static void sb_panel(Gfx g, int band)
     const int d = (s_act_dev >= 0 && s_act_dev < LIST_N) ? s_act_dev : 0;
     const uint8_t ac = accent(), sel = sb_tone(3);
     const int x0 = SB_X, y0 = SB_Y, w = SB_W, h = SB_H;
+    GATE_BOX(g, "OCCLUDE", "sbpanel", x0, y0, w, h, "-");
     sb_rect(g, x0, y0, w, h, 4);
     sb_ghost(g, band, x0, y0 + 21, w, h - 21);
     sb_frame(g, x0, y0, w, h, ac);
@@ -3300,6 +3382,7 @@ static void sb_info(Gfx g, int band)
     const uint8_t ac = accent(), gold = 177;
     const uint32_t hs = sb_hash(sb_name(band, d));
     const int bx = 112, by = 57, bw = 62, bh = 82;
+    GATE_BOX(g, "OCCLUDE", "info", SB_X, SB_Y, SB_W, SB_H, "-");
     sb_rect(g, bx, by, bw, bh, 5);
     sb_frame(g, bx, by, bw, bh, 65);
     for (int k = 0; k < 6; ++k) {
@@ -3333,6 +3416,7 @@ static void sb_gloss(Gfx g)
 {
     const uint8_t ac = accent(), sel = sb_tone(3), hd = sb_tone(2);
     const int x0 = SB_X, y0 = SB_Y, w = SB_W, h = SB_H;
+    GATE_BOX(g, "OCCLUDE", "sbpanel", x0, y0, w, h, "-");
     sb_rect(g, x0, y0, w, h, 4);
     sb_ghost(g, list_band(), x0, y0 + 11, w, h - 11);
     sb_frame(g, x0, y0, w, h, ac);
@@ -3364,6 +3448,7 @@ static void sb_hunt(Gfx g, int band)
     const bool near = !lost && r >= HUNT_NEAR;
     const bool fl = ((millis() / 250u) % 2u) == 1u;
     const int x0 = 106, y0 = 42, w = 176, h = 102;
+    GATE_BOX(g, "HUNT", "panel", x0, y0, w, h, "MINI");
     sb_rect(g, x0 + 2, y0 + 2, w - 4, h - 4, 4);
     /* faint board traces behind the panel (the mock shows bot rain at .35 here) */
     for (int k = 0; k < 7; ++k) {
@@ -3448,6 +3533,7 @@ static void sb_top(Gfx g)
     static const char *const CR[7] = { "#.....#.....#", "##...###...##", "###.#####.###", "#############",
                                        "#############", ".###########.", ".###########." };
     const int x0 = 147, y = 1;
+    GATE_BOX(g, "CROWN", "back", x0 - 4, 0, 34, 16, "-");
     sb_rect(g, x0 - 4, 0, 34, 16, 8);
     sb_rect(g, x0 - 4, 16, 34, 1, sb_tone(4));
     for (int r = 0; r < 7; ++r)
@@ -3494,12 +3580,15 @@ static void paint_sbox(Gfx g, bool wifi)
     const int dx = 106, dy = 42, dw = 176, dh = 148;
     const bool in_disp = s_pc_x >= dx && s_pc_y >= dy && s_pc_x + s_pc_w <= dx + dw && s_pc_y + s_pc_h <= dy + dh;
     if (!in_disp) {
-        sb_rect(g, 0, 0, 320, 240, PAL_BLACK);
+        /* v1016k: chrome bars + board only; the side margins keep the rain layer */
+        sb_rect(g, 0, 0, 320, 26, PAL_BLACK);
+        sb_rect(g, 0, 209, 320, 31, PAL_BLACK);
         if (sb_vis(14, 26, 292, 183)) sb_board(g, wifi);
         sb_rect(g, dx - 9, dy + 44, 5, 44, 41);
         sb_rect(g, dx - 4, dy - 4, dw + 8, dh + 8, 37);
         sb_rect(g, dx - 3, dy - 3, dw + 6, dh + 6, 40);
     }
+    GATE_BOX(g, "MINI", "screen", dx, dy, dw, dh, "BOARD");
     sb_rect(g, dx, dy, dw, dh, 8);
     const uint32_t u = (millis() - s_bus_t0) % 3400u;
     sb_rect(g, dx, 144, dw, 1, sb_tone(3));
@@ -3510,6 +3599,7 @@ static void paint_sbox(Gfx g, bool wifi)
             /* v1016f-2 #7 / v1016f-4: dense device cloud + bots walking the strands. */
             sb_grid(g, band, true);
             sb_scouts(g);
+            GATE_BOX(g, "PROMPT", "index", dx + 2, dy + 1, 15, 10, "MINI");
             sb_rect(g, dx + 2, dy + 1, 15, 10, 8);
             sb_frame(g, dx + 2, dy + 1, 15, 10, sb_tone(4));
             sb_text(g, ">", dx + 4, dy + 3, ac, 8, false, 1);
@@ -3520,6 +3610,7 @@ static void paint_sbox(Gfx g, bool wifi)
     } else if (sb_vis(dx, dy, dw, 108)) {
         sb_grid(g, band, s_info_dev < 0);
         const bool pf = s_cursor == LIST_N && s_gloss < 0;
+        GATE_BOX(g, "PROMPT", "index", dx + 2, dy + 1, 15, 10, "MINI");
         sb_rect(g, dx + 2, dy + 1, 15, 10, pf ? sb_tone(3) : (uint8_t)8);
         sb_frame(g, dx + 2, dy + 1, 15, 10, pf ? (uint8_t)PAL_WHITE : sb_tone(4));
         sb_text(g, ">", dx + 4, dy + 3, pf ? (uint8_t)PAL_WHITE : ac, pf ? sb_tone(3) : (uint8_t)8, false, 1);
@@ -3583,6 +3674,7 @@ static void paint_found_alert(Gfx g)
     const bool wifi = s_fa_band == 0;
     const int band = wifi ? 0 : 1;
     const int d = (s_fa_dev >= 0 && s_fa_dev < LIST_N) ? s_fa_dev : 0;
+    GATE_BOX(g, "OCCLUDE", "alert", 0, 0, 320, 240, "-");
     sb_rect(g, 0, 0, 320, 240, 4);
     for (int k = 0; k < 3; ++k) sb_frame(g, k, k, 320 - 2 * k, 240 - 2 * k, red);
     sb_frame(g, 3, 3, 314, 234, 132);   /* soft red glow off the border */
@@ -3659,10 +3751,10 @@ static void shape_preview(Gfx g, int px, int cy)
     const int mode = botcorps_rain_mode();
     const uint8_t live = mode > 0 ? botcorps_rain_solid() : botcorps_rain_palette(0);
     if (s_shape <= 0) {
-        int sx = px - 19;
+        int sx = px - 15;   /* mock: 4 shapes side by side, 1 px apart (31 px), inside the 32 px face */
         for (int id = 0; id < 4; ++id) {
             botcorps_sprite_draw(*g.raw(), sx + SPR_W[id] / 2 - g.ox, cy - g.oy, id, 1, live, false);
-            sx += SPR_W[id] + 3;
+            sx += SPR_W[id] + 1;
         }
         return;
     }
@@ -3707,26 +3799,39 @@ static void saver_preview(Gfx g, int px, int cy)
  *   JUMP = RAIN MODE (idx3), CP = RAIN COLOUR (idx4), PWR LED = SAVER on/off (idx6).
  * All eight settings keep their existing index, nudge_row edits and NVS values, and
  * stay keyboard-reachable (up/down through 0..7, left/right edits). */
+/* v1016k (SPEC-LOCKED S-*): settings board = the master mock extControl, ported 1:1.
+ * Board is a permanent MATTE-BLACK ESP32 shield (black PCB, white silk, gold header pins)
+ * that never follows the UI colour; only the selection outline + feed trace use the accent.
+ * Five square ESP32 packages U1..U5 (mock SB_PARTS) carry UI COLOR / BACKGROUND / BOT SHAPE /
+ * SCREEN SAVER / IDLE; three small mock parts carry the rest:
+ *   J1 jumper (268,150) = RAIN MODE (idx3), U7 qfn "CP" (196,150) = RAIN COLOUR (idx4),
+ *   PWR LED (266,194) = SAVER on/off (idx6).
+ * All eight settings keep their index, nudge_row edits and NVS values (keyboard only). */
+static uint8_t wash22(uint8_t accent_idx);
+static const int SB_BX = 8, SB_BY = 20, SB_BW = 304, SB_BH = 216; /* mock (3,18,314,220), inset 5 px so rain frames it */
 static bool cp_part_rect(int index, int *x, int *y, int *w, int *h)
 {
     switch (index) {
-    /* v1016h: coords ported from the master mock SB_PARTS (U1..U5 top chips); the three
-       interactive parts laid out so no two bboxes intersect (overlap check in harness). */
-    case 0: *x = 38;  *y = 44;  *w = 40; *h = 72; return true; /* UI COLOR    (mock U1) */
-    case 1: *x = 82;  *y = 44;  *w = 40; *h = 72; return true; /* BACKGROUND  (mock U2) */
-    case 2: *x = 126; *y = 44;  *w = 40; *h = 72; return true; /* BOT SHAPE   (mock U3) */
-    case 5: *x = 170; *y = 44;  *w = 40; *h = 72; return true; /* SCREEN SAVER(mock U4) */
-    case 7: *x = 214; *y = 44;  *w = 40; *h = 72; return true; /* IDLE        (mock U5) */
-    case 3: *x = 22;  *y = 150; *w = 66; *h = 30; return true; /* JUMP = RAIN MODE */
-    case 4: *x = 96;  *y = 150; *w = 44; *h = 44; return true; /* CP   = RAIN COLOUR */
-    case 6: *x = 150; *y = 150; *w = 60; *h = 30; return true; /* PWR  = SAVER on/off */
+    case 0: *x = 38;  *y = 44;  *w = 40; *h = 72; return true; /* U1 UI COLOR    */
+    case 1: *x = 82;  *y = 44;  *w = 40; *h = 72; return true; /* U2 BACKGROUND  */
+    case 2: *x = 126; *y = 44;  *w = 40; *h = 72; return true; /* U3 BOT SHAPE   */
+    case 5: *x = 170; *y = 44;  *w = 40; *h = 72; return true; /* U4 SCREEN SAVER*/
+    case 7: *x = 214; *y = 44;  *w = 40; *h = 72; return true; /* U5 IDLE        */
+    case 3: *x = 268; *y = 150; *w = 20; *h = 10; return true; /* J1 jumper  = RAIN MODE   */
+    case 4: *x = 196; *y = 150; *w = 22; *h = 22; return true; /* U7 qfn CP  = RAIN COLOUR */
+    case 6: *x = 266; *y = 194; *w = 10; *h = 8;  return true; /* PWR LED    = SAVER on/off */
     default: return false;
     }
 }
 
+static uint8_t sh_rgb(int r, int gg, int b)
+{
+    return botcorps_pal_fit((uint16_t)(((r >> 3) << 11) | ((gg >> 2) << 5) | (b >> 3)));
+}
+
 static void cp_short(int index, char *v, int n)
 {
-    /* short silk tokens so nothing overruns a chip (Dirt 8:19) */
+    /* mock sbShort6: <= 6 silk chars so nothing overruns a chip */
     static const char *MIXS[3] = { "MASHUP", "BOTS", "DEVS" };
     static const char *SHPS[5] = { "MIX", "ROUND", "CLSC", "TALL", "MINI" };
     static const char *SAVS[4] = { "BOTS", "GIB", "FLYBY", "BNCE" };
@@ -3738,121 +3843,163 @@ static void cp_short(int index, char *v, int n)
     else cp_text(index, v, n);
 }
 
+/* route from the USB-C feed (296,187) along the board bus (y 128), mock sbRoute */
+static int cp_route(int index, int *px, int *py)
+{
+    int x, y, w, h;
+    if (!cp_part_rect(index, &x, &y, &w, &h)) return 0;
+    const bool chip = index == 0 || index == 1 || index == 2 || index == 5 || index == 7;
+    const int cx = x + w / 2;
+    const int cy = chip ? y + h : (y > 128 ? y : y + h);
+    int n = 0;
+    px[n] = 296; py[n++] = 187;
+    px[n] = 286; py[n++] = 187;
+    if (x >= 262) {
+        const int ty = cy > 187 ? y : cy;
+        px[n] = 286; py[n++] = ty;
+        px[n] = cx;  py[n++] = ty;
+    } else {
+        px[n] = 286; py[n++] = 128;
+        px[n] = cx;  py[n++] = 128;
+        px[n] = cx;  py[n++] = cy;
+    }
+    return n;
+}
+
+static void cp_seg(Gfx g, int x0, int y0, int x1, int y1, int wdt, uint8_t c, bool log_it)
+{
+    const int x = x0 < x1 ? x0 : x1, y = y0 < y1 ? y0 : y1;
+    const int w = (x0 < x1 ? x1 - x0 : x0 - x1) + wdt, h = (y0 < y1 ? y1 - y0 : y0 - y1) + wdt;
+    g.fillRect(x, y, w, h, c);
+    if (log_it) GATE_BOX(g, "TRACE", "sel", x, y, w, h, "-");
+}
+
 static void cp_chip(Gfx g, int index, bool on)
 {
     int x, y, w, h;
     if (!cp_part_rect(index, &x, &y, &w, &h)) return;
-    const uint8_t gold = 177, goldh = 217, silk = 223;
-    const int CH = 40;                                          /* chip can height; selection wraps can+label only */
-    g.fillRect(x - 3, y - 3, w + 6, CH + 22, PAL_BLACK);        /* matte-black PCB under chip */
-    if (on) g.drawRect(x - 3, y - 3, w + 6, CH + 22, PAL_WHITE);/* v1016i: tight selection (no tall bracket) */
-    /* square ESP32 chip (Dirt rule: square chips), silk outline so the edge reads on black */
-    g.fillRect(x, y, w, CH, PAL_DEEP);
-    g.drawRect(x - 1, y - 1, w + 2, CH + 2, PAL_STEEL);
-    g.drawRect(x, y, w, CH, on ? (uint8_t)PAL_WHITE : (uint8_t)PAL_LINE);
-    for (int k = 0; k < 5; ++k) {                               /* castellated gold pins */
-        g.fillRect(x - 2, y + 4 + k * 7, 2, 3, gold);
-        g.fillRect(x + w, y + 4 + k * 7, 2, 3, gold);
+    const uint8_t gold = sh_rgb(0xd4, 0xa9, 0x3c), silk2 = sh_rgb(0x9a, 0x9a, 0xa6);
+    const uint8_t ac = accent(), dark = sh_rgb(0x2a, 0x2a, 0x32);
+    GATE_BOX(g, "PART", index == 0 ? "s0" : index == 1 ? "s1" : index == 2 ? "s2" : index == 5 ? "s5" : "s7", x, y, w, h, "BOARD");
+    if (on) {
+        g.fillRect(x - 3, y - 3, w + 6, h + 6, wash22(ac));
+        g.drawRect(x - 3, y - 3, w + 6, h + 6, ac);
+        GATE_BOX(g, "SEL", "outline", x - 3, y - 3, w + 6, h + 6, "-");
+        g.fillRect(x, y, w, h, PAL_BLACK);
     }
-    g.fillRect(x + 4, y + 4, w - 8, CH - 8, PAL_BLACK);
-    g.drawRect(x + 4, y + 4, w - 8, CH - 8, on ? (uint8_t)PAL_WHITE : (uint8_t)PAL_STEEL);
-    g.fillRect(x + 4, y + 4, w - 8, 1, goldh);
-    const int cx = x + w / 2, cy = y + CH / 2;
+    const int S = 34, sx = x + (w - S) / 2, sy = y + 12;
+    const int lit = (int)((millis() / 90u) % 7u);
+    for (int k = 0; k < 7; ++k) {                       /* gold pins on all four edges (mock sbChipH) */
+        const int o = (3 * 2 + k * 9) / 2;
+        const uint8_t pc = (on && lit == k) ? ac : gold;
+        g.fillRect(sx + o, sy - 3, 2, 3, pc);
+        g.fillRect(sx + o, sy + S, 2, 3, pc);
+        g.fillRect(sx - 3, sy + o, 3, 2, pc);
+        g.fillRect(sx + S, sy + o, 3, 2, pc);
+    }
+    g.fillRect(sx, sy, S, S, on ? ac : dark);           /* package edge */
+    g.fillRect(sx + 1, sy + 1, S - 2, S - 2, PAL_BLACK); /* black face (never the UI colour) */
+    const int fx = sx + 1, fy = sy + 1, fw = S - 2, fh = S - 2, mx = sx + S / 2, my = sy + S / 2;
+    GATE_BOX(g, "FACE", "chip", fx, fy, fw, fh, "-");
+    g.setClipRect(fx, fy, fw, fh);
+    const int mode = botcorps_rain_mode();
+    const uint8_t live = mode > 0 ? botcorps_rain_solid() : botcorps_rain_palette(0);
     if (index == 0) {
-        /* UI colour = a SQUARE bot in the current accent (mock botSquare) filling the face */
-        botcorps_sprite_draw(*g.raw(), cx - g.ox, cy - g.oy, 3, 4, accent(), false);
-    }
-    else if (index == 1) draw_blob(g, cx - 9, cy - 9, 3, bot_color(0), 0, false);
-    else if (index == 2) shape_preview(g, cx, cy);
-    else if (index == 5) saver_preview(g, cx, cy);
-    else if (index == 7) {
+        /* UI colour: a SQUARE bot in the selected accent filling the face (mock botSquare) */
+        botcorps_sprite_draw(*g.raw(), mx - g.ox, my - g.oy, 3, 4, ac, false);
+    } else if (index == 1) {
+        if (s_mix == 1) draw_blob(g, mx, my + 1, 2, live, 0, false);           /* crew */
+        else if (s_mix == 2) gl_icon(g, GL_AP, mx - 6, my - 6, false);          /* devices */
+        else {                                                                 /* mashup: bot + device */
+            draw_blob(g, mx - 5, my - 3, 2, live, 0, false);
+            g.fillRect(mx + 4, my + 2, 7, 7, PAL_DEV);
+            g.fillRect(mx + 6, my + 4, 3, 3, PAL_BLACK);
+        }
+    } else if (index == 2) {
+        shape_preview(g, mx, my);
+    } else if (index == 5) {
+        saver_preview(g, mx, my);
+    } else if (index == 7) {
+        const bool onS = s_saver_on != 0;
+        g.fillRect(fx + 2, fy + 2, 3, fh - 4, onS ? ac : sh_rgb(0x3a, 0x0d, 0x22));
         char num[8];
         snprintf(num, sizeof(num), "%d", IDLE_V[s_idle]);
-        txt(g, num, cx, cy - 5, silk, lgfx::textdatum::middle_center);
-        txt(g, "SEC", cx, cy + 7, silk, lgfx::textdatum::middle_center);
+        txt(g, num, mx + 2, my - 7, onS ? (uint8_t)PAL_WHITE : silk2, lgfx::textdatum::top_center);
+        txt(g, "s", mx + 2, my + 3, silk2, lgfx::textdatum::top_center);
     }
+    g.clearClipRect();
     char up[16];
     cp_short(index, up, (int)sizeof(up));
-    txt(g, up, cx, y + 44, on ? (uint8_t)PAL_WHITE : silk, lgfx::textdatum::top_center);
-    if (on) {
-        const int hw = (int)strlen(up) * 3;
-        txt(g, "<", cx - hw - 6, y + 44, gold, lgfx::textdatum::top_center);
-        txt(g, ">", cx + hw + 6, y + 44, gold, lgfx::textdatum::top_center);
-    }
+    txt(g, up, x + w / 2, y + h - 12, on ? (uint8_t)PAL_WHITE : silk2, lgfx::textdatum::top_center);
 }
 
 static void cp_part(Gfx g, int index, bool on)
 {
     int x, y, w, h;
     if (!cp_part_rect(index, &x, &y, &w, &h)) return;
-    const uint8_t gold = 177, silk = 223;
-    char value[16];
-    cp_text(index, value, (int)sizeof(value));
-    g.fillRect(x - 3, y - 3, w + 6, h + 6, PAL_BLACK);
-    if (on) g.drawRect(x - 3, y - 3, w + 6, h + 6, PAL_WHITE);
-    if (index == 3) { /* JUMP = RAIN MODE */
-        g.fillRect(x, y, w, 20, PAL_BLACK);
-        g.drawRect(x - 1, y - 1, w + 2, 22, PAL_STEEL);
-        g.drawRect(x, y, w, 20, on ? (uint8_t)PAL_WHITE : (uint8_t)PAL_LINE);
+    const uint8_t gold = sh_rgb(0xd4, 0xa9, 0x3c), rail = sh_rgb(0x02, 0x02, 0x03);
+    const uint8_t metal = sh_rgb(0xb9, 0xbf, 0xcc), silk2 = sh_rgb(0x9a, 0x9a, 0xa6);
+    const uint8_t ac = accent();
+    GATE_BOX(g, "PART", index == 3 ? "s3" : index == 4 ? "s4" : "s6", x, y, w, h, "BOARD");
+    if (on) {
+        g.drawRect(x - 3, y - 3, w + 6, h + 6, ac);
+        GATE_BOX(g, "SEL", "outline", x - 3, y - 3, w + 6, h + 6, "-");
+    }
+    if (index == 3) {                              /* J1 = RAIN MODE: 3-pin header + yellow jumper */
         const bool solid = botcorps_rain_mode() > 0;
-        for (int k = 0; k < 2; ++k) g.fillRect(x + 6 + k * 10, y + 6, 6, 8, gold);
-        if (!solid) g.fillRect(x + 6, y + 4, 16, 3, silk);
-        txt(g, "JUM", x + w / 2 + 6, y + 6, on ? (uint8_t)PAL_WHITE : silk, lgfx::textdatum::top_left);
-        txt(g, value, x + w / 2, y + 22, on ? (uint8_t)PAL_WHITE : silk, lgfx::textdatum::top_center);
-    } else if (index == 4) { /* CP = RAIN COLOUR (qfn) */
-        g.fillRect(x, y, w, 36, PAL_BLACK);
-        g.drawRect(x - 1, y - 1, w + 2, 38, PAL_STEEL);
-        g.drawRect(x, y, w, 36, on ? (uint8_t)PAL_WHITE : (uint8_t)PAL_LINE);
-        for (int k = 0; k < 4; ++k) {
-            g.fillRect(x + 4 + k * 10, y - 2, 3, 2, gold);
-            g.fillRect(x + 4 + k * 10, y + 36, 3, 2, gold);
-            g.fillRect(x - 2, y + 4 + k * 8, 2, 3, gold);
-            g.fillRect(x + w, y + 4 + k * 8, 2, 3, gold);
+        g.fillRect(x, y + 2, w, 6, rail);
+        for (int k = 0; k < 3; ++k) g.fillRect(x + 3 + k * 6, y + 4, 2, 2, gold);
+        const int jx = solid ? x + 9 : x + 1;
+        g.fillRect(jx, y, 11, 10, sh_rgb(0xff, 0xd4, 0x00));
+        g.fillRect(jx + 2, y + 2, 7, 3, sh_rgb(0xb8, 0x94, 0x00));
+    } else if (index == 4) {                       /* U7 qfn "CP" = RAIN COLOUR swatch */
+        g.fillRect(x, y, w, h, sh_rgb(0x16, 0x16, 0x1b));
+        for (int k = 0; k < 5; ++k) {
+            g.fillRect(x + 3 + k * 4, y - 2, 2, 2, metal);
+            g.fillRect(x + 3 + k * 4, y + h, 2, 2, metal);
+            g.fillRect(x - 2, y + 3 + k * 4, 2, 2, metal);
+            g.fillRect(x + w, y + 3 + k * 4, 2, 2, metal);
         }
+        tiny_text(g, "CP", x + w / 2 - 3, y + 3, silk2);
         const int m = botcorps_rain_mode();
-        g.fillRect(x + 10, y + 8, w - 20, 20, m <= 0 ? botcorps_rain_palette(0) : botcorps_rain_solid());
-        txt(g, value, x + w / 2, y + 40, on ? (uint8_t)PAL_WHITE : silk, lgfx::textdatum::top_center);
-    } else if (index == 6) { /* PWR LED = SAVER on/off */
-        g.fillRect(x, y, w, 20, PAL_BLACK);
-        g.drawRect(x - 1, y - 1, w + 2, 22, PAL_STEEL);
-        g.drawRect(x, y, w, 20, on ? (uint8_t)PAL_WHITE : (uint8_t)PAL_LINE);
+        g.fillRect(x + 4, y + 13, w - 8, 5, m <= 0 ? botcorps_rain_palette(0) : botcorps_rain_solid());
+        g.fillRect(x + 2, y + 2, 2, 2, sh_rgb(0x5d, 0x5d, 0x6a));
+    } else if (index == 6) {                       /* PWR LED = SAVER on/off */
         const bool pon = s_saver_on != 0;
-        g.fillRect(x + 6, y + 6, 8, 8, pon ? (uint8_t)PAL_OK : (uint8_t)PAL_LINE);
-        if (pon) g.fillRect(x + 7, y + 6, 2, 2, PAL_WHITE);
-        txt(g, "PWR", x + 20, y + 6, on ? (uint8_t)PAL_WHITE : silk, lgfx::textdatum::top_left);
-        txt(g, value, x + w / 2, y + 22, on ? (uint8_t)PAL_WHITE : silk, lgfx::textdatum::top_center);
+        g.fillRect(x, y, w, h, sh_rgb(0xd9, 0xd9, 0xdf));
+        g.fillRect(x + 2, y + 1, w - 4, h - 2, pon ? sh_rgb(0xff, 0x22, 0x44) : sh_rgb(0x3a, 0x0a, 0x12));
     }
 }
-
-
-int botcorps_cp_edge_overflow_count(void)
-{
-    /* v1016i: count interactive part bboxes that exceed the matte-black PCB bounds
-       (PCB is fillRect(10,24,300,202) in paint_control -> x[10..310], y[24..226]). */
-    int bad = 0;
-    for (int i = 0; i < CP_N; ++i) {
-        int x, y, w, h;
-        if (!cp_part_rect(i, &x, &y, &w, &h)) continue;
-        if (x < 10 || y < 24 || x + w > 310 || y + h > 226) ++bad;
-    }
-    return bad;
-}
-
 int botcorps_cp_overlap_count(void)
 {
-    /* v1016h: count intersecting pairs among the interactive settings part bboxes */
-    int rx[8], ry[8], rw[8], rh[8], n = 0, idx[8];
+    int rx[8], ry[8], rw[8], rh[8], n = 0;
     for (int i = 0; i < CP_N && n < 8; ++i) {
         int x, y, w, h;
-        if (cp_part_rect(i, &x, &y, &w, &h)) { rx[n]=x; ry[n]=y; rw[n]=w; rh[n]=h; idx[n]=i; ++n; }
+        if (cp_part_rect(i, &x, &y, &w, &h)) { rx[n]=x; ry[n]=y; rw[n]=w; rh[n]=h; ++n; }
     }
     int bad = 0;
     for (int a = 0; a < n; ++a)
         for (int b = a + 1; b < n; ++b)
             if (rx[a] < rx[b]+rw[b] && rx[b] < rx[a]+rw[a] &&
                 ry[a] < ry[b]+rh[b] && ry[b] < ry[a]+rh[a]) ++bad;
-    (void)idx;
     return bad;
+}
+
+int botcorps_cp_edge_overflow_count(void)
+{
+    int bad = 0;
+    for (int i = 0; i < CP_N; ++i) {
+        int x, y, w, h;
+        if (!cp_part_rect(i, &x, &y, &w, &h)) continue;
+        if (x < SB_BX || y < SB_BY || x + w > SB_BX + SB_BW || y + h > SB_BY + SB_BH) ++bad;
+    }
+    return bad;
+}
+
+int botcorps_cp_sprite_inside(const uint8_t *buf)
+{
+    (void)buf;
+    return 0;   /* superseded by tools/gate (G2 sprite-in-chip from the element log) */
 }
 
 static void paint_cp_row(Gfx g, int index, bool on)
@@ -3864,63 +4011,115 @@ static void paint_cp_row(Gfx g, int index, bool on)
 static void gib_crown(Gfx g, int cx, int y);
 static void paint_control(Gfx g)
 {
-    /* v1016f-4 (Dirt 8:24): permanent MATTE BLACK ESP32-shield board, FIXED regardless
-     * of UI colour: black PCB, white silkscreen, black headers with gold pins, silver
-     * WROOM chips. The dispatcher already drew rain; we inset the board so rain frames it. */
-    const uint8_t gold = 177, silk = 223;
-    /* top chrome bar (rain shows behind): crown (BACK) + terminal (TERM) buttons */
-    g.fillRect(0, 0, 320, 18, PAL_BLACK);
-    {   /* crown = BACK (R7), terminal chip = TERM */
+    const uint8_t gold = sh_rgb(0xd4, 0xa9, 0x3c), silk = sh_rgb(0xe9, 0xe9, 0xee), silk2 = sh_rgb(0x9a, 0x9a, 0xa6);
+    const uint8_t rail = sh_rgb(0x02, 0x02, 0x03), trace = sh_rgb(0x1c, 0x1c, 0x24), metal = sh_rgb(0x8f, 0x95, 0xa3);
+    const uint8_t ac = accent();
+    /* top chrome bar: part dots, crown (BACK), terminal (TERM) */
+    g.fillRect(0, 0, 320, 16, PAL_BLACK);
+    g.fillRect(0, 16, 320, 1, ac);
+    for (int k = 0; k < CP_N; ++k) g.fillRect(6 + k * 6, 7, 4, 3, k == s_cursor ? ac : sh_rgb(0x2a, 0x2a, 0x34));
+    {
         const bool bsel = s_cursor == CP_N + 1;
-        gib_crown(g, 150, 2); /* real crown sprite, centred like hub/scan/mock */
-        if (bsel) g.drawRect(150 - 16, 0, 32, 17, PAL_WHITE);
+        gib_crown(g, 160, 3);
+        if (bsel) g.drawRect(160 - 18, 0, 36, 16, PAL_WHITE);
         const bool tsel = s_cursor == CP_N;
-        const uint8_t tc = tsel ? (uint8_t)PAL_WHITE : silk;
-        const int tx = 182;
-        g.drawRect(tx, 3, 18, 12, tc); g.fillRect(tx, 3, 18, 3, tc);
-        g.drawLine(tx + 3, 9, tx + 6, 11, tc); g.drawLine(tx + 6, 11, tx + 3, 13, tc);
-        g.fillRect(tx + 8, 12, 5, 1, tc);
-        if (tsel) g.drawRect(tx - 2, 1, 22, 16, PAL_WHITE);
+        const uint8_t tc = tsel ? (uint8_t)PAL_WHITE : ac;
+        const int tx = 196;
+        GATE_BOX(g, "BTN", "term", tx - 2, 1, 22, 14, "-");
+        g.drawRect(tx, 3, 18, 11, tc); g.fillRect(tx, 3, 18, 2, tc);
+        g.drawLine(tx + 3, 7, tx + 6, 9, tc); g.drawLine(tx + 6, 9, tx + 3, 11, tc);
+        g.fillRect(tx + 8, 11, 5, 1, tc);
+        if (tsel) g.drawRect(tx - 2, 1, 22, 14, PAL_WHITE);
     }
-    /* matte-black PCB, inset to leave a rain margin on all four sides */
-    g.fillRect(10, 24, 300, 202, PAL_BLACK);
-    for (int x = 18; x < 304; x += 10) g.fillRect(x, 26, 1, 198, PAL_DEEP);
-    g.drawRect(10, 24, 300, 202, gold);
-    g.drawRect(11, 25, 298, 200, PAL_LINE);
-    const int hx[4] = { 16, 304, 16, 304 }, hy[4] = { 30, 30, 222, 222 };
-    for (int k = 0; k < 4; ++k) { g.fillCircle(hx[k], hy[k], 3, gold); g.fillCircle(hx[k], hy[k], 1, PAL_BLACK); }
-    static const char *TOP_PINS = "D23 D22 TX0 RX0 D21 D19 D18 D5 D17 D16";
-    static const char *BOT_PINS = "EN VP VN D34 D35 D32 D33 D25 D26 D27";
-    g.fillRect(14, 32, 250, 5, PAL_BLACK);
-    for (int x = 16; x < 262; x += 8) g.fillRect(x, 33, 3, 3, gold);
-    tiny_text(g, TOP_PINS, 20, 100, silk);
-    g.fillRect(14, 206, 250, 5, PAL_BLACK);
-    for (int x = 16; x < 262; x += 8) g.fillRect(x, 207, 3, 3, gold);
-    tiny_text(g, BOT_PINS, 20, 199, silk);
+    /* matte-black PCB (fixed), silk mounting holes */
+    GATE_BOX(g, "BOARD", "settings", SB_BX, SB_BY, SB_BW, SB_BH, "-");
+    g.fillRect(SB_BX, SB_BY, SB_BW, SB_BH, sh_rgb(0x0a, 0x0a, 0x0c));
+    const int hx[4] = { 14, 306, 14, 306 }, hy[4] = { 26, 26, 230, 230 };
+    for (int k = 0; k < 4; ++k) { g.fillCircle(hx[k], hy[k], 4, silk); g.fillCircle(hx[k], hy[k], 2, PAL_BLACK); }
+    /* header rails top + bottom, labels upright: top labels sit UNDER the top rail, ABOVE the chips */
+    static const char *const TP[10] = { "D23", "D22", "TX0", "RX0", "D21", "D19", "D18", "D5", "D17", "D16" };
+    static const char *const BP[10] = { "EN", "VP", "VN", "D34", "D35", "D32", "D33", "D25", "D26", "D27" };
+    g.fillRect(36, 22, 224, 8, rail);
+    g.fillRect(36, 218, 224, 8, rail);
+    for (int k = 0; k < 10; ++k) {
+        const int x0 = 40 + k * 22;
+        for (int q = 0; q < 3; ++q) { g.fillRect(x0 + 6 + q * 4, 25, 2, 2, gold); g.fillRect(x0 + 6 + q * 4, 221, 2, 2, gold); }
+        txt(g, TP[k], x0 + 11, 31, silk, lgfx::textdatum::top_center);
+        txt(g, BP[k], x0 + 11, 209, silk, lgfx::textdatum::top_center);
+    }
+    /* dev-kit outline + pin dot rows + SMD resistor row + data micro-USB */
+    g.drawRect(34, 40, 227, 165, sh_rgb(0x2b, 0x2b, 0x33));
+    for (int k = 0; k < 19; ++k) {
+        for (int r = 0; r < 2; ++r) {
+            const int y0 = r ? 198 : 134;
+            g.fillRect(40 + k * 11, y0, 3, 3, sh_rgb(0x5a, 0x5a, 0x66));
+            g.fillRect(41 + k * 11, y0 + 1, 1, 1, PAL_BLACK);
+        }
+    }
+    for (int k = 0; k < 6; ++k) { g.fillRect(90 + k * 14, 160, 6, 3, sh_rgb(0xb8, 0xb8, 0xc0)); g.fillRect(92 + k * 14, 160, 2, 3, sh_rgb(0x20, 0x20, 0x24)); }
+    g.fillRect(238, 156, 12, 22, metal); g.fillRect(241, 159, 6, 16, sh_rgb(0x1a, 0x1a, 0x20));
+    /* power section at the right end: DC jack, power micro-USB, AMS1117, USB-C */
+    g.fillRect(270, 36, 40, 36, sh_rgb(0x15, 0x15, 0x18)); g.fillRect(275, 41, 30, 26, sh_rgb(0x05, 0x05, 0x06));
+    g.fillCircle(290, 54, 6, sh_rgb(0x2a, 0x2a, 0x30));
+    txt(g, "DC6.5", 290, 75, silk, lgfx::textdatum::top_center);
+    g.fillRect(296, 128, 13, 22, metal); g.fillRect(299, 131, 7, 16, sh_rgb(0x1a, 0x1a, 0x20));
+    {   /* U6 AMS1117 regulator (mock 268,92 30x30) */
+        const int x = 268, y = 92;
+        g.fillRect(x + 4, y, 22, 6, sh_rgb(0xa9, 0xaf, 0xbb));
+        g.fillRect(x, y + 6, 30, 16, sh_rgb(0x1a, 0x1a, 0x1f));
+        for (int k = 0; k < 3; ++k) g.fillRect(x + 5 + k * 9, y + 22, 3, 6, sh_rgb(0xa9, 0xaf, 0xbb));
+        txt(g, "1117C", x + 15, y + 8, silk2, lgfx::textdatum::top_center);
+        for (int k = 0; k < 3; ++k) g.fillRect(x + 6 + k * 7, y + 16, 5, 3, sh_rgb(0x2a, 0x2a, 0x34));
+    }
+    {   /* USB-C (mock 298,172 17x30; kept inside the board edge) */
+        const int x = 293, y = 172, w = 17, h = 30;
+        g.fillRect(x, y, w, h, sh_rgb(0x9a, 0xa1, 0xb2)); g.fillRect(x + 1, y + 1, w - 2, h - 2, sh_rgb(0xd0, 0xd5, 0xdf));
+        g.fillRect(x + 4, y + 4, w - 8, h - 8, sh_rgb(0x0a, 0x0a, 0x10)); g.fillRect(x + 7, y + 8, 2, h - 16, gold);
+    }
+    txt(g, "JUMP", 270, 163, silk, lgfx::textdatum::top_center);
+    txt(g, "USB5V", 312, 208, silk, lgfx::textdatum::top_right);
+    txt(g, "PWR", 264, 205, silk2, lgfx::textdatum::top_left);
+    /* C1 tantalum + BOOT / EN buttons (decorative, mock coords) */
+    g.fillRect(52, 156, 22, 12, sh_rgb(0xe0, 0xa2, 0x1c)); g.fillRect(52, 156, 5, 12, sh_rgb(0x7a, 0x52, 0x08));
+    g.fillRect(59, 159, 12, 6, sh_rgb(0x5a, 0x3a, 0x00)); txt(g, "C1", 52, 147, silk, lgfx::textdatum::top_left);
+    for (int b = 0; b < 2; ++b) {
+        const int x = 236, y = b ? 182 : 136, w = 16, h = 14;
+        g.fillRect(x, y, w, h, metal); g.fillRect(x + 1, y + 1, w - 2, h - 2, sh_rgb(0xc3, 0xc9, 0xd6));
+        g.fillCircle(x + w / 2, y + h / 2, 4, sh_rgb(0x22, 0x23, 0x2c));
+        g.fillRect(x - 2, y + 1, 2, 3, gold); g.fillRect(x + w, y + 1, 2, 3, gold);
+        g.fillRect(x - 2, y + h - 4, 2, 3, gold); g.fillRect(x + w, y + h - 4, 2, 3, gold);
+        if (b) txt(g, "EN", x + w + 4, y + 4, silk, lgfx::textdatum::top_left);
+        else txt(g, "BOOT", x - 4, y + 4, silk, lgfx::textdatum::top_right);
+    }
+    /* dark feed traces for every part, then the selected feed in the accent with moving pulses */
+    int px[6], py[6];
+    for (int i = 0; i < CP_N; ++i) {
+        const int n = cp_route(i, px, py);
+        for (int q = 0; q + 1 < n; ++q) cp_seg(g, px[q], py[q], px[q + 1], py[q + 1], 1, trace, false);
+    }
+    if (s_cursor >= 0 && s_cursor < CP_N) {
+        const int n = cp_route(s_cursor, px, py);
+        int len = 0;
+        for (int q = 0; q + 1 < n; ++q) {
+            const uint8_t wire = (s_color == 1) ? (uint8_t)PAL_WIRE_A : (s_color == 2) ? (uint8_t)PAL_WIRE_M : (uint8_t)PAL_WIRE_C;
+            cp_seg(g, px[q], py[q], px[q + 1], py[q + 1], 2, wire, true);
+            len += abs(px[q] - px[q + 1]) + abs(py[q] - py[q + 1]);
+        }
+        for (int k = 0; k < 3 && len > 0; ++k) {
+            int d = (int)(((millis() * 120u) / 1000u + (uint32_t)(k * len / 3)) % (uint32_t)len);
+            for (int q = 0; q + 1 < n; ++q) {
+                const int l2 = abs(px[q] - px[q + 1]) + abs(py[q] - py[q + 1]);
+                if (d <= l2) {
+                    const int qx = px[q] + (l2 ? (px[q + 1] - px[q]) * d / l2 : 0);
+                    const int qy = py[q] + (l2 ? (py[q + 1] - py[q]) * d / l2 : 0);
+                    g.fillRect(qx - 1, qy - 1, 4, 4, ac);
+                    break;
+                }
+                d -= l2;
+            }
+        }
+    }
     for (int i = 0; i < CP_N; ++i) paint_cp_row(g, i, s_cursor == i);
-    /* v1016h: decorations at exact mock SB_PARTS coords (clear of the 3 interactive parts) */
-    /* DC jack + DC6.5 label (kept inside the board right edge, x+w <= 306) */
-    g.fillRect(266, 140, 36, 22, PAL_DEEP); g.drawRect(266, 140, 36, 22, gold);
-    g.fillCircle(284, 151, 5, PAL_BLACK);
-    tiny_text(g, "DC6 5", 270, 166, silk); g.fillRect(270 + 13, 166 + 5, 1, 1, silk); /* DC6.5 dot */
-    /* AMS1117 reg labelled 1117C */
-    g.fillRect(266, 174, 30, 10, PAL_BLACK); g.drawRect(266, 174, 30, 10, PAL_STEEL);
-    tiny_text(g, "1117C", 268, 186, silk);
-    /* USB-C + USB5V label (inside the edge) */
-    g.fillRect(288, 192, 14, 11, PAL_STEEL); g.drawRect(288, 192, 14, 11, PAL_LINE);
-    tiny_text(g, "USB5V", 270, 205, silk);
-    /* C1 tant (mock 52,156 -> clear slot) */
-    g.fillRect(226, 150, 14, 8, gold); tiny_text(g, "C1", 226, 160, silk);
-    /* BOOT / EN buttons (mock 236,136 and 236,182) with data micro-USB between */
-    g.fillRect(236, 136, 16, 14, PAL_STEEL); g.drawRect(236, 136, 16, 14, PAL_LINE); tiny_text(g, "BOOT", 232, 128, silk);
-    g.fillRect(238, 156, 12, 18, PAL_DEEP);  g.drawRect(238, 156, 12, 18, PAL_STEEL); /* data micro-USB */
-    g.fillRect(236, 182, 16, 14, PAL_STEEL); g.drawRect(236, 182, 16, 14, PAL_LINE); tiny_text(g, "EN", 236, 198, silk);
-    char tag[40];
-    const int mode = botcorps_rain_mode();
-    const bool solid = mode > 0;
-    if (solid) snprintf(tag, sizeof(tag), "LIVE RAIN  SOLID %s", RAIN_WORD[mode]);
-    else snprintf(tag, sizeof(tag), "LIVE RAIN  MIXED");
-    tiny_text(g, tag, 20, 216, solid ? botcorps_rain_solid() : silk);
 }
 
 static const char *GIB_CROWN[7] = {
@@ -3945,6 +4144,7 @@ static void px_ring(Gfx g, int cx, int cy, int r, uint8_t col, int on, int off, 
 static void gib_crown(Gfx g, int cx, int y)
 {
     const int x0 = cx - 13;
+    GATE_BOX(g, "CROWN", "back", x0 - 4, y - 3, 13 * 2 + 8, 7 * 2 + 5, "-");
     g.fillRect(x0 - 4, y - 3, 13 * 2 + 8, 7 * 2 + 5, PAL_DEEP);
     for (int r = 0; r < 7; ++r) {
         for (int c = 0; c < 13; ++c) {
@@ -4275,15 +4475,34 @@ static void paint_gibson(Gfx g)
         via_node(g, left ? x2 - 1 : x1 - 2, (out ? ry : ys) - 1, ac);
         /* v1016f-2 #2: hub tiles are dim like the mock; the bot face keeps its fixed colour. */
         g.fillRect(sx - 2, sy - 2, 32, 24, wire); /* v1016g: mock-lit glow halo */
+        GATE_BOX(g, "TILE", "hubbot", sx, sy, 28, 20, "-");
         chip_plate(g, sx, sy, 28, 20, PAL_DEEP, accent());
         g.drawRect(sx - 1, sy - 1, 30, 22, accent());
         draw_blob(g, sx + 11, sy + 10, 2, bot_color(i), botcorps_shape_for(i), false);
         g.fillRect(sx + 22, sy + 3, 4, 4, dot_col(i, t, mood, asleep));
     }
-    /* v1016f-4 (Dirt 8:19): Gibson is ALWAYS the square control-panel block,
-     * even at the hub/scan-menu centre. No round disc or ring here. */
-    (void)mood; (void)wire;
-    chip_block(g, cx, cy, 70, 12);
+    /* v1016k (Dirt 9:31): hub MAIN screen is the animated moving rings core,
+     * not a chip. Square chip_block applies only to Gibson inside boards. */
+    GATE_BOX(g, "HUBCORE", "rings", cx - 54, cy - 54, 108, 108, "-");
+    hub_die(g, cx, cy, 34);
+    px_ring(g, cx, cy, 34, PAL_CYAN, 0, 0, 0);
+    const int spin = mood == MOOD_HUNTING ? (int)(t / 30u) : mood == MOOD_EXCITED ? (int)(t / 50u) : (int)(t / 90u);
+    px_ring(g, cx, cy, 37, PAL_CYAN, 5, 5, spin);
+    if (mood == MOOD_HUNTING) {
+        for (int k = 0; k < 14; ++k) {
+            const float ang = (float)t / 260.f - (float)k * 0.07f;
+            const uint8_t ink = k < 3 ? (uint8_t)PAL_WHITE : ac;
+            g.fillRect(cx + (int)(cosf(ang) * 40.f), cy + (int)(sinf(ang) * 40.f), 1, 1, ink);
+        }
+    }
+    px_ring(g, cx, cy, 42, PAL_CYAN, 2, 4, (int)(t / 140u));
+    px_ring(g, cx, cy, 48, PAL_CYAN, 1, 5, (int)(t / 80u));
+    px_ring(g, cx, cy, 54, PAL_CYAN, 2, 6, (int)(t / 200u));
+    const int ph = (int)((t % 2400u) * 5u / 2400u);
+    px_ring(g, cx, cy, 44 + ph, PAL_CYAN, 3, 3, 0);
+    hub_sparks(g, cx, cy, t);
+    g.fillRect(cx - 14, cy + 25, 28, 1, wire);
+    hub_gibson(g, cx, cy, 7);
     if (asleep) {
         for (int k = 0; k < 3; ++k) {
             const int q = (int)((t / 1500u + (uint32_t)k) % 3u);
@@ -4329,27 +4548,37 @@ static void paint_gibson(Gfx g)
         hx += 17;
     }
     gp_strip(g, t, ac);
-    /* Dirt Oct 16: Terminal, GIBSON Scan, Control — chip/board icons, UI-tinted. No >_ quick button. */
+    /* v1016k (SPEC H2): lit nav plates like the mock - dark accent face, bright 2 px accent
+     * rim with cut corners, accent glow halo (stronger on the selected plate). */
     static const int xs[3] = { 110, 146, 182 };
+    const uint16_t a565 = botcorps_rgb565(ac);
+    auto tint = [&](int pct) -> uint8_t {
+        const int r = ((a565 >> 11) & 31) * pct / 100, gg = ((a565 >> 5) & 63) * pct / 100, b = (a565 & 31) * pct / 100;
+        return botcorps_pal_fit((uint16_t)((r << 11) | (gg << 5) | b));
+    };
+    const uint8_t face = tint(22), glow1 = tint(55), glow2 = tint(30);
+    const uint8_t gold = (uint8_t)PAL_AMBER;
     for (int i = 0; i < 3; ++i) {
         const int x = xs[i], y = 206;
         const bool sel = s_cursor == i;
-        const uint8_t face = botcorps_pal_fit(mix16(0, botcorps_rgb565(ac), sel ? 45 : 62, 100));
-        const uint8_t face2 = botcorps_pal_fit(mix16(0, botcorps_rgb565(ac), sel ? 78 : 88, 100));
-        const uint8_t edge = sel ? ac : botcorps_pal_fit(mix16(0, botcorps_rgb565(ac), 35, 100));
-        const uint8_t gold = sel ? (uint8_t)PAL_AMBER : (uint8_t)PAL_WIRE_A;
-        const uint8_t ic = sel ? (uint8_t)COL_WHITE : ac;
-        g.fillRect(x, y, BS, BS, face);
-        g.fillRect(x, y + BS / 2, BS, BS / 2, face2);
-        g.drawRect(x, y, BS, BS, edge);
-        g.fillRect(x + 3, y + 1, BS - 6, 1, ac);
-        if (i == 0) { /* hterm: header pins + screen with > cursor */
+        GATE_BOX(g, "BTN", "hubnav", x, y, BS, BS, "-");
+        /* glow halo */
+        g.fillRect(x - 3, y - 2, BS + 6, BS + 4, glow2);
+        g.fillRect(x - 2, y - 3, BS + 4, BS + 6, glow2);
+        if (sel) { g.fillRect(x - 2, y - 2, BS + 4, BS + 4, glow1); }
+        /* rim (2 px, corners cut) + face */
+        g.fillRect(x + 1, y, BS - 2, BS, ac);
+        g.fillRect(x, y + 1, BS, BS - 2, ac);
+        g.fillRect(x + 2, y + 2, BS - 4, BS - 4, face);
+        if (sel) { g.fillRect(x + 2, y, BS - 4, 1, PAL_WHITE); }
+        if (i == 0) {            /* terminal: black screen, white bezel, >_ */
             for (int k = 0; k < 5; ++k) g.fillRect(x + 6 + k * 4, y + 4, 2, 2, gold);
-            g.fillRect(x + 4, y + 8, 20, 15, ic);
-            g.fillRect(x + 5, y + 9, 18, 13, face2);
-            g.fillRect(x + 7, y + 12, 2, 6, ic);
-            g.fillRect(x + 13, y + 18, 5, 1, ic);
-        } else if (i == 1) { /* hscan: square chip + scan grid + sweep */
+            g.fillRect(x + 4, y + 8, 20, 15, PAL_WHITE);
+            g.fillRect(x + 5, y + 9, 18, 13, PAL_BLACK);
+            g.drawLine(x + 7, y + 12, x + 10, y + 15, PAL_WHITE);
+            g.drawLine(x + 10, y + 15, x + 7, y + 18, PAL_WHITE);
+            g.fillRect(x + 12, y + 18, 6, 1, PAL_WHITE);
+        } else if (i == 1) {     /* scan: square chip with gold pins + accent grid + sweep */
             for (int k = 0; k < 4; ++k) {
                 const int o = 8 + k * 4;
                 g.fillRect(x + o, y + 3, 2, 2, gold);
@@ -4357,25 +4586,23 @@ static void paint_gibson(Gfx g)
                 g.fillRect(x + 3, y + o, 2, 2, gold);
                 g.fillRect(x + 23, y + o, 2, 2, gold);
             }
-            g.fillRect(x + 6, y + 6, 16, 16, ic);
-            g.fillRect(x + 7, y + 7, 14, 14, face2);
+            g.drawRect(x + 6, y + 6, 16, 16, ac);
+            g.fillRect(x + 7, y + 7, 14, 14, PAL_BLACK);
             for (int k = 1; k < 3; ++k) {
-                g.fillRect(x + 7 + k * 5, y + 7, 1, 14, wash);
-                g.fillRect(x + 7, y + 7 + k * 5, 14, 1, wash);
+                g.fillRect(x + 7 + k * 5, y + 7, 1, 14, ac);
+                g.fillRect(x + 7, y + 7 + k * 5, 14, 1, ac);
             }
-            g.fillRect(x + 8, y + 14, 12, 1, ic);
-            g.fillRect(x + 16, y + 10, 2, 2, ic);
-        } else { /* hctl: settings board + chip + jumper */
-            g.fillRect(x + 3, y + 5, 22, 18, ic);
-            g.fillRect(x + 4, y + 6, 20, 16, face2);
+            g.fillRect(x + 8, y + 14, 12, 1, PAL_WHITE);
+        } else {                 /* control: black board, accent chip, gold pin rows, jumper */
+            g.fillRect(x + 4, y + 6, 20, 16, PAL_BLACK);
+            g.drawRect(x + 4, y + 6, 20, 16, ac);
             for (int k = 0; k < 5; ++k) {
-                g.fillRect(x + 6 + k * 4, y + 7, 2, 1, gold);
-                g.fillRect(x + 6 + k * 4, y + 20, 2, 1, gold);
+                g.fillRect(x + 6 + k * 4, y + 8, 2, 1, gold);
+                g.fillRect(x + 6 + k * 4, y + 19, 2, 1, gold);
             }
-            g.fillRect(x + 7, y + 10, 8, 8, ic);
-            g.fillRect(x + 8, y + 11, 6, 6, face2);
+            g.drawRect(x + 7, y + 10, 8, 8, ac);
             g.fillRect(x + 18, y + 11, 3, 6, gold);
-            g.fillRect(x + 18, y + 13, 3, 2, ic);
+            g.fillRect(x + 18, y + 13, 3, 2, ac);
         }
     }
 }
@@ -4386,9 +4613,17 @@ static void hub_die(Gfx g, int cx, int cy, int r);
 static void paint_rain_btn(Gfx g)
 {
     const int cx = 160, cy = 100;
-    (void)wire_ink;
-    /* v1016f-4 (Dirt 8:19): square control-panel block, no disc/ring. */
-    chip_block(g, cx, cy, 70, 12);
+    const uint32_t t = millis();
+    /* v1016k (Dirt 9:31): intro/rain screen is the ring disc, not a chip. */
+    g.fillCircle(cx, cy, 56, PAL_BLACK);
+    hub_die(g, cx, cy, 34);
+    px_ring(g, cx, cy, 34, PAL_CYAN, 0, 0, 0);
+    px_ring(g, cx, cy, 37, PAL_CYAN, 5, 5, (int)(t / 90u));
+    px_ring(g, cx, cy, 42, PAL_CYAN, 2, 4, (int)(t / 140u));
+    px_ring(g, cx, cy, 48, PAL_CYAN, 1, 5, (int)(t / 80u));
+    px_ring(g, cx, cy, 54, PAL_CYAN, 2, 6, (int)(t / 200u));
+    g.fillRect(cx - 14, cy + 25, 28, 1, wire_ink());
+    hub_gibson(g, cx, cy, 9);
 }
 
 static void paint_diag(Gfx g)
@@ -4419,7 +4654,7 @@ static void paint_diag(Gfx g)
         { BOTCORPS_ST_OV1, "O1", 8 },
         { BOTCORPS_ST_N2, "N2", 9 },
     };
-    g.fillScreen(PAL_BLACK);
+    g.fillRect(0, 0, 320, 184, PAL_BLACK);   /* v1016k: rain shows below the readout */
     g.setTextWrap(false, false);
     g.setFont(&fonts::Font0);
     g.setTextSize(1, 1);
@@ -4464,7 +4699,7 @@ static void paint_diag(Gfx g)
              botcorps_band_direct() ? "direct" : "ok",
              (unsigned long)botcorps_band_largest());
     txt(g, flag, 4, 166, PAL_WHITE, lgfx::textdatum::top_left);
-    draw_btn(g, 146, 206, ICO_BACK, true);
+    crown_btn(g, true);
 }
 
 /* Chat shares the terminal log so replies keep each bot's colour. No new buffer. */
@@ -4683,6 +4918,7 @@ static void paint_gc_sheet(Gfx g)
     const int h = vis * rh + 10;
     const int bx = 14;
     const int by = 214 - 5 - h;
+    GATE_BOX(g, "OCCLUDE", "gcsheet", bx, by, 292, h, "-");
     g.fillRect(bx, by, 292, h, PAL_BLACK);
     g.drawRect(bx, by, 292, h, ac);
     g.fillRect(bx + 3, by + h - 3, 286, 1, PAL_WIRE_C);
@@ -4775,9 +5011,9 @@ static void paint_gchat(Gfx g)
 {
     const uint8_t ac = PAL_CYAN;
     const uint32_t t = millis();
-    g.fillRect(0, 0, 320, 240, PAL_BLACK);
-    g.fillRect(0, 0, 320, 16, PAL_BLACK);
+    g.fillRect(0, 0, 320, 16, PAL_BLACK);       /* v1016k: no full-screen fill, rain shows between panels */
     g.fillRect(0, 16, 320, 1, ac);
+    GATE_BOX(g, "CROWN", "back", 4, 2, 13, 7, "-");
     for (int r = 0; r < 7; ++r) {
         for (int c = 0; c < 13; ++c) {
             if (GIB_CROWN[r][c] != '#') continue;
@@ -4848,7 +5084,7 @@ static void paint_gchat(Gfx g)
 static void paint_intro(Gfx g)
 {
     const uint8_t ac = PAL_CYAN;
-    g.fillRect(0, 0, 320, 240, PAL_BLACK);
+    g.fillRect(4, 4, 312, 232, PAL_BLACK);      /* v1016k: 4 px rain gutter outside the ID board */
     g.drawRect(4, 4, 312, 232, PAL_LINE);
     const int keep = s_px;
     s_px = 6;
@@ -4861,7 +5097,7 @@ static void paint_intro(Gfx g)
         g.fillRect(14 + d, 20, 3, 1, ac);
         g.fillRect(14 + d, 100, 3, 1, ac);
     }
-    chip_block(g, 68, 58, 46, 12);
+    chip_block_ex(g, 68, 58, 46, 12, true);
     txt(g, "GIBSON", 48, 86, ac, lgfx::textdatum::top_left);
     g.fillRect(14, 104, 92, 18, PAL_BG);
     g.drawRect(14, 104, 92, 18, PAL_WIRE_C);
@@ -4882,7 +5118,7 @@ static void paint_intro(Gfx g)
     g.fillRect(10, 134, 300, 92, PAL_BLACK);
     g.fillRect(12, 148, 2, 60, ac);
     g.fillRect(298, 148, 2, 60, ac);
-    chip_block(g, 36, 176, 30, 12);
+    chip_block_ex(g, 36, 176, 30, 12, true);
     txt(g, "BOTS", 70, 150, PAL_MUTED, lgfx::textdatum::top_left);
     txt(g, "7/12", 200, 150, ac, lgfx::textdatum::top_left);
     txt(g, "UPTIME", 70, 166, PAL_MUTED, lgfx::textdatum::top_left);
@@ -4901,8 +5137,35 @@ static void paint_intro(Gfx g)
 
 static void paint_ext(Gfx g)
 {
+#ifdef BOTCORPS_HOST_RENDER
+    host_gate_reset();
+    layout_covers();   /* device paint_ext_full does this first; host must too or rain lands under covers */
+#endif
     g.clearClipRect();
     g.setTextWrap(false, false);
+    const bool hub = s_screen == SCR_GIBSON;
+    botcorps_rain_set_hub(hub);
+    /* v1016k (SPEC R1): rain behind EVERY screen. Live (stepped) where it always was;
+     * panel screens (terminal, scan box, game, diag, intro) get the same rain painted
+     * as a static layer on each full paint, framed by their opaque panels. */
+    const bool rain_bg = wants_rain() || rain_static();
+    if (hub) g.fillScreen(botcorps_pal_hub_of(COL_FIELD));
+    else g.fillScreen(COL_FIELD);
+#ifdef BOTCORPS_HOST_RENDER
+    if (rain_bg) GATE_BOX(g, "RAIN", "layer", 0, 0, 320, 240, "-");
+    if (rain_bg && g.raw() && !host_gate_norain) {
+#else
+    if (rain_bg && g.raw()) {
+#endif
+        const int y0 = botcorps_band_oy();
+#ifdef BOTCORPS_HOST_RENDER
+        host_gate_mute = 1;
+#endif
+        botcorps_rain_draw(*g.raw(), y0, y0 + g.raw()->height());
+#ifdef BOTCORPS_HOST_RENDER
+        host_gate_mute = 0;
+#endif
+    }
     if (s_screen == SCR_RAIN && s_act == 4) {
         paint_intro(g);
         return;
@@ -4910,16 +5173,6 @@ static void paint_ext(Gfx g)
     if (s_screen == SCR_DIAG) {
         paint_diag(g);
         return;
-    }
-    const bool hub = s_screen == SCR_GIBSON;
-    botcorps_rain_set_hub(hub);
-    if (!wants_rain()) g.fillScreen((s_screen == SCR_TERMINAL || s_screen == SCR_GCHAT)
-                                    ? (uint8_t)PAL_BLACK : (uint8_t)COL_BG);
-    else if (hub) g.fillScreen(botcorps_pal_hub_of(COL_FIELD));
-    else g.fillScreen(COL_FIELD);
-    if (wants_rain() && g.raw()) {
-        const int y0 = botcorps_band_oy();
-        botcorps_rain_draw(*g.raw(), y0, y0 + g.raw()->height());
     }
     switch (s_screen) {
     case SCR_RAIN: paint_rain_btn(g); break;
@@ -6983,6 +7236,43 @@ void botcorps_host_seq(uint8_t *buf, const char *keys)
     host_frame = buf;
     memset(buf, PAL_BLACK, 320u * 240u);
     paint_ext(Gfx());
+}
+/* gate.sh: scan board for one bot type (12 = Gibson); settings with a given cursor */
+void botcorps_host_scan_n(uint8_t *buf, int bot)
+{
+    s_scan_bot = bot;
+    botcorps_host_enter(buf, SCR_SCAN);
+}
+void botcorps_host_control(uint8_t *buf, int cursor)
+{
+    botcorps_host_enter(buf, SCR_CONTROL);
+    s_cursor = cursor;
+    memset(buf, PAL_BLACK, 320u * 240u);
+    paint_ext(Gfx());
+}
+/* gate.sh functional checks */
+int botcorps_host_esc_test(uint8_t *buf, int id, int *expect)
+{
+    botcorps_host_enter(buf, id);
+    *expect = default_back(s_screen);
+    s_key_fn = false;
+    ui_dispatch(K_ESC, 0);
+    return s_screen;
+}
+int botcorps_host_setfn(uint8_t *buf, int cursor, char *before, char *after, int *nvs)
+{
+    botcorps_host_enter(buf, SCR_CONTROL);
+    s_cursor = cursor;
+    cp_text(cursor, before, 24);
+    const int n0 = host_nvs_puts;
+    s_key_fn = true;
+    ui_dispatch(K_RT, 0);
+    cp_text(cursor, after, 24);
+    *nvs = host_nvs_puts - n0;
+    s_cursor = cursor;
+    ui_dispatch(K_LT, 0);
+    s_key_fn = false;
+    return strcmp(before, after) != 0;
 }
 void botcorps_host_set_color(int c){ s_color = (c<0||c>2)?0:c; }
 void botcorps_host_key(int key, char c) { s_key_fn = (c == 1); ui_dispatch(key, c == 1 ? 0 : c); }

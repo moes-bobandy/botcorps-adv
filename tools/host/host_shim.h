@@ -94,16 +94,24 @@ struct Gfx {
     void endWrite(void);
 };
 
+/* gate.sh hooks: element/text bbox log per paint_ext */
+void host_gate_reset(void);
+void host_gate_box(int ox, int oy, const char *kind, const char *name, int x, int y, int w, int h, const char *parent);
+extern int host_gate_norain;
+extern int host_gate_mute;
+extern int host_gate_walk;
+
 struct botcorps_cover_t {
     int16_t x, y, w, h;
 };
 
+extern int host_nvs_puts;
 class Preferences {
 public:
-    bool begin(const char *, bool) { return false; }
+    bool begin(const char *, bool ro) { return !ro; }
     void end() {}
     unsigned getUChar(const char *, unsigned d = 0) { return d; }
-    void putUChar(const char *, uint8_t) {}
+    void putUChar(const char *, uint8_t) { ++host_nvs_puts; }
 };
 
 struct HostPrint {

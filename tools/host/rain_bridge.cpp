@@ -58,6 +58,7 @@ static uint16_t rb_pack332(uint8_t i)
   return (uint16_t)(((r8>>3)<<11)|((g8>>2)<<5)|(b8>>3)); }
 static uint16_t rb_word(uint8_t idx){ if (k_is_res[idx]) return k_exact_nat[idx]; return rb_pack332(idx); }
 
+uint16_t host_rgb565_word(uint8_t i) { return rb_word(i); }   /* gate: real botcorps_rgb565 for the UI */
 uint8_t botcorps_t0_rain_col[56][8];
 uint32_t botcorps_t0_row_hash[240];
 uint16_t botcorps_t0_lut565[256];

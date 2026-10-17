@@ -103,7 +103,7 @@ static uint8_t new_glyph(void)
 static uint8_t new_lead(void)
 {
     const int r = rnd_n(100);
-    int bot = 10, dev = 6;
+    int bot = 20, dev = 12; /* v1016j: denser bots/devices in strands (match mock) */
     if (s_mix == BOTCORPS_RAIN_MIX_BOTS) { bot = 22; dev = 0; }
     else if (s_mix == BOTCORPS_RAIN_MIX_DEV) { bot = 0; dev = 18; }
     if (r < bot) return (uint8_t)(LEAD_BOT | (rnd_n(12) << 2));

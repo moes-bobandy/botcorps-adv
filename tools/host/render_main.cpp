@@ -4,6 +4,7 @@
 #include "ui/botcorps_term_ov.h"
 extern int botcorps_cp_overlap_count(void);
 extern int botcorps_cp_edge_overflow_count(void);
+extern int botcorps_cp_sprite_inside(const unsigned char *buf);
 extern void host_rain_init(int mode);
 
 #include <stdio.h>
@@ -87,8 +88,107 @@ static void hist_term(const uint8_t *idx)
     }
 }
 
-int main(void)
+extern void host_gate_dump(const char *path);
+extern void botcorps_host_scan_n(uint8_t *buf, int bot);
+extern void botcorps_host_control(uint8_t *buf, int cursor);
+extern void botcorps_host_intro(uint8_t *buf);
+extern void botcorps_host_gchat(uint8_t *buf);
+extern void botcorps_host_gmenu(uint8_t *buf);
+extern void botcorps_host_jackin(uint8_t *buf);
+extern void botcorps_host_sbox(uint8_t *buf, int band, int mode, int force_dbm);
+extern void botcorps_host_found_alert_b(uint8_t *buf, int band, int dev);
+extern void botcorps_host_set_color(int c);
+extern void botcorps_host_enter(uint8_t *buf, int id);
+extern void botcorps_host_seq(uint8_t *buf, const char *keys);
+extern void botcorps_host_sheet(uint8_t *buf, int sel);
+
+/* gate.sh: render every screen twice (rain on / rain off) at a fixed clock,
+ * dumping <name>.rgb, <name>.norain.rgb and <name>.log (element + text bboxes). */
+static uint8_t g_buf[320 * 240];
+static void gate_one(const char *dir, const char *name, int term, void (*fn)(void *), void *arg)
 {
+    char p[256];
+    for (int pass = 0; pass < 2; ++pass) {
+        host_gate_norain = pass;
+        host_rain_init(0);
+        host_set_millis(9000u);
+        fn(arg);
+        snprintf(p, sizeof p, "%s/%s%s.rgb", dir, name, pass ? ".norain" : "");
+        write_raw(p, g_buf, term);
+        if (!pass) { snprintf(p, sizeof p, "%s/%s.log", dir, name); host_gate_dump(p); }
+    }
+    host_gate_norain = 0;
+    printf("rendered %s\n", name);
+}
+struct GArg { int a, b, c; const char *keys; };
+extern void botcorps_host_paint(uint8_t *buf);
+static void f_enter(void *v) { GArg *g = (GArg *)v; botcorps_host_set_color(g->b); botcorps_host_enter(g_buf, g->a); if (g->keys) botcorps_host_seq(g_buf, g->keys);
+    if (g->c > 0) { host_set_millis(9000u + (uint32_t)g->c); memset(g_buf, 0, sizeof g_buf); botcorps_host_paint(g_buf); } }
+static void f_scan(void *v) { GArg *g = (GArg *)v; botcorps_host_set_color(0); botcorps_host_scan_n(g_buf, g->a); }
+static void f_ctl(void *v) { GArg *g = (GArg *)v; botcorps_host_set_color(g->b); botcorps_host_control(g_buf, g->a); }
+static void f_intro(void *) { botcorps_host_set_color(0); botcorps_host_intro(g_buf); }
+static void f_gchat(void *) { botcorps_host_set_color(0); botcorps_host_gchat(g_buf); }
+static void f_gmenu(void *) { botcorps_host_set_color(0); botcorps_host_gmenu(g_buf); }
+static void f_jackin(void *) { botcorps_host_set_color(0); botcorps_host_jackin(g_buf); }
+static void f_sbox(void *v) { GArg *g = (GArg *)v; botcorps_host_set_color(0); botcorps_host_sbox(g_buf, g->a, g->b, g->c); }
+static void f_alert(void *) { botcorps_host_set_color(0); botcorps_host_found_alert_b(g_buf, 1, 2); }
+static void f_sheet(void *) { botcorps_host_set_color(0); botcorps_host_enter(g_buf, 2); botcorps_host_sheet(g_buf, 0); }
+static int run_gate(const char *dir)
+{
+    static const char *BN[13] = { "wifi", "bluetooth", "deauth", "hack", "flock", "drone", "airtag", "keyfob", "meta", "skimmer", "flipper", "samsungtag", "gibson" };
+    char nm[64];
+    GArg a;
+    a = { 0, 0, 0, nullptr }; gate_one(dir, "intro", 0, f_intro, &a);
+    a = { 0, 0, 0, nullptr }; gate_one(dir, "boot", 0, f_enter, &a);
+    a = { 1, 0, 0, nullptr }; gate_one(dir, "hub", 0, f_enter, &a);
+    a = { 1, 1, 0, nullptr }; gate_one(dir, "hub-amber", 0, f_enter, &a);
+    a = { 2, 0, 0, nullptr }; gate_one(dir, "terminal", 0, f_enter, &a);
+    a = { 0, 0, 0, "\n\nsca" }; gate_one(dir, "terminal-typed", 0, f_enter, &a);
+    a = { 0, 0, 0, nullptr }; gate_one(dir, "terminal-tab", 1, f_sheet, &a);
+    a = { 3, 0, 0, nullptr }; gate_one(dir, "home-wifi", 0, f_enter, &a);
+    a = { 6, 0, 0, nullptr }; gate_one(dir, "home-ble", 0, f_enter, &a);
+    a = { 9, 0, 0, nullptr }; gate_one(dir, "home-bot", 0, f_enter, &a);
+    a = { 4, 0, 14000, nullptr }; gate_one(dir, "scan-wifi", 0, f_enter, &a);
+    a = { 7, 0, 14000, nullptr }; gate_one(dir, "scan-ble", 0, f_enter, &a);
+    a = { 10, 0, 0, nullptr }; gate_one(dir, "bot-radar", 0, f_enter, &a);
+    a = { 0, 1, 0, nullptr }; gate_one(dir, "sbox-selected", 0, f_sbox, &a);
+    a = { 0, 2, 0, nullptr }; gate_one(dir, "sbox-info", 0, f_sbox, &a);
+    a = { 0, 3, -50, nullptr }; gate_one(dir, "sbox-hunt", 0, f_sbox, &a);
+    a = { 0, 4, 0, nullptr }; gate_one(dir, "sbox-glossary", 0, f_sbox, &a);
+    a = { 0, 0, 0, nullptr }; gate_one(dir, "found-alert", 0, f_alert, &a);
+    for (int b = 2; b <= 12; ++b) { a = { b, 0, 0, nullptr }; snprintf(nm, sizeof nm, "scanboard-%s", BN[b]); gate_one(dir, nm, 0, f_scan, &a); }
+    for (int c = 0; c < 8; ++c) { a = { c, 0, 0, nullptr }; snprintf(nm, sizeof nm, "settings-c%d", c); gate_one(dir, nm, 0, f_ctl, &a); }
+    a = { 0, 1, 0, nullptr }; gate_one(dir, "settings-amber", 0, f_ctl, &a);
+    a = { 0, 0, 0, nullptr }; gate_one(dir, "game-board", 0, f_gchat, &a);
+    a = { 0, 0, 0, nullptr }; gate_one(dir, "game-menu", 0, f_gmenu, &a);
+    a = { 0, 0, 0, nullptr }; gate_one(dir, "game-jackin", 0, f_jackin, &a);
+    a = { 13, 0, 0, nullptr }; gate_one(dir, "diag", 0, f_enter, &a);
+    botcorps_host_set_color(0);
+    /* functional: Esc goes back on every screen; each of the 8 settings edits + writes NVS */
+    {
+        extern int botcorps_host_esc_test(uint8_t *, int, int *);
+        extern int botcorps_host_setfn(uint8_t *, int, char *, char *, int *);
+        static const char *nm[15] = { "rain", "gibson", "terminal", "wifi", "wifiradar", "wifilist", "bt", "btradar", "btlist", "bot", "botradar", "scan", "control", "diag", "gchat" };
+        char p[256]; snprintf(p, sizeof p, "%s/functional.txt", dir);
+        FILE *f = fopen(p, "w");
+        for (int id = 1; id < 15; ++id) {
+            int ex = -1;
+            const int got = botcorps_host_esc_test(g_buf, id, &ex);
+            if (f) fprintf(f, "ESC\t%s\t%d\t%d\n", nm[id], got, ex);
+        }
+        for (int c = 0; c < 8; ++c) {
+            char b[32], a[32]; int nv = 0;
+            const int ch = botcorps_host_setfn(g_buf, c, b, a, &nv);
+            if (f) fprintf(f, "SET\t%d\t%s\t%s\t%d\t%d\n", c, b, a, ch, nv);
+        }
+        if (f) fclose(f);
+    }
+    return 0;
+}
+
+int main(int argc, char **argv)
+{
+    if (argc > 2 && strcmp(argv[1], "gate") == 0) return run_gate(argv[2]);
     host_rain_init(0); /* v1016i: warm the REAL rain so it shows in renders */
     static uint8_t term[320 * 240];
     static uint8_t hunt[320 * 240];
@@ -707,10 +807,15 @@ int main(void)
         botcorps_host_set_color(0);
     }
     {   /* v1016h: harness overlap check — no two settings part bboxes may intersect */
+        botcorps_host_set_color(0);                 /* render a fresh cyan control for the checks */
+        botcorps_host_enter(hit, 0);
+        botcorps_host_seq(hit, "\ncontrol\n");
         const int ov = botcorps_cp_overlap_count();
         printf("CP_OVERLAP %d %s\n", ov, ov == 0 ? "OK" : "FAIL");
         const int eo = botcorps_cp_edge_overflow_count();
         printf("CP_EDGE_OVERFLOW %d %s\n", eo, eo == 0 ? "OK" : "FAIL");
+        const int si = botcorps_cp_sprite_inside(hit);
+        printf("CP_SPRITE_INSIDE %d %s\n", si, si == 0 ? "OK" : "FAIL");
     }
     botcorps_host_sbox(hit, 0, 0, 0); write_raw("/tmp/sb-wifi-icons.rgb", hit, 0);
     botcorps_host_sbox(hit, 0, 1, 0); write_raw("/tmp/sb-selected-prompt.rgb", hit, 0);

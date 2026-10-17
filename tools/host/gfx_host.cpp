@@ -171,6 +171,7 @@ static void glyph(int x, int y, char ch, uint8_t fg, bool bg, uint8_t bgc)
     }
 }
 
+static void gate_txt(int x, int y, int w, int h, const char *s);
 void Gfx::drawString(const char *s, int x, int y)
 {
     x -= ox;
@@ -184,6 +185,8 @@ void Gfx::drawString(const char *s, int x, int y)
     else if (s_datum == lgfx::textdatum::top_right)
         x -= n * aw;
     if (s_datum == lgfx::textdatum::middle_center) y -= font_h() / 2;
+    if (s_datum == lgfx::textdatum::bottom_center) y -= font_h();
+    gate_txt(x, y, n * aw, font_h(), s);
     for (int i = 0; s[i]; ++i) glyph(x + i * aw, y, s[i], s_fg, s_bg_on, s_bg);
 }
 
@@ -191,6 +194,7 @@ void Gfx::print(const char *s)
 {
     if (!s) return;
     const int aw = font_w();
+    gate_txt(s_cx, s_cy, (int)strlen(s) * aw, font_h(), s);
     for (int i = 0; s[i]; ++i) {
         glyph(s_cx, s_cy, s[i], s_fg, s_bg_on, s_bg);
         s_cx += aw;
@@ -202,7 +206,8 @@ uint16_t botcorps_rgb565(uint8_t idx)
     if (idx >= 229 && idx <= 248) host_rgb_span++;
     if (term_code(idx)) host_rgb_ov++;
     note_int(idx);
-    return 0;
+    extern uint16_t host_rgb565_word(uint8_t);
+    return host_rgb565_word(idx);   /* v1016k: was 0, which blacked every mix16() tint on host */
 }
 
 static void touch_rgb(uint8_t c) { (void)botcorps_rgb565(c); }
@@ -237,6 +242,7 @@ void botcorps_sprite_draw(lgfx::v1::LovyanGFX &, int x, int y, int shape, int sc
     const int h = SPR_H[shape];
     const int ox = x - (w * s) / 2;
     const int oy = y - (h * s) / 2;
+    host_gate_box(0, 0, host_gate_walk ? "WALK" : "SPR", "sprite", ox, oy, w * s, h * s, "-");
     for (int row = 0; row < h; ++row) {
         const char *line = SPR_ROW[shape][row];
         for (int col = 0; col < w; ++col) {
@@ -296,3 +302,45 @@ char botcorps_t0_term_hist[20][26];
 char botcorps_t0_term_log[2048];
 char botcorps_t0_term_found[12][28];
 uint8_t botcorps_t0_rain_cell[3][1200];
+
+/* ---- gate.sh log ---- */
+int host_gate_norain = 0;
+int host_gate_mute = 0;
+int host_gate_walk = 0;
+int host_nvs_puts = 0;
+static FILE *s_gate_f = nullptr;
+static char s_gate_buf[200000];
+static size_t s_gate_n = 0;
+void host_gate_reset(void) { s_gate_n = 0; s_gate_buf[0] = 0; }
+static void gate_put(const char *line)
+{
+    const size_t l = strlen(line);
+    if (s_gate_n + l + 1 >= sizeof(s_gate_buf)) return;
+    memcpy(s_gate_buf + s_gate_n, line, l + 1);
+    s_gate_n += l;
+}
+void host_gate_box(int ox, int oy, const char *kind, const char *name, int x, int y, int w, int h, const char *parent)
+{
+    if (host_gate_mute) return;
+    char b[256];
+    snprintf(b, sizeof b, "BOX\t%s\t%s\t%d\t%d\t%d\t%d\t%s\n", kind, name, x - ox, y - oy, w, h, parent ? parent : "-");
+    gate_put(b);
+}
+static void gate_txt(int x, int y, int w, int h, const char *s)
+{
+    if (host_gate_mute) return;
+    char b[256], t[96];
+    int j = 0;
+    for (int i = 0; s[i] && j < 90; ++i) t[j++] = (s[i] == '\t' || s[i] == '\n' || (unsigned char)s[i] < 32) ? ' ' : s[i];
+    t[j] = 0;
+    if (s_clip) snprintf(b, sizeof b, "TXT\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%s\n", x, y, w, h, s_clip_x, s_clip_y, s_clip_w, s_clip_h, t);
+    else snprintf(b, sizeof b, "TXT\t%d\t%d\t%d\t%d\t0\t0\t320\t240\t%s\n", x, y, w, h, t);
+    gate_put(b);
+}
+void host_gate_dump(const char *path)
+{
+    FILE *f = fopen(path, "w");
+    if (!f) return;
+    fwrite(s_gate_buf, 1, s_gate_n, f);
+    fclose(f);
+}

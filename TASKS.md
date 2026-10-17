@@ -1015,3 +1015,30 @@ Reviewed on box `/tmp/bca` at `grok/cyd-touch-port` tip `82741843abcb549b921c476
 ```
 On grok/cyd-touch-port tip 8274184 (fw 50396d1): good — run_touch_cal now saves a checked cv=2 so the cal survives reboot and auto-cal stops looping, the 4-value saver no longer writes cv, has_valid_cal checks all c0..c7 and rejects all-equal sets, and it builds (box: RAM 72076 / flash 1407491). Fix next: in run_touch_cal's save, write c0..c7 first and only then tcal=1 + cv=2 (remove cv on any put failure) so a half-written save can't look valid; in has_valid_cal also require x raws (c0,c2,c4,c6) and y raws (c1,c3,c5,c7) to each span > ~1000, and drop the redundant first==0 line; in load_touch_cal fall through to the placeholder apply when a c-key is missing instead of returning with nothing applied; delete the unused botcorps_cyd_save_touch_cal and its header line. Then real host CYD frame dumps. One commit per round, LV stays "LV 01", push only to grok/cyd-touch-port, no merge/flash.
 ```
+
+---
+
+## GIBSONbot review — tip 323b3c6 / fw 9e4d951 (2026-10-17 ~10:40 AM ET)
+
+Reviewed on box `/tmp/bca` at `grok/cyd-touch-port` tip `323b3c659be4a318300bed4de25cab3459c43b55` (last reviewed `68554af`). Diff span `68554af..323b3c6`: `src/display/lgfx_cyd.h` (touch `pin_int`, raw Serial log), `BRIDGE.md`, `builds/cyd/REPORT.md`. Host type gate **PASS** (`cyd osk table ok keys=42 clip_y=151`; `host cyd type gate passed`). **Box build of `env:cyd`: SUCCESS**, RAM 72,076 / 327,680 (22.0%), flash 1,407,543 / 3,145,728 (44.7%), `firmware.bin` 1,407,952 B (REPORT 1,407,447 / 1,407,856 — same build-env gap as before). Nothing merged or flashed by this watch; only this TASKS note is pushed.
+
+| SHA | What |
+|-----|------|
+| 9e4d951 | CYD: touch `cfg.pin_int = -1` (poll XPT2046 over SPI instead of gating on IRQ 36); `get_touch_raw` Serial-prints raw x,y on each successful read |
+| 323b3c6 | REPORT/BRIDGE cite fw 9e4d951 + build numbers |
+
+### Matches
+1. Field FAIL root suspect addressed (8274184/50396d1 on glass: cal crosshair shows but touch never registers): `pin_int=-1` is exactly the poll-mode fix proposed from the code read. Not verified on glass yet.
+2. Touch bus otherwise checks out for the classic CYD (ESP32-2432S028R): touch on VSPI (SCLK 25 / MOSI 32 / MISO 39 / CS 33), panel on HSPI (SCLK 14 / CS 15), `bus_shared=false`, 1 MHz. So if poll mode is still dead on glass, the pin map is not the next suspect; the raw log will tell.
+3. Raw x,y Serial log is the right diagnostic for the next field pass (`Serial.begin(115200)` is in `main.cpp`, monitor_speed 115200).
+4. Memory flat (RAM same, flash +52 B vs 50396d1). Typing gate passes. No instruction text added. LV left "LV 01".
+
+### Misses (numbered fixes)
+1. **Soft: raw-touch log floods while a finger is held.** It prints on every successful read, and the cal lift-wait loops poll every 10–20 ms (`botcorps_display.cpp` ~262, ~320, ~332), so a held finger gives ~50–100 lines/s and buries the line that matters; it also adds UART time to every touch read in normal UI nav. **Fix:** print only on the press edge (first read after no-touch) or at most every 100 ms, behind a `BOTCORPS_TOUCH_LOG` define; remove/disable after the glass pass.
+2. **Still open from the 8274184 review (not touched this round):** (a) write c0..c7 first, then `tcal=1` + `cv=2` last, remove `cv` on any put failure; (b) `has_valid_cal` require x raws (c0,c2,c4,c6) and y raws (c1,c3,c5,c7) each span > ~1000, drop the redundant `first==0` line; (c) `load_touch_cal` fall through to the placeholder apply when a c-key is missing; (d) delete unused `botcorps_cyd_save_touch_cal` + header line.
+3. **Still open:** glass pass of boot + auto-cal touch registering + reboot-keeps-cal + touch nav (Dirt to flash 9e4d951 and send the serial raw-touch lines if cal is still dead), real host CYD frame dumps (fonts still stubs), LV meaning (Dirt HOLD). No merge/flash from this watch.
+
+### Follow-up one-liner (Dirt → Super Grok)
+```
+On grok/cyd-touch-port tip 323b3c6 (fw 9e4d951): good — pin_int=-1 poll mode is the right fix for the dead cal touch, the touch pin map checks out, and it builds (box: RAM 72076 / flash 1407543); I'll field-test it. Fix next: make the raw-touch Serial line print only on the press edge or at most every 100 ms behind a BOTCORPS_TOUCH_LOG define (it floods ~50-100 lines/s while a finger is held); then the still-open cal items: in run_touch_cal's save write c0..c7 first and only then tcal=1 + cv=2 (remove cv on any put failure); in has_valid_cal require x raws (c0,c2,c4,c6) and y raws (c1,c3,c5,c7) to each span > ~1000 and drop the redundant first==0 line; in load_touch_cal fall through to the placeholder apply when a c-key is missing; delete the unused botcorps_cyd_save_touch_cal and its header line. One commit per round, LV stays "LV 01", push only to grok/cyd-touch-port, no merge/flash.
+```

@@ -1132,3 +1132,29 @@ Reviewed on box `/tmp/bca` at `grok/cyd-touch-port` tip `fbad7f246cb11ed5e360c16
 ```
 On grok/cyd-touch-port tip fbad7f2 (fw 985e82c): good — rain no longer steps during the intro, a held finger no longer fires on the hub, the duplicate #ifdef is gone, and it builds (box: RAM 72084 / flash 1408179); I'll field-test it. Fix next: the intro-to-hub switch only happens because the resumed rain step forces a repaint, so in band fallback mode (botcorps_band_direct) it would stick on the intro; in botcorps_ui_draw on CYD set s_dirty = true when s_intro_until has expired (or do the hub switch there). Then real host CYD frame dumps. One commit per round, LV stays "LV 01", push only to grok/cyd-touch-port, no merge/flash.
 ```
+
+---
+
+## GIBSONbot review — tip 0e184a9 / fw 21a8cad (2026-10-17 ~12:42 PM ET)
+
+Reviewed on box `/tmp/bca` at `grok/cyd-touch-port` tip `0e184a93fd32576f200bd9ceb5219bcedd0d5fba` (last reviewed `4c091d8`). Diff span `4c091d8..0e184a9`: `src/ui/botcorps_ui.cpp` (+7), `BRIDGE.md`, `builds/cyd/REPORT.md`. Host type gate **PASS** (`cyd osk table ok keys=42 clip_y=151`; `host cyd type gate passed`). **Box build of `env:cyd`: SUCCESS**, RAM 72,084 / 327,680 (22.0%), flash 1,408,215 / 3,145,728 (44.8%), `firmware.bin` 1,408,624 B (REPORT 1,408,119 / 1,408,528 — same build-env gap as before). Nothing merged or flashed by this watch; only this TASKS note is pushed.
+
+| SHA | What |
+|-----|------|
+| 21a8cad | CYD: `botcorps_ui_draw` switches intro to hub (`s_screen = SCR_GIBSON`, `s_intro_until = 0`, `s_dirty = true`) as soon as the 2.5 s timer expires, before any rain step |
+| 0e184a9 | REPORT/BRIDGE cite fw 21a8cad + build numbers |
+
+### Matches
+1. Intro to hub no longer depends on the rain step: the switch and `s_dirty` happen at the top of every draw, so band fallback mode (`botcorps_band_direct()`) also leaves the intro (prior fix 1).
+2. Live-band path: `dirty` is read after the switch in the same call, so the hub is presented on the first draw after expiry (no ~140 ms wait).
+3. Memory flat (RAM same, flash +36 B vs 985e82c). Typing gate passes. No instruction text added. LV left "LV 01".
+
+### Misses (numbered fixes)
+1. **Tidy: `s_act = 0` on the hub.** Every other path into the hub (`enter_screen`, `botcorps_host_hub`) uses `s_act = -1` ("no action prompt"). Harmless today (only Wi-Fi/BT lists read `s_act >= 0`, and `enter_screen` resets it), but use `-1` so a later direct screen change can't open a stale action prompt.
+2. **Tidy: dead duplicate switch in `paint_ext`.** The `#ifdef BOTCORPS_CYD` intro-expiry branch in `paint_ext` can no longer run (draw already cleared `s_intro_until`); collapse it back to `paint_intro(g); return;` so there's one owner of the switch.
+3. **Still open:** glass pass of boot (intro then hub, no flicker, held finger doesn't fire) + auto-cal accepting real presses + reboot-keeps-cal + touch nav (Dirt to flash 21a8cad and send serial lines if cal still fails), real host CYD frame dumps (fonts still stubs), LV meaning (Dirt HOLD), leave room for the games port once the Adv games build lands. No merge/flash from this watch.
+
+### Follow-up one-liner (Dirt → Super Grok)
+```
+On grok/cyd-touch-port tip 0e184a9 (fw 21a8cad): good — botcorps_ui_draw now does the intro-to-hub switch itself so band-direct mode can't stick on the intro, and it builds (box: RAM 72084 / flash 1408215); I'll field-test it. Tidy next: set s_act = -1 (not 0) in that switch to match enter_screen, and collapse the now-dead CYD intro-expiry branch in paint_ext back to paint_intro(g); return; so draw is the one owner. Then real host CYD frame dumps. One commit per round, LV stays "LV 01", push only to grok/cyd-touch-port, no merge/flash.
+```

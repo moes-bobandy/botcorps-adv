@@ -610,12 +610,19 @@ static void draw_btn(Gfx g, int x, int y, int id, bool sel)
                         : (s_color == 2) ? (uint8_t)PAL_WASH_M : (uint8_t)PAL_WASH_C;
     const uint8_t edge = sel ? accent() : hub ? accent() : COL_LINE;
     const uint8_t fill = hub ? (sel ? COL_SEL : glow) : (sel ? COL_SEL : COL_DEEP);
-    if (hub) { g.fillRect(x - 2, y - 2, BS + 4, BS + 4, glow); }
+    if (hub) {
+        /* v1016g: brighter lit plate like the mock (halo + filled accent face) */
+        g.fillRect(x - 3, y - 3, BS + 6, BS + 6, glow);
+        g.fillRect(x - 1, y - 1, BS + 2, BS + 2, glow);
+    }
     plate(g, x, y, BS, BS, fill, edge);
-    if (hub) g.drawRect(x + 1, y + 1, BS - 2, BS - 2, accent());
+    if (hub) {
+        g.drawRect(x, y, BS, BS, accent());
+        g.drawRect(x + 1, y + 1, BS - 2, BS - 2, accent());
+    }
     if (sel) g.drawRect(x + 1, y + 1, BS - 2, BS - 2, accent());
     if (hub && sel) g.drawRect(x - 1, y - 1, BS + 2, BS + 2, PAL_WHITE);
-    draw_icon(g, x, y, id, (sel || hub) ? accent() : COL_MUTED);
+    draw_icon(g, x, y, id, (sel || hub) ? (uint8_t)PAL_WHITE : COL_MUTED);
     const bool icon_only = id == ICO_BACK &&
                            (s_screen == SCR_WIFI_LIST || s_screen == SCR_BT_LIST);
     const char *nm = btn_name(id);
@@ -3710,7 +3717,7 @@ static bool cp_part_rect(int index, int *x, int *y, int *w, int *h)
     case 7: *x = 254; *y = 42; *w = 46; *h = 54; return true; /* IDLE (slot 5) */
     case 3: *x = 22;  *y = 150; *w = 66; *h = 30; return true; /* JUMP = RAIN MODE */
     case 4: *x = 132; *y = 146; *w = 48; *h = 48; return true; /* CP   = RAIN COLOUR */
-    case 6: *x = 232; *y = 150; *w = 66; *h = 30; return true; /* PWR  = SAVER on/off */
+    case 6: *x = 200; *y = 150; *w = 54; *h = 30; return true; /* PWR  = SAVER on/off */
     default: return false;
     }
 }
@@ -3748,7 +3755,11 @@ static void cp_chip(Gfx g, int index, bool on)
     g.drawRect(x + 4, y + 4, w - 8, 32, on ? (uint8_t)PAL_WHITE : (uint8_t)PAL_STEEL);
     g.fillRect(x + 4, y + 4, w - 8, 1, goldh);
     const int cx = x + w / 2, cy = y + 20;
-    if (index == 0) { g.fillRect(cx - 11, cy - 11, 22, 22, accent()); g.drawRect(cx - 11, cy - 11, 22, 22, PAL_WHITE); }
+    if (index == 0) {
+        g.fillRect(cx - 11, cy - 11, 22, 22, accent());
+        g.drawRect(cx - 11, cy - 11, 22, 22, PAL_WHITE);
+        draw_blob(g, cx - 6, cy - 6, 2, PAL_BLACK, 0, false); /* bot on the colour tile */
+    }
     else if (index == 1) draw_blob(g, cx - 6, cy - 6, 2, bot_color(0), 0, false);
     else if (index == 2) shape_preview(g, cx, cy);
     else if (index == 5) saver_preview(g, cx, cy);
@@ -3817,6 +3828,7 @@ static void paint_cp_row(Gfx g, int index, bool on)
     else cp_part(g, index, on);
 }
 
+static void gib_crown(Gfx g, int cx, int y);
 static void paint_control(Gfx g)
 {
     /* v1016f-4 (Dirt 8:24): permanent MATTE BLACK ESP32-shield board, FIXED regardless
@@ -3827,14 +3839,11 @@ static void paint_control(Gfx g)
     g.fillRect(0, 0, 320, 18, PAL_BLACK);
     {   /* crown = BACK (R7), terminal chip = TERM */
         const bool bsel = s_cursor == CP_N + 1;
-        const uint8_t bc = bsel ? (uint8_t)PAL_WHITE : silk;
-        const int bx = 270;
-        g.fillRect(bx, 11, 17, 4, bc);
-        g.fillRect(bx, 5, 3, 8, bc); g.fillRect(bx + 7, 3, 3, 10, bc); g.fillRect(bx + 14, 5, 3, 8, bc);
-        if (bsel) g.drawRect(bx - 2, 1, 21, 16, PAL_WHITE);
+        gib_crown(g, 150, 2); /* real crown sprite, centred like hub/scan/mock */
+        if (bsel) g.drawRect(150 - 16, 0, 32, 17, PAL_WHITE);
         const bool tsel = s_cursor == CP_N;
         const uint8_t tc = tsel ? (uint8_t)PAL_WHITE : silk;
-        const int tx = 294;
+        const int tx = 182;
         g.drawRect(tx, 3, 18, 12, tc); g.fillRect(tx, 3, 18, 3, tc);
         g.drawLine(tx + 3, 9, tx + 6, 11, tc); g.drawLine(tx + 6, 11, tx + 3, 13, tc);
         g.fillRect(tx + 8, 12, 5, 1, tc);
@@ -3857,12 +3866,14 @@ static void paint_control(Gfx g)
     tiny_text(g, BOT_PINS, 20, 199, silk);
     for (int i = 0; i < CP_N; ++i) paint_cp_row(g, i, s_cursor == i);
     /* power section: DC jack + 1117C + USB5V (silver/silk on black) */
-    g.fillRect(272, 120, 22, 18, PAL_DEEP); g.drawRect(272, 120, 22, 18, gold);
-    g.fillCircle(283, 129, 4, PAL_BLACK); tiny_text(g, "DC6.5", 270, 140, silk);
-    g.fillRect(272, 150, 20, 10, PAL_BLACK); g.drawRect(272, 150, 20, 10, PAL_STEEL);
-    tiny_text(g, "1117C", 270, 162, silk);
-    g.fillRect(276, 176, 14, 18, PAL_STEEL); g.drawRect(276, 176, 14, 18, PAL_LINE);
-    tiny_text(g, "USB5V", 270, 196, silk);
+    /* power column on the right margin (mock-style), clear of PWR part & pin rails */
+    g.fillRect(274, 148, 24, 16, PAL_DEEP); g.drawRect(274, 148, 24, 16, gold);
+    g.fillCircle(286, 156, 4, PAL_BLACK);
+    tiny_text(g, "DC6 5", 274, 168, silk); g.fillRect(274 + 13, 168 + 5, 1, 1, silk); /* DC6.5 dot */
+    g.fillRect(276, 176, 22, 9, PAL_BLACK); g.drawRect(276, 176, 22, 9, PAL_STEEL);
+    tiny_text(g, "1117C", 274, 188, silk);
+    g.fillRect(280, 194, 14, 8, PAL_STEEL); g.drawRect(280, 194, 14, 8, PAL_LINE);
+    tiny_text(g, "USB5V", 272, 205, silk);
     g.fillRect(100, 150, 14, 8, gold); tiny_text(g, "C1", 100, 160, silk);
     g.fillRect(196, 148, 12, 12, PAL_DEEP); g.drawRect(196, 148, 12, 12, PAL_STEEL); tiny_text(g, "BOOT", 190, 162, silk);
     g.fillRect(196, 176, 12, 12, PAL_DEEP); g.drawRect(196, 176, 12, 12, PAL_STEEL); tiny_text(g, "EN", 196, 190, silk);
@@ -4225,8 +4236,9 @@ static void paint_gibson(Gfx g)
         if (d < travel) g.fillRect((left ? x1 + d : x2 - d) - 1, ys - 1, 2, 3, ac);
         via_node(g, left ? x2 - 1 : x1 - 2, (out ? ry : ys) - 1, ac);
         /* v1016f-2 #2: hub tiles are dim like the mock; the bot face keeps its fixed colour. */
-        chip_plate(g, sx, sy, 28, 20, PAL_DEEP, wire);
-        g.drawRect(sx - 1, sy - 1, 30, 22, PAL_LINE);
+        g.fillRect(sx - 2, sy - 2, 32, 24, wire); /* v1016g: mock-lit glow halo */
+        chip_plate(g, sx, sy, 28, 20, PAL_DEEP, accent());
+        g.drawRect(sx - 1, sy - 1, 30, 22, accent());
         draw_blob(g, sx + 11, sy + 10, 2, bot_color(i), botcorps_shape_for(i), false);
         g.fillRect(sx + 22, sy + 3, 4, 4, dot_col(i, t, mood, asleep));
     }

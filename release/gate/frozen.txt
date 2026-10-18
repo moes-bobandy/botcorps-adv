@@ -1,7 +1,7 @@
 # Screens NOT meant to change in v1016k. gate.sh pixel-diffs their no-rain render against
 # release/gate/baseline/<screen>.norain.png (approved v1016i, commit 6086539).
 # mask=x0,y0,x1,y1 excludes an area whose change IS intended (with the spec item that asks for it).
-intro             # dome Gibson ID board must stay as approved
+intro             # v1019m: the LIVE intro (boot rain + Gibson chip in square rings; was the dead ID board, removed)
 found-alert
 sbox-selected
 sbox-info
@@ -26,3 +26,12 @@ defend-raincatch
 defend-beaconsort
 defend-firewall
 defend-maze
+# v1019m (Dirt: finished build): the eight added Defend games (new screens, baselines added in v1019m)
+defend-eviltwin
+defend-channelhop
+defend-rangering
+defend-pairlock
+defend-patchrun
+defend-botnet
+defend-signaltrace
+defend-jamdodge

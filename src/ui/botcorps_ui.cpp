@@ -511,7 +511,6 @@ static bool wants_rain(void)
 static bool rain_static(void)
 {
     return sbox_on() || s_screen == SCR_DIAG
-        || (s_screen == SCR_RAIN && s_act == 4)
         || dg_on();
 }
 
@@ -1356,7 +1355,6 @@ static uint8_t term_accent(void);
 static uint8_t term_low(void);
 static uint8_t glow_of(int step);
 
-static void hub_gibson(Gfx g, int cx, int cy, int z);
 
 /* v1019d (Dirt #4): brighter ghost-rain ink for the Terminal (was index 12, (0,89,16), which left the
  * panel lost in black). Still glyph pixels only, under faces / labels / prompt text, never over. */
@@ -2372,7 +2370,6 @@ static void crown_btn(Gfx g, bool sel)
     }
 }
 
-static void hub_gibson(Gfx g, int cx, int cy, int z);
 static void chip_plate(Gfx g, int x, int y, int w, int h, uint8_t fill, uint8_t line);
 
 /* Mock busLayout. kind 1 = radar (lanes stop at cx+/-108). kind 0 = full scan. */
@@ -2606,7 +2603,7 @@ static void dev_icon(Gfx g, int type, int x, int y, bool dim)
  * Gibson) filling the square and keeping its fixed colour. bot 12 = Gibson. */
 /* v1016k (Dirt 9:32): Gibson as a SQUARE BLOCK figure for chips inside boards
  * (scan/settings/game). Full square face, light top, dark bottom, black visor
- * band with two steel eyes. Round dome (hub_gibson) stays only in the hub rings. */
+ * band with two steel eyes. (v1019m: the round dome figure, hub_gibson, is gone; it was dead code.) */
 /* v1019: the pre-v1019 block figure, kept ONLY for the centre radar die (scan_die), which Dirt
  * locked as-is. Every other chip uses face_block below. */
 static void gib_block_radar(Gfx g, int cx, int cy, int s)
@@ -2716,15 +2713,12 @@ static void face_block(Gfx g, int cx, int cy, int s, uint8_t col, bool gib, bool
 
 static void gib_block(Gfx g, int cx, int cy, int s) { face_block(g, cx, cy, s, PAL_IVORY, true, false); }
 
-static void hub_gibson(Gfx g, int cx, int cy, int z);
-/* dome=true keeps the intro ID board's approved dome Gibson (mock intro v11); the square
- * block figure is only for Gibson's scan board + game boards (SPEC C-items). */
-static void chip_block_ex(Gfx g, int cx, int cy, int S, int bot, bool dome);
-static void chip_block(Gfx g, int cx, int cy, int S, int bot) { chip_block_ex(g, cx, cy, S, bot, false); }
+/* v1019m: the square block figure everywhere (the intro ID board's dome path was dead code, removed). */
+static void chip_block_ex(Gfx g, int cx, int cy, int S, int bot);
+static void chip_block(Gfx g, int cx, int cy, int S, int bot) { chip_block_ex(g, cx, cy, S, bot); }
 /* v1019: pre-v1019 chip, centre radar die only (Dirt: leave as-is). */
 static void chip_block_radar(Gfx g, int cx, int cy, int S, int bot)
 {
-    const bool dome = false;
     const int x = cx - S / 2, y = cy - S / 2;
     GATE_BOX(g, "CHIP", bot >= 12 ? "gibson" : "bot", x, y, S, S, "-");
     g.fillRect(x + 3, y + 3, S - 6, S - 6, PAL_BG);     /* black face */
@@ -2739,11 +2733,6 @@ static void chip_block_radar(Gfx g, int cx, int cy, int S, int bot)
         g.fillRect(x + i, y + S - 4, 2, 5, PAL_STEEL);
     }
     g.fillRect(x + 7, y + 7, 2, 2, PAL_IVORY);
-    if (bot >= 12 && dome) {
-        const int z = S >= 50 ? 5 : S >= 36 ? 4 : S >= 24 ? 3 : 2;
-        hub_gibson(g, cx, cy, z);
-        return;
-    }
     if (bot >= 12) {
         const int gs = S - 12 > 8 ? S - 12 : 8;   /* square Gibson fills the chip face (v1016k: >=60% of the square) */
         GATE_BOX(g, "SPR", "gibson_block", cx - gs / 2, cy - gs / 2, gs, gs, "-");
@@ -2761,7 +2750,7 @@ static void chip_block_radar(Gfx g, int cx, int cy, int S, int bot)
 /* v1019c: when non-zero, the Gibson-form chip face is drawn in this colour (game-board defender chip
  * recolour only: same frame, pins and shades). 0 = the normal ivory Gibson face. */
 static uint8_t s_gib_face = 0;
-static void chip_block_ex(Gfx g, int cx, int cy, int S, int bot, bool dome)
+static void chip_block_ex(Gfx g, int cx, int cy, int S, int bot)
 {
     const int x = cx - S / 2, y = cy - S / 2;
     GATE_BOX(g, "CHIP", bot >= 12 ? "gibson" : "bot", x, y, S, S, "-");
@@ -2771,8 +2760,7 @@ static void chip_block_ex(Gfx g, int cx, int cy, int S, int bot, bool dome)
     g.drawRect(x + 2, y + 2, S - 4, S - 4, PAL_LINE);
     g.drawRect(x + 6, y + 6, S - 12, S - 12, PAL_DIAG);
     /* v1019 (Dirt LOCKED): GOLD pins on Gibson's chip only; every other bot SILVER. */
-    /* The intro ID board keeps its approved dome figure exactly (frozen.txt lock), steel pins included. */
-    const uint8_t pin = (bot >= 12 && dome) ? (uint8_t)PAL_STEEL : bot >= 12 ? PAL_GOLD_PIN : (uint8_t)PAL_SOFT;
+    const uint8_t pin = bot >= 12 ? PAL_GOLD_PIN : (uint8_t)PAL_SOFT;
     for (int i = 8; i <= S - 10; i += 8) {               /* castellated pins */
         g.fillRect(x - 1, y + i, 5, 2, pin);
         g.fillRect(x + S - 4, y + i, 5, 2, pin);
@@ -2780,11 +2768,6 @@ static void chip_block_ex(Gfx g, int cx, int cy, int S, int bot, bool dome)
         g.fillRect(x + i, y + S - 4, 2, 5, pin);
     }
     g.fillRect(x + 7, y + 7, 2, 2, PAL_IVORY);
-    if (bot >= 12 && dome) {                              /* intro ID board: approved dome figure */
-        const int z = S >= 50 ? 5 : S >= 36 ? 4 : S >= 24 ? 3 : 2;
-        hub_gibson(g, cx, cy, z);
-        return;
-    }
     /* v1019 (Dirt LOCKED S-18): slight even black window between the face and the square
      * (6 px / 56), face 38 px in the 56 px chip (S-18), scaled for smaller chips. */
     int wi = (S * 6 + 28) / 56;  if (wi < 3) wi = 3;
@@ -2989,14 +2972,13 @@ static void bus_label(Gfx g, bool wifi, int shown, int sel)
            lgfx::textdatum::top_center);
 }
 
-static void paint_bus_scan(Gfx g, bool wifi);
 
 static int list_band(void);
 static void paint_sbox(Gfx g, bool wifi);
 
 static void paint_radar(Gfx g, bool with_list)
 {
-    /* Device path for SCR_SCAN. The full extBus layout lives in paint_bus_scan. */
+    /* Device path for SCR_SCAN. */
     if (sbox_on()) {
         paint_sbox(g, list_band() == 0);
         return;
@@ -3024,68 +3006,6 @@ static void paint_radar(Gfx g, bool with_list)
         bus_at(tab[lane], BUS_N[lane], bus_dev_s(bus_len(tab[lane], BUS_N[lane])), &x, &y);
         g.drawRect(x - 10, y - 10, 20, 20, COL_AMBER);
     }
-}
-
-static void paint_scan_hud(Gfx g, bool wifi, int sel)
-{
-    const char *const *names = wifi ? NEAR_WIFI : NEAR_BLE;
-    const char *const *rssi = wifi ? NEAR_WIFI_R : NEAR_BLE_R;
-    const uint8_t *bars = wifi ? NEAR_WIFI_B : NEAR_BLE_B;
-    const uint8_t ac = accent();
-    const uint32_t u = (millis() - s_bus_t0) % 3400u;
-    g.fillRect(0, 0, 320, 24, PAL_BLACK);
-    g.fillRect(0, 24, 320, 1, COL_LINE);
-    g.fillRect(0, 24, (int)(320u * u / 3400u), 1, ac);
-    hub_gibson(g, 14, 12, 1);
-    const int keep = s_px;
-    s_px = 8;
-    txt(g, "GIBSON", 29, 8, ac, lgfx::textdatum::top_left);
-    txt(g, "GIBSON", 28, 8, ac, lgfx::textdatum::top_left);
-    s_px = keep;
-    g.drawCircle(232, 12, 5, COL_MUTED);
-    g.fillCircle(232, 12, 2, COL_MUTED);
-    g.setFont(&fonts::Font8x8C64);
-    g.setTextSize(2);
-    g.setTextColor(COL_INK);
-    g.setCursor(248, 2);
-    g.print("12");
-    g.setTextSize(1);
-    g.drawCircle(296, 12, 5, COL_MUTED);
-    g.drawLine(296, 8, 296, 16, COL_MUTED);
-    g.drawLine(292, 12, 300, 12, COL_MUTED);
-    /* Name banner sits above the icon strip (y>=209). */
-    s_px = 6;
-    if (sel >= 0 && sel < 3) {
-        char lab[28];
-        snprintf(lab, sizeof(lab), "%s %s dBm", names[sel], rssi[sel]);
-        const int tw = (int)strlen(lab) * 6 + 16;
-        int bx = 160 - tw / 2;
-        if (bx < 8) bx = 8;
-        plate(g, bx, 186, tw, 16, PAL_BLACK, ac);
-        txt_bg(g, lab, bx + tw / 2, 190, ac, PAL_BLACK, lgfx::textdatum::top_center);
-    }
-    g.fillRect(0, 209, 320, 31, PAL_BLACK);
-    g.fillRect(0, 209, 320, 1, COL_LINE);
-    int tally[DEV_N];
-    for (int i = 0; i < DEV_N; ++i) tally[i] = 0;
-    for (int d = 0; d < SCAN_N; ++d) tally[SCAN_TYPE[d]]++;
-    const uint8_t *types = wifi ? NEAR_WIFI_T : NEAR_BLE_T;
-    if (sel >= 0 && sel < 3) dev_icon(g, types[sel], 12, 218, false);
-    for (int k = 0; k < 4; ++k) {
-        const int bh = (k + 1) * 3;
-        const int lit = (sel >= 0 && sel < 3) ? bars[sel] : 0;
-        g.fillRect(30 + k * 5, 227 - bh, 3, bh, k < lit ? ac : COL_LINE);
-    }
-    s_px = 6;
-    for (int i = 0; i < DEV_N; ++i) {
-        const int x = 62 + i * 25;
-        dev_icon(g, i, x, 214, tally[i] == 0);
-        char num[4];
-        snprintf(num, sizeof(num), "%d", tally[i]);
-        txt(g, num, x + 13, 218, tally[i] ? (uint8_t)COL_INK : (uint8_t)COL_MUTED,
-            lgfx::textdatum::top_left);
-    }
-    s_px = keep;
 }
 
 static void blit_ico(Gfx g, const uint8_t *bits, int x, int y, uint8_t col)
@@ -3215,12 +3135,6 @@ static uint32_t sb_hash(const char *s)
     uint32_t h = 2166136261u;
     for (; s && *s; ++s) { h ^= (uint8_t)*s; h *= 16777619u; }
     return h;
-}
-
-static void paint_bus_scan(Gfx g, bool wifi)
-{
-    bus_paint(g, false, wifi, 12, 0);
-    paint_scan_hud(g, wifi, 0);
 }
 
 static int hunt_rssi_now(void)
@@ -4778,20 +4692,6 @@ static void core_bezel(Gfx g, int cx, int cy, int r)
     px_ring(g, cx, cy, r, PAL_CYAN, 0, 0, 0);
 }
 
-/* Black 1 px keyline around the hub_gibson silhouette (same face, cleaner edge on the die). */
-static void gib_keyline(Gfx g, int cx, int cy, int z)
-{
-    const int ox = cx - (7 * z) / 2;
-    const int oy = cy - (7 * z) / 2;
-    auto k = [&](int x, int y, int w, int h) {
-        g.fillRect(ox + x * z - 1, oy + y * z - 1, w * z + 2, h * z + 2, PAL_BLACK);
-    };
-    k(3, 0, 1, 1);
-    k(1, 1, 5, 1);
-    k(0, 2, 7, 4);
-    k(1, 6, 5, 1);
-}
-
 static void gib_crown(Gfx g, int cx, int y)
 {
     const int x0 = cx - 13;
@@ -4846,29 +4746,6 @@ static void hub_die(Gfx g, int cx, int cy, int r)
         g.fillRect(x - 1, y - 1, 3, 3, PAL_STEEL);
         g.fillRect(x, y, 1, 1, PAL_IVORY);
     }
-}
-
-static void hub_gibson(Gfx g, int cx, int cy, int z)
-{
-    const int ox = cx - (7 * z) / 2;
-    const int oy = cy - (7 * z) / 2;
-    auto u = [&](int x, int y, int w, int h, uint8_t col) {
-        g.fillRect(ox + x * z, oy + y * z, w * z, h * z, col);
-    };
-    g.fillRect(ox + z / 2, oy + 7 * z, 6 * z, z > 2 ? 2 : z, PAL_BLACK);
-    u(3, 0, 1, 1, PAL_IVORY);
-    u(1, 1, 5, 1, PAL_IVORY);
-    u(0, 2, 7, 3, PAL_IVORY);
-    u(0, 5, 7, 1, PAL_IVORY);
-    u(1, 6, 5, 1, PAL_CHIN);
-    u(0, 5, 1, 1, PAL_CHIN);
-    u(6, 5, 1, 1, PAL_CHIN);
-    u(0, 3, 7, 1, PAL_BLACK);
-    u(1, 3, 2, 2, PAL_BLACK);
-    u(4, 3, 2, 2, PAL_BLACK);
-    const int gl = (int)((millis() / 900u) % 2u);
-    u(1 + gl, 3, 1, 1, PAL_STEEL);
-    u(4 + gl, 3, 1, 1, PAL_STEEL);
 }
 
 static int hub_mood(uint32_t t, bool *asleep)
@@ -5075,239 +4952,25 @@ static void partial_gp_strip(void)
  * current blocky Gibson with a half-round top (square base + semicircular crown).
  * v1019k (Dirt 2026-10-18, LOCKED): Option E is now the DEFAULT. Flag 0 (no flag) renders exactly what
  * BOTCORPS_GIB_CORE=5 rendered: Gibson's square chip (chip_block_ex) in the centre with the pulsing
- * px_ring lines walked on square paths (px_sq_ring), hub + intro ring disc. Flags 1-5 unchanged. */
+ * px_ring lines walked on square paths (px_sq_ring), hub + intro ring disc. Flags 1-5 unchanged.
+ * v1019m (cleanup): flags 1-3 (A round-dome HD face, B chip in round arcs, C half-round dome) were
+ * compiled out of every device build and are removed with the round dome figure; 0/4/5 remain. */
 #ifndef BOTCORPS_GIB_CORE
 #define BOTCORPS_GIB_CORE 0
 #endif
+#if BOTCORPS_GIB_CORE >= 1 && BOTCORPS_GIB_CORE <= 3
+#error "BOTCORPS_GIB_CORE 1-3 (round-dome Options A/C, chip-in-round-ring B) were removed in v1019m; use 0 (= E), 4 (D) or 5 (E)"
+#endif
 #define GIB_CORE_IS_E (BOTCORPS_GIB_CORE == 0 || BOTCORPS_GIB_CORE == 5)
-#define GIB_CORE_IS_CHIP (BOTCORPS_GIB_CORE == 0 || BOTCORPS_GIB_CORE >= 4)
-#if BOTCORPS_GIB_CORE && BOTCORPS_GIB_CORE < 4
-/* Crisp 1 px ring drawn as continuous arcs: `segs` arcs, each `duty`/256 of its slot, rotated by
- * `ph` (radians). Pixel-exact band |d - r| < 0.5, so arcs are unbroken lines, not scattered dots. */
-static void arc_ring(Gfx g, int cx, int cy, int r, uint8_t col, int segs, int duty, float ph)
-{
-    const int lo = r * r - r + 1, hi = r * r + r;
-    const float slot = 6.2831853f / (float)(segs > 0 ? segs : 1);
-    for (int y = -r - 1; y <= r + 1; ++y) {
-        for (int x = -r - 1; x <= r + 1; ++x) {
-            const int d2 = x * x + y * y;
-            if (d2 < lo || d2 > hi) continue;
-            if (segs > 0) {
-                float a = atan2f((float)y, (float)x) + ph;
-                a = fmodf(a, 6.2831853f);
-                if (a < 0.f) a += 6.2831853f;
-                const float f = fmodf(a, slot) / slot;
-                if (f * 256.f >= (float)duty) continue;
-            }
-            g.fillRect(cx + x, cy + y, 1, 1, col);
-        }
-    }
-}
-
-/* Option A face: same Gibson (ivory dome, black shades, chin shade, glancing steel eyes) drawn at
- * pixel resolution instead of 7x7 blocks. W = 7*z keeps the exact footprint of hub_gibson(z). */
-static float gib_hd_hw(float yu)
-{
-    /* half-width in face units (face is 7 units wide), yu = 0..7 down the face */
-    if (yu < 0.f || yu >= 7.f) return -1.f;
-    if (yu < 2.3f) {                                   /* smooth pointed dome (the old stepped crown) */
-        const float s = (yu + 0.12f) / 2.42f;
-        return 3.5f * powf(sinf(1.5707963f * s), 0.62f);
-    }
-    if (yu < 5.0f) return 3.5f;                        /* full cheeks */
-    const float q = (yu - 5.0f) / 2.0f;                /* curved jaw into the chin */
-    float hw = 2.4f + 1.1f * sqrtf(1.f - q * q);
-    if (yu > 6.55f) {                                  /* rounded chin corners */
-        const float c = (yu - 6.55f) / 0.45f;
-        hw -= 0.45f * (1.f - sqrtf(1.f - c * c));
-    }
-    return hw;
-}
-
-static void gib_face_hd(Gfx g, int cx, int cy, int z)
-{
-    const int W = 7 * z;
-    const int ox = cx - W / 2, oy = cy - W / 2;
-    const float u = (float)z;
-    int lx[80], rx[80];
-    const int H = W < 78 ? W : 78;
-    for (int r = 0; r < H; ++r) {
-        const float yu = ((float)r + 0.5f) / u;
-        const float hw = gib_hd_hw(yu);
-        if (hw <= 0.f) { lx[r] = 1; rx[r] = 0; continue; }
-        const int half = (int)lroundf(hw * u);
-        lx[r] = cx - half;
-        rx[r] = cx + half - 1 + (W & 1);
-    }
-    /* drop shadow under the face (as hub_gibson) */
-    g.fillRect(ox + z / 2, oy + W, 6 * z, z > 2 ? 2 : z, PAL_BLACK);
-    /* 1 px black keyline: each row's span grown by one pixel, unioned with its neighbours */
-    for (int r = -1; r <= H; ++r) {
-        int a = 9999, b = -9999;
-        for (int k = r - 1; k <= r + 1; ++k) {
-            if (k < 0 || k >= H || lx[k] > rx[k]) continue;
-            if (lx[k] - 1 < a) a = lx[k] - 1;
-            if (rx[k] + 1 > b) b = rx[k] + 1;
-        }
-        if (b >= a) g.fillRect(a, oy + r, b - a + 1, 1, PAL_BLACK);
-    }
-    const int chin_y = oy + 6 * z;
-    for (int r = 0; r < H; ++r) {
-        if (lx[r] > rx[r]) continue;
-        const int y = oy + r;
-        const int w = rx[r] - lx[r] + 1;
-        if (y >= chin_y) { g.fillRect(lx[r], y, w, 1, PAL_CHIN); continue; }
-        g.fillRect(lx[r], y, w, 1, PAL_IVORY);
-        if (y >= oy + 5 * z) {                          /* jaw shade on the lower corners */
-            const int e = z * 2 / 3;
-            g.fillRect(lx[r], y, e, 1, PAL_CHIN);
-            g.fillRect(rx[r] - e + 1, y, e, 1, PAL_CHIN);
-        } else if (r < 3 * z) {                         /* lit rim along the dome */
-            const bool top = r == 0 || lx[r - 1] > rx[r - 1];
-            if (top) { g.fillRect(lx[r], y, w, 1, PAL_WHITE); continue; }
-            const int gx = lx[r - 1] > lx[r] ? lx[r - 1] - lx[r] : 1;   /* top-left light */
-            g.fillRect(lx[r], y, gx, 1, PAL_WHITE);
-            if (r < z) g.fillRect(lx[r], y, gx, 1, PAL_WHITE);
-        }
-    }
-    /* shades: thin brow bar across the face, two lenses with rounded lower corners, open nose */
-    const int by = oy + 3 * z;
-    const int bh = z * 2 / 5 > 2 ? z * 2 / 5 : 2;
-    g.fillRect(lx[3 * z], by, rx[3 * z] - lx[3 * z] + 1, bh, PAL_BLACK);
-    const int lw = 2 * z, lh = 2 * z;
-    const int L0 = ox + z, R0 = ox + 4 * z;
-    const int rc = z / 3 > 1 ? z / 3 : 1;
-    for (int k = 0; k < 2; ++k) {
-        const int x0 = k ? R0 : L0;
-        g.fillRect(x0, by, lw, lh - rc, PAL_BLACK);
-        for (int j = 0; j < rc; ++j) {                  /* stair-rounded lower corners */
-            const int in = (j + 1) * rc / (rc + 1) + (j + 1 == rc ? 1 : 0);
-            g.fillRect(x0 + in, by + lh - rc + j, lw - 2 * in, 1, PAL_BLACK);
-        }
-    }
-    /* glancing steel eyes behind the lenses (same 900 ms glance as hub_gibson) + a 1 px glint */
-    const int gl = (int)((millis() / 900u) % 2u);
-    const int es = z * 3 / 5 > 2 ? z * 3 / 5 : 2;
-    const int ey = by + bh + (lh - bh - es) / 2;
-    for (int k = 0; k < 2; ++k) {
-        const int x0 = (k ? R0 : L0) + (lw - es) / 2 + (gl ? z / 2 : -z / 2);
-        g.fillRect(x0, ey, es, es, PAL_STEEL);
-        g.fillRect(x0, ey, 1, 1, PAL_WHITE);
-    }
-}
-
-/* Option B centre: Gibson's own square chip (scan-board chip_block_ex: black window, gold pins)
- * sized so the whole square, pins included, sits inside the r34 rim. */
-static void gib_core_chip(Gfx g, int cx, int cy)
-{
-    chip_block_ex(g, cx, cy, 44, 12, false);
-}
-
-/* v1019j Option C (Dirt 2026-10-18 "square half round"): the CURRENT blocky v1019g Gibson (same 7x7
- * block body, ivory, full-width black shades band, square lenses, steel glancing eyes, chin, shadow)
- * with only the TOP of the head rounded: the stepped crown becomes a half-round arch whose diameter is
- * the full face width (square base + semicircular top), inside the same 7z x 7z footprint. */
-static void gib_face_c(Gfx g, int cx, int cy, int z)
-{
-    const int W = 7 * z;
-    const int ox = cx - W / 2, oy = cy - W / 2;
-    const float R = 3.5f * (float)z;                   /* arch radius = half the face width */
-    const float mx = (float)ox + R;                    /* face centre line (continuous) */
-    int lx[80], rx[80];
-    const int H = W < 78 ? W : 78;
-    for (int r = 0; r < H; ++r) {
-        if (r < 6 * z) { lx[r] = ox; rx[r] = ox + W - 1; } else { lx[r] = ox + z; rx[r] = ox + 6 * z - 1; }
-        const float dy = R - ((float)r + 0.5f);
-        if (dy > 0.f) {                                /* half-round top: rows above the arch centre */
-            const float hw = sqrtf(R * R - dy * dy);
-            lx[r] = (int)ceilf(mx - hw - 0.5f);
-            rx[r] = (int)floorf(mx + hw - 0.5f);
-            if (lx[r] < ox) lx[r] = ox;
-            if (rx[r] > ox + W - 1) rx[r] = ox + W - 1;
-        }
-    }
-    auto u = [&](int x, int y, int w, int h, uint8_t col) {
-        g.fillRect(ox + x * z, oy + y * z, w * z, h * z, col);
-    };
-    g.fillRect(ox + z / 2, oy + 7 * z, 6 * z, z > 2 ? 2 : z, PAL_BLACK);   /* shadow as hub_gibson */
-    for (int r = -1; r <= H; ++r) {                    /* 1 px black keyline (as gib_keyline) */
-        int a = 9999, b = -9999;
-        for (int k = r - 1; k <= r + 1; ++k) {
-            if (k < 0 || k >= H || lx[k] > rx[k]) continue;
-            if (lx[k] - 1 < a) a = lx[k] - 1;
-            if (rx[k] + 1 > b) b = rx[k] + 1;
-        }
-        if (b >= a) g.fillRect(a, oy + r, b - a + 1, 1, PAL_BLACK);
-    }
-    for (int r = 0; r < H; ++r) {
-        if (lx[r] > rx[r]) continue;
-        g.fillRect(lx[r], oy + r, rx[r] - lx[r] + 1, 1, r >= 6 * z ? (uint8_t)PAL_CHIN : (uint8_t)PAL_IVORY);
-    }
-    /* everything below is hub_gibson's blocky face, unchanged */
-    u(0, 5, 1, 1, PAL_CHIN);
-    u(6, 5, 1, 1, PAL_CHIN);
-    u(0, 3, 7, 1, PAL_BLACK);
-    u(1, 3, 2, 2, PAL_BLACK);
-    u(4, 3, 2, 2, PAL_BLACK);
-    const int gl = (int)((millis() / 900u) % 2u);
-    u(1 + gl, 3, 1, 1, PAL_STEEL);
-    u(4 + gl, 3, 1, 1, PAL_STEEL);
-}
-
-/* Shared clean ring stack for both options (radii and motion as the v1019g core, drawn as arcs). */
-static void gib_core_rings(Gfx g, int cx, int cy, uint32_t t, uint32_t spin_div, bool hub, int mood)
-{
-    const float tt = (float)t;
-    const float spin = tt / (float)spin_div * 0.105f;
-    arc_ring(g, cx, cy, 37, PAL_LINE, 0, 256, 0.f);                 /* faint full track */
-    arc_ring(g, cx, cy, 37, PAL_CYAN, 12, 128, spin);               /* 12 long arcs, mood spin */
-    if (hub && mood == MOOD_HUNTING) {
-        for (int k = 0; k < 14; ++k) {
-            const float ang = tt / 260.f - (float)k * 0.07f;
-            const uint8_t ink = k < 3 ? (uint8_t)PAL_WHITE : accent();
-            g.fillRect(cx + (int)lroundf(cosf(ang) * 40.f), cy + (int)lroundf(sinf(ang) * 40.f), 1, 1, ink);
-        }
-    }
-    arc_ring(g, cx, cy, 42, PAL_CYAN, 8, 112, -tt / 140.f * 0.06f); /* 8 arcs, counter-spin */
-    if (hub) {                                                      /* breathing pulse ring */
-        const int ph = (int)((t % 2400u) * 5u / 2400u);
-        arc_ring(g, cx, cy, 44 + ph, PAL_LINE, 0, 256, 0.f);
-    }
-    arc_ring(g, cx, cy, 48, PAL_CYAN, 24, 64, tt / 80.f * 0.02f);   /* 24 short ticks */
-    arc_ring(g, cx, cy, 54, PAL_LINE, 0, 256, 0.f);                 /* faint outer track */
-    arc_ring(g, cx, cy, 54, PAL_CYAN, 4, 96, -tt / 200.f * 0.05f);  /* 4 long outer arcs */
-}
-
-/* One entry for both screens: hub=true is paint_gibson's centre, false is the intro ring disc. */
-static void gib_core_opt(Gfx g, int cx, int cy, int z, uint32_t t, uint32_t spin_div, bool hub, int mood)
-{
-    hub_die(g, cx, cy, 34);
-    core_bezel(g, cx, cy, 34);
-    gib_core_rings(g, cx, cy, t, spin_div, hub, mood);
-    if (hub) hub_sparks(g, cx, cy, t);
-#if BOTCORPS_GIB_CORE == 2
-    (void)z;
-    gib_core_chip(g, cx, cy);
-#elif BOTCORPS_GIB_CORE == 3
-    g.fillRect(cx - 14, cy + 25, 28, 1, wire_ink());
-    gib_face_c(g, cx, cy, z);
-#else
-    g.fillRect(cx - 14, cy + 25, 28, 1, wire_ink());
-    gib_face_hd(g, cx, cy, z);
-#endif
-}
-#endif
 /* v1019i Option D (BOTCORPS_GIB_CORE=4, Dirt 2026-10-18 strict one-change): the default v1019g core
  * with ONLY the centre figure swapped for Gibson's existing square scan-board chip (chip_block_ex,
  * bot 12: black window, gold pins, square frame, Gibson's face). Die, bezel, rings, sparks, floor
  * line, sizes, colours and motion are the flag-0 code paths, untouched. Option E (=5) is D plus the
  * px_ring dotted rings walked on SQUARE paths (same half-size r, same dash/phase/colour/motion). */
-#if GIB_CORE_IS_CHIP
 static void gib_core_chip_d(Gfx g, int cx, int cy)
 {
-    chip_block_ex(g, cx, cy, 44, 12, false);           /* 44 px: the whole square, pins + silk, inside the r34 rim */
+    chip_block_ex(g, cx, cy, 44, 12);           /* 44 px: the whole square, pins + silk, inside the r34 rim */
 }
-#endif
 #if GIB_CORE_IS_E
 /* px_ring on a square: same contract (on<=0 = solid 1 px outline; else 1 px dots, `on` px on / on
  * px off along the path, shifted by `phase`), walked clockwise from (r,0) round the 8r px square. */
@@ -5410,9 +5073,6 @@ static void paint_gibson(Gfx g)
     /* v1016k (Dirt 9:31): hub MAIN screen is the animated moving rings core,
      * not a chip. Square chip_block applies only to Gibson inside boards. */
     GATE_BOX(g, "HUBCORE", "rings", cx - 54, cy - 54, 108, 108, "-");
-#if BOTCORPS_GIB_CORE && BOTCORPS_GIB_CORE < 4
-    gib_core_opt(g, cx, cy, 7, t, mood == MOOD_HUNTING ? 30u : mood == MOOD_EXCITED ? 50u : 90u, true, mood);
-#else
     hub_die(g, cx, cy, 34);
     core_bezel(g, cx, cy, 34);
     const int spin = mood == MOOD_HUNTING ? (int)(t / 30u) : mood == MOOD_EXCITED ? (int)(t / 50u) : (int)(t / 90u);
@@ -5431,13 +5091,7 @@ static void paint_gibson(Gfx g)
     GIB_CORE_RING(g, cx, cy, 44 + ph, PAL_CYAN, 3, 3, 0);
     hub_sparks(g, cx, cy, t);
     g.fillRect(cx - 14, cy + 25, 28, 1, wire);
-#if GIB_CORE_IS_CHIP
     gib_core_chip_d(g, cx, cy);   /* D/E: Gibson's square chip replaces the z7 figure */
-#else
-    gib_keyline(g, cx, cy, 7);
-    hub_gibson(g, cx, cy, 7);
-#endif
-#endif
     if (s_hub_zone == 3) {
         /* v1017b: Gibson focused (Enter = Gibson game). */
         g.drawCircle(cx, cy, 31, PAL_WHITE);
@@ -5568,10 +5222,6 @@ static void paint_rain_btn(Gfx g)
     const uint32_t t = millis();
     /* v1016k (Dirt 9:31): intro/rain screen is the ring disc, not a chip. */
     g.fillCircle(cx, cy, 56, PAL_BLACK);
-#if BOTCORPS_GIB_CORE && BOTCORPS_GIB_CORE < 4
-    gib_core_opt(g, cx, cy, BOTCORPS_GIB_CORE == 3 ? 9 : 8, t, 90u, false, MOOD_NEUTRAL);   /* A: z8 so the face sits inside the r34 rim; C: z9 as the current intro Gibson */
-    return;
-#endif
     hub_die(g, cx, cy, 34);
     core_bezel(g, cx, cy, 34);
     GIB_CORE_RING(g, cx, cy, 37, PAL_CYAN, 5, 5, (int)(t / 90u));
@@ -5579,12 +5229,7 @@ static void paint_rain_btn(Gfx g)
     GIB_CORE_RING(g, cx, cy, 48, PAL_CYAN, 1, 5, (int)(t / 80u));
     GIB_CORE_RING(g, cx, cy, 54, PAL_CYAN, 2, 6, (int)(t / 200u));
     g.fillRect(cx - 14, cy + 25, 28, 1, wire_ink());
-#if GIB_CORE_IS_CHIP
     gib_core_chip_d(g, cx, cy);   /* D/E: Gibson's square chip replaces the z9 figure */
-#else
-    gib_keyline(g, cx, cy, 9);
-    hub_gibson(g, cx, cy, 9);
-#endif
 }
 
 static void paint_diag(Gfx g)
@@ -6167,60 +5812,6 @@ static void paint_gchat(Gfx g)
     s_px = keep;
 }
 
-static void paint_intro(Gfx g)
-{
-    const uint8_t ac = PAL_CYAN;
-    g.fillRect(4, 4, 312, 232, PAL_BLACK);      /* v1016k: 4 px rain gutter outside the ID board */
-    g.drawRect(4, 4, 312, 232, PAL_LINE);
-    const int keep = s_px;
-    s_px = 6;
-    txt(g, "BOTcorps", 14, 6, PAL_MUTED, lgfx::textdatum::top_left);
-    txt(g, "S3", 150, 6, PAL_LINE, lgfx::textdatum::top_left);
-    txt(g, "REV A", 250, 6, PAL_LINE, lgfx::textdatum::top_left);
-    g.drawRect(10, 22, 116, 78, ac);
-    g.drawRect(12, 24, 112, 74, PAL_WIRE_C);
-    for (int d = 0; d < 110; d += 6) {
-        g.fillRect(14 + d, 20, 3, 1, ac);
-        g.fillRect(14 + d, 100, 3, 1, ac);
-    }
-    chip_block_ex(g, 68, 58, 46, 12, true);
-    txt(g, "GIBSON", 48, 86, ac, lgfx::textdatum::top_left);
-    g.fillRect(14, 104, 92, 18, PAL_BG);
-    g.drawRect(14, 104, 92, 18, PAL_WIRE_C);
-    txt(g, "U14 FLASH", 22, 108, PAL_MUTED, lgfx::textdatum::top_left);
-    for (int i = 0; i < 12; ++i) {
-        const int col = i % 4;
-        const int row = i / 4;
-        const int x = 140 + col * 44;
-        const int y = 22 + row * 30;
-        g.fillRect(x, y, 34, 22, PAL_BG);
-        g.drawRect(x, y, 34, 22, bot_color(i));
-        chip_mini(g, x + 17, y + 10, 16, i, false, 0);   /* v1019l: intro = hardware side, square chip bots */
-    }
-    g.fillRect(304, 108, 10, 14, PAL_STEEL);
-    g.fillRect(306, 111, 8, 8, PAL_BLACK);
-    txt(g, "USB", 286, 112, PAL_MUTED, lgfx::textdatum::top_left);
-    g.drawRect(8, 132, 304, 96, ac);
-    g.fillRect(10, 134, 300, 92, PAL_BLACK);
-    g.fillRect(12, 148, 2, 60, ac);
-    g.fillRect(298, 148, 2, 60, ac);
-    chip_block_ex(g, 36, 176, 30, 12, true);
-    txt(g, "BOTS", 70, 150, PAL_MUTED, lgfx::textdatum::top_left);
-    txt(g, "7/12", 200, 150, ac, lgfx::textdatum::top_left);
-    txt(g, "UPTIME", 70, 166, PAL_MUTED, lgfx::textdatum::top_left);
-    txt(g, "LINK", 70, 182, PAL_MUTED, lgfx::textdatum::top_left);
-    for (int k = 0; k < 16; ++k) {
-        g.fillRect(120 + k * 8, 160, 6, 4, k < 10 ? ac : (uint8_t)PAL_LINE);
-        g.fillRect(120 + k * 8, 176, 6, 4, k < 12 ? ac : (uint8_t)PAL_LINE);
-        g.fillRect(120 + k * 8, 192, 6, 4, k < 13 ? ac : (uint8_t)PAL_LINE);
-    }
-    g.fillRect(70, 204, 90, 10, PAL_BG);
-    txt(g, "BOTcorps", 78, 205, ac, lgfx::textdatum::top_left);
-    txt(g, "LV 01", 160, 214, PAL_MUTED, lgfx::textdatum::top_left);
-    for (int k = 0; k < 28; ++k) g.fillRect(16 + k * 4, 210, k % 3 == 0 ? 1 : 2, 8, PAL_WHITE);
-    s_px = keep;
-}
-
 /* v1017c (#4/#6): rain glyph flags per screen. Gibson's screens (hub, Gibson's scan board) mix in
  * ivory Gibsons; the Terminal's rain has no bot emblems. */
 static void rain_flags(void)
@@ -6241,7 +5832,7 @@ static void paint_ext(Gfx g)
     botcorps_rain_set_hub(hub);
     rain_flags();
     /* v1016k (SPEC R1): rain behind EVERY screen. Live (stepped) where it always was;
-     * panel screens (terminal, scan box, game, diag, intro) get the same rain painted
+     * panel screens (terminal, scan box, game, diag) get the same rain painted
      * as a static layer on each full paint, framed by their opaque panels. */
     const bool rain_bg = wants_rain() || rain_static();
     if (hub) g.fillScreen(botcorps_pal_hub_of(COL_FIELD));
@@ -6260,10 +5851,6 @@ static void paint_ext(Gfx g)
 #ifdef BOTCORPS_HOST_RENDER
         host_gate_mute = 0;
 #endif
-    }
-    if (s_screen == SCR_RAIN && s_act == 4) {
-        paint_intro(g);
-        return;
     }
     if (s_screen == SCR_DIAG) {
         paint_diag(g);
@@ -8466,18 +8053,6 @@ void botcorps_host_gc_title(uint8_t *buf, int bot)
     paint_ext(Gfx());
     s_defend_bot = 12;
 }
-void botcorps_host_intro(uint8_t *buf)
-{
-    host_frame = buf;
-    memset(buf, PAL_BLACK, 320u * 240u);
-    s_screen = SCR_RAIN;
-    s_act = 4;
-    s_sheet = false;
-    botcorps_lut_term(false);
-    paint_ext(Gfx());
-    s_act = -1;
-}
-
 void botcorps_host_gmenu(uint8_t *buf)
 {
     botcorps_host_gchat(buf);
@@ -8497,7 +8072,7 @@ void botcorps_host_jackin(uint8_t *buf)
 
 /* v1019j: Defend game host hooks. The game is entered through the real Defend path (enter_defend)
  * warm_ms before the frame clock, then played by the host autopilot (same keys) at the 33 ms tick. */
-static void dg_host_play(int bot, int warm_ms, bool ai)
+static void dg_host_play(int bot, int warm_ms, bool ai, int slot = 0)
 {
     const uint32_t t1 = millis();
     s_color = 0; s_sheet = false; s_fa_on = false; s_act = -1; s_gp_buf[0] = 0;
@@ -8505,6 +8080,7 @@ static void dg_host_play(int bot, int warm_ms, bool ai)
     host_set_millis(t1 - (uint32_t)warm_ms);
     gc_set_count(0);
     enter_defend(bot, SCR_GIBSON);
+    for (int k = 0; k < slot; ++k) dg_key(K_TAB, 0);   /* v1019m: the real Tab key picks the category's game */
     for (uint32_t t = t1 - (uint32_t)warm_ms + 33u; t < t1; t += 33u) {
         host_set_millis(t);
         if (ai) dg_ai();
@@ -8521,12 +8097,21 @@ void botcorps_host_defend(uint8_t *buf, int bot, int warm_ms)
     memset(buf, PAL_BLACK, 320u * 240u);
     paint_ext(Gfx());
 }
-/* review only (not a gate item): the INT HUD painter drawn into the top-left 240x135 of buf; the bar
- * is a host stand-in (fill + label), the HUD under it is the real dg_paint_hud. */
-void botcorps_host_defend_hud(uint8_t *buf, int bot, int warm_ms)
+/* v1019m: the same, for game slot 0-2 of the bot's category (Tab pressed slot times after entry) */
+void botcorps_host_defend_g(uint8_t *buf, int bot, int slot, int warm_ms)
 {
     host_frame = buf;
-    dg_host_play(bot, warm_ms, true);
+    dg_host_play(bot, warm_ms, true, slot);
+    host_frame = buf;
+    memset(buf, PAL_BLACK, 320u * 240u);
+    paint_ext(Gfx());
+}
+/* review only (not a gate item): the INT HUD painter drawn into the top-left 240x135 of buf; the bar
+ * is a host stand-in (fill + label), the HUD under it is the real dg_paint_hud. */
+void botcorps_host_defend_hud(uint8_t *buf, int bot, int warm_ms, int slot)
+{
+    host_frame = buf;
+    dg_host_play(bot, warm_ms, true, slot);
     host_frame = buf;
     memset(buf, PAL_BLACK, 320u * 240u);
     Gfx g = Gfx();
@@ -8539,13 +8124,13 @@ void botcorps_host_defend_hud(uint8_t *buf, int bot, int warm_ms)
     dg_paint_hud(g, 240, true);
 }
 /* logic test: play from a fresh start for up to max_ms; returns the end state */
-int botcorps_host_defend_run(int bot, bool ai, bool noghost, int max_ms, int *game, int *score, int *miss, int *junk, int *ms)
+int botcorps_host_defend_run(int bot, int slot, bool ai, bool noghost, int max_ms, int *game, int *score, int *miss, int *junk, int *ms)
 {
     static uint8_t fb[320 * 240];
     host_frame = fb;
     host_set_millis(100000u);
     s_dg_noghost = noghost;
-    dg_host_play(bot, 33, false);
+    dg_host_play(bot, 33, false, slot);
     uint32_t t = millis();
     const uint32_t end = t + (uint32_t)max_ms;
     while (t < end && s_dg_state != DGS_WIN && s_dg_state != DGS_LOST) {
@@ -8560,6 +8145,25 @@ int botcorps_host_defend_run(int bot, bool ai, bool noghost, int max_ms, int *ga
     const int st = s_dg_state;
     dg_stop();
     return st;
+}
+/* v1019m cycle test: from a Defend entry for this bot, Tab x3 walks the category's three games and wraps;
+ * on a LOST stop `/` steps next and `,` steps back. Writes the 6 game ids seen; returns the category. */
+int botcorps_host_defend_cycle(int bot, int *ids)
+{
+    static uint8_t fb[320 * 240];
+    host_frame = fb;
+    host_set_millis(200000u);
+    s_term = 0; botcorps_t0_term_prompt[0] = 0; s_gp_buf[0] = 0; s_fa_on = false; s_act = -1;
+    enter_screen(SCR_GIBSON, -1);
+    enter_defend(bot, SCR_GIBSON);
+    ids[0] = s_dg;
+    for (int k = 1; k <= 3; ++k) { ui_dispatch(K_TAB, 0); ids[k] = dg_on() ? s_dg : -1; }
+    s_dg_state = DGS_LOST;
+    ui_dispatch(K_RT, 0); ids[4] = dg_on() ? s_dg : -1;
+    s_dg_state = DGS_LOST;
+    ui_dispatch(K_LT, 0); ids[5] = dg_on() ? s_dg : -1;
+    dg_stop();
+    return DG_CAT[(bot < 0 || bot > 12) ? 12 : bot];
 }
 /* route test: which Defend path launches which game; Esc quits the game to the Defend board */
 int botcorps_host_defend_route(int which, int *screen, int *esc1, int *esc1_game, int *esc2)
@@ -8761,6 +8365,7 @@ int botcorps_host_sim(int ms, const char *keys, long *presents, long *pushes, lo
             if (c >= 1 && c <= 4) { s_key_fn = true; ui_dispatch((int)c, 0); }
             else if (c == '\n') { s_key_fn = false; ui_dispatch(K_OK, 0); }
             else if (c == '\b') { s_key_fn = false; ui_dispatch(K_BS, 0); }
+            else if (c == '\t') { s_key_fn = false; ui_dispatch(K_TAB, 0); }   /* v1019m: Tab (Defend game switch) */
             else if (c == 0x1b) { s_key_fn = false; ui_dispatch(K_ESC, 0); }
             else { s_key_fn = false; ui_dispatch(K_CHAR, (char)c); }
         }

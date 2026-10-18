@@ -5063,11 +5063,15 @@ static void partial_gp_strip(void)
  * core exactly as before (nothing below is compiled in). 1 = Option A: higher-resolution ROUND Gibson
  * (pixel-level dome/jaw, rounded lenses, 1 px keyline) inside clean continuous-arc rings. 2 = Option B:
  * Gibson's SQUARE chip (black window, gold pins) sitting inside the same round ring. 3 = Option C: the
- * current blocky Gibson with a half-round top (square base + semicircular crown). Not shipped until
- * Dirt picks; the hub default stays the animated moving-circles core. */
+ * current blocky Gibson with a half-round top (square base + semicircular crown).
+ * v1019k (Dirt 2026-10-18, LOCKED): Option E is now the DEFAULT. Flag 0 (no flag) renders exactly what
+ * BOTCORPS_GIB_CORE=5 rendered: Gibson's square chip (chip_block_ex) in the centre with the pulsing
+ * px_ring lines walked on square paths (px_sq_ring), hub + intro ring disc. Flags 1-5 unchanged. */
 #ifndef BOTCORPS_GIB_CORE
 #define BOTCORPS_GIB_CORE 0
 #endif
+#define GIB_CORE_IS_E (BOTCORPS_GIB_CORE == 0 || BOTCORPS_GIB_CORE == 5)
+#define GIB_CORE_IS_CHIP (BOTCORPS_GIB_CORE == 0 || BOTCORPS_GIB_CORE >= 4)
 #if BOTCORPS_GIB_CORE && BOTCORPS_GIB_CORE < 4
 /* Crisp 1 px ring drawn as continuous arcs: `segs` arcs, each `duty`/256 of its slot, rotated by
  * `ph` (radians). Pixel-exact band |d - r| < 0.5, so arcs are unbroken lines, not scattered dots. */
@@ -5289,13 +5293,13 @@ static void gib_core_opt(Gfx g, int cx, int cy, int z, uint32_t t, uint32_t spin
  * bot 12: black window, gold pins, square frame, Gibson's face). Die, bezel, rings, sparks, floor
  * line, sizes, colours and motion are the flag-0 code paths, untouched. Option E (=5) is D plus the
  * px_ring dotted rings walked on SQUARE paths (same half-size r, same dash/phase/colour/motion). */
-#if BOTCORPS_GIB_CORE >= 4
+#if GIB_CORE_IS_CHIP
 static void gib_core_chip_d(Gfx g, int cx, int cy)
 {
     chip_block_ex(g, cx, cy, 44, 12, false);           /* 44 px: the whole square, pins + silk, inside the r34 rim */
 }
 #endif
-#if BOTCORPS_GIB_CORE == 5
+#if GIB_CORE_IS_E
 /* px_ring on a square: same contract (on<=0 = solid 1 px outline; else 1 px dots, `on` px on / on
  * px off along the path, shifted by `phase`), walked clockwise from (r,0) round the 8r px square. */
 static void px_sq_ring(Gfx g, int cx, int cy, int r, uint8_t col, int on, int off, int phase)
@@ -5418,7 +5422,7 @@ static void paint_gibson(Gfx g)
     GIB_CORE_RING(g, cx, cy, 44 + ph, PAL_CYAN, 3, 3, 0);
     hub_sparks(g, cx, cy, t);
     g.fillRect(cx - 14, cy + 25, 28, 1, wire);
-#if BOTCORPS_GIB_CORE >= 4
+#if GIB_CORE_IS_CHIP
     gib_core_chip_d(g, cx, cy);   /* D/E: Gibson's square chip replaces the z7 figure */
 #else
     gib_keyline(g, cx, cy, 7);
@@ -5566,7 +5570,7 @@ static void paint_rain_btn(Gfx g)
     GIB_CORE_RING(g, cx, cy, 48, PAL_CYAN, 1, 5, (int)(t / 80u));
     GIB_CORE_RING(g, cx, cy, 54, PAL_CYAN, 2, 6, (int)(t / 200u));
     g.fillRect(cx - 14, cy + 25, 28, 1, wire_ink());
-#if BOTCORPS_GIB_CORE >= 4
+#if GIB_CORE_IS_CHIP
     gib_core_chip_d(g, cx, cy);   /* D/E: Gibson's square chip replaces the z9 figure */
 #else
     gib_keyline(g, cx, cy, 9);

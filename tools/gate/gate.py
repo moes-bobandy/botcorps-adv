@@ -210,8 +210,10 @@ for scr in screens:
         rep(scr, 'G8 crown back control present', bool(crowns), f'{len(crowns)} crown')
     if scr.startswith('hub'):
         core = [b for b in boxes if b['k'] == 'HUBCORE']
-        gchip = [b for b in boxes if b['k'] == 'CHIP']
-        rep(scr, 'H1 centre = animated rings core, not a chip', bool(core) and not gchip, f'core={len(core)} chips={len(gchip)}')
+        # v1019k (Dirt 2026-10-18 LOCKED, Option E default): Gibson's own square chip sits at the centre
+        # of the animated rings core. The only chip allowed is that one gibson chip, fully inside HUBCORE.
+        gchip = [b for b in boxes if b['k'] == 'CHIP' and not (b['n'] == 'gibson' and any(inside(b, c) for c in core))]
+        rep(scr, 'H1 centre = animated rings core (Gibson chip inside the rings only)', bool(core) and not gchip, f'core={len(core)} stray chips={len(gchip)}')
         navs = [b for b in boxes if b['k'] == 'BTN' and b['n'] == 'hubnav']
         lit = 0; det = []
         p = im.load()

@@ -476,32 +476,39 @@ void botcorps_rain_ghost_ex(lgfx::LovyanGFX &dst, int ox, int oy, int rx, int ry
     if (!s_built) build_columns();
     if (rw <= 0 || rh <= 0) return;
     if (bg_on()) return;                          /* v1019n: no rain under a background, so no ghost bits */
-    if (s_no_bots) {                              /* v1019n (#15): the device-only rain ghosts as device icons */
+    if (s_no_bots) {
+        /* v1019o (#15 field fix): the rain behind / through the Terminal tiles and the prompt plate is the
+         * SAME device-icon rain as the open field: WHOLE icons only (an icon cut by the rect edge is
+         * skipped, so no clipped fragment ever reads as a 0/1 bit or a glyph), drawn with the icon's full
+         * art (body / shade / highlight), never bit marks. Tiles + prompt plate: the icon's own inks
+         * (BOT-RAIN toggle only) dimmed to ~60%. Chip face (top_whole): the passed face ink, body +
+         * highlight pixels. Same cells / icons as the open rain, so it reads as one continuous rain. */
         const int dh0 = dst.height();
         const int c0 = rx / CELL, c1 = (rx + rw - 1) / CELL, r0 = ry / CELL, r1 = (ry + rh - 1) / CELL;
         for (int col = c0 < 0 ? 0 : c0; col <= c1 && col < CELL_COLS; ++col)
             for (int row = r0 < 0 ? 0 : r0; row <= r1 && row < CELL_ROWS; ++row) {
+                const int gx = col * CELL, gy = row * CELL;
+                if (gx < rx || gx + CELL > rx + rw || gy < ry || gy + CELL > ry + rh) continue;   /* whole icons only */
                 const int lv = cell_level(col, row, nullptr);
                 int d;
                 if (lv <= 0 || !dev_only_icon(col, row, lv, *glyph_at(col, row), &d)) continue;
-                const int gx = col * CELL, gy = row * CELL;
-                if (top_whole && gy < ry) continue;
-                uint8_t gi = ink;                 /* tiles / prompt plate: the icon's own colour at ~40% */
-                if (!top_whole) {
-                    const uint16_t c = s_mode > 0 ? SOLID_INK[s_mode - 1] : (s_gibson ? DEV_GIB[d][0] : DEV_NEON[d][0]);
-                    gi = botcorps_pal_fit(scale_native(c, 2, 5));
+                uint8_t ink3[3];
+                if (top_whole) {
+                    ink3[0] = ink; ink3[1] = 0; ink3[2] = ink;
+                } else {
+                    const uint16_t *pc = s_gibson ? DEV_GIB[d] : DEV_NEON[d];
+                    uint16_t sc[3];
+                    if (s_mode > 0) { sc[0] = SOLID_INK[s_mode - 1]; sc[1] = scale_native(sc[0], 1, 4); sc[2] = sc[0]; pc = sc; }
+                    const int num = lv <= 3 ? 3 : (lv == 4 ? 2 : 1);
+                    for (int k = 0; k < 3; ++k) ink3[k] = botcorps_pal_fit(scale_native(pc[k], num, 5));
                 }
                 for (int yy = 0; yy < 8; ++yy) {
-                    const int wy = gy + yy;
-                    if (wy < ry || wy >= ry + rh) continue;
-                    const int ly = wy - oy;
+                    const int ly = gy + yy - oy;
                     if (ly < 0 || ly >= dh0) continue;
                     for (int xx = 0; xx < 8; ++xx) {
                         const char ch = DEV_ART[d][yy][xx];
-                        if (ch == '.' || ch == 'b') continue;   /* outline + highlight pixels only */
-                        const int wx = gx + xx;
-                        if (wx < rx || wx >= rx + rw) continue;
-                        botcorps_pal_rect(dst, wx - ox, ly, 1, 1, gi);
+                        if (ch == '.' || (top_whole && ch == 'b')) continue;
+                        botcorps_pal_rect(dst, gx + xx - ox, ly, 1, 1, ink3[ch - 'a']);
                     }
                 }
             }

@@ -42,7 +42,7 @@
   PASS  G2 sprites inside their chip/tile
   PASS  G3 no clipped/overrun text
   PASS  G4 nothing past the board/screen edge
-  PASS  G5 rain layer present + visible  [logged=True visible_px=4350 colour_px=3345]
+  PASS  G5 rain layer present + visible  [logged=True visible_px=4643 colour_px=2682]
   PASS  G6 no instruction text
   PASS  G7 regression vs approved render  [0 px changed (limit 40)]
   PASS  G8 crown back control present  [1 crown]
@@ -51,7 +51,7 @@
   PASS  G2 sprites inside their chip/tile
   PASS  G3 no clipped/overrun text
   PASS  G4 nothing past the board/screen edge
-  PASS  G5 rain layer present + visible  [logged=True visible_px=4387 colour_px=3292]
+  PASS  G5 rain layer present + visible  [logged=True visible_px=4067 colour_px=2463]
   PASS  G6 no instruction text
   PASS  G8 crown back control present  [1 crown]
   PASS  T1 log pale cyan, "[ ok ]" green  [green_px=50 paleCyan_px=1247 other_px=0]
@@ -60,7 +60,7 @@
   PASS  G2 sprites inside their chip/tile
   PASS  G3 no clipped/overrun text
   PASS  G4 nothing past the board/screen edge
-  PASS  G5 rain layer present + visible  [logged=True visible_px=3690 colour_px=2602]
+  PASS  G5 rain layer present + visible  [logged=True visible_px=3456 colour_px=1903]
   PASS  G6 no instruction text
   PASS  G7 regression vs approved render  [0 px changed (limit 40), masked [(4, 167, 316, 240)]]
   PASS  G8 crown back control present  [1 crown]
@@ -626,7 +626,7 @@
   PASS  G2 sprites inside their chip/tile
   PASS  G3 no clipped/overrun text
   PASS  G4 nothing past the board/screen edge
-  PASS  G5 rain layer present + visible  [logged=True visible_px=4778 colour_px=3349]
+  PASS  G5 rain layer present + visible  [logged=True visible_px=4572 colour_px=2370]
   PASS  G6 no instruction text
   PASS  G8 crown back control present  [1 crown]
 == terminal-atkgloss
@@ -634,7 +634,7 @@
   PASS  G2 sprites inside their chip/tile
   PASS  G3 no clipped/overrun text
   PASS  G4 nothing past the board/screen edge
-  PASS  G5 rain layer present + visible  [logged=True visible_px=1726 colour_px=1172]
+  PASS  G5 rain layer present + visible  [logged=True visible_px=1663 colour_px=983]
   PASS  G6 no instruction text
   PASS  G8 crown back control present  [1 crown]
 == terminal-atkmenu
@@ -642,7 +642,7 @@
   PASS  G2 sprites inside their chip/tile
   PASS  G3 no clipped/overrun text
   PASS  G4 nothing past the board/screen edge
-  PASS  G5 rain layer present + visible  [logged=True visible_px=525 colour_px=366]
+  PASS  G5 rain layer present + visible  [logged=True visible_px=494 colour_px=348]
   PASS  G6 no instruction text
   PASS  G8 crown back control present  [1 crown]
 == terminal-cmdbtn
@@ -650,7 +650,7 @@
   PASS  G2 sprites inside their chip/tile
   PASS  G3 no clipped/overrun text
   PASS  G4 nothing past the board/screen edge
-  PASS  G5 rain layer present + visible  [logged=True visible_px=5238 colour_px=3987]
+  PASS  G5 rain layer present + visible  [logged=True visible_px=5310 colour_px=3314]
   PASS  G6 no instruction text
   PASS  G8 crown back control present  [1 crown]
 == terminal-cmdmenu
@@ -658,7 +658,7 @@
   PASS  G2 sprites inside their chip/tile
   PASS  G3 no clipped/overrun text
   PASS  G4 nothing past the board/screen edge
-  PASS  G5 rain layer present + visible  [logged=True visible_px=4417 colour_px=2804]
+  PASS  G5 rain layer present + visible  [logged=True visible_px=4196 colour_px=2351]
   PASS  G6 no instruction text
   PASS  G8 crown back control present  [1 crown]
 == terminal-prompt
@@ -666,7 +666,7 @@
   PASS  G2 sprites inside their chip/tile
   PASS  G3 no clipped/overrun text
   PASS  G4 nothing past the board/screen edge
-  PASS  G5 rain layer present + visible  [logged=True visible_px=5010 colour_px=3382]
+  PASS  G5 rain layer present + visible  [logged=True visible_px=4882 colour_px=2695]
   PASS  G6 no instruction text
   PASS  G8 crown back control present  [1 crown]
 == functional

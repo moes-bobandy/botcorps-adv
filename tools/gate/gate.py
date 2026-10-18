@@ -254,8 +254,8 @@ for scr in screens:
     if scr == 'game-board':
         has = [t['s'] for t in texts if '> Defend' in t['s']]
         rep(scr, 'D1 dynamic "<name>> Defend" title present', bool(has), f'{has[:1]}')
-    # v1019j (Dirt LOCKED): the four Defend mini-games. Matte-black board, the active bot as a square chip
-    # (Gibson ivory/gold on his maze), and the game's own pieces on the board (reused icons + 0/1 bits).
+    # v1019j (Dirt LOCKED): the four Defend mini-games. Matte-black board, the active bot (v1019l: as its round
+    # sprite, Gibson round ivory on his maze), and the game's own pieces on the board (reused icons + 0/1 bits).
     if scr.startswith('defend-'):
         DGW = {'defend-raincatch': ('bot', ('icon', 'bit'), 1), 'defend-beaconsort': ('bot', ('beacon',), 1),
                'defend-firewall': ('bot', ('block', 'iot', 'packet'), 30), 'defend-maze': ('gibson', ('shield', 'jammer'), 4)}[scr]
@@ -266,8 +266,10 @@ for scr in screens:
             rep(scr, 'DG1 Defend board is matte black', luma(dom) <= 24, f'dominant={dom}')
         else:
             rep(scr, 'DG1 Defend board is matte black', False, 'no BOARD box')
-        ch = [c for c in boxes if c['k'] == 'TCHIP' and c['n'] == DGW[0] and c['w'] == c['h'] and bd and inside(c, bd[0])]
-        rep(scr, 'DG2 active bot is a square chip on the board' + (' (Gibson)' if DGW[0] == 'gibson' else ''), len(ch) == 1, f'{[(c["n"], c["x"], c["y"], c["w"]) for c in ch]}')
+        # v1019l (Dirt concept: games = software side): the active bot plays as its ROUND sprite, no chip on the board.
+        rb = [c for c in boxes if c['k'] == 'DGBOT' and c['n'] == DGW[0] and bd and inside(c, bd[0])]
+        ch = [c for c in boxes if c['k'] in ('TCHIP', 'CHIP') and bd and inside(c, bd[0])]
+        rep(scr, 'DG2 active bot is its round sprite on the board, no chip' + (' (Gibson)' if DGW[0] == 'gibson' else ''), len(rb) == 1 and not ch, f'round={[(c["n"], c["x"], c["y"], c["w"]) for c in rb]} chips={len(ch)}')
         ob = [o for o in boxes if o['k'] == 'DGOBJ' and o['n'] in DGW[1] and bd and inside(o, bd[0])]
         rep(scr, 'DG3 game pieces on the board (reused icons / 0-1 bits)', len(ob) >= DGW[2], f'{len(ob)} pieces {sorted({o["n"] for o in ob})}')
     if scr.startswith('scanboard-') or scr.startswith('sbox') or scr.startswith('scan-') or scr.startswith('settings'):

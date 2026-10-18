@@ -497,6 +497,8 @@ void host_gate_box(int ox, int oy, const char *kind, const char *name, int x, in
 {
     if (host_gate_mute) return;
     char b[256];
+    /* v1019l: a walking figure stays walk-exempt whatever it is drawn as (the scan scout is now a chip) */
+    if (host_gate_walk && strcmp(kind, "SPR") == 0) kind = "WALK";
     snprintf(b, sizeof b, "BOX\t%s\t%s\t%d\t%d\t%d\t%d\t%s\n", kind, name, x - ox, y - oy, w, h, parent ? parent : "-");
     gate_put(b);
 }

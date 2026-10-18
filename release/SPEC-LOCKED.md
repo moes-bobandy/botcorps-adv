@@ -112,7 +112,7 @@ the board renders (game-board / game-menu) are unchanged.
 | id | rule |
 |---|---|
 | DG1 | The game board is matte black (dominant luma <=24) |
-| DG2 | The active bot is one square chip on the board (Gibson's ivory/gold chip on his maze) |
+| DG2 | v1019l (Dirt concept: games = software side): the active bot is its one ROUND sprite on the board, as in the per-bot hunt game (own shape + fixed colour; Gibson round ivory on his maze); no chip on the board |
 | DG3 | The game's pieces are on the board, reused art only (device icons, 0/1 rain bits, jammer = deauth icon) |
 | DG | Win and lose rules on the real step code: Rain Catch 20 caught = win, 3 missed icons or 3 bits = lose; Beacon Sort 25 = win, 3 mistakes = lose; Firewall Wall all 32 blocks = win, 3 packets = lose; Gibson Maze all pellets = win, caught 3x = lose |
 | DGR | Each Defend path launches its category's game; backtick quits to the Defend board; Esc again goes back |

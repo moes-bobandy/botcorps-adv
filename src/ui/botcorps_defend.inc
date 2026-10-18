@@ -37,6 +37,21 @@ static bool s_dg_noghost = false;  /* host logic test only: maze without jammers
 #endif
 
 
+/* v1019l (Dirt concept: games = software side): the active bot plays as its ROUND sprite, exactly as in
+ * the per-bot hunt game (bot's own shape + fixed colour; Gibson = round ivory). Same centre as the old
+ * chip; the sprite fits inside the old chip's patch rect. DGBOT is a host gate log entry only. */
+static void dg_bot(Gfx g, int cx, int cy, int scale)
+{
+    const bool gib = s_dg_bot >= 12;
+    const int shape = gib ? 0 : botcorps_shape_for(s_dg_bot);
+#ifdef BOTCORPS_HOST_RENDER
+    static const int8_t SW[4] = { 7, 9, 7, 5 }, SH[4] = { 7, 6, 9, 5 };
+    GATE_BOX(g, "DGBOT", gib ? "gibson" : "bot", cx - SW[shape] * scale / 2, cy - SH[shape] * scale / 2,
+             SW[shape] * scale, SH[shape] * scale, "-");
+#endif
+    draw_blob(g, cx, cy, scale, gib ? (uint8_t)PAL_IVORY : bot_color(s_dg_bot), shape, false);
+}
+
 static uint32_t dg_rng(void) { s_dg_rng = s_dg_rng * 1664525u + 1013904223u; return s_dg_rng; }
 static float dg_rngf(void) { return (float)(dg_rng() >> 8) / 16777216.f; }
 
@@ -122,7 +137,7 @@ static void rc_paint(Gfx g)
             dg_bit(g, cx - 3, y + 1, d.k == -2, 2, PAL_HEAD);
         }
     }
-    chip_mini(g, rc_cx(s_rc_lane), RC_BOTY, 20, s_dg_bot, false, 0);
+    dg_bot(g, rc_cx(s_rc_lane), RC_BOTY, 2);
 }
 
 /* ---------- 2A Beacon Sort ---------- */
@@ -200,7 +215,7 @@ static void bs_paint(Gfx g)
         if (y >= DG_PY && x + 15 + 6 <= DG_PX + DG_PW && x + 15 >= DG_PX)
             dg_bit(g, x + 15, y + 1, (b.tag & 1) != 0, 2, dim ? (uint8_t)PAL_LINE : (uint8_t)PAL_HEAD);
     }
-    chip_mini(g, BS_CX, BS_BOTY, 20, s_dg_bot, false, 0);
+    dg_bot(g, BS_CX, BS_BOTY, 2);
 }
 
 /* ---------- 3B Firewall Wall ---------- */
@@ -289,7 +304,7 @@ static void fw_paint(Gfx g)
         GATE_BOX(g, "DGOBJ", "iot", x, FW_ICY, 12, 12, "-");
         gl_icon(g, FW_IOT[c], x, FW_ICY, (s_fw_dim >> c) & 1u);
     }
-    chip_mini(g, (int)lroundf(s_fw_px), FW_PY, 22, s_dg_bot, false, 0);
+    dg_bot(g, (int)lroundf(s_fw_px), FW_PY, 2);
     const int bx = (int)lroundf(s_fw_bx), by = (int)lroundf(s_fw_by);
     GATE_BOX(g, "DGOBJ", "packet", bx, by, 6, 10, "-");
     dg_bit(g, bx, by, false, 2, PAL_WHITE);                        /* the bit packet */
@@ -456,7 +471,7 @@ static void mz_paint(Gfx g)
         GATE_BOX(g, "DGOBJ", "jammer", jx, jy, 12, 12, "-");
         dev_icon(g, DEV_DEAUTH, jx, jy, fr);
     }
-    chip_mini(g, MZ_X + (int)lroundf(s_mz_p.x), MZ_Y + (int)lroundf(s_mz_p.y), 13, s_dg_bot, false, 0);
+    dg_bot(g, MZ_X + (int)lroundf(s_mz_p.x), MZ_Y + (int)lroundf(s_mz_p.y), 1);
 }
 
 /* ---------- shared: start / step / keys / board / patches / INT HUD ---------- */

@@ -3659,7 +3659,7 @@ static void sb_grid(Gfx g, int band, bool tiles)
 #ifdef BOTCORPS_HOST_RENDER
     host_gate_walk = 1;
 #endif
-    botcorps_sprite_draw(*g.raw(), hx - g.ox, hy - 1 - g.oy, botcorps_shape_for(bot), 1, bc, false);
+    chip_mini(g, hx, hy - 1, 11, bot, false, 0);   /* v1019l: scan screen = hardware side, square chip bot */
 #ifdef BOTCORPS_HOST_RENDER
     host_gate_walk = 0;
 #endif
@@ -4082,7 +4082,7 @@ static void sb_top(Gfx g)
     sb_rect(g, 0, 0, 320, 24, 8);
     sb_rect(g, 0, 24, 320, 1, sb_tone(3));
     sb_rect(g, 0, 24, (int)(320.f * u), 1, ac);
-    hub_gibson(g, 14, 12, 1);
+    chip_mini(g, 14, 12, 14, 12, false, 0);   /* v1019l (Dirt concept): outside games Gibson is a square chip */
     for (int i = 0; i < 12; ++i) {
         const bool out = u > (float)i * .02f && u < .7f;
         const uint8_t c = bot_color(i);
@@ -6195,7 +6195,7 @@ static void paint_intro(Gfx g)
         const int y = 22 + row * 30;
         g.fillRect(x, y, 34, 22, PAL_BG);
         g.drawRect(x, y, 34, 22, bot_color(i));
-        draw_blob(g, x + 17, y + 10, 1, bot_color(i), 0, false);
+        chip_mini(g, x + 17, y + 10, 16, i, false, 0);   /* v1019l: intro = hardware side, square chip bots */
     }
     g.fillRect(304, 108, 10, 14, PAL_STEEL);
     g.fillRect(306, 111, 8, 8, PAL_BLACK);

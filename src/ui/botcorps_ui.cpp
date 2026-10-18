@@ -5058,6 +5058,178 @@ static void partial_gp_strip(void)
     p.clearClipRect();
 }
 
+/* v1019i (Dirt 2026-10-17, EXPLORATION ONLY): two candidate Gibson cores for the hub centre and the
+ * intro rain ring disc, selectable at build time. BOTCORPS_GIB_CORE 0 (default) = the locked v1019g
+ * core exactly as before (nothing below is compiled in). 1 = Option A: higher-resolution ROUND Gibson
+ * (pixel-level dome/jaw, rounded lenses, 1 px keyline) inside clean continuous-arc rings. 2 = Option B:
+ * Gibson's SQUARE chip (black window, gold pins) sitting inside the same round ring. Not shipped until
+ * Dirt picks; the hub default stays the animated moving-circles core. */
+#ifndef BOTCORPS_GIB_CORE
+#define BOTCORPS_GIB_CORE 0
+#endif
+#if BOTCORPS_GIB_CORE
+/* Crisp 1 px ring drawn as continuous arcs: `segs` arcs, each `duty`/256 of its slot, rotated by
+ * `ph` (radians). Pixel-exact band |d - r| < 0.5, so arcs are unbroken lines, not scattered dots. */
+static void arc_ring(Gfx g, int cx, int cy, int r, uint8_t col, int segs, int duty, float ph)
+{
+    const int lo = r * r - r + 1, hi = r * r + r;
+    const float slot = 6.2831853f / (float)(segs > 0 ? segs : 1);
+    for (int y = -r - 1; y <= r + 1; ++y) {
+        for (int x = -r - 1; x <= r + 1; ++x) {
+            const int d2 = x * x + y * y;
+            if (d2 < lo || d2 > hi) continue;
+            if (segs > 0) {
+                float a = atan2f((float)y, (float)x) + ph;
+                a = fmodf(a, 6.2831853f);
+                if (a < 0.f) a += 6.2831853f;
+                const float f = fmodf(a, slot) / slot;
+                if (f * 256.f >= (float)duty) continue;
+            }
+            g.fillRect(cx + x, cy + y, 1, 1, col);
+        }
+    }
+}
+
+/* Option A face: same Gibson (ivory dome, black shades, chin shade, glancing steel eyes) drawn at
+ * pixel resolution instead of 7x7 blocks. W = 7*z keeps the exact footprint of hub_gibson(z). */
+static float gib_hd_hw(float yu)
+{
+    /* half-width in face units (face is 7 units wide), yu = 0..7 down the face */
+    if (yu < 0.f || yu >= 7.f) return -1.f;
+    if (yu < 2.3f) {                                   /* smooth pointed dome (the old stepped crown) */
+        const float s = (yu + 0.12f) / 2.42f;
+        return 3.5f * powf(sinf(1.5707963f * s), 0.62f);
+    }
+    if (yu < 5.0f) return 3.5f;                        /* full cheeks */
+    const float q = (yu - 5.0f) / 2.0f;                /* curved jaw into the chin */
+    float hw = 2.4f + 1.1f * sqrtf(1.f - q * q);
+    if (yu > 6.55f) {                                  /* rounded chin corners */
+        const float c = (yu - 6.55f) / 0.45f;
+        hw -= 0.45f * (1.f - sqrtf(1.f - c * c));
+    }
+    return hw;
+}
+
+static void gib_face_hd(Gfx g, int cx, int cy, int z)
+{
+    const int W = 7 * z;
+    const int ox = cx - W / 2, oy = cy - W / 2;
+    const float u = (float)z;
+    int lx[80], rx[80];
+    const int H = W < 78 ? W : 78;
+    for (int r = 0; r < H; ++r) {
+        const float yu = ((float)r + 0.5f) / u;
+        const float hw = gib_hd_hw(yu);
+        if (hw <= 0.f) { lx[r] = 1; rx[r] = 0; continue; }
+        const int half = (int)lroundf(hw * u);
+        lx[r] = cx - half;
+        rx[r] = cx + half - 1 + (W & 1);
+    }
+    /* drop shadow under the face (as hub_gibson) */
+    g.fillRect(ox + z / 2, oy + W, 6 * z, z > 2 ? 2 : z, PAL_BLACK);
+    /* 1 px black keyline: each row's span grown by one pixel, unioned with its neighbours */
+    for (int r = -1; r <= H; ++r) {
+        int a = 9999, b = -9999;
+        for (int k = r - 1; k <= r + 1; ++k) {
+            if (k < 0 || k >= H || lx[k] > rx[k]) continue;
+            if (lx[k] - 1 < a) a = lx[k] - 1;
+            if (rx[k] + 1 > b) b = rx[k] + 1;
+        }
+        if (b >= a) g.fillRect(a, oy + r, b - a + 1, 1, PAL_BLACK);
+    }
+    const int chin_y = oy + 6 * z;
+    for (int r = 0; r < H; ++r) {
+        if (lx[r] > rx[r]) continue;
+        const int y = oy + r;
+        const int w = rx[r] - lx[r] + 1;
+        if (y >= chin_y) { g.fillRect(lx[r], y, w, 1, PAL_CHIN); continue; }
+        g.fillRect(lx[r], y, w, 1, PAL_IVORY);
+        if (y >= oy + 5 * z) {                          /* jaw shade on the lower corners */
+            const int e = z * 2 / 3;
+            g.fillRect(lx[r], y, e, 1, PAL_CHIN);
+            g.fillRect(rx[r] - e + 1, y, e, 1, PAL_CHIN);
+        } else if (r < 3 * z) {                         /* lit rim along the dome */
+            const bool top = r == 0 || lx[r - 1] > rx[r - 1];
+            if (top) { g.fillRect(lx[r], y, w, 1, PAL_WHITE); continue; }
+            const int gx = lx[r - 1] > lx[r] ? lx[r - 1] - lx[r] : 1;   /* top-left light */
+            g.fillRect(lx[r], y, gx, 1, PAL_WHITE);
+            if (r < z) g.fillRect(lx[r], y, gx, 1, PAL_WHITE);
+        }
+    }
+    /* shades: thin brow bar across the face, two lenses with rounded lower corners, open nose */
+    const int by = oy + 3 * z;
+    const int bh = z * 2 / 5 > 2 ? z * 2 / 5 : 2;
+    g.fillRect(lx[3 * z], by, rx[3 * z] - lx[3 * z] + 1, bh, PAL_BLACK);
+    const int lw = 2 * z, lh = 2 * z;
+    const int L0 = ox + z, R0 = ox + 4 * z;
+    const int rc = z / 3 > 1 ? z / 3 : 1;
+    for (int k = 0; k < 2; ++k) {
+        const int x0 = k ? R0 : L0;
+        g.fillRect(x0, by, lw, lh - rc, PAL_BLACK);
+        for (int j = 0; j < rc; ++j) {                  /* stair-rounded lower corners */
+            const int in = (j + 1) * rc / (rc + 1) + (j + 1 == rc ? 1 : 0);
+            g.fillRect(x0 + in, by + lh - rc + j, lw - 2 * in, 1, PAL_BLACK);
+        }
+    }
+    /* glancing steel eyes behind the lenses (same 900 ms glance as hub_gibson) + a 1 px glint */
+    const int gl = (int)((millis() / 900u) % 2u);
+    const int es = z * 3 / 5 > 2 ? z * 3 / 5 : 2;
+    const int ey = by + bh + (lh - bh - es) / 2;
+    for (int k = 0; k < 2; ++k) {
+        const int x0 = (k ? R0 : L0) + (lw - es) / 2 + (gl ? z / 2 : -z / 2);
+        g.fillRect(x0, ey, es, es, PAL_STEEL);
+        g.fillRect(x0, ey, 1, 1, PAL_WHITE);
+    }
+}
+
+/* Option B centre: Gibson's own square chip (scan-board chip_block_ex: black window, gold pins)
+ * sized so the whole square, pins included, sits inside the r34 rim. */
+static void gib_core_chip(Gfx g, int cx, int cy)
+{
+    chip_block_ex(g, cx, cy, 44, 12, false);
+}
+
+/* Shared clean ring stack for both options (radii and motion as the v1019g core, drawn as arcs). */
+static void gib_core_rings(Gfx g, int cx, int cy, uint32_t t, uint32_t spin_div, bool hub, int mood)
+{
+    const float tt = (float)t;
+    const float spin = tt / (float)spin_div * 0.105f;
+    arc_ring(g, cx, cy, 37, PAL_LINE, 0, 256, 0.f);                 /* faint full track */
+    arc_ring(g, cx, cy, 37, PAL_CYAN, 12, 128, spin);               /* 12 long arcs, mood spin */
+    if (hub && mood == MOOD_HUNTING) {
+        for (int k = 0; k < 14; ++k) {
+            const float ang = tt / 260.f - (float)k * 0.07f;
+            const uint8_t ink = k < 3 ? (uint8_t)PAL_WHITE : accent();
+            g.fillRect(cx + (int)lroundf(cosf(ang) * 40.f), cy + (int)lroundf(sinf(ang) * 40.f), 1, 1, ink);
+        }
+    }
+    arc_ring(g, cx, cy, 42, PAL_CYAN, 8, 112, -tt / 140.f * 0.06f); /* 8 arcs, counter-spin */
+    if (hub) {                                                      /* breathing pulse ring */
+        const int ph = (int)((t % 2400u) * 5u / 2400u);
+        arc_ring(g, cx, cy, 44 + ph, PAL_LINE, 0, 256, 0.f);
+    }
+    arc_ring(g, cx, cy, 48, PAL_CYAN, 24, 64, tt / 80.f * 0.02f);   /* 24 short ticks */
+    arc_ring(g, cx, cy, 54, PAL_LINE, 0, 256, 0.f);                 /* faint outer track */
+    arc_ring(g, cx, cy, 54, PAL_CYAN, 4, 96, -tt / 200.f * 0.05f);  /* 4 long outer arcs */
+}
+
+/* One entry for both screens: hub=true is paint_gibson's centre, false is the intro ring disc. */
+static void gib_core_opt(Gfx g, int cx, int cy, int z, uint32_t t, uint32_t spin_div, bool hub, int mood)
+{
+    hub_die(g, cx, cy, 34);
+    core_bezel(g, cx, cy, 34);
+    gib_core_rings(g, cx, cy, t, spin_div, hub, mood);
+    if (hub) hub_sparks(g, cx, cy, t);
+#if BOTCORPS_GIB_CORE == 2
+    (void)z;
+    gib_core_chip(g, cx, cy);
+#else
+    g.fillRect(cx - 14, cy + 25, 28, 1, wire_ink());
+    gib_face_hd(g, cx, cy, z);
+#endif
+}
+#endif
+
 static void paint_gibson(Gfx g)
 {
     /* extGibsonHub. Rain is dimmed by the fade table before this chrome. No read-back. */
@@ -5135,6 +5307,9 @@ static void paint_gibson(Gfx g)
     /* v1016k (Dirt 9:31): hub MAIN screen is the animated moving rings core,
      * not a chip. Square chip_block applies only to Gibson inside boards. */
     GATE_BOX(g, "HUBCORE", "rings", cx - 54, cy - 54, 108, 108, "-");
+#if BOTCORPS_GIB_CORE
+    gib_core_opt(g, cx, cy, 7, t, mood == MOOD_HUNTING ? 30u : mood == MOOD_EXCITED ? 50u : 90u, true, mood);
+#else
     hub_die(g, cx, cy, 34);
     core_bezel(g, cx, cy, 34);
     const int spin = mood == MOOD_HUNTING ? (int)(t / 30u) : mood == MOOD_EXCITED ? (int)(t / 50u) : (int)(t / 90u);
@@ -5155,6 +5330,7 @@ static void paint_gibson(Gfx g)
     g.fillRect(cx - 14, cy + 25, 28, 1, wire);
     gib_keyline(g, cx, cy, 7);
     hub_gibson(g, cx, cy, 7);
+#endif
     if (s_hub_zone == 3) {
         /* v1017b: Gibson focused (Enter = Gibson game). */
         g.drawCircle(cx, cy, 31, PAL_WHITE);
@@ -5285,6 +5461,10 @@ static void paint_rain_btn(Gfx g)
     const uint32_t t = millis();
     /* v1016k (Dirt 9:31): intro/rain screen is the ring disc, not a chip. */
     g.fillCircle(cx, cy, 56, PAL_BLACK);
+#if BOTCORPS_GIB_CORE
+    gib_core_opt(g, cx, cy, 8, t, 90u, false, MOOD_NEUTRAL);   /* A: z8 so the face sits inside the r34 rim */
+    return;
+#endif
     hub_die(g, cx, cy, 34);
     core_bezel(g, cx, cy, 34);
     px_ring(g, cx, cy, 37, PAL_CYAN, 5, 5, (int)(t / 90u));

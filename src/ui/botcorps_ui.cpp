@@ -4744,18 +4744,43 @@ static const char *GIB_CROWN[7] = {
     "#############", ".###########.", ".###########."
 };
 
+/* v1019g (Dirt: sharper hub/intro core): only the hub + intro ring disc use px_ring / core_bezel.
+ * Solid ring = clean 1 px midpoint circle; dashed rings keep the same dash count / phase walk but
+ * round to the nearest pixel (the old truncation skewed every ring half a pixel up-left = fuzzy). */
 static void px_ring(Gfx g, int cx, int cy, int r, uint8_t col, int on, int off, int phase)
 {
+    (void)off;
+    if (on <= 0) { g.drawCircle(cx, cy, r, col); return; }
     const int n = (int)((float)r * 6.3f);
     if (n < 1) return;
     for (int k = 0; k < n; ++k) {
-        if (on > 0 && (((k / on + phase) % 2) != 0)) continue;
-        (void)off;
+        if (((k / on + phase) % 2) != 0) continue;
         const float a = (float)k / (float)r;
-        const int x = cx + (int)(cosf(a) * (float)r);
-        const int y = cy + (int)(sinf(a) * (float)r);
+        const int x = cx + (int)lroundf(cosf(a) * (float)r);
+        const int y = cy + (int)lroundf(sinf(a) * (float)r);
         g.fillRect(x, y, 1, 1, col);
     }
+}
+
+/* Crisp core bezel: black keyline just outside the solid rim so the core reads as one defined circle. */
+static void core_bezel(Gfx g, int cx, int cy, int r)
+{
+    g.drawCircle(cx, cy, r + 1, PAL_BLACK);
+    px_ring(g, cx, cy, r, PAL_CYAN, 0, 0, 0);
+}
+
+/* Black 1 px keyline around the hub_gibson silhouette (same face, cleaner edge on the die). */
+static void gib_keyline(Gfx g, int cx, int cy, int z)
+{
+    const int ox = cx - (7 * z) / 2;
+    const int oy = cy - (7 * z) / 2;
+    auto k = [&](int x, int y, int w, int h) {
+        g.fillRect(ox + x * z - 1, oy + y * z - 1, w * z + 2, h * z + 2, PAL_BLACK);
+    };
+    k(3, 0, 1, 1);
+    k(1, 1, 5, 1);
+    k(0, 2, 7, 4);
+    k(1, 6, 5, 1);
 }
 
 static void gib_crown(Gfx g, int cx, int y)
@@ -5111,7 +5136,7 @@ static void paint_gibson(Gfx g)
      * not a chip. Square chip_block applies only to Gibson inside boards. */
     GATE_BOX(g, "HUBCORE", "rings", cx - 54, cy - 54, 108, 108, "-");
     hub_die(g, cx, cy, 34);
-    px_ring(g, cx, cy, 34, PAL_CYAN, 0, 0, 0);
+    core_bezel(g, cx, cy, 34);
     const int spin = mood == MOOD_HUNTING ? (int)(t / 30u) : mood == MOOD_EXCITED ? (int)(t / 50u) : (int)(t / 90u);
     px_ring(g, cx, cy, 37, PAL_CYAN, 5, 5, spin);
     if (mood == MOOD_HUNTING) {
@@ -5128,6 +5153,7 @@ static void paint_gibson(Gfx g)
     px_ring(g, cx, cy, 44 + ph, PAL_CYAN, 3, 3, 0);
     hub_sparks(g, cx, cy, t);
     g.fillRect(cx - 14, cy + 25, 28, 1, wire);
+    gib_keyline(g, cx, cy, 7);
     hub_gibson(g, cx, cy, 7);
     if (s_hub_zone == 3) {
         /* v1017b: Gibson focused (Enter = Gibson game). */
@@ -5260,12 +5286,13 @@ static void paint_rain_btn(Gfx g)
     /* v1016k (Dirt 9:31): intro/rain screen is the ring disc, not a chip. */
     g.fillCircle(cx, cy, 56, PAL_BLACK);
     hub_die(g, cx, cy, 34);
-    px_ring(g, cx, cy, 34, PAL_CYAN, 0, 0, 0);
+    core_bezel(g, cx, cy, 34);
     px_ring(g, cx, cy, 37, PAL_CYAN, 5, 5, (int)(t / 90u));
     px_ring(g, cx, cy, 42, PAL_CYAN, 2, 4, (int)(t / 140u));
     px_ring(g, cx, cy, 48, PAL_CYAN, 1, 5, (int)(t / 80u));
     px_ring(g, cx, cy, 54, PAL_CYAN, 2, 6, (int)(t / 200u));
     g.fillRect(cx - 14, cy + 25, 28, 1, wire_ink());
+    gib_keyline(g, cx, cy, 9);
     hub_gibson(g, cx, cy, 9);
 }
 

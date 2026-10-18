@@ -5068,7 +5068,7 @@ static void partial_gp_strip(void)
 #ifndef BOTCORPS_GIB_CORE
 #define BOTCORPS_GIB_CORE 0
 #endif
-#if BOTCORPS_GIB_CORE
+#if BOTCORPS_GIB_CORE && BOTCORPS_GIB_CORE < 4
 /* Crisp 1 px ring drawn as continuous arcs: `segs` arcs, each `duty`/256 of its slot, rotated by
  * `ph` (radians). Pixel-exact band |d - r| < 0.5, so arcs are unbroken lines, not scattered dots. */
 static void arc_ring(Gfx g, int cx, int cy, int r, uint8_t col, int segs, int duty, float ph)
@@ -5284,6 +5284,41 @@ static void gib_core_opt(Gfx g, int cx, int cy, int z, uint32_t t, uint32_t spin
 #endif
 }
 #endif
+/* v1019i Option D (BOTCORPS_GIB_CORE=4, Dirt 2026-10-18 strict one-change): the default v1019g core
+ * with ONLY the centre figure swapped for Gibson's existing square scan-board chip (chip_block_ex,
+ * bot 12: black window, gold pins, square frame, Gibson's face). Die, bezel, rings, sparks, floor
+ * line, sizes, colours and motion are the flag-0 code paths, untouched. Option E (=5) is D plus the
+ * px_ring dotted rings walked on SQUARE paths (same half-size r, same dash/phase/colour/motion). */
+#if BOTCORPS_GIB_CORE >= 4
+static void gib_core_chip_d(Gfx g, int cx, int cy)
+{
+    chip_block_ex(g, cx, cy, 44, 12, false);           /* 44 px: the whole square, pins + silk, inside the r34 rim */
+}
+#endif
+#if BOTCORPS_GIB_CORE == 5
+/* px_ring on a square: same contract (on<=0 = solid 1 px outline; else 1 px dots, `on` px on / on
+ * px off along the path, shifted by `phase`), walked clockwise from (r,0) round the 8r px square. */
+static void px_sq_ring(Gfx g, int cx, int cy, int r, uint8_t col, int on, int off, int phase)
+{
+    (void)off;
+    if (r < 1) return;
+    if (on <= 0) { g.drawRect(cx - r, cy - r, 2 * r + 1, 2 * r + 1, col); return; }
+    const int n = 8 * r;
+    for (int k = 0; k < n; ++k) {
+        if (((k / on + phase) % 2) != 0) continue;
+        int x, y;
+        if (k < r)              { x = r;             y = k; }
+        else if (k < 3 * r)     { x = r - (k - r);   y = r; }
+        else if (k < 5 * r)     { x = -r;            y = r - (k - 3 * r); }
+        else if (k < 7 * r)     { x = -r + (k - 5 * r); y = -r; }
+        else                    { x = r;             y = -r + (k - 7 * r); }
+        g.fillRect(cx + x, cy + y, 1, 1, col);
+    }
+}
+#define GIB_CORE_RING px_sq_ring
+#else
+#define GIB_CORE_RING px_ring
+#endif
 
 static void paint_gibson(Gfx g)
 {
@@ -5362,13 +5397,13 @@ static void paint_gibson(Gfx g)
     /* v1016k (Dirt 9:31): hub MAIN screen is the animated moving rings core,
      * not a chip. Square chip_block applies only to Gibson inside boards. */
     GATE_BOX(g, "HUBCORE", "rings", cx - 54, cy - 54, 108, 108, "-");
-#if BOTCORPS_GIB_CORE
+#if BOTCORPS_GIB_CORE && BOTCORPS_GIB_CORE < 4
     gib_core_opt(g, cx, cy, 7, t, mood == MOOD_HUNTING ? 30u : mood == MOOD_EXCITED ? 50u : 90u, true, mood);
 #else
     hub_die(g, cx, cy, 34);
     core_bezel(g, cx, cy, 34);
     const int spin = mood == MOOD_HUNTING ? (int)(t / 30u) : mood == MOOD_EXCITED ? (int)(t / 50u) : (int)(t / 90u);
-    px_ring(g, cx, cy, 37, PAL_CYAN, 5, 5, spin);
+    GIB_CORE_RING(g, cx, cy, 37, PAL_CYAN, 5, 5, spin);
     if (mood == MOOD_HUNTING) {
         for (int k = 0; k < 14; ++k) {
             const float ang = (float)t / 260.f - (float)k * 0.07f;
@@ -5376,15 +5411,19 @@ static void paint_gibson(Gfx g)
             g.fillRect(cx + (int)(cosf(ang) * 40.f), cy + (int)(sinf(ang) * 40.f), 1, 1, ink);
         }
     }
-    px_ring(g, cx, cy, 42, PAL_CYAN, 2, 4, (int)(t / 140u));
-    px_ring(g, cx, cy, 48, PAL_CYAN, 1, 5, (int)(t / 80u));
-    px_ring(g, cx, cy, 54, PAL_CYAN, 2, 6, (int)(t / 200u));
+    GIB_CORE_RING(g, cx, cy, 42, PAL_CYAN, 2, 4, (int)(t / 140u));
+    GIB_CORE_RING(g, cx, cy, 48, PAL_CYAN, 1, 5, (int)(t / 80u));
+    GIB_CORE_RING(g, cx, cy, 54, PAL_CYAN, 2, 6, (int)(t / 200u));
     const int ph = (int)((t % 2400u) * 5u / 2400u);
-    px_ring(g, cx, cy, 44 + ph, PAL_CYAN, 3, 3, 0);
+    GIB_CORE_RING(g, cx, cy, 44 + ph, PAL_CYAN, 3, 3, 0);
     hub_sparks(g, cx, cy, t);
     g.fillRect(cx - 14, cy + 25, 28, 1, wire);
+#if BOTCORPS_GIB_CORE >= 4
+    gib_core_chip_d(g, cx, cy);   /* D/E: Gibson's square chip replaces the z7 figure */
+#else
     gib_keyline(g, cx, cy, 7);
     hub_gibson(g, cx, cy, 7);
+#endif
 #endif
     if (s_hub_zone == 3) {
         /* v1017b: Gibson focused (Enter = Gibson game). */
@@ -5516,19 +5555,23 @@ static void paint_rain_btn(Gfx g)
     const uint32_t t = millis();
     /* v1016k (Dirt 9:31): intro/rain screen is the ring disc, not a chip. */
     g.fillCircle(cx, cy, 56, PAL_BLACK);
-#if BOTCORPS_GIB_CORE
+#if BOTCORPS_GIB_CORE && BOTCORPS_GIB_CORE < 4
     gib_core_opt(g, cx, cy, BOTCORPS_GIB_CORE == 3 ? 9 : 8, t, 90u, false, MOOD_NEUTRAL);   /* A: z8 so the face sits inside the r34 rim; C: z9 as the current intro Gibson */
     return;
 #endif
     hub_die(g, cx, cy, 34);
     core_bezel(g, cx, cy, 34);
-    px_ring(g, cx, cy, 37, PAL_CYAN, 5, 5, (int)(t / 90u));
-    px_ring(g, cx, cy, 42, PAL_CYAN, 2, 4, (int)(t / 140u));
-    px_ring(g, cx, cy, 48, PAL_CYAN, 1, 5, (int)(t / 80u));
-    px_ring(g, cx, cy, 54, PAL_CYAN, 2, 6, (int)(t / 200u));
+    GIB_CORE_RING(g, cx, cy, 37, PAL_CYAN, 5, 5, (int)(t / 90u));
+    GIB_CORE_RING(g, cx, cy, 42, PAL_CYAN, 2, 4, (int)(t / 140u));
+    GIB_CORE_RING(g, cx, cy, 48, PAL_CYAN, 1, 5, (int)(t / 80u));
+    GIB_CORE_RING(g, cx, cy, 54, PAL_CYAN, 2, 6, (int)(t / 200u));
     g.fillRect(cx - 14, cy + 25, 28, 1, wire_ink());
+#if BOTCORPS_GIB_CORE >= 4
+    gib_core_chip_d(g, cx, cy);   /* D/E: Gibson's square chip replaces the z9 figure */
+#else
     gib_keyline(g, cx, cy, 9);
     hub_gibson(g, cx, cy, 9);
+#endif
 }
 
 static void paint_diag(Gfx g)

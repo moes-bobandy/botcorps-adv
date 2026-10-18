@@ -613,6 +613,7 @@ static void draw_blob(Gfx g, int x, int y, int scale, uint8_t c, int shape, bool
     botcorps_sprite_draw(*g.raw(), x - g.ox, y - g.oy, shape, scale, c, blink);
 }
 static void bot_block(Gfx g, int cx, int cy, int s, uint8_t col, bool blink);
+static void chip_mini(Gfx g, int cx, int cy, int T, int bot, bool blink, int face_dy);
 
 static void draw_icon(Gfx g, int x, int y, int id, uint8_t col)
 {
@@ -1459,7 +1460,10 @@ static void paint_one_board(Gfx g, int i, bool sel, bool dim)
     /* v1017b (Dirt 8:20): every terminal tile is the SQUARE chip-form block (the
      * same block figure Gibson's control-panel / scan-board chip uses), in this
      * bot's fixed colour on black. Never the round sprite. Terminal tiles only. */
-    bot_block(g, x + 36, y + 25 + bob, 16, bot_color(i), sel && sprite_blink(i));
+    /* v1019e (Dirt): full matched chip (silk outline, black window, silver pins) in the 26x22 socket:
+     * 20 px box at x+26..45, y+15..34, face 14 px. The selected bob lifts the whole chip 1 px
+     * (y+14..33), still inside the socket and clear of the select outline at y+13. */
+    chip_mini(g, x + 36, y + 25 + bob, 20, i, sel && sprite_blink(i), 0);
     const int st = BOTS[i].st;
     const bool on = st != 0 || ((t / 700u + (uint32_t)i) % 4u) != 0u;
     uint8_t ledc = led;
@@ -2780,6 +2784,31 @@ static void bot_block(Gfx g, int cx, int cy, int s, uint8_t col, bool blink)
     /* v1019 (Dirt LOCKED #2): same face treatment as Gibson's chip (raised eyes, Morpheus A
      * gold-rim glasses), the bot's own fixed colour. */
     face_block(g, cx, cy, s, col, false, blink);
+}
+
+/* v1019e (Dirt): the matched chip look scaled down for the hub and Terminal bot tiles. Same parts as the
+ * scan-board chip (chip_block_ex): steel silk outline, black die, square face in its own locked colour
+ * (~68% of the die, as S-18 is 38/56), castellated pins SILVER (bots) or GOLD (Gibson). T = full box
+ * including the 1 px pin overhang, so the chip never leaves the T x T square it is given. */
+static void chip_mini(Gfx g, int cx, int cy, int T, int bot, bool blink, int face_dy)
+{
+    const int x = cx - T / 2, y = cy - T / 2;
+    const int D = T - 2, dx = x + 1, dy = y + 1;          /* die inside the pin overhang */
+    const bool gib = bot >= 12;
+    const uint8_t pin = gib ? PAL_GOLD_PIN : (uint8_t)PAL_SOFT;
+    /* logged as TCHIP (tile chip): H1's "centre is the rings core, not a CHIP" stays about the hub centre */
+    GATE_BOX(g, "TCHIP", gib ? "gibson" : "bot", dx, dy, D, D, "-");
+    g.fillRect(dx, dy, D, D, PAL_BLACK);                   /* black die / window */
+    g.drawRect(dx, dy, D, D, PAL_STEEL);                   /* silk outline */
+    for (int i = 3; i <= D - 3; i += 3) {                  /* castellated pins, 1 px, every 3 px */
+        g.fillRect(x, dy + i, 2, 1, pin);
+        g.fillRect(x + T - 2, dy + i, 2, 1, pin);
+        g.fillRect(dx + i, y, 1, 2, pin);
+        g.fillRect(dx + i, y + T - 2, 1, 2, pin);
+    }
+    const int fs = D - 4;                                  /* 1 px outline + 1 px black window each side */
+    GATE_BOX(g, "SPR", gib ? "gibson_block" : "bot_face", cx - fs / 2, cy - fs / 2 + face_dy, fs, fs, "-");
+    face_block(g, cx, cy + face_dy, fs, gib ? (uint8_t)PAL_IVORY : bot_color(bot), gib, blink);
 }
 
 /* Non-circular bus. radar=false is the Gibson scan (extBus). 0 B heap. */
@@ -5039,9 +5068,9 @@ static void paint_gibson(Gfx g)
         /* v1019 (Dirt LOCKED #2): home tiles carry the same square chip face as Gibson's chip
          * (black window, raised eyes, Morpheus A gold-rim glasses), each bot in its OWN fixed
          * BOT_PAL colour - never the theme. */
-        g.fillRect(sx + 2, sy + 1, 18, 18, PAL_BLACK);
-        GATE_BOX(g, "SPR", "hub_face", sx + 4, sy + 3, 14, 14, "-");
-        face_block(g, sx + 11, sy + 10, 14, bot_color(i), false, false);
+        /* v1019e (Dirt): full matched chip (silk outline, black window, silver pins) fitted to the
+         * 28x20 tile: 18 px box at x+2..19, y+1..18, face 12 px; status dot keeps x+22. */
+        chip_mini(g, sx + 11, sy + 10, 18, i, false, 0);
         g.fillRect(sx + 22, sy + 3, 4, 4, dot_col(i, t, mood, asleep));
     }
     /* v1016k (Dirt 9:31): hub MAIN screen is the animated moving rings core,

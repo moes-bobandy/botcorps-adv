@@ -421,6 +421,14 @@ void botcorps_rain_draw(lgfx::LovyanGFX &dst, int y0, int y1)
  * full paint at the same step draw identical pixels. */
 void botcorps_rain_ghost(lgfx::LovyanGFX &dst, int ox, int oy, int rx, int ry, int rw, int rh, uint8_t ink)
 {
+    botcorps_rain_ghost_ex(dst, ox, oy, rx, ry, rw, rh, ink, false);
+}
+
+/* v1019f: top_whole = skip any glyph whose top row is above ry (no clipped glyph tops at the rect's
+ * upper edge; used under the chip-face eyes so a cut-off digit never reads as a face feature). */
+void botcorps_rain_ghost_ex(lgfx::LovyanGFX &dst, int ox, int oy, int rx, int ry, int rw, int rh, uint8_t ink,
+                            bool top_whole)
+{
     if (!s_built) build_columns();
     if (rw <= 0 || rh <= 0) return;
     static const uint8_t B0[5] = { 7, 5, 5, 5, 7 };   /* 3x5 '0' */
@@ -437,6 +445,7 @@ void botcorps_rain_ghost(lgfx::LovyanGFX &dst, int ox, int oy, int rx, int ry, i
             const bool one = gl >= 0x80 ? (gl & 1) != 0 : gl == '1';
             const uint8_t *bm = one ? B1 : B0;
             const int gx = col * CELL + 2, gy = row * CELL + 1;
+            if (top_whole && gy < ry) continue;
             for (int j = 0; j < 5; ++j) {
                 const int wy = gy + j;
                 if (wy < ry || wy >= ry + rh) continue;

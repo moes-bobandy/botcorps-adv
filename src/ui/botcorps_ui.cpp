@@ -614,6 +614,7 @@ static void draw_blob(Gfx g, int x, int y, int scale, uint8_t c, int shape, bool
 }
 static void bot_block(Gfx g, int cx, int cy, int s, uint8_t col, bool blink);
 static void chip_mini(Gfx g, int cx, int cy, int T, int bot, bool blink, int face_dy);
+static uint16_t mix16(uint16_t a, uint16_t b, int num, int den);
 
 static void draw_icon(Gfx g, int x, int y, int id, uint8_t col)
 {
@@ -1464,6 +1465,39 @@ static void paint_one_board(Gfx g, int i, bool sel, bool dim)
      * 20 px box at x+26..45, y+15..34, face 14 px. The selected bob lifts the whole chip 1 px
      * (y+14..33), still inside the socket and clear of the select outline at y+13. */
     chip_mini(g, x + 36, y + 25 + bob, 20, i, sel && sprite_blink(i), 0);
+    /* v1019f (Dirt standing rule): the live rain shows faintly THROUGH the chip face too, in the UI
+     * theme's own colour (accent, so it follows the theme), blended 65/35 with the bot's colour so it
+     * stays a faint overlay and the face still reads as that bot. Glyph pixels only, in the face rows
+     * below the control-panel eyes (eye row + 1 px clear, whole glyph tops only) down to the chin: nothing in the eye band, so
+     * no rain fragment ever sits on or beside an eye. The silk frame, pins and label are outside the
+     * face, so the rain never reaches them. Drawn after the chip, before the label. */
+#ifdef BOTCORPS_HOST_RENDER
+    if (g.raw() && !host_gate_norain)
+#else
+    if (g.raw())
+#endif
+    {
+        const int fs = 20 - 6, fx = x + 36 - fs / 2, fy = y + 25 + bob - fs / 2;
+        const int ec = fs / 5 > 2 ? fs / 5 : 2;          /* control-panel eye cell (face_block) */
+        const int gy0 = ec + ec + 1;                     /* first row clear of the eyes */
+        const uint16_t face = botcorps_rgb565(bot_color(i));
+        auto far = [face](uint8_t ix) {                  /* the overlay must still read on the face */
+            const uint16_t c = botcorps_rgb565(ix);
+            const int dr = (int)((c >> 11) & 31) - (int)((face >> 11) & 31);
+            const int dg = ((int)((c >> 5) & 63) - (int)((face >> 5) & 63)) / 2;
+            const int db = (int)(c & 31) - (int)(face & 31);
+            return (dr < 0 ? -dr : dr) + (dg < 0 ? -dg : dg) + (db < 0 ? -db : db) >= 16;
+        };
+        uint8_t gi = botcorps_pal_fit(mix16(face, botcorps_rgb565(accent()), 65, 100));
+        /* theme accent too close to this bot's colour (GRAPE on AIRTAG, SYNTHWAVE orange on FLIPPER):
+         * a pale tint of the same accent, then the theme's second colour, then a lifted tint of the
+         * face, so the rain never vanishes into the face */
+        const uint16_t pale = mix16(botcorps_rgb565(accent()), 0xFFFF, 55, 100);
+        if (!far(gi)) gi = botcorps_pal_fit(mix16(face, pale, 75, 100));
+        if (!far(gi)) gi = botcorps_pal_fit(mix16(face, botcorps_rgb565(accent2()), 65, 100));
+        if (!far(gi)) gi = botcorps_pal_fit(mix16(face, 0xFFFF, 45, 100));
+        botcorps_rain_ghost_ex(*g.raw(), g.ox, g.oy, fx, fy + gy0, fs, fs - gy0, gi, true);
+    }
     const int st = BOTS[i].st;
     const bool on = st != 0 || ((t / 700u + (uint32_t)i) % 4u) != 0u;
     uint8_t ledc = led;

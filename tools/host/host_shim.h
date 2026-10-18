@@ -291,6 +291,7 @@ void botcorps_rain_set_no_bots(bool);
 void botcorps_rain_draw(lgfx::v1::LovyanGFX &, int, int);
 bool botcorps_rain_step(void);
 void botcorps_rain_ghost(lgfx::v1::LovyanGFX &, int, int, int, int, int, int, uint8_t);
+void botcorps_rain_ghost_ex(lgfx::v1::LovyanGFX &, int, int, int, int, int, int, uint8_t, bool);
 void botcorps_rain_set_draw(bool);
 void botcorps_rain_log_heap(const char *);
 const botcorps_probe_t *botcorps_probe_get(void);

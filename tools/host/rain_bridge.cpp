@@ -1,3 +1,4 @@
+#include <stdlib.h>
 /* v1016i: host bridge so the REAL src/rain/botcorps_rain.cpp draws into host_frame.
  * Ports the proven tools/rainhost shim approach into the main render: a framebuffer-
  * backed LovyanGFX plus the real palette fit/ramp/hub helpers. */
@@ -99,6 +100,8 @@ void host_rain_init(int mode)
     botcorps_rain_set_mix(BOTCORPS_RAIN_MIX_FIELD);
     botcorps_rain_set_draw(false);
     uint32_t t = 0;
-    for (int w = 0; w < 48; ++w) { t += 90; host_set_millis(t); botcorps_rain_step(); }
+    /* v1019f review renders only: RAIN_WARM=<steps> shows the rain at another moment (gate default 48) */
+    const int warm = getenv("RAIN_WARM") ? atoi(getenv("RAIN_WARM")) : 48;
+    for (int w = 0; w < warm; ++w) { t += 90; host_set_millis(t); botcorps_rain_step(); }
 }
 

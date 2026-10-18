@@ -27,8 +27,11 @@ static const int8_t DG_SET[4][3] = { { DG_RAIN, DG_TWIN, DG_HOP }, { DG_BEACON, 
 static const int8_t DG_CAT[13] = { 0, 1, 3, 0, 2, 3, 1, 2, 1, 3, 2, 1, 3 };
 enum { DGS_PLAY = 0, DGS_WIN, DGS_LOST, DGS_PAUSE };
 
-static const int DG_BX = 8, DG_BY = 20, DG_BW = 304, DG_BH = 214;   /* matte board, rain gutter around */
-static const int DG_PX = 10, DG_PY = 22, DG_PW = 300, DG_PH = 210;  /* play area inside the frame */
+/* MOD (Mobandy item 1): every game plays INSIDE the Defend screen's own grid board (the route board
+ * paint_gc_route draws at 132,20 180x126). The Defend screen (title plate, bot chip, rail, prompt panel)
+ * stays up around it; it is no longer a full-screen takeover. DG_B* = the board incl. its 2 px frame. */
+static const int DG_BX = 130, DG_BY = 18, DG_BW = 184, DG_BH = 130;  /* board + double frame */
+static const int DG_PX = 134, DG_PY = 22, DG_PW = 176, DG_PH = 122;  /* play area inside the frame */
 
 
 static int s_dg_bot = 12;
@@ -43,19 +46,26 @@ static bool s_dg_noghost = false;  /* host logic test only: maze without jammers
 #endif
 
 
-/* v1019l (Dirt concept: games = software side): the active bot plays as its ROUND sprite, exactly as in
- * the per-bot hunt game (bot's own shape + fixed colour; Gibson = round ivory). Same centre as the old
+/* v1019l (Dirt concept: games = software side): the active bot plays as its ROUND sprite (v1019n #17: the
+ * round sprite for EVERY bot, in its fixed colour; Gibson = round ivory). Same centre as the old
  * chip; the sprite fits inside the old chip's patch rect. DGBOT is a host gate log entry only. */
 static void dg_bot(Gfx g, int cx, int cy, int scale)
 {
     const bool gib = s_dg_bot >= 12;
-    const int shape = gib ? 0 : botcorps_shape_for(s_dg_bot);
+    /* v1019n (#17): the playing bot inside the in-Defend games is ROUND for every bot (software side) */
+    const int shape = BOTCORPS_SHAPE_ROUND;
 #ifdef BOTCORPS_HOST_RENDER
     static const int8_t SW[4] = { 7, 9, 7, 5 }, SH[4] = { 7, 6, 9, 5 };
     GATE_BOX(g, "DGBOT", gib ? "gibson" : "bot", cx - SW[shape] * scale / 2, cy - SH[shape] * scale / 2,
              SW[shape] * scale, SH[shape] * scale, "-");
 #endif
     draw_blob(g, cx, cy, scale, gib ? (uint8_t)PAL_IVORY : bot_color(s_dg_bot), shape, false);
+    if (gib) {   /* canon: Gibson always wears the slim Matrix shades, round in-game body too */
+        const int ox = cx - 7 * scale / 2, oy = cy - 7 * scale / 2;
+        g.fillRect(ox + scale, oy + 3 * scale, 5 * scale, scale, PAL_BLACK);
+        g.fillRect(ox + scale, oy + 4 * scale, 2 * scale, scale, PAL_BLACK);
+        g.fillRect(ox + 4 * scale, oy + 4 * scale, 2 * scale, scale, PAL_BLACK);
+    }
 }
 
 static uint32_t dg_rng(void) { s_dg_rng = s_dg_rng * 1664525u + 1013904223u; return s_dg_rng; }
@@ -74,7 +84,7 @@ static void dg_bit(Gfx g, int x, int y, bool one, int s, uint8_t ink)
 static uint8_t dg_fade(uint8_t ink, int pct) { return sb_mix(ink, botcorps_rgb565(PAL_BLACK), pct); }
 
 /* ---------- 1A Rain Catch (reuses the #5 hunt game's per-bot device kinds bh_kind + BHDrop) ---------- */
-static const int RC_L = 8, RC_LW = 37, RC_X0 = 12, RC_BOTY = 220, RC_TOP = 210, RC_MAX = 6;
+static const int RC_L = 8, RC_LW = 22, RC_X0 = 134, RC_BOTY = 136, RC_TOP = 127, RC_MAX = 6;
 static BHDrop s_rc_d[RC_MAX];      /* x = lane, k >= 0 device icon, k = -1 / -2 plain bit 0 / 1 */
 static int s_rc_lane = 3;
 static int rc_cx(int lane) { return RC_X0 + lane * RC_LW + RC_LW / 2; }
@@ -93,14 +103,14 @@ static void rc_step(float dt)
         const int lane = (int)(dg_rng() % (uint32_t)RC_L);
         bool clear = true;
         for (int i = 0; i < RC_MAX; ++i)
-            if (s_rc_d[i].live && (int)s_rc_d[i].x == lane && s_rc_d[i].y < (float)(DG_PY + 40)) clear = false;
+            if (s_rc_d[i].live && (int)s_rc_d[i].x == lane && s_rc_d[i].y < (float)(DG_PY + 24)) clear = false;
         if (clear)
             for (int i = 0; i < RC_MAX; ++i) if (!s_rc_d[i].live) {
                 BHDrop &d = s_rc_d[i];
                 d.live = 1;
                 d.x = (float)lane;
                 d.y = (float)(DG_PY - 12);
-                d.v = 34.f + dg_rngf() * 14.f + (float)s_dg_score * 1.2f;
+                d.v = 20.f + dg_rngf() * 8.f + (float)s_dg_score * 0.7f;
                 d.k = dg_rngf() < 0.6f ? (int8_t)bh_kind(s_dg_bot, dg_rng()) : (int8_t)((dg_rng() & 1u) ? -2 : -1);
                 break;
             }
@@ -147,11 +157,11 @@ static void rc_paint(Gfx g)
 }
 
 /* ---------- 2A Beacon Sort ---------- */
-static const int BS_MAX = 3, BS_CX = 160, BS_BOTY = 220, BS_TOP = 208;
+static const int BS_MAX = 3, BS_CX = 222, BS_BOTY = 136, BS_TOP = 126;
 struct DGBeacon { float y, fx; int8_t k, tag, live, fly; };   /* fly: 0 falling, -1/+1 sorted left/right */
 static DGBeacon s_bs[BS_MAX];
 static const int8_t BS_KIND[4] = { GL_SPEAKER, GL_WATCH, GL_TRACKER, GL_PHONE };
-static float bs_speed(void) { return 30.f + 8.f * (float)(s_dg_score / 5); }
+static float bs_speed(void) { return 18.f + 5.f * (float)(s_dg_score / 5); }
 static void bs_reset(void) { for (int i = 0; i < BS_MAX; ++i) s_bs[i].live = 0; }
 static int bs_lowest(void)
 {
@@ -174,7 +184,7 @@ static void bs_step(float dt)
 {
     bool room = true;
     for (int i = 0; i < BS_MAX; ++i)
-        if (s_bs[i].live && !s_bs[i].fly && s_bs[i].y < (float)(DG_PY + 64)) room = false;
+        if (s_bs[i].live && !s_bs[i].fly && s_bs[i].y < (float)(DG_PY + 40)) room = false;
     if (room)
         for (int i = 0; i < BS_MAX; ++i) if (!s_bs[i].live) {
             s_bs[i].live = 1; s_bs[i].fly = 0; s_bs[i].fx = 0.f;
@@ -188,8 +198,8 @@ static void bs_step(float dt)
         DGBeacon &b = s_bs[i];
         if (!b.live) continue;
         if (b.fly) {
-            b.fx += 260.f * dt;
-            if (b.fx > 150.f) b.live = 0;
+            b.fx += 160.f * dt;
+            if (b.fx > 92.f) b.live = 0;
             continue;
         }
         b.y += v * dt;
@@ -225,18 +235,18 @@ static void bs_paint(Gfx g)
 }
 
 /* ---------- 3B Firewall Wall ---------- */
-static const int FW_C = 8, FW_R = 4, FW_X0 = 12, FW_BW = 35, FW_BH = 12, FW_Y0 = 34, FW_PY = 204, FW_ICY = 220;
+static const int FW_C = 8, FW_R = 4, FW_X0 = 135, FW_BW = 20, FW_BH = 7, FW_Y0 = 30, FW_PY = 122, FW_ICY = 132;
 static uint32_t s_fw_alive = 0;
-static float s_fw_px = 160.f, s_fw_bx = 0.f, s_fw_by = 0.f, s_fw_vx = 0.f, s_fw_vy = 0.f;
+static float s_fw_px = 222.f, s_fw_bx = 0.f, s_fw_by = 0.f, s_fw_vx = 0.f, s_fw_vy = 0.f;
 static bool s_fw_serve = true;
 static uint8_t s_fw_dim = 0;
 static const int8_t FW_IOT[FW_C] = { GL_CAMERA, GL_TV, GL_SPEAKER, GL_CAR, GL_CAMERA, GL_PRINTER, GL_TV, GL_SPEAKER };
-static const float FW_V = 125.f;
+static const float FW_V = 85.f;
 static void fw_reset(void)
 {
     static_assert(FW_C * FW_R == 32, "block mask is one 32-bit word");
     s_fw_alive = 0xFFFFFFFFu;                                    /* all 32 blocks (no 1u << 32 UB) */
-    s_fw_px = 160.f; s_fw_serve = true; s_fw_dim = 0;
+    s_fw_px = 222.f; s_fw_serve = true; s_fw_dim = 0;
 }
 static void fw_park(void) { s_fw_bx = s_fw_px - 3.f; s_fw_by = (float)(FW_PY - 11 - 11); s_fw_vx = s_fw_vy = 0.f; }
 static void fw_launch(void)
@@ -262,7 +272,7 @@ static void fw_step(float dt)
             for (int c = 0; c < FW_C; ++c) {
                 const int i = r * FW_C + c;
                 if (!(s_fw_alive & (1u << i))) continue;
-                const float x0 = (float)(FW_X0 + c * (FW_BW + 2)), y0 = (float)(FW_Y0 + r * (FW_BH + 4));
+                const float x0 = (float)(FW_X0 + c * (FW_BW + 2)), y0 = (float)(FW_Y0 + r * (FW_BH + 3));
                 if (s_fw_bx + 6.f <= x0 || s_fw_bx >= x0 + FW_BW || s_fw_by + 10.f <= y0 || s_fw_by >= y0 + FW_BH) continue;
                 s_fw_alive &= ~(1u << i);
                 ++s_dg_score;
@@ -273,8 +283,8 @@ static void fw_step(float dt)
             }
         /* the bot paddle */
         if (s_fw_vy > 0.f && s_fw_by + 10.f >= (float)(FW_PY - 11) && s_fw_by + 10.f <= (float)(FW_PY + 2)
-            && fabsf(s_fw_bx + 3.f - s_fw_px) <= 18.f) {
-            const float off = (s_fw_bx + 3.f - s_fw_px) / 18.f;       /* -1..1 */
+            && fabsf(s_fw_bx + 3.f - s_fw_px) <= 13.f) {
+            const float off = (s_fw_bx + 3.f - s_fw_px) / 13.f;       /* -1..1 */
             const float a = off * 1.0f;
             s_fw_vx = FW_V * sinf(a);
             s_fw_vy = -FW_V * cosf(a);
@@ -300,10 +310,10 @@ static void fw_paint(Gfx g)
     for (int r = 0; r < FW_R; ++r)
         for (int c = 0; c < FW_C; ++c) {
             if (!(s_fw_alive & (1u << (r * FW_C + c)))) continue;
-            const int x0 = FW_X0 + c * (FW_BW + 2), y0 = FW_Y0 + r * (FW_BH + 4);
+            const int x0 = FW_X0 + c * (FW_BW + 2), y0 = FW_Y0 + r * (FW_BH + 3);
             GATE_BOX(g, "DGOBJ", "block", x0, y0, FW_BW, FW_BH, "-");
             const uint8_t ink = r == 3 ? dg_fade(PAL_CODE, 70) : ROWINK[r];
-            for (int k = 0; k < 4; ++k) dg_bit(g, x0 + 2 + k * 8, y0 + 1, true, 2, ink);   /* "1111" */
+            for (int k = 0; k < 4; ++k) dg_bit(g, x0 + 2 + k * 4, y0 + 1, true, 1, ink);   /* "1111" */
         }
     for (int c = 0; c < FW_C; ++c) {
         const int x = FW_X0 + c * (FW_BW + 2) + FW_BW / 2 - 6;
@@ -317,7 +327,7 @@ static void fw_paint(Gfx g)
 }
 
 /* ---------- 4A Gibson Maze ---------- */
-static const int MZ_C = 19, MZ_R = 13, MZ_T = 15, MZ_X = 17, MZ_Y = 29, MZ_G = 2;
+static const int MZ_C = 19, MZ_R = 13, MZ_T = 9, MZ_H = 4, MZ_X = 136, MZ_Y = 24, MZ_G = 2;   /* MZ_H = tile centre */
 static const char *const MZ_MAP[MZ_R] = {
     "###################",
     "#o.......#.......o#",
@@ -337,7 +347,7 @@ static const int8_t MZ_DX[4] = { 0, 0, -1, 1 }, MZ_DY[4] = { -1, 1, 0, 0 };   /*
 static const int8_t MZ_POW[4] = { GL_AP, GL_CAMERA, GL_PHONE, GL_TV };
 struct DGMover { float x, y; int8_t dir, want; };
 static uint8_t s_mz_pel[MZ_R][MZ_C];   /* 1 bit-pellet, 2 device icon (shield) */
-static int s_mz_left = 0;
+static int s_mz_left = 0, s_mz_total = 0;
 static DGMover s_mz_p, s_mz_j[MZ_G];
 static uint32_t s_mz_fright = 0, s_mz_t0 = 0;
 static bool mz_open(int tx, int ty) { return tx >= 0 && ty >= 0 && tx < MZ_C && ty < MZ_R && MZ_MAP[ty][tx] != '#'; }
@@ -347,8 +357,8 @@ static void mz_place(void)
     for (int y = 0; y < MZ_R; ++y)
         for (int x = 0; x < MZ_C; ++x) {
             const char ch = MZ_MAP[y][x];
-            if (ch == 'G') { s_mz_p.x = (float)(x * MZ_T + 7); s_mz_p.y = (float)(y * MZ_T + 7); s_mz_p.dir = -1; s_mz_p.want = -1; }
-            if (ch == 'J' && gi < MZ_G) { s_mz_j[gi].x = (float)(x * MZ_T + 7); s_mz_j[gi].y = (float)(y * MZ_T + 7); s_mz_j[gi].dir = 0; ++gi; }
+            if (ch == 'G') { s_mz_p.x = (float)(x * MZ_T + MZ_H); s_mz_p.y = (float)(y * MZ_T + MZ_H); s_mz_p.dir = -1; s_mz_p.want = -1; }
+            if (ch == 'J' && gi < MZ_G) { s_mz_j[gi].x = (float)(x * MZ_T + MZ_H); s_mz_j[gi].y = (float)(y * MZ_T + MZ_H); s_mz_j[gi].dir = 0; ++gi; }
         }
 }
 static void mz_reset(void)
@@ -360,6 +370,7 @@ static void mz_reset(void)
             s_mz_pel[y][x] = ch == '.' ? 1 : ch == 'o' ? 2 : 0;
             if (s_mz_pel[y][x]) ++s_mz_left;
         }
+    s_mz_total = s_mz_left;
     s_mz_fright = 0;
     mz_place();
 }
@@ -368,7 +379,7 @@ static void mz_move(DGMover &m, float dist, int who)
 {
     int guard = 0;
     while (dist > 0.001f && guard++ < 8) {
-        const bool atc = ((int)lroundf(m.x) % MZ_T) == 7 && ((int)lroundf(m.y) % MZ_T) == 7
+        const bool atc = ((int)lroundf(m.x) % MZ_T) == MZ_H && ((int)lroundf(m.y) % MZ_T) == MZ_H
                          && fabsf(m.x - lroundf(m.x)) < 0.001f && fabsf(m.y - lroundf(m.y)) < 0.001f;
         if (atc) {
             const int tx = (int)m.x / MZ_T, ty = (int)m.y / MZ_T;
@@ -398,7 +409,7 @@ static void mz_move(DGMover &m, float dist, int who)
             if (m.dir < 0) return;
         }
         /* distance to the next centre along dir */
-        const float cxn = (float)(((int)m.x / MZ_T) * MZ_T + 7), cyn = (float)(((int)m.y / MZ_T) * MZ_T + 7);
+        const float cxn = (float)(((int)m.x / MZ_T) * MZ_T + MZ_H), cyn = (float)(((int)m.y / MZ_T) * MZ_T + MZ_H);
         float rem;
         if (MZ_DX[m.dir]) {
             const float tgt = fabsf(m.x - cxn) < 0.001f ? cxn + (float)(MZ_DX[m.dir] * MZ_T) : (MZ_DX[m.dir] > 0 ? (m.x < cxn ? cxn : cxn + MZ_T) : (m.x > cxn ? cxn : cxn - MZ_T));
@@ -418,7 +429,7 @@ static void mz_move(DGMover &m, float dist, int who)
 static void mz_step(float dt)
 {
     if (s_dg_t < s_dg_hold) return;
-    mz_move(s_mz_p, 60.f * dt, -1);
+    mz_move(s_mz_p, 36.f * dt, -1);
     const bool fr = s_dg_t < s_mz_fright;
 #ifdef BOTCORPS_HOST_RENDER
     const int ng = s_dg_noghost ? 0 : MZ_G;
@@ -427,12 +438,12 @@ static void mz_step(float dt)
 #endif
     for (int i = 0; i < ng; ++i) {
         if (s_dg_t - s_mz_t0 < (uint32_t)(1500 * (i + 1))) continue;   /* jammers leave one by one */
-        mz_move(s_mz_j[i], (fr ? 30.f : 48.f) * dt, i);
-        if (fabsf(s_mz_j[i].x - s_mz_p.x) < 9.f && fabsf(s_mz_j[i].y - s_mz_p.y) < 9.f) {
+        mz_move(s_mz_j[i], (fr ? 18.f : 29.f) * dt, i);
+        if (fabsf(s_mz_j[i].x - s_mz_p.x) < 5.5f && fabsf(s_mz_j[i].y - s_mz_p.y) < 5.5f) {
             if (fr) {                                          /* the bot chases jammers off the board */
                 s_dg_score += 5;
                 for (int y = 0; y < MZ_R; ++y) for (int x = 0; x < MZ_C; ++x)
-                    if (MZ_MAP[y][x] == 'J') { s_mz_j[i].x = (float)(x * MZ_T + 7); s_mz_j[i].y = (float)(y * MZ_T + 7); }
+                    if (MZ_MAP[y][x] == 'J') { s_mz_j[i].x = (float)(x * MZ_T + MZ_H); s_mz_j[i].y = (float)(y * MZ_T + MZ_H); }
                 s_mz_j[i].dir = 0;
             } else {                                           /* caught */
                 ++s_dg_miss;
@@ -452,20 +463,20 @@ static void mz_paint(Gfx g)
     for (int y = 0; y < MZ_R; ++y)                         /* walls as PCB traces */
         for (int x = 0; x < MZ_C; ++x) {
             if (MZ_MAP[y][x] != '#') continue;
-            const int cx = MZ_X + x * MZ_T + 7, cy = MZ_Y + y * MZ_T + 7;
-            g.fillRect(cx - 2, cy - 2, 5, 5, wire);
-            if (x + 1 < MZ_C && MZ_MAP[y][x + 1] == '#') { g.fillRect(cx, cy - 2, MZ_T, 5, wire); g.fillRect(cx, cy, MZ_T, 1, core); }
-            if (y + 1 < MZ_R && MZ_MAP[y + 1][x] == '#') { g.fillRect(cx - 2, cy, 5, MZ_T, wire); g.fillRect(cx, cy, 1, MZ_T, core); }
+            const int cx = MZ_X + x * MZ_T + MZ_H, cy = MZ_Y + y * MZ_T + MZ_H;
+            g.fillRect(cx - 1, cy - 1, 3, 3, wire);
+            if (x + 1 < MZ_C && MZ_MAP[y][x + 1] == '#') { g.fillRect(cx, cy - 1, MZ_T, 3, wire); g.fillRect(cx, cy, MZ_T, 1, core); }
+            if (y + 1 < MZ_R && MZ_MAP[y + 1][x] == '#') { g.fillRect(cx - 1, cy, 3, MZ_T, wire); g.fillRect(cx, cy, 1, MZ_T, core); }
             g.fillRect(cx, cy, 1, 1, core);
         }
     for (int y = 0; y < MZ_R; ++y)
         for (int x = 0; x < MZ_C; ++x) {
             const int px = MZ_X + x * MZ_T, py = MZ_Y + y * MZ_T;
-            if (s_mz_pel[y][x] == 1) dg_bit(g, px + 6, py + 5, ((x + y) & 1) != 0, 1, PAL_CODE);
+            if (s_mz_pel[y][x] == 1) dg_bit(g, px + 3, py + 2, ((x + y) & 1) != 0, 1, PAL_CODE);
             else if (s_mz_pel[y][x] == 2) {
-                GATE_BOX(g, "DGOBJ", "shield", px + 1, py + 1, 12, 12, "-");
+                GATE_BOX(g, "DGOBJ", "shield", px + MZ_H - 6, py + MZ_H - 6, 12, 12, "-");
                 int k = (x < MZ_C / 2 ? 0 : 1) + (y < MZ_R / 2 ? 0 : 2);
-                gl_icon(g, MZ_POW[k], px + 1, py + 1, false);
+                gl_icon(g, MZ_POW[k], px + MZ_H - 6, py + MZ_H - 6, false);
             }
         }
     const bool fr = s_dg_t < s_mz_fright;
@@ -487,7 +498,7 @@ static void mz_paint(Gfx g)
  * prev / next on the WIN / LOST / PAUSE stop. ---------------------------------------------------------- */
 
 /* ---------- 1C Evil Twin Spotter: a pair of the bot's Wi-Fi icons drops; the twin's label bit flickers ---------- */
-static const int TW_LX = 110, TW_RX = 210, TW_BOTY = 220, TW_FLOOR = 200;
+static const int TW_LX = 182, TW_RX = 262, TW_BOTY = 136, TW_FLOOR = 128;
 static float s_tw_y = 0.f;
 static int8_t s_tw_k = GL_AP, s_tw_side = 0, s_tw_live = 0;
 static uint32_t s_tw_wait = 0;
@@ -509,7 +520,7 @@ static void tw_step(float dt)
         s_tw_side = (int8_t)(dg_rng() & 1u);
     }
     if (s_tw_live) {
-        s_tw_y += (28.f + 2.f * (float)s_dg_score) * dt;
+        s_tw_y += (17.f + 1.2f * (float)s_dg_score) * dt;
         if (s_tw_y + 26.f >= (float)TW_FLOOR) { ++s_dg_miss; s_tw_live = 0; s_tw_wait = s_dg_ms + 450u; }
     }
     if (s_dg_score >= 15) s_dg_state = DGS_WIN;
@@ -530,11 +541,11 @@ static void tw_paint(Gfx g)
             if (y + 15 >= DG_PY) dg_bit(g, cx - 3, y + 15, one, 2, PAL_HEAD);
         }
     }
-    dg_bot(g, 160, TW_BOTY, 2);
+    dg_bot(g, 222, TW_BOTY, 2);
 }
 
 /* ---------- 1B Channel Hop: five Wi-Fi channel lanes, dense 1-columns of interference roll down ---------- */
-static const int CH_L = 5, CH_LW = 56, CH_X0 = 20, CH_BOTY = 220, CH_MAX = 6;
+static const int CH_L = 5, CH_LW = 35, CH_X0 = 135, CH_BOTY = 136, CH_MAX = 6;
 struct DGDrop { float y; int8_t lane, live; };
 static DGDrop s_ch[CH_MAX];
 static int s_ch_lane = 2, s_ch_boost = 1;
@@ -550,7 +561,7 @@ static void ch_step(float dt)
         if (s_ch_next < 0.55f) s_ch_next = 0.55f;
         int busy = 0; bool used[CH_L] = { false };
         for (int i = 0; i < CH_MAX; ++i)
-            if (s_ch[i].live && s_ch[i].y < (float)(DG_PY + 60)) { if (!used[s_ch[i].lane]) ++busy; used[s_ch[i].lane] = true; }
+            if (s_ch[i].live && s_ch[i].y < (float)(DG_PY + 36)) { if (!used[s_ch[i].lane]) ++busy; used[s_ch[i].lane] = true; }
         const int lane = (int)(dg_rng() % (uint32_t)CH_L);
         if (!used[lane] && busy < CH_L - 2)                 /* always at least two clean channels */
             for (int i = 0; i < CH_MAX; ++i) if (!s_ch[i].live) {
@@ -558,13 +569,13 @@ static void ch_step(float dt)
                 break;
             }
     }
-    const float v = 62.f + secs * 0.6f;
+    const float v = 40.f + secs * 0.4f;
     for (int i = 0; i < CH_MAX; ++i) {
         DGDrop &d = s_ch[i];
         if (!d.live) continue;
         d.y += v * dt;
         if (d.lane == s_ch_lane && d.y + 34.f >= (float)(CH_BOTY - 9) && d.y <= (float)(CH_BOTY + 9)) { ++s_dg_miss; d.live = 0; continue; }
-        if (d.y >= (float)(DG_PY + DG_PH - 34)) { ++s_dg_score; d.live = 0; }
+        if (d.y >= (float)(DG_PY + DG_PH - 10)) { ++s_dg_score; d.live = 0; }
     }
     if (s_dg_miss >= 3) s_dg_state = DGS_LOST;
     else if (s_dg_ms >= 60000u) s_dg_state = DGS_WIN;
@@ -596,7 +607,7 @@ static void ch_paint(Gfx g)
 }
 
 /* ---------- 2B Pair Lock: type the 4-digit pairing PIN before the rogue tracker reaches the bot ---------- */
-static const int PL_BOTY = 220, PL_TOP = 88, PL_HIT = 206;
+static const int PL_BOTY = 136, PL_TOP = 62, PL_HIT = 124;
 static char s_pl_pin[5] = "0000", s_pl_in[5] = "";
 static float s_pl_y = 0.f;
 static void pl_new(void)
@@ -620,7 +631,7 @@ static void pl_enter(void)
 }
 static void pl_step(float dt)
 {
-    s_pl_y += (13.f + 1.5f * (float)s_dg_score) * dt;
+    s_pl_y += (7.f + 0.8f * (float)s_dg_score) * dt;
     if (s_pl_y + 12.f >= (float)PL_HIT) { ++s_dg_miss; pl_new(); }
     if (s_dg_score >= 10) s_dg_state = DGS_WIN;
     else if (s_dg_miss >= 3) s_dg_state = DGS_LOST;
@@ -631,25 +642,25 @@ static void pl_paint(Gfx g)
     s_px = 8;
     char b[12];
     snprintf(b, sizeof b, "%c %c %c %c", s_pl_pin[0], s_pl_pin[1], s_pl_pin[2], s_pl_pin[3]);
-    GATE_BOX(g, "DGOBJ", "pin", 124, 38, 56, 8, "-");
-    txt(g, b, 124, 38, PAL_CODE, lgfx::textdatum::top_left);
+    GATE_BOX(g, "DGOBJ", "pin", 194, 30, 56, 8, "-");
+    txt(g, b, 194, 30, PAL_CODE, lgfx::textdatum::top_left);
     const int typed = (int)strlen(s_pl_in);
     for (int i = 0; i < 4; ++i) b[i * 2] = i < typed ? s_pl_in[i] : '_';
-    txt(g, b, 124, 60, PAL_HEAD, lgfx::textdatum::top_left);
+    txt(g, b, 194, 46, PAL_HEAD, lgfx::textdatum::top_left);
     s_px = keep;
-    for (int y = PL_TOP + 14; y < PL_HIT - 4; y += 14) g.fillRect(160, y, 1, 2, PAL_DEEP);
+    for (int y = PL_TOP + 14; y < PL_HIT - 4; y += 14) g.fillRect(222, y, 1, 2, PAL_DEEP);
     const int y = (int)lroundf(s_pl_y);
     for (int k = 1; k <= 3; ++k) {
         const int ty = y - k * 7;
-        if (ty >= PL_TOP - 4) dg_bit(g, 159, ty, (k & 1) != 0, 1, dg_fade(PAL_CODE, 80 - k * 20));
+        if (ty >= PL_TOP - 4) dg_bit(g, 221, ty, (k & 1) != 0, 1, dg_fade(PAL_CODE, 80 - k * 20));
     }
-    GATE_BOX(g, "DGOBJ", "rogue", 154, y, 12, 12, "-");
-    gl_icon(g, GL_TRACKER, 154, y, false);
-    dg_bot(g, 160, PL_BOTY, 2);
+    GATE_BOX(g, "DGOBJ", "rogue", 216, y, 12, 12, "-");
+    gl_icon(g, GL_TRACKER, 216, y, false);
+    dg_bot(g, 222, PL_BOTY, 2);
 }
 
 /* ---------- 2C Range Ring: BLE icons drift in from the four sides; ping that side before the inner ring ---------- */
-static const int RR_CX = 160, RR_CY = 127, RR_IN = 26, RR_OUT = 92;
+static const int RR_CX = 222, RR_CY = 83, RR_IN = 16, RR_OUT = 54;
 static float s_rr_d[4];               /* distance from centre per side (up down left right); < 0 = none */
 static int8_t s_rr_k[4];
 static int s_rr_wave = 0, s_rr_spawned = 0;
@@ -680,13 +691,13 @@ static void rr_step(float dt)
     if (s_rr_spawned < rr_need() && s_rr_next <= 0.f) {
         const int s = (int)(dg_rng() % 4u);
         if (s_rr_d[s] < 0.f) {
-            s_rr_d[s] = (s < 2) ? 96.f : 140.f;
+            s_rr_d[s] = (s < 2) ? 56.f : 80.f;
             s_rr_k[s] = BS_KIND[dg_rng() % 4u];
             ++s_rr_spawned;
             s_rr_next = 1.5f - 0.3f * (float)s_rr_wave;
         } else s_rr_next = 0.2f;
     }
-    const float v = 16.f + 6.f * (float)s_rr_wave;
+    const float v = 10.f + 4.f * (float)s_rr_wave;
     for (int s = 0; s < 4; ++s) {
         if (s_rr_d[s] < 0.f) continue;
         s_rr_d[s] -= v * dt;
@@ -708,7 +719,7 @@ static void rr_paint(Gfx g)
 }
 
 /* ---------- 3A Patch Run: a 5x3 grid of IoT icons; patch the blinking vulnerable ones before the bar runs out ---------- */
-static const int PR_C = 5, PR_R = 3, PR_N = 15, PR_X0 = 15, PR_Y0 = 28, PR_CW = 58, PR_CH = 66, PR_BAR = 40;
+static const int PR_C = 5, PR_R = 3, PR_N = 15, PR_X0 = 135, PR_Y0 = 23, PR_CW = 35, PR_CH = 40, PR_BAR = 26;
 static const int8_t PR_IOT[PR_N] = { GL_CAMERA, GL_TV, GL_SPEAKER, GL_PRINTER, GL_CAR, GL_SPEAKER, GL_CAMERA, GL_DEVBOARD,
                                       GL_TV, GL_CAMERA, GL_PRINTER, GL_CAR, GL_TV, GL_SPEAKER, GL_CAMERA };
 static uint8_t s_pr_st[PR_N];         /* 0 secure, 1 vulnerable, 2 down (red) */
@@ -764,19 +775,19 @@ static void pr_paint(Gfx g)
         int x, y; pr_cell(i, &x, &y);
         const int cx = x + PR_CW / 2;
         if (s_pr_st[i] == 2) g.drawRect(x + 2, y + 2, PR_CW - 4, PR_CH - 4, PAL_AMBER);
-        GATE_BOX(g, "DGOBJ", s_pr_st[i] == 1 ? "vuln" : s_pr_st[i] == 2 ? "down" : "iot", cx - 6, y + 8, 12, 12, "-");
-        gl_icon(g, PR_IOT[i], cx - 6, y + 8, s_pr_st[i] == 2 || (s_pr_st[i] == 1 && pr_blink()));
+        GATE_BOX(g, "DGOBJ", s_pr_st[i] == 1 ? "vuln" : s_pr_st[i] == 2 ? "down" : "iot", cx - 6, y + 4, 12, 12, "-");
+        gl_icon(g, PR_IOT[i], cx - 6, y + 4, s_pr_st[i] == 2 || (s_pr_st[i] == 1 && pr_blink()));
         if (s_pr_st[i] == 1) {
             const int w = pr_bar(i);
-            g.fillRect(cx - PR_BAR / 2, y + 56, PR_BAR, 3, PAL_DEEP);
-            if (w > 0) g.fillRect(cx - PR_BAR / 2, y + 56, w, 3, PAL_AMBER);
+            g.fillRect(cx - PR_BAR / 2, y + 34, PR_BAR, 3, PAL_DEEP);
+            if (w > 0) g.fillRect(cx - PR_BAR / 2, y + 34, w, 3, PAL_AMBER);
         }
-        if (i == s_pr_cur) dg_bot(g, cx, y + 38, 2);
+        if (i == s_pr_cur) dg_bot(g, cx, y + 24, 2);
     }
 }
 
 /* ---------- 3C Botnet Breaker: infection drips down five strands; cut a strand (1-5) before 3 in a row fall ---------- */
-static const int BN_N = 5, BN_X0 = 40, BN_DX = 60, BN_TOP = 40, BN_ICY = 192, BN_MAXB = 12, BN_BOTY = 220;
+static const int BN_N = 5, BN_X0 = 152, BN_DX = 35, BN_TOP = 33, BN_ICY = 112, BN_MAXB = 12, BN_BOTY = 136, BN_DY = 6;
 static uint8_t s_bn_n[BN_N], s_bn_inf[BN_N];
 static int s_bn_at = 2;               /* the bot stands under the strand it last cut */
 static float s_bn_t[BN_N], s_bn_rate[BN_N];
@@ -817,13 +828,13 @@ static void bn_paint(Gfx g)
     for (int i = 0; i < BN_N; ++i) {
         const int cx = BN_X0 + i * BN_DX;
         char d[2] = { (char)('1' + i), 0 };
-        txt(g, d, cx - 2, DG_PY + 4, PAL_MUTED, lgfx::textdatum::top_left);
+        txt(g, d, cx - 2, DG_PY + 2, PAL_MUTED, lgfx::textdatum::top_left);
         for (int y = BN_TOP + 4; y < BN_ICY - 4; y += 14) g.fillRect(cx, y, 1, 2, PAL_DEEP);
         for (int k = 0; k < s_bn_n[i]; ++k) {
             const bool head = k == s_bn_n[i] - 1;
-            dg_bit(g, cx - 3, BN_TOP + k * 12, ((i + k) & 1) != 0, 2, head ? (uint8_t)PAL_HEAD : dg_fade(PAL_CODE, 30 + 50 * k / BN_MAXB));
+            dg_bit(g, cx - 1, BN_TOP + k * BN_DY, ((i + k) & 1) != 0, 1, head ? (uint8_t)PAL_HEAD : dg_fade(PAL_CODE, 30 + 50 * k / BN_MAXB));
         }
-        if (s_bn_n[i]) GATE_BOX(g, "DGOBJ", "drip", cx - 3, BN_TOP, 6, s_bn_n[i] * 12 - 2, "-");
+        if (s_bn_n[i]) GATE_BOX(g, "DGOBJ", "drip", cx - 1, BN_TOP, 3, s_bn_n[i] * BN_DY - 1, "-");
         GATE_BOX(g, "DGOBJ", s_bn_inf[i] ? "infected" : "iot", cx - 6, BN_ICY, 12, 12, "-");
         if (s_bn_inf[i]) {                                    /* turned into a rain-coloured block */
             g.fillRect(cx - 6, BN_ICY, 12, 12, dg_fade(PAL_CODE, 55));
@@ -835,7 +846,7 @@ static void bn_paint(Gfx g)
 }
 
 /* ---------- 4B Jam Dodge: jammers sweep noise walls (rows of 1s) across six lanes; slip through the gap ---------- */
-static const int JD_L = 6, JD_Y0 = 34, JD_LH = 32, JD_BX = 44, JD_WW = 20, JD_MAX = 3;
+static const int JD_L = 6, JD_Y0 = 35, JD_LH = 18, JD_BX = 160, JD_WW = 20, JD_MAX = 3;
 struct DGWall { float x; int8_t gap, live, hit; };
 static DGWall s_jd[JD_MAX];
 static int s_jd_lane = 2;
@@ -847,13 +858,13 @@ static void jd_step(float dt)
     const float secs = (float)s_dg_ms / 1000.f;
     float far = -1e9f;
     for (int i = 0; i < JD_MAX; ++i) if (s_jd[i].live && s_jd[i].x > far) far = s_jd[i].x;
-    if (far < (float)(DG_PX + DG_PW - 150))
+    if (far < (float)(DG_PX + DG_PW - 92))
         for (int i = 0; i < JD_MAX; ++i) if (!s_jd[i].live) {
             s_jd[i].live = 1; s_jd[i].hit = 0; s_jd[i].x = (float)(DG_PX + DG_PW - JD_WW - 2);
             s_jd[i].gap = (int8_t)(dg_rng() % (uint32_t)(JD_L - 1));
             break;
         }
-    const float v = 70.f + secs * 0.7f;
+    const float v = 45.f + secs * 0.45f;
     for (int i = 0; i < JD_MAX; ++i) {
         DGWall &w = s_jd[i];
         if (!w.live) continue;
@@ -885,7 +896,7 @@ static void jd_paint(Gfx g)
 }
 
 /* ---------- 4C Signal Trace: a rogue hides in one of 9 cells; scan for hotter / colder, best of 5 rounds ---------- */
-static const int ST_X0 = 16, ST_Y0 = 34, ST_CW = 96, ST_CH = 64, ST_SCANS = 4;
+static const int ST_X0 = 135, ST_Y0 = 23, ST_CW = 58, ST_CH = 40, ST_SCANS = 4;
 static const uint32_t ST_ROUND_MS = 15000u, ST_SHOW_MS = 1200u;
 static int s_st_cur = 4, s_st_hid = 0, s_st_left = ST_SCANS, s_st_reveal = 0;
 static int8_t s_st_heat[9];           /* -1 not scanned, else manhattan distance to the rogue */
@@ -931,17 +942,17 @@ static void st_paint(Gfx g)
     for (int i = 0; i < 9; ++i) {
         const int x = ST_X0 + (i % 3) * ST_CW, y = ST_Y0 + (i / 3) * ST_CH;
         g.drawRect(x + 2, y + 2, ST_CW - 4, ST_CH - 4, i == s_st_cur ? (uint8_t)PAL_CYAN : (uint8_t)PAL_WIRE_C);
-        if (i == s_st_cur) dg_bot(g, x + 24, y + ST_CH / 2, 2);
+        if (i == s_st_cur) dg_bot(g, x + 13, y + ST_CH / 2, 2);
         const int h = s_st_heat[i];
         if (h > 0) {                                           /* hotter = more 1s */
             const int n = h >= 4 ? 0 : 4 - h;
-            GATE_BOX(g, "DGOBJ", "heat", x + 46, y + 27, n ? n * 8 - 2 : 6, 10, "-");
-            if (n == 0) dg_bit(g, x + 46, y + 27, false, 2, PAL_LINE);
-            for (int k = 0; k < n; ++k) dg_bit(g, x + 46 + k * 8, y + 27, true, 2, h == 1 ? (uint8_t)PAL_HEAD : (uint8_t)PAL_CODE);
+            GATE_BOX(g, "DGOBJ", "heat", x + 26, y + 15, n ? n * 8 - 2 : 6, 10, "-");
+            if (n == 0) dg_bit(g, x + 26, y + 15, false, 2, PAL_LINE);
+            for (int k = 0; k < n; ++k) dg_bit(g, x + 26 + k * 7, y + 15, true, 2, h == 1 ? (uint8_t)PAL_HEAD : (uint8_t)PAL_CODE);
         }
         if ((h == 0 || (s_st_reveal == 2 && i == s_st_hid))) {
-            GATE_BOX(g, "DGOBJ", "rogue", x + 56, y + 26, 12, 12, "-");
-            dev_icon(g, DEV_DEAUTH, x + 56, y + 26, h != 0);
+            GATE_BOX(g, "DGOBJ", "rogue", x + 34, y + 14, 12, 12, "-");
+            dev_icon(g, DEV_DEAUTH, x + 34, y + 14, h != 0);
         }
     }
 }
@@ -1049,8 +1060,8 @@ static bool dg_key(int key, char typed)
         if (dir == 2) bs_sort(true);                      /* , trusted */
         if (dir == 3) bs_sort(false);                     /* / unknown */
     } else if (s_dg == DG_WALL) {
-        if (dir == 2) s_fw_px -= 18.f;
-        if (dir == 3) s_fw_px += 18.f;
+        if (dir == 2) s_fw_px -= 12.f;
+        if (dir == 3) s_fw_px += 12.f;
         if (s_fw_px < (float)(DG_PX + 11)) s_fw_px = (float)(DG_PX + 11);
         if (s_fw_px > (float)(DG_PX + DG_PW - 11)) s_fw_px = (float)(DG_PX + DG_PW - 11);
         if (enter || space) s_dg_launch = true;
@@ -1089,13 +1100,68 @@ static bool dg_key(int key, char typed)
     }
     return true;
 }
+/* MOD item 4: the Defend board's own grid (the exact paint_gc_route lattice) under EVERY game. */
+static void dg_grid(Gfx g)
+{
+    const int x = 132, y = 20, w = 180, h = 126;
+    for (int gy = 16; gy < h - 8; gy += 16) g.fillRect(x + 8, y + gy, w - 16, 1, PAL_LINE);
+    for (int gx = 16; gx < w - 8; gx += 18) g.fillRect(x + gx, y + 8, 1, h - 16, PAL_LINE);
+}
+/* MOD item 14: small in-board treatments per game (key / bin / channel marks), muted, under the play */
+static void dg_board_marks(Gfx g)
+{
+    const int keep = s_px; s_px = 6;
+    const uint8_t m = PAL_MUTED;
+    if (s_dg == DG_BEACON) {
+        txt(g, "< 1 TRUST", DG_PX + 3, DG_PY + DG_PH - 10, m, lgfx::textdatum::top_left);
+        txt(g, "0 UNK >", DG_PX + DG_PW - 3, DG_PY + DG_PH - 10, m, lgfx::textdatum::top_right);
+    } else if (s_dg == DG_TWIN) {
+        txt(g, ",", TW_LX - 1, TW_FLOOR + 4, m, lgfx::textdatum::top_left);
+        txt(g, "/", TW_RX - 2, TW_FLOOR + 4, m, lgfx::textdatum::top_left);
+    } else if (s_dg == DG_HOP) {
+        static const char *const CHN[CH_L] = { "1", "3", "6", "9", "11" };
+        for (int l = 0; l < CH_L; ++l) txt(g, CHN[l], ch_cx(l), DG_PY + 2, m, lgfx::textdatum::top_center);
+    } else if (s_dg == DG_PAIR) {
+        txt(g, "PIN", DG_PX + 30, 30, m, lgfx::textdatum::top_left);
+        txt(g, "KEY", DG_PX + 30, 46, m, lgfx::textdatum::top_left);
+    } else if (s_dg == DG_RING) {
+        txt(g, ";", RR_CX + 3, DG_PY + 1, m, lgfx::textdatum::top_left);
+        txt(g, ".", RR_CX + 3, DG_PY + DG_PH - 9, m, lgfx::textdatum::top_left);
+        txt(g, ",", DG_PX + 2, RR_CY + 3, m, lgfx::textdatum::top_left);
+        txt(g, "/", DG_PX + DG_PW - 7, RR_CY + 3, m, lgfx::textdatum::top_left);
+    } else if (s_dg == DG_JAM) {
+        txt(g, ";", JD_BX - 20, JD_Y0 + 2, m, lgfx::textdatum::top_left);
+        txt(g, ".", JD_BX - 20, JD_Y0 + JD_L * JD_LH - 10, m, lgfx::textdatum::top_left);
+    }
+    s_px = keep;
+}
+/* WIN / LOST / PAUSE stop plate, centred on the board (no new chrome: the same plate as the title) */
+static void dg_stop_plate(Gfx g)
+{
+    if (s_dg_state == DGS_PLAY) return;
+    const char *w = s_dg_state == DGS_WIN ? "WIN" : s_dg_state == DGS_LOST ? "LOST" : "PAUSE";
+    const uint8_t c = s_dg_state == DGS_WIN ? (uint8_t)PAL_OK : s_dg_state == DGS_LOST ? (uint8_t)PAL_AMBER : (uint8_t)PAL_CYAN;
+    const int pw = 136, ph = 34, px = DG_PX + (DG_PW - pw) / 2, py = DG_PY + (DG_PH - ph) / 2;
+    GATE_BOX(g, "DGOBJ", "stop", px, py, pw, ph, "-");
+    plate(g, px, py, pw, ph, PAL_DEEP, c);
+    const int keep = s_px; s_px = 8;
+    txt(g, w, px + pw / 2, py + 5, c, lgfx::textdatum::top_center);
+    s_px = 6;
+    txt(g, s_dg_state == DGS_PAUSE ? "space resume" : "enter again  , / game", px + pw / 2, py + 21, PAL_IVORY, lgfx::textdatum::top_center);
+    s_px = keep;
+}
 static void paint_dg_board(Gfx g)
 {
-    const uint8_t ac = PAL_CYAN;
+    /* the Defend screen's own route board frame (red hold rim), black field, its grid, then the game */
+    const int x = 132, y = 20, w = 180, h = 126;
     GATE_BOX(g, "BOARD", "defend", DG_BX, DG_BY, DG_BW, DG_BH, "-");
-    g.fillRect(DG_BX, DG_BY, DG_BW, DG_BH, PAL_BLACK);
-    g.drawRect(DG_BX, DG_BY, DG_BW, DG_BH, ac);
-    g.drawRect(DG_BX + 1, DG_BY + 1, DG_BW - 2, DG_BH - 2, PAL_WIRE_C);
+    g.fillRect(x, y, w, h, PAL_BLACK);
+    g.drawRect(x - 2, y - 2, w + 4, h + 4, PAL_HOLD);
+    g.drawRect(x - 1, y - 1, w + 2, h + 2, PAL_BFB72);
+    g.drawRect(x, y, w, h, PAL_BFB72);
+    g.drawRect(x + 1, y + 1, w - 2, h - 2, PAL_HOLD);
+    dg_grid(g);
+    dg_board_marks(g);
     if (s_dg == DG_RAIN) rc_paint(g);
     else if (s_dg == DG_BEACON) bs_paint(g);
     else if (s_dg == DG_WALL) fw_paint(g);
@@ -1108,6 +1174,123 @@ static void paint_dg_board(Gfx g)
     else if (s_dg == DG_BOTNET) bn_paint(g);
     else if (s_dg == DG_TRACE) st_paint(g);
     else if (s_dg == DG_JAM) jd_paint(g);
+    dg_stop_plate(g);
+}
+
+/* MOD item 14: the game's own UI in the Defend screen's prompt panel (score bar, lives as square chips,
+ * timer, one game stat, how the bot reads the game, keys). Outside the board = square chips only. */
+struct DGUi { int score, target, lives_lost, lives_n, limit_s; char stat[24]; const char *read; const char *keys; };
+static void dg_ui(DGUi *u)
+{
+    u->score = s_dg_score; u->target = 1; u->lives_lost = s_dg_miss; u->lives_n = 3; u->limit_s = 0; u->stat[0] = 0;
+    u->read = ""; u->keys = "";
+    switch (s_dg) {
+    case DG_RAIN: u->target = 20; snprintf(u->stat, 24, "JUNK BITS %d/3", s_dg_junk);
+        u->read = "catch my icons, dodge bits"; u->keys = ", / move  spc pause"; break;
+    case DG_BEACON: u->target = 25; snprintf(u->stat, 24, "SPEED x%d", 1 + s_dg_score / 5);
+        u->read = "1 = trusted, 0 = unknown"; u->keys = ", trust  / unknown"; break;
+    case DG_WALL: u->target = FW_C * FW_R; snprintf(u->stat, 24, "BLOCKS LEFT %d", FW_C * FW_R - s_dg_score);
+        u->read = "bounce the bit, guard the IoT"; u->keys = ", / move  enter launch"; break;
+    case DG_MAZE: u->score = s_mz_total - s_mz_left; u->target = s_mz_total ? s_mz_total : 1;
+        if (s_dg_t < s_mz_fright) snprintf(u->stat, 24, "SHIELD %us", (unsigned)((s_mz_fright - s_dg_t + 999u) / 1000u));
+        else snprintf(u->stat, 24, "SHIELD OFF");
+        u->read = "eat bits, icons = chase"; u->keys = "; . , / steer"; break;
+    case DG_TWIN: u->target = 15; snprintf(u->stat, 24, "SPOTTED %d", s_dg_score);
+        u->read = "the twin's bit flickers"; u->keys = ", left  / right"; break;
+    case DG_HOP: u->score = (int)(s_dg_ms / 1000u); u->target = 60; u->limit_s = 60;
+        snprintf(u->stat, 24, "DODGED %d BOOST %d", s_dg_score % 100, s_ch_boost);
+        u->read = "hop to a clean channel"; u->keys = ", / hop  enter boost"; break;
+    case DG_RING: { int done = 0; for (int w = 0; w < s_rr_wave; ++w) done += 6 + 2 * w;
+        u->score = done + s_rr_spawned; u->target = 6 + 8 + 10; snprintf(u->stat, 24, "WAVE %d/3", s_rr_wave + 1);
+        u->read = "ping the side they come from"; u->keys = "; . , / ping"; break; }
+    case DG_PAIR: u->target = 10; snprintf(u->stat, 24, "PIN %d/4 TYPED", (int)strlen(s_pl_in));
+        u->read = "type the PIN before it lands"; u->keys = "0-9 type  enter lock"; break;
+    case DG_PATCH: u->score = (int)(s_dg_ms / 1000u); u->target = 90; u->limit_s = 90;
+        snprintf(u->stat, 24, "PATCHED %d", s_dg_score % 100);
+        u->read = "patch the blinking ones"; u->keys = "arrows move  enter patch"; break;
+    case DG_BOTNET: { int inf = 0; for (int i = 0; i < BN_N; ++i) inf += s_bn_inf[i];
+        u->score = (int)(s_dg_ms / 1000u); u->target = 60; u->limit_s = 60; u->lives_lost = inf; u->lives_n = BN_N;
+        snprintf(u->stat, 24, "CUTS %d", s_dg_score % 100);
+        u->read = "cut a strand before it drips"; u->keys = "1-5 cut a strand"; break; }
+    case DG_TRACE: u->target = 3; u->limit_s = (int)(ST_ROUND_MS / 1000u);
+        snprintf(u->stat, 24, "SCANS %d/%d", s_st_left, ST_SCANS);
+        u->read = "more 1s = hotter"; u->keys = "arrows move  enter scan"; break;
+    default: u->score = (int)(s_dg_ms / 1000u); u->target = 45; u->limit_s = 45;
+        snprintf(u->stat, 24, "PASSED %d", s_dg_score % 100);
+        u->read = "slip through the gap"; u->keys = "; . lane"; break;
+    }
+    if (u->score > u->target) u->score = u->target;
+    if (u->lives_lost > u->lives_n) u->lives_lost = u->lives_n;
+}
+static const int DGH_X = 8, DGH_Y = 152, DGH_W = 268, DGH_H = 74;   /* inside the prompt panel, left of the corner chip */
+static void paint_dg_hud_ext(Gfx g)
+{
+    DGUi u; dg_ui(&u);
+    const bool gib = s_dg_bot >= 12;
+    const uint8_t bc = gib ? (uint8_t)PAL_IVORY : bot_color(s_dg_bot);
+    GATE_BOX(g, "DGHUD", "panel", DGH_X, DGH_Y, DGH_W, DGH_H, "-");
+    g.fillRect(DGH_X, DGH_Y, DGH_W, DGH_H, PAL_BLACK);
+    const int keep = s_px; s_px = 6;
+    /* row 1: game name, game n/3 of the category, live state */
+    txt(g, DG_NAME[s_dg], 10, 155, PAL_CYAN, lgfx::textdatum::top_left);
+    char b[40];
+    static const char *const CATN[4] = { "wifi", "ble", "iot", "rogue" };
+    snprintf(b, sizeof b, "%s %d/3", CATN[DG_CAT[s_dg_bot]], s_dg_slot + 1);
+    txt(g, b, 10 + ((int)strlen(DG_NAME[s_dg]) + 1) * 6, 155, PAL_MUTED, lgfx::textdatum::top_left);
+    const char *st = s_dg_state == DGS_WIN ? "WIN" : s_dg_state == DGS_LOST ? "LOST" : s_dg_state == DGS_PAUSE ? "PAUSE" : "LIVE";
+    const uint8_t sc = s_dg_state == DGS_WIN ? (uint8_t)PAL_OK : s_dg_state == DGS_LOST ? (uint8_t)PAL_AMBER
+                     : s_dg_state == DGS_PAUSE ? (uint8_t)PAL_CYAN : (uint8_t)PAL_OK;
+    g.fillRect(DGH_X + DGH_W - 40, 156, 5, 5, sc);
+    txt(g, st, DGH_X + DGH_W - 32, 155, sc, lgfx::textdatum::top_left);
+    /* row 2: how the bot reads the game (its square chip colour, its name, its read) */
+    g.fillRect(10, 167, 6, 5, bc);
+    const char *nm = gib ? "gibson" : BOTS[s_dg_bot].short_name;
+    txt(g, nm, 20, 166, bc, lgfx::textdatum::top_left);
+    snprintf(b, sizeof b, " - %s", u.read);
+    txt(g, b, 20 + (int)strlen(nm) * 6, 166, PAL_IVORY, lgfx::textdatum::top_left);
+    /* row 3: score bar (segmented like the rain strands) + count */
+    txt(g, u.limit_s && s_dg != DG_TRACE ? "TIME " : "SCORE", 10, 179, COL_INK, lgfx::textdatum::top_left);
+    const int bx = 46, bw = 150, segs = 25;
+    for (int k = 0; k < segs; ++k) {
+        const bool on = k < (u.score * segs + u.target - 1) / u.target && u.score > 0;
+        g.fillRect(bx + k * 6, 180, 5, 6, on ? (uint8_t)PAL_CODE : (uint8_t)PAL_LINE);
+    }
+    snprintf(b, sizeof b, "%02d/%02d", u.score, u.target);
+    txt(g, b, bx + bw + 6, 179, COL_WHITE, lgfx::textdatum::top_left);
+    /* row 4: lives as square chips (lit = left), timer */
+    txt(g, s_dg == DG_BOTNET ? "NODES" : "LIVES", 10, 192, COL_INK, lgfx::textdatum::top_left);
+    for (int k = 0; k < u.lives_n; ++k) {
+        const int lx = 46 + k * 11;
+        const bool left = k < u.lives_n - u.lives_lost;
+        g.fillRect(lx, 192, 8, 8, left ? bc : (uint8_t)PAL_BLACK);
+        g.drawRect(lx, 192, 8, 8, left ? bc : (uint8_t)PAL_AMBER);
+        if (!left) g.drawLine(lx + 1, 193, lx + 6, 198, PAL_AMBER);
+    }
+    const uint32_t sec = s_dg == DG_TRACE ? (s_dg_ms - s_st_t0) / 1000u : s_dg_ms / 1000u;
+    if (u.limit_s) {
+        const int left = u.limit_s - (int)sec < 0 ? 0 : u.limit_s - (int)sec;
+        snprintf(b, sizeof b, "%s %02ds", s_dg == DG_TRACE ? "ROUND" : "LEFT", left);
+    } else snprintf(b, sizeof b, "TIME %02u:%02u", (unsigned)((sec / 60u) % 100u), (unsigned)(sec % 60u));
+    txt(g, b, 46 + 5 * 11 + 8, 192, COL_WHITE, lgfx::textdatum::top_left);
+    /* row 5: one game stat */
+    txt(g, u.stat, 10, 204, PAL_HEAD, lgfx::textdatum::top_left);
+    /* row 6: the prompt line stays the Defend prompt; while a game is live it lists the game keys */
+    txt(g, gib ? "gibson" : BOTS[s_dg_bot].id, 10, 216, PAL_CYAN, lgfx::textdatum::top_left);
+    const int px = 10 + ((int)strlen(gib ? "gibson" : BOTS[s_dg_bot].id) + 1) * 6;
+    txt(g, ">", px, 216, COL_INK, lgfx::textdatum::top_left);
+    txt(g, u.keys, px + 12, 216, PAL_MUTED, lgfx::textdatum::top_left);
+    txt(g, "tab next  ` quit", DGH_X + DGH_W - 2, 204, PAL_MUTED, lgfx::textdatum::top_right);
+    s_px = keep;
+}
+static uint32_t dg_hud_sig(void)
+{
+    DGUi u; dg_ui(&u);
+    const uint32_t sec = s_dg == DG_TRACE ? (s_dg_ms - s_st_t0) / 1000u : s_dg_ms / 1000u;
+    uint32_t h = 2166136261u;
+    const uint32_t v[8] = { (uint32_t)s_dg, (uint32_t)u.score, (uint32_t)u.lives_lost, sec, (uint32_t)s_dg_state, (uint32_t)s_dg_slot, 0, 0 };
+    for (int i = 0; i < 8; ++i) h = (h ^ v[i]) * 16777619u;
+    for (const char *c = u.stat; *c; ++c) h = (h ^ (uint8_t)*c) * 16777619u;
+    return h;
 }
 
 /* dirty rects: one fixed slot per moving part, union of last and current box, keyed by its look */
@@ -1133,7 +1316,7 @@ static void dg_rects(DGRect *r)
     } else if (s_dg == DG_WALL) {
         r[0] = DGRect{ (int16_t)(lroundf(s_fw_px) - 12), (int16_t)(FW_PY - 12), 24, 24, 1 };
         r[1] = DGRect{ (int16_t)(lroundf(s_fw_bx) - 1), (int16_t)(lroundf(s_fw_by) - 1), 8, 12, 1 };
-        r[2] = DGRect{ (int16_t)FW_X0, (int16_t)FW_Y0, (int16_t)(FW_C * (FW_BW + 2)), (int16_t)(FW_R * (FW_BH + 4)), s_fw_alive };
+        r[2] = DGRect{ (int16_t)FW_X0, (int16_t)FW_Y0, (int16_t)(FW_C * (FW_BW + 2)), (int16_t)(FW_R * (FW_BH + 3)), s_fw_alive };
         r[3] = DGRect{ (int16_t)FW_X0, (int16_t)FW_ICY, (int16_t)(FW_C * (FW_BW + 2)), 12, (uint32_t)s_fw_dim + 1u };
     } else if (s_dg == DG_MAZE) {
         const int px = MZ_X + (int)lroundf(s_mz_p.x), py = MZ_Y + (int)lroundf(s_mz_p.y);
@@ -1159,12 +1342,12 @@ static void dg_rects(DGRect *r)
     } else if (s_dg == DG_PAIR) {
         uint32_t h = 2166136261u;
         for (int i = 0; i < 4; ++i) { h = (h ^ (uint8_t)s_pl_pin[i]) * 16777619u; }
-        r[0] = DGRect{ 122, 36, 60, 12, h };
+        r[0] = DGRect{ 192, 28, 60, 12, h };
         uint32_t t = 2166136261u;
         for (int i = 0; i < 5 && s_pl_in[i]; ++i) t = (t ^ (uint8_t)s_pl_in[i]) * 16777619u;
-        r[1] = DGRect{ 122, 58, 60, 12, t + (uint32_t)strlen(s_pl_in) };
+        r[1] = DGRect{ 192, 44, 60, 12, t + (uint32_t)strlen(s_pl_in) };
         const int y = (int)lroundf(s_pl_y);
-        r[2] = DGRect{ 153, (int16_t)(y - 22), 14, 35, 1 };
+        r[2] = DGRect{ 215, (int16_t)(y - 22), 14, 35, 1 };
     } else if (s_dg == DG_RING) {
         for (int s = 0; s < 4; ++s) {
             if (s_rr_d[s] < 0.f) continue;
@@ -1181,7 +1364,7 @@ static void dg_rects(DGRect *r)
     } else if (s_dg == DG_BOTNET) {
         for (int i = 0; i < BN_N; ++i) {
             const int cx = BN_X0 + i * BN_DX;
-            if (s_bn_n[i]) r[i] = DGRect{ (int16_t)(cx - 4), (int16_t)BN_TOP, 8, (int16_t)(s_bn_n[i] * 12), (uint32_t)s_bn_n[i] };
+            if (s_bn_n[i]) r[i] = DGRect{ (int16_t)(cx - 4), (int16_t)BN_TOP, 8, (int16_t)(s_bn_n[i] * BN_DY), (uint32_t)s_bn_n[i] };
             r[BN_N + i] = DGRect{ (int16_t)(cx - 7), (int16_t)(BN_ICY - 1), 14, 14, 1u + s_bn_inf[i] };
         }
         r[2 * BN_N] = DGRect{ (int16_t)(BN_X0 + s_bn_at * BN_DX - 11), (int16_t)(BN_BOTY - 11), 22, 22, 1 };
@@ -1236,6 +1419,12 @@ static void dg_tick(void)
         else dg_patch(x0, y0, x1 - x0, y1 - y0);
     }
     for (int i = 0; i < DG_SLOTS; ++i) s_dg_prev[i] = cur[i];
+    static uint32_t hud = 0;                               /* MOD: the in-screen HUD, patched on change only */
+    const uint32_t hs = dg_hud_sig();
+    if (hs != hud) { hud = hs; patch_world(paint_dg_hud_ext, DGH_X, DGH_Y, DGH_W, DGH_H); }
+    const uint32_t stop = (uint32_t)s_dg_state;            /* the WIN / LOST / PAUSE plate sits on the board */
+    static uint32_t last_stop = 0;
+    if (stop != last_stop) { last_stop = stop; dg_patch(DG_BX, DG_BY, DG_BW, DG_BH); }
 }
 
 /* INT: score / lives / timer as plain text in the menu style (under the unchanged BOTcorps bar) */
@@ -1342,17 +1531,17 @@ static void dg_ai(void)
         if (want < s_rc_lane) dg_key(K_LT, 0); else if (want > s_rc_lane) dg_key(K_RT, 0);
     } else if (s_dg == DG_BEACON) {
         const int b = bs_lowest();
-        if (b >= 0 && s_bs[b].y > (float)(DG_PY + 100)) dg_key(s_bs[b].tag & 1 ? K_LT : K_RT, 0);
+        if (b >= 0 && s_bs[b].y > (float)(DG_PY + 60)) dg_key(s_bs[b].tag & 1 ? K_LT : K_RT, 0);
     } else if (s_dg == DG_WALL) {
         if (s_fw_serve) { dg_key(K_OK, 0); return; }
         const float tx = s_fw_bx + 3.f;
-        if (tx < s_fw_px - 9.f) dg_key(K_LT, 0); else if (tx > s_fw_px + 9.f) dg_key(K_RT, 0);
+        if (tx < s_fw_px - 6.f) dg_key(K_LT, 0); else if (tx > s_fw_px + 6.f) dg_key(K_RT, 0);
     } else if (s_dg == DG_TWIN) {
-        if (s_tw_live && s_tw_y > (float)(DG_PY + 60)) dg_key(s_tw_side ? K_RT : K_LT, 0);
+        if (s_tw_live && s_tw_y > (float)(DG_PY + 36)) dg_key(s_tw_side ? K_RT : K_LT, 0);
     } else if (s_dg == DG_HOP) {
         bool bad[CH_L] = { false };
         for (int i = 0; i < CH_MAX; ++i)
-            if (s_ch[i].live && s_ch[i].y + 34.f > (float)(CH_BOTY - 150) && s_ch[i].y < (float)(CH_BOTY + 10)) bad[s_ch[i].lane] = true;
+            if (s_ch[i].live && s_ch[i].y + 34.f > (float)(CH_BOTY - 90) && s_ch[i].y < (float)(CH_BOTY + 10)) bad[s_ch[i].lane] = true;
         if (!bad[s_ch_lane]) return;
         int best = -1;
         for (int d = 1; d < CH_L && best < 0; ++d) {
@@ -1367,7 +1556,7 @@ static void dg_ai(void)
         if (!hot) dg_key(best < s_ch_lane ? K_LT : K_RT, 0);
     } else if (s_dg == DG_RING) {
         int b = -1;
-        for (int k = 0; k < 4; ++k) if (s_rr_d[k] >= 0.f && s_rr_d[k] < 70.f && (b < 0 || s_rr_d[k] < s_rr_d[b])) b = k;
+        for (int k = 0; k < 4; ++k) if (s_rr_d[k] >= 0.f && s_rr_d[k] < 42.f && (b < 0 || s_rr_d[k] < s_rr_d[b])) b = k;
         static const int KD[4] = { K_UP, K_DN, K_LT, K_RT };
         if (b >= 0) dg_key(KD[b], 0);
     } else if (s_dg == DG_PAIR) {

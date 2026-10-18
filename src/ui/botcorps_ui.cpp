@@ -67,7 +67,9 @@ struct ui_theme_t {
     uint8_t pur;          /* command purpose text */
     uint8_t tone[5];      /* sb_tone: 0 ac.55/black, 1 texture, 2 grid wash, 3 ac.35, 4 ac.8 */
     uint8_t sbink;        /* mock UI.ink on the scan box */
-    uint8_t grad;         /* 0 solid, 1 duotone (split), 2 vertical gradient */
+    uint8_t grad;         /* 0 solid, 1 duotone (split), 2 two-colour fade (ac2 -> ac), 3 three-stop fade
+                           * (ac2 -> ac -> ac3), 4 PRISM spectrum texture, 5 GLITCH RGB-split texture */
+    uint8_t ac3;          /* v1019n-mod: third fade stop (grad 3); 0 elsewhere */
 };
 #if defined(BOTCORPS_HOST_RENDER) && defined(BOTCORPS_LEGACY_ACCENT)
 /* Host-only regression twin: the pre-v1019 CYAN / AMBER / MINT accents, so the gate can prove
@@ -82,24 +84,43 @@ static const ui_theme_t THEMES[3] = {
       { 13, 45, PAL_WASH_M, PAL_WIRE_M, 90 }, 191, 0 },
 };
 #else
-static const int THEME_N = 5;
-static const ui_theme_t THEMES[5] = {
+/* v1019n-mod (#5): GRAPE / PINK / DUO / ULTRA unchanged; SYNTH is now a real two-colour fade (hot magenta
+ * strokes fading from a sunset orange, was orange-yellow strokes); four DRAFT multi-colour / texture themes
+ * follow (Mobandy to keep / rename / cut): VAPOR, AURORA, PRISM, GLITCH. */
+static const int THEME_N = 9;
+static const ui_theme_t THEMES[9] = {
     /* Neon Grape: electric grape violet, lime-leaf second accent (preview eyes), grape wires */
     { "NEON GRAPE", "GRAPE", 167, 156, 167, 69, 33, 211, 156, { 134, 5, 33, 69, 134 }, 211, 0 },
     /* Hot Pink Circuit: hot pink strokes on deep-pink circuit traces, cyan nodes */
     { "HOT PINK", "PINK", 194, 31, 194, 97, 33, 210, 210, { 161, 40, 33, 97, 194 }, 210, 0 },
     /* Purple + Pink Duotone: lavender purple / pink split (preview halves, two-tone select), mauve wires */
     { "DUOTONE", "DUO", 139, 202, 139, 101, 33, 215, 202, { 102, 5, 33, 101, 139 }, 215, 1 },
-    /* Synthwave: magenta -> sunset orange vertical gradient over electric-blue wires */
-    { "SYNTHWAVE", "SYNTH", 208, 194, 208, 38, 33, 250, 194, { 136, 5, 33, 38, 208 }, 250, 2 },
+    /* Synthwave (v1019n-mod): sunset orange (top) -> hot magenta (bottom) fade, magenta strokes, electric-blue wires */
+    { "SYNTHWAVE", "SYNTH", 227, 240, 227, 38, 33, 239, 240, { 130, 5, 33, 38, 194 }, 239, 2 },
     /* Ultraviolet: electric indigo, PINK on the selected item */
     { "ULTRAVIOLET", "ULTRA", 71, 202, 202, 66, 34, 147, 202, { 70, 5, 34, 66, 71 }, 147, 0 },
+    /* ---- v1019n-mod DRAFTS (multi-colour / named textures in the spirit of SYNTH) ---- */
+    /* Vaporwave: aqua (top) -> bubblegum pink fade, pink strokes, mauve wires */
+    { "VAPORWAVE", "VAPOR", 234, 95, 234, 101, 33, 242, 95, { 133, 5, 33, 101, 198 }, 242, 2 },
+    /* Aurora: three-stop fade, lime green -> ice cyan -> violet, cyan strokes */
+    { "AURORA", "AURORA", 27, 60, 27, 13, 1, 127, 60, { 14, 5, 1, 13, 22 }, 127, 3, 163 },
+    /* Prism: spectrum texture (magenta / orange / yellow / green / cyan / blue bands), pearl strokes */
+    { "PRISM", "PRISM", 223, 231, 223, 109, 41, 223, 231, { 110, 5, 41, 109, 182 }, 223, 4 },
+    /* Glitch: RGB-split texture, cyan strokes with magenta split / stutter dashes */
+    { "GLITCH", "GLITCH", 31, 231, 31, 13, 1, 127, 231, { 18, 5, 1, 13, 58 }, 127, 5 },
 };
 #endif
 static int theme_ix(int c) { return (c < 0 || c >= THEME_N) ? 0 : c; }
 static const char *const MIX_N[3] = { "BOT + DEVICE", "BOTS", "DEVICES" };
-static const char *const SAVER_N[4] = { "BOTS", "GIBSON", "FLYBY", "BOUNCE" };
-static const int IDLE_V[3] = { 15, 25, 45 };
+/* v1019n (#6): the former SCREEN SAVERS are now BACKGROUNDS (botcorps_rain_set_bg): RAIN = our one BOTcorps
+ * rain (default); BOTS / GIBSON / FLYBY / BOUNCE = that saver animation runs live INSTEAD of the rain. */
+static const int BGS_NUM = 5;
+static const char *const BGS_N[BGS_NUM] = { "RAIN", "BOTS", "GIBSON", "FLYBY", "BOUNCE" };
+/* v1019n-mod (#7): BG COLOR (the old IDLE-time chip): the multi-colour bots + four solid colours,
+ * as rain modes (0 MULTI, 1 GREEN, 2 CYAN, 4 PURPLE, 5 AMBER). BLUE / WHITE stay reachable on the CP part. */
+static const int BGC_N = 5;
+static const int8_t BGC_MODE[BGC_N] = { 0, 1, 2, 4, 5 };
+static const char *const BGC_S[BGC_N] = { "MULTI", "GREEN", "CYAN", "PURPLE", "AMBER" };
 
 enum {
     ICO_PLAY = 0, ICO_TERM, ICO_CTRL, ICO_RADAR, ICO_BACK, ICO_TRACK, ICO_LIST, ICO_DIAG
@@ -322,15 +343,15 @@ static int s_dg = -1;
 static bool dg_on(void) { return s_dg >= 0 && s_screen == SCR_GCHAT; }
 static void dg_start(int bot);
 static void paint_dg_board(Gfx g);
+static void paint_dg_hud_ext(Gfx g);   /* MOD item 14: game HUD in the Defend prompt panel */
 static void dg_paint_hud(Gfx g, int width, bool full);
 static int s_cursor = 0;
 static int s_bot = 2;
 static int s_term = 2;
 static int s_color = 0;
 static int s_mix = 0;
-static int s_saver = 0;
-static int s_saver_on = 1;
-static int s_idle = 1;
+static int s_bg = 0;          /* v1019n: BACKGROUND 0 RAIN, 1..4 the saver animations (was s_saver) */
+static int s_bg_motion = 1;   /* v1019n-mod: PWR LED = background motion on/off (was saver on/off) */
 static int s_ret = -1;
 static bool s_dirty = true;
 /* Full INT repaint. Screen changes and boot only. -1 forces the next partial. */
@@ -350,7 +371,8 @@ static int8_t s_hunt_buf[HUNT_N];
 static uint8_t s_hunt_len = 0;
 static uint32_t s_hunt_tS = 0;
 static int s_hunt_force = 0; /* 0 = live mock; nonzero = forced dBm for host paints */
-static const int SB_N = 12;   /* devices per band in the scan box */
+static const int SB_N = 35;   /* mod item 9: device CAPACITY per band (grid extends by rows past 28) */
+static int s_sb_n = 12;       /* devices actually in the sample list (12 stock; host can raise it for overflow) */
 static uint8_t s_dev_tag[2][SB_N];
 static uint8_t s_dev_ign[2][SB_N];
 static int s_gloss = -1;      /* glossary row, -1 closed */
@@ -399,6 +421,7 @@ static uint32_t s_mood_until = 0;
 static uint32_t s_last_key = 0;
 static char s_bub[8];
 static char s_gp_buf[20];
+static int s_gc_caret = -1, s_gc_hist_i = -1;   /* MOD item 2: Defend prompt caret (-1 = end) + history walk */
 static char s_gp_log[2][28];
 static int s_gp_n = 0;
 static bool s_gp_focus = false;
@@ -440,7 +463,38 @@ static uint8_t sel_ink(int k, int side)
     const ui_theme_t &t = theme();
     if (t.grad == 1) return ((k >> 1) & 1) ? t.ac2 : t.ac;
     if (t.grad == 2) return (side == 0 || side == 3) ? t.ac2 : t.ac;
+    if (t.grad == 3) return (side == 0 || side == 3) ? t.ac2 : ((k & 1) ? t.ac3 : t.ac);
+    if (t.grad == 4) { static const uint8_t H[6] = { 231, 240, 248, 60, 31, 47 }; return H[(k + side) % 6]; }
+    if (t.grad == 5) return (k % 3 == 0) ? t.ac2 : t.ac;
     return t.sel;
+}
+static uint16_t mix16(uint16_t a, uint16_t b, int num, int den);
+/* v1019n-mod (#5): the theme's ink at position pos of len along a stroke (selection outline, preview rows,
+ * feed trace, accent rule). Solid themes: the selection colour (identical pixels to before). */
+static uint8_t th_ink_at(int pos, int len)
+{
+    const ui_theme_t &t = theme();
+    if (len < 2) len = 2;
+    if (pos < 0) pos = 0;
+    if (pos > len - 1) pos = len - 1;
+    switch (t.grad) {
+    case 1: return pos < len / 2 ? t.ac : t.ac2;
+    case 2: return botcorps_pal_fit(mix16(botcorps_rgb565(t.ac2), botcorps_rgb565(t.ac), pos, len - 1));
+    case 3: {
+        const int h = (len - 1) / 2;
+        if (pos <= h) return botcorps_pal_fit(mix16(botcorps_rgb565(t.ac2), botcorps_rgb565(t.ac), pos, h > 0 ? h : 1));
+        return botcorps_pal_fit(mix16(botcorps_rgb565(t.ac), botcorps_rgb565(t.ac3), pos - h, (len - 1 - h) > 0 ? len - 1 - h : 1));
+    }
+    case 4: { static const uint8_t H[6] = { 231, 240, 248, 60, 31, 47 }; return H[(pos * 6 / len) % 6]; }
+    case 5: return ((pos / 3) % 4 == 1) ? t.ac2 : t.ac;
+    default: return t.sel;
+    }
+}
+/* the same ink dimmed to wire strength (~0.35 over the black board) */
+static uint8_t th_wire_at(int pos, int len)
+{
+    if (theme().grad == 0) return theme().wire;
+    return botcorps_pal_fit(mix16(botcorps_rgb565(th_ink_at(pos, len)), botcorps_rgb565(PAL_BLACK), 62, 100));
 }
 
 static const char *screen_name(int id)
@@ -1358,8 +1412,16 @@ static uint8_t glow_of(int step);
 
 /* v1019d (Dirt #4): brighter ghost-rain ink for the Terminal (was index 12, (0,89,16), which left the
  * panel lost in black). Still glyph pixels only, under faces / labels / prompt text, never over. */
-static uint8_t term_ghost_ink(void) { return botcorps_pal_fit(0x2CAA); }   /* ~(40,150,80) */
-static uint8_t term_prompt_ghost_ink(void) { return botcorps_pal_fit(0x0366); }   /* ~(0,108,48) */
+/* v1019n (#15/#19): the Terminal / prompt rain is OUR DEVICE-ICON RAIN only (botcorps_rain_set_no_bots);
+ * it and its ghosts never follow the UI colour. */
+static uint8_t term_ghost_ink(void)
+{
+    return botcorps_pal_fit(0x2CAA);   /* ~(40,150,80); the device-only ghost draws each icon in its own ink */
+}
+static uint8_t term_prompt_ghost_ink(void)
+{
+    return botcorps_pal_fit(0x0366);   /* ~(0,108,48) */
+}
 static void paint_one_board(Gfx g, int i, bool sel, bool dim)
 {
     int x, y;
@@ -1495,14 +1557,10 @@ static void paint_one_board(Gfx g, int i, bool sel, bool dim)
             const int db = (int)(c & 31) - (int)(face & 31);
             return (dr < 0 ? -dr : dr) + (dg < 0 ? -dg : dg) + (db < 0 ? -db : db) >= 16;
         };
-        uint8_t gi = botcorps_pal_fit(mix16(face, botcorps_rgb565(accent()), 65, 100));
-        /* theme accent too close to this bot's colour (GRAPE on AIRTAG, SYNTHWAVE orange on FLIPPER):
-         * a pale tint of the same accent, then the theme's second colour, then a lifted tint of the
-         * face, so the rain never vanishes into the face */
-        const uint16_t pale = mix16(botcorps_rgb565(accent()), 0xFFFF, 55, 100);
-        if (!far(gi)) gi = botcorps_pal_fit(mix16(face, pale, 75, 100));
-        if (!far(gi)) gi = botcorps_pal_fit(mix16(face, botcorps_rgb565(accent2()), 65, 100));
-        if (!far(gi)) gi = botcorps_pal_fit(mix16(face, 0xFFFF, 45, 100));
+        /* v1019n (#19): UI COLOR never recolours rain, so the face ghost no longer mixes the theme accent: a
+         * lifted tint of the face, else a darkened one, so the device-icon rain still reads on every bot */
+        uint8_t gi = botcorps_pal_fit(mix16(face, 0xFFFF, 45, 100));
+        if (!far(gi)) gi = botcorps_pal_fit(mix16(face, 0x0000, 45, 100));
         botcorps_rain_ghost_ex(*g.raw(), g.ox, g.oy, fx, fy + gy0, fs, fs - gy0, gi, true);
     }
     const int st = BOTS[i].st;
@@ -2625,6 +2683,25 @@ static void gib_block_radar(Gfx g, int cx, int cy, int s)
 }
 
 static uint16_t mix16(uint16_t a, uint16_t b, int num, int den);
+/* v1019n (#16, Mobandy: "dont change anything but the pin amount"): EXACTLY 5 castellated pins per side on
+ * every Gibson / bot chip. A chip size whose old pitch already gave 5 keeps its old pin positions to the
+ * pixel (56 / 54 px blocks, the 20 px terminal tile); every other size spaces its 5 pins evenly, centred.
+ * chip_pin(S, k) = offset of pin k (0..4) along a side for the 2 px pins of the chip_block family. */
+static int chip_pin(int S, int k)
+{
+    const int n_old = S >= 18 ? (S - 18) / 8 + 1 : 0;   /* old loop: i = 8; i <= S - 10; i += 8 */
+    if (n_old == 5) return 8 * (k + 1);
+    int p = S / 7; if (p < 3) p = 3;
+    return (S - 4 * p - 2) / 2 + p * k;
+}
+/* the same for the 1 px pins of chip_mini (die D): old loop i = 3; i <= D - 3; i += 3 */
+static int chip_pin1(int D, int k)
+{
+    const int n_old = D >= 6 ? (D - 6) / 3 + 1 : 0;
+    if (n_old == 5) return 3 * (k + 1);
+    int p = D / 6; if (p < 2) p = 2;
+    return (D - 4 * p - 1) / 2 + p * k;
+}
 /* v1019 (Dirt LOCKED #1/#2): THE chip face. Square face (Gibson ivory, every other bot its own
  * fixed BOT_PAL colour, never the theme), lit top row, dark chin.
  * v1019d (Dirt #1): every non-Gibson bot wears the plain control-panel eyes: exactly the eyes of the
@@ -2726,7 +2803,8 @@ static void chip_block_radar(Gfx g, int cx, int cy, int S, int bot)
     g.drawRect(x, y, S, S, PAL_BLACK);                   /* black outer border */
     g.drawRect(x + 2, y + 2, S - 4, S - 4, PAL_LINE);
     g.drawRect(x + 6, y + 6, S - 12, S - 12, PAL_DIAG);
-    for (int i = 8; i <= S - 10; i += 8) {               /* steel pins */
+    for (int k = 0; k < 5; ++k) {                        /* steel pins, 5 per side (v1019n #16) */
+        const int i = chip_pin(S, k);
         g.fillRect(x - 1, y + i, 5, 2, PAL_STEEL);
         g.fillRect(x + S - 4, y + i, 5, 2, PAL_STEEL);
         g.fillRect(x + i, y - 1, 2, 5, PAL_STEEL);
@@ -2761,7 +2839,8 @@ static void chip_block_ex(Gfx g, int cx, int cy, int S, int bot)
     g.drawRect(x + 6, y + 6, S - 12, S - 12, PAL_DIAG);
     /* v1019 (Dirt LOCKED): GOLD pins on Gibson's chip only; every other bot SILVER. */
     const uint8_t pin = bot >= 12 ? PAL_GOLD_PIN : (uint8_t)PAL_SOFT;
-    for (int i = 8; i <= S - 10; i += 8) {               /* castellated pins */
+    for (int k = 0; k < 5; ++k) {                        /* castellated pins, 5 per side (v1019n #16) */
+        const int i = chip_pin(S, k);
         g.fillRect(x - 1, y + i, 5, 2, pin);
         g.fillRect(x + S - 4, y + i, 5, 2, pin);
         g.fillRect(x + i, y - 1, 2, 5, pin);
@@ -2826,7 +2905,8 @@ static void chip_mini(Gfx g, int cx, int cy, int T, int bot, bool blink, int fac
     GATE_BOX(g, "TCHIP", gib ? "gibson" : "bot", dx, dy, D, D, "-");
     g.fillRect(dx, dy, D, D, PAL_BLACK);                   /* black die / window */
     g.drawRect(dx, dy, D, D, PAL_STEEL);                   /* silk outline */
-    for (int i = 3; i <= D - 3; i += 3) {                  /* castellated pins, 1 px, every 3 px */
+    for (int k = 0; k < 5; ++k) {                          /* castellated pins, 1 px, 5 per side (v1019n #16) */
+        const int i = chip_pin1(D, k);
         g.fillRect(x, dy + i, 2, 1, pin);
         g.fillRect(x + T - 2, dy + i, 2, 1, pin);
         g.fillRect(dx + i, y, 1, 2, pin);
@@ -3101,29 +3181,47 @@ static void gl_icon(Gfx g, int type, int x, int y, bool dim)
     }
 }
 
-static const int LIST_N = SB_N;
+#define LIST_N (s_sb_n)
 /* v1016 1604 mock devices, strongest first. Cells, ids and MACs come from FNV-1a of the name, as in the mock. */
-static const char *const LIST_WIFI_N[LIST_N] = {
+/* mod item 9: entries 12..34 are extra idle samples so the overflow (grid extends past 7x4) can be shown;
+ * the stock list is still the first 12 (s_sb_n = 12). */
+static const char *const LIST_WIFI_N[SB_N] = {
     "cafe-guest", "home-5g", "tp-link-mesh", "iphone-hotspot", "esp32-marauder", "ring-doorbell",
-    "samsung-tv", "printer-2f", "macbook-air", "lobby-ap", "hp-laptop", "xfinitywifi"
+    "samsung-tv", "printer-2f", "macbook-air", "lobby-ap", "hp-laptop", "xfinitywifi",
+    "netgear-24", "pixel-hotspot", "roku-ultra", "nest-cam-2", "epson-wf", "guest-iot", "linksys-ext",
+    "galaxy-s24", "ipad-pro", "office-5g", "arlo-cam", "fire-tv", "dell-xps", "eero-mesh", "tesla-m3",
+    "brother-ln", "chromecast", "starbucks", "wyze-cam", "surface-7", "lg-webos", "att-5g-x", "sonos-arc"
 };
-static const int8_t LIST_WIFI_DB[LIST_N] = { -42, -49, -55, -57, -58, -63, -66, -67, -70, -71, -74, -78 };
-static const uint8_t LIST_WIFI_TY[LIST_N] = {
-    GL_AP, GL_AP, GL_AP, GL_PHONE, GL_DEVBOARD, GL_CAMERA, GL_TV, GL_PRINTER, GL_LAPTOP, GL_AP, GL_LAPTOP, GL_AP
+static const int8_t LIST_WIFI_DB[SB_N] = { -42, -49, -55, -57, -58, -63, -66, -67, -70, -71, -74, -78,
+    -79, -79, -80, -80, -81, -81, -82, -82, -83, -83, -84, -84, -85, -85, -86, -86, -87, -87, -88, -88, -89, -89, -90 };
+static const uint8_t LIST_WIFI_TY[SB_N] = {
+    GL_AP, GL_AP, GL_AP, GL_PHONE, GL_DEVBOARD, GL_CAMERA, GL_TV, GL_PRINTER, GL_LAPTOP, GL_AP, GL_LAPTOP, GL_AP,
+    GL_AP, GL_PHONE, GL_TV, GL_CAMERA, GL_PRINTER, GL_AP, GL_AP, GL_PHONE, GL_LAPTOP, GL_AP, GL_CAMERA, GL_TV,
+    GL_LAPTOP, GL_AP, GL_CAR, GL_PRINTER, GL_TV, GL_AP, GL_CAMERA, GL_LAPTOP, GL_TV, GL_AP, GL_SPEAKER
 };
-static const uint8_t LIST_WIFI_DT[LIST_N] = {
-    DEV_AP, DEV_UNK, DEV_AP, DEV_AP, DEV_DEAUTH, DEV_CAM, DEV_TV, DEV_AP, DEV_UNK, DEV_AP, DEV_AP, DEV_AP
+static const uint8_t LIST_WIFI_DT[SB_N] = {
+    DEV_AP, DEV_UNK, DEV_AP, DEV_AP, DEV_DEAUTH, DEV_CAM, DEV_TV, DEV_AP, DEV_UNK, DEV_AP, DEV_AP, DEV_AP,
+    DEV_AP, DEV_AP, DEV_TV, DEV_CAM, DEV_AP, DEV_AP, DEV_AP, DEV_AP, DEV_UNK, DEV_AP, DEV_CAM, DEV_TV,
+    DEV_UNK, DEV_AP, DEV_UNK, DEV_AP, DEV_TV, DEV_AP, DEV_CAM, DEV_UNK, DEV_TV, DEV_AP, DEV_UNK
 };
-static const char *const LIST_BLE_N[LIST_N] = {
+static const char *const LIST_BLE_N[SB_N] = {
     "earbuds-58", "dji-mini", "jbl-flip", "watch-6", "hc-05-atm", "pixel-8",
-    "meta-glasses", "tile-mate", "flock-raven", "uconnect-car", "speaker-7", "fitbit-ch"
+    "meta-glasses", "tile-mate", "flock-raven", "uconnect-car", "speaker-7", "fitbit-ch",
+    "airpods-p2", "galaxy-bud", "garmin-945", "bose-qc45", "airtag-3f", "oura-ring", "beats-flex",
+    "mavic-3", "smarttag-2", "iphone-15", "kia-ble", "polar-h10", "echo-buds", "tile-pro",
+    "pixel-buds", "whoop-4", "jabra-75", "nrf-beacon", "ford-sync", "sony-xm5", "esp32-ble", "chipolo", "mi-band-8"
 };
-static const int8_t LIST_BLE_DB[LIST_N] = { -58, -60, -61, -63, -66, -68, -69, -71, -72, -73, -74, -76 };
-static const uint8_t LIST_BLE_TY[LIST_N] = {
-    GL_SPEAKER, GL_DRONE, GL_SPEAKER, GL_WATCH, GL_DEVBOARD, GL_PHONE, GL_CAMERA, GL_TRACKER, GL_CAMERA, GL_CAR, GL_SPEAKER, GL_WATCH
+static const int8_t LIST_BLE_DB[SB_N] = { -58, -60, -61, -63, -66, -68, -69, -71, -72, -73, -74, -76,
+    -77, -77, -78, -78, -79, -79, -80, -80, -81, -81, -82, -82, -83, -83, -84, -84, -85, -85, -86, -86, -87, -87, -88 };
+static const uint8_t LIST_BLE_TY[SB_N] = {
+    GL_SPEAKER, GL_DRONE, GL_SPEAKER, GL_WATCH, GL_DEVBOARD, GL_PHONE, GL_CAMERA, GL_TRACKER, GL_CAMERA, GL_CAR, GL_SPEAKER, GL_WATCH,
+    GL_SPEAKER, GL_SPEAKER, GL_WATCH, GL_SPEAKER, GL_TRACKER, GL_WATCH, GL_SPEAKER, GL_DRONE, GL_TRACKER, GL_PHONE, GL_CAR, GL_WATCH,
+    GL_SPEAKER, GL_TRACKER, GL_SPEAKER, GL_WATCH, GL_SPEAKER, GL_DEVBOARD, GL_CAR, GL_SPEAKER, GL_DEVBOARD, GL_TRACKER, GL_WATCH
 };
-static const uint8_t LIST_BLE_DT[LIST_N] = {
-    DEV_BT, DEV_DRONE, DEV_BT, DEV_BT, DEV_SKIM, DEV_BT, DEV_CAM, DEV_TAG, DEV_FLOCK, DEV_BT, DEV_BT, DEV_BT
+static const uint8_t LIST_BLE_DT[SB_N] = {
+    DEV_BT, DEV_DRONE, DEV_BT, DEV_BT, DEV_SKIM, DEV_BT, DEV_CAM, DEV_TAG, DEV_FLOCK, DEV_BT, DEV_BT, DEV_BT,
+    DEV_BT, DEV_BT, DEV_BT, DEV_BT, DEV_TAG, DEV_BT, DEV_BT, DEV_DRONE, DEV_TAG, DEV_BT, DEV_BT, DEV_BT,
+    DEV_BT, DEV_TAG, DEV_BT, DEV_BT, DEV_BT, DEV_BT, DEV_BT, DEV_BT, DEV_SKIM, DEV_TAG, DEV_BT
 };
 
 static const char *sb_name(int band, int d) { return (band ? LIST_BLE_N : LIST_WIFI_N)[d]; }
@@ -3312,26 +3410,35 @@ static void sb_upper(char *dst, int n, const char *src, int maxc)
     dst[k] = 0;
 }
 
-/* Mock cell: hash % 28, linear probe in device order. */
-static int8_t s_cell_c[2][SB_N] = { { -1 }, { -1 } };
-static int sb_cell_id(int band, int d)
+/* mod item 9 (Mobandy 2026-10-18): devices sit ON the grid in reading order (strongest first,
+ * 7 per row), one device per cell, so arrows walk the grid predictably and every item is selectable.
+ * (Was: FNV hash % 28 scatter, where the list-order cursor hopped around the board.) More devices than
+ * the 7x4 window = the grid EXTENDS by rows and scrolls to keep the cursor row visible. */
+static const int SG_COLS = 7, SG_VROWS = 4;
+static int s_sb_row0 = 0;   /* first visible grid row */
+static int sb_rows(int n) { return n <= 0 ? 1 : (n + SG_COLS - 1) / SG_COLS; }
+static void sb_scroll_fix(int n)
 {
-    if (s_cell_c[band][0] >= 0) return s_cell_c[band][d];
-    bool used[28] = {};
-    for (int k = 0; k < LIST_N; ++k) {
-        int c = (int)(sb_hash(sb_name(band, k)) % 28u);
-        while (used[c]) c = (c + 1) % 28;
-        used[c] = true;
-        s_cell_c[band][k] = (int8_t)c;
+    const int rows = sb_rows(n);
+    const int cur = (s_cursor >= 0 && s_cursor < n) ? s_cursor / SG_COLS : -1;
+    if (cur >= 0) {
+        if (cur < s_sb_row0) s_sb_row0 = cur;
+        if (cur >= s_sb_row0 + SG_VROWS) s_sb_row0 = cur - SG_VROWS + 1;
+    } else if (s_cursor >= LIST_N) {
+        s_sb_row0 = 0;      /* the > glossary prompt sits above the grid: show the top */
     }
-    return s_cell_c[band][d];
+    if (s_sb_row0 > rows - SG_VROWS) s_sb_row0 = rows - SG_VROWS;
+    if (s_sb_row0 < 0) s_sb_row0 = 0;
 }
-
-static void sb_cell(int band, int d, int *cx, int *cy)
+static int sb_cell_id(int band, int d) { (void)band; return d; }
+/* Cell centre of device d in the current scroll window. False = scrolled out of the window. */
+static bool sb_cell(int band, int d, int *cx, int *cy)
 {
     const int c = sb_cell_id(band, d);
-    *cx = SG_X + 11 + (c % 7) * SG_C;
-    *cy = SG_Y + 11 + (c / 7) * SG_C;
+    const int r = c / SG_COLS - s_sb_row0;
+    *cx = SG_X + 11 + (c % SG_COLS) * SG_C;
+    *cy = SG_Y + 11 + r * SG_C;
+    return r >= 0 && r < SG_VROWS;
 }
 
 static void sb_mac(char *out, int n, int band, int d, int bytes)
@@ -3521,45 +3628,83 @@ static void sb_board(Gfx g, bool wifi)
 static int sb_shown(void)
 {
     if (s_screen == SCR_SCAN) return LIST_N; /* v1016f-3 #7: core scan shows the full dense device cloud */
-    /* mock: nShow = 1 + floor(u * 1.6 * 12) */
-    const uint32_t e = (millis() - s_bus_t0) % 3400u; /* mock: the sweep loops every 3.4 s */
-    int n = 1 + (int)((float)e / 3400.f * 1.6f * 12.f);
+    /* mock: nShow = 1 + floor(u * 1.6 * 12). mod item 9: found devices STAY on the grid (the reveal
+     * runs once from the scan start and holds; it no longer loops every 3.4 s and empties the board). */
+    const uint32_t e = millis() - s_bus_t0;
+    const float u = e > 3400u * 4u ? 4.f : (float)e / 3400.f;
+    int n = 1 + (int)(u * 1.6f * 12.f);
     return n > LIST_N ? LIST_N : n;
+}
+
+/* mod item 9: the selection HALO. Tile 18x18 in a 22 px cell; the halo is a solid 2 px accent ring one
+ * pixel off the tile, white L-brackets on its corners, a white tile rim and a lifted tile face. It stays
+ * inside its own cell (1 px clear of the neighbours) so it never reads as a neighbour's. */
+static void sb_halo(Gfx g, int x, int y, int w)
+{
+    const uint8_t ac = accent();
+    sb_frame(g, x - 3, y - 3, w + 6, w + 6, sel_ink(0, 0));
+    sb_frame(g, x - 2, y - 2, w + 4, w + 4, sel_ink(1, 2));
+    const int L = 5, x0 = x - 4, y0 = y - 4, x1 = x + w + 3, y1 = y + w + 3;
+    sb_rect(g, x0, y0, L, 1, PAL_WHITE); sb_rect(g, x0, y0, 1, L, PAL_WHITE);
+    sb_rect(g, x1 - L + 1, y0, L, 1, PAL_WHITE); sb_rect(g, x1, y0, 1, L, PAL_WHITE);
+    sb_rect(g, x0, y1, L, 1, PAL_WHITE); sb_rect(g, x0, y1 - L + 1, 1, L, PAL_WHITE);
+    sb_rect(g, x1 - L + 1, y1, L, 1, PAL_WHITE); sb_rect(g, x1, y1 - L + 1, 1, L, PAL_WHITE);
+    (void)ac;
 }
 
 static void sb_grid(Gfx g, int band, bool tiles)
 {
     const uint8_t ac = accent();
+    const int nall = LIST_N;
+    sb_scroll_fix(nall);
+    const int rows = sb_rows(nall);
     for (int c = 0; c <= 7; ++c) sb_rect(g, SG_X + c * SG_C, SG_Y, 1, 4 * SG_C + 1, 1);
     for (int r = 0; r <= 4; ++r) sb_rect(g, SG_X, SG_Y + r * SG_C, 7 * SG_C + 1, 1, 1);
     for (int c = 0; c <= 7; ++c)
         for (int r = 0; r <= 4; ++r) sb_rect(g, SG_X + c * SG_C - 1, SG_Y + r * SG_C - 1, 3, 3, 65);
     sb_rect(g, SG_X + 7 * SG_C + 1, SG_Y, 1, 4 * SG_C, sb_tone(3));
+    /* extended grid: scroll rail right of the grid (thumb = visible rows, arrows = rows beyond the window) */
+    if (rows > SG_VROWS) {
+        const int rx = SG_X + 7 * SG_C + 5, ry = SG_Y + 7, rh = 4 * SG_C - 14;
+        GATE_BOX(g, "RAIL", "scroll", rx - 1, SG_Y, 7, 4 * SG_C + 1, "MINI");
+        sb_rect(g, rx + 1, ry, 3, rh, sb_tone(2));
+        const int th = rh * SG_VROWS / rows, ty = ry + (rh - th) * s_sb_row0 / (rows - SG_VROWS);
+        sb_rect(g, rx, ty, 5, th, ac);
+        sb_rect(g, rx + 1, ty + 1, 3, 1, PAL_WHITE);
+        const bool up = s_sb_row0 > 0, dn = s_sb_row0 + SG_VROWS < rows;
+        for (int k = 0; k < 3; ++k) {
+            sb_rect(g, rx + 2 - k, SG_Y + 1 + k, 1 + 2 * k, 1, up ? (uint8_t)PAL_WHITE : sb_tone(3));
+            sb_rect(g, rx + 2 - k, SG_Y + 4 * SG_C - 1 - k, 1 + 2 * k, 1, dn ? (uint8_t)PAL_WHITE : sb_tone(3));
+        }
+        /* rows beyond the window: a dashed ghost edge on the grid where it continues */
+        if (dn) for (int x = SG_X + 2; x < SG_X + 7 * SG_C; x += 4) sb_rect(g, x, SG_Y + 4 * SG_C, 2, 1, ac);
+        if (up) for (int x = SG_X + 2; x < SG_X + 7 * SG_C; x += 4) sb_rect(g, x, SG_Y, 2, 1, ac);
+    }
     if (!tiles) return;
     const int n = sb_shown(), k0 = n - 1;
     const uint32_t t = millis();
+    int hx0 = -1, hy0 = -1;
     for (int d = 0; d < n; ++d) {
         if (s_dev_ign[band][d]) continue;
         int cx = 0, cy = 0;
-        sb_cell(band, d, &cx, &cy);
-        const int x = cx - 10, y = cy - 10;
-        GATE_BOX(g, "TILE", "dev", x, y, 20, 20, "MINI");
-        sb_rect(g, x, y, 20, 20, 149);
-        sb_rect(g, x + 1, y + 1, 18, 18, 5);
-        for (int q = 0; q < 4; ++q) {
-            sb_rect(g, x - 1, y + 3 + q * 4, 1, 2, 149);
-            sb_rect(g, x + 20, y + 3 + q * 4, 1, 2, 149);
-        }
-        const bool fresh = d == k0 && (t / 110u) % 2u;
+        if (!sb_cell(band, d, &cx, &cy)) continue;
+        const int x = cx - 9, y = cy - 9;
+        const bool sel = d == s_cursor && s_act < 0;
+        GATE_BOX(g, "TILE", "dev", x, y, 18, 18, "MINI");
+        sb_rect(g, x, y, 18, 18, sel ? (uint8_t)PAL_WHITE : (uint8_t)149);
+        sb_rect(g, x + 1, y + 1, 16, 16, sel ? sb_tone(3) : (uint8_t)5);
+        const bool fresh = d == k0 && n < nall && (t / 110u) % 2u;
         s_gl_mono = fresh;
-        gl_icon(g, sb_ty(band, d), x + 4, y + 4, false);
+        gl_icon(g, sb_ty(band, d), x + 3, y + 3, false);
         s_gl_mono = false;
-        if (s_dev_tag[band][d] > 0) sb_rect(g, x + 15, y + 1, 4, 4, TAG_COL[s_dev_tag[band][d] - 1]);
-        if (d == s_cursor && s_act < 0) sb_frame(g, x - 2, y - 2, 24, 24, ac);
+        if (s_dev_tag[band][d] > 0) sb_rect(g, x + 13, y + 1, 4, 4, TAG_COL[s_dev_tag[band][d] - 1]);
+        if (sel) { hx0 = x; hy0 = y; }
     }
-    /* scout: walks from the bottom-left cell to the newest find, horizontal then vertical */
+    if (hx0 >= 0) sb_halo(g, hx0, hy0, 18);   /* last, so no neighbour tile paints over it */
+    /* scout: walks from the bottom-left node to the newest find while the sweep is still revealing;
+     * once every device is on the grid it steps aside (it no longer sits on the tiles). */
     int nx = 0, ny = 0;
-    sb_cell(band, k0, &nx, &ny);
+    if (n >= nall || !sb_cell(band, k0, &nx, &ny)) return;
     const int bot = k0 % 12;
     const uint8_t bc = bot_color(bot), tr = bc;
     const int sx = SG_X + 11, sy = SG_Y + 3 * SG_C + 11;
@@ -3774,10 +3919,193 @@ static void bh_orbit_paint(Gfx g, uint32_t t)
     bh_sprite(g, (int)lroundf(gx0), (int)lroundf(gy0), 0, 2, bh_alpha(PAL_IVORY, 62));   /* mock alpha .62 */
 }
 
+/* ===== mod item 10 (Mobandy 2026-10-18) DRAFT: GIBSON CREW DROP-DOWN =====
+ * Gibson's scan board is not a plain list or the generic grid: Gibson leads the whole crew, so his
+ * board is a stack of crew LANES (one per bot, its square chip in its fixed colour + name + finds),
+ * and the lane under the cursor DROPS DOWN an ivory-rimmed panel holding that bot's finds as grid
+ * tiles (same 18 px tiles + selection halo as the Wi-Fi/BLE grid). Up/Down walk lanes (the drop-down
+ * follows), Right/OK drops into the tiles, Left/Up-from-top-row climbs back to the lane. Lane list and
+ * tile panel both scroll (rail on the right). Hunt mode (prompt `hunt`) still runs the hunt game.
+ * Flip back to the v16 orbit-leader board with -DBOTCORPS_GIB_DROPDOWN=0. */
+#ifndef BOTCORPS_GIB_DROPDOWN
+#define BOTCORPS_GIB_DROPDOWN 1
+#endif
+static int s_gd_lane = 0, s_gd_dev = -1, s_gd_top = 0, s_gd_row0 = 0;
+static const int GD_X = 108, GD_Y = 44, GD_W = 154, GD_LH = 12, GD_LY = 57, GD_BOT = 142, GD_PR = 2;
+static const uint8_t GD_CNT[12] = { 12, 12, 4, 3, 6, 2, 5, 3, 2, 1, 9, 4 };
+static int gd_cnt(int b) { return (b >= 0 && b < 12) ? GD_CNT[b] : 0; }
+static int gd_kind(int b, int i)
+{
+    if (b < 2) return sb_ty(b, i % 12);
+    const int8_t a = BH_DEV[b][0], c = BH_DEV[b][1];
+    return (c >= 0 && (i & 1)) ? c : (a >= 0 ? a : GL_UNKNOWN);
+}
+static int gd_prows(int b) { const int r = (gd_cnt(b) + 6) / 7; return r < 1 ? 1 : (r > GD_PR ? GD_PR : r); }
+static int gd_panel_h(int b) { return gd_prows(b) * SG_C + 3; }
+static void gd_fix(void)
+{
+    if (s_gd_lane < 0) s_gd_lane = 0;
+    if (s_gd_lane > 11) s_gd_lane = 11;
+    if (s_gd_lane < s_gd_top) s_gd_top = s_gd_lane;
+    for (;;) {   /* the open lane + its panel must fit under the header */
+        const int need = (s_gd_lane - s_gd_top) * (GD_LH + 1) + GD_LH + gd_panel_h(s_gd_lane);
+        if (GD_LY + need <= GD_BOT || s_gd_top >= s_gd_lane) break;
+        ++s_gd_top;
+    }
+    const int rows = (gd_cnt(s_gd_lane) + 6) / 7;
+    if (s_gd_dev >= gd_cnt(s_gd_lane)) s_gd_dev = gd_cnt(s_gd_lane) - 1;
+    if (s_gd_dev >= 0) {
+        const int r = s_gd_dev / 7;
+        if (r < s_gd_row0) s_gd_row0 = r;
+        if (r >= s_gd_row0 + GD_PR) s_gd_row0 = r - GD_PR + 1;
+    }
+    if (s_gd_row0 > rows - GD_PR) s_gd_row0 = rows - GD_PR;
+    if (s_gd_row0 < 0) s_gd_row0 = 0;
+}
+static int gd_total(void) { int n = 0; for (int b = 0; b < 12; ++b) n += gd_cnt(b); return n; }
+/* lane-header selection: same halo language as the device tiles (2 px accent ring + white brackets) */
+static void gd_halo_rect(Gfx g, int x, int y, int w, int h)
+{
+    sb_frame(g, x - 2, y - 2, w + 4, h + 4, sel_ink(0, 0));
+    sb_frame(g, x - 1, y - 1, w + 2, h + 2, sel_ink(1, 2));
+    const int L = 5, x0 = x - 3, y0 = y - 3, x1 = x + w + 2, y1 = y + h + 2;
+    sb_rect(g, x0, y0, L, 1, PAL_WHITE); sb_rect(g, x0, y0, 1, L, PAL_WHITE);
+    sb_rect(g, x1 - L + 1, y0, L, 1, PAL_WHITE); sb_rect(g, x1, y0, 1, L, PAL_WHITE);
+    sb_rect(g, x0, y1, L, 1, PAL_WHITE); sb_rect(g, x0, y1 - L + 1, 1, L, PAL_WHITE);
+    sb_rect(g, x1 - L + 1, y1, L, 1, PAL_WHITE); sb_rect(g, x1, y1 - L + 1, 1, L, PAL_WHITE);
+}
+static void gd_chev(Gfx g, int x, int y, bool open, uint8_t c)
+{
+    if (open) { sb_rect(g, x, y, 7, 1, c); sb_rect(g, x + 1, y + 1, 5, 1, c); sb_rect(g, x + 2, y + 2, 3, 1, c); sb_rect(g, x + 3, y + 3, 1, 1, c); }
+    else { sb_rect(g, x + 1, y - 2, 1, 7, c); sb_rect(g, x + 2, y - 1, 1, 5, c); sb_rect(g, x + 3, y, 1, 3, c); sb_rect(g, x + 4, y + 1, 1, 1, c); }
+}
+static void gd_rail(Gfx g, int x, int y, int h, int first, int vis, int total)
+{
+    if (total <= vis) return;
+    const uint8_t ac = accent();
+    sb_rect(g, x + 1, y + 5, 3, h - 10, sb_tone(2));
+    const int th = (h - 10) * vis / total, ty = y + 5 + (h - 10 - th) * first / (total - vis);
+    sb_rect(g, x, ty, 5, th < 3 ? 3 : th, ac);
+    const bool up = first > 0, dn = first + vis < total;
+    for (int k = 0; k < 3; ++k) {
+        sb_rect(g, x + 2 - k, y + k, 1 + 2 * k, 1, up ? (uint8_t)PAL_WHITE : sb_tone(3));
+        sb_rect(g, x + 2 - k, y + h - 1 - k, 1 + 2 * k, 1, dn ? (uint8_t)PAL_WHITE : sb_tone(3));
+    }
+}
+/* lane-size square-chip bot: black die, castellated pins, the bot's square face (fixed colour) */
+static void gd_chip(Gfx g, int cx, int cy, int b)
+{
+    const bool gib = b >= 12;
+    const int D = 11, x = cx - D / 2, y = cy - D / 2;
+    const uint8_t pin = gib ? PAL_GOLD_PIN : (uint8_t)PAL_SOFT;
+    for (int i = 1; i < D - 1; i += 2) {                   /* 1,3,5,7,9: 5 pins per side (v1019n #16) */
+        sb_rect(g, x - 1, y + i, 1, 1, pin); sb_rect(g, x + D, y + i, 1, 1, pin);
+        sb_rect(g, x + i, y - 1, 1, 1, pin); sb_rect(g, x + i, y + D, 1, 1, pin);
+    }
+    sb_rect(g, x, y, D, D, PAL_BLACK);
+    face_block(g, cx, cy, 9, gib ? (uint8_t)PAL_IVORY : bot_color(b), gib, false);
+}
+static void gib_dropdown(Gfx g)
+{
+    gd_fix();
+    sb_rect(g, GD_X - 1, GD_Y - 1, GD_W + 14, GD_BOT - GD_Y + 2, 8);   /* covers the hunt grid: own layout */
+    const uint8_t ivory = PAL_IVORY;
+    GATE_BOX(g, "GDROP", "gibson", GD_X, GD_Y, GD_W + 12, GD_BOT - GD_Y, "MINI");
+    /* header: Gibson's own chip + crew total; ivory underline = Gibson's colour, not the theme */
+    gd_chip(g, 133, 49, 12);
+    tiny_text(g, "GIBSON", 142, 44, ivory);
+    tiny_text(g, "CREW DROP-DOWN", 142, 50, COL_MUTED);
+    char tot[16];
+    snprintf(tot, sizeof tot, "%d FINDS", gd_total());
+    tiny_text(g, tot, GD_X + GD_W - tiny_w(tot), 47, ivory);
+    sb_rect(g, 126, 55, GD_X + GD_W - 126, 1, sb_mix(ivory, 0x0000, 55));
+    int y = GD_LY, shown = 0;
+    for (int b = s_gd_top; b < 12; ++b) {
+        const bool open = b == s_gd_lane;
+        const int need = GD_LH + (open ? gd_panel_h(b) : 0);
+        if (y + need > GD_BOT + 1) break;
+        const uint8_t bc = bot_color(b);
+        /* lane header */
+        sb_rect(g, GD_X, y, GD_W, GD_LH - 1, open ? sb_mix(bc, 0x0000, 72) : (uint8_t)5);
+        sb_rect(g, GD_X, y, 3, GD_LH - 1, bc);
+        gd_chip(g, GD_X + 10, y + 5, b);
+        char nm[16];
+        sb_upper(nm, 16, BOTS[b].short_name, 12);
+        tiny_text(g, nm, GD_X + 18, y + 3, open ? (uint8_t)PAL_WHITE : (uint8_t)COL_INK);
+        const int n = gd_cnt(b);
+        if (!open) for (int k = 0; k < n && k < 9; ++k) sb_rect(g, GD_X + 78 + k * 5, y + 4, 3, 3, sb_mix(bc, 0x0000, 25));
+        char cn[6];
+        snprintf(cn, sizeof cn, "%d", n);
+        tiny_text(g, cn, GD_X + GD_W - 16 - tiny_w(cn), y + 3, open ? (uint8_t)PAL_WHITE : bc);
+        gd_chev(g, GD_X + GD_W - 10, y + 4, open, open ? ivory : (uint8_t)COL_MUTED);
+        if (open && s_gd_dev < 0) gd_halo_rect(g, GD_X, y, GD_W, GD_LH - 1);
+        y += GD_LH;
+        if (open) {
+            /* the drop-down: ivory rim hanging off the open lane, grid cells inside, finds as tiles */
+            const int ph = gd_panel_h(b), pr = gd_prows(b);
+            sb_rect(g, GD_X, y - 1, GD_W, ph, 8);
+            sb_rect(g, GD_X, y - 1, 1, ph, ivory);
+            sb_rect(g, GD_X + GD_W - 1, y - 1, 1, ph, ivory);
+            sb_rect(g, GD_X, y + ph - 2, GD_W, 1, ivory);
+            sb_rect(g, GD_X + 1, y - 1, 2, ph - 1, bc);   /* lane colour carries down the panel edge */
+            for (int r = 0; r <= pr; ++r) sb_rect(g, GD_X + 3, y + r * SG_C, GD_W - 4, 1, 1);
+            for (int c = 1; c < 7; ++c) sb_rect(g, GD_X + c * SG_C, y, 1, pr * SG_C, 1);
+            int hx = -1, hy = -1;
+            for (int i = s_gd_row0 * 7; i < n && i < (s_gd_row0 + pr) * 7; ++i) {
+                const int cx = GD_X + 11 + (i % 7) * SG_C, cy = y + 11 + (i / 7 - s_gd_row0) * SG_C;
+                const int tx = cx - 9, ty = cy - 9;
+                const bool sel = i == s_gd_dev;
+                GATE_BOX(g, "TILE", "dev", tx, ty, 18, 18, "MINI");
+                sb_rect(g, tx, ty, 18, 18, sel ? (uint8_t)PAL_WHITE : sb_mix(bc, 0x0000, 35));
+                sb_rect(g, tx + 1, ty + 1, 16, 16, sel ? sb_tone(3) : (uint8_t)5);
+                gl_icon(g, gd_kind(b, i), tx + 3, ty + 3, false);
+                if (sel) { hx = tx; hy = ty; }
+            }
+            if (hx >= 0) sb_halo(g, hx, hy, 18);
+            const int rows = (n + 6) / 7;
+            if (rows > pr) gd_rail(g, GD_X + GD_W - 7, y + 1, pr * SG_C - 2, s_gd_row0, pr, rows);
+            y += ph;
+        }
+        y += 1;
+        ++shown;
+    }
+    gd_rail(g, GD_X + GD_W + 4, GD_LY, GD_BOT - GD_LY, s_gd_top, shown, 12);
+}
+/* arrows on Gibson's board while the drop-down is up. True = handled. */
+static bool gd_key(int key)
+{
+#if BOTCORPS_GIB_DROPDOWN
+    if (!(s_screen == SCR_SCAN && s_scan_bot == 12 && !s_gib_hunt) || s_sp_buf[0]) return false;
+    const int n = gd_cnt(s_gd_lane);
+    if (s_gd_dev < 0) {
+        if (key == 1) { s_gd_lane = (s_gd_lane + 11) % 12; s_gd_row0 = 0; }
+        else if (key == 2) { s_gd_lane = (s_gd_lane + 1) % 12; s_gd_row0 = 0; }
+        else if (key == 4 || key == 5) s_gd_dev = 0;
+        else return key == 3;   /* Left on a lane: stays put */
+    } else {
+        int d = s_gd_dev;
+        if (key == 3) d = d % 7 == 0 ? -1 : d - 1;
+        else if (key == 4) d = d + 1 < n ? d + 1 : d;
+        else if (key == 1) d = d - 7;
+        else if (key == 2) d = d + 7 < n ? d + 7 : ((d / 7 < (n - 1) / 7) ? n - 1 : d);
+        else return false;
+        s_gd_dev = d < 0 ? -1 : d;
+    }
+    gd_fix();
+    return true;
+#else
+    (void)key;
+    return false;
+#endif
+}
+
 static void bot_hunt(Gfx g)
 {
     const uint32_t t = millis();
     bot_hunt_step(t);
+#if BOTCORPS_GIB_DROPDOWN
+    if (bh_orbit()) { gib_dropdown(g); return; }   /* mod item 10 draft */
+#endif
     if (bh_orbit()) { bh_orbit_paint(g, t); return; }
     const int bot = s_scan_bot;
     const uint8_t col = bot == 12 ? (uint8_t)PAL_IVORY : bot_color(bot);
@@ -3821,7 +4149,7 @@ static void sb_ghost(Gfx g, int band, int px, int py, int pw, int ph)
     for (int d = 0; d < n; ++d) {
         if (s_dev_ign[band][d]) continue;
         int cx = 0, cy = 0;
-        sb_cell(band, d, &cx, &cy);
+        if (!sb_cell(band, d, &cx, &cy)) continue;
         if (cx - 10 < px + 1 || cy - 10 < py + 1 || cx + 10 > px + pw - 1 || cy + 10 > py + ph - 1) continue;
         sb_frame(g, cx - 10, cy - 10, 20, 20, 37);
         sb_rect(g, cx - 2, cy - 2, 4, 4, 37);
@@ -4052,7 +4380,8 @@ static void sb_hud(Gfx g, int band)
         gl_icon(g, i, x, 218, tally[i] == 0);
         char num[4];
         snprintf(num, sizeof(num), "%d", tally[i]);
-        sb_text(g, num, x + 13, 221, tally[i] ? (uint8_t)COL_INK : (uint8_t)73, PAL_BLACK, false, 1);
+        if (tally[i] >= 10) tiny_text(g, num, x + 13, 222, COL_INK);   /* mod item 9: 2-digit counts fit the 20 px slot */
+        else sb_text(g, num, x + 13, 221, tally[i] ? (uint8_t)COL_INK : (uint8_t)73, PAL_BLACK, false, 1);
     }
 }
 
@@ -4138,6 +4467,13 @@ static void paint_sbox(Gfx g, bool wifi)
         sb_tt(g, l2, x, th, sb_ink());
         x = sb_tt(g, "[ ok ] ", dx + 3, th + 11, PAL_OK);
         snprintf(l2, sizeof(l2), "%s bus idle", who);
+#if BOTCORPS_GIB_DROPDOWN
+        if (bh_orbit()) {   /* mod item 10: the strip names the open lane */
+            char ln[16];
+            snprintf(ln, sizeof ln, "%s", BOTS[s_gd_lane].short_name);
+            snprintf(l2, sizeof(l2), "%d finds \xfa %s open", gd_cnt(s_gd_lane), ln);
+        }
+#endif
         sb_tt(g, l2, x, th + 12, sb_tone(3));
         sb_tt(g, l2, x, th + 11, sb_ink());
         x = sb_tt(g, "user@botcorps:~$ ", dx + 3, ty, ac);
@@ -4152,7 +4488,11 @@ static void paint_sbox(Gfx g, bool wifi)
     sb_tt(g, l2, x, th + 1, sb_tone(3));
     sb_tt(g, l2, x, th, sb_ink());
     x = sb_tt(g, "[ ok ] ", dx + 3, th + 11, PAL_OK);
-    snprintf(l2, sizeof(l2), "%s sweep %d/%d", bn, sb_shown(), LIST_N);
+    if (sb_rows(LIST_N) > SG_VROWS)   /* mod item 9: extended grid shows which rows are in view */
+        snprintf(l2, sizeof(l2), "%s %d/%d rows %d-%d/%d", wifi ? "wifi" : "ble", sb_shown(), LIST_N,
+                 s_sb_row0 + 1, s_sb_row0 + SG_VROWS, sb_rows(LIST_N));
+    else
+        snprintf(l2, sizeof(l2), "%s sweep %d/%d", bn, sb_shown(), LIST_N);
     sb_tt(g, l2, x, th + 12, sb_tone(3));
     sb_tt(g, l2, x, th + 11, sb_ink());
     x = sb_tt(g, "user@botcorps:~$ ", dx + 3, ty, ac);
@@ -4241,9 +4581,9 @@ static void cp_text(int index, char *value, int n)
     else if (index == 2) snprintf(value, (size_t)n, "%s", SHAPE_N[s_shape]);
     else if (index == 3) snprintf(value, (size_t)n, "%s", botcorps_rain_mode() == 0 ? "MIXED" : "SOLID");
     else if (index == 4) snprintf(value, (size_t)n, "%s", RAIN_WORD[botcorps_rain_mode()]);
-    else if (index == 5) snprintf(value, (size_t)n, "%s", SAVER_N[s_saver]);
-    else if (index == 6) snprintf(value, (size_t)n, "%s", s_saver_on ? "ON" : "OFF");
-    else snprintf(value, (size_t)n, "%d SEC", IDLE_V[s_idle]);
+    else if (index == 5) snprintf(value, (size_t)n, "%s", BGS_N[s_bg % BGS_NUM]);
+    else if (index == 6) snprintf(value, (size_t)n, "%s", s_bg_motion ? "ON" : "OFF");
+    else snprintf(value, (size_t)n, "%s", RAIN_WORD[botcorps_rain_mode()]);
 }
 
 static const int SPR_W[4] = { 7, 9, 7, 5 };
@@ -4265,28 +4605,36 @@ static void shape_preview(Gfx g, int px, int cy)
     botcorps_sprite_draw(*g.raw(), px - g.ox, cy - g.oy, id, 2, live, false);
 }
 
-static void saver_preview(Gfx g, int px, int cy)
+/* v1019n (#6): BACKGROUND preview icon on U4 (RAIN bits / the four saver looks) */
+static void bg_preview(Gfx g, int px, int cy)
 {
     const int x0 = px - 6;
     const int y0 = cy - 6;
     const int mode = botcorps_rain_mode();
     const uint8_t ic = mode > 0 ? botcorps_rain_solid() : botcorps_rain_palette(0);
-    if (s_saver == 0) {
-        static const int dot[6][2] = { { 1, 1 }, { 5, 5 }, { 9, 2 }, { 3, 8 }, { 7, 0 }, { 10, 8 } };
-        for (int k = 0; k < 6; ++k) g.fillRect(x0 + dot[k][0], y0 + dot[k][1], 2, 3, ic);
-    } else if (s_saver == 1) {
+    if (s_bg == 0) {                 /* RAIN: three falling bit columns, bright leads */
+        for (int k = 0; k < 3; ++k) {
+            const int cx = x0 + 1 + k * 5, h0 = (k * 4) % 7;
+            g.fillRect(cx, y0 + h0, 2, 6, botcorps_pal_fit((uint16_t)0x7E6C));   /* rain code green */
+            g.fillRect(cx, y0 + h0 + 6, 2, 2, PAL_WHITE);
+        }
+    } else if (s_bg == 1) {          /* BOTS: falling bots + the ivory Gibson chip */
+        static const int dot[5][2] = { { 1, 1 }, { 9, 2 }, { 3, 8 }, { 7, 0 }, { 10, 8 } };
+        for (int k = 0; k < 5; ++k) g.fillRect(x0 + dot[k][0], y0 + dot[k][1], 2, 3, ic);
+        g.fillRect(x0 + 5, y0 + 4, 4, 4, PAL_IVORY);
+    } else if (s_bg == 2) {          /* GIBSON: the board grid + chips */
         for (int k = 0; k <= 12; k += 4) {
             g.fillRect(x0 + k, y0, 1, 13, PAL_DEEP);
             g.fillRect(x0, y0 + k, 13, 1, PAL_DEEP);
         }
-        g.fillRect(x0 + 2, y0 + 2, 4, 4, ic);
-        g.fillRect(x0 + 8, y0 + 8, 4, 4, botcorps_rain_palette(5));
-    } else if (s_saver == 2) {
+        g.fillRect(x0 + 2, y0 + 2, 4, 4, PAL_IVORY);
+        g.fillRect(x0 + 8, y0 + 8, 4, 4, ic);
+    } else if (s_bg == 3) {          /* FLYBY: bots growing at the viewer */
         g.fillRect(x0 + 5, y0 + 5, 1, 1, PAL_LINE);
         g.fillRect(x0 + 1, y0 + 1, 2, 2, ic);
         g.fillRect(x0 + 4, y0 + 4, 3, 3, ic);
         g.fillRect(x0 + 8, y0 + 8, 5, 5, ic);
-    } else {
+    } else {                         /* BOUNCE: frame + one bot */
         g.fillRect(x0, y0, 13, 1, PAL_LINE);
         g.fillRect(x0, y0 + 12, 13, 1, PAL_LINE);
         g.fillRect(x0, y0, 1, 13, PAL_LINE);
@@ -4296,33 +4644,37 @@ static void saver_preview(Gfx g, int px, int cy)
     }
 }
 
-/* v1016f-3 (Dirt 7:52): the mock's horizontal ESP32 shield settings board.
- * Five WROOM chip modules across the top carry UI COLOR / BACKGROUND / BOT SHAPE /
- * SCREEN SAVER / IDLE; the three board parts carry the remaining settings:
- *   JUMP = RAIN MODE (idx3), CP = RAIN COLOUR (idx4), PWR LED = SAVER on/off (idx6).
- * All eight settings keep their existing index, nudge_row edits and NVS values, and
- * stay keyboard-reachable (up/down through 0..7, left/right edits). */
+/* v1019n-mod (#7): BG COLOR index (0..4) of the live rain mode; -1 when the CP part picked BLUE / WHITE */
+static int bgc_ix(void)
+{
+    const int m = botcorps_rain_mode();
+    for (int i = 0; i < BGC_N; ++i) if (BGC_MODE[i] == m) return i;
+    return -1;
+}
+
 /* v1016k (SPEC-LOCKED S-*): settings board = the master mock extControl, ported 1:1.
  * Board is a permanent MATTE-BLACK ESP32 shield (black PCB, white silk, gold header pins)
  * that never follows the UI colour; only the selection outline + feed trace use the accent.
- * Five square ESP32 packages U1..U5 (mock SB_PARTS) carry UI COLOR / BACKGROUND / BOT SHAPE /
- * SCREEN SAVER / IDLE; three small mock parts carry the rest:
- *   J1 jumper (268,150) = RAIN MODE (idx3), U7 qfn "CP" (196,150) = RAIN COLOUR (idx4),
- *   PWR LED (266,194) = SAVER on/off (idx6).
+ * v1019n-mod: five square ESP32 packages U1..U5 carry UI COLOR / BG MIX / BOT SHAPE / BACKGROUND
+ * (the former screen savers) / BG COLOR (the former IDLE-time chip); the switch bank in the lower bay
+ * carries the rest on ONE row, one centre line (y 163), labels on one baseline (y 178):
+ *   U7 qfn "CP" = RAIN COLOUR (idx4), J1 jumper = RAIN MODE (idx3), PWR LED = BG MOTION on/off (idx6).
  * All eight settings keep their index, nudge_row edits and NVS values (keyboard only). */
 static uint8_t wash22(uint8_t accent_idx);
 static const int SB_BX = 8, SB_BY = 20, SB_BW = 304, SB_BH = 216; /* mock (3,18,314,220), inset 5 px so rain frames it */
+static const int CP_BAY_CY = 163;   /* switch-bank centre line */
+static const int CP_BAY_LY = 178;   /* switch-bank silk baseline */
 static bool cp_part_rect(int index, int *x, int *y, int *w, int *h)
 {
     switch (index) {
     case 0: *x = 38;  *y = 44;  *w = 40; *h = 72; return true; /* U1 UI COLOR    */
-    case 1: *x = 82;  *y = 44;  *w = 40; *h = 72; return true; /* U2 BACKGROUND  */
+    case 1: *x = 82;  *y = 44;  *w = 40; *h = 72; return true; /* U2 BG MIX      */
     case 2: *x = 126; *y = 44;  *w = 40; *h = 72; return true; /* U3 BOT SHAPE   */
-    case 5: *x = 170; *y = 44;  *w = 40; *h = 72; return true; /* U4 SCREEN SAVER*/
-    case 7: *x = 214; *y = 44;  *w = 40; *h = 72; return true; /* U5 IDLE        */
-    case 3: *x = 268; *y = 150; *w = 20; *h = 10; return true; /* J1 jumper  = RAIN MODE   */
-    case 4: *x = 196; *y = 150; *w = 22; *h = 22; return true; /* U7 qfn CP  = RAIN COLOUR */
-    case 6: *x = 266; *y = 194; *w = 10; *h = 8;  return true; /* PWR LED    = SAVER on/off */
+    case 5: *x = 170; *y = 44;  *w = 40; *h = 72; return true; /* U4 BACKGROUND  */
+    case 7: *x = 214; *y = 44;  *w = 40; *h = 72; return true; /* U5 BG COLOR    */
+    case 4: *x = 147; *y = CP_BAY_CY - 11; *w = 22; *h = 22; return true; /* U7 qfn CP = RAIN COLOUR */
+    case 3: *x = 180; *y = CP_BAY_CY - 5;  *w = 20; *h = 10; return true; /* J1 jumper = RAIN MODE   */
+    case 6: *x = 214; *y = CP_BAY_CY - 4;  *w = 10; *h = 8;  return true; /* PWR LED   = BG MOTION   */
     default: return false;
     }
 }
@@ -4337,16 +4689,17 @@ static void cp_short(int index, char *v, int n)
     /* mock sbShort6: <= 6 silk chars so nothing overruns a chip */
     static const char *MIXS[3] = { "MASHUP", "BOTS", "DEVS" };
     static const char *SHPS[5] = { "MIX", "ROUND", "CLSC", "TALL", "MINI" };
-    static const char *SAVS[4] = { "BOTS", "GIB", "FLYBY", "BNCE" };
+    static const char *BGSS[5] = { "RAIN", "BOTS", "GIBSON", "FLYBY", "BOUNCE" };
     if (index == 0) snprintf(v, (size_t)n, "%s", theme().sname);
     else if (index == 1) snprintf(v, (size_t)n, "%s", MIXS[s_mix % 3]);
     else if (index == 2) snprintf(v, (size_t)n, "%s", SHPS[s_shape % 5]);
-    else if (index == 5) snprintf(v, (size_t)n, "%s", SAVS[s_saver % 4]);
-    else if (index == 7) snprintf(v, (size_t)n, "%dS", IDLE_V[s_idle]);
+    else if (index == 5) snprintf(v, (size_t)n, "%s", BGSS[s_bg % BGS_NUM]);
+    else if (index == 7) { const int i = bgc_ix(); snprintf(v, (size_t)n, "%s", i >= 0 ? BGC_S[i] : RAIN_WORD[botcorps_rain_mode()]); }
     else cp_text(index, v, n);
 }
 
-/* route from the USB-C feed (296,187) along the board bus (y 128), mock sbRoute */
+/* route from the USB-C feed (296,187) along the board bus (y 128), mock sbRoute. v1019n-mod: every part sits
+ * inside the dev-kit, so every feed is the same shape: up the x 286 riser, along the bus, straight down / up. */
 static int cp_route(int index, int *px, int *py)
 {
     int x, y, w, h;
@@ -4357,20 +4710,16 @@ static int cp_route(int index, int *px, int *py)
     int n = 0;
     px[n] = 296; py[n++] = 187;
     px[n] = 286; py[n++] = 187;
-    if (x >= 262) {
-        const int ty = cy > 187 ? y : cy;
-        px[n] = 286; py[n++] = ty;
-        px[n] = cx;  py[n++] = ty;
-    } else {
-        px[n] = 286; py[n++] = 128;
-        px[n] = cx;  py[n++] = 128;
-        px[n] = cx;  py[n++] = cy;
-    }
+    px[n] = 286; py[n++] = 128;
+    px[n] = cx;  py[n++] = 128;
+    px[n] = cx;  py[n++] = cy;
     return n;
 }
 
 /* v1019: control-panel selection outline in the theme's selection style (solid sel colour; duotone
- * halves; gradient start on top/left). Same pixels as drawRect(ac) on a solid accent theme. */
+ * halves; gradient start on top/left). Same pixels as drawRect(ac) on a solid accent theme.
+ * v1019n-mod: fades (grad 2/3) run top -> bottom through th_ink_at; textures (grad 4/5) walk the
+ * perimeter so the bands / stutter dashes go round the part. */
 static void sel_rect(Gfx g, int x, int y, int w, int h)
 {
     const ui_theme_t &t = theme();
@@ -4382,13 +4731,24 @@ static void sel_rect(Gfx g, int x, int y, int w, int h)
         g.fillRect(x, y, 1, h, t.ac);           g.fillRect(x + w - 1, y, 1, h, t.ac2);
         return;
     }
-    const uint16_t a = botcorps_rgb565(t.ac2), b = botcorps_rgb565(t.ac);   /* gradient top -> bottom */
-    g.fillRect(x, y, w, 1, t.ac2);
-    g.fillRect(x, y + h - 1, w, 1, t.ac);
-    for (int r = 1; r < h - 1; ++r) {
-        const uint8_t c = botcorps_pal_fit(mix16(a, b, r, h - 1));
-        g.fillRect(x, y + r, 1, 1, c);
-        g.fillRect(x + w - 1, y + r, 1, 1, c);
+    if (t.grad == 2 || t.grad == 3) {        /* fade: top row = start, bottom row = end */
+        g.fillRect(x, y, w, 1, th_ink_at(0, h));
+        g.fillRect(x, y + h - 1, w, 1, th_ink_at(h - 1, h));
+        for (int r = 1; r < h - 1; ++r) {
+            const uint8_t c = th_ink_at(r, h);
+            g.fillRect(x, y + r, 1, 1, c);
+            g.fillRect(x + w - 1, y + r, 1, 1, c);
+        }
+        return;
+    }
+    const int per = 2 * (w + h);             /* texture: walk the perimeter clockwise from top-left */
+    for (int i = 0; i < w; ++i) g.fillRect(x + i, y, 1, 1, th_ink_at(i, per));
+    for (int i = 0; i < h; ++i) g.fillRect(x + w - 1, y + i, 1, 1, th_ink_at(w + i, per));
+    for (int i = 0; i < w; ++i) g.fillRect(x + w - 1 - i, y + h - 1, 1, 1, th_ink_at(w + h + i, per));
+    for (int i = 0; i < h; ++i) g.fillRect(x, y + h - 1 - i, 1, 1, th_ink_at(2 * w + h + i, per));
+    if (t.grad == 5) {                       /* glitch: a 1 px magenta split offset on the top + left edge */
+        for (int i = 2; i < w - 2; i += 5) g.fillRect(x + i, y + 1, 2, 1, t.ac2);
+        for (int i = 2; i < h - 2; i += 5) g.fillRect(x + 1, y + i, 1, 2, t.ac2);
     }
 }
 
@@ -4398,6 +4758,36 @@ static void cp_seg(Gfx g, int x0, int y0, int x1, int y1, int wdt, uint8_t c, bo
     const int w = (x0 < x1 ? x1 - x0 : x0 - x1) + wdt, h = (y0 < y1 ? y1 - y0 : y0 - y1) + wdt;
     g.fillRect(x, y, w, h, c);
     if (log_it) GATE_BOX(g, "TRACE", "sel", x, y, w, h, "-");
+}
+
+/* v1019n-mod (#5): the UI COLOR preview bot in the theme's own style (solid / duo halves / fade rows /
+ * prism bands / glitch split), filling the chip face. Shared by the chip and the colour swatch strip. */
+static void ui_color_bot(Gfx g, int mx, int my, int fx, int fy, int fw, int fh, int scale)
+{
+    const ui_theme_t &th = theme();
+    const uint8_t ac = th.ac;
+    if (th.grad == 5) {                      /* glitch: magenta copy 1 px left, cyan on top, torn bands */
+        botcorps_sprite_draw(*g.raw(), mx - 1 - g.ox, my - g.oy, 3, scale, th.ac2, false);
+        for (int r = 0; r < fh; r += 3) {
+            if ((r / 3) % 3 == 1) continue;  /* a torn band shows only the split copy */
+            g.setClipRect(fx, fy + r, fw, 3);
+            botcorps_sprite_draw(*g.raw(), mx + ((r / 3) % 4 == 2 ? 1 : 0) - g.ox, my - g.oy, 3, scale, ac, false);
+        }
+        g.setClipRect(fx, fy, fw, fh);
+        return;
+    }
+    botcorps_sprite_draw(*g.raw(), mx - g.ox, my - g.oy, 3, scale, ac, false);
+    if (th.grad == 1) {                      /* v1019 duotone: right half of the bot in the second tone */
+        g.setClipRect(mx, fy, fx + fw - mx, fh);
+        botcorps_sprite_draw(*g.raw(), mx - g.ox, my - g.oy, 3, scale, th.ac2, false);
+        g.setClipRect(fx, fy, fw, fh);
+    } else if (th.grad >= 2) {               /* fades + prism: per-2-row ink through th_ink_at */
+        for (int r = 0; r < fh; r += 2) {
+            g.setClipRect(fx, fy + r, fw, 2);
+            botcorps_sprite_draw(*g.raw(), mx - g.ox, my - g.oy, 3, scale, th_ink_at(r, fh), false);
+        }
+        g.setClipRect(fx, fy, fw, fh);
+    }
 }
 
 static void cp_chip(Gfx g, int index, bool on)
@@ -4431,22 +4821,8 @@ static void cp_chip(Gfx g, int index, bool on)
     const int mode = botcorps_rain_mode();
     const uint8_t live = mode > 0 ? botcorps_rain_solid() : botcorps_rain_palette(0);
     if (index == 0) {
-        /* UI colour: a SQUARE bot in the selected accent filling the face (mock botSquare) */
-        botcorps_sprite_draw(*g.raw(), mx - g.ox, my - g.oy, 3, 4, ac, false);
-        const ui_theme_t &th = theme();
-        if (th.grad == 1) {                  /* v1019 duotone: right half of the bot in the second tone */
-            g.setClipRect(mx, fy, fx + fw - mx, fh);
-            botcorps_sprite_draw(*g.raw(), mx - g.ox, my - g.oy, 3, 4, th.ac2, false);
-            g.setClipRect(fx, fy, fw, fh);
-        } else if (th.grad == 2) {           /* v1019 synthwave: gradient, second tone on top -> accent */
-            const uint16_t a = botcorps_rgb565(th.ac2), b = botcorps_rgb565(th.ac);
-            for (int r = 0; r < fh; r += 2) {
-                g.setClipRect(fx, fy + r, fw, 2);
-                botcorps_sprite_draw(*g.raw(), mx - g.ox, my - g.oy, 3, 4,
-                                     botcorps_pal_fit(mix16(a, b, r, fh - 1)), false);
-            }
-            g.setClipRect(fx, fy, fw, fh);
-        }
+        /* UI colour: a SQUARE bot in the selected theme filling the face (mock botSquare) */
+        ui_color_bot(g, mx, my, fx, fy, fw, fh, 4);
     } else if (index == 1) {
         if (s_mix == 1) draw_blob(g, mx, my + 1, 2, live, 0, false);           /* crew */
         else if (s_mix == 2) gl_icon(g, GL_AP, mx - 6, my - 6, false);          /* devices */
@@ -4458,14 +4834,17 @@ static void cp_chip(Gfx g, int index, bool on)
     } else if (index == 2) {
         shape_preview(g, mx, my);
     } else if (index == 5) {
-        saver_preview(g, mx, my);
+        bg_preview(g, mx, my);
     } else if (index == 7) {
-        const bool onS = s_saver_on != 0;
-        g.fillRect(fx + 2, fy + 2, 3, fh - 4, onS ? ac : sh_rgb(0x3a, 0x0d, 0x22));
-        char num[8];
-        snprintf(num, sizeof(num), "%d", IDLE_V[s_idle]);
-        txt(g, num, mx + 2, my - 7, onS ? (uint8_t)PAL_WHITE : silk2, lgfx::textdatum::top_center);
-        txt(g, "s", mx + 2, my + 3, silk2, lgfx::textdatum::top_center);
+        /* v1019n-mod (#7) BG COLOR: MULTI = three bots in their own colours; a solid = one bot in that ink */
+        if (mode <= 0) {
+            static const int BX[3] = { -10, 0, 10 };
+            for (int k = 0; k < 3; ++k)
+                botcorps_sprite_draw(*g.raw(), mx + BX[k] - g.ox, my + (k == 1 ? -5 : 5) - g.oy, 3, 2,
+                                     bot_color(k * 4 + 1), false);
+        } else {
+            botcorps_sprite_draw(*g.raw(), mx - g.ox, my - g.oy, 3, 3, botcorps_rain_solid(), false);
+        }
     }
     g.clearClipRect();
     char up[16];
@@ -4478,13 +4857,13 @@ static void cp_part(Gfx g, int index, bool on)
     int x, y, w, h;
     if (!cp_part_rect(index, &x, &y, &w, &h)) return;
     const uint8_t gold = sh_rgb(0xd4, 0xa9, 0x3c), rail = sh_rgb(0x02, 0x02, 0x03);
-    const uint8_t metal = sh_rgb(0xb9, 0xbf, 0xcc), silk2 = sh_rgb(0x9a, 0x9a, 0xa6);
-    const uint8_t ac = accent();
+    const uint8_t metal = sh_rgb(0xb9, 0xbf, 0xcc), silk = sh_rgb(0xe9, 0xe9, 0xee), silk2 = sh_rgb(0x9a, 0x9a, 0xa6);
     GATE_BOX(g, "PART", index == 3 ? "s3" : index == 4 ? "s4" : "s6", x, y, w, h, "BOARD");
     if (on) {
         sel_rect(g, x - 3, y - 3, w + 6, h + 6);
         GATE_BOX(g, "SEL", "outline", x - 3, y - 3, w + 6, h + 6, "-");
     }
+    const char *lab = "PWR";
     if (index == 3) {                              /* J1 = RAIN MODE: 3-pin header + yellow jumper */
         const bool solid = botcorps_rain_mode() > 0;
         g.fillRect(x, y + 2, w, 6, rail);
@@ -4492,6 +4871,7 @@ static void cp_part(Gfx g, int index, bool on)
         const int jx = solid ? x + 9 : x + 1;
         g.fillRect(jx, y, 11, 10, sh_rgb(0xff, 0xd4, 0x00));
         g.fillRect(jx + 2, y + 2, 7, 3, sh_rgb(0xb8, 0x94, 0x00));
+        lab = "JUMP";
     } else if (index == 4) {                       /* U7 qfn "CP" = RAIN COLOUR swatch */
         g.fillRect(x, y, w, h, sh_rgb(0x16, 0x16, 0x1b));
         for (int k = 0; k < 5; ++k) {
@@ -4504,11 +4884,14 @@ static void cp_part(Gfx g, int index, bool on)
         const int m = botcorps_rain_mode();
         g.fillRect(x + 4, y + 13, w - 8, 5, m <= 0 ? botcorps_rain_palette(0) : botcorps_rain_solid());
         g.fillRect(x + 2, y + 2, 2, 2, sh_rgb(0x5d, 0x5d, 0x6a));
-    } else if (index == 6) {                       /* PWR LED = SAVER on/off */
-        const bool pon = s_saver_on != 0;
+        lab = "RAIN";
+    } else if (index == 6) {                       /* PWR LED = BG MOTION on/off */
+        const bool pon = s_bg_motion != 0;
         g.fillRect(x, y, w, h, sh_rgb(0xd9, 0xd9, 0xdf));
         g.fillRect(x + 2, y + 1, w - 4, h - 2, pon ? sh_rgb(0xff, 0x22, 0x44) : sh_rgb(0x3a, 0x0a, 0x12));
     }
+    /* one silk baseline under the whole switch bank, centred on each part */
+    txt(g, lab, x + w / 2, CP_BAY_LY, on ? (uint8_t)PAL_WHITE : silk, lgfx::textdatum::top_center);
 }
 int botcorps_cp_overlap_count(void)
 {
@@ -4556,7 +4939,8 @@ static void paint_control(Gfx g)
     const uint8_t ac = accent();
     /* top chrome bar: part dots, crown (BACK), terminal (TERM) */
     g.fillRect(0, 0, 320, 16, PAL_BLACK);
-    g.fillRect(0, 16, 320, 1, ac);
+    if (theme().grad == 0) g.fillRect(0, 16, 320, 1, ac);
+    else for (int x = 0; x < 320; x += 4) g.fillRect(x, 16, 4, 1, th_ink_at(x, 320));   /* v1019n-mod: themed rule */
     for (int k = 0; k < CP_N; ++k) g.fillRect(6 + k * 6, 7, 4, 3, k == s_cursor ? ac : sh_rgb(0x2a, 0x2a, 0x34));
     {
         const bool bsel = s_cursor == CP_N + 1;
@@ -4587,7 +4971,7 @@ static void paint_control(Gfx g)
         txt(g, TP[k], x0 + 11, 31, silk, lgfx::textdatum::top_center);
         txt(g, BP[k], x0 + 11, 209, silk, lgfx::textdatum::top_center);
     }
-    /* dev-kit outline + pin dot rows + SMD resistor row + data micro-USB */
+    /* dev-kit outline + pin dot rows */
     g.drawRect(34, 40, 227, 165, sh_rgb(0x2b, 0x2b, 0x33));
     for (int k = 0; k < 19; ++k) {
         for (int r = 0; r < 2; ++r) {
@@ -4596,8 +4980,27 @@ static void paint_control(Gfx g)
             g.fillRect(41 + k * 11, y0 + 1, 1, 1, PAL_BLACK);
         }
     }
-    for (int k = 0; k < 6; ++k) { g.fillRect(90 + k * 14, 160, 6, 3, sh_rgb(0xb8, 0xb8, 0xc0)); g.fillRect(92 + k * 14, 160, 2, 3, sh_rgb(0x20, 0x20, 0x24)); }
-    g.fillRect(238, 156, 12, 22, metal); g.fillRect(241, 159, 6, 16, sh_rgb(0x1a, 0x1a, 0x20));
+    /* v1019n-mod (#8) lower bay, ONE row on the y 163 centre line, silk on the y 178 baseline:
+     *   C1 tantalum | R1..R6 SMD array | [switch bank: CP  JUMP  PWR] | BOOT / EN tact column (labels right) */
+    const int cy = CP_BAY_CY;
+    g.fillRect(44, cy - 6, 22, 12, sh_rgb(0xe0, 0xa2, 0x1c)); g.fillRect(44, cy - 6, 5, 12, sh_rgb(0x7a, 0x52, 0x08));
+    g.fillRect(51, cy - 3, 12, 6, sh_rgb(0x5a, 0x3a, 0x00));
+    txt(g, "C1", 55, CP_BAY_LY, silk, lgfx::textdatum::top_center);
+    for (int k = 0; k < 6; ++k) { g.fillRect(74 + k * 11, cy - 1, 6, 3, sh_rgb(0xb8, 0xb8, 0xc0)); g.fillRect(76 + k * 11, cy - 1, 2, 3, sh_rgb(0x20, 0x20, 0x24)); }
+    txt(g, "R1-6", 104, CP_BAY_LY, silk2, lgfx::textdatum::top_center);
+    {   /* switch-bank silk frame: one box around CP / JUMP / PWR so the three read as one bank */
+        const uint8_t fr = sh_rgb(0x2b, 0x2b, 0x33);
+        g.drawRect(140, cy - 17, 92, 44, fr);
+    }
+    g.fillRect(238, 156, 12, 22, metal); g.fillRect(241, 159, 6, 16, sh_rgb(0x1a, 0x1a, 0x20));   /* data micro-USB */
+    for (int b = 0; b < 2; ++b) {                  /* BOOT / EN: one column, both labels on the right */
+        const int x = 236, y = b ? 182 : 136, w = 16, h = 14;
+        g.fillRect(x, y, w, h, metal); g.fillRect(x + 1, y + 1, w - 2, h - 2, sh_rgb(0xc3, 0xc9, 0xd6));
+        g.fillCircle(x + w / 2, y + h / 2, 4, sh_rgb(0x22, 0x23, 0x2c));
+        g.fillRect(x - 2, y + 1, 2, 3, gold); g.fillRect(x + w, y + 1, 2, 3, gold);
+        g.fillRect(x - 2, y + h - 4, 2, 3, gold); g.fillRect(x + w, y + h - 4, 2, 3, gold);
+        txt(g, b ? "EN" : "BOOT", x + w + 4, y + 4, silk, lgfx::textdatum::top_left);
+    }
     /* power section at the right end: DC jack, power micro-USB, AMS1117, USB-C */
     g.fillRect(270, 36, 40, 36, sh_rgb(0x15, 0x15, 0x18)); g.fillRect(275, 41, 30, 26, sh_rgb(0x05, 0x05, 0x06));
     g.fillCircle(290, 54, 6, sh_rgb(0x2a, 0x2a, 0x30));
@@ -4611,27 +5014,13 @@ static void paint_control(Gfx g)
         txt(g, "1117C", x + 15, y + 8, silk2, lgfx::textdatum::top_center);
         for (int k = 0; k < 3; ++k) g.fillRect(x + 6 + k * 7, y + 16, 5, 3, sh_rgb(0x2a, 0x2a, 0x34));
     }
-    {   /* USB-C (mock 298,172 17x30; kept inside the board edge) */
+    {   /* USB-C (mock 298,172 17x30; kept inside the board edge), silk centred under it */
         const int x = 293, y = 172, w = 17, h = 30;
         g.fillRect(x, y, w, h, sh_rgb(0x9a, 0xa1, 0xb2)); g.fillRect(x + 1, y + 1, w - 2, h - 2, sh_rgb(0xd0, 0xd5, 0xdf));
         g.fillRect(x + 4, y + 4, w - 8, h - 8, sh_rgb(0x0a, 0x0a, 0x10)); g.fillRect(x + 7, y + 8, 2, h - 16, gold);
+        txt(g, "USB5V", 312, 208, silk, lgfx::textdatum::top_right);
     }
-    txt(g, "JUMP", 270, 163, silk, lgfx::textdatum::top_center);
-    txt(g, "USB5V", 312, 208, silk, lgfx::textdatum::top_right);
-    txt(g, "PWR", 264, 205, silk2, lgfx::textdatum::top_left);
-    /* C1 tantalum + BOOT / EN buttons (decorative, mock coords) */
-    g.fillRect(52, 156, 22, 12, sh_rgb(0xe0, 0xa2, 0x1c)); g.fillRect(52, 156, 5, 12, sh_rgb(0x7a, 0x52, 0x08));
-    g.fillRect(59, 159, 12, 6, sh_rgb(0x5a, 0x3a, 0x00)); txt(g, "C1", 52, 147, silk, lgfx::textdatum::top_left);
-    for (int b = 0; b < 2; ++b) {
-        const int x = 236, y = b ? 182 : 136, w = 16, h = 14;
-        g.fillRect(x, y, w, h, metal); g.fillRect(x + 1, y + 1, w - 2, h - 2, sh_rgb(0xc3, 0xc9, 0xd6));
-        g.fillCircle(x + w / 2, y + h / 2, 4, sh_rgb(0x22, 0x23, 0x2c));
-        g.fillRect(x - 2, y + 1, 2, 3, gold); g.fillRect(x + w, y + 1, 2, 3, gold);
-        g.fillRect(x - 2, y + h - 4, 2, 3, gold); g.fillRect(x + w, y + h - 4, 2, 3, gold);
-        if (b) txt(g, "EN", x + w + 4, y + 4, silk, lgfx::textdatum::top_left);
-        else txt(g, "BOOT", x - 4, y + 4, silk, lgfx::textdatum::top_right);
-    }
-    /* dark feed traces for every part, then the selected feed in the accent with moving pulses */
+    /* dark feed traces for every part, then the selected feed in the theme with moving pulses */
     int px[6], py[6];
     for (int i = 0; i < CP_N; ++i) {
         const int n = cp_route(i, px, py);
@@ -4640,19 +5029,34 @@ static void paint_control(Gfx g)
     if (s_cursor >= 0 && s_cursor < CP_N) {
         const int n = cp_route(s_cursor, px, py);
         int len = 0;
+        for (int q = 0; q + 1 < n; ++q) len += abs(px[q] - px[q + 1]) + abs(py[q] - py[q + 1]);
+        int run = 0;
         for (int q = 0; q + 1 < n; ++q) {
-            const uint8_t wire = th_wire();
-            cp_seg(g, px[q], py[q], px[q + 1], py[q + 1], 2, wire, true);
-            len += abs(px[q] - px[q + 1]) + abs(py[q] - py[q + 1]);
+            const int l2 = abs(px[q] - px[q + 1]) + abs(py[q] - py[q + 1]);
+            if (theme().grad == 0) {
+                cp_seg(g, px[q], py[q], px[q + 1], py[q + 1], 2, th_wire(), true);
+            } else {                               /* v1019n-mod: the feed fades / bands along its length */
+                GATE_BOX(g, "TRACE", "sel", px[q] < px[q + 1] ? px[q] : px[q + 1], py[q] < py[q + 1] ? py[q] : py[q + 1],
+                         abs(px[q] - px[q + 1]) + 2, abs(py[q] - py[q + 1]) + 2, "-");
+                for (int d = 0; d < l2; d += 2) {
+                    const int qx = px[q] + (l2 ? (px[q + 1] - px[q]) * d / l2 : 0);
+                    const int qy = py[q] + (l2 ? (py[q + 1] - py[q]) * d / l2 : 0);
+                    const int sw = (px[q] != px[q + 1]) ? 2 : 2;
+                    g.fillRect(qx, qy, sw, 2, th_wire_at(run + d, len));
+                }
+                g.fillRect(px[q + 1], py[q + 1], 2, 2, th_wire_at(run + l2, len));
+            }
+            run += l2;
         }
         for (int k = 0; k < 3 && len > 0; ++k) {
             int d = (int)(((millis() * 120u) / 1000u + (uint32_t)(k * len / 3)) % (uint32_t)len);
+            const int dd = d;
             for (int q = 0; q + 1 < n; ++q) {
                 const int l2 = abs(px[q] - px[q + 1]) + abs(py[q] - py[q + 1]);
                 if (d <= l2) {
                     const int qx = px[q] + (l2 ? (px[q + 1] - px[q]) * d / l2 : 0);
                     const int qy = py[q] + (l2 ? (py[q + 1] - py[q]) * d / l2 : 0);
-                    g.fillRect(qx - 1, qy - 1, 4, 4, ac);
+                    g.fillRect(qx - 1, qy - 1, 4, 4, theme().grad == 0 ? ac : th_ink_at(dd, len));
                     break;
                 }
                 d -= l2;
@@ -5730,10 +6134,9 @@ static void paint_gchat(Gfx g)
     txt(g, "RX", 296, 4, (uint32_t)(t - s_last_key) < 220u ? ac : (uint8_t)COL_MUTED,
         lgfx::textdatum::top_left);
     s_px = keep;
-    if (dg_on()) {                /* v1019j: the Defend game owns the board under the same top bar */
-        paint_dg_board(g);
-        return;
-    }
+    /* MOD item 1: the Defend game no longer takes over the screen. The Defend screen stays (title plate,
+     * the bot's square chip, rail, prompt panel); the game plays inside its grid board and its UI sits in
+     * the prompt panel. */
     {   /* #9/#11: dynamic "<Name>> Defend" title for the active Defend game.
          * v1018b (Dirt-approved): solid matte plate behind the title so it never reads over the
          * rain glyphs. Sized to the title; a name too long for the 4..105 slot left of the rail
@@ -5765,12 +6168,18 @@ static void paint_gchat(Gfx g)
      * route board CPU stay Gibson. */
     chip_block(g, 56, 78, 36, (s_defend_bot >= 0 && s_defend_bot < 12) ? s_defend_bot : 12);
     paint_gc_rail(g, ac);
-    paint_gc_route(g, ac);
+    if (dg_on()) paint_dg_board(g);
+    else paint_gc_route(g, ac);
     g.fillRect(4, 148, 312, 88, PAL_BLACK);
     g.drawRect(4, 148, 312, 88, ac);
     g.drawRect(5, 149, 310, 86, PAL_WIRE_C);
     g.fillRect(6, 150, 250, 1, (uint32_t)(t - s_bus_t0) < 160u ? ac : (uint8_t)PAL_WIRE_C);
     chip_block(g, 294, 214, 28, 12);
+    if (dg_on()) {                /* MOD item 14: the game's HUD in the prompt panel */
+        paint_dg_hud_ext(g);
+        s_px = keep;
+        return;
+    }
     s_px = 6;
     const int n = s_log_n < 6 ? s_log_n : 6;
     const int start = s_log_n - n;
@@ -5804,8 +6213,13 @@ static void paint_gchat(Gfx g)
     txt(g, "gibson", 10, py, ac, lgfx::textdatum::top_left);
     txt(g, ">", 10 + 7 * 6, py, COL_INK, lgfx::textdatum::top_left);
     txt(g, s_gp_buf, 10 + 9 * 6, py, COL_WHITE, lgfx::textdatum::top_left);
-    const int cx = 10 + (9 + (int)strlen(s_gp_buf)) * 6;
-    if ((t / 530u) % 2u == 0u) g.fillRect(cx, py, 5, 8, ac);
+    const int gl = (int)strlen(s_gp_buf);
+    const int ci = (s_gc_caret < 0 || s_gc_caret > gl) ? gl : s_gc_caret;   /* MOD item 2: caret can sit mid-line */
+    const int cx = 10 + (9 + ci) * 6;
+    if ((t / 530u) % 2u == 0u) {
+        g.fillRect(cx, py, 5, 8, ac);
+        if (ci < gl) { const char one[2] = { s_gp_buf[ci], 0 }; txt(g, one, cx, py, PAL_BLACK, lgfx::textdatum::top_left); }
+    }
     if (s_sheet) paint_gc_sheet(g);
     if (s_gc_panel == 1) paint_gc_gloss(g);
     else if (s_gc_panel == 2) paint_gc_attack(g);
@@ -5817,7 +6231,8 @@ static void paint_gchat(Gfx g)
 static void rain_flags(void)
 {
     botcorps_rain_set_gibson(s_screen == SCR_GIBSON || (s_screen == SCR_SCAN && s_scan_bot == 12));
-    botcorps_rain_set_no_bots(s_screen == SCR_TERMINAL);
+    /* v1019n (#15): Terminal + the Gibson prompt screen = our fixed device-icon rain only */
+    botcorps_rain_set_no_bots(s_screen == SCR_TERMINAL || s_screen == SCR_GCHAT);
 }
 
 static void paint_ext(Gfx g)
@@ -5920,6 +6335,9 @@ static void paint_int(lgfx::LGFX_Device &menu)
 {
     const int width = menu.width();
     fmt_times();
+#ifdef BOTCORPS_HOST_RENDER
+    { extern int host_int_clears; ++host_int_clears; }   /* v1019n-mod #11: count full INT clears */
+#endif
     menu.fillScreen(panel565(PAL_DEEP));
     s_int_bot = -1;
     Serial.println("[int] FULL fillScreen");
@@ -6003,8 +6421,10 @@ static void paint_int_now(void)
  * Left/Right walk one ring through every stop in reading order, so every control is reachable from
  * anywhere; Up/Down go to the visually nearest stop above/below (wrapping top<->bottom). */
 static const int8_t CP_RING[CP_N + 2] = { CP_N + 1, CP_N, 0, 1, 2, 5, 7, 4, 3, 6 };
-static const int8_t CP_UP[CP_N + 2]   = { CP_N + 1, CP_N + 1, CP_N + 1, 7, 5, CP_N, 3, CP_N, 6, 6 };
-static const int8_t CP_DN[CP_N + 2]   = { 4, 4, 4, 6, 6, 4, CP_N + 1, 3, 5, 2 };
+/* v1019n-mod (#8): the switch bank moved into the lower bay (CP x158, J1 x190, PWR x219): Up from a bank
+ * part = the chip above it, Down = the top bar; Down from a chip = the bank part under it. */
+static const int8_t CP_UP[CP_N + 2]   = { CP_N + 1, CP_N + 1, CP_N + 1, 5, 2, CP_N, 7, CP_N, 3, 4 };
+static const int8_t CP_DN[CP_N + 2]   = { 4, 4, 4, CP_N, CP_N + 1, 3, CP_N, 6, 5, 2 };
 static int cp_nav(int cur, int key)
 {
     if (cur < 0 || cur >= CP_N + 2) return 0;
@@ -6038,12 +6458,16 @@ static void nudge_row(int d)
         if (m > 6) m = 1;
         botcorps_rain_set_mode(m);
         save_rain_color();
-    } else if (s_cursor == 5) {
-        s_saver = (s_saver + d + 4) % 4;
-    } else if (s_cursor == 6) {
-        s_saver_on = s_saver_on ? 0 : 1;
-    } else if (s_cursor == 7) {
-        s_idle = (s_idle + d + 3) % 3;
+    } else if (s_cursor == 5) {                /* v1019n-mod (#6): BACKGROUND style (the former savers) */
+        s_bg = (s_bg + d + BGS_NUM) % BGS_NUM;
+        botcorps_rain_set_bg(s_bg);
+    } else if (s_cursor == 6) {                /* v1019n-mod: PWR LED = background motion on/off */
+        s_bg_motion = s_bg_motion ? 0 : 1;
+    } else if (s_cursor == 7) {                /* v1019n-mod (#7): BG COLOR = MULTI + four solids */
+        const int i = bgc_ix();
+        const int nx = i < 0 ? 0 : (i + d + BGC_N) % BGC_N;
+        botcorps_rain_set_mode(BGC_MODE[nx]);
+        save_rain_color();
     }
 }
 
@@ -6113,7 +6537,15 @@ static void activate(void)
         if (s_cursor >= 0 && s_cursor < CP_N) {
             /* v1017a: Enter cycles the focused setting forward (rain mode / colour still save NVS). */
             nudge_row(1);
-            if (s_cursor == 0) s_int_dirty = true;   /* UI colour recolours the INT name bar too */
+            /* v1019n-mod (#11) INT flicker fix: a UI-colour change used to set s_int_dirty here, which runs
+             * paint_int(): menu.fillScreen(PAL_DEEP) on the bare INT panel (no sprite / no band buffer), then
+             * the bar + ID card are redrawn over it - the deep-fill frame is the visible flash. Nothing on INT
+             * reads the theme (THEMES / theme() / accent() are file-static here; paint_int, botcorps_id_paint
+             * and dg_paint_hud only use COL_* / PAL_* and the bot colour), so the repaint changed no pixel:
+             * it was pure flash. The colour change now repaints EXT only (band present, S1 no-flash). */
+#if defined(BOTCORPS_HOST_RENDER) && defined(BOTCORPS_REPRO_INT_FLASH)
+            if (s_cursor == 0) s_int_dirty = true;   /* host-only repro of the v1019m behaviour */
+#endif
             s_dirty = true;
         } else if (s_cursor == CP_N) {
             const int back_to = s_ret >= 0 ? s_ret : SCR_GIBSON;
@@ -6358,7 +6790,7 @@ static void sb_tick(void)
         return;
     }
     int nx = 0, ny = 0;
-    sb_cell(band, n - 1, &nx, &ny);
+    if (n >= LIST_N || !sb_cell(band, n - 1, &nx, &ny)) return;   /* mod item 9: no fresh blink / scout after the sweep */
     const uint32_t fk = (t / 110u) % 2u;
     if (fk != k_fresh) { if (k_fresh != ~0u) sb_patch(nx - 12, ny - 12, 25, 25); k_fresh = fk; }
     float ph = (float)(t % 900u) / 900.f * 1.4f;
@@ -6739,15 +7171,21 @@ static void sp_run(const char *line)
 static void on_arrows(int key)
 {
     if (s_screen == SCR_GCHAT) {
-        if (!s_sheet) {                      /* v1019 (Dirt #6): arrows reach the game's command menu */
-            s_sheet = true;
-            s_sheet_i = 0;
-            s_dirty = true;
-            return;
+        /* MOD item 2 (Mobandy): in the Defend-screen prompt the arrows drive ONLY the prompt. Left / Right
+         * move the caret, Up / Down walk the prompt history. They never open or walk the command sheet
+         * (the Gibson bot command glossary: Tab opens it, Tab steps it, Enter picks, Esc closes) and never
+         * reach the rail or the board. */
+        const int n = (int)strlen(s_gp_buf);
+        int c = (s_gc_caret < 0 || s_gc_caret > n) ? n : s_gc_caret;
+        if (key == 3 && c > 0) --c;
+        if (key == 4 && c < n) ++c;
+        if ((key == 1 || key == 2) && s_hist_n > 0) {
+            if (key == 1) s_gc_hist_i = s_gc_hist_i < 0 ? s_hist_n - 1 : (s_gc_hist_i > 0 ? s_gc_hist_i - 1 : 0);
+            else s_gc_hist_i = s_gc_hist_i < 0 ? -1 : (s_gc_hist_i + 1 < s_hist_n ? s_gc_hist_i + 1 : -1);
+            snprintf(s_gp_buf, sizeof(s_gp_buf), "%s", s_gc_hist_i >= 0 ? botcorps_t0_term_hist[s_gc_hist_i] : "");
+            c = (int)strlen(s_gp_buf);
         }
-        if (key == 1 || key == 3) s_sheet_i = (s_sheet_i + GC_N - 1) % GC_N;
-        if (key == 2 || key == 4) s_sheet_i = (s_sheet_i + 1) % GC_N;
-        if (s_sheet_i < 0) s_sheet_i = 0;
+        s_gc_caret = c >= (int)strlen(s_gp_buf) ? -1 : c;
         s_dirty = true;
         return;
     }
@@ -6878,6 +7316,7 @@ static void on_arrows(int key)
         s_dirty = true;
         return;
     }
+    if (gd_key(key)) { s_dirty = true; return; }   /* mod item 10: Gibson drop-down owns the arrows */
     if (s_screen == SCR_SCAN) {
         /* v1019 (Dirt #6): arrows drive the ≡ command menu: each press steps a command into the
          * prompt (the ≡ chip lights); Enter runs it, Esc clears it. */
@@ -6906,11 +7345,20 @@ static void on_arrows(int key)
         const int band = list_band();
         const int dir = (key == 1 || key == 3) ? -1 : (key == 2 || key == 4) ? 1 : 0;
         if (dir == 0) return;
-        /* positions: 0..LIST_N-1 devices, LIST_N = the > GLOSSARY prompt */
+        /* positions: 0..LIST_N-1 devices, LIST_N = the > GLOSSARY prompt.
+         * mod item 9: Left/Right step one cell, Up/Down step one grid ROW (7) so the halo moves the way
+         * the arrow points; off the top = the > prompt, off the end wraps to the prompt. */
+        const int step = (key == 1) ? -SG_COLS : (key == 2) ? SG_COLS : dir;
         int i = s_cursor;
-        for (int k = 0; k <= LIST_N; ++k) {
-            i = (i + dir + LIST_N + 1) % (LIST_N + 1);
-            if (i == LIST_N || !s_dev_ign[band][i]) break;
+        if (i < 0 || i >= LIST_N) i = dir > 0 ? 0 : LIST_N - 1;   /* from the > prompt into the grid */
+        else {
+            int j = i + step;
+            if (key == 2 && j >= LIST_N && i / SG_COLS < (LIST_N - 1) / SG_COLS) j = LIST_N - 1;   /* short last row */
+            i = (j < 0 || j >= LIST_N) ? LIST_N : j;
+        }
+        for (int k = 0; k <= LIST_N && i < LIST_N && s_dev_ign[band][i]; ++k) {
+            i += dir;
+            if (i < 0 || i >= LIST_N) i = LIST_N;
         }
         s_cursor = i;
         partial_box(s_cursor, true);
@@ -7113,6 +7561,7 @@ static void on_esc(void)
         }
         if (s_gp_buf[0]) {
             s_gp_buf[0] = 0;
+            s_gc_caret = -1; s_gc_hist_i = -1;
             s_dirty = true;
             return;
         }
@@ -7156,8 +7605,9 @@ static void on_tab(void)
         return;
     }
     if (s_screen == SCR_GCHAT) {
-        s_sheet = !s_sheet;
-        if (s_sheet) s_sheet_i = 0;
+        /* MOD item 2: Tab opens the command sheet and then steps it (arrows no longer do); Esc closes */
+        if (!s_sheet) { s_sheet = true; s_sheet_i = 0; }
+        else s_sheet_i = (s_sheet_i + 1) % GC_N;
         s_dirty = true;
         return;
     }
@@ -7195,9 +7645,12 @@ static void on_char(char c)
         if (c >= 'A' && c <= 'Z') c = (char)(c - 'A' + 'a');
         const size_t n = strlen(s_gp_buf);
         if (n + 1 < sizeof(s_gp_buf) && c >= 32 && c < 127) {
-            s_gp_buf[n] = c;
-            s_gp_buf[n + 1] = 0;
+            const size_t at = (s_gc_caret < 0 || (size_t)s_gc_caret > n) ? n : (size_t)s_gc_caret;
+            memmove(s_gp_buf + at + 1, s_gp_buf + at, n - at + 1);   /* MOD item 2: insert at the caret */
+            s_gp_buf[at] = c;
+            if (s_gc_caret >= 0) ++s_gc_caret;
         }
+        s_gc_hist_i = -1;
         s_dirty = true;
         return;
     }
@@ -7249,7 +7702,11 @@ static void on_bs(void)
 {
     if (s_screen == SCR_GCHAT && s_gp_buf[0]) {
         const size_t n = strlen(s_gp_buf);
-        s_gp_buf[n - 1] = 0;
+        const size_t at = (s_gc_caret < 0 || (size_t)s_gc_caret > n) ? n : (size_t)s_gc_caret;
+        if (at > 0) {                        /* MOD item 2: delete before the caret */
+            memmove(s_gp_buf + at - 1, s_gp_buf + at, n - at + 1);
+            if (s_gc_caret > 0) --s_gc_caret;
+        }
         s_dirty = true;
         return;
     }
@@ -7554,6 +8011,7 @@ static void ui_dispatch(int key, char typed)
             char line[28];
             snprintf(line, sizeof(line), "%s", s_gp_buf);
             s_gp_buf[0] = 0;
+            s_gc_caret = -1; s_gc_hist_i = -1;
             gc_run(line);
             s_dirty = true;
             return;
@@ -7593,7 +8051,8 @@ void botcorps_ui_draw(void)
     const bool dirty = s_dirty;
     const bool int_dirty = s_int_dirty;
     bool stepped = false;
-    if (botcorps_dual_ok() && wants_rain()) stepped = botcorps_rain_step();
+    /* v1019n-mod: PWR LED off = the background holds still (no rain steps; full paints still draw it) */
+    if (botcorps_dual_ok() && wants_rain() && s_bg_motion) stepped = botcorps_rain_step();
     static uint32_t s_pulse_ms = 0;
     const bool pulse = due_140(&s_pulse_ms);
     if (botcorps_dual_ok() && !botcorps_band_direct()) {
@@ -8016,6 +8475,42 @@ void botcorps_host_gchat(uint8_t *buf)
     paint_ext(Gfx());
 }
 
+/* MOD review render (host only): the Defend screen itself and its prompt under the REAL key path.
+ * mode 0: the Defend board idle (no game), prompt typed. mode 1: the same after fn-arrows (Up = history,
+ * Left x3 = caret) - proves arrows moved only the prompt: sheet closed, screen / panel / rail unchanged.
+ * Writes "DGP <mode> sheet=<0|1> screen=<id> panel=<n> buf=<prompt> caret=<n>" to stdout. */
+void botcorps_host_defend_prompt(uint8_t *buf, int mode)
+{
+    host_frame = buf;
+    s_fa_on = false; s_act = -1; s_color = 0; s_sheet = false; s_gc_panel = 0;
+    botcorps_lut_term(false);
+    enter_screen(SCR_GCHAT, SCR_GIBSON);
+    s_defend_bot = 12;
+    gc_set_count(0);
+    s_gp_buf[0] = 0; s_gc_caret = -1; s_gc_hist_i = -1;
+    log_add("gibson> status");
+    gc_push(12, "link up");
+    log_add("gibson> crew");
+    gc_push(12, "12 boards linked");
+    hist_push("defend wifi");
+    hist_push("scan all");
+    const char *ty = "help";
+    for (const char *c = ty; *c; ++c) ui_dispatch(K_CHAR, *c);
+    const int scr0 = s_screen, pan0 = s_gc_panel;
+    if (mode == 1) {
+        ui_dispatch(K_UP, 0); ui_dispatch(K_UP, 0);      /* history: "scan all" then "defend wifi" */
+        ui_dispatch(K_LT, 0); ui_dispatch(K_LT, 0); ui_dispatch(K_LT, 0);   /* caret 3 left */
+        ui_dispatch(K_DN, 0); ui_dispatch(K_UP, 0);      /* down = newer, up again = back to "defend wifi" */
+        ui_dispatch(K_LT, 0); ui_dispatch(K_LT, 0); ui_dispatch(K_LT, 0); ui_dispatch(K_RT, 0);
+    }
+    printf("DGP %d sheet=%d screen=%d(%d) panel=%d(%d) buf=%s caret=%d dg=%d\n", mode, (int)s_sheet, s_screen, scr0,
+           s_gc_panel, pan0, s_gp_buf, s_gc_caret, s_dg);
+    s_bus_t0 = 0;
+    host_set_millis(10000u);   /* caret on phase */
+    memset(buf, PAL_BLACK, 320u * 240u);
+    paint_ext(Gfx());
+}
+
 void botcorps_host_gc_gloss(uint8_t *buf, int bot)
 {
     botcorps_host_gchat(buf);
@@ -8301,6 +8796,22 @@ void botcorps_host_sbox(uint8_t *buf, int band, int mode, int force_dbm)
     if (mode == 3) host_set_millis(13900u);
     paint_ext(Gfx());
 }
+/* mod pass (items 9/10): scan-box review render. n devices (12 stock, up to SB_N), cursor, UI colour,
+ * millis since the scan started. keys (optional) are fed through the real key handler first. */
+void botcorps_host_mod_sbox(uint8_t *buf, int band, int n, int cursor, int color, uint32_t since, const char *keys)
+{
+    botcorps_host_sbox(buf, band, 0, 0);
+    s_sb_n = n < 1 ? 1 : (n > SB_N ? SB_N : n);
+    s_color = color;
+    s_sb_row0 = 0;
+    s_cursor = cursor;
+    host_set_millis(1000u + since);
+    if (keys) for (const char *k = keys; *k; ++k) ui_dispatch((int)(unsigned char)*k, 0);
+    host_frame = buf;
+    memset(buf, PAL_BLACK, 320u * 240u);
+    paint_ext(Gfx());
+    s_sb_n = 12;
+}
 void botcorps_host_found_alert_b(uint8_t *buf, int band, int dev)
 {
     host_frame = buf;
@@ -8477,6 +8988,15 @@ void botcorps_host_scan_n(uint8_t *buf, int bot)
     bh_host_warm(bot);
     botcorps_host_enter(buf, SCR_SCAN);
 }
+/* mod item 10: Gibson drop-down review render (lane, device or -1, UI colour) */
+void botcorps_host_mod_gibdrop(uint8_t *buf, int lane, int dev, int color)
+{
+    s_gib_hunt = false;
+    s_color = color;
+    s_gd_lane = lane; s_gd_dev = dev; s_gd_top = 0; s_gd_row0 = 0;
+    bh_host_warm(12);
+    botcorps_host_enter(buf, SCR_SCAN);
+}
 /* #5: Gibson's board with hunt mode on (mock gibHuntStart) */
 void botcorps_host_scan_gibhunt(uint8_t *buf)
 {
@@ -8501,12 +9021,33 @@ int botcorps_host_esc_test(uint8_t *buf, int id, int *expect)
     ui_dispatch(K_ESC, 0);
     return s_screen;
 }
+/* v1019n-mod #11: full INT clears (fillScreen + whole-card redraw) while cycling UI COLOR through every
+ * theme with Enter on the real draw loop. 0 = no INT flash on a colour change. */
+int host_int_clears = 0;
+int botcorps_host_int_flash(uint8_t *buf, int presses, int *ext_bad)
+{
+    botcorps_host_enter(buf, SCR_CONTROL);
+    s_cursor = 0;
+    host_set_millis(30000u);
+    botcorps_ui_draw();                         /* settle: the screen-entry paint is not counted */
+    botcorps_ui_draw();
+    const int n0 = host_int_clears;
+    static char keys[64];
+    int k = 0;
+    for (; k < presses && k < 63; ++k) keys[k] = '\n';
+    keys[k] = 0;
+    long pr = 0, pu = 0, rc = 0, wo = 0;
+    *ext_bad = botcorps_host_sim(presses * 300 + 600, keys, &pr, &pu, &rc, &wo);
+    const int n = host_int_clears - n0;
+    s_color = 0;
+    return n;
+}
 static int s_cp_cycle = 0;
 int botcorps_host_setfn(uint8_t *buf, int cursor, char *before, char *after, int *nvs)
 {
     botcorps_host_enter(buf, SCR_CONTROL);
     s_cursor = cursor;
-    const int sv[7] = { s_color, s_mix, s_shape, botcorps_rain_mode(), s_saver, s_saver_on, s_idle };
+    const int sv[7] = { s_color, s_mix, s_shape, botcorps_rain_mode(), s_bg, s_bg_motion, 0 };
     cp_text(cursor, before, 24);
     const int n0 = host_nvs_puts;
     s_key_fn = false;
@@ -8525,7 +9066,7 @@ int botcorps_host_setfn(uint8_t *buf, int cursor, char *before, char *after, int
     const bool ok = strcmp(before, after) != 0 && s_screen == SCR_CONTROL && s_cursor == cursor;
     /* restore the defaults so later checks are not affected */
     s_color = sv[0]; s_mix = sv[1]; s_shape = sv[2]; botcorps_rain_set_mode(sv[3]);
-    s_saver = sv[4]; s_saver_on = sv[5]; s_idle = sv[6];
+    s_bg = sv[4]; s_bg_motion = sv[5]; (void)sv[6]; botcorps_rain_set_bg(s_bg);
     botcorps_rain_set_mix(s_mix); botcorps_rain_set_shape(s_shape);
     return ok;
 }
@@ -8644,6 +9185,9 @@ int botcorps_host_cp_move(uint8_t *buf, int from, int dir, int *changed)
     return s_screen == SCR_CONTROL ? s_cursor : -100 - s_screen;
 }
 void botcorps_host_set_color(int c){ s_color = (c<0||c>=THEME_N)?0:c; }
+/* v1019n-mod review renders: BACKGROUND style + motion (PWR LED) before host_rain_init warms the rain */
+void botcorps_host_set_bg(int style, int motion) { s_bg = ((style % BGS_NUM) + BGS_NUM) % BGS_NUM; s_bg_motion = motion ? 1 : 0; botcorps_rain_set_bg(s_bg); }
+int botcorps_host_theme_n(void) { return THEME_N; }
 void botcorps_host_key(int key, char c) { s_key_fn = (c == 1); ui_dispatch(key, c == 1 ? 0 : c); }
 void botcorps_host_paint(uint8_t *buf) { host_frame = buf; paint_ext(Gfx()); }
 /* v1017c S3: the same frame painted the way the device BANDS present does it (two 120-row slices,

@@ -58,7 +58,10 @@ static const uint16_t DEV_GIB[DEV_N][3] = {
 static const uint16_t GIB_IVORY_N = 0xF79C;   /* GIBSONbot's fixed ivory */
 static int s_shape = 0;
 static bool s_gibson = false;   /* Gibson's screen: the mixed-in bots are ivory Gibsons */
-static bool s_no_bots = false;  /* Terminal: no bot emblems in its rain (bits + devices only) */
+/* v1019n (#15): Terminal / prompt rain = OUR DEVICE-ICON RAIN ONLY: only the 10 device icons fall (no 0/1
+ * bits, no bot emblems, never a background, never the UI colour). Fixed: the only thing that recolours it
+ * is the BOT-RAIN colour toggle (s_mode). */
+static bool s_no_bots = false;
 
 static const uint16_t SOLID_INK[6] = {
     0x26E8, 0x269C, 0x331F, 0xB21F, 0xF586, 0xFFFF,
@@ -171,9 +174,11 @@ static void build_columns(void)
     }
 }
 
+/* v1019n (#19): the 0/1 bits keep their one code green; the BOT-RAIN colour toggle (s_mode) recolours only
+ * the bots and the device icons, and UI COLOR never reaches the rain at all. */
 static uint16_t code_native(void)
 {
-    return s_mode == 0 ? COL_CODE_N : SOLID_INK[s_mode - 1];
+    return COL_CODE_N;
 }
 
 /* 0 none, 1 lead, 2..5 trail steps. Brightest of the two drops wins. */
@@ -210,6 +215,43 @@ static bool cell_open(int x, int y)
     return rain_pixel_ok(x + CELL - 1, y + CELL - 1);
 }
 
+/* device-icon rain inks: the icon's own 3 inks (Gibson-screen set on Gibson's screens), or the BOT-RAIN
+ * solid ink (body = ink, fill = ink 25%); faded with the trail age */
+static void dev_inks(int d, int lv, uint8_t ink3[3])
+{
+    const uint16_t *pc = s_gibson ? DEV_GIB[d] : DEV_NEON[d];
+    uint16_t sc[3];
+    if (s_mode > 0) {                       /* v1019n (#7/#19): SOLID toggle = device body in that ink */
+        const uint16_t ink = SOLID_INK[s_mode - 1];
+        sc[0] = ink; sc[1] = scale_native(ink, 1, 4); sc[2] = ink;
+        pc = sc;
+    }
+    for (int k = 0; k < 3; ++k) ink3[k] = botcorps_pal_fit(lv <= 3 ? pc[k] : scale_native(pc[k], lv == 4 ? 2 : 1, 3));
+}
+static void dev_art(lgfx::LovyanGFX &panel, int x, int ly, int d, const uint8_t ink3[3])
+{
+    for (int yy = 0; yy < 8; ++yy) {
+        const char *rw = DEV_ART[d][yy];
+        for (int xx = 0; xx < 8;) {
+            const char ch = rw[xx];
+            if (ch == '.') { ++xx; continue; }
+            int e = xx;
+            while (e < 8 && rw[e] == ch) ++e;
+            botcorps_pal_rect(panel, x + xx, ly + yy, e - xx, 1, ink3[ch - 'a']);
+            xx = e;
+        }
+    }
+}
+/* v1019n (#15): in the device-only rain every lit lead is a device icon and ~45% of the trail cells keep
+ * one (the rest stay dark, so strands read as falling icons, never as code). The icon is a pure function
+ * of the cell's glyph byte and position, so it never depends on BG MIX / shape / UI colour. */
+static bool dev_only_icon(int col, int row, int lv, uint8_t gl, int *d)
+{
+    const uint32_t h = (uint32_t)gl * 37u + (uint32_t)col * 11u + (uint32_t)row * 5u;
+    *d = (int)(h % DEV_N);
+    return lv == 1 || ((h / DEV_N) % 9u) < 4u;
+}
+
 static void draw_cell(lgfx::LovyanGFX &panel, int col, int row)
 {
     const int x = col * CELL, wy = row * CELL;
@@ -222,13 +264,25 @@ static void draw_cell(lgfx::LovyanGFX &panel, int col, int row)
     botcorps_pal_rect(panel, x, ly, CELL, CELL, PAL_FIELD);
     if (lv == 0) { panel.clearClipRect(); return; }
     const uint8_t gl = *glyph_at(col, row);
+    if (s_no_bots) {                          /* v1019n (#15): Terminal / prompt: device icons only */
+        int d;
+        if (dev_only_icon(col, row, lv, gl, &d)) {
+            uint8_t ink3[3];
+            dev_inks(d, lv, ink3);
+            dev_art(panel, x, ly, d, ink3);
+        }
+        panel.clearClipRect();
+        return;
+    }
     const bool lead_bot = lv == 1 && (lead & 3) == LEAD_BOT;
     const bool trail_bot = lv >= 2 && gl >= 0x80 && gl < 0x8C;
-    if ((lead_bot || trail_bot) && !s_no_bots) {
+    if (lead_bot || trail_bot) {
         /* bot in its fixed colour (lead bright, trail fading with age); on Gibson's screen an ivory
          * Gibson with black shades */
         const int b = lead_bot ? (lead >> 2) % 12 : (gl & 0x0F);
-        const uint16_t c = s_gibson ? GIB_IVORY_N : BOTCORPS_BOT_COLOR[b];
+        /* v1019n (#7/#19): the BOT-RAIN colour toggle: MULTI = each bot's own colour, SOLID = that ink;
+         * GIBSONbot keeps its fixed ivory */
+        const uint16_t c = s_gibson ? GIB_IVORY_N : (s_mode > 0 ? SOLID_INK[s_mode - 1] : BOTCORPS_BOT_COLOR[b]);
         const uint8_t body = botcorps_pal_fit(lv <= 3 ? c : scale_native(c, lv == 4 ? 2 : 1, 3));
         if (s_gibson)
             botcorps_sprite_draw_inks(panel, x + 4, ly + 4, BOTCORPS_SHAPE_ROUND, 1, body, PAL_BLACK, false);
@@ -241,20 +295,9 @@ static void draw_cell(lgfx::LovyanGFX &panel, int col, int row)
     const bool trail_dev = lv >= 2 && gl >= 0xA0;
     if (lead_dev || trail_dev) {
         const int d = (lead_dev ? (lead >> 2) : (gl & 0x0F)) % DEV_N;
-        const uint16_t *pc = s_gibson ? DEV_GIB[d] : DEV_NEON[d];
         uint8_t ink3[3];
-        for (int k = 0; k < 3; ++k) ink3[k] = botcorps_pal_fit(lv <= 3 ? pc[k] : scale_native(pc[k], lv == 4 ? 2 : 1, 3));
-        for (int yy = 0; yy < 8; ++yy) {
-            const char *rw = DEV_ART[d][yy];
-            for (int xx = 0; xx < 8;) {
-                const char ch = rw[xx];
-                if (ch == '.') { ++xx; continue; }
-                int e = xx;
-                while (e < 8 && rw[e] == ch) ++e;
-                botcorps_pal_rect(panel, x + xx, ly + yy, e - xx, 1, ink3[ch - 'a']);
-                xx = e;
-            }
-        }
+        dev_inks(d, lv, ink3);
+        dev_art(panel, x, ly, d, ink3);
         panel.clearClipRect();
         return;
     }
@@ -265,10 +308,7 @@ static void draw_cell(lgfx::LovyanGFX &panel, int col, int row)
         ink = PAL_WHITE;                    /* bright lead glyph */
     } else {
         static const int AGE[4] = { 0, 5, 9, 13 };
-        /* v1019d (Dirt #4): the Terminal's rain (s_no_bots = Terminal only) keeps its trails brighter
-         * so the backdrop lifts the board grid and prompt panel out of the black. */
-        static const int AGE_T[4] = { 0, 2, 5, 8 };
-        const int age = s_no_bots ? AGE_T[lv - 2] : AGE[lv - 2];
+        const int age = AGE[lv - 2];
         if (!botcorps_pal_ramp_for(code_native(), age, &ink)) ink = botcorps_pal_fit(code_native());
     }
     const char s[2] = { ch, 0 };
@@ -280,9 +320,12 @@ static void draw_cell(lgfx::LovyanGFX &panel, int col, int row)
     panel.clearClipRect();
 }
 
+#include "rain/botcorps_bg.inc"
+
 /* One step. Direct mode repaints only the cells whose look changed. */
 static void step_columns(lgfx::LovyanGFX *panel)
 {
+    if (bg_on()) { bg_step(panel); return; }   /* v1019n (#6): a background replaces the rain */
     for (int i = 0; i < s_ncols; ++i) {
         uint8_t *c = col_at(i);
         c[5] = (uint8_t)(c[5] + 1);
@@ -316,6 +359,7 @@ static void step_columns(lgfx::LovyanGFX *panel)
 
 static void paint_all_cells(lgfx::LovyanGFX &panel)
 {
+    if (bg_on()) { bg_paint_all(panel); return; }
     panel.setTextWrap(false, false);
     const int r0 = s_slice_y0 / CELL, r1 = (s_slice_y1 + CELL - 1) / CELL;
     for (int col = 0; col < s_ncols; ++col)
@@ -431,6 +475,38 @@ void botcorps_rain_ghost_ex(lgfx::LovyanGFX &dst, int ox, int oy, int rx, int ry
 {
     if (!s_built) build_columns();
     if (rw <= 0 || rh <= 0) return;
+    if (bg_on()) return;                          /* v1019n: no rain under a background, so no ghost bits */
+    if (s_no_bots) {                              /* v1019n (#15): the device-only rain ghosts as device icons */
+        const int dh0 = dst.height();
+        const int c0 = rx / CELL, c1 = (rx + rw - 1) / CELL, r0 = ry / CELL, r1 = (ry + rh - 1) / CELL;
+        for (int col = c0 < 0 ? 0 : c0; col <= c1 && col < CELL_COLS; ++col)
+            for (int row = r0 < 0 ? 0 : r0; row <= r1 && row < CELL_ROWS; ++row) {
+                const int lv = cell_level(col, row, nullptr);
+                int d;
+                if (lv <= 0 || !dev_only_icon(col, row, lv, *glyph_at(col, row), &d)) continue;
+                const int gx = col * CELL, gy = row * CELL;
+                if (top_whole && gy < ry) continue;
+                uint8_t gi = ink;                 /* tiles / prompt plate: the icon's own colour at ~40% */
+                if (!top_whole) {
+                    const uint16_t c = s_mode > 0 ? SOLID_INK[s_mode - 1] : (s_gibson ? DEV_GIB[d][0] : DEV_NEON[d][0]);
+                    gi = botcorps_pal_fit(scale_native(c, 2, 5));
+                }
+                for (int yy = 0; yy < 8; ++yy) {
+                    const int wy = gy + yy;
+                    if (wy < ry || wy >= ry + rh) continue;
+                    const int ly = wy - oy;
+                    if (ly < 0 || ly >= dh0) continue;
+                    for (int xx = 0; xx < 8; ++xx) {
+                        const char ch = DEV_ART[d][yy][xx];
+                        if (ch == '.' || ch == 'b') continue;   /* outline + highlight pixels only */
+                        const int wx = gx + xx;
+                        if (wx < rx || wx >= rx + rw) continue;
+                        botcorps_pal_rect(dst, wx - ox, ly, 1, 1, gi);
+                    }
+                }
+            }
+        return;
+    }
     static const uint8_t B0[5] = { 7, 5, 5, 5, 7 };   /* 3x5 '0' */
     static const uint8_t B1[5] = { 2, 6, 2, 2, 7 };   /* 3x5 '1' */
     const int dh = dst.height();
@@ -529,6 +605,21 @@ void botcorps_rain_set_mix(int mix)
     s_mix = mix;
     s_built = false;
     build_columns();
+}
+
+/* v1019n (#6): BACKGROUND 0 RAIN (our BOTcorps rain), 1 BOTS, 2 GIBSON, 3 FLYBY, 4 BOUNCE */
+void botcorps_rain_set_bg(int style)
+{
+    if (style < 0 || style >= BG_STYLES) style = BG_RAIN;
+    if (style == s_bg && s_bg_built) return;
+    s_bg = style;
+    s_bg_built = false;
+    if (s_bg != BG_RAIN) bg_build();
+}
+
+int botcorps_rain_bg(void)
+{
+    return s_bg;
 }
 
 int botcorps_rain_mix(void)

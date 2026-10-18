@@ -54,7 +54,8 @@ void botcorps_rain_set_hub(bool on);
 /* v1017c: Gibson's screen (hub, Gibson's scan board): bots in the rain are ivory Gibsons and the
  * devices take the Gibson-screen inks. */
 void botcorps_rain_set_gibson(bool on);
-/* v1017c: Terminal: no bot emblems in the rain (bit + device glyphs only). */
+/* v1019n (#15): Terminal / prompt: OUR DEVICE-ICON RAIN ONLY (the 10 device icons; no bits, no bots, no
+ * background; recoloured only by the BOT-RAIN colour toggle). */
 void botcorps_rain_set_no_bots(bool on);
 /* v1019: faint ghost bits of the live rain over a chrome rect (world coords, dst rows from oy). */
 void botcorps_rain_ghost(lgfx::LovyanGFX &dst, int ox, int oy, int rx, int ry, int rw, int rh, uint8_t ink);
@@ -73,4 +74,8 @@ void botcorps_rain_set_mix(int mix);
 /* 0 = mixed shapes. 1..4 = round, classic, tall, mini. */
 void botcorps_rain_set_shape(int shape);
 int botcorps_rain_mix(void);
+/* v1019n (#6): BACKGROUND = the former screen-saver animations, run live INSTEAD of the rain:
+ * 0 RAIN (our BOTcorps rain, default), 1 BOTS, 2 GIBSON, 3 FLYBY, 4 BOUNCE. The Terminal ignores it. */
+void botcorps_rain_set_bg(int style);
+int botcorps_rain_bg(void);
 uint8_t botcorps_rain_solid(void);

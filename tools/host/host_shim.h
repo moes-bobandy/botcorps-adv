@@ -264,6 +264,8 @@ void botcorps_rain_set_mode(int);
 int botcorps_rain_mode(void);
 int botcorps_shape_for(int);
 void botcorps_rain_set_mix(int);
+void botcorps_rain_set_bg(int);
+int botcorps_rain_bg(void);
 void botcorps_rain_set_shape(int);
 uint8_t botcorps_rain_palette(int);
 uint8_t botcorps_rain_solid(void);

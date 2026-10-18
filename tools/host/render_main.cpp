@@ -373,8 +373,62 @@ static int run_gate(const char *dir)
     return 0;
 }
 
+/* mod pass 2026-10-18 (items 9/10/15): review renders, not gate items. rend mod <dir> */
+extern void botcorps_host_mod_sbox(uint8_t *buf, int band, int n, int cursor, int color, uint32_t since, const char *keys);
+static void mod_out(const char *dir, const char *name)
+{
+    char p[256];
+    snprintf(p, sizeof p, "%s/%s.rgb", dir, name);
+    write_raw(p, g_buf, 0);
+    printf("rendered %s\n", name);
+}
+static int run_mod(const char *dir)
+{
+    struct S { const char *nm; int band, n, cur, col; uint32_t since; const char *keys; };
+    static const S SB[] = {
+        { "09-scan-wifi-12-halo",        0, 12, 9, 0, 9400u, nullptr },
+        { "09-scan-ble-12-halo",         1, 12, 3, 0, 9400u, nullptr },
+        { "09-scan-wifi-12-halo-pink",   0, 12, 4, 1, 9400u, nullptr },
+        { "09-scan-wifi-35-overflow-top", 0, 35, 2, 0, 9400u, nullptr },
+        { "09-scan-wifi-35-overflow-scrolled", 0, 35, 2, 0, 9400u, "\x02\x02\x02\x02\x04\x04" },
+        { "09-scan-ble-30-overflow-scrolled", 1, 30, 10, 4, 9400u, "\x02\x02\x03" },
+        { "09-scan-wifi-12-midsweep",    0, 12, 0, 0, 700u, nullptr },
+    };
+    for (const S &k : SB) {
+        host_rain_init(0);
+        host_set_millis(9000u);
+        botcorps_host_mod_sbox(g_buf, k.band, k.n, k.cur, k.col, k.since, k.keys);
+        mod_out(dir, k.nm);
+    }
+    extern void botcorps_host_mod_gibdrop(uint8_t *buf, int lane, int dev, int color);
+    struct G { const char *nm; int lane, dev, col; };
+    static const G GD[] = {
+        { "10-gibson-dropdown-wifi-lane", 0, -1, 0 },
+        { "10-gibson-dropdown-wifi-tile", 0, 9, 0 },
+        { "10-gibson-dropdown-flipper-tile", 10, 3, 0 },
+        { "10-gibson-dropdown-flock-lane-synth", 4, -1, 3 },
+    };
+    for (const G &k : GD) {
+        host_rain_init(0);
+        host_set_millis(9000u);
+        botcorps_host_mod_gibdrop(g_buf, k.lane, k.dev, k.col);
+        mod_out(dir, k.nm);
+    }
+    static const int TC[3] = { 0, 3, 1 };
+    static const char *TN[3] = { "15-terminal-device-rain-grape", "15-terminal-device-rain-synth", "15-terminal-device-rain-pink" };
+    for (int i = 0; i < 3; ++i) {
+        host_rain_init(0);
+        host_set_millis(9000u);
+        GArg a = { 2, TC[i], 0, nullptr };
+        f_enter(&a);
+        mod_out(dir, TN[i]);
+    }
+    return 0;
+}
+
 int main(int argc, char **argv)
 {
+    if (argc > 2 && strcmp(argv[1], "modc") == 0) return run_mod(argv[2]);   /* Pass C review set (was "mod": clashed with Pass B mod scr/ctl) */
     if (argc > 2 && strcmp(argv[1], "gate") == 0) return run_gate(argv[2]);
     /* v1017c: one-off review render (not a gate item): rend shot <screen id> <out.rgb> [keys] */
     if (argc > 3 && strcmp(argv[1], "shot") == 0) {
@@ -383,6 +437,33 @@ int main(int argc, char **argv)
         GArg a = { atoi(argv[2]), getenv("RC") ? atoi(getenv("RC")) : 0, 0, argc > 4 ? argv[4] : nullptr };
         f_enter(&a);
         write_raw(argv[3], g_buf, 0);
+        return 0;
+    }
+    /* v1019n-mod review renders (not gate items):
+     *   rend mod ctl <focus> <out>    control panel        env RC theme, BG style, RM rain mode, BGM motion
+     *   rend mod scr <screen> <out>   any screen by id     same env
+     *   rend intflash                 #11: full INT clears while Enter cycles UI COLOR through every theme */
+    if (argc > 4 && strcmp(argv[1], "mod") == 0) {
+        extern void botcorps_host_set_bg(int, int);
+        botcorps_host_set_bg(getenv("BG") ? atoi(getenv("BG")) : 0, getenv("BGM") ? atoi(getenv("BGM")) : 1);
+        host_rain_init(getenv("RM") ? atoi(getenv("RM")) : 0);
+        host_set_millis(9000u);
+        const int rc = getenv("RC") ? atoi(getenv("RC")) : 0;
+        if (strcmp(argv[2], "ctl") == 0) { botcorps_host_set_color(rc); botcorps_host_control(g_buf, atoi(argv[3])); }
+        else { GArg a = { atoi(argv[3]), rc, 0, nullptr }; f_enter(&a); }
+        write_raw(argv[4], g_buf, 0);
+        return 0;
+    }
+    if (argc > 1 && strcmp(argv[1], "intflash") == 0) {
+        extern int botcorps_host_int_flash(uint8_t *, int, int *);
+        extern int botcorps_host_theme_n(void);
+        host_rain_init(0);
+        host_set_millis(9000u);
+        botcorps_host_set_color(0);
+        int ext_bad = -1;
+        const int n = botcorps_host_theme_n();
+        const int full = botcorps_host_int_flash(g_buf, n, &ext_bad);
+        printf("INTFLASH\tpresses=%d\tint_full_clears=%d\text_glitch_pushes=%d\n", n, full, ext_bad);
         return 0;
     }
     if (argc > 1 && strcmp(argv[1], "audit") == 0) {
@@ -403,6 +484,16 @@ int main(int argc, char **argv)
         if (argc > 5) botcorps_host_defend_hud(g_buf, atoi(argv[2]), atoi(argv[3]), slot);
         else botcorps_host_defend_g(g_buf, atoi(argv[2]), slot, atoi(argv[3]));
         write_raw(argv[4], g_buf, 0);
+        return 0;
+    }
+    /* MOD review: the Defend screen + prompt arrows: rend dgp <mode> <out> */
+    if (argc > 3 && strcmp(argv[1], "dgp") == 0) {
+        extern void botcorps_host_defend_prompt(uint8_t *, int);
+        host_rain_init(0);
+        host_set_millis(9000u);
+        botcorps_host_set_color(0);
+        botcorps_host_defend_prompt(g_buf, atoi(argv[2]));
+        write_raw(argv[3], g_buf, 0);
         return 0;
     }
     /* v1019: one-off review render of the Defend game title for one bot: rend gtitle <bot> <out> */

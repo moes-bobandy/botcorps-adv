@@ -42,7 +42,7 @@
   PASS  G2 sprites inside their chip/tile
   PASS  G3 no clipped/overrun text
   PASS  G4 nothing past the board/screen edge
-  PASS  G5 rain layer present + visible  [logged=True visible_px=3471 colour_px=1187]
+  PASS  G5 rain layer present + visible  [logged=True visible_px=4350 colour_px=3345]
   PASS  G6 no instruction text
   PASS  G7 regression vs approved render  [0 px changed (limit 40)]
   PASS  G8 crown back control present  [1 crown]
@@ -51,7 +51,7 @@
   PASS  G2 sprites inside their chip/tile
   PASS  G3 no clipped/overrun text
   PASS  G4 nothing past the board/screen edge
-  PASS  G5 rain layer present + visible  [logged=True visible_px=3384 colour_px=428]
+  PASS  G5 rain layer present + visible  [logged=True visible_px=4387 colour_px=3292]
   PASS  G6 no instruction text
   PASS  G8 crown back control present  [1 crown]
   PASS  T1 log pale cyan, "[ ok ]" green  [green_px=50 paleCyan_px=1247 other_px=0]
@@ -60,7 +60,7 @@
   PASS  G2 sprites inside their chip/tile
   PASS  G3 no clipped/overrun text
   PASS  G4 nothing past the board/screen edge
-  PASS  G5 rain layer present + visible  [logged=True visible_px=2609 colour_px=358]
+  PASS  G5 rain layer present + visible  [logged=True visible_px=3690 colour_px=2602]
   PASS  G6 no instruction text
   PASS  G7 regression vs approved render  [0 px changed (limit 40), masked [(4, 167, 316, 240)]]
   PASS  G8 crown back control present  [1 crown]
@@ -74,7 +74,7 @@
   PASS  G7 regression vs approved render  [0 px changed (limit 40)]
   PASS  G8 crown back control present  [1 crown]
   PASS  B1 board is matte black PCB  [dominant=(8, 12, 16)]
-  PASS  S1 device icons (tiles) in the mini screen  [tiles=3]
+  PASS  S1 device icons (tiles) in the mini screen  [tiles=12]
   PASS  S2 index = small prompt top-left of mini screen  [[(108, 43)]]
 == scan-ble
   PASS  G1 no element/text bbox overlap
@@ -86,7 +86,7 @@
   PASS  G7 regression vs approved render  [0 px changed (limit 40)]
   PASS  G8 crown back control present  [1 crown]
   PASS  B1 board is matte black PCB  [dominant=(8, 12, 16)]
-  PASS  S1 device icons (tiles) in the mini screen  [tiles=3]
+  PASS  S1 device icons (tiles) in the mini screen  [tiles=12]
   PASS  S2 index = small prompt top-left of mini screen  [[(108, 43)]]
 == sbox-selected
   PASS  G1 no element/text bbox overlap
@@ -161,144 +161,144 @@
   PASS  G2 sprites inside their chip/tile
   PASS  G3 no clipped/overrun text
   PASS  G4 nothing past the board/screen edge
-  PASS  G5 rain layer present + visible  [logged=True visible_px=865 colour_px=512]
+  PASS  G5 rain layer present + visible  [logged=True visible_px=2119 colour_px=1315]
   PASS  G6 no instruction text
   PASS  G7 regression vs approved render  [0 px changed (limit 40)]
   PASS  G8 crown back control present  [1 crown]
   PASS  DG1 Defend board is matte black  [dominant=(0, 0, 0)]
-  PASS  DG2 active bot is its round sprite on the board, no chip  [round=[('bot', 151, 214, 18)] chips=0]
+  PASS  DG2 active bot is its round sprite on the board, no chip  [round=[('bot', 215, 129, 14)] chips=0]
   PASS  DG3 game pieces on the board (reused icons / 0-1 bits)  [2 pieces ['beacon']]
 == defend-botnet
   PASS  G1 no element/text bbox overlap
   PASS  G2 sprites inside their chip/tile
   PASS  G3 no clipped/overrun text
   PASS  G4 nothing past the board/screen edge
-  PASS  G5 rain layer present + visible  [logged=True visible_px=1058 colour_px=635]
+  PASS  G5 rain layer present + visible  [logged=True visible_px=2156 colour_px=1538]
   PASS  G6 no instruction text
   PASS  G7 regression vs approved render  [0 px changed (limit 40)]
   PASS  G8 crown back control present  [1 crown]
   PASS  DG1 Defend board is matte black  [dominant=(0, 0, 0)]
-  PASS  DG2 active bot is its round sprite on the board, no chip  [round=[('bot', 213, 213, 14)] chips=0]
+  PASS  DG2 active bot is its round sprite on the board, no chip  [round=[('bot', 250, 129, 14)] chips=0]
   PASS  DG3 game pieces on the board (reused icons / 0-1 bits)  [9 pieces ['drip', 'iot']]
 == defend-channelhop
   PASS  G1 no element/text bbox overlap
   PASS  G2 sprites inside their chip/tile
   PASS  G3 no clipped/overrun text
   PASS  G4 nothing past the board/screen edge
-  PASS  G5 rain layer present + visible  [logged=True visible_px=706 colour_px=318]
+  PASS  G5 rain layer present + visible  [logged=True visible_px=2671 colour_px=1602]
   PASS  G6 no instruction text
   PASS  G7 regression vs approved render  [0 px changed (limit 40)]
   PASS  G8 crown back control present  [1 crown]
   PASS  DG1 Defend board is matte black  [dominant=(0, 0, 0)]
-  PASS  DG2 active bot is its round sprite on the board, no chip  [round=[('bot', 153, 213, 14)] chips=0]
+  PASS  DG2 active bot is its round sprite on the board, no chip  [round=[('bot', 215, 129, 14)] chips=0]
   PASS  DG3 game pieces on the board (reused icons / 0-1 bits)  [2 pieces ['noise']]
 == defend-eviltwin
   PASS  G1 no element/text bbox overlap
   PASS  G2 sprites inside their chip/tile
   PASS  G3 no clipped/overrun text
   PASS  G4 nothing past the board/screen edge
-  PASS  G5 rain layer present + visible  [logged=True visible_px=618 colour_px=356]
+  PASS  G5 rain layer present + visible  [logged=True visible_px=2608 colour_px=1752]
   PASS  G6 no instruction text
   PASS  G7 regression vs approved render  [0 px changed (limit 40)]
   PASS  G8 crown back control present  [1 crown]
   PASS  DG1 Defend board is matte black  [dominant=(0, 0, 0)]
-  PASS  DG2 active bot is its round sprite on the board, no chip  [round=[('bot', 153, 213, 14)] chips=0]
+  PASS  DG2 active bot is its round sprite on the board, no chip  [round=[('bot', 215, 129, 14)] chips=0]
   PASS  DG3 game pieces on the board (reused icons / 0-1 bits)  [2 pieces ['ap', 'twin']]
 == defend-firewall
   PASS  G1 no element/text bbox overlap
   PASS  G2 sprites inside their chip/tile
   PASS  G3 no clipped/overrun text
   PASS  G4 nothing past the board/screen edge
-  PASS  G5 rain layer present + visible  [logged=True visible_px=1131 colour_px=584]
+  PASS  G5 rain layer present + visible  [logged=True visible_px=1979 colour_px=1196]
   PASS  G6 no instruction text
   PASS  G7 regression vs approved render  [0 px changed (limit 40)]
   PASS  G8 crown back control present  [1 crown]
   PASS  DG1 Defend board is matte black  [dominant=(0, 0, 0)]
-  PASS  DG2 active bot is its round sprite on the board, no chip  [round=[('bot', 261, 197, 14)] chips=0]
-  PASS  DG3 game pieces on the board (reused icons / 0-1 bits)  [37 pieces ['block', 'iot', 'packet']]
+  PASS  DG2 active bot is its round sprite on the board, no chip  [round=[('bot', 203, 115, 14)] chips=0]
+  PASS  DG3 game pieces on the board (reused icons / 0-1 bits)  [35 pieces ['block', 'iot', 'packet']]
 == defend-jamdodge
   PASS  G1 no element/text bbox overlap
   PASS  G2 sprites inside their chip/tile
   PASS  G3 no clipped/overrun text
   PASS  G4 nothing past the board/screen edge
-  PASS  G5 rain layer present + visible  [logged=True visible_px=624 colour_px=218]
+  PASS  G5 rain layer present + visible  [logged=True visible_px=2261 colour_px=1441]
   PASS  G6 no instruction text
   PASS  G7 regression vs approved render  [0 px changed (limit 40)]
   PASS  G8 crown back control present  [1 crown]
   PASS  DG1 Defend board is matte black  [dominant=(0, 0, 0)]
-  PASS  DG2 active bot is its round sprite on the board, no chip (Gibson)  [round=[('gibson', 37, 171, 14)] chips=0]
+  PASS  DG2 active bot is its round sprite on the board, no chip (Gibson)  [round=[('gibson', 153, 109, 14)] chips=0]
   PASS  DG3 game pieces on the board (reused icons / 0-1 bits)  [4 pieces ['jammer', 'noise']]
 == defend-maze
   PASS  G1 no element/text bbox overlap
   PASS  G2 sprites inside their chip/tile
   PASS  G3 no clipped/overrun text
   PASS  G4 nothing past the board/screen edge
-  PASS  G5 rain layer present + visible  [logged=True visible_px=855 colour_px=365]
+  PASS  G5 rain layer present + visible  [logged=True visible_px=2384 colour_px=1497]
   PASS  G6 no instruction text
   PASS  G7 regression vs approved render  [0 px changed (limit 40)]
   PASS  G8 crown back control present  [1 crown]
   PASS  DG1 Defend board is matte black  [dominant=(0, 0, 0)]
-  PASS  DG2 active bot is its round sprite on the board, no chip (Gibson)  [round=[('gibson', 81, 63, 7)] chips=0]
+  PASS  DG2 active bot is its round sprite on the board, no chip (Gibson)  [round=[('gibson', 173, 43, 7)] chips=0]
   PASS  DG3 game pieces on the board (reused icons / 0-1 bits)  [6 pieces ['jammer', 'shield']]
 == defend-pairlock
   PASS  G1 no element/text bbox overlap
   PASS  G2 sprites inside their chip/tile
   PASS  G3 no clipped/overrun text
   PASS  G4 nothing past the board/screen edge
-  PASS  G5 rain layer present + visible  [logged=True visible_px=799 colour_px=400]
+  PASS  G5 rain layer present + visible  [logged=True visible_px=2498 colour_px=1643]
   PASS  G6 no instruction text
   PASS  G7 regression vs approved render  [0 px changed (limit 40)]
   PASS  G8 crown back control present  [1 crown]
   PASS  DG1 Defend board is matte black  [dominant=(0, 0, 0)]
-  PASS  DG2 active bot is its round sprite on the board, no chip  [round=[('bot', 151, 214, 18)] chips=0]
+  PASS  DG2 active bot is its round sprite on the board, no chip  [round=[('bot', 215, 129, 14)] chips=0]
   PASS  DG3 game pieces on the board (reused icons / 0-1 bits)  [2 pieces ['pin', 'rogue']]
 == defend-patchrun
   PASS  G1 no element/text bbox overlap
   PASS  G2 sprites inside their chip/tile
   PASS  G3 no clipped/overrun text
   PASS  G4 nothing past the board/screen edge
-  PASS  G5 rain layer present + visible  [logged=True visible_px=1184 colour_px=689]
+  PASS  G5 rain layer present + visible  [logged=True visible_px=2397 colour_px=1581]
   PASS  G6 no instruction text
   PASS  G7 regression vs approved render  [0 px changed (limit 40)]
   PASS  G8 crown back control present  [1 crown]
   PASS  DG1 Defend board is matte black  [dominant=(0, 0, 0)]
-  PASS  DG2 active bot is its round sprite on the board, no chip  [round=[('bot', 211, 59, 14)] chips=0]
+  PASS  DG2 active bot is its round sprite on the board, no chip  [round=[('bot', 250, 40, 14)] chips=0]
   PASS  DG3 game pieces on the board (reused icons / 0-1 bits)  [15 pieces ['iot', 'vuln']]
 == defend-raincatch
   PASS  G1 no element/text bbox overlap
   PASS  G2 sprites inside their chip/tile
   PASS  G3 no clipped/overrun text
   PASS  G4 nothing past the board/screen edge
-  PASS  G5 rain layer present + visible  [logged=True visible_px=650 colour_px=346]
+  PASS  G5 rain layer present + visible  [logged=True visible_px=3334 colour_px=1976]
   PASS  G6 no instruction text
   PASS  G7 regression vs approved render  [0 px changed (limit 40)]
   PASS  G8 crown back control present  [1 crown]
   PASS  DG1 Defend board is matte black  [dominant=(0, 0, 0)]
-  PASS  DG2 active bot is its round sprite on the board, no chip  [round=[('bot', 171, 213, 14)] chips=0]
+  PASS  DG2 active bot is its round sprite on the board, no chip  [round=[('bot', 226, 129, 14)] chips=0]
   PASS  DG3 game pieces on the board (reused icons / 0-1 bits)  [3 pieces ['icon']]
 == defend-rangering
   PASS  G1 no element/text bbox overlap
   PASS  G2 sprites inside their chip/tile
   PASS  G3 no clipped/overrun text
   PASS  G4 nothing past the board/screen edge
-  PASS  G5 rain layer present + visible  [logged=True visible_px=774 colour_px=440]
+  PASS  G5 rain layer present + visible  [logged=True visible_px=1969 colour_px=1341]
   PASS  G6 no instruction text
   PASS  G7 regression vs approved render  [0 px changed (limit 40)]
   PASS  G8 crown back control present  [1 crown]
   PASS  DG1 Defend board is matte black  [dominant=(0, 0, 0)]
-  PASS  DG2 active bot is its round sprite on the board, no chip  [round=[('bot', 151, 121, 18)] chips=0]
+  PASS  DG2 active bot is its round sprite on the board, no chip  [round=[('bot', 215, 76, 14)] chips=0]
   PASS  DG3 game pieces on the board (reused icons / 0-1 bits)  [2 pieces ['ble']]
 == defend-signaltrace
   PASS  G1 no element/text bbox overlap
   PASS  G2 sprites inside their chip/tile
   PASS  G3 no clipped/overrun text
   PASS  G4 nothing past the board/screen edge
-  PASS  G5 rain layer present + visible  [logged=True visible_px=592 colour_px=275]
+  PASS  G5 rain layer present + visible  [logged=True visible_px=2067 colour_px=1306]
   PASS  G6 no instruction text
   PASS  G7 regression vs approved render  [0 px changed (limit 40)]
   PASS  G8 crown back control present  [1 crown]
   PASS  DG1 Defend board is matte black  [dominant=(0, 0, 0)]
-  PASS  DG2 active bot is its round sprite on the board, no chip (Gibson)  [round=[('gibson', 225, 59, 14)] chips=0]
+  PASS  DG2 active bot is its round sprite on the board, no chip (Gibson)  [round=[('gibson', 257, 36, 14)] chips=0]
   PASS  DG3 game pieces on the board (reused icons / 0-1 bits)  [2 pieces ['heat', 'rogue']]
 == diag
   PASS  G1 no element/text bbox overlap
@@ -313,7 +313,7 @@
   PASS  G2 sprites inside their chip/tile
   PASS  G3 no clipped/overrun text
   PASS  G4 nothing past the board/screen edge
-  PASS  G5 rain layer present + visible  [logged=True visible_px=1725 colour_px=818]
+  PASS  G5 rain layer present + visible  [logged=True visible_px=1841 colour_px=1223]
   PASS  G6 no instruction text
   PASS  G8 crown back control present  [1 crown]
   PASS  C1 square chip_block present (Gibson)  [[('gibson', 36, 36), ('gibson', 28, 28), ('gibson', 28, 28)]]
@@ -325,7 +325,7 @@
   PASS  G2 sprites inside their chip/tile
   PASS  G3 no clipped/overrun text
   PASS  G4 nothing past the board/screen edge
-  PASS  G5 rain layer present + visible  [logged=True visible_px=2626 colour_px=1520]
+  PASS  G5 rain layer present + visible  [logged=True visible_px=2911 colour_px=1865]
   PASS  G6 no instruction text
   PASS  G8 crown back control present  [1 crown]
   PASS  C1 square chip_block present (Gibson)  [[('gibson', 36, 36), ('gibson', 28, 28), ('gibson', 28, 28)]]
@@ -336,7 +336,7 @@
   PASS  G2 sprites inside their chip/tile
   PASS  G3 no clipped/overrun text
   PASS  G4 nothing past the board/screen edge
-  PASS  G5 rain layer present + visible  [logged=True visible_px=809 colour_px=368]
+  PASS  G5 rain layer present + visible  [logged=True visible_px=962 colour_px=561]
   PASS  G6 no instruction text
   PASS  G8 crown back control present  [1 crown]
 == scanboard-airtag
@@ -346,7 +346,7 @@
   PASS  G4 nothing past the board/screen edge
   PASS  G5 rain layer present + visible  [logged=True visible_px=640 colour_px=374]
   PASS  G6 no instruction text
-  PASS  G7 regression vs approved render  [0 px changed (limit 40)]
+  PASS  G7 regression vs approved render  [32 px changed (limit 40)]
   PASS  G8 crown back control present  [1 crown]
   PASS  C1 square chip_block present (bot)  [[('bot', 54, 54)]]
   PASS  C2 figure fills the chip square (major side >=60% of chip)  [fill=0.67]
@@ -359,7 +359,7 @@
   PASS  G4 nothing past the board/screen edge
   PASS  G5 rain layer present + visible  [logged=True visible_px=250 colour_px=59]
   PASS  G6 no instruction text
-  PASS  G7 regression vs approved render  [0 px changed (limit 40)]
+  PASS  G7 regression vs approved render  [32 px changed (limit 40)]
   PASS  G8 crown back control present  [1 crown]
   PASS  C1 square chip_block present (bot)  [[('bot', 54, 54)]]
   PASS  C2 figure fills the chip square (major side >=60% of chip)  [fill=0.67]
@@ -372,7 +372,7 @@
   PASS  G4 nothing past the board/screen edge
   PASS  G5 rain layer present + visible  [logged=True visible_px=891 colour_px=465]
   PASS  G6 no instruction text
-  PASS  G7 regression vs approved render  [0 px changed (limit 40)]
+  PASS  G7 regression vs approved render  [32 px changed (limit 40)]
   PASS  G8 crown back control present  [1 crown]
   PASS  C1 square chip_block present (bot)  [[('bot', 54, 54)]]
   PASS  C2 figure fills the chip square (major side >=60% of chip)  [fill=0.67]
@@ -385,7 +385,7 @@
   PASS  G4 nothing past the board/screen edge
   PASS  G5 rain layer present + visible  [logged=True visible_px=455 colour_px=208]
   PASS  G6 no instruction text
-  PASS  G7 regression vs approved render  [0 px changed (limit 40)]
+  PASS  G7 regression vs approved render  [32 px changed (limit 40)]
   PASS  G8 crown back control present  [1 crown]
   PASS  C1 square chip_block present (bot)  [[('bot', 54, 54)]]
   PASS  C2 figure fills the chip square (major side >=60% of chip)  [fill=0.67]
@@ -398,7 +398,7 @@
   PASS  G4 nothing past the board/screen edge
   PASS  G5 rain layer present + visible  [logged=True visible_px=500 colour_px=295]
   PASS  G6 no instruction text
-  PASS  G7 regression vs approved render  [0 px changed (limit 40)]
+  PASS  G7 regression vs approved render  [32 px changed (limit 40)]
   PASS  G8 crown back control present  [1 crown]
   PASS  C1 square chip_block present (bot)  [[('bot', 54, 54)]]
   PASS  C2 figure fills the chip square (major side >=60% of chip)  [fill=0.67]
@@ -415,8 +415,8 @@
   PASS  C1 square chip_block present (Gibson)  [[('gibson', 54, 54)]]
   PASS  C2 figure fills the chip square (major side >=60% of chip)  [fill=0.67]
   PASS  C3 Gibson drawn as the square block figure  [2]
-  PASS  D2 hunt grid active (falling icons + chaser + pips)  [bright_px=31]
-  PASS  B1 board is matte black PCB  [dominant=(8, 12, 16)]
+  PASS  D2 hunt grid active (falling icons + chaser + pips)  [bright_px=547]
+  PASS  B1 board is matte black PCB  [dominant=(0, 0, 0)]
 == scanboard-hack
   PASS  G1 no element/text bbox overlap
   PASS  G2 sprites inside their chip/tile
@@ -424,7 +424,7 @@
   PASS  G4 nothing past the board/screen edge
   PASS  G5 rain layer present + visible  [logged=True visible_px=1007 colour_px=552]
   PASS  G6 no instruction text
-  PASS  G7 regression vs approved render  [0 px changed (limit 40)]
+  PASS  G7 regression vs approved render  [32 px changed (limit 40)]
   PASS  G8 crown back control present  [1 crown]
   PASS  C1 square chip_block present (bot)  [[('bot', 54, 54)]]
   PASS  C2 figure fills the chip square (major side >=60% of chip)  [fill=0.67]
@@ -450,7 +450,7 @@
   PASS  G4 nothing past the board/screen edge
   PASS  G5 rain layer present + visible  [logged=True visible_px=713 colour_px=327]
   PASS  G6 no instruction text
-  PASS  G7 regression vs approved render  [0 px changed (limit 40)]
+  PASS  G7 regression vs approved render  [32 px changed (limit 40)]
   PASS  G8 crown back control present  [1 crown]
   PASS  C1 square chip_block present (bot)  [[('bot', 54, 54)]]
   PASS  C2 figure fills the chip square (major side >=60% of chip)  [fill=0.67]
@@ -463,7 +463,7 @@
   PASS  G4 nothing past the board/screen edge
   PASS  G5 rain layer present + visible  [logged=True visible_px=627 colour_px=285]
   PASS  G6 no instruction text
-  PASS  G7 regression vs approved render  [0 px changed (limit 40)]
+  PASS  G7 regression vs approved render  [32 px changed (limit 40)]
   PASS  G8 crown back control present  [1 crown]
   PASS  C1 square chip_block present (bot)  [[('bot', 54, 54)]]
   PASS  C2 figure fills the chip square (major side >=60% of chip)  [fill=0.67]
@@ -476,7 +476,7 @@
   PASS  G4 nothing past the board/screen edge
   PASS  G5 rain layer present + visible  [logged=True visible_px=890 colour_px=511]
   PASS  G6 no instruction text
-  PASS  G7 regression vs approved render  [0 px changed (limit 40)]
+  PASS  G7 regression vs approved render  [32 px changed (limit 40)]
   PASS  G8 crown back control present  [1 crown]
   PASS  C1 square chip_block present (bot)  [[('bot', 54, 54)]]
   PASS  C2 figure fills the chip square (major side >=60% of chip)  [fill=0.67]
@@ -489,7 +489,7 @@
   PASS  G4 nothing past the board/screen edge
   PASS  G5 rain layer present + visible  [logged=True visible_px=1148 colour_px=715]
   PASS  G6 no instruction text
-  PASS  G7 regression vs approved render  [0 px changed (limit 40)]
+  PASS  G7 regression vs approved render  [32 px changed (limit 40)]
   PASS  G8 crown back control present  [1 crown]
   PASS  C1 square chip_block present (bot)  [[('bot', 54, 54)]]
   PASS  C2 figure fills the chip square (major side >=60% of chip)  [fill=0.67]
@@ -508,7 +508,7 @@
   PASS  P2 top pin labels on the rail above the chips  [10 labels, max bottom 38, chip top 44]
   PASS  P3 JUMP/CP/PWR are small mock parts (<=22x22)  [{'s3': (20, 10), 's4': (22, 22), 's6': (10, 8)}]
   PASS  P4 selection outline in the UI theme selection colour  [92/92 outline px accent]
-  PASS  P5 accent trace from the selected part  [618/634 trace px accent]
+  PASS  P5 accent trace from the selected part  [630/634 trace px accent]
 == settings-c0
   PASS  G1 no element/text bbox overlap
   PASS  G2 sprites inside their chip/tile
@@ -522,7 +522,7 @@
   PASS  P2 top pin labels on the rail above the chips  [10 labels, max bottom 38, chip top 44]
   PASS  P3 JUMP/CP/PWR are small mock parts (<=22x22)  [{'s3': (20, 10), 's4': (22, 22), 's6': (10, 8)}]
   PASS  P4 selection outline in the UI theme selection colour  [92/92 outline px accent]
-  PASS  P5 accent trace from the selected part  [618/634 trace px accent]
+  PASS  P5 accent trace from the selected part  [630/634 trace px accent]
 == settings-c1
   PASS  G1 no element/text bbox overlap
   PASS  G2 sprites inside their chip/tile
@@ -536,7 +536,7 @@
   PASS  P2 top pin labels on the rail above the chips  [10 labels, max bottom 38, chip top 44]
   PASS  P3 JUMP/CP/PWR are small mock parts (<=22x22)  [{'s3': (20, 10), 's4': (22, 22), 's6': (10, 8)}]
   PASS  P4 selection outline in the UI theme selection colour  [92/92 outline px accent]
-  PASS  P5 accent trace from the selected part  [530/546 trace px accent]
+  PASS  P5 accent trace from the selected part  [542/546 trace px accent]
 == settings-c2
   PASS  G1 no element/text bbox overlap
   PASS  G2 sprites inside their chip/tile
@@ -550,7 +550,7 @@
   PASS  P2 top pin labels on the rail above the chips  [10 labels, max bottom 38, chip top 44]
   PASS  P3 JUMP/CP/PWR are small mock parts (<=22x22)  [{'s3': (20, 10), 's4': (22, 22), 's6': (10, 8)}]
   PASS  P4 selection outline in the UI theme selection colour  [92/92 outline px accent]
-  PASS  P5 accent trace from the selected part  [442/458 trace px accent]
+  PASS  P5 accent trace from the selected part  [454/458 trace px accent]
 == settings-c3
   PASS  G1 no element/text bbox overlap
   PASS  G2 sprites inside their chip/tile
@@ -564,7 +564,7 @@
   PASS  P2 top pin labels on the rail above the chips  [10 labels, max bottom 38, chip top 44]
   PASS  P3 JUMP/CP/PWR are small mock parts (<=22x22)  [{'s3': (20, 10), 's4': (22, 22), 's6': (10, 8)}]
   PASS  P4 selection outline in the UI theme selection colour  [52/52 outline px accent]
-  PASS  P5 accent trace from the selected part  [106/122 trace px accent]
+  PASS  P5 accent trace from the selected part  [402/406 trace px accent]
 == settings-c4
   PASS  G1 no element/text bbox overlap
   PASS  G2 sprites inside their chip/tile
@@ -578,7 +578,7 @@
   PASS  P2 top pin labels on the rail above the chips  [10 labels, max bottom 38, chip top 44]
   PASS  P3 JUMP/CP/PWR are small mock parts (<=22x22)  [{'s3': (20, 10), 's4': (22, 22), 's6': (10, 8)}]
   PASS  P4 selection outline in the UI theme selection colour  [56/56 outline px accent]
-  PASS  P5 accent trace from the selected part  [336/356 trace px accent]
+  PASS  P5 accent trace from the selected part  [450/458 trace px accent]
 == settings-c5
   PASS  G1 no element/text bbox overlap
   PASS  G2 sprites inside their chip/tile
@@ -592,7 +592,7 @@
   PASS  P2 top pin labels on the rail above the chips  [10 labels, max bottom 38, chip top 44]
   PASS  P3 JUMP/CP/PWR are small mock parts (<=22x22)  [{'s3': (20, 10), 's4': (22, 22), 's6': (10, 8)}]
   PASS  P4 selection outline in the UI theme selection colour  [92/92 outline px accent]
-  PASS  P5 accent trace from the selected part  [354/370 trace px accent]
+  PASS  P5 accent trace from the selected part  [366/370 trace px accent]
 == settings-c6
   PASS  G1 no element/text bbox overlap
   PASS  G2 sprites inside their chip/tile
@@ -606,7 +606,7 @@
   PASS  P2 top pin labels on the rail above the chips  [10 labels, max bottom 38, chip top 44]
   PASS  P3 JUMP/CP/PWR are small mock parts (<=22x22)  [{'s3': (20, 10), 's4': (22, 22), 's6': (10, 8)}]
   PASS  P4 selection outline in the UI theme selection colour  [32/32 outline px accent]
-  PASS  P5 accent trace from the selected part  [66/76 trace px accent]
+  PASS  P5 accent trace from the selected part  [346/350 trace px accent]
 == settings-c7
   PASS  G1 no element/text bbox overlap
   PASS  G2 sprites inside their chip/tile
@@ -620,13 +620,13 @@
   PASS  P2 top pin labels on the rail above the chips  [10 labels, max bottom 38, chip top 44]
   PASS  P3 JUMP/CP/PWR are small mock parts (<=22x22)  [{'s3': (20, 10), 's4': (22, 22), 's6': (10, 8)}]
   PASS  P4 selection outline in the UI theme selection colour  [92/92 outline px accent]
-  PASS  P5 accent trace from the selected part  [266/282 trace px accent]
+  PASS  P5 accent trace from the selected part  [278/282 trace px accent]
 == terminal-atkbtn
   PASS  G1 no element/text bbox overlap
   PASS  G2 sprites inside their chip/tile
   PASS  G3 no clipped/overrun text
   PASS  G4 nothing past the board/screen edge
-  PASS  G5 rain layer present + visible  [logged=True visible_px=3484 colour_px=712]
+  PASS  G5 rain layer present + visible  [logged=True visible_px=4778 colour_px=3349]
   PASS  G6 no instruction text
   PASS  G8 crown back control present  [1 crown]
 == terminal-atkgloss
@@ -634,7 +634,7 @@
   PASS  G2 sprites inside their chip/tile
   PASS  G3 no clipped/overrun text
   PASS  G4 nothing past the board/screen edge
-  PASS  G5 rain layer present + visible  [logged=True visible_px=1203 colour_px=235]
+  PASS  G5 rain layer present + visible  [logged=True visible_px=1726 colour_px=1172]
   PASS  G6 no instruction text
   PASS  G8 crown back control present  [1 crown]
 == terminal-atkmenu
@@ -642,7 +642,7 @@
   PASS  G2 sprites inside their chip/tile
   PASS  G3 no clipped/overrun text
   PASS  G4 nothing past the board/screen edge
-  PASS  G5 rain layer present + visible  [logged=True visible_px=430 colour_px=50]
+  PASS  G5 rain layer present + visible  [logged=True visible_px=525 colour_px=366]
   PASS  G6 no instruction text
   PASS  G8 crown back control present  [1 crown]
 == terminal-cmdbtn
@@ -650,7 +650,7 @@
   PASS  G2 sprites inside their chip/tile
   PASS  G3 no clipped/overrun text
   PASS  G4 nothing past the board/screen edge
-  PASS  G5 rain layer present + visible  [logged=True visible_px=3886 colour_px=895]
+  PASS  G5 rain layer present + visible  [logged=True visible_px=5238 colour_px=3987]
   PASS  G6 no instruction text
   PASS  G8 crown back control present  [1 crown]
 == terminal-cmdmenu
@@ -658,7 +658,7 @@
   PASS  G2 sprites inside their chip/tile
   PASS  G3 no clipped/overrun text
   PASS  G4 nothing past the board/screen edge
-  PASS  G5 rain layer present + visible  [logged=True visible_px=3311 colour_px=609]
+  PASS  G5 rain layer present + visible  [logged=True visible_px=4417 colour_px=2804]
   PASS  G6 no instruction text
   PASS  G8 crown back control present  [1 crown]
 == terminal-prompt
@@ -666,7 +666,7 @@
   PASS  G2 sprites inside their chip/tile
   PASS  G3 no clipped/overrun text
   PASS  G4 nothing past the board/screen edge
-  PASS  G5 rain layer present + visible  [logged=True visible_px=3903 colour_px=860]
+  PASS  G5 rain layer present + visible  [logged=True visible_px=5010 colour_px=3382]
   PASS  G6 no instruction text
   PASS  G8 crown back control present  [1 crown]
 == functional
@@ -709,50 +709,50 @@
   PASS  S1 scan-airtag: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=1 pushes=321 recomposes=0]
   PASS  S2 scan-airtag: idle animation never full-screen presents (patches only)  [presents=1 (1 = the screen-enter paint)]
   PASS  S4 scan-airtag: idle ticks draw in place (no slice rebuild / recompose)  [recomposes=0]
-  PASS  S1 scan-wifi: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=1 pushes=323 recomposes=0]
+  PASS  S1 scan-wifi: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=1 pushes=263 recomposes=0]
   PASS  S2 scan-wifi: idle animation never full-screen presents (patches only)  [presents=1 (1 = the screen-enter paint)]
   PASS  S4 scan-wifi: idle ticks draw in place (no slice rebuild / recompose)  [recomposes=0]
-  PASS  S1 scan-ble: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=1 pushes=336 recomposes=0]
+  PASS  S1 scan-ble: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=1 pushes=263 recomposes=0]
   PASS  S2 scan-ble: idle animation never full-screen presents (patches only)  [presents=1 (1 = the screen-enter paint)]
   PASS  S4 scan-ble: idle ticks draw in place (no slice rebuild / recompose)  [recomposes=0]
   PASS  S1 game-board: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=74 pushes=148 recomposes=0]
   PASS  S1 game-jackin: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=70 pushes=140 recomposes=0]
   PASS  S1 terminal-typing: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=67 pushes=150 recomposes=2]
   PASS  S1 gibson-game: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=4px, presents=68 pushes=142 recomposes=0]
-  PASS  S1 scan-sbox-hunt: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=1 pushes=309 recomposes=0]
+  PASS  S1 scan-sbox-hunt: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=1 pushes=286 recomposes=0]
   PASS  S2 scan-sbox-hunt: idle animation never full-screen presents (patches only)  [presents=1 (1 = the screen-enter paint)]
   PASS  S4 scan-sbox-hunt: idle ticks draw in place (no slice rebuild / recompose)  [recomposes=0]
-  PASS  S1 scan-sbox-info: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=1 pushes=326 recomposes=0]
+  PASS  S1 scan-sbox-info: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=1 pushes=304 recomposes=0]
   PASS  S2 scan-sbox-info: idle animation never full-screen presents (patches only)  [presents=1 (1 = the screen-enter paint)]
   PASS  S4 scan-sbox-info: idle ticks draw in place (no slice rebuild / recompose)  [recomposes=0]
-  PASS  S1 scan-sbox-gloss: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=1 pushes=264 recomposes=0]
+  PASS  S1 scan-sbox-gloss: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=1 pushes=242 recomposes=0]
   PASS  S2 scan-sbox-gloss: idle animation never full-screen presents (patches only)  [presents=1 (1 = the screen-enter paint)]
   PASS  S4 scan-sbox-gloss: idle ticks draw in place (no slice rebuild / recompose)  [recomposes=0]
   PASS  S1 control-nav: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=77 pushes=154 recomposes=0]
   PASS  S1 hub-to-control: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=74 pushes=148 recomposes=0]
   PASS  S1 control-to-hub: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=69 pushes=138 recomposes=0]
-  PASS  S1 defend-raincatch: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=1 pushes=845 recomposes=0]
-  PASS  S1 defend-beaconsort: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=2 pushes=165 recomposes=0]
-  PASS  S1 defend-firewall: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=1 pushes=81 recomposes=0]
-  PASS  S1 defend-maze: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=1 pushes=198 recomposes=0]
-  PASS  S1 defend-eviltwin: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=1 pushes=140 recomposes=0]
-  PASS  S1 defend-channelhop: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=1 pushes=418 recomposes=0]
-  PASS  S1 defend-rangering: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=1 pushes=61 recomposes=0]
-  PASS  S1 defend-pairlock: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=1 pushes=92 recomposes=0]
-  PASS  S1 defend-patchrun: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=1 pushes=131 recomposes=0]
-  PASS  S1 defend-botnet: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=1 pushes=48 recomposes=0]
-  PASS  S1 defend-signaltrace: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=1 pushes=39 recomposes=0]
-  PASS  S1 defend-jamdodge: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=2 pushes=489 recomposes=0]
-  PASS  F2 Enter cycles setting 0  [NEON GRAPE -> HOT PINK, full cycle 5 presses (want 5)]
+  PASS  S1 defend-raincatch: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=1 pushes=760 recomposes=8]
+  PASS  S1 defend-beaconsort: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=2 pushes=164 recomposes=14]
+  PASS  S1 defend-firewall: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=1 pushes=149 recomposes=8]
+  PASS  S1 defend-maze: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=1 pushes=275 recomposes=9]
+  PASS  S1 defend-eviltwin: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=1 pushes=156 recomposes=10]
+  PASS  S1 defend-channelhop: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=1 pushes=422 recomposes=7]
+  PASS  S1 defend-rangering: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=1 pushes=62 recomposes=9]
+  PASS  S1 defend-pairlock: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=1 pushes=74 recomposes=14]
+  PASS  S1 defend-patchrun: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=1 pushes=93 recomposes=6]
+  PASS  S1 defend-botnet: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=1 pushes=77 recomposes=14]
+  PASS  S1 defend-signaltrace: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=1 pushes=51 recomposes=9]
+  PASS  S1 defend-jamdodge: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=2 pushes=440 recomposes=7]
+  FAIL  F2 Enter cycles setting 0  [NEON GRAPE -> HOT PINK, full cycle 9 presses (want 5)]
   PASS  F2 Enter cycles setting 1  [BOT + DEVICE -> BOTS, full cycle 3 presses (want 3)]
   PASS  F2 Enter cycles setting 2  [ROUND -> CLASSIC, full cycle 5 presses (want 5)]
   PASS  F2 Enter cycles setting 3  [SOLID -> MIXED, full cycle 2 presses (want 2)]
   PASS  F3 setting 3 writes NVS on Enter  [puts=1]
   PASS  F2 Enter cycles setting 4  [GREEN -> CYAN, full cycle 6 presses (want 6)]
   PASS  F3 setting 4 writes NVS on Enter  [puts=1]
-  PASS  F2 Enter cycles setting 5  [BOTS -> GIBSON, full cycle 4 presses (want 4)]
+  FAIL  F2 Enter cycles setting 5  [RAIN -> BOTS, full cycle 5 presses (want 4)]
   PASS  F2 Enter cycles setting 6  [ON -> OFF, full cycle 2 presses (want 2)]
-  PASS  F2 Enter cycles setting 7  [25 SEC -> 45 SEC, full cycle 3 presses (want 3)]
+  FAIL  F2 Enter cycles setting 7  [GREEN -> CYAN, full cycle 5 presses (want 3)]
   PASS  C1 terminal: Down from the bottom boards stops on the prompt, then the commands button  [reach=1]
   PASS  C2 Enter on commands button opens the commands menu  [opened=1]
   PASS  C3 Esc closes the menu back to the button; Up walks button -> prompt -> boards  [esc=1 up=1]
@@ -760,30 +760,30 @@
   PASS  K1 terminal prompt shows exactly what was typed (rollover, same-scan press, Backspace)  [prompt='scan wifi' (want 'scan wifi')]
   PASS  K2 one arrow chord = one focus stop; arrows stay arrows with text in the prompt  [focus_ok=1]
   PASS  K0 keyboard test ran
-  PASS  DG Rain Catch play: ends WIN by its rule  [game=0 state=1 score=20 miss=0 bits=1 time=30.3s]
-  PASS  DG Rain Catch idle: ends LOST by its rule  [game=0 state=2 score=0 miss=3 bits=1 time=6.0s]
-  PASS  DG Beacon Sort play: ends WIN by its rule  [game=1 state=1 score=25 miss=0 bits=0 time=45.8s]
-  PASS  DG Beacon Sort idle: ends LOST by its rule  [game=1 state=2 score=0 miss=3 bits=0 time=11.3s]
-  PASS  DG Firewall Wall play: ends WIN by its rule  [game=2 state=1 score=32 miss=0 bits=0 time=150.0s]
-  PASS  DG Firewall Wall idle: ends LOST by its rule  [game=2 state=2 score=4 miss=3 bits=0 time=7.3s]
+  PASS  DG Rain Catch play: ends WIN by its rule  [game=0 state=1 score=20 miss=0 bits=1 time=32.2s]
+  PASS  DG Rain Catch idle: ends LOST by its rule  [game=0 state=2 score=0 miss=3 bits=1 time=5.9s]
+  PASS  DG Beacon Sort play: ends WIN by its rule  [game=1 state=1 score=25 miss=0 bits=0 time=51.2s]
+  PASS  DG Beacon Sort idle: ends LOST by its rule  [game=1 state=2 score=0 miss=3 bits=0 time=11.6s]
+  PASS  DG Firewall Wall play: ends WIN by its rule  [game=2 state=1 score=32 miss=0 bits=0 time=90.0s]
+  PASS  DG Firewall Wall idle: ends LOST by its rule  [game=2 state=2 score=7 miss=3 bits=0 time=8.3s]
   PASS  DG Gibson Maze clear: ends WIN by its rule  [game=3 state=1 score=124 miss=0 bits=0 time=43.6s]
   PASS  DG Gibson Maze idle: ends LOST by its rule  [game=3 state=2 score=0 miss=3 bits=0 time=11.7s]
-  PASS  DG Evil Twin play: ends WIN by its rule  [game=4 state=1 score=15 miss=0 bits=0 time=33.1s]
-  PASS  DG Evil Twin idle: ends LOST by its rule  [game=4 state=2 score=0 miss=3 bits=0 time=18.5s]
-  PASS  DG Channel Hop play: ends WIN by its rule  [game=5 state=1 score=65 miss=0 bits=0 time=60.0s]
-  PASS  DG Channel Hop idle: ends LOST by its rule  [game=5 state=2 score=25 miss=3 bits=0 time=30.3s]
-  PASS  DG Range Ring play: ends WIN by its rule  [game=6 state=1 score=24 miss=0 bits=0 time=37.9s]
-  PASS  DG Range Ring idle: ends LOST by its rule  [game=6 state=2 score=0 miss=3 bits=0 time=9.5s]
+  PASS  DG Evil Twin play: ends WIN by its rule  [game=4 state=1 score=15 miss=0 bits=0 time=35.9s]
+  PASS  DG Evil Twin idle: ends LOST by its rule  [game=4 state=2 score=0 miss=3 bits=0 time=17.1s]
+  PASS  DG Channel Hop play: ends WIN by its rule  [game=5 state=1 score=63 miss=2 bits=0 time=60.0s]
+  PASS  DG Channel Hop idle: ends LOST by its rule  [game=5 state=2 score=24 miss=3 bits=0 time=29.9s]
+  PASS  DG Range Ring play: ends WIN by its rule  [game=6 state=1 score=24 miss=0 bits=0 time=36.4s]
+  PASS  DG Range Ring idle: ends LOST by its rule  [game=6 state=2 score=0 miss=3 bits=0 time=8.9s]
   PASS  DG Pair Lock play: ends WIN by its rule  [game=7 state=1 score=10 miss=0 bits=0 time=1.7s]
-  PASS  DG Pair Lock idle: ends LOST by its rule  [game=7 state=2 score=0 miss=3 bits=0 time=24.6s]
+  PASS  DG Pair Lock idle: ends LOST by its rule  [game=7 state=2 score=0 miss=3 bits=0 time=21.5s]
   PASS  DG Patch Run play: ends WIN by its rule  [game=8 state=1 score=50 miss=0 bits=0 time=90.0s]
   PASS  DG Patch Run idle: ends LOST by its rule  [game=8 state=2 score=0 miss=3 bits=0 time=12.4s]
   PASS  DG Botnet Breaker play: ends WIN by its rule  [game=9 state=1 score=39 miss=0 bits=0 time=60.0s]
   PASS  DG Botnet Breaker idle: ends LOST by its rule  [game=9 state=2 score=0 miss=5 bits=0 time=19.1s]
   PASS  DG Signal Trace play: ends WIN by its rule  [game=10 state=1 score=3 miss=0 bits=0 time=4.1s]
   PASS  DG Signal Trace idle: ends LOST by its rule  [game=10 state=2 score=0 miss=3 bits=0 time=48.7s]
-  PASS  DG Jam Dodge play: ends WIN by its rule  [game=11 state=1 score=28 miss=0 bits=0 time=45.0s]
-  PASS  DG Jam Dodge idle: ends LOST by its rule  [game=11 state=2 score=2 miss=3 bits=0 time=10.2s]
+  PASS  DG Jam Dodge play: ends WIN by its rule  [game=11 state=1 score=33 miss=0 bits=0 time=45.0s]
+  PASS  DG Jam Dodge idle: ends LOST by its rule  [game=11 state=2 score=2 miss=3 bits=0 time=8.6s]
   PASS  DGR route 0: Defend launches Gibson Maze; backtick quits to the Defend board; Esc again goes back  [game=3 screen=10 esc1=10/-1 esc2=1]
   PASS  DGR route 1: Defend launches Rain Catch; backtick quits to the Defend board; Esc again goes back  [game=0 screen=10 esc1=10/-1 esc2=1]
   PASS  DGR route 2: Defend launches Beacon Sort; backtick quits to the Defend board; Esc again goes back  [game=1 screen=10 esc1=10/-1 esc2=1]
@@ -1014,4 +1014,4 @@
   PASS  L1 defend-signaltrace.rgb byte-identical to 675c87d
   PASS  L1 defend-jamdodge.norain.rgb byte-identical to 675c87d
   PASS  L1 defend-jamdodge.rgb byte-identical to 675c87d
-GATE: 952/952 PASS, 0 FAIL, 2 N/A -> PASS
+GATE: 949/952 PASS, 3 FAIL, 2 N/A -> FAIL

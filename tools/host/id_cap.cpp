@@ -154,13 +154,14 @@ static void bar_title(void)
 
 int main(int argc, char **argv)
 {
-    const int bot = argc > 1 ? argv[1][0] - '0' : 7;
+    const int bot = argc > 1 ? atoi(argv[1]) : 7;   /* mod pass: two-digit bots (10, 11) */
     const bool gib = argc > 2 && argv[2][0] == 'g';
     const char *name = gib ? "gibson" : (argc > 3 ? argv[3] : "keyfobbot");
     const char *target = gib ? "ALL BOTS" : (argc > 4 ? argv[4] : "KEYFOB");
     const uint8_t col = (uint8_t)(argc > 5 ? atoi(argv[5]) : 58);
     const int shape = bot % 4;
     const char *path = argc > 6 ? argv[6] : "/tmp/int-card.rgb";
+    if (argc > 7) s_ms = (uint32_t)atol(argv[7]);   /* mod pass: clock for the uptime meter */
     memset(s_rgb, 0, sizeof(s_rgb));
     const uint16_t deep = botcorps_rgb565(64);
     for (int i = 0; i < 240 * 135; ++i) {

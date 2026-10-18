@@ -5062,7 +5062,8 @@ static void partial_gp_strip(void)
  * intro rain ring disc, selectable at build time. BOTCORPS_GIB_CORE 0 (default) = the locked v1019g
  * core exactly as before (nothing below is compiled in). 1 = Option A: higher-resolution ROUND Gibson
  * (pixel-level dome/jaw, rounded lenses, 1 px keyline) inside clean continuous-arc rings. 2 = Option B:
- * Gibson's SQUARE chip (black window, gold pins) sitting inside the same round ring. Not shipped until
+ * Gibson's SQUARE chip (black window, gold pins) sitting inside the same round ring. 3 = Option C: the
+ * current blocky Gibson with a half-round top (square base + semicircular crown). Not shipped until
  * Dirt picks; the hub default stays the animated moving-circles core. */
 #ifndef BOTCORPS_GIB_CORE
 #define BOTCORPS_GIB_CORE 0
@@ -5189,6 +5190,57 @@ static void gib_core_chip(Gfx g, int cx, int cy)
     chip_block_ex(g, cx, cy, 44, 12, false);
 }
 
+/* v1019j Option C (Dirt 2026-10-18 "square half round"): the CURRENT blocky v1019g Gibson (same 7x7
+ * block body, ivory, full-width black shades band, square lenses, steel glancing eyes, chin, shadow)
+ * with only the TOP of the head rounded: the stepped crown becomes a half-round arch whose diameter is
+ * the full face width (square base + semicircular top), inside the same 7z x 7z footprint. */
+static void gib_face_c(Gfx g, int cx, int cy, int z)
+{
+    const int W = 7 * z;
+    const int ox = cx - W / 2, oy = cy - W / 2;
+    const float R = 3.5f * (float)z;                   /* arch radius = half the face width */
+    const float mx = (float)ox + R;                    /* face centre line (continuous) */
+    int lx[80], rx[80];
+    const int H = W < 78 ? W : 78;
+    for (int r = 0; r < H; ++r) {
+        if (r < 6 * z) { lx[r] = ox; rx[r] = ox + W - 1; } else { lx[r] = ox + z; rx[r] = ox + 6 * z - 1; }
+        const float dy = R - ((float)r + 0.5f);
+        if (dy > 0.f) {                                /* half-round top: rows above the arch centre */
+            const float hw = sqrtf(R * R - dy * dy);
+            lx[r] = (int)ceilf(mx - hw - 0.5f);
+            rx[r] = (int)floorf(mx + hw - 0.5f);
+            if (lx[r] < ox) lx[r] = ox;
+            if (rx[r] > ox + W - 1) rx[r] = ox + W - 1;
+        }
+    }
+    auto u = [&](int x, int y, int w, int h, uint8_t col) {
+        g.fillRect(ox + x * z, oy + y * z, w * z, h * z, col);
+    };
+    g.fillRect(ox + z / 2, oy + 7 * z, 6 * z, z > 2 ? 2 : z, PAL_BLACK);   /* shadow as hub_gibson */
+    for (int r = -1; r <= H; ++r) {                    /* 1 px black keyline (as gib_keyline) */
+        int a = 9999, b = -9999;
+        for (int k = r - 1; k <= r + 1; ++k) {
+            if (k < 0 || k >= H || lx[k] > rx[k]) continue;
+            if (lx[k] - 1 < a) a = lx[k] - 1;
+            if (rx[k] + 1 > b) b = rx[k] + 1;
+        }
+        if (b >= a) g.fillRect(a, oy + r, b - a + 1, 1, PAL_BLACK);
+    }
+    for (int r = 0; r < H; ++r) {
+        if (lx[r] > rx[r]) continue;
+        g.fillRect(lx[r], oy + r, rx[r] - lx[r] + 1, 1, r >= 6 * z ? (uint8_t)PAL_CHIN : (uint8_t)PAL_IVORY);
+    }
+    /* everything below is hub_gibson's blocky face, unchanged */
+    u(0, 5, 1, 1, PAL_CHIN);
+    u(6, 5, 1, 1, PAL_CHIN);
+    u(0, 3, 7, 1, PAL_BLACK);
+    u(1, 3, 2, 2, PAL_BLACK);
+    u(4, 3, 2, 2, PAL_BLACK);
+    const int gl = (int)((millis() / 900u) % 2u);
+    u(1 + gl, 3, 1, 1, PAL_STEEL);
+    u(4 + gl, 3, 1, 1, PAL_STEEL);
+}
+
 /* Shared clean ring stack for both options (radii and motion as the v1019g core, drawn as arcs). */
 static void gib_core_rings(Gfx g, int cx, int cy, uint32_t t, uint32_t spin_div, bool hub, int mood)
 {
@@ -5223,6 +5275,9 @@ static void gib_core_opt(Gfx g, int cx, int cy, int z, uint32_t t, uint32_t spin
 #if BOTCORPS_GIB_CORE == 2
     (void)z;
     gib_core_chip(g, cx, cy);
+#elif BOTCORPS_GIB_CORE == 3
+    g.fillRect(cx - 14, cy + 25, 28, 1, wire_ink());
+    gib_face_c(g, cx, cy, z);
 #else
     g.fillRect(cx - 14, cy + 25, 28, 1, wire_ink());
     gib_face_hd(g, cx, cy, z);
@@ -5462,7 +5517,7 @@ static void paint_rain_btn(Gfx g)
     /* v1016k (Dirt 9:31): intro/rain screen is the ring disc, not a chip. */
     g.fillCircle(cx, cy, 56, PAL_BLACK);
 #if BOTCORPS_GIB_CORE
-    gib_core_opt(g, cx, cy, 8, t, 90u, false, MOOD_NEUTRAL);   /* A: z8 so the face sits inside the r34 rim */
+    gib_core_opt(g, cx, cy, BOTCORPS_GIB_CORE == 3 ? 9 : 8, t, 90u, false, MOOD_NEUTRAL);   /* A: z8 so the face sits inside the r34 rim; C: z9 as the current intro Gibson */
     return;
 #endif
     hub_die(g, cx, cy, 34);

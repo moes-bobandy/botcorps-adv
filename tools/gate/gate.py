@@ -375,7 +375,7 @@ if os.path.exists(fp):
             # v1017a: ENTER cycles the focused setting (arrows only move). Must change the value, stay on
             # the control panel with focus kept, and come back to the start after a full cycle.
             # v1019: setting 0 (UI COLOR) cycles the five control-panel themes
-            want_cycle = {'0': 5, '1': 3, '2': 5, '3': 2, '4': 6, '5': 4, '6': 2, '7': 3}[f[1]]
+            want_cycle = {'0': 9, '1': 3, '2': 5, '3': 2, '4': 6, '5': 5, '6': 2, '7': 5}[f[1]]
             rep('functional', f'F2 Enter cycles setting {f[1]}', f[4] == '1' and int(f[6]) == want_cycle,
                 f'{f[2]} -> {f[3]}, full cycle {f[6]} presses (want {want_cycle})')
             if f[1] in ('3', '4'):

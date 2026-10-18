@@ -197,62 +197,71 @@ static const char *const NEAR_BLE_R[3] = { "-58", "-63", "-74" };
 static const uint8_t NEAR_BLE_B[3] = { 3, 2, 1 };
 
 static const char *const CMDS[12] = {
-    "scan", "hunt", "help", "bots", "rain", "filter",
-    "clear", "ping", "info", "track", "sniff", "cmds"
+    /* v1019q (#9a): the bot commands first, the shared ones (help clear cmds) last; cmds stays chip 11 */
+    "scan", "hunt", "bots", "ping", "info", "track",
+    "sniff", "filter", "rain", "help", "clear", "cmds"
 };
-/* v3.2 command menu. 40 names + purposes, const in flash. defend stays in CORE. */
-static const int CMD_N = 40;
-static const int G_AT[5] = { 0, 17, 25, 33, 40 };
+/* v3.2 command menu. 42 names + purposes, const in flash. defend stays in CORE.
+ * v1019q (#9): CORE + COMMS (the bots' own commands) stay on top, go / load (screen routing) moved down
+ * to SYS; two-word forms added only where clearer ("scan all", "hunt run"); every single word kept. The
+ * first 8 CORE rows are unchanged (the Tab sheet window, G7-frozen terminal-tab). */
+static const int CMD_N = 42;
+static const int G_AT[5] = { 0, 16, 24, 33, 42 };
 static const char *const G_NAME[4] = { "CORE", "COMMS", "GAME", "SYS" };
 static const char *const CMDN[CMD_N] = {
     "scan", "hunt", "help", "bots", "rain", "filter", "ping", "info", "track", "sniff",
-    "go", "load", "defend", "sweep", "roster", "pulse", "dig",
+    "defend", "scan all", "sweep", "roster", "pulse", "dig",
     "hail", "say", "ask", "rollcall", "whisper", "broadcast", "link", "mute",
-    "train", "hunt-run", "score", "rank", "loadout", "lobby", "duel", "stash",
-    "clear", "history", "theme", "about", "cmds", "version", "uptime"
+    "train", "hunt-run", "hunt run", "score", "rank", "loadout", "lobby", "duel", "stash",
+    "go", "load", "clear", "history", "theme", "about", "cmds", "version", "uptime"
 };
 static const char *const CMDP[CMD_N] = {
     "sweep \x7f wifi|ble|all", "drone|flock|skimmer|deauth", "list the commands", "board status",
     "rain \x7f <colour>|mixed", "wifi|ble|threats|strong|off", "ping a found device", "device details",
-    "pin a device \x7f off", "list heard (filtered)", "jump to a screen", "load a screen",
-    "typing game \x7f beginner|veteran", "alias \x7f scan", "alias \x7f bots", "alias \x7f ping", "alias \x7f info",
+    "pin a device \x7f off", "list heard (filtered)",
+    "defend game \x7f <bot>", "crew sweep, 12 boards", "alias \x7f scan", "alias \x7f bots", "alias \x7f ping", "alias \x7f info",
     "greet a bot", "send a line to a bot", "query bot status", "crew check-in",
     "quiet line to a bot", "speak to the crew", "open a bot channel", "hush a bot",
-    "sealed", "sealed", "sealed", "sealed", "sealed", "sealed", "sealed", "sealed",
-    "wipe the log", "recent lines", "neon look", "build blurb", "this menu", "term build", "session clock"
+    "play this bot's game", "gibson hunt game", "gibson hunt game", "best runs", "games by best run",
+    "this bot's 3 games", "all 12 games", "sealed", "sealed",
+    "jump to a screen", "load a screen",
+    "wipe the log", "recent lines", "next ui colour", "build blurb", "this menu", "term build", "session clock"
 };
 static const uint8_t CMD_ARG[CMD_N] = {
-    1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1,
+    1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 1,
     1, 1, 1, 0, 1, 0, 1, 1,
-    0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0
+    0, 0, 0, 0, 0, 0, 0, 0, 0,
+    1, 1, 0, 0, 0, 0, 0, 0, 0
 };
 static const int PCMD_N = CMD_N;
 static const char *const *const PCMD = CMDN;
-/* Gibson chat. Own set. jackin is the only game entry. Flash only. */
-static const int GC_N = 19;
-static const int GC_GAT[6] = { 0, 4, 8, 12, 16, 19 };
-static const char *const GC_GN[5] = { "HUB", "ROUTE", "GAME", "ASK", "SYS" };
+/* Gibson chat. Own set. Flash only.
+ * v1019q (#9): the Defend board's own GAME commands lead, then the bot commands (ASK), then hub / route /
+ * system. Two-word forms only where clearer ("jack in", "go hub"); every single word kept; "play" (wired in
+ * v1019p, never listed) is now listed. */
+static const int GC_N = 22;
+static const int GC_GAT[6] = { 0, 6, 10, 14, 19, 22 };
+static const char *const GC_GN[5] = { "GAME", "ASK", "HUB", "ROUTE", "SYS" };
 static const char *const GC_NM[GC_N] = {
-    "crew", "scan", "status", "mood",
-    "terminal", "go", "load", "control",
-    "jackin", "defend", "lobby", "score",
+    "jackin", "jack in", "play", "lobby", "score", "defend",
     "ask", "hail", "whisper", "why",
+    "crew", "scan", "status", "mood",
+    "terminal", "go", "go hub", "load", "control",
     "clear", "history", "about"
 };
 static const char *const GC_PP[GC_N] = {
-    "roll the crew", "bus sweep", "core link heat", "gibson mood",
-    "open terminal", "terminal|scan|control|hub", "screen|game", "control panel",
-    "enter defend", "beginner|veteran", "game lobby", "best run",
+    "play this bot's game", "same as jackin", "<1-12> any game", "list all 12 games", "best runs", "<bot>|beginner|veteran",
     "ask a bot", "call a bot", "quiet line", "gibson explains",
+    "roll the crew", "bus sweep", "core link status", "gibson mood",
+    "open terminal", "terminal|scan|control|hub", "back to the hub", "screen|game", "control panel",
     "wipe the chat", "recent lines", "gibson build"
 };
 static const uint8_t GC_ARG[GC_N] = {
-    0, 1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0
+    0, 0, 1, 0, 0, 1, 1, 1, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0
 };
 /* Index into CMD_ICO. Flash only. */
 static const uint8_t GC_II[GC_N] = {
-    3, 0, 7, 2, 11, 10, 11, 4, 12, 23, 20, 24, 2, 16, 18, 2, 32, 33, 35
+    10, 10, 24, 19, 23, 22, 2, 15, 17, 2, 3, 0, 7, 2, 34, 33, 33, 34, 4, 32, 35, 37
 };
 static const char *const HAIL[13] = {
     "reading you", "channel clear", "link warm", "quiet", "keys ready", "eyes open",
@@ -300,9 +309,8 @@ static const uint8_t CMD_ICO[CMD_N][8] = {
     { 0x18, 0x00, 0x38, 0x18, 0x18, 0x18, 0x3c, 0x00 },
     { 0x3c, 0x42, 0x99, 0xbd, 0xbd, 0x99, 0x42, 0x3c },
     { 0x00, 0x42, 0x5a, 0xdb, 0xdb, 0x5a, 0x42, 0x00 },
-    { 0x00, 0x08, 0x04, 0xfe, 0x04, 0x08, 0x00, 0x00 },
-    { 0x00, 0x08, 0x04, 0xfe, 0x04, 0x08, 0x00, 0x00 },
     { 0x7e, 0xff, 0xff, 0x7e, 0x7e, 0x3c, 0x18, 0x00 },
+    { 0x38, 0x44, 0x82, 0x82, 0x44, 0x38, 0x04, 0x02 },
     { 0x38, 0x44, 0x82, 0x82, 0x44, 0x38, 0x04, 0x02 },
     { 0x7e, 0x81, 0xa5, 0x81, 0xbd, 0x7e, 0x24, 0x66 },
     { 0x08, 0x04, 0x22, 0x72, 0x22, 0x04, 0x08, 0x00 },
@@ -317,12 +325,15 @@ static const uint8_t CMD_ICO[CMD_N][8] = {
     { 0x81, 0x42, 0x24, 0x18, 0x18, 0x24, 0x42, 0x81 },
     { 0x00, 0x7e, 0x81, 0xbd, 0xa5, 0xbd, 0x81, 0x7e },
     { 0x18, 0x18, 0x24, 0xe7, 0xe7, 0x24, 0x18, 0x18 },
+    { 0x18, 0x18, 0x24, 0xe7, 0xe7, 0x24, 0x18, 0x18 },
     { 0x3c, 0x42, 0xa5, 0x81, 0x99, 0x42, 0x3c, 0x00 },
     { 0x18, 0x3c, 0x7e, 0xff, 0x18, 0x18, 0x18, 0x00 },
     { 0xff, 0x81, 0xbd, 0xa5, 0xbd, 0x81, 0xff, 0x00 },
     { 0x3c, 0x42, 0x81, 0x99, 0x81, 0x42, 0x3c, 0x00 },
     { 0x81, 0xc3, 0x66, 0x3c, 0x3c, 0x66, 0xc3, 0x81 },
     { 0x3c, 0x42, 0x81, 0xbd, 0xbd, 0x81, 0x42, 0x3c },
+    { 0x00, 0x08, 0x04, 0xfe, 0x04, 0x08, 0x00, 0x00 },
+    { 0x00, 0x08, 0x04, 0xfe, 0x04, 0x08, 0x00, 0x00 },
     { 0x81, 0x42, 0x24, 0x18, 0x18, 0x24, 0x42, 0x81 },
     { 0x00, 0xff, 0x81, 0xbd, 0xa1, 0xbd, 0x81, 0xff },
     { 0x24, 0x7e, 0xa5, 0x7e, 0x24, 0x00, 0x00, 0x00 },
@@ -828,6 +839,14 @@ static bool rain_direct_covers(void)
 #endif
 }
 
+/* v1019q (item 7): Gibson's Defend-screen chip size. 44 px (was 36) on his Defend board; the in-game board
+ * keeps 36 because the Gibson game renders (defend-maze / -signaltrace / -jamdodge) are G7-frozen and this
+ * build may only re-lock L1 hashes. Other bots' Defend chips are unchanged. */
+static int gib_def_chip(void)
+{
+    const bool gib = !(s_defend_bot >= 0 && s_defend_bot < 12);
+    return (gib && !dg_on()) ? 44 : 36;
+}
 static void layout_covers(void)
 {
     cover_reset(false);
@@ -865,7 +884,10 @@ static void layout_covers(void)
         if (!rain_direct_covers()) break;  /* composed path: chrome over rain, as the static layer */
         cover_add(0, 0, 320, 18);          /* top bar */
         cover_add(2, 17, 106, 30);         /* "<Name>> Defend" title plate */
-        cover_add(32, 54, 48, 48);         /* Gibson chip */
+        {                                  /* Gibson chip (v1019q item 7: follows its size) */
+            const int cs = gib_def_chip();
+            cover_add(56 - cs / 2 - 6, 78 - cs / 2 - 6, cs + 12, cs + 12);
+        }
         cover_add(104, 18, 26, 130);       /* rail buttons */
         cover_add(126, 16, 194, 132);      /* game board */
         cover_add(2, 146, 316, 94);        /* chat panel */
@@ -1086,6 +1108,9 @@ static int gc_bot_of(const char *arg);
 static void dg_lobby(void);
 static void dg_scores(void);
 static bool dg_play_n(int n);
+static void dg_scores_bot(int bot);
+static void dg_loadout(int bot);
+static void dg_rank(void);
 static void run_cmd(const char *line)
 {
     char buf[80];
@@ -1101,6 +1126,8 @@ static void run_cmd(const char *line)
         arg = sp + 1;
         while (*arg == ' ') ++arg;
     }
+    /* v1019q (#9b): two-word form "hunt run" = hunt-run */
+    if (strcmp(cmd, "hunt") == 0 && arg && strcmp(arg, "run") == 0) { cmd = (char *)"hunt-run"; arg = 0; }
     if (strcmp(cmd, "sweep") == 0) cmd = (char *)"scan";
     else if (strcmp(cmd, "roster") == 0) cmd = (char *)"bots";
     else if (strcmp(cmd, "pulse") == 0) cmd = (char *)"ping";
@@ -1235,12 +1262,15 @@ static void run_cmd(const char *line)
         if (!arg || strcmp(arg, "off") == 0) s_filter = 0;
         else if (strcmp(arg, "wifi") == 0) s_filter = 1;
         else if (strcmp(arg, "ble") == 0) s_filter = 2;
+        else if (strcmp(arg, "threats") == 0) s_filter = 3;   /* v1019q (#9c): listed, now wired */
+        else if (strcmp(arg, "strong") == 0) s_filter = 4;
         else {
             log_add("unknown filter");
             partial_prompt_panel();
             return;
         }
-        log_add(s_filter == 1 ? "filter wifi" : s_filter == 2 ? "filter ble" : "filter off");
+        static const char *const FW[5] = { "filter off", "filter wifi", "filter ble", "filter threats", "filter strong" };
+        log_add(FW[s_filter & 7]);
     } else if (strcmp(cmd, "ping") == 0 || strcmp(cmd, "info") == 0 ||
                strcmp(cmd, "track") == 0 || strcmp(cmd, "sniff") == 0) {
         if (strcmp(cmd, "track") == 0 && arg && strcmp(arg, "off") == 0) {
@@ -1249,11 +1279,25 @@ static void run_cmd(const char *line)
         } else if (s_found_n == 0) {
             log_add("scan first");
         } else if (strcmp(cmd, "sniff") == 0) {
+            /* v1019q (#9c): "list heard (filtered)" applies the filter (it used to ignore it). wifi / ble = that
+             * radio; strong = -60 dBm or better; threats = open / guest access points (no password). */
+            int shown = 0;
             for (int i = 0; i < s_found_n; ++i) {
+                const char *nm = botcorps_t0_term_found[i];
+                int band = 0, dbm = -99;
+                for (int k = 0; k < 3; ++k) {
+                    if (strcmp(nm, NEAR_WIFI[k]) == 0) { band = 1; dbm = atoi(NEAR_WIFI_R[k]); }
+                    if (strcmp(nm, NEAR_BLE[k]) == 0) { band = 2; dbm = atoi(NEAR_BLE_R[k]); }
+                }
+                const int f = s_filter & 7;
+                if ((f == 1 && band != 1) || (f == 2 && band != 2) || (f == 4 && dbm < -60)) continue;
+                if (f == 3 && !(band == 1 && (strstr(nm, "guest") || strstr(nm, "lobby")))) continue;
                 char row[80];
-                snprintf(row, sizeof(row), "  %s", botcorps_t0_term_found[i]);
+                snprintf(row, sizeof(row), "  %s", nm);
                 log_add(row);
+                ++shown;
             }
+            if (!shown) log_add("none heard for this filter");
         } else {
             const char *name = botcorps_t0_term_found[s_found_n - 1];
             if (arg && arg[0]) {
@@ -1283,7 +1327,7 @@ static void run_cmd(const char *line)
         }
     } else if (strcmp(cmd, "go") == 0 || strcmp(cmd, "load") == 0) {
         int id = -1;
-        if (!arg) log_add("rain gibson terminal wifi ble control diag");
+        if (!arg) log_add("rain gibson terminal bots scan wifi ble wifilist blelist control diag");
         else if (strcmp(arg, "rain") == 0) id = SCR_RAIN;
         else if (strcmp(arg, "gibson") == 0) id = SCR_GIBSON;
         else if (strcmp(arg, "terminal") == 0) id = SCR_TERMINAL;
@@ -1292,6 +1336,10 @@ static void run_cmd(const char *line)
         else if (strcmp(arg, "control") == 0) id = SCR_CONTROL;
         else if (strcmp(arg, "diag") == 0) id = SCR_DIAG;
         else if (strcmp(arg, "bots") == 0) id = SCR_TERMINAL;                   /* v1016n: the 12 ESP32 chip tiles */
+        /* v1019q (#9c): the listed go / load options that used to answer "no such screen" */
+        else if (strcmp(arg, "scan") == 0) { s_scan_bot = 12; id = SCR_SCAN; }  /* Gibson's scan board */
+        else if (strcmp(arg, "wifilist") == 0) id = SCR_WIFI_LIST;
+        else if (strcmp(arg, "blelist") == 0) id = SCR_BT_LIST;
         else log_add("no such screen");
         if (id >= 0) {
             /* v1016n: "go bots" from the terminal is the terminal itself; never make it its own back target */
@@ -1362,7 +1410,13 @@ static void run_cmd(const char *line)
             for (int i = s_hist_n - n; i < s_hist_n; ++i) log_add(botcorps_t0_term_hist[i]);
         }
     } else if (strcmp(cmd, "theme") == 0) {
-        log_add("theme neon");
+        /* v1019q (#9c): "next ui colour" - steps the UI colour (same 9 themes as the control panel) */
+        s_color = (s_color + 1) % THEME_N;
+        char row[40];
+        snprintf(row, sizeof(row), "theme %s", THEMES[theme_ix(s_color)].name);
+        log_add(row);
+        s_dirty = true;
+        s_int_dirty = true;
     } else if (strcmp(cmd, "about") == 0) {
         log_add("BOTcorps term 3.2");
     } else if (strcmp(cmd, "version") == 0) {
@@ -1372,10 +1426,26 @@ static void run_cmd(const char *line)
         const uint32_t sec = (millis() - s_boot_ms) / 1000u;
         snprintf(row, sizeof(row), "uptime %u m %u s", (unsigned)(sec / 60u), (unsigned)(sec % 60u));
         log_add(row);
-    } else if (strcmp(cmd, "train") == 0 || strcmp(cmd, "hunt-run") == 0 || strcmp(cmd, "score") == 0 ||
-               strcmp(cmd, "rank") == 0 || strcmp(cmd, "loadout") == 0 || strcmp(cmd, "lobby") == 0 ||
-               strcmp(cmd, "duel") == 0 || strcmp(cmd, "stash") == 0) {
-        log_add("sealed");
+    } else if (strcmp(cmd, "train") == 0) {
+        /* v1019q (#9c): the GAME group does what it lists (was "sealed" for all eight) */
+        enter_defend(s_term, SCR_TERMINAL);      /* play this bot's game */
+        return;
+    } else if (strcmp(cmd, "hunt-run") == 0) {
+        s_scan_bot = 12;                         /* Gibson's hunt game (his scan board, hunt mode on) */
+        s_gib_hunt = true;
+        s_gib_hunt_keep = true;
+        enter_screen(SCR_SCAN, SCR_TERMINAL);
+        return;
+    } else if (strcmp(cmd, "score") == 0) {
+        dg_scores_bot(s_term);
+    } else if (strcmp(cmd, "rank") == 0) {
+        dg_rank();
+    } else if (strcmp(cmd, "loadout") == 0) {
+        dg_loadout(s_term);
+    } else if (strcmp(cmd, "lobby") == 0) {
+        dg_lobby();
+    } else if (strcmp(cmd, "duel") == 0 || strcmp(cmd, "stash") == 0) {
+        log_add("sealed");                       /* no duel / stash feature exists yet (listed as sealed) */
     } else if (strcmp(cmd, "defend") == 0) {
         /* v1019 (Dirt #6/#7): CMDP says defend is the typing game; it enters it (was "sealed"). */
         const int b = gc_bot_of(arg && *arg ? arg : nullptr);
@@ -5259,9 +5329,13 @@ static const char *pip_glyph(int mood)
     return "*";
 }
 
+/* v1019q (#9): the hub prompt's command list - Gibson's own bot commands first, then screen routing and
+ * the shared ones; two-word forms only where clearer ("scan wifi" / "scan ble"); "chat" (wired, never
+ * listed) is now listed. */
 static const char *const GP_CMD[] = {
-    "terminal", "scan", "wifi", "ble", "control", "bots", "go", "load",
-    "hunt", "defend", "help", "ping", "info", "track", "sniff", "filter", "rain", "clear"
+    "hunt", "defend", "scan", "scan wifi", "scan ble", "wifi", "ble", "bots", "chat",
+    "ping", "info", "track", "sniff", "filter", "rain",
+    "terminal", "control", "go", "load", "help", "clear"
 };
 
 static const char *gp_ghost(void)
@@ -5753,6 +5827,8 @@ static void gc_run(const char *line)
         arg = sp + 1;
         while (*arg == ' ') ++arg;
     }
+    /* v1019q (#9b): two-word form "jack in" = jackin */
+    if (strcmp(cmd, "jack") == 0 && arg && strcmp(arg, "in") == 0) { cmd = (char *)"jackin"; arg = 0; }
     /* #9/#10: the Defend board's viewable device glossary and the per-bot attack-prompt menu. */
     if (strcmp(cmd, "gloss") == 0 || strcmp(cmd, "glossary") == 0) { s_gc_panel = 1; gc_push(12, "device glossary"); return; }
     if (strcmp(cmd, "attack") == 0 || strcmp(cmd, "prompts") == 0) { s_gc_panel = 2; gc_push(12, "attack prompts"); return; }
@@ -6175,7 +6251,10 @@ static void paint_gchat(Gfx g)
     /* v1019b (Dirt): each bot's Defend game shows THAT bot's chip (own colour, silver pins, Morpheus A)
      * in Gibson's spot; Gibson's own game keeps his gold-pin chip. The chat-corner speaker chip and the
      * route board CPU stay Gibson. */
-    chip_block(g, 56, 78, 36, (s_defend_bot >= 0 && s_defend_bot < 12) ? s_defend_bot : 12);
+    /* v1019q (item 7): Gibson's chip a modest step bigger in his space (36 -> 44 px, same centre); the
+     * device-icon rain stays visible all round it (cover matches, layout_covers). Other bots' chips and the
+     * in-game board keep 36 (see gib_def_chip). */
+    chip_block(g, 56, 78, gib_def_chip(), (s_defend_bot >= 0 && s_defend_bot < 12) ? s_defend_bot : 12);
     paint_gc_rail(g, ac);
     if (dg_on()) paint_dg_board(g);
     else paint_gc_route(g, ac);
@@ -7072,7 +7151,8 @@ static int sheet_top_for(int index)
 /* v1019 (Dirt #6): scan box terminal. Commands are coherent with the box: help, scan (restart the
  * sweep), hunt / info (the device under the cursor, radio boxes; Gibson: his hunt game), gloss,
  * clear, back, terminal, defend, wifi / ble. */
-static const char *const SP_CMD[] = { "help", "scan", "hunt", "info", "gloss", "defend", "terminal", "back" };
+/* v1019q (#9a): the bot's own scan commands first, routing + help last */
+static const char *const SP_CMD[] = { "scan", "hunt", "info", "gloss", "defend", "terminal", "back", "help" };
 static const int SP_CMD_N = (int)(sizeof(SP_CMD) / sizeof(SP_CMD[0]));
 static void sp_strip(void)
 {
@@ -7107,7 +7187,7 @@ static void sp_run(const char *line)
     const bool gib = core && s_scan_bot >= 12;
     s_sp_cmd = -1;
     if (!cmd[0]) return;
-    if (strcmp(cmd, "help") == 0) { sp_say("scan hunt info gloss", "defend terminal back clear"); sp_strip(); return; }
+    if (strcmp(cmd, "help") == 0) { sp_say("scan hunt info gloss defend", "terminal back clear help"); sp_strip(); return; }
     if (strcmp(cmd, "clear") == 0) { s_sp_has = false; sp_strip(); return; }
     if (strcmp(cmd, "back") == 0 || strcmp(cmd, "exit") == 0) {
         if (s_hunt_dev >= 0 || s_info_dev >= 0 || s_gloss >= 0 || s_act >= 0) {
@@ -7166,7 +7246,13 @@ static void sp_run(const char *line)
         return;
     }
     if (strcmp(cmd, "gloss") == 0 || strcmp(cmd, "glossary") == 0) {
-        if (core) { sp_say(echo, "gloss lives in wifi / ble"); sp_strip(); return; }
+        if (core) {                              /* v1019q (#9c): it used to only answer "gloss lives in wifi / ble" */
+            enter_screen(SCR_WIFI_RADAR, s_screen);   /* open the device glossary in the Wi-Fi scan box */
+            s_gloss = 0;
+            sp_say(echo, "[ ok ] glossary - esc closes");
+            s_dirty = true;
+            return;
+        }
         s_hunt_dev = -1; s_info_dev = -1; s_act = -1;
         s_gloss = 0;
         sp_say(echo, "[ ok ] glossary - esc closes");
@@ -7918,8 +8004,8 @@ static void gp_run(const char *line)
     }
     if (strcmp(cmd, "help") == 0) {
         /* v1019 prompt audit: the hub's own commands (it used to echo the Terminal's SYS help row) */
-        gp_push("terminal scan wifi ble hunt");
-        gp_push("defend control go chat");
+        gp_push("hunt defend scan wifi ble");   /* v1019q (#9a): bot commands first */
+        gp_push("chat terminal control go");
         partial_gp_strip();
         return;
     }
@@ -8000,10 +8086,47 @@ void botcorps_ui_input(void)
     ui_dispatch(key, typed);
 }
 
+/* v1019q (item 8) root cause: while a Defend game is live, ui_dispatch handed EVERY key to dg_key (the
+ * game), which has no use for letters (dropped) and takes Enter as a game key, and the HUD's prompt row
+ * painted the fixed control hint instead of s_gp_buf. Every Defend entry (hub / Terminal / scan "defend",
+ * jackin, Enter on the empty prompt) starts a game at once, so Gibson's Defend prompt never took a keystroke.
+ * Now the Defend prompt shares the keyboard with the game: a letter starts a typed line (the games use only
+ * ; . , / arrows, Enter, Space, digits, Tab, backtick); once a line is open every printable key types,
+ * Backspace edits, Esc clears the line, and Enter runs it through the board's own gc_run (the game round
+ * stops so the reply shows in the log, exactly like the idle Defend prompt; game commands start a game).
+ * With the line empty, every key still drives the game exactly as before. */
+static bool dg_prompt_key(int key, char typed)
+{
+    const bool open = s_gp_buf[0] != 0;
+    if (key == K_CHAR) {
+        const bool letter = (typed >= 'a' && typed <= 'z') || (typed >= 'A' && typed <= 'Z');
+        if (!open && !letter) return false;
+        on_char(typed);
+        return true;
+    }
+    if (!open) return false;
+    if (key == K_BS) { on_bs(); return true; }
+    if (key == K_ESC) { s_gp_buf[0] = 0; s_gc_caret = -1; s_gc_hist_i = -1; s_dirty = true; return true; }
+    if (key == K_OK) {
+        char line[28];
+        snprintf(line, sizeof(line), "%s", s_gp_buf);
+        s_gp_buf[0] = 0;
+        s_gc_caret = -1; s_gc_hist_i = -1;
+        dg_stop();
+        gc_run(line);
+        s_dirty = true;
+        return true;
+    }
+    return false;                                  /* arrows / Tab keep driving the game */
+}
+
 static void ui_dispatch(int key, char typed)
 {
     s_last_key = millis();
-    if (dg_on()) { dg_key(key, typed); return; }   /* v1019j: the Defend game owns every key */
+    if (dg_on()) {                                 /* v1019j: the Defend game owns the keys ... */
+        if (!dg_prompt_key(key, typed)) dg_key(key, typed);   /* v1019q (item 8): ... except a typed line */
+        return;
+    }
     if (s_screen == SCR_GIBSON && (key == K_CHAR || key == K_OK)) {
         s_mood = MOOD_HAPPY;
         s_mood_until = s_last_key + 1500u;
@@ -8562,7 +8685,7 @@ void botcorps_host_gmenu(uint8_t *buf)
 {
     botcorps_host_gchat(buf);
     s_sheet = true;
-    s_sheet_i = 8;
+    s_sheet_i = 0;      /* v1019q (#9a): "jackin" (was row 8) now leads the sheet */
     paint_ext(Gfx());
 }
 
@@ -8920,48 +9043,76 @@ void botcorps_host_prompt_audit(void)
 {
     static uint8_t fb[320 * 240];
     host_frame = fb;
-    static const char *const TARG[CMD_N] = {
-        "wifi", "drone", 0, 0, "green", "wifi", "1", "1", "1", 0, "control", "terminal", 0, "ble", 0, "1", "1",
-        "flock", "flock hi", "drone", 0, "hack yo", "hi", "wifi", "meta",
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+    /* v1019q (#9c): pass 1 = every Terminal glossary entry bare, pass 2 = with a sample argument (by name). */
+    static const char *const TA[][2] = { { "scan", "wifi" }, { "hunt", "drone" }, { "rain", "green" }, { "filter", "wifi" },
+        { "ping", "cafe" }, { "info", "cafe" }, { "track", "off" }, { "defend", "flock" }, { "sweep", "ble" }, { "pulse", "cafe" },
+        { "dig", "cafe" }, { "hail", "flock" }, { "say", "flock hi" }, { "ask", "drone" }, { "whisper", "hack yo" }, { "link", "wifi" },
+        { "mute", "meta" }, { "go", "control" }, { "load", "terminal" } };
     for (int pass = 0; pass < 2; ++pass)
     for (int i = 0; i < CMD_N; ++i) {
         enter_screen(SCR_TERMINAL, SCR_GIBSON);
         s_log_n = 0;
+        const char *ta = 0;
+        for (unsigned k = 0; k < sizeof(TA) / sizeof(TA[0]); ++k) if (strcmp(TA[k][0], CMDN[i]) == 0) ta = TA[k][1];
+        if (pass && !ta) continue;
+        if (strcmp(CMDN[i], "ping") == 0 || strcmp(CMDN[i], "info") == 0 || strcmp(CMDN[i], "track") == 0
+            || strcmp(CMDN[i], "sniff") == 0 || strcmp(CMDN[i], "pulse") == 0 || strcmp(CMDN[i], "dig") == 0) run_cmd("scan all");
+        s_log_n = 0;
         char line[48];
-        snprintf(line, sizeof(line), "%s%s%s", CMDN[i], (pass && TARG[i]) ? " " : "", (pass && TARG[i]) ? TARG[i] : "");
+        snprintf(line, sizeof(line), "%s%s%s", CMDN[i], pass ? " " : "", pass ? ta : "");
         run_cmd(line);
-        printf("TERM  %-22s -> %-10s | %s\n", line, screen_name(s_screen), aud_ln());
+        printf("TERM  %-22s -> %-10s dg=%d | %s\n", line, screen_name(s_screen), dg_on() ? s_dg : -1, aud_ln());
+        dg_stop();
     }
-    static const char *const GARG[GC_N] = { 0, "all", 0, 0, 0, "scan", "game", 0, 0, "veteran", 0, 0,
-        "drone", "flock", "hack", 0, 0, 0, 0 };
+    /* v1019q (#9c): the listed argument forms that used to fail, plus their effect */
+    static const char *const T2[] = { "filter threats", "sniff", "filter strong", "sniff", "filter ble", "sniff", "filter off",
+        "sniff", "go scan", "load wifilist", "load blelist", "go bots", "theme", "theme" };
+    enter_screen(SCR_TERMINAL, SCR_GIBSON);
+    run_cmd("scan all");
+    for (unsigned i = 0; i < sizeof(T2) / sizeof(T2[0]); ++i) {
+        if (s_screen != SCR_TERMINAL) enter_screen(SCR_TERMINAL, SCR_GIBSON);
+        s_log_n = 0;
+        const int n0 = 0;
+        const int c0 = s_color;
+        run_cmd(T2[i]);
+        printf("TERM2 %-22s -> %-10s scan_bot=%d color=%d->%d |", T2[i], screen_name(s_screen), s_scan_bot, c0, s_color);
+        for (int k = n0 + 1; k < s_log_n; ++k) { const char *l = log_line(k); printf(" %s;", l[0] == '\x01' ? l + 2 : l); }
+        printf("\n");
+    }
+    s_color = 0;
+    static const char *const GA[][2] = { { "scan", "wifi" }, { "go", "scan" }, { "load", "game" }, { "defend", "veteran" },
+        { "play", "7" }, { "ask", "drone" }, { "hail", "flock" }, { "whisper", "hack" } };
     for (int pass = 0; pass < 2; ++pass)
     for (int i = 0; i < GC_N; ++i) {
         enter_screen(SCR_GCHAT, SCR_GIBSON);
+        s_dg = -1;
         s_log_n = 0;
+        const char *ga = 0;
+        for (unsigned k = 0; k < sizeof(GA) / sizeof(GA[0]); ++k) if (strcmp(GA[k][0], GC_NM[i]) == 0) ga = GA[k][1];
+        if (pass && !ga) continue;
         char line[48];
-        snprintf(line, sizeof(line), "%s%s%s", GC_NM[i], (pass && GARG[i]) ? " " : "", (pass && GARG[i]) ? GARG[i] : "");
+        snprintf(line, sizeof(line), "%s%s%s", GC_NM[i], pass ? " " : "", pass ? ga : "");
         gc_run(line);
-        printf("GAME  %-22s -> %-10s act=%d | %s\n", line, screen_name(s_screen), s_act, aud_ln());
+        printf("GAME  %-22s -> %-10s act=%d dg=%d panel=%d | %s\n", line, screen_name(s_screen), s_act, dg_on() ? s_dg : -1,
+               s_gc_panel, aud_ln());
+        dg_stop();
     }
-    static const char *const GPL[] = { "terminal", "scan", "wifi", "ble", "control", "bots", "go", "go scan",
-        "load control", "hunt", "defend", "defend flock", "defend zzz", "help", "ping", "info", "track", "sniff",
-        "filter", "rain", "rain green", "clear", "chat", "bogus" };
-    for (unsigned i = 0; i < sizeof(GPL) / sizeof(GPL[0]); ++i) {
+    for (unsigned i = 0; i < sizeof(GP_CMD) / sizeof(GP_CMD[0]); ++i) {
         enter_screen(SCR_GIBSON, -1);
         s_gp_n = 0; s_log_n = 0;
-        gp_run(GPL[i]);
-        printf("HUB   %-22s -> %-10s | %s | %s\n", GPL[i], screen_name(s_screen), s_gp_n ? s_gp_log[s_gp_n - 1] : "-",
-               aud_ln());
+        gp_run(GP_CMD[i]);
+        printf("HUB   %-22s -> %-10s dg=%d | %s | %s\n", GP_CMD[i], screen_name(s_screen), dg_on() ? s_dg : -1,
+               s_gp_n ? s_gp_log[s_gp_n - 1] : "-", aud_ln());
+        dg_stop();
     }
-    static const char *const SPL[] = { "help", "scan", "hunt", "info", "gloss", "clear", "back", "bogus", "defend", "terminal", "ble", "wifi" };
+    static const char *const SPL[] = { "scan", "hunt", "info", "gloss", "defend", "terminal", "back", "help", "clear", "wifi", "ble", "bogus" };
     const int scr[3] = { SCR_SCAN, SCR_WIFI_RADAR, SCR_BT_RADAR };
-    for (int k = 0; k < 3; ++k)
+    for (int k = 0; k < 3 + 12; ++k)          /* v1019q: + every bot's own scan screen (per-bot prompt) */
     for (unsigned i = 0; i < sizeof(SPL) / sizeof(SPL[0]); ++i) {
-        s_scan_bot = 12;
-        enter_screen(scr[k], SCR_GIBSON);
+        s_scan_bot = k < 3 ? 12 : k - 3;
+        enter_screen(k < 3 ? scr[k] : SCR_SCAN, SCR_GIBSON);
         sp_run(SPL[i]);
-        printf("SCAN  %-9s %-10s -> %-10s hunt=%d info=%d gloss=%d | %s | %s\n", screen_name(scr[k]), SPL[i], screen_name(s_screen),
+        printf("SCAN  %-9s %-10s -> %-10s hunt=%d info=%d gloss=%d | %s | %s\n", k < 3 ? screen_name(scr[k]) : BOTS[k - 3].short_name, SPL[i], screen_name(s_screen),
                s_hunt_dev, s_info_dev, s_gloss, s_sp_has ? s_sp_l1 : "-", s_sp_has ? s_sp_l2 : "-");
     }
 }
@@ -9007,9 +9158,11 @@ static bool host_kb_find(char c, int *x, int *y, bool *shift)
 static void host_play_state(const char *tag)
 {
     if (s_dg < 0) {
-        printf("PLAY %s t=%u screen=%d game=none prompt='%s' sheet=%d\n", tag, (unsigned)millis(), s_screen, s_gp_buf, (int)s_sheet);
+        printf("PLAY %s t=%u screen=%d game=none prompt='%s' sheet=%d log='%s'\n", tag, (unsigned)millis(), s_screen, s_gp_buf,
+               (int)s_sheet, s_log_n ? (log_line(s_log_n - 1)[0] == '\x01' ? log_line(s_log_n - 1) + 2 : log_line(s_log_n - 1)) : "");
         return;
     }
+    printf("PLAY %s prompt='%s'\n", tag, s_gp_buf);   /* v1019q: the Defend prompt line while a game runs */
     DGUi u; dg_ui(&u);
     static const char *const ST[4] = { "PLAY", "WIN", "LOST", "PAUSE" };
     printf("PLAY %s t=%u game=%s slot=%d bot=%d state=%s score=%d/%d lost=%d/%d ms=%u stat='%s' ctl[rc=%d fw=%d mz=%d tw=%d ch=%d pin='%s' pr=%d bn=%d st=%d jd=%d]\n",

@@ -1034,9 +1034,32 @@ static bool dg_play_n(int n)
     return true;
 }
 static int s_dg_best[DG_N];
-static void dg_scores(void)
+static void dg_scores(void) { dg_scores_bot(s_defend_bot); }
+/* v1019q (#9c): Terminal GAME group - loadout = this bot's 3 games, rank = the 12 games by best run */
+static void dg_loadout(int bot)
 {
-    const int cat = DG_CAT[(s_defend_bot < 0 || s_defend_bot > 12) ? 12 : s_defend_bot];
+    const int cat = DG_CAT[(bot < 0 || bot > 12) ? 12 : bot];
+    char b[40];
+    for (int k = 0; k < 3; ++k) {
+        snprintf(b, sizeof b, "%d %s", cat * 3 + k + 1, DG_NAME[DG_SET[cat][k]]);
+        gc_push(12, b);
+    }
+}
+static void dg_rank(void)
+{
+    int ord[DG_N];
+    for (int i = 0; i < DG_N; ++i) ord[i] = i;
+    for (int i = 1; i < DG_N; ++i)
+        for (int j = i; j > 0 && s_dg_best[ord[j]] > s_dg_best[ord[j - 1]]; --j) { const int t = ord[j]; ord[j] = ord[j - 1]; ord[j - 1] = t; }
+    char b[40];
+    for (int k = 0; k < 3; ++k) {
+        snprintf(b, sizeof b, "#%d %s best %d", k + 1, DG_NAME[ord[k]], s_dg_best[ord[k]]);
+        gc_push(12, b);
+    }
+}
+static void dg_scores_bot(int bot)
+{
+    const int cat = DG_CAT[(bot < 0 || bot > 12) ? 12 : bot];
     char b[32];
     for (int k = 0; k < 3; ++k) {
         const int g = DG_SET[cat][k];
@@ -1327,7 +1350,12 @@ static void paint_dg_hud_ext(Gfx g)
     txt(g, gib ? "gibson" : BOTS[s_dg_bot].id, 10, 216, PAL_CYAN, lgfx::textdatum::top_left);
     const int px = 10 + ((int)strlen(gib ? "gibson" : BOTS[s_dg_bot].id) + 1) * 6;
     txt(g, ">", px, 216, COL_INK, lgfx::textdatum::top_left);
-    txt(g, u.keys, px + 12, 216, PAL_MUTED, lgfx::textdatum::top_left);
+    if (s_gp_buf[0]) {            /* v1019q (item 8): a typed line shows on the Defend prompt row, with the caret */
+        txt(g, s_gp_buf, px + 12, 216, COL_WHITE, lgfx::textdatum::top_left);
+        const int gl = (int)strlen(s_gp_buf);
+        const int ci = (s_gc_caret < 0 || s_gc_caret > gl) ? gl : s_gc_caret;
+        g.fillRect(px + 12 + ci * 6, 216, 5, 8, PAL_CYAN);
+    } else txt(g, u.keys, px + 12, 216, PAL_MUTED, lgfx::textdatum::top_left);
     txt(g, "tab next  ` quit", DGH_X + DGH_W - 2, 204, PAL_MUTED, lgfx::textdatum::top_right);
     s_px = keep;
 }
@@ -1339,6 +1367,7 @@ static uint32_t dg_hud_sig(void)
     const uint32_t v[8] = { (uint32_t)s_dg, (uint32_t)u.score, (uint32_t)u.lives_lost, sec, (uint32_t)s_dg_state, (uint32_t)s_dg_slot, 0, 0 };
     for (int i = 0; i < 8; ++i) h = (h ^ v[i]) * 16777619u;
     for (const char *c = u.stat; *c; ++c) h = (h ^ (uint8_t)*c) * 16777619u;
+    for (const char *c = s_gp_buf; *c; ++c) h = (h ^ (uint8_t)*c) * 16777619u;   /* v1019q: typed line */
     return h;
 }
 

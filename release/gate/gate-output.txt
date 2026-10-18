@@ -54,7 +54,7 @@
   PASS  G5 rain layer present + visible  [logged=True visible_px=4067 colour_px=2463]
   PASS  G6 no instruction text
   PASS  G8 crown back control present  [1 crown]
-  PASS  T1 log pale cyan, "[ ok ]" green  [green_px=50 paleCyan_px=1247 other_px=0]
+  PASS  T1 log pale cyan, "[ ok ]" green  [green_px=50 paleCyan_px=1245 other_px=3]
 == terminal-tab
   PASS  G1 no element/text bbox overlap
   PASS  G2 sprites inside their chip/tile
@@ -313,11 +313,11 @@
   PASS  G2 sprites inside their chip/tile
   PASS  G3 no clipped/overrun text
   PASS  G4 nothing past the board/screen edge
-  PASS  G5 rain layer present + visible  [logged=True visible_px=1841 colour_px=1223]
+  PASS  G5 rain layer present + visible  [logged=True visible_px=1738 colour_px=1179]
   PASS  G6 no instruction text
   PASS  G8 crown back control present  [1 crown]
-  PASS  C1 square chip_block present (Gibson)  [[('gibson', 36, 36), ('gibson', 28, 28), ('gibson', 28, 28)]]
-  PASS  C2 figure fills the chip square (major side >=60% of chip)  [fill=0.67]
+  PASS  C1 square chip_block present (Gibson)  [[('gibson', 44, 44), ('gibson', 28, 28), ('gibson', 28, 28)]]
+  PASS  C2 figure fills the chip square (major side >=60% of chip)  [fill=0.68]
   PASS  C3 Gibson drawn as the square block figure  [3]
   PASS  D1 dynamic "<name>> Defend" title present  [['Gibson> Defend']]
 == game-jackin
@@ -336,7 +336,7 @@
   PASS  G2 sprites inside their chip/tile
   PASS  G3 no clipped/overrun text
   PASS  G4 nothing past the board/screen edge
-  PASS  G5 rain layer present + visible  [logged=True visible_px=962 colour_px=561]
+  PASS  G5 rain layer present + visible  [logged=True visible_px=838 colour_px=493]
   PASS  G6 no instruction text
   PASS  G8 crown back control present  [1 crown]
 == scanboard-airtag
@@ -654,7 +654,7 @@
   PASS  G6 no instruction text
   PASS  G8 crown back control present  [1 crown]
 == terminal-cmdmenu
-  N/A   G1 no element/text bbox overlap  [TXT'jacking you 'xTXT'scan'; TXT'jacking you 'xTXT'hunt'; TXT'shields up'xTXT'scan'; TXT'shields up'xTXT'hunt'; TXT'eyes on the 'xTXT'clear'; TXT'eyes on the 'xTXT'ping' (+1)]
+  N/A   G1 no element/text bbox overlap  [TXT'jacking you 'xTXT'scan'; TXT'jacking you 'xTXT'hunt'; TXT'shields up'xTXT'scan'; TXT'shields up'xTXT'hunt'; TXT'eyes on the 'xTXT'sniff'; TXT'eyes on the 'xTXT'filter' (+1)]
   PASS  G2 sprites inside their chip/tile
   PASS  G3 no clipped/overrun text
   PASS  G4 nothing past the board/screen edge
@@ -716,7 +716,7 @@
   PASS  S2 scan-ble: idle animation never full-screen presents (patches only)  [presents=1 (1 = the screen-enter paint)]
   PASS  S4 scan-ble: idle ticks draw in place (no slice rebuild / recompose)  [recomposes=0]
   PASS  S1 game-board: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=74 pushes=148 recomposes=0]
-  PASS  S1 game-jackin: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=1 pushes=119 recomposes=4]
+  PASS  S1 game-jackin: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=57 pushes=120 recomposes=0]
   PASS  S1 terminal-typing: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=67 pushes=150 recomposes=2]
   PASS  S1 gibson-game: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=4px, presents=68 pushes=142 recomposes=0]
   PASS  S1 scan-sbox-hunt: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=1 pushes=286 recomposes=0]

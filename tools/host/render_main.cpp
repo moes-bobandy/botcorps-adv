@@ -1,3 +1,4 @@
+#include <string>
 #include <stdlib.h>
 #include "host_shim.h"
 #include "ui/botcorps_pal.h"
@@ -483,6 +484,23 @@ int main(int argc, char **argv)
         botcorps_host_set_color(0);
         if (argc > 5) botcorps_host_defend_hud(g_buf, atoi(argv[2]), atoi(argv[3]), slot);
         else botcorps_host_defend_g(g_buf, atoi(argv[2]), slot, atoi(argv[3]));
+        write_raw(argv[4], g_buf, 0);
+        return 0;
+    }
+    /* v1019p: play a Defend game from the idle board through the REAL key matrix: rend play <bot> <script> <out> */
+    if (argc > 4 && strcmp(argv[1], "play") == 0) {
+        extern void botcorps_host_play(uint8_t *, int, const char *);
+        host_rain_init(0);
+        host_set_millis(9000u);
+        botcorps_host_set_color(0);
+        std::string sc;
+        for (const char *q = argv[3]; *q; ++q) {
+            if (q[0] == '\\' && q[1] == 'n') { sc += '\n'; ++q; }
+            else if (q[0] == '\\' && q[1] == 't') { sc += '\t'; ++q; }
+            else if (q[0] == '\\' && q[1] == 'b') { sc += '\b'; ++q; }
+            else sc += *q;
+        }
+        botcorps_host_play(g_buf, atoi(argv[2]), sc.c_str());
         write_raw(argv[4], g_buf, 0);
         return 0;
     }

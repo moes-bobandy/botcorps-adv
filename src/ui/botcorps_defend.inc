@@ -1002,6 +1002,48 @@ static void dg_start(int bot)
     s_int_dirty = true;
     Serial.printf("[defend] start %s bot=%d\n", DG_NAME[s_dg], s_dg_bot);
 }
+/* v1019p (field fix): the GAME commands (lobby / play <n> / score) on the Defend board */
+static const char *const DG_CATN[4] = { "wifi", "ble", "iot", "rogue" };
+static void dg_lobby(void)
+{
+    static const char *const SHORT[DG_N] = { "rain", "beacon", "wall", "maze", "twin", "hop", "ring", "pair",
+                                             "patch", "botnet", "trace", "jam" };
+    char b[40];
+    for (int c = 0; c < 4; ++c) {
+        snprintf(b, sizeof b, "%s %d %s %d %s %d %s", DG_CATN[c], c * 3 + 1, SHORT[DG_SET[c][0]], c * 3 + 2,
+                 SHORT[DG_SET[c][1]], c * 3 + 3, SHORT[DG_SET[c][2]]);
+        gc_push(12, b);
+    }
+    gc_push(12, "play <1-12> starts one");
+}
+static bool dg_play_n(int n)
+{
+    if (n < 1 || n > 12) return false;
+    const int cat = (n - 1) / 3, slot = (n - 1) % 3;
+    int bot = s_defend_bot;
+    if (bot < 0 || bot > 12 || DG_CAT[bot] != cat) {      /* the category's bot plays it (rogue: Gibson) */
+        bot = cat == 3 ? 12 : -1;
+        for (int b = 0; b < 12 && bot < 0; ++b) if (DG_CAT[b] == cat) bot = b;
+    }
+    s_defend_bot = bot;
+    char b[32];
+    snprintf(b, sizeof b, "play %d %s", n, DG_NAME[DG_SET[cat][slot]]);
+    gc_push(12, b);
+    dg_start(bot);
+    if (slot) dg_select(slot);
+    return true;
+}
+static int s_dg_best[DG_N];
+static void dg_scores(void)
+{
+    const int cat = DG_CAT[(s_defend_bot < 0 || s_defend_bot > 12) ? 12 : s_defend_bot];
+    char b[32];
+    for (int k = 0; k < 3; ++k) {
+        const int g = DG_SET[cat][k];
+        snprintf(b, sizeof b, "%d %s best %d", cat * 3 + k + 1, DG_NAME[g], s_dg_best[g]);
+        gc_push(12, b);
+    }
+}
 static void dg_stop(void)
 {
     if (s_dg < 0) return;
@@ -1222,6 +1264,13 @@ static void dg_ui(DGUi *u)
     if (u->score > u->target) u->score = u->target;
     if (u->lives_lost > u->lives_n) u->lives_lost = u->lives_n;
 }
+/* best run per game, noted on every step (score = the HUD score: hits, or seconds survived) */
+static void dg_note(void)
+{
+    if (s_dg < 0) return;
+    DGUi u; dg_ui(&u);
+    if (u.score > s_dg_best[s_dg]) s_dg_best[s_dg] = u.score;
+}
 static const int DGH_X = 8, DGH_Y = 152, DGH_W = 268, DGH_H = 74;   /* inside the prompt panel, left of the corner chip */
 static void paint_dg_hud_ext(Gfx g)
 {
@@ -1406,6 +1455,7 @@ static void dg_tick(void)
     if (last != 0 && (uint32_t)(t - last) < 33u) return;
     last = t;
     dg_step(t);
+    dg_note();
     DGRect cur[DG_SLOTS];
     dg_rects(cur);
     for (int i = 0; i < DG_SLOTS; ++i) {

@@ -328,9 +328,9 @@
   PASS  G5 rain layer present + visible  [logged=True visible_px=2911 colour_px=1865]
   PASS  G6 no instruction text
   PASS  G8 crown back control present  [1 crown]
-  PASS  C1 square chip_block present (Gibson)  [[('gibson', 36, 36), ('gibson', 28, 28), ('gibson', 28, 28)]]
+  PASS  C1 square chip_block present (Gibson)  [[('gibson', 36, 36), ('gibson', 28, 28)]]
   PASS  C2 figure fills the chip square (major side >=60% of chip)  [fill=0.67]
-  PASS  C3 Gibson drawn as the square block figure  [3]
+  PASS  C3 Gibson drawn as the square block figure  [2]
 == game-menu
   PASS  G1 no element/text bbox overlap
   PASS  G2 sprites inside their chip/tile
@@ -716,7 +716,7 @@
   PASS  S2 scan-ble: idle animation never full-screen presents (patches only)  [presents=1 (1 = the screen-enter paint)]
   PASS  S4 scan-ble: idle ticks draw in place (no slice rebuild / recompose)  [recomposes=0]
   PASS  S1 game-board: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=74 pushes=148 recomposes=0]
-  PASS  S1 game-jackin: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=70 pushes=140 recomposes=0]
+  PASS  S1 game-jackin: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=1 pushes=119 recomposes=4]
   PASS  S1 terminal-typing: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=67 pushes=150 recomposes=2]
   PASS  S1 gibson-game: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=4px, presents=68 pushes=142 recomposes=0]
   PASS  S1 scan-sbox-hunt: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=1 pushes=286 recomposes=0]

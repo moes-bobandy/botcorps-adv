@@ -1083,6 +1083,9 @@ static void lut_for_term(void)
 
 static void enter_defend(int bot, int ret);
 static int gc_bot_of(const char *arg);
+static void dg_lobby(void);
+static void dg_scores(void);
+static bool dg_play_n(int n);
 static void run_cmd(const char *line)
 {
     char buf[80];
@@ -5771,6 +5774,16 @@ static void gc_run(const char *line)
     char echo[40];
     snprintf(echo, sizeof(echo), "gibson> %.16s%s%.10s", cmd, (arg && arg[0]) ? " " : "", arg ? arg : "");
     log_add(echo);
+    /* v1019p (field fix, items 1/14): the GAME commands all reach a real game. jackin plays (it used to only
+     * print "jacking you in" and leave the board idle); lobby lists all 12 games; play <1-12> starts any of
+     * them on this board; score shows the best run of each game of this bot's category. */
+    if (strcmp(cmd, "jackin") == 0) start_def = true;
+    if (strcmp(cmd, "lobby") == 0) { dg_lobby(); return; }
+    if (strcmp(cmd, "score") == 0) { dg_scores(); return; }
+    if (strcmp(cmd, "play") == 0) {
+        if (!arg || !arg[0] || !dg_play_n(atoi(arg))) gc_push(12, "play <1-12> - see lobby");
+        return;
+    }
     if (strcmp(cmd, "jackin") == 0 || start_def) {
         gc_push(12, "jacking you in");
         gc_push(3, "shields up");
@@ -5780,10 +5793,6 @@ static void gc_run(const char *line)
         s_mood_until = millis() + 2400u;
         s_bus_t0 = millis();
         if (start_def) dg_start(s_defend_bot);   /* v1019j: defend / load game starts the category game */
-        return;
-    }
-    if (strcmp(cmd, "lobby") == 0 || strcmp(cmd, "score") == 0) {
-        gc_push(12, "jackin to enter");
         return;
     }
     if (strcmp(cmd, "clear") == 0) {
@@ -8016,8 +8025,9 @@ static void ui_dispatch(int key, char typed)
             s_dirty = true;
             return;
         }
-        s_sheet = true;
-        s_sheet_i = 0;
+        /* v1019p (field fix, item 1): Enter on the empty Defend prompt PLAYS this bot's game on the board
+         * (it used to open the command sheet, so Enter never reached a game; Tab still opens the sheet) */
+        gc_run("jackin");
         s_dirty = true;
         return;
     }
@@ -8967,6 +8977,79 @@ void botcorps_host_seq(uint8_t *buf, const char *keys)
         else if (c == '\b') { s_key_fn = false; ui_dispatch(K_BS, 0); }
         else { s_key_fn = false; ui_dispatch(K_CHAR, (char)c); }
     }
+    host_frame = buf;
+    memset(buf, PAL_BLACK, 320u * 240u);
+    paint_ext(Gfx());
+}
+/* v1019p (field fix) host proof that the games PLAY from the device key path: the idle Defend board (as
+ * reached from the hub), then a script typed on the scripted key MATRIX through the REAL botcorps_ui_input
+ * -> read_key -> ui_dispatch (plain ; . , / keys, no Fn, exactly like the Cardputer), with play time between
+ * keys at the 33 ms tick. Script: printable chars = that key, '\n' Enter, '\t' Tab, '\b' Backspace, '`' Esc,
+ * '^x' = Fn+x, '{N}' = play N ms. Prints "PLAY ..." state lines (game, state, score, controls). */
+static void host_kb_tap(int x, int y, bool fn)
+{
+    if (fn) M5Cardputer.Keyboard.press(0, 2);
+    M5Cardputer.Keyboard.press(x, y);
+    botcorps_ui_input();
+    M5Cardputer.Keyboard.release(x, y);
+    if (fn) M5Cardputer.Keyboard.release(0, 2);
+    botcorps_ui_input();
+}
+static bool host_kb_find(char c, int *x, int *y, bool *shift)
+{
+    for (int r = 0; r < 4; ++r)
+        for (int k = 0; k < 14; ++k) {
+            if (_key_value_map[r][k].value_first == c) { *x = k; *y = r; *shift = false; return true; }
+            if (_key_value_map[r][k].value_second == c) { *x = k; *y = r; *shift = true; return true; }
+        }
+    return false;
+}
+static void host_play_state(const char *tag)
+{
+    if (s_dg < 0) {
+        printf("PLAY %s t=%u screen=%d game=none prompt='%s' sheet=%d\n", tag, (unsigned)millis(), s_screen, s_gp_buf, (int)s_sheet);
+        return;
+    }
+    DGUi u; dg_ui(&u);
+    static const char *const ST[4] = { "PLAY", "WIN", "LOST", "PAUSE" };
+    printf("PLAY %s t=%u game=%s slot=%d bot=%d state=%s score=%d/%d lost=%d/%d ms=%u stat='%s' ctl[rc=%d fw=%d mz=%d tw=%d ch=%d pin='%s' pr=%d bn=%d st=%d jd=%d]\n",
+           tag, (unsigned)millis(), DG_NAME[s_dg], s_dg_slot, s_dg_bot, ST[s_dg_state & 3], u.score, u.target,
+           u.lives_lost, u.lives_n, (unsigned)s_dg_ms, u.stat, s_rc_lane, (int)s_fw_px, (int)s_mz_p.want,
+           (int)s_tw_side, s_ch_lane, s_pl_in, s_pr_cur, s_bn_at, s_st_cur, s_jd_lane);
+}
+void botcorps_host_play(uint8_t *buf, int bot, const char *script)
+{
+    host_frame = buf;
+    s_color = 0; s_sheet = false; s_fa_on = false; s_act = -1; s_gp_buf[0] = 0; s_gc_panel = 0;
+    botcorps_lut_term(false);
+    gc_set_count(0);
+    s_dg = -1;
+    enter_screen(SCR_GCHAT, SCR_GIBSON);     /* the idle Defend board, as the hub's Gibson Enter opens it */
+    s_defend_bot = (bot < 0 || bot > 12) ? 12 : bot;
+    uint32_t t = millis();
+    host_play_state("idle");
+    for (const char *p = script; *p; ++p) {
+        if (*p == '{') {
+            const int ms = atoi(p + 1);
+            while (*p && *p != '}') ++p;
+            for (int k = 0; k < ms; k += 33) { t += 33u; host_set_millis(t); dg_step(t); dg_note(); }
+            host_play_state("after");
+            if (!*p) break;
+            continue;
+        }
+        bool fn = false;
+        if (*p == '^' && p[1]) { fn = true; ++p; }
+        int x = 0, y = 0; bool sh = false;
+        if (*p == '\n') { x = 13; y = 2; }
+        else if (*p == '\t') { x = 0; y = 1; }
+        else if (*p == '\b') { x = 13; y = 0; }
+        else if (!host_kb_find(*p, &x, &y, &sh)) continue;
+        if (sh) M5Cardputer.Keyboard.press(1, 2);
+        host_kb_tap(x, y, fn);
+        if (sh) M5Cardputer.Keyboard.release(1, 2);
+        t += 33u; host_set_millis(t); dg_step(t); dg_note();
+    }
+    host_play_state("end");
     host_frame = buf;
     memset(buf, PAL_BLACK, 320u * 240u);
     paint_ext(Gfx());

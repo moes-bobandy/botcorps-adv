@@ -254,6 +254,22 @@ for scr in screens:
     if scr == 'game-board':
         has = [t['s'] for t in texts if '> Defend' in t['s']]
         rep(scr, 'D1 dynamic "<name>> Defend" title present', bool(has), f'{has[:1]}')
+    # v1019j (Dirt LOCKED): the four Defend mini-games. Matte-black board, the active bot as a square chip
+    # (Gibson ivory/gold on his maze), and the game's own pieces on the board (reused icons + 0/1 bits).
+    if scr.startswith('defend-'):
+        DGW = {'defend-raincatch': ('bot', ('icon', 'bit'), 1), 'defend-beaconsort': ('bot', ('beacon',), 1),
+               'defend-firewall': ('bot', ('block', 'iot', 'packet'), 30), 'defend-maze': ('gibson', ('shield', 'jammer'), 4)}[scr]
+        bd = [b for b in boxes if b['k'] == 'BOARD' and b['n'] == 'defend']
+        if bd:
+            b = bd[0]
+            dom = dominant(im, (b['x'] + 6, b['y'] + 6, b['x'] + b['w'] - 6, b['y'] + b['h'] - 6))
+            rep(scr, 'DG1 Defend board is matte black', luma(dom) <= 24, f'dominant={dom}')
+        else:
+            rep(scr, 'DG1 Defend board is matte black', False, 'no BOARD box')
+        ch = [c for c in boxes if c['k'] == 'TCHIP' and c['n'] == DGW[0] and c['w'] == c['h'] and bd and inside(c, bd[0])]
+        rep(scr, 'DG2 active bot is a square chip on the board' + (' (Gibson)' if DGW[0] == 'gibson' else ''), len(ch) == 1, f'{[(c["n"], c["x"], c["y"], c["w"]) for c in ch]}')
+        ob = [o for o in boxes if o['k'] == 'DGOBJ' and o['n'] in DGW[1] and bd and inside(o, bd[0])]
+        rep(scr, 'DG3 game pieces on the board (reused icons / 0-1 bits)', len(ob) >= DGW[2], f'{len(ob)} pieces {sorted({o["n"] for o in ob})}')
     if scr.startswith('scanboard-') or scr.startswith('sbox') or scr.startswith('scan-') or scr.startswith('settings'):
         bd = [b for b in boxes if b['k'] == 'BOARD']
         if bd:
@@ -386,6 +402,32 @@ if os.path.exists(fp):
                     f'recomposes={rec}')
 
 rep('functional', 'K0 keyboard test ran', k1_seen, '' if k1_seen else 'no K1 line in functional.txt')
+
+# v1019j DG / DGR: Defend mini-game logic (win + lose on the real step code) and launch routes.
+if os.path.exists(fp):
+    WANT = {'raincatch-play': (0, 1), 'raincatch-idle': (0, 2), 'beaconsort-play': (1, 1), 'beaconsort-idle': (1, 2),
+            'firewall-play': (2, 1), 'firewall-idle': (2, 2), 'maze-clear': (3, 1), 'maze-idle': (3, 2)}
+    RULE = {'raincatch-play': lambda sc, mi, ju: sc >= 20 and mi < 3 and ju < 3, 'raincatch-idle': lambda sc, mi, ju: mi >= 3 or ju >= 3,
+            'beaconsort-play': lambda sc, mi, ju: sc >= 25 and mi < 3, 'beaconsort-idle': lambda sc, mi, ju: mi >= 3,
+            'firewall-play': lambda sc, mi, ju: sc == 32 and mi < 3, 'firewall-idle': lambda sc, mi, ju: mi >= 3,
+            'maze-clear': lambda sc, mi, ju: mi < 3, 'maze-idle': lambda sc, mi, ju: mi >= 3}
+    GN = ['Rain Catch', 'Beacon Sort', 'Firewall Wall', 'Gibson Maze']
+    seen_dg = set()
+    # route w: 0 hub defend (Gibson) 1 hub defend wifi 2 terminal defend airtag 3 hub defend flock 4 scan board flipper
+    #          5 scan board Gibson 6 game-chat prompt defend (Gibson)
+    RW = {0: 3, 1: 0, 2: 1, 3: 2, 4: 2, 5: 3, 6: 3}
+    for ln in open(fp):
+        f = ln.rstrip('\n').split('\t')
+        if f[0] == 'DG':
+            nm = f[1]; gm, st, sc, mi, ju, ms = (int(x) for x in f[2:8]); seen_dg.add(nm)
+            wg, ws = WANT[nm]
+            rep('functional', f'DG {GN[wg]} {nm.split("-")[1]}: ends {"WIN" if ws == 1 else "LOST"} by its rule',
+                gm == wg and st == ws and RULE[nm](sc, mi, ju), f'game={gm} state={st} score={sc} miss={mi} bits={ju} time={ms/1000:.1f}s')
+        elif f[0] == 'DGR':
+            w, gm, scr_, e1, e1g, e2 = (int(x) for x in f[1:7])
+            rep('functional', f'DGR route {w}: Defend launches {GN[RW[w]]}; backtick quits to the Defend board; Esc again goes back',
+                gm == RW[w] and scr_ == 10 and e1 == 10 and e1g == -1 and e2 != 10, f'game={gm} screen={scr_} esc1={e1}/{e1g} esc2={e2}')
+    rep('functional', 'DG0 Defend logic tests ran (8)', len(seen_dg) == 8, f'{sorted(seen_dg)}')
 
 # v1017c S3: every screen painted the device way (two 120-row band slices, oy 0/120, clipped to the
 # 320x120 sprite) composes to exactly the one-shot frame, rain on and off.

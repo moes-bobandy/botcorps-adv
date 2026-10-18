@@ -144,6 +144,8 @@ static void f_gmenu(void *) { botcorps_host_set_color(0); botcorps_host_gmenu(g_
 static void f_jackin(void *) { botcorps_host_set_color(0); botcorps_host_jackin(g_buf); }
 static void f_sbox(void *v) { GArg *g = (GArg *)v; botcorps_host_set_color(0); botcorps_host_sbox(g_buf, g->a, g->b, g->c); }
 static void f_alert(void *) { botcorps_host_set_color(0); botcorps_host_found_alert_b(g_buf, 1, 2); }
+extern void botcorps_host_defend(uint8_t *buf, int bot, int warm_ms);
+static void f_defend(void *v) { GArg *g = (GArg *)v; botcorps_host_set_color(0); botcorps_host_defend(g_buf, g->a, g->b); }
 static void f_sheet(void *) { botcorps_host_set_color(0); botcorps_host_enter(g_buf, 2); botcorps_host_sheet(g_buf, 0); }
 static int run_gate(const char *dir)
 {
@@ -188,6 +190,14 @@ static int run_gate(const char *dir)
     a = { 0, 0, 0, "\n\n\x02\x02\x02\x02\x02\n" }; gate_one(dir, "terminal-atkmenu", 0, f_enter, &a);
     a = { 0, 0, 0, "\n\n\x02\x02\x02\x02\x02\n\x04" }; gate_one(dir, "terminal-atkgloss", 0, f_enter, &a);
     a = { 0, 0, 0, nullptr }; gate_one(dir, "scanboard-hunt-gibson", 0, f_gibhunt, &a);
+    /* v1019j (rendered after every earlier screen so their rain RNG order is unchanged): the four
+     * Defend mini-games, each entered through enter_defend for a bot of that device category and
+     * played 6 s by the host autopilot: Wi-Fi (wifibot) Rain Catch, BLE (bluetoothbot) Beacon Sort,
+     * IoT (flockbot) Firewall Wall, Rogue (Gibson) Gibson Maze. */
+    a = { 0, 6000, 0, nullptr }; gate_one(dir, "defend-raincatch", 0, f_defend, &a);
+    a = { 1, 6000, 0, nullptr }; gate_one(dir, "defend-beaconsort", 0, f_defend, &a);
+    a = { 4, 6000, 0, nullptr }; gate_one(dir, "defend-firewall", 0, f_defend, &a);
+    a = { 12, 6000, 0, nullptr }; gate_one(dir, "defend-maze", 0, f_defend, &a);
     botcorps_host_set_color(0);
     /* functional: Esc goes back on every screen; each of the 8 settings edits + writes NVS */
     {
@@ -245,6 +255,11 @@ static int run_gate(const char *dir)
                 { "control-nav", 1, 8, "\x04\x04\x04\x02\x01\x03\x04\x04\x04\x04\x02\x02\x01\x01\x03" },
                 { "hub-to-control", 1, 1, "\x04\x04\n\x04\x04\n\x02\n\x01\x01\n" },
                 { "control-to-hub", 1, 8, "\x1b\x04\x04" },
+                /* v1019j: each Defend game on the real draw loop with live keys (moves, sorts, launch) */
+                { "defend-raincatch", 6, 0, "\x03\x03\x04\x04\x04\x03\x04\x03\x03\x04\x04\x04\x03\x03\x04\x03\x04\x04\x03" },
+                { "defend-beaconsort", 6, 1, "\x03\x04\x03\x04\x03\x04\x03\x04\x03\x04\x03\x04\x03\x04\x03\x04\x03\x04" },
+                { "defend-firewall", 6, 4, "\n\x03\x03\x04\x04\x04\x03\x03\x04\x03\x04\x04\x03\x03\x04\x03\x04\x03" },
+                { "defend-maze", 6, 12, "\x03\x01\x04\x02\x03\x01\x04\x02\x03\x01\x04\x02\x03\x01\x04\x02\x03" },
             };
             for (auto &q : S) {
                 host_set_millis(20000u);
@@ -253,6 +268,7 @@ static int run_gate(const char *dir)
                 else if (q.kind == 2) botcorps_host_gchat(g_buf);
                 else if (q.kind == 3) { extern void botcorps_host_jackin(uint8_t *); botcorps_host_jackin(g_buf); }
                 else if (q.kind == 5) botcorps_host_sbox(g_buf, 0, q.arg, q.arg == 3 ? -50 : 0);
+                else if (q.kind == 6) botcorps_host_defend(g_buf, q.arg, 2000);
                 else botcorps_host_enter(g_buf, 2);
                 long pr = 0, pu = 0, rc = 0, wo = 0;
                 const int bad = botcorps_host_sim(6000, q.keys, &pr, &pu, &rc, &wo);
@@ -287,6 +303,29 @@ static int run_gate(const char *dir)
             extern int botcorps_host_cp_start(void);
             if (f) fprintf(f, "CPSTART\t%d\n", botcorps_host_cp_start());
         }
+        /* v1019j DG: each Defend game's win and lose conditions on its real step code (host autopilot =
+         * the same keys a player sends; "idle" = no keys). DGR: which Defend path launches which game,
+         * Esc (backtick) quits the game to the Defend board, a second Esc goes back as before. */
+        {
+            extern int botcorps_host_defend_run(int, bool, bool, int, int *, int *, int *, int *, int *);
+            extern int botcorps_host_defend_route(int, int *, int *, int *, int *);
+            struct { const char *name; int bot; bool ai, noghost; int max_ms; } T[] = {
+                { "raincatch-play", 0, true, false, 600000 }, { "raincatch-idle", 0, false, false, 600000 },
+                { "beaconsort-play", 1, true, false, 600000 }, { "beaconsort-idle", 1, false, false, 600000 },
+                { "firewall-play", 4, true, false, 900000 }, { "firewall-idle", 4, false, false, 600000 },
+                { "maze-clear", 12, true, true, 900000 }, { "maze-idle", 12, false, false, 600000 },
+            };
+            for (auto &q : T) {
+                int gm = -1, sc = 0, mi = 0, ju = 0, ms = 0;
+                const int st = botcorps_host_defend_run(q.bot, q.ai, q.noghost, q.max_ms, &gm, &sc, &mi, &ju, &ms);
+                if (f) fprintf(f, "DG\t%s\t%d\t%d\t%d\t%d\t%d\t%d\n", q.name, gm, st, sc, mi, ju, ms);
+            }
+            for (int w = 0; w < 7; ++w) {
+                int scr = -1, e1 = -1, e1g = -1, e2 = -1;
+                const int gm = botcorps_host_defend_route(w, &scr, &e1, &e1g, &e2);
+                if (f) fprintf(f, "DGR\t%d\t%d\t%d\t%d\t%d\t%d\n", w, gm, scr, e1, e1g, e2);
+            }
+        }
         if (f) fclose(f);
     }
     return 0;
@@ -309,6 +348,17 @@ int main(int argc, char **argv)
         host_rain_init(0);
         host_set_millis(9000u);
         botcorps_host_prompt_audit();
+        return 0;
+    }
+    /* v1019j: review render of a Defend game: rend dg <bot> <warm_ms> <out> [hud] */
+    if (argc > 4 && strcmp(argv[1], "dg") == 0) {
+        extern void botcorps_host_defend_hud(uint8_t *, int, int);
+        host_rain_init(0);
+        host_set_millis(9000u);
+        botcorps_host_set_color(0);
+        if (argc > 5) botcorps_host_defend_hud(g_buf, atoi(argv[2]), atoi(argv[3]));
+        else botcorps_host_defend(g_buf, atoi(argv[2]), atoi(argv[3]));
+        write_raw(argv[4], g_buf, 0);
         return 0;
     }
     /* v1019: one-off review render of the Defend game title for one bot: rend gtitle <bot> <out> */

@@ -317,6 +317,12 @@ static const int LOG_ROWS = 24;
 static const int LOG_W = 80;
 
 static int s_screen = SCR_RAIN;
+/* v1019j: Defend mini-game running on the game screen (botcorps_defend.inc); -1 = none */
+static int s_dg = -1;
+static bool dg_on(void) { return s_dg >= 0 && s_screen == SCR_GCHAT; }
+static void dg_start(int bot);
+static void paint_dg_board(Gfx g);
+static void dg_paint_hud(Gfx g, int width, bool full);
 static int s_cursor = 0;
 static int s_bot = 2;
 static int s_term = 2;
@@ -497,14 +503,16 @@ static bool rain_static(void);
 static bool wants_rain(void)
 {
     return !sbox_on()
-        && s_screen != SCR_DIAG;
+        && s_screen != SCR_DIAG
+        && !dg_on();                  /* v1019j: Defend game = static rain around the opaque board */
 }
 
 /* Panel screens: rain painted once per full paint (no stepping, no covers needed). */
 static bool rain_static(void)
 {
     return sbox_on() || s_screen == SCR_DIAG
-        || (s_screen == SCR_RAIN && s_act == 4);
+        || (s_screen == SCR_RAIN && s_act == 4)
+        || dg_on();
 }
 
 /* EXT chrome that moves on its own: sweep, pulse, bob, or the prompt caret. */
@@ -864,6 +872,7 @@ static void enter_screen(int id, int ret)
     }
     const char *from = screen_name(s_screen);
     const int before = card_bot();
+    if (s_dg >= 0) { s_dg = -1; s_int_dirty = true; }   /* v1019j: leaving / re-entering ends a Defend game */
     s_ret = ret;
     s_screen = id;
     s_cursor = 0;
@@ -5721,6 +5730,7 @@ static void gc_run(const char *line)
         s_mood = MOOD_ALERT;
         s_mood_until = millis() + 2400u;
         s_bus_t0 = millis();
+        if (start_def) dg_start(s_defend_bot);   /* v1019j: defend / load game starts the category game */
         return;
     }
     if (strcmp(cmd, "lobby") == 0 || strcmp(cmd, "score") == 0) {
@@ -6075,6 +6085,10 @@ static void paint_gchat(Gfx g)
     txt(g, "RX", 296, 4, (uint32_t)(t - s_last_key) < 220u ? ac : (uint8_t)COL_MUTED,
         lgfx::textdatum::top_left);
     s_px = keep;
+    if (dg_on()) {                /* v1019j: the Defend game owns the board under the same top bar */
+        paint_dg_board(g);
+        return;
+    }
     {   /* #9/#11: dynamic "<Name>> Defend" title for the active Defend game.
          * v1018b (Dirt-approved): solid matte plate behind the title so it never reads over the
          * rain glyphs. Sized to the title; a name too long for the 4..105 slot left of the rail
@@ -6340,6 +6354,11 @@ static void paint_int(lgfx::LGFX_Device &menu)
         return;
     }
 
+    if (dg_on()) {                /* v1019j: INT = Defend score / lives / timer as text */
+        dg_paint_hud(Gfx(menu), width, true);
+        s_int_bot = -1;
+        return;
+    }
     const int bi = card_bot();
     const bool gib = bi < 0;
     const uint8_t col = gib ? COL_IVORY : bot_color(bi);
@@ -7674,6 +7693,8 @@ static void on_bs(void)
 
 enum { K_NONE = 0, K_UP = 1, K_DN = 2, K_LT = 3, K_RT = 4, K_OK = 5, K_ESC = 6, K_TAB = 7, K_BS = 8, K_CHAR = 9 };
 
+#include "ui/botcorps_defend.inc"
+
 /* v1017c (#2/#3) keyboard root cause. The old reader fired whenever the NUMBER of held keys changed
  * (Keyboard.isChange() compares only keyList().size()) and then answered from keysState(), which
  * describes ALL keys still held, not the one just pressed:
@@ -7726,7 +7747,7 @@ static int read_key(char *typed)
     const char c = (shift || ctrl || M5Cardputer.Keyboard.capslocked()) ? kv.value_second : kv.value_first;
     /* Text-entry screens own plain ; . , / once something is typed (hub prompt / Gibson chat). The
      * Terminal is driven like the hub's walk, so its arrows are always arrows. */
-    const bool prompt_owns = s_screen == SCR_GCHAT || (s_screen == SCR_GIBSON && s_gp_buf[0]);
+    const bool prompt_owns = (s_screen == SCR_GCHAT && !dg_on()) || (s_screen == SCR_GIBSON && s_gp_buf[0]);
     if (!prompt_owns) {
         if (c == ';' || c == ':') return K_UP;
         if (c == '.' || c == '>') return K_DN;
@@ -7807,6 +7828,7 @@ static void enter_defend(int bot, int ret)
     s_defend_bot = (bot < 0 || bot > 12) ? 12 : bot;
     enter_screen(SCR_GCHAT, ret);
     gc_run("jackin");
+    dg_start(s_defend_bot);   /* v1019j: Defend launches this bot's device-category game */
     s_dirty = true;
 }
 
@@ -7928,6 +7950,7 @@ void botcorps_ui_input(void)
 static void ui_dispatch(int key, char typed)
 {
     s_last_key = millis();
+    if (dg_on()) { dg_key(key, typed); return; }   /* v1019j: the Defend game owns every key */
     if (s_screen == SCR_GIBSON && (key == K_CHAR || key == K_OK)) {
         s_mood = MOOD_HAPPY;
         s_mood_until = s_last_key + 1500u;
@@ -7999,6 +8022,9 @@ void botcorps_ui_draw(void)
                 tick_ext(g);
             });
             botcorps_band_set_oy(0);
+            if (dg_on()) dg_snap();
+        } else if (dg_on()) {
+            dg_tick();
         } else if (ext_anim && s_screen == SCR_TERMINAL) {
             partial_prompt_line();
         } else if (ext_anim && sbox_on()) {
@@ -8015,7 +8041,8 @@ void botcorps_ui_draw(void)
                 snprintf(drawn_b, sizeof(drawn_b), "%s", s_up);
                 tick_int_live(botcorps_menu());
             }
-            if (pulse) {
+            if (dg_on()) dg_int_tick(botcorps_menu());
+            else if (pulse) {
                 const int bi = card_bot();
                 const bool gib = bi < 0;
                 const botcorps_probe_t *pr = botcorps_probe_get();
@@ -8031,6 +8058,7 @@ void botcorps_ui_draw(void)
         s_dirty = false;
         lut_for_term();
         paint_ext_full();
+        if (dg_on()) dg_snap();
     }
     if (int_dirty) {
         s_int_dirty = false;
@@ -8038,6 +8066,7 @@ void botcorps_ui_draw(void)
         return;
     }
     if (dirty) return;
+    if (dg_on()) dg_tick();
     if (botcorps_dual_ok()) {
         botcorps_set_surface(BOTCORPS_SURFACE_CONTENT);
         tick_ext(botcorps_content());
@@ -8050,7 +8079,8 @@ void botcorps_ui_draw(void)
         snprintf(drawn, sizeof(drawn), "%s", s_up);
         tick_int_live(botcorps_menu());
     }
-    if (pulse) {
+    if (dg_on()) dg_int_tick(botcorps_menu());
+    else if (pulse) {
         const int bi = card_bot();
         const bool gib = bi < 0;
         const botcorps_probe_t *pr = botcorps_probe_get();
@@ -8463,6 +8493,96 @@ void botcorps_host_jackin(uint8_t *buf)
     gc_set_count(0);
     gc_run("jackin");
     paint_ext(Gfx());
+}
+
+/* v1019j: Defend game host hooks. The game is entered through the real Defend path (enter_defend)
+ * warm_ms before the frame clock, then played by the host autopilot (same keys) at the 33 ms tick. */
+static void dg_host_play(int bot, int warm_ms, bool ai)
+{
+    const uint32_t t1 = millis();
+    s_color = 0; s_sheet = false; s_fa_on = false; s_act = -1; s_gp_buf[0] = 0;
+    botcorps_lut_term(false);
+    host_set_millis(t1 - (uint32_t)warm_ms);
+    gc_set_count(0);
+    enter_defend(bot, SCR_GIBSON);
+    for (uint32_t t = t1 - (uint32_t)warm_ms + 33u; t < t1; t += 33u) {
+        host_set_millis(t);
+        if (ai) dg_ai();
+        dg_step(t);
+    }
+    host_set_millis(t1);
+    dg_step(t1);
+}
+void botcorps_host_defend(uint8_t *buf, int bot, int warm_ms)
+{
+    host_frame = buf;
+    dg_host_play(bot, warm_ms, true);
+    host_frame = buf;
+    memset(buf, PAL_BLACK, 320u * 240u);
+    paint_ext(Gfx());
+}
+/* review only (not a gate item): the INT HUD painter drawn into the top-left 240x135 of buf; the bar
+ * is a host stand-in (fill + label), the HUD under it is the real dg_paint_hud. */
+void botcorps_host_defend_hud(uint8_t *buf, int bot, int warm_ms)
+{
+    host_frame = buf;
+    dg_host_play(bot, warm_ms, true);
+    host_frame = buf;
+    memset(buf, PAL_BLACK, 320u * 240u);
+    Gfx g = Gfx();
+    g.fillRect(0, 0, 240, 135, PAL_DEEP);
+    g.fillRect(0, 0, 240, BAR_H, COL_BAR);
+    g.fillRect(0, BAR_H, 240, 1, COL_LINE);
+    const int keep = s_px; s_px = 8;
+    txt(g, "BOTcorps", 6, 7, COL_WHITE, lgfx::textdatum::top_left);
+    s_px = keep;
+    dg_paint_hud(g, 240, true);
+}
+/* logic test: play from a fresh start for up to max_ms; returns the end state */
+int botcorps_host_defend_run(int bot, bool ai, bool noghost, int max_ms, int *game, int *score, int *miss, int *junk, int *ms)
+{
+    static uint8_t fb[320 * 240];
+    host_frame = fb;
+    host_set_millis(100000u);
+    s_dg_noghost = noghost;
+    dg_host_play(bot, 33, false);
+    uint32_t t = millis();
+    const uint32_t end = t + (uint32_t)max_ms;
+    while (t < end && s_dg_state != DGS_WIN && s_dg_state != DGS_LOST) {
+        t += 33u;
+        host_set_millis(t);
+        if (ai) dg_ai();
+        else if (s_dg == DG_WALL && s_fw_serve) dg_key(K_OK, 0);   /* idle wall: launch only, never move */
+        dg_step(t);
+    }
+    s_dg_noghost = false;
+    *game = s_dg; *score = s_dg_score; *miss = s_dg_miss; *junk = s_dg_junk; *ms = (int)s_dg_ms;
+    const int st = s_dg_state;
+    dg_stop();
+    return st;
+}
+/* route test: which Defend path launches which game; Esc quits the game to the Defend board */
+int botcorps_host_defend_route(int which, int *screen, int *esc1, int *esc1_game, int *esc2)
+{
+    static uint8_t fb[320 * 240];
+    host_frame = fb;
+    s_term = 0; botcorps_t0_term_prompt[0] = 0; s_gp_buf[0] = 0; s_fa_on = false; s_act = -1;
+    switch (which) {
+    case 0: enter_screen(SCR_GIBSON, -1); gp_run("defend"); break;                 /* hub: Gibson */
+    case 1: enter_screen(SCR_GIBSON, -1); gp_run("defend wifi"); break;            /* hub: Wi-Fi bot */
+    case 2: enter_screen(SCR_TERMINAL, SCR_GIBSON); run_cmd("defend airtag"); break; /* Terminal: BLE bot */
+    case 3: enter_screen(SCR_GIBSON, -1); gp_run("defend flock"); break;           /* hub: IoT bot */
+    case 4: s_scan_bot = 10; enter_screen(SCR_SCAN, SCR_GIBSON); sp_run("defend"); break;  /* scan board: flipper */
+    case 5: s_scan_bot = 12; enter_screen(SCR_SCAN, SCR_GIBSON); sp_run("defend"); break;  /* scan board: Gibson */
+    default: enter_screen(SCR_GCHAT, SCR_GIBSON); gc_run("defend"); break;         /* game chat prompt */
+    }
+    *screen = s_screen;
+    const int g = dg_on() ? s_dg : -1;
+    ui_dispatch(K_ESC, 0);
+    *esc1 = s_screen; *esc1_game = dg_on() ? s_dg : -1;
+    ui_dispatch(K_ESC, 0);
+    *esc2 = s_screen;
+    return g;
 }
 
 void botcorps_host_scanall(uint8_t *buf)

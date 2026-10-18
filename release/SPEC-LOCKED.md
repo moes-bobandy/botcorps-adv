@@ -101,6 +101,23 @@ teal or accent-tinted), and the mock's game is disabled (GAME_ENABLED=false). In
 ## Game screens (game-board, game-menu, game-jackin = GCHAT)
 - C1/C3 square Gibson block, G1–G8.
 
+## Defend mini-games (v1019j, Dirt LOCKED: one game per device category; defend-raincatch / -beaconsort / -firewall / -maze)
+Every Defend path (enter_defend: hub `defend [bot]`, Terminal `defend <bot>`, scan box `defend`; game chat `defend` /
+`load game`) opens the Defend board AND starts the active bot's category game. Wi-Fi (wifi, hack) Rain Catch; BLE (ble,
+airtag, meta, samsungtag) Beacon Sort; IoT (flock, keyfob, flipper) Firewall Wall; Rogue (deauth, drone, skimmer, Gibson)
+Gibson Maze. Keys: ; . , / arrows, Enter action (launch / replay), Space second action (launch on the Firewall, pause
+elsewhere), backtick quits to the Defend board (a second Esc goes back as before). EXT = play field (same top bar, matte-black
+board, static rain around it); INT = game name, bot, score / lives / timer as plain text. Plain `jackin` (game-jackin) and
+the board renders (game-board / game-menu) are unchanged.
+| id | rule |
+|---|---|
+| DG1 | The game board is matte black (dominant luma <=24) |
+| DG2 | The active bot is one square chip on the board (Gibson's ivory/gold chip on his maze) |
+| DG3 | The game's pieces are on the board, reused art only (device icons, 0/1 rain bits, jammer = deauth icon) |
+| DG | Win and lose rules on the real step code: Rain Catch 20 caught = win, 3 missed icons or 3 bits = lose; Beacon Sort 25 = win, 3 mistakes = lose; Firewall Wall all 32 blocks = win, 3 packets = lose; Gibson Maze all pellets = win, caught 3x = lose |
+| DGR | Each Defend path launches its category's game; backtick quits to the Defend board; Esc again goes back |
+| | S1 (flicker sim), S3 (band slices) and L1 / G7 (byte lock + baseline) cover the four new renders |
+
 ## Diag
 - G1–G8.
 

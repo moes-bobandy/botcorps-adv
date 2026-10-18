@@ -21,3 +21,8 @@ scanboard-meta
 scanboard-skimmer
 scanboard-flipper
 scanboard-samsungtag
+# v1019j (Dirt LOCKED): the four Defend mini-game boards (new screens, baselines added in v1019j)
+defend-raincatch
+defend-beaconsort
+defend-firewall
+defend-maze

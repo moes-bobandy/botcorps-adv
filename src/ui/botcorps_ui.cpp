@@ -3665,10 +3665,9 @@ static void sb_bot_chip(Gfx g, int cx, int cy, int S, int bot)
     chip_block(g, cx, cy, S, bot);
 }
 
-/* Board edge = bot colour mixed with that bot's device colour. Defined after BH_DEV. */
+/* Scan boards mix bot and device. Defend panels use the bot colour alone (Addendum 5). */
 static uint8_t board_edge_col(int bot);
-/* +1 draws the device chip to the RIGHT of the bot centre. Flip this one line for LEFT. */
-static const int DEVICE_CHIP_SIDE = 1;
+/* Defend device chip is mounted to the RIGHT. Mobandy locked that side. */
 static const int DEVICE_CHIP_OFF = 16;
 static void dev_under_chip(Gfx g, int cx, int cy, int bot);
 static void dev_mount_row(Gfx g, int cxm, int ccy, int bot);
@@ -3683,10 +3682,13 @@ static void sb_board(Gfx g, bool wifi)
     const bool core = s_screen == SCR_SCAN || zsb;
     const int bot = zsb ? ((s_defend_bot >= 0 && s_defend_bot <= 12) ? s_defend_bot : 12)
                         : core ? s_scan_bot : wifi ? 0 : 1;
-    const uint8_t edge = board_edge_col(bot);     /* bot colour mixed with its device colour */
-    /* soft accent glow ring outside the board edge */
-    sb_frame(g, 14, 26, 292, 183, PAL_LINE);
-    sb_frame(g, 15, 27, 290, 181, PAL_LINE);
+    const uint8_t botc = (bot >= 0 && bot < 12) ? bot_color(bot) : (uint8_t)PAL_IVORY;
+    const uint8_t edge = zsb ? botc : board_edge_col(bot);
+    const uint8_t hdr = zsb ? botc : gold;
+    const uint8_t hdrh = zsb ? botcorps_pal_fit(mix16(botcorps_rgb565(botc), 0xFFFF, 35, 100)) : goldh;
+    /* Defend glow ring is the bot colour. Scan keeps the neutral ring. */
+    sb_frame(g, 14, 26, 292, 183, zsb ? botc : (uint8_t)PAL_LINE);
+    sb_frame(g, 15, 27, 290, 181, zsb ? botc : (uint8_t)PAL_LINE);
     sb_frame(g, 16, 28, 288, 179, PAL_DEEP);
     sb_frame(g, 17, 29, 286, 177, PAL_DEEP);
     GATE_BOX(g, "BOARD", "scan", 14, 26, 292, 183, "-");
@@ -3699,8 +3701,8 @@ static void sb_board(Gfx g, bool wifi)
         sb_rect(g, 36, y - 1, 246, 8, 64);
         sb_rect(g, 36, y - 1, 246, 1, 68);
         for (int x = 38; x <= 276; x += 8) {
-            sb_rect(g, x, y + 1, 4, 4, x == 38 ? (uint8_t)209 : gold);
-            sb_rect(g, x, y + 1, 4, 1, goldh);
+            sb_rect(g, x, y + 1, 4, 4, x == 38 ? (uint8_t)209 : hdr);
+            sb_rect(g, x, y + 1, 4, 1, hdrh);
             sb_rect(g, x + 1, y + 2, 2, 2, x == 38 ? (uint8_t)goldd : (uint8_t)108);
         }
     }
@@ -3721,10 +3723,8 @@ static void sb_board(Gfx g, bool wifi)
     /* WROOM module (radio bots) or the clean Gibson/bot core block */
     const int mx = 34, my = 52, mw = 54, mh = 128;
     if (core) {
-        /* v1019z: Defend left panel is Gibson's framed chip for every bot. Same size,
-         * frame, labels and placement. Face is the bot colour. Pins are INT style B
-         * (1 px silver); Gibson keeps gold. The framed device chip sits under it.
-         * Not a bare sprite on a blank panel. */
+        /* Addendum 5: steel outline, black window, style-B silver pads (gold on Gibson),
+         * face in the bot colour. Device chip is mounted to the right, label on its left. */
         const int cxm = mx + mw / 2, ccy = my + 26;
         const bool gib = bot >= 12;
         if (zsb) zap_rain_rect(g);   /* rain behind the chips, this rect only */
@@ -4007,32 +4007,41 @@ static void dev_under_chip(Gfx g, int cx, int cy, int bot)
     gl_icon(g, bot_dev_kind(bot), cx - 6, cy - 6, false);
 }
 
-/* Defend only. Device chip offset by DEVICE_CHIP_SIDE, name on the other side, soldered
- * into the bot chip's lower pins with several traces. */
+/* Defend only. Device chip is mounted to the RIGHT. Label sits on its left.
+ * Several traces run up the left and right margins into the bot chip's lower pins. */
 static void dev_mount_row(Gfx g, int cxm, int ccy, int bot)
 {
-    const int dcx = cxm + DEVICE_CHIP_SIDE * DEVICE_CHIP_OFF;
+    const int dcx = cxm + DEVICE_CHIP_OFF;
     const int dcy = ccy + 36;
     const int T = 18, D = T - 2, S = 40;
     const int x = dcx - T / 2, y = dcy - T / 2;
     const int dx = x + 1, dy = y + 1;
     const bool gib = bot >= 12;
+    const int kind = bot_dev_kind(bot);
     const uint8_t pin = gib ? PAL_GOLD_PIN : (uint8_t)PAL_SOFT;
-    /* Gold solder is Gibson only. The other twelve boards use pin-style-B silver. */
     const uint8_t pad = gib ? (uint8_t)177 : (uint8_t)PAL_SOFT;
     const uint8_t hi = gib ? (uint8_t)217 : (uint8_t)PAL_WHITE;
     const uint8_t wire = 104;
+    const uint8_t accent = GL_INK[kind][0];
     const int bot_bottom = ccy + S / 2;
     const int dev_top = y;
+    const int yA = bot_bottom + 2;
+    const int yB = dev_top - 2;
+    /* Two lanes in the left margin, three in the right. */
+    static const int lane_off[5] = { -24, -22, 22, 24, 26 };
     GATE_BOX(g, "TCHIP", "device", dx, dy, D, D, "-");
     for (int k = 0; k < 5; ++k) {
         const int i = chip_pin1(D, k);
         const int x0 = (cxm - S / 2) + (gib ? chip_pin(S, k) : chip_pin1(S, k));
         const int x1 = dx + i;
-        const int mid = bot_bottom + (dev_top - bot_bottom) / 2;
-        g.fillRect(x0, bot_bottom - 1, 1, mid - (bot_bottom - 1) + 1, wire);
-        g.fillRect(x0 < x1 ? x0 : x1, mid, (x0 > x1 ? x0 - x1 : x1 - x0) + 1, 1, wire);
-        g.fillRect(x1, mid, 1, dev_top - mid + 1, wire);
+        const int lane = cxm + lane_off[k];
+        const int xLo0 = x0 < lane ? x0 : lane;
+        const int xLo1 = x1 < lane ? x1 : lane;
+        g.fillRect(x0, bot_bottom - 1, 1, yA - (bot_bottom - 1) + 1, wire);
+        g.fillRect(xLo0, yA, (x0 > lane ? x0 - lane : lane - x0) + 1, 1, wire);
+        g.fillRect(lane, yA, 1, yB - yA + 1, wire);
+        g.fillRect(xLo1, yB, (x1 > lane ? x1 - lane : lane - x1) + 1, 1, wire);
+        g.fillRect(x1, yB, 1, dev_top - yB + 1, wire);
         g.fillRect(x0 - 1, bot_bottom - 2, 3, 3, pad);
         g.fillRect(x0, bot_bottom - 2, 1, 1, hi);
         g.fillRect(x1 - 1, dev_top - 1, 3, 3, pad);
@@ -4045,13 +4054,10 @@ static void dev_mount_row(Gfx g, int cxm, int ccy, int bot)
         g.fillRect(dx + i, y + T - 1, 1, 1, hi);
     }
     g.fillRect(dx, dy, D, D, PAL_BLACK);
-    g.drawRect(dx, dy, D, D, PAL_STEEL);
-    gl_icon(g, bot_dev_kind(bot), dcx - 6, dcy - 6, false);
-    const char *lab = GL_LABEL[bot_dev_kind(bot)];
-    const int tw = tiny_w(lab);
-    const int ly = dcy - 2;
-    const int lx = DEVICE_CHIP_SIDE > 0 ? (x - 3 - tw) : (x + T + 3);
-    tiny_text(g, lab, lx, ly, 41);
+    g.drawRect(dx, dy, D, D, accent);          /* device accent, not the bot colour */
+    gl_icon(g, kind, dcx - 6, dcy - 6, false);
+    const char *lab = GL_LABEL[kind];
+    tiny_text(g, lab, x - 3 - tiny_w(lab), dcy - 2, 41);
 }
 static const int8_t BH_GIB[10] = { GL_AP, GL_PHONE, GL_LAPTOP, GL_TV, GL_SPEAKER, GL_TRACKER, GL_WATCH, GL_CAMERA, GL_CAR, GL_UNKNOWN };
 /* mock non-live grid: C = 19, GC = 9, GR = 5, gx = dx + 2, gy = dy + 2 (display dx 106, dy 42). */
@@ -5787,7 +5793,7 @@ static void paint_gibson(Gfx g)
     GIB_CORE_RING(g, cx, cy, 44 + ph, th_ring(3), 3, 3, 0);
     hub_sparks(g, cx, cy, t);
     g.fillRect(cx - 14, cy + 25, 28, 1, wire);
-    gib_core_chip_d(g, cx, cy, 5);   /* 5 pins: the cb42dda lock image. 4 pins is 5dc1c54 and is not in the B.4 hash. */
+    gib_core_chip_d(g, cx, cy, 4);   /* Option-E 5dc1c54: four gold pins per side */
     if (s_hub_zone == 3) {
         /* v1017b: Gibson focused (Enter = Gibson game). */
         g.drawCircle(cx, cy, 31, PAL_WHITE);
@@ -6548,8 +6554,8 @@ static void paint_gchat(Gfx g)
  * ivory Gibsons; the Terminal's rain has no bot emblems. */
 static void rain_flags(void)
 {
-    /* Defend left panels (all 13, Gibson included) are device icons only: no bits, no bot emblems.
-     * Terminal gaps use the same device-only set at half of v1019d. */
+    /* Defend left panels (all 13, Gibson included): the 10 device icons only, faint.
+     * No 0/1 strands and no bot chips. Terminal gaps stay the dce1c87 faint device rain. */
     const bool zsb = zap_sb_on();
     botcorps_rain_set_gibson((s_screen == SCR_GIBSON || (s_screen == SCR_SCAN && s_scan_bot == 12)) && !zsb);
     botcorps_rain_set_no_bots(s_screen == SCR_TERMINAL || zsb);

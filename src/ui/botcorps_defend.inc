@@ -17,15 +17,25 @@
  * patched in place (dirty rects, same painter as the full paint). Deterministic LCG, idempotent per
  * millis, so a patch matches a full paint pixel for pixel (flicker gate S1). */
 /* v1019m: twelve games, three per category. Ids 0-3 are the v1019j games (unchanged ids). */
-enum { DG_RAIN = 0, DG_BEACON, DG_WALL, DG_MAZE, DG_TWIN, DG_HOP, DG_RING, DG_PAIR, DG_PATCH, DG_BOTNET, DG_TRACE, DG_JAM, DG_N };
+enum { DG_RAIN = 0, DG_BEACON, DG_WALL, DG_MAZE, DG_TWIN, DG_HOP, DG_RING, DG_PAIR, DG_PATCH, DG_BOTNET, DG_TRACE, DG_JAM,
+       DG_NIGHT, DG_SWEEP, DG_N };   /* v1019r (#10): Gibson's own NIGHT SHIFT + bonus SWEEP */
 static const char *const DG_NAME[DG_N] = { "RAIN CATCH", "BEACON SORT", "FIREWALL WALL", "GIBSON MAZE",
-    "EVIL TWIN", "CHANNEL HOP", "RANGE RING", "PAIR LOCK", "PATCH RUN", "BOTNET BREAKER", "SIGNAL TRACE", "JAM DODGE" };
+    "EVIL TWIN", "CHANNEL HOP", "RANGE RING", "PAIR LOCK", "PATCH RUN", "BOTNET BREAKER", "SIGNAL TRACE", "JAM DODGE",
+    "NIGHT SHIFT", "SWEEP" };
 /* per category: slot 0 = the v1019j game every Defend entry starts, then 1C/2C/3A/4C, then 1B/2B/3C/4B */
 static const int8_t DG_SET[4][3] = { { DG_RAIN, DG_TWIN, DG_HOP }, { DG_BEACON, DG_RING, DG_PAIR },
                                      { DG_WALL, DG_PATCH, DG_BOTNET }, { DG_MAZE, DG_TRACE, DG_JAM } };
 /* bot -> device category: 0 Wi-Fi, 1 BLE, 2 IoT, 3 Rogue (12 = Gibson, the Rogue flagship) */
-static const int8_t DG_CAT[13] = { 0, 1, 3, 0, 2, 3, 1, 2, 1, 3, 2, 1, 3 };
+static const int8_t DG_CAT[13] = { 0, 1, 3, 0, 2, 3, 1, 2, 0, 3, 2, 1, 3 };   /* v1019r: meta 1 -> 0 (3 bots per category) */
+/* v1019r (#5): every bot's OWN game - the Defend board's idle demo, `jackin` and Enter on an empty prompt.
+ * Twelve bots, twelve distinct games (the category's games split one each over its three bots), Gibson =
+ * NIGHT SHIFT. `defend` / `load game` still start the category's first game (v1019j routes). */
+static const int8_t DG_OWN[13] = { DG_RAIN, DG_BEACON, DG_JAM, DG_TWIN, DG_WALL, DG_TRACE, DG_RING, DG_PATCH,
+                                   DG_HOP, DG_MAZE, DG_BOTNET, DG_PAIR, DG_NIGHT };
 enum { DGS_PLAY = 0, DGS_WIN, DGS_LOST, DGS_PAUSE };
+static int s_dg_bot_name_only(void);
+/* v1019r (#2): the maze is GIBSON MAZE (round Gibson) only when Gibson plays it; any other bot = BIT MAZE */
+static const char *dg_name(int g) { return g == DG_MAZE && s_dg_bot_name_only() < 12 ? "BIT MAZE" : DG_NAME[g]; }
 
 /* MOD (Mobandy item 1): every game plays INSIDE the Defend screen's own grid board (the route board
  * paint_gc_route draws at 132,20 180x126). The Defend screen (title plate, bot chip, rail, prompt panel)
@@ -41,6 +51,8 @@ static uint32_t s_dg_t = 0, s_dg_rng = 1, s_dg_ms = 0;   /* last step, rng, play
 static int s_dg_score = 0, s_dg_miss = 0, s_dg_junk = 0;
 static uint32_t s_dg_hold = 0;     /* maze: frozen until (after a catch) */
 static bool s_dg_launch = false;   /* key edge for the step (Enter / Space) */
+static uint32_t s_dg_gen = 0;      /* v1019r: bumps on every round start (idle demo cache key) */
+static int s_dg_bot_name_only(void) { return s_dg_bot; }
 #ifdef BOTCORPS_HOST_RENDER
 static bool s_dg_noghost = false;  /* host logic test only: maze without jammers (proves clear = win) */
 #endif
@@ -459,7 +471,7 @@ static void mz_step(float dt)
 }
 static void mz_paint(Gfx g)
 {
-    const uint8_t wire = PAL_WIRE_C, core = PAL_CYAN;
+    const uint8_t wire = dg_wire(), core = dg_ac();
     for (int y = 0; y < MZ_R; ++y)                         /* walls as PCB traces */
         for (int x = 0; x < MZ_C; ++x) {
             if (MZ_MAP[y][x] != '#') continue;
@@ -707,8 +719,8 @@ static void rr_step(float dt)
 }
 static void rr_paint(Gfx g)
 {
-    g.drawCircle(RR_CX, RR_CY, RR_OUT, PAL_WIRE_C);
-    g.drawCircle(RR_CX, RR_CY, RR_IN, PAL_CYAN);
+    g.drawCircle(RR_CX, RR_CY, RR_OUT, dg_wire());
+    g.drawCircle(RR_CX, RR_CY, RR_IN, dg_ac());
     for (int s = 0; s < 4; ++s) {
         if (s_rr_d[s] < 0.f) continue;
         int x, y; rr_pos(s, &x, &y);
@@ -941,7 +953,7 @@ static void st_paint(Gfx g)
 {
     for (int i = 0; i < 9; ++i) {
         const int x = ST_X0 + (i % 3) * ST_CW, y = ST_Y0 + (i / 3) * ST_CH;
-        g.drawRect(x + 2, y + 2, ST_CW - 4, ST_CH - 4, i == s_st_cur ? (uint8_t)PAL_CYAN : (uint8_t)PAL_WIRE_C);
+        g.drawRect(x + 2, y + 2, ST_CW - 4, ST_CH - 4, i == s_st_cur ? dg_ac() : (uint8_t)dg_wire());
         if (i == s_st_cur) dg_bot(g, x + 13, y + ST_CH / 2, 2);
         const int h = s_st_heat[i];
         if (h > 0) {                                           /* hotter = more 1s */
@@ -957,9 +969,12 @@ static void st_paint(Gfx g)
     }
 }
 
+#include "botcorps_gibgames.inc"
+
 /* ---------- shared: start / step / keys / board / patches / INT HUD ---------- */
 static void dg_begin_round(void)
 {
+    ++s_dg_gen;
     s_dg_state = DGS_PLAY;
     s_dg_score = s_dg_miss = s_dg_junk = 0;
     s_dg_ms = 0;
@@ -978,6 +993,8 @@ static void dg_begin_round(void)
     else if (s_dg == DG_PATCH) pr_reset();
     else if (s_dg == DG_BOTNET) bn_reset();
     else if (s_dg == DG_TRACE) st_reset();
+    else if (s_dg == DG_NIGHT) ns_reset();
+    else if (s_dg == DG_SWEEP) sw_reset();
     else jd_reset();
 }
 /* v1019m: step to another game of the same category (Tab, or , / on a WIN / LOST / PAUSE stop) */
@@ -989,7 +1006,7 @@ static void dg_select(int slot)
     dg_begin_round();
     s_dirty = true;
     s_int_dirty = true;
-    Serial.printf("[defend] game %s bot=%d\n", DG_NAME[s_dg], s_dg_bot);
+    Serial.printf("[defend] game %s bot=%d\n", dg_name(s_dg), s_dg_bot);
 }
 static void dg_start(int bot)
 {
@@ -1002,12 +1019,31 @@ static void dg_start(int bot)
     s_int_dirty = true;
     Serial.printf("[defend] start %s bot=%d\n", DG_NAME[s_dg], s_dg_bot);
 }
+/* v1019r: start one game by id (the bot's own game, or Gibson's NIGHT SHIFT / SWEEP); slot = its index in
+ * the category set so Tab still walks that category (Gibson's games: Tab = map / pause instead) */
+static void dg_start_game(int bot, int game)
+{
+    dg_start(bot);
+    if (game == DG_NIGHT || game == DG_SWEEP) {
+        s_ns_shift = 1; s_sw_lv = 1;
+        s_dg = game;
+        dg_begin_round();
+        Serial.printf("[defend] start %s bot=%d\n", DG_NAME[s_dg], s_dg_bot);
+        return;
+    }
+    for (int k = 0; k < 3; ++k) if (DG_SET[DG_CAT[s_dg_bot]][k] == game && k) { dg_select(k); return; }
+}
+static void dg_start_own(int bot)
+{
+    const int b = (bot < 0 || bot > 12) ? 12 : bot;
+    dg_start_game(b, DG_OWN[b]);
+}
 /* v1019p (field fix): the GAME commands (lobby / play <n> / score) on the Defend board */
 static const char *const DG_CATN[4] = { "wifi", "ble", "iot", "rogue" };
 static void dg_lobby(void)
 {
     static const char *const SHORT[DG_N] = { "rain", "beacon", "wall", "maze", "twin", "hop", "ring", "pair",
-                                             "patch", "botnet", "trace", "jam" };
+                                             "patch", "botnet", "trace", "jam", "night", "sweep" };
     char b[40];
     for (int c = 0; c < 4; ++c) {
         snprintf(b, sizeof b, "%s %d %s %d %s %d %s", DG_CATN[c], c * 3 + 1, SHORT[DG_SET[c][0]], c * 3 + 2,
@@ -1015,12 +1051,14 @@ static void dg_lobby(void)
         gc_push(12, b);
     }
     gc_push(12, "play <1-12> starts one");
+    gc_push(12, "gibson: night  sweep  dex");
 }
 static bool dg_play_n(int n)
 {
     if (n < 1 || n > 12) return false;
     const int cat = (n - 1) / 3, slot = (n - 1) % 3;
     int bot = s_defend_bot;
+    if (DG_SET[cat][slot] == DG_MAZE) bot = 12;         /* v1019r (#2): GIBSON MAZE = round Gibson plays it */
     if (bot < 0 || bot > 12 || DG_CAT[bot] != cat) {      /* the category's bot plays it (rogue: Gibson) */
         bot = cat == 3 ? 12 : -1;
         for (int b = 0; b < 12 && bot < 0; ++b) if (DG_CAT[b] == cat) bot = b;
@@ -1094,14 +1132,65 @@ static void dg_step(uint32_t t)
     else if (s_dg == DG_PATCH) pr_step(dt);
     else if (s_dg == DG_BOTNET) bn_step(dt);
     else if (s_dg == DG_TRACE) st_step(dt);
+    else if (s_dg == DG_NIGHT) ns_step(dt);
+    else if (s_dg == DG_SWEEP) sw_step(dt);
     else jd_step(dt);
     s_dg_launch = false;
+}
+/* v1019r (#6): games where a held arrow should keep moving (lanes / cursor / paddle / guard walk); the
+ * one-shot games (sort, pick, ping, steer-by-want) never auto-repeat */
+static bool dg_repeat_ok(void)
+{
+    return s_dg_state == DGS_PLAY && (s_dg == DG_RAIN || s_dg == DG_WALL || s_dg == DG_HOP || s_dg == DG_PATCH
+                                      || s_dg == DG_TRACE || s_dg == DG_JAM || s_dg == DG_NIGHT);
 }
 /* game keys; returns true when the key was used by the game */
 static bool dg_key(int key, char typed)
 {
     if (key == K_ESC) { dg_stop(); return true; }         /* backtick quits to the Defend board */
     const bool enter = key == K_OK, space = key == K_CHAR && typed == ' ';
+    if (s_dg == DG_NIGHT || s_dg == DG_SWEEP) {           /* v1019r (#10): Gibson's games, concept keys */
+        const bool stop = s_dg_state == DGS_WIN || s_dg_state == DGS_LOST;
+        if (stop) {
+            if (key == K_LT || key == K_RT) {             /* , / on the stop plate: NIGHT SHIFT <-> SWEEP */
+                s_dg = s_dg == DG_NIGHT ? DG_SWEEP : DG_NIGHT; s_ns_shift = 1; s_sw_lv = 1;
+                dg_begin_round(); s_dirty = true; s_int_dirty = true; return true;
+            }
+            if (enter) {
+                if (s_dg == DG_NIGHT) s_ns_shift = s_dg_state == DGS_WIN ? s_ns_shift + 1 : 1;
+                else s_sw_lv = s_dg_state == DGS_WIN ? s_sw_lv + 1 : 1;
+                const int keep_score = s_dg_score;
+                dg_begin_round();
+                if (s_dg == DG_SWEEP && s_sw_lv > 1) s_dg_score = keep_score;   /* SWEEP keeps the run's bits */
+                s_int_dirty = true;
+            }
+            return true;
+        }
+        if (key == K_TAB) {
+            if (s_dg == DG_NIGHT) s_ns_map = !s_ns_map;
+            s_dg_state = s_dg_state == DGS_PAUSE ? DGS_PLAY : DGS_PAUSE;
+            if (s_dg == DG_NIGHT && s_dg_state == DGS_PLAY) s_ns_map = false;
+            return true;
+        }
+        if (s_dg_state == DGS_PAUSE) { if (space || enter) { s_dg_state = DGS_PLAY; s_ns_map = false; } return true; }
+        int dir = -1;
+        if (key == K_UP) dir = 0; else if (key == K_DN) dir = 1; else if (key == K_LT) dir = 2; else if (key == K_RT) dir = 3;
+        if (s_dg == DG_NIGHT) {
+            if (dir >= 0) ns_walk(dir);
+            else if (space) ns_scan();
+            else if (enter) ns_catch();
+            else if (key == K_CHAR && typed >= '1' && typed <= '6') { s_ns_room = typed - '1'; s_ns_room_t = s_dg_ms + 2000u; }
+        } else {
+            if (dir >= 0) s_sw_p.want = (int8_t)dir;
+            if (dir >= 0 && s_sw_p.dir >= 0 && (dir ^ 1) == s_sw_p.dir) s_sw_p.dir = (int8_t)dir;   /* reverse at once */
+            if (s_sw_p.dir < 0 && dir >= 0) {
+                const int tx = (int)s_sw_p.x / SW_T, ty = (int)s_sw_p.y / SW_T;
+                if (sw_open(tx + MZ_DX[dir], ty + MZ_DY[dir], false)) s_sw_p.dir = (int8_t)dir;
+            }
+            if (space) sw_burst();
+        }
+        return true;
+    }
     if (key == K_TAB) { dg_select(s_dg_slot + 1); return true; }   /* v1019m: next game, same category */
     if (s_dg_state == DGS_WIN || s_dg_state == DGS_LOST || s_dg_state == DGS_PAUSE) {
         if (key == K_LT) { dg_select(s_dg_slot - 1); return true; }
@@ -1204,15 +1293,21 @@ static void dg_board_marks(Gfx g)
 static void dg_stop_plate(Gfx g)
 {
     if (s_dg_state == DGS_PLAY) return;
+    if (s_dg == DG_NIGHT && s_ns_map) return;          /* v1019r: the floor map is the pause view */
     const char *w = s_dg_state == DGS_WIN ? "WIN" : s_dg_state == DGS_LOST ? "LOST" : "PAUSE";
-    const uint8_t c = s_dg_state == DGS_WIN ? (uint8_t)PAL_OK : s_dg_state == DGS_LOST ? (uint8_t)PAL_AMBER : (uint8_t)PAL_CYAN;
+    const uint8_t c = s_dg_state == DGS_WIN ? (uint8_t)PAL_OK : s_dg_state == DGS_LOST ? (uint8_t)PAL_AMBER : dg_ac();
     const int pw = 136, ph = 34, px = DG_PX + (DG_PW - pw) / 2, py = DG_PY + (DG_PH - ph) / 2;
     GATE_BOX(g, "DGOBJ", "stop", px, py, pw, ph, "-");
     plate(g, px, py, pw, ph, PAL_DEEP, c);
     const int keep = s_px; s_px = 8;
     txt(g, w, px + pw / 2, py + 5, c, lgfx::textdatum::top_center);
     s_px = 6;
-    txt(g, s_dg_state == DGS_PAUSE ? "space resume" : "enter again  , / game", px + pw / 2, py + 21, PAL_IVORY, lgfx::textdatum::top_center);
+    const bool gibg = s_dg == DG_NIGHT || s_dg == DG_SWEEP;
+    const char *sub = s_dg_state == DGS_PAUSE ? (gibg ? "tab / space resume" : "space resume")
+                    : !gibg ? "enter again  , / game"
+                    : s_dg_state == DGS_WIN ? (s_dg == DG_NIGHT ? "enter next shift  , / game" : "enter next level  , / game")
+                    : "enter retry  , / game";
+    txt(g, sub, px + pw / 2, py + 21, PAL_IVORY, lgfx::textdatum::top_center);
     s_px = keep;
 }
 static void paint_dg_board(Gfx g)
@@ -1239,7 +1334,66 @@ static void paint_dg_board(Gfx g)
     else if (s_dg == DG_BOTNET) bn_paint(g);
     else if (s_dg == DG_TRACE) st_paint(g);
     else if (s_dg == DG_JAM) jd_paint(g);
+    else if (s_dg == DG_NIGHT) ns_paint(g);
+    else if (s_dg == DG_SWEEP) sw_paint(g);
     dg_stop_plate(g);
+}
+
+/* v1019r (#5 / #1): the idle Defend board is no longer the one static route picture (dev icons + a square
+ * Gibson chip in the middle of the grid, identical for every bot: the reason every preview looked like
+ * one game). It is a still of THIS bot's own game (DG_OWN), played deterministically for 2 s from a fresh
+ * round with no keys, cached per bot; Gibson's is NIGHT SHIFT with round Gibson in the grid. The square
+ * chip Gibson only lives outside the grid (the left chip). Game state is free while idle (s_dg = -1). */
+static int s_demo_for = -1;
+static uint32_t s_demo_gen = 0;
+static void dg_demo_run(int bot)
+{
+    const int g = DG_OWN[bot];
+    s_dg = g; s_dg_bot = bot; s_dg_slot = 0;
+    s_ns_shift = 1; s_sw_lv = 1;
+    s_dg_t = 1000u;
+    dg_begin_round();
+    for (uint32_t k = 1; k <= 60; ++k) {
+        if (g == DG_WALL && s_fw_serve && k == 6) s_dg_launch = true;
+        if (g == DG_NIGHT && k == 50) ns_scan();       /* the scan pulse's blips in the still */
+        dg_step(1000u + k * 33u);
+    }
+    s_dg = -1;
+    s_demo_for = bot;
+    s_demo_gen = s_dg_gen;
+}
+static void paint_dg_demo(Gfx g, int bot)
+{
+    if (bot < 0 || bot > 12) bot = 12;
+    if (s_demo_for != bot || s_demo_gen != s_dg_gen) dg_demo_run(bot);
+    const int keep = s_dg, keep_b = s_dg_bot;
+    s_dg = DG_OWN[bot]; s_dg_bot = bot;
+    GATE_BOX(g, "DGDEMO", DG_NAME[s_dg], DG_BX, DG_BY, DG_BW, DG_BH, "-");
+    paint_dg_board(g);
+    /* demo tag: a small DEMO plate in the board's bottom-left corner (clear of every game's bot row) */
+    const int kp = s_px; s_px = 6;
+    plate(g, DG_PX, DG_PY + DG_PH - 13, 30, 12, PAL_DEEP, dg_wire());
+    txt(g, "DEMO", DG_PX + 3, DG_PY + DG_PH - 11, dg_ac(), lgfx::textdatum::top_left);
+    s_px = kp;
+    s_dg = keep; s_dg_bot = keep_b;
+}
+/* the demo's game name + how to play it, right side of the idle prompt row (empty prompt only) */
+static void paint_dg_demo_hint(Gfx g, int bot)
+{
+    if (bot < 0 || bot > 12) bot = 12;
+    const int keep_b = s_dg_bot; s_dg_bot = bot;
+    char b[32];
+    snprintf(b, sizeof b, "demo %s - enter", dg_name(DG_OWN[bot]));
+    s_dg_bot = keep_b;
+    txt(g, b, 274, 216, PAL_MUTED, lgfx::textdatum::top_right);
+}
+static void dex_open(void)
+{
+    char b[24];
+    snprintf(b, sizeof b, "device dex %d/10", dex_have());
+    gc_push(12, b);
+    s_gc_panel = 3;
+    s_dirty = true;
 }
 
 /* MOD item 14: the game's own UI in the Defend screen's prompt panel (score bar, lives as square chips,
@@ -1280,6 +1434,14 @@ static void dg_ui(DGUi *u)
     case DG_TRACE: u->target = 3; u->limit_s = (int)(ST_ROUND_MS / 1000u);
         snprintf(u->stat, 24, "SCANS %d/%d", s_st_left, ST_SCANS);
         u->read = "more 1s = hotter"; u->keys = "arrows move  enter scan"; break;
+    case DG_NIGHT: u->score = s_dg_score; u->target = s_ns_n; u->limit_s = (int)(NS_SHIFT_MS / 1000u);
+        u->lives_lost = (int)(s_ns_alert / 34.f); u->lives_n = 3;
+        { char clk[10]; ns_clock(clk, sizeof clk);
+          snprintf(u->stat, 24, "ALERT %3d%% %s", (int)s_ns_alert, s_dg_ms < s_ns_jam ? "JAM" : clk); }
+        u->read = "scan, find, neutralize"; u->keys = "arrows walk spc scan ent grab"; break;
+    case DG_SWEEP: u->score = s_sw_total - s_sw_left; u->target = s_sw_total ? s_sw_total : 1;
+        snprintf(u->stat, 24, "LV %d PTS %d BURST %d", s_sw_lv, s_sw_pts % 1000, s_sw_burst);
+        u->read = "eat bits, ROOT = trace blue"; u->keys = "arrows steer  spc burst"; break;
     default: u->score = (int)(s_dg_ms / 1000u); u->target = 45; u->limit_s = 45;
         snprintf(u->stat, 24, "PASSED %d", s_dg_score % 100);
         u->read = "slip through the gap"; u->keys = "; . lane"; break;
@@ -1304,14 +1466,16 @@ static void paint_dg_hud_ext(Gfx g)
     g.fillRect(DGH_X, DGH_Y, DGH_W, DGH_H, PAL_BLACK);
     const int keep = s_px; s_px = 6;
     /* row 1: game name, game n/3 of the category, live state */
-    txt(g, DG_NAME[s_dg], 10, 155, PAL_CYAN, lgfx::textdatum::top_left);
+    txt(g, dg_name(s_dg), 10, 155, dg_ac(), lgfx::textdatum::top_left);
     char b[40];
     static const char *const CATN[4] = { "wifi", "ble", "iot", "rogue" };
-    snprintf(b, sizeof b, "%s %d/3", CATN[DG_CAT[s_dg_bot]], s_dg_slot + 1);
-    txt(g, b, 10 + ((int)strlen(DG_NAME[s_dg]) + 1) * 6, 155, PAL_MUTED, lgfx::textdatum::top_left);
+    if (s_dg == DG_NIGHT) snprintf(b, sizeof b, "shift %d  dex %d/10", s_ns_shift, dex_have());
+    else if (s_dg == DG_SWEEP) snprintf(b, sizeof b, "level %d  dex %d/10", s_sw_lv, dex_have());
+    else snprintf(b, sizeof b, "%s %d/3", CATN[DG_CAT[s_dg_bot]], s_dg_slot + 1);
+    txt(g, b, 10 + ((int)strlen(dg_name(s_dg)) + 1) * 6, 155, PAL_MUTED, lgfx::textdatum::top_left);
     const char *st = s_dg_state == DGS_WIN ? "WIN" : s_dg_state == DGS_LOST ? "LOST" : s_dg_state == DGS_PAUSE ? "PAUSE" : "LIVE";
     const uint8_t sc = s_dg_state == DGS_WIN ? (uint8_t)PAL_OK : s_dg_state == DGS_LOST ? (uint8_t)PAL_AMBER
-                     : s_dg_state == DGS_PAUSE ? (uint8_t)PAL_CYAN : (uint8_t)PAL_OK;
+                     : s_dg_state == DGS_PAUSE ? dg_ac() : (uint8_t)PAL_OK;
     g.fillRect(DGH_X + DGH_W - 40, 156, 5, 5, sc);
     txt(g, st, DGH_X + DGH_W - 32, 155, sc, lgfx::textdatum::top_left);
     /* row 2: how the bot reads the game (its square chip colour, its name, its read) */
@@ -1321,7 +1485,7 @@ static void paint_dg_hud_ext(Gfx g)
     snprintf(b, sizeof b, " - %s", u.read);
     txt(g, b, 20 + (int)strlen(nm) * 6, 166, PAL_IVORY, lgfx::textdatum::top_left);
     /* row 3: score bar (segmented like the rain strands) + count */
-    txt(g, u.limit_s && s_dg != DG_TRACE ? "TIME " : "SCORE", 10, 179, COL_INK, lgfx::textdatum::top_left);
+    txt(g, u.limit_s && s_dg != DG_TRACE && s_dg != DG_NIGHT ? "TIME " : "SCORE", 10, 179, COL_INK, lgfx::textdatum::top_left);
     const int bx = 46, bw = 150, segs = 25;
     for (int k = 0; k < segs; ++k) {
         const bool on = k < (u.score * segs + u.target - 1) / u.target && u.score > 0;
@@ -1330,7 +1494,7 @@ static void paint_dg_hud_ext(Gfx g)
     snprintf(b, sizeof b, "%02d/%02d", u.score, u.target);
     txt(g, b, bx + bw + 6, 179, COL_WHITE, lgfx::textdatum::top_left);
     /* row 4: lives as square chips (lit = left), timer */
-    txt(g, s_dg == DG_BOTNET ? "NODES" : "LIVES", 10, 192, COL_INK, lgfx::textdatum::top_left);
+    txt(g, s_dg == DG_BOTNET ? "NODES" : s_dg == DG_NIGHT ? "ALERT" : "LIVES", 10, 192, COL_INK, lgfx::textdatum::top_left);
     for (int k = 0; k < u.lives_n; ++k) {
         const int lx = 46 + k * 11;
         const bool left = k < u.lives_n - u.lives_lost;
@@ -1347,16 +1511,17 @@ static void paint_dg_hud_ext(Gfx g)
     /* row 5: one game stat */
     txt(g, u.stat, 10, 204, PAL_HEAD, lgfx::textdatum::top_left);
     /* row 6: the prompt line stays the Defend prompt; while a game is live it lists the game keys */
-    txt(g, gib ? "gibson" : BOTS[s_dg_bot].id, 10, 216, PAL_CYAN, lgfx::textdatum::top_left);
+    txt(g, gib ? "gibson" : BOTS[s_dg_bot].id, 10, 216, dg_ac(), lgfx::textdatum::top_left);
     const int px = 10 + ((int)strlen(gib ? "gibson" : BOTS[s_dg_bot].id) + 1) * 6;
     txt(g, ">", px, 216, COL_INK, lgfx::textdatum::top_left);
     if (s_gp_buf[0]) {            /* v1019q (item 8): a typed line shows on the Defend prompt row, with the caret */
         txt(g, s_gp_buf, px + 12, 216, COL_WHITE, lgfx::textdatum::top_left);
         const int gl = (int)strlen(s_gp_buf);
         const int ci = (s_gc_caret < 0 || s_gc_caret > gl) ? gl : s_gc_caret;
-        g.fillRect(px + 12 + ci * 6, 216, 5, 8, PAL_CYAN);
+        g.fillRect(px + 12 + ci * 6, 216, 5, 8, dg_ac());
     } else txt(g, u.keys, px + 12, 216, PAL_MUTED, lgfx::textdatum::top_left);
-    txt(g, "tab next  ` quit", DGH_X + DGH_W - 2, 204, PAL_MUTED, lgfx::textdatum::top_right);
+    txt(g, s_dg == DG_NIGHT ? "tab map  ` quit" : s_dg == DG_SWEEP ? "tab pause  ` quit" : "tab next  ` quit",
+        DGH_X + DGH_W - 2, 204, PAL_MUTED, lgfx::textdatum::top_right);
     s_px = keep;
 }
 static uint32_t dg_hud_sig(void)
@@ -1364,7 +1529,8 @@ static uint32_t dg_hud_sig(void)
     DGUi u; dg_ui(&u);
     const uint32_t sec = s_dg == DG_TRACE ? (s_dg_ms - s_st_t0) / 1000u : s_dg_ms / 1000u;
     uint32_t h = 2166136261u;
-    const uint32_t v[8] = { (uint32_t)s_dg, (uint32_t)u.score, (uint32_t)u.lives_lost, sec, (uint32_t)s_dg_state, (uint32_t)s_dg_slot, 0, 0 };
+    const uint32_t v[8] = { (uint32_t)s_dg, (uint32_t)u.score, (uint32_t)u.lives_lost, sec, (uint32_t)s_dg_state, (uint32_t)s_dg_slot,
+                            (uint32_t)(s_ns_shift * 64 + s_sw_lv), (uint32_t)dex_have() };
     for (int i = 0; i < 8; ++i) h = (h ^ v[i]) * 16777619u;
     for (const char *c = u.stat; *c; ++c) h = (h ^ (uint8_t)*c) * 16777619u;
     for (const char *c = s_gp_buf; *c; ++c) h = (h ^ (uint8_t)*c) * 16777619u;   /* v1019q: typed line */
@@ -1458,6 +1624,23 @@ static void dg_rects(DGRect *r)
             r[i] = DGRect{ (int16_t)(lroundf(s_jd[i].x) - 1), (int16_t)DG_PY, (int16_t)(JD_WW + 2), (int16_t)(JD_Y0 + JD_L * JD_LH - DG_PY), 1u + (uint32_t)s_jd[i].hit };
         }
         r[JD_MAX] = DGRect{ (int16_t)(JD_BX - 11), (int16_t)(jd_cy(s_jd_lane) - 11), 22, 22, 1 };
+    } else if (s_dg == DG_NIGHT) {          /* one slot: the dark floor (+ message line), keyed by its look */
+        r[0] = DGRect{ (int16_t)NS_X, (int16_t)NS_Y, (int16_t)(NS_C * NS_T), (int16_t)(NS_R * NS_T + 10), ns_sig() };
+    } else if (s_dg == DG_SWEEP) {
+        const int px = SW_X + (int)lroundf(s_sw_p.x), py = SW_Y + (int)lroundf(s_sw_p.y);
+        r[0] = DGRect{ (int16_t)(px - 8), (int16_t)(py - 8), 16, 16, (uint32_t)s_sw_left + 1u };
+        for (int i = 0; i < sw_traces(); ++i) {
+            const int jx = SW_X + (int)lroundf(s_sw_t[i].x), jy = SW_Y + (int)lroundf(s_sw_t[i].y);
+            r[1 + i] = DGRect{ (int16_t)(jx - 7), (int16_t)(jy - 7), 14, 14, s_dg_ms < s_sw_fright[i] ? 2u : 1u };
+        }
+        static const int8_t RX[4] = { 1, 13, 1, 13 }, RY[4] = { 1, 1, 9, 9 };
+        for (int k = 0; k < 4; ++k)
+            if (s_sw_pel[RY[k]][RX[k]] == 2)
+                r[5 + k] = DGRect{ (int16_t)(SW_X + RX[k] * SW_T + 1), (int16_t)(SW_Y + RY[k] * SW_T + 1), 9, 9, 1u + ((s_dg_ms / 250u) & 1u) };
+        r[9] = DGRect{ (int16_t)(SW_X + 7 * SW_T - 2), (int16_t)(SW_Y + 7 * SW_T - 2), 14, 14, (uint32_t)(s_sw_bonus_k + 2) };
+        uint32_t h = 2166136261u;
+        for (int y = 0; y < SW_R; ++y) for (int x = 0; x < SW_C; ++x) h = (h ^ (uint32_t)(s_sw_sticky[y][x] != 0)) * 16777619u;
+        r[10] = DGRect{ (int16_t)SW_X, (int16_t)SW_Y, (int16_t)(SW_C * SW_T), (int16_t)(SW_R * SW_T), h };
     }
 }
 static void dg_snap(void) { dg_rects(s_dg_prev); }
@@ -1546,6 +1729,12 @@ static void dg_hud_lines(char l[4][20])
     } else if (s_dg == DG_TRACE) {
         snprintf(l[0], 20, "ROUNDS %d-%d OF 5", s_dg_score, s_dg_miss);
         snprintf(l[1], 20, "SCANS %d/%d", s_st_left, ST_SCANS);
+    } else if (s_dg == DG_NIGHT) {
+        snprintf(l[0], 20, "CAUGHT %d/%d SH %d", s_dg_score, s_ns_n, s_ns_shift);
+        snprintf(l[1], 20, "ALERT %3d%%", (int)s_ns_alert);
+    } else if (s_dg == DG_SWEEP) {
+        snprintf(l[0], 20, "BITS LEFT %03d LV%d", s_sw_left, s_sw_lv);
+        snprintf(l[1], 20, "LIVES %d DEX %d", 3 - s_dg_miss < 0 ? 0 : 3 - s_dg_miss, dex_have());
     } else {
         const unsigned left = s_dg_ms >= 45000u ? 0u : (unsigned)((45000u - s_dg_ms + 999u) / 1000u);
         snprintf(l[0], 20, "LEFT %02us PASSED %d", left, s_dg_score % 100);
@@ -1563,7 +1752,7 @@ static void dg_paint_hud(Gfx g, int width, bool full)
     if (full) {
         g.fillRect(0, BAR_H + 1, width, 135 - BAR_H - 1, PAL_DEEP);
         s_px = 8;
-        txt(g, DG_NAME[s_dg], 8, 30, PAL_CYAN, lgfx::textdatum::top_left);
+        txt(g, dg_name(s_dg), 8, 30, dg_ac(), lgfx::textdatum::top_left);
         s_px = 6;
         char who[24];
         snprintf(who, sizeof(who), "%s %d/3", s_dg_bot >= 12 ? "gibson" : BOTS[s_dg_bot].id, s_dg_slot + 1);
@@ -1599,6 +1788,7 @@ static void dg_int_tick(lgfx::LGFX_Device &menu)
 static void dg_ai(void)
 {
     if (s_dg_state != DGS_PLAY) return;
+    if (s_dg == DG_NIGHT || s_dg == DG_SWEEP) { gib_ai(); return; }
     if (s_dg == DG_RAIN) {
         int best = -1; float by = -1e9f;
         for (int i = 0; i < RC_MAX; ++i)

@@ -504,6 +504,60 @@ int main(int argc, char **argv)
         write_raw(argv[4], g_buf, 0);
         return 0;
     }
+    /* v1019r: palette dump (index rgb565) for the theme / bot-colour picks */
+    if (argc > 1 && strcmp(argv[1], "pal") == 0) {
+        extern uint16_t botcorps_rgb565(uint8_t);
+        for (int i = 0; i < 256; ++i) printf("%d %04X\n", i, botcorps_rgb565((uint8_t)i));
+        return 0;
+    }
+    /* v1019r: Gibson games: rend gib <12 night|13 sweep> <warm_ms> <panel 0|3> <rounds> <out> */
+    if (argc > 6 && strcmp(argv[1], "gib") == 0) {
+        extern void botcorps_host_gib(uint8_t *, int, int, int, int);
+        host_rain_init(0);
+        host_set_millis(9000u);
+        botcorps_host_set_color(getenv("RC") ? atoi(getenv("RC")) : 0);
+        botcorps_host_gib(g_buf, atoi(argv[2]), atoi(argv[3]), atoi(argv[4]), atoi(argv[5]));
+        write_raw(argv[6], g_buf, 0);
+        return 0;
+    }
+    /* v1019r: real key-matrix proof on any screen: rend kb <screen> <scan_bot|defend bot> <hunt> <script> <out> (env RC theme) */
+    if (argc > 6 && strcmp(argv[1], "kb") == 0) {
+        extern void botcorps_host_kb(uint8_t *, int, int, int, const char *);
+        host_rain_init(0);
+        host_set_millis(9000u);
+        botcorps_host_set_color(getenv("RC") ? atoi(getenv("RC")) : 0);
+        std::string sc;
+        for (const char *q = argv[5]; *q; ++q) {
+            if (q[0] == '\\' && q[1] == 'n') { sc += '\n'; ++q; }
+            else if (q[0] == '\\' && q[1] == 't') { sc += '\t'; ++q; }
+            else if (q[0] == '\\' && q[1] == 'b') { sc += '\b'; ++q; }
+            else sc += *q;
+        }
+        botcorps_host_kb(g_buf, atoi(argv[2]), atoi(argv[3]), atoi(argv[4]), sc.c_str());
+        write_raw(argv[6], g_buf, 0);
+        return 0;
+    }
+    /* v1019r: band-simulator proof with keys: rend ksim <kind 0 scan board|1 screen> <arg> <keys> <out> -> glitch pushes */
+    if (argc > 5 && strcmp(argv[1], "ksim") == 0) {
+        extern int botcorps_host_sim(int, const char *, long *, long *, long *, long *);
+        extern void host_sim_dump(const char *);
+        host_rain_init(0);
+        host_set_millis(20000u);
+        botcorps_host_set_color(getenv("RC") ? atoi(getenv("RC")) : 0);
+        std::string sc;
+        for (const char *q = argv[4]; *q; ++q) {
+            if (q[0] == '\\' && q[1] == 'n') { sc += '\n'; ++q; }
+            else if (q[0] == '\\' && q[1] == 'b') { sc += '\b'; ++q; }
+            else sc += *q;
+        }
+        if (atoi(argv[2]) == 0) botcorps_host_scan_n(g_buf, atoi(argv[3])); else botcorps_host_enter(g_buf, atoi(argv[3]));
+        long pr = 0, pu = 0, rc = 0, wo = 0;
+        const int bad = botcorps_host_sim(6000 + (int)sc.size() * 300, sc.c_str(), &pr, &pu, &rc, &wo);
+        printf("KSIM bad=%d presents=%ld pushes=%ld recomp=%ld worst=%ld\n", bad, pr, pu, rc, wo);
+        extern uint8_t host_sim_panel[320 * 240];
+        write_raw(argv[5], host_sim_panel, 0);
+        return 0;
+    }
     /* MOD review: the Defend screen + prompt arrows: rend dgp <mode> <out> */
     if (argc > 3 && strcmp(argv[1], "dgp") == 0) {
         extern void botcorps_host_defend_prompt(uint8_t *, int);

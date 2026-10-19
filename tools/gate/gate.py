@@ -289,15 +289,17 @@ for scr in screens:
         rb = [c for c in boxes if c['k'] == 'DGBOT' and c['n'] == DGW[0] and bd and inside(c, bd[0])]
         ch = [c for c in boxes if c['k'] in ('TCHIP', 'CHIP') and bd and inside(c, bd[0])]
         if scr == 'defend-zap':
-            # v1019v mock: centre defender is the square 5-pin gold Gibson chip (not round).
-            ok = bool(bd) and any(c['k'] == 'CHIP' and c['n'] == 'gibson' and inside(c, bd[0]) for c in boxes)
-            rep(scr, 'DG2 centre Gibson is square chip (zap mock)', ok, f'chips={[(c["n"], c["w"]) for c in ch][:3]}')
+            # v1019x (Mobandy 2:47 PM): NO chip of any kind inside the scan grid (left-panel chip stays).
+            grid = {'x': 108, 'y': 44, 'w': 172, 'h': 96}
+            ing = [c for c in boxes if c['k'] in ('TCHIP', 'CHIP', 'DGBOT') and inside(c, grid)]
+            rep(scr, 'DG2 no chip inside the scan grid (zap)', bool(bd) and not ing, f'grid chips={[(c["k"], c["n"], c["x"], c["y"]) for c in ing][:3]}')
         else:
             rep(scr, 'DG2 active bot is its round sprite on the board, no chip' + (' (Gibson)' if DGW[0] == 'gibson' else ''), len(rb) == 1 and not ch, f'round={[(c["n"], c["x"], c["y"], c["w"]) for c in rb]} chips={len(ch)}')
         ob = [o for o in boxes if o['k'] == 'DGOBJ' and o['n'] in DGW[1] and bd and inside(o, bd[0])]
         if scr == 'defend-zap':
-            # Zap marks traces/devices via CHIP/DGBOT + board; no DGOBJ pellets required.
-            rep(scr, 'DG3 zap playfield has centre chip + board', bool(bd) and len(ch) >= 1, f'board={bool(bd)} chips={len(ch)}')
+            # v1019x: zap devices ride the traces (DGOBJ device/null) on the board.
+            dv = [o for o in ob if o['n'] in ('device', 'null')]
+            rep(scr, 'DG3 zap devices on the board', bool(bd) and len(dv) >= 4, f'board={bool(bd)} devices={len(dv)}')
         else:
             rep(scr, 'DG3 game pieces on the board (reused icons / 0-1 bits)', len(ob) >= DGW[2], f'{len(ob)} pieces {[o["n"] for o in ob][:6]}')
     if scr.startswith('scanboard-') or scr.startswith('sbox') or scr.startswith('scan-') or scr.startswith('settings'):

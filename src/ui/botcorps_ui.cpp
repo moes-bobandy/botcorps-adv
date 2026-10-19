@@ -204,6 +204,10 @@ static const char *const CMDS[12] = {
     "scan", "hunt", "bots", "ping", "info", "track",
     "sniff", "filter", "rain", "help", "clear", "cmds"
 };
+/* v1019x V1: build version string, set per build by tools/pio_version.py (host: tools/host/build.sh) */
+#ifndef BOTCORPS_BUILD_ID
+#define BOTCORPS_BUILD_ID "v1019x nogit"
+#endif
 /* v3.2 command menu. 42 names + purposes, const in flash. defend stays in CORE.
  * v1019q (#9): CORE + COMMS (the bots' own commands) stay on top, go / load (screen routing) moved down
  * to SYS; two-word forms added only where clearer ("scan all", "hunt run"); every single word kept. The
@@ -1480,7 +1484,7 @@ static void run_cmd(const char *line)
     } else if (strcmp(cmd, "about") == 0) {
         log_add("BOTcorps term 3.2");
     } else if (strcmp(cmd, "version") == 0) {
-        log_add("term 3.2");
+        log_add("term 3.2 " BOTCORPS_BUILD_ID);   /* v1019x V1: old token kept + real build id */
     } else if (strcmp(cmd, "uptime") == 0) {
         char row[32];
         const uint32_t sec = (millis() - s_boot_ms) / 1000u;
@@ -6970,6 +6974,18 @@ static void sb_patch(int x, int y, int w, int h)
     }
 }
 
+/* v1019x: the scan shell's live bus keys (top-bar bot squares, top rule sweep, under-grid sweep), shared
+ * by sb_tick and the Gibson zap Defend tick so both shells animate identically. */
+static void sb_bus_keys(uint32_t t, uint32_t *top, uint32_t *rule, uint32_t *sr)
+{
+    const uint32_t e = (t - s_bus_t0) % 3400u;
+    const float u = (float)e / 3400.f;
+    int outn = 0;
+    for (int i = 0; i < 12; ++i) outn += (u > (float)i * .02f && u < .7f) ? 1 : 0;
+    *top = (uint32_t)outn * 4u + (t / 400u) % 3u;
+    *rule = (uint32_t)(320.f * u) / 8u;
+    *sr = (uint32_t)(176.f * u) / 4u;
+}
 static void sb_tick(void)
 {
     static uint32_t k_top = ~0u, k_rule = ~0u, k_srule = ~0u, k_line = ~0u, k_prompt = ~0u;
@@ -6982,14 +6998,10 @@ static void sb_tick(void)
     }
     const int band = list_band();
     const uint32_t t = millis(), e = (t - s_bus_t0) % 3400u;
-    const float u = (float)e / 3400.f;
-    int outn = 0;
-    for (int i = 0; i < 12; ++i) outn += (u > (float)i * .02f && u < .7f) ? 1 : 0;
-    const uint32_t top = (uint32_t)outn * 4u + (t / 400u) % 3u;
+    uint32_t top, rule, sr;
+    sb_bus_keys(t, &top, &rule, &sr);
     if (top != k_top) { if (k_top != ~0u) sb_patch(0, 0, 320, 24); k_top = top; }
-    const uint32_t rule = (uint32_t)(320.f * u) / 8u;
     if (rule != k_rule) { if (k_rule != ~0u) sb_patch(0, 24, 320, 1); k_rule = rule; }
-    const uint32_t sr = (uint32_t)(176.f * u) / 4u;
     if (sr != k_srule) { if (k_srule != ~0u) sb_patch(106, 144, 176, 1); k_srule = sr; }
     const int n = sb_shown();
     if ((uint32_t)n != k_line) { if (k_line != ~0u) sb_patch(106, 163, 176, 11); k_line = (uint32_t)n; }
@@ -9071,6 +9083,43 @@ void botcorps_host_zap_rain_step(uint8_t *buf)
     botcorps_rain_set_draw(was);
     memset(buf, PAL_BLACK, 320u * 240u);
     paint_ext(Gfx());
+}
+/* v1019x QA proof (not a gate item): a live zap round, stepped 33 ms at a time, the host autopilot
+ * zapping once every ai_every steps (0 = never: devices dock and time out). */
+void botcorps_host_zap_sim_start(uint8_t *buf, uint32_t seed_ms)
+{
+    host_frame = buf;
+    host_set_millis(9000u + seed_ms);
+    s_color = 0; s_sheet = false; s_fa_on = false; s_act = -1; s_gp_buf[0] = 0;
+    botcorps_lut_term(false);
+    gc_set_count(0);
+    s_defend_bot = 12;
+    enter_screen(SCR_GCHAT, SCR_GIBSON);
+    dg_start_game(12, DG_ZAP);
+    for (uint32_t k = 0; k < seed_ms % 97u; ++k) (void)dg_rng();
+}
+int botcorps_host_zap_sim_frame(uint8_t *buf, int steps, int ai_every)
+{
+    static int n = 0;
+    for (int k = 0; k < steps; ++k) {
+        const uint32_t t = millis() + 33u;
+        host_set_millis(t);
+        if (ai_every > 0 && (++n % ai_every) == 0) dg_ai();
+        dg_step(t);
+    }
+    host_frame = buf;
+    memset(buf, PAL_BLACK, 320u * 240u);
+    paint_ext(Gfx());
+    return s_dg_state == DGS_PLAY;
+}
+/* v1019x V1 proof (not a gate item): run one Terminal command line, print every log row it added */
+void botcorps_host_term_cmd(const char *line)
+{
+    const int n0 = s_log_n, next0 = s_log_next;
+    run_cmd(line);
+    int added = (s_log_next - next0 + LOG_ROWS) % LOG_ROWS;
+    if (added == 0 && s_log_n != n0) added = s_log_n - n0;
+    for (int k = 0; k < added; ++k) printf("%s\n", log_slot((next0 + k) % LOG_ROWS));
 }
 void botcorps_host_repaint(uint8_t *buf)
 {

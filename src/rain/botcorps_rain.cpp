@@ -211,12 +211,19 @@ static bool icon_pixel_ok(int x, int y);
  * cell intersected with the window and cells outside it are skipped, so the rain can live in one rect. */
 static bool s_win_on = false;
 static int s_win_x = 0, s_win_y = 0, s_win_w = 320, s_win_h = 240;
+/* v1019x: exclusion rects inside the window (world x, y, w, h); a cell touching one is not drawn at all */
+static int s_win_nex = 0;
+static int16_t s_win_ex[4][4];
 static bool cell_clip(lgfx::LovyanGFX &panel, int x, int wy)
 {
     if (!s_win_on) {                         /* exactly the pre-v1019x cell clip */
         const int ly = wy - s_slice_y0;
         panel.setClipRect(x, ly < 0 ? 0 : ly, CELL, CELL);
         return true;
+    }
+    for (int i = 0; i < s_win_nex; ++i) {
+        const int16_t *e = s_win_ex[i];
+        if (x < e[0] + e[2] && x + CELL > e[0] && wy < e[1] + e[3] && wy + CELL > e[1]) return false;
     }
     int x0 = x, y0 = wy, x1 = x + CELL, y1 = wy + CELL;
     if (y0 < s_slice_y0) y0 = s_slice_y0;
@@ -471,12 +478,19 @@ void botcorps_rain_set_no_bots(bool on)
     s_no_bots = on;
 }
 
-void botcorps_rain_draw_win(lgfx::LovyanGFX &dst, int y0, int y1, int wx, int wy, int ww, int wh)
+void botcorps_rain_draw_win(lgfx::LovyanGFX &dst, int y0, int y1, int wx, int wy, int ww, int wh,
+                            const int16_t (*ex)[4], int nex)
 {
     if (ww <= 0 || wh <= 0) return;
     s_win_on = true; s_win_x = wx; s_win_y = wy; s_win_w = ww; s_win_h = wh;
+    s_win_nex = (ex && nex > 0) ? (nex > 4 ? 4 : nex) : 0;
+    for (int i = 0; i < s_win_nex; ++i) for (int k = 0; k < 4; ++k) s_win_ex[i][k] = ex[i][k];
+    /* v1019x QA 1: the windowed (behind-the-chip) rain is drawn with the hub dim (inks x0.58) */
+    const bool hub = s_hub_on;
+    s_hub_on = true;
     botcorps_rain_draw(dst, y0, y1);
-    s_win_on = false; s_win_x = 0; s_win_y = 0; s_win_w = 320; s_win_h = 240;
+    s_hub_on = hub;
+    s_win_on = false; s_win_x = 0; s_win_y = 0; s_win_w = 320; s_win_h = 240; s_win_nex = 0;
 }
 
 void botcorps_rain_draw(lgfx::LovyanGFX &dst, int y0, int y1)

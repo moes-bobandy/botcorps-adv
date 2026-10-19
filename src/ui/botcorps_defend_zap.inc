@@ -12,12 +12,18 @@
  * grid (bh_grid: BH_X 108, BH_Y 44, 9x5 cells of 19 px) and nowhere else. The full-width v5 layout (pink
  * rim, title plate, control row, CMD button, prompt well) is gone: the screen around the grid is the
  * restored pre-mod scan shell (paint_sbox, 5608764). Trace geometry = v1019w mock v5 scaled x0.56 / y0.80
- * about the grid centre; everything is clipped to the grid rect. */
+ * about the grid centre; everything is clipped to the grid rect.
+ * v1019x QA (Mobandy 2:44 / 2:47 PM): NO chip of any kind inside the grid (centre Gibson chip, device
+ * chips and ic/res/cap pads removed; the left-panel chip stays). Minimum fit only, no new mechanics: the
+ * traces start at the grid centre and end at the left/right docks (rows -30 / 0 / +30), riders are the
+ * v1019w device sprites at ~0.6 scale (12x10), TIME / NULL tags use the board's 3x5 etch font, and every
+ * tag is placed where it overlaps no sprite. All zap pixels sit inside the grid inner rect with a 2 px
+ * margin (ZAP_MX0..ZAP_MY1), so the clip below never cuts anything. */
 enum {
     ZAP_BX0 = 108, ZAP_BY0 = 44, ZAP_BX1 = 280, ZAP_BY1 = 140,  /* grid rect incl. its right tone line */
     ZAP_IX0 = 109, ZAP_IY0 = 45, ZAP_IX1 = 279, ZAP_IY1 = 139,  /* grid inner */
     ZAP_CX = 194, ZAP_CY = 92,                                  /* grid centre */
-    ZAP_CS = 24,                                                /* centre Gibson chip, scaled to the grid */
+    ZAP_MX0 = 111, ZAP_MY0 = 47, ZAP_MX1 = 277, ZAP_MY1 = 137,  /* content box (exclusive): inner - 2 px */
     ZAP_NTR = 6, ZAP_MAX = 6, ZAP_WIN = 12, ZAP_TIME_MS = 2800u, ZAP_NULL_MS = 700u
 };
 /* Trace ids match mock riders: wifi camera bt drone flock tower */
@@ -26,13 +32,13 @@ static const char *const ZAP_ALIAS[ZAP_NTR] = { "ap", "cam", "bluetooth", "uav",
 static const int8_t ZAP_BOT[ZAP_NTR] = { 0, 8, 1, 5, 4, 3 };          /* face colour bots */
 static const int8_t ZAP_ICON[ZAP_NTR] = { GL_AP, GL_CAMERA, GL_SPEAKER, GL_DRONE, GL_CAMERA, GL_DEVBOARD };
 /* Polyline waypoints relative to the grid centre (ZAP_CX,ZAP_CY); ends near support pads. */
-static const int16_t ZAP_PT[ZAP_NTR][5][2] = {   /* v1019w: exact mock v5 traces dict */
-    { { -6, -14 }, { -6, -24 }, { -65, -24 }, { -65, -36 }, { -77, -36 } },      /* wifi UL */
-    { { -10, -6 }, { -28, -6 }, { -28, -18 }, { -59, -18 }, { -75, -8 } },       /* camera L */
-    { { 4, 14 }, { 4, 26 }, { 57, 26 }, { 57, 35 }, { 76, 35 } },                /* bt BR */
-    { { 10, -5 }, { 24, -5 }, { 24, -34 }, { 72, -34 }, { 78, -39 } },           /* drone UR */
-    { { -3, 14 }, { -3, 22 }, { -48, 22 }, { -48, 37 }, { -72, 37 } },           /* flock BL */
-    { { 10, 5 }, { 32, 5 }, { 32, 19 }, { 77, 19 }, { 77, 19 } },                /* tower R */
+static const int16_t ZAP_PT[ZAP_NTR][5][2] = {   /* v1019x: centre -> dock, rows -30 / 0 / +30 */
+    { { -7, 0 }, { -7, -22 }, { -30, -22 }, { -30, -30 }, { -66, -30 } },        /* wifi UL */
+    { { -14, 0 }, { -30, 0 }, { -30, 4 }, { -50, 4 }, { -66, 0 } },              /* camera L */
+    { { 7, 0 }, { 7, 22 }, { 30, 22 }, { 30, 30 }, { 66, 30 } },                 /* bt BR */
+    { { 7, 0 }, { 7, -22 }, { 30, -22 }, { 30, -30 }, { 66, -30 } },             /* drone UR */
+    { { -7, 0 }, { -7, 22 }, { -30, 22 }, { -30, 30 }, { -66, 30 } },            /* flock BL */
+    { { 14, 0 }, { 30, 0 }, { 30, -4 }, { 50, -4 }, { 66, 0 } },                 /* tower R */
 };
 static const char *const ZAP_NAME[ZAP_NTR] = { "WIFI", "CAMERA", "BT", "DRONE", "FLOCK", "TOWER" };
 struct ZapDev { float dist; int8_t tr; int8_t live; int8_t dock; }; /* dock=1 in TIME window */
@@ -116,12 +122,15 @@ static void zap_spawn(void)
     int used[ZAP_NTR] = { 0 };
     for (int i = 0; i < ZAP_MAX; ++i) if (s_zap[i].live) used[s_zap[i].tr] = 1;
     int free_n = 0, free_tr[ZAP_NTR];
+    /* v1019x fit: no respawn on the trace whose NULL ghost is still showing (it would sit on it) */
+    if (s_zap_null_tr >= 0 && s_dg_ms < s_zap_null_until) used[s_zap_null_tr] = 1;
     for (int t = 0; t < ZAP_NTR; ++t) if (!used[t]) free_tr[free_n++] = t;
     if (!free_n) return;
     const int tr = free_tr[dg_rng() % (uint32_t)free_n];
     for (int i = 0; i < ZAP_MAX; ++i) if (!s_zap[i].live) {
         s_zap[i].live = 1; s_zap[i].dock = 0; s_zap[i].tr = (int8_t)tr; s_zap_warn[i] = 0;
-        s_zap[i].dist = 6.f + (float)(dg_rng() % 12u);
+        /* v1019x: spawn clear of the other traces' riders at the centre (vertical-start traces 12+) */
+        s_zap[i].dist = (tr == 1 || tr == 5 ? 6.f : 12.f) + (float)(dg_rng() % 6u);
         return;
     }
 }
@@ -301,148 +310,61 @@ static void zap_trace(Gfx g, int tr)
     }
 }
 
-/* Gap 3: mock draw_mini_bot_chip(S=14) — silver castellated bezel reads as a grey device chip. */
-static void zap_dev_chip(Gfx g, int cx, int cy, int bot)
-{
-    const int S = 14, x = cx - S / 2, y = cy - S / 2;
-    g.fillRect(x - 3, y - 3, S + 6, S + 6, PAL_BLACK);            /* halo=1 */
-    GATE_BOX(g, "TCHIP", "bot", x, y, S, S, "-");
-    g.drawRect(x - 1, y - 1, S + 2, S + 2, PAL_STEEL);
-    g.fillRect(x, y, S, S, PAL_BLACK);
-    g.drawRect(x, y, S, S, PAL_FIELD);
-    for (int k = 0; k < 5; ++k) {                                   /* 2 px pins, 2 px pitch = silver bar */
-        const int i = 2 + 2 * k;
-        g.fillRect(x - 2, y + i, 4, 2, ZC_SILVER);
-        g.fillRect(x + S - 2, y + i, 4, 2, ZC_SILVER);
-        g.fillRect(x + i, y - 2, 2, 4, ZC_SILVER);
-        g.fillRect(x + i, y + S - 2, 2, 4, ZC_SILVER);
-    }
-    g.fillRect(x + 2, y + 2, S - 4, S - 4, PAL_BLACK);
-    const int gs = 8, fx = x + (S - gs) / 2, fy = y + (S - gs) / 2;
-    const uint8_t fc = bot_color(bot);
-    GATE_BOX(g, "SPR", "bot_face", fx, fy, gs, gs, "-");
-    g.fillRect(fx, fy, gs, gs, fc);
-    g.fillRect(fx, fy + gs - 1, gs, 1, PAL_BOARD_D);                 /* chin */
-    g.fillRect(fx + 1, fy + 1, 1, 1, PAL_WHITE);                     /* top glint */
-    g.fillRect(fx + 1, fy + 2, 2, 2, PAL_BG);                        /* eyes */
-    g.fillRect(fx + 5, fy + 2, 2, 2, PAL_BG);
-}
-
-/* mock draw_support_pad: ic / res / cap beside each trace end */
-static void zap_support_pad(Gfx g, int kind, int cx, int cy)
-{
-    if (kind == 1) {            /* res 10x6 */
-        const int x = cx - 5, y = cy - 3;
-        g.fillRect(x, y + 2, 2, 2, ZC_CU_HI); g.fillRect(x + 8, y + 2, 2, 2, ZC_CU_HI);
-        g.fillRect(x + 2, y + 1, 6, 4, PAL_GOLD_PIN); g.drawRect(x + 2, y + 1, 6, 4, PAL_AMBER);
-        g.fillRect(x + 4, y + 2, 1, 1, ZC_CU_DK); g.fillRect(x + 5, y + 3, 1, 1, ZC_CU_DK);
-    } else if (kind == 2) {     /* cap 8x8 */
-        const int x = cx - 4, y = cy - 4;
-        g.fillRect(x + 2, y + 1, 4, 6, ZC_CAP); g.drawRect(x + 2, y + 1, 4, 6, ZC_CAP_E);
-        g.fillRect(x + 1, y + 3, 6, 2, ZC_CU_HI);
-    } else {                    /* ic 12x10 */
-        const int x = cx - 6, y = cy - 5;
-        g.fillRect(x + 2, y + 1, 8, 8, PAL_BAR); g.drawRect(x + 2, y + 1, 8, 8, PAL_STEEL);
-        for (int i = 0; i < 3; ++i) {
-            g.fillRect(x, y + 2 + i * 2, 3, 2, ZC_SILVER);
-            g.fillRect(x + 9, y + 2 + i * 2, 3, 2, ZC_SILVER);
-        }
-        g.fillRect(x + 3, y + 2, 1, 1, PAL_BFB72);
-    }
-}
-
-static void zap_chip_pos(int tr, int *bx, int *by)
-{
-    const int ex = ZAP_CX + ZAP_PT[tr][4][0], ey = ZAP_CY + ZAP_PT[tr][4][1];
-    int x = ex + 4, y = ey - 1;
-    if (x < ZAP_IX0 + 14) x = ZAP_IX0 + 14;
-    if (x > ZAP_IX1 - 14) x = ZAP_IX1 - 14;
-    if (y < ZAP_IY0 + 14) y = ZAP_IY0 + 14;
-    if (y > ZAP_IY1 - 14) y = ZAP_IY1 - 14;
-    *bx = x; *by = y;
-}
-
-static void zap_support(Gfx g, int tr)
-{
-    static const int8_t KIND[ZAP_NTR] = { 0, 1, 2, 0, 1, 2 };   /* wifi ic, cam res, bt cap, ... */
-    const int ex = ZAP_CX + ZAP_PT[tr][4][0], ey = ZAP_CY + ZAP_PT[tr][4][1];
-    zap_support_pad(g, KIND[tr], ex - 6, ey);
-    int bx, by; zap_chip_pos(tr, &bx, &by);
-    zap_dev_chip(g, bx, by, ZAP_BOT[tr]);
-}
-
-/* Gap 3: larger grey device riders (mock make_device_sprites x1.25 + light outline), grey bodies with
- * the trace's bot colour as the accent. mode 0 travel, 1 zapped (white rim), 2 docked (TIME rim).
- * Returns the half extents for TIME / NULL placement. */
+/* v1019w device riders at ~0.6 scale (v1019x fit): 12x10 body + 1 px black halo, grey body with the
+ * trace's bot colour as the accent. mode 0 travel, 1 zapped (white rim), 2 docked (TIME rim).
+ * Half extents incl. the halo: hw 7 (cx-7..cx+6), hh 6 (cy-6..cy+5). */
+enum { ZR_HW = 7, ZR_HH = 6 };
 static void zap_rider(Gfx g, int tr, int cx, int cy, int mode, int *hw, int *hh)
 {
     const uint8_t body = PAL_ICON_C3, edge = mode == 1 ? (uint8_t)PAL_WHITE : mode == 2 ? ZC_TCOL : (uint8_t)PAL_INK;
     const uint8_t sh = PAL_STEEL, ac = bot_color(ZAP_BOT[tr]);
-    int w = 18, h = 14;
+    const int x = cx - 6, y = cy - 5;
+    g.fillRect(x - 1, y - 1, 14, 12, PAL_BLACK);
     switch (tr) {
-    case 1: case 4: {           /* camera / flock cam: body + side mount + lens */
-        w = tr == 1 ? 20 : 16; h = tr == 1 ? 14 : 12;
-        const int x = cx - w / 2, y = cy - h / 2;
-        g.fillRect(x - 1, y - 1, w + 2, h + 2, PAL_BLACK);
-        g.fillRect(x, y + h / 2 - 2, 3, 5, sh);
-        g.fillRect(x + 2, y + 1, w - 2, h - 2, body);
-        g.drawRect(x + 2, y + 1, w - 2, h - 2, edge);
-        const int lx = x + 2 + (w - 2) / 2 + 1, r = tr == 1 ? 4 : 3;
-        g.fillCircle(lx, cy, r, PAL_BLACK);
-        g.drawCircle(lx, cy, r, sh);
-        g.fillRect(lx - 1, cy - 1, 3, 3, ac);
-        g.fillRect(x + 4, y + 3, 1, 1, PAL_WHITE);
-        break; }
-    case 3: {                   /* drone: grey hull + 4 rotors */
-        w = 20; h = 16;
-        const int x = cx - w / 2, y = cy - h / 2;
-        g.fillRect(x - 1, y - 1, w + 2, h + 2, PAL_BLACK);
-        g.drawLine(x + 3, y + 3, x + w - 4, y + h - 4, sh);
-        g.drawLine(x + w - 4, y + 3, x + 3, y + h - 4, sh);
-        static const int8_t RX[4] = { 0, 14, 0, 14 }, RY[4] = { 1, 1, 11, 11 };
-        for (int k = 0; k < 4; ++k) {
-            g.fillRect(x + RX[k], y + RY[k], 6, 4, PAL_SOFT);
-            g.drawRect(x + RX[k], y + RY[k], 6, 4, edge);
-        }
-        g.fillRect(cx - 5, cy - 3, 10, 7, body);
-        g.drawRect(cx - 5, cy - 3, 10, 7, edge);
-        g.fillRect(cx - 2, cy - 1, 4, 3, ac);
-        break; }
-    case 0: {                   /* wifi AP: grey box + accent arcs */
-        w = 18; h = 15;
-        const int x = cx - w / 2, y = cy - h / 2;
-        g.fillRect(x - 1, y - 1, w + 2, h + 2, PAL_BLACK);
-        g.fillRect(x + 2, y + 2, w - 4, 1, ac);
-        g.fillRect(x + 1, y + 3, 1, 2, ac); g.fillRect(x + w - 2, y + 3, 1, 2, ac);
-        g.fillRect(x + 5, y + 5, w - 10, 1, ac);
-        g.fillRect(x + 4, y + 6, 1, 1, ac); g.fillRect(x + w - 5, y + 6, 1, 1, ac);
-        g.fillRect(x + 4, y + 9, w - 8, 5, body);
-        g.drawRect(x + 4, y + 9, w - 8, 5, edge);
-        g.fillRect(cx - 1, y + 7, 2, 2, PAL_WHITE);
-        g.fillRect(x + 7, y + 11, 1, 1, ac);
-        break; }
-    case 2: {                   /* bt tag: grey puck + accent rune */
-        w = 14; h = 16;
-        const int x = cx - w / 2, y = cy - h / 2;
-        g.fillRect(x - 1, y - 1, w + 2, h + 2, PAL_BLACK);
-        g.fillRoundRect(x, y, w, h, 3, edge);
-        g.fillRoundRect(x + 1, y + 1, w - 2, h - 2, 2, body);
-        g.drawLine(cx, y + 3, cx, y + h - 4, ac);
-        g.drawLine(cx, y + 3, cx + 3, y + 6, ac); g.drawLine(cx + 3, y + 6, cx - 3, y + h - 6, ac);
-        g.drawLine(cx, y + h - 4, cx + 3, y + h - 7, ac); g.drawLine(cx + 3, y + h - 7, cx - 3, y + 5, ac);
-        break; }
-    default: {                  /* tower: grey mast + accent beacon */
-        w = 14; h = 18;
-        const int x = cx - w / 2, y = cy - h / 2;
-        g.fillRect(x - 1, y - 1, w + 2, h + 2, PAL_BLACK);
-        g.fillTriangle(cx, y, cx + 5, y + 6, cx - 5, y + 6, ac);
-        g.fillRect(cx - 1, y + 2, 2, 2, PAL_WHITE);
-        g.fillRect(cx - 2, y + 7, 5, 9, body);
-        g.drawRect(cx - 2, y + 7, 5, 9, edge);
-        g.fillRect(x + 1, y + h - 2, w - 2, 2, sh);
-        break; }
+    case 1: case 4:             /* camera / flock cam: side mount + body + lens */
+        g.fillRect(x, y + 3, 2, 4, sh);
+        g.fillRect(x + 2, y + 1, 10, 8, body);
+        g.drawRect(x + 2, y + 1, 10, 8, edge);
+        g.fillCircle(x + 7, cy, 2, PAL_BLACK);
+        g.drawCircle(x + 7, cy, 2, sh);
+        g.fillRect(x + 7, cy, 1, 1, ac);
+        g.fillRect(x + 3, y + 2, 1, 1, PAL_WHITE);
+        break;
+    case 3:                     /* drone: hull + 4 rotors */
+        g.drawLine(x + 2, y + 2, x + 9, y + 7, sh);
+        g.drawLine(x + 9, y + 2, x + 2, y + 7, sh);
+        g.fillRect(x, y, 4, 3, PAL_SOFT); g.drawRect(x, y, 4, 3, edge);
+        g.fillRect(x + 8, y, 4, 3, PAL_SOFT); g.drawRect(x + 8, y, 4, 3, edge);
+        g.fillRect(x, y + 7, 4, 3, PAL_SOFT); g.drawRect(x, y + 7, 4, 3, edge);
+        g.fillRect(x + 8, y + 7, 4, 3, PAL_SOFT); g.drawRect(x + 8, y + 7, 4, 3, edge);
+        g.fillRect(cx - 3, cy - 2, 6, 5, body);
+        g.drawRect(cx - 3, cy - 2, 6, 5, edge);
+        g.fillRect(cx - 1, cy, 2, 1, ac);
+        break;
+    case 0:                     /* wifi AP: accent arcs + box */
+        g.fillRect(x + 2, y, 8, 1, ac);
+        g.fillRect(x + 1, y + 1, 1, 1, ac); g.fillRect(x + 10, y + 1, 1, 1, ac);
+        g.fillRect(x + 4, y + 2, 4, 1, ac);
+        g.fillRect(cx - 1, y + 3, 2, 1, PAL_WHITE);
+        g.fillRect(x + 2, y + 5, 8, 5, body);
+        g.drawRect(x + 2, y + 5, 8, 5, edge);
+        g.fillRect(x + 4, y + 7, 1, 1, ac);
+        break;
+    case 2:                     /* bt tag: puck + accent rune */
+        g.fillRoundRect(x + 2, y, 8, 10, 2, edge);
+        g.fillRoundRect(x + 3, y + 1, 6, 8, 2, body);
+        g.drawLine(cx, y + 2, cx, y + 7, ac);
+        g.drawLine(cx, y + 2, cx + 2, y + 4, ac); g.drawLine(cx + 2, y + 4, cx - 2, y + 6, ac);
+        break;
+    default:                    /* tower: accent beacon + mast + base */
+        g.fillRect(cx - 1, y, 2, 2, PAL_WHITE);
+        g.fillRect(cx - 3, y + 2, 6, 2, ac);
+        g.fillRect(cx - 2, y + 4, 4, 5, body);
+        g.drawRect(cx - 2, y + 4, 4, 5, edge);
+        g.fillRect(x + 2, y + 9, 8, 1, sh);
+        break;
     }
-    *hw = w / 2; *hh = h / 2;
+    *hw = ZR_HW; *hh = ZR_HH;
 }
 
 /* Gap 4: mock draw_zap — jagged perpendicular-jitter bolt, ZAP_EDGE 4 / ZAP 2 / core 1 + two forks. */
@@ -458,73 +380,101 @@ static void zap_draw_bolt(Gfx g, int tr, float d0, float d1)
         if (i > 0 && i < n) {
             rng = rng * 1664525u + 1013904223u;
             const float j = ((float)((rng >> 8) % 201u) - 100.f) / 100.f;   /* uniform(-1,1) */
-            const float amp = ((i & 1) ? 3.5f : -3.5f) + j;
+            const float amp = (((i & 1) ? 3.5f : -3.5f) + j) * 0.6f;   /* v1019x: 0.6 scale */
             x += -uy * amp; y += ux * amp;
         }
         px[i] = (int)(x + (x >= 0.f ? 0.5f : -0.5f)); py[i] = (int)(y + (y >= 0.f ? 0.5f : -0.5f));
     }
-    static const int W[3] = { 4, 2, 1 };
+    static const int W[3] = { 3, 2, 1 };   /* v1019x: 0.6 scale */
     const uint8_t C[3] = { ZC_ZEDGE, ZC_ZAP, (uint8_t)PAL_WHITE };
     for (int k = 0; k < 3; ++k)
         for (int i = 0; i < n; ++i) zap_thick(g, px[i], py[i], px[i + 1], py[i + 1], W[k], C[k]);
-    if (2 < n) g.drawLine(px[2], py[2], px[2] - 3, py[2] - 4, ZC_ZAP);
-    if (5 < n) g.drawLine(px[5], py[5], px[5] - 3, py[5] + 4, ZC_ZAP);
+    if (2 < n) g.drawLine(px[2], py[2], px[2] - 2, py[2] - 2, ZC_ZAP);
+    if (5 < n) g.drawLine(px[5], py[5], px[5] - 2, py[5] + 2, ZC_ZAP);
 }
 
-static void zap_null_label(Gfx g, int x, int y)
+/* v1019x tags: occupancy list so a tag never sits on a sprite / rim / other tag; all inside ZAP_M* */
+struct ZapBox { int16_t x0, y0, x1, y1; };   /* inclusive */
+static ZapBox s_zocc[24];
+static int s_zocc_n = 0;
+static void zocc_add(int x0, int y0, int x1, int y1)
 {
-    const int keep = s_px; s_px = 6;
-    const int tw = 4 * 6;
-    int lx = x - tw / 2; if (lx < ZAP_IX0 + 4) lx = ZAP_IX0 + 4;
-    if (lx + tw + 4 > ZAP_IX1) lx = ZAP_IX1 - tw - 4;
-    int ly = y - 18; if (ly < ZAP_IY0 + 4) ly = ZAP_IY0 + 4;
-    g.fillRect(lx - 4, ly - 4, tw + 8, 14, PAL_PLATE);
-    g.drawRect(lx - 4, ly - 4, tw + 8, 14, PAL_TERM_M);
-    g.drawRect(lx - 3, ly - 3, tw + 6, 12, PAL_BFB72);
-    g.fillRect(lx - 2, ly - 2, tw + 4, 10, PAL_BLACK);
-    txt(g, "NULL", lx, ly, PAL_TERM_M, lgfx::textdatum::top_left);
-    s_px = keep;
+    if (s_zocc_n < 24) { s_zocc[s_zocc_n].x0 = (int16_t)x0; s_zocc[s_zocc_n].y0 = (int16_t)y0;
+                         s_zocc[s_zocc_n].x1 = (int16_t)x1; s_zocc[s_zocc_n].y1 = (int16_t)y1; ++s_zocc_n; }
 }
-
-/* Gap 5: mock draw_time_urgency — triple rim + corner ticks; TIME, 2 lit pips, live seconds "02". */
-static void zap_time_urgency(Gfx g, int tx, int ty, int shw, int shh, int bx, int by, int secs)
+static bool zocc_free(int x0, int y0, int x1, int y1)
 {
-    const int bh = 9;                                   /* chip 14 + pins: half extent */
-    const int x0 = (tx - shw < bx - bh ? tx - shw : bx - bh) - 5;
-    const int y0 = (ty - shh < by - bh ? ty - shh : by - bh) - 5;
-    const int x1 = (tx + shw > bx + bh ? tx + shw : bx + bh) + 5;
-    const int y1 = (ty + shh > by + bh ? ty + shh : by + bh) + 5;
-    g.drawRect(x0 - 2, y0 - 2, x1 - x0 + 5, y1 - y0 + 5, PAL_TERM_M);
-    g.drawRect(x0 - 1, y0 - 1, x1 - x0 + 3, y1 - y0 + 3, ZC_TFLASH);
-    g.drawRect(x0, y0, x1 - x0 + 1, y1 - y0 + 1, ZC_TCOL);
-    g.drawRect(x0 + 1, y0 + 1, x1 - x0 - 1, y1 - y0 - 1, ZC_TFLASH);
-    g.fillRect(x0, y0, 6, 2, ZC_TFLASH); g.fillRect(x0, y0, 2, 6, ZC_TFLASH);
-    g.fillRect(x1 - 5, y0, 6, 2, ZC_TFLASH); g.fillRect(x1 - 1, y0, 2, 6, ZC_TFLASH);
-    g.fillRect(x0, y1 - 1, 6, 2, ZC_TFLASH); g.fillRect(x0, y1 - 5, 2, 6, ZC_TFLASH);
-    g.fillRect(x1 - 5, y1 - 1, 6, 2, ZC_TFLASH); g.fillRect(x1 - 1, y1 - 5, 2, 6, ZC_TFLASH);
-    const int keep = s_px; s_px = 6;
-    const int tw = 4 * 6, pw = 5, pg = 2, pn = 4;
-    const int plate_w = tw + 6 + pn * pw + (pn - 1) * pg + 6, plate_h = 12;
-    int ttx = x0; if (ttx > ZAP_IX1 - plate_w - 2) ttx = ZAP_IX1 - plate_w - 2;
-    if (ttx < ZAP_IX0 + 2) ttx = ZAP_IX0 + 2;
-    int tty = y0 - plate_h - 3; if (tty < ZAP_IY0 + 2) tty = ZAP_IY0 + 2;
-    g.drawRect(ttx - 2, tty - 2, plate_w + 4, plate_h + 4, ZC_TFLASH);
-    g.drawRect(ttx - 1, tty - 1, plate_w + 2, plate_h + 2, ZC_TCOL);
-    g.fillRect(ttx, tty, plate_w, plate_h, PAL_BLACK);
-    txt(g, "TIME", ttx + 3, tty + 3, ZC_TFLASH, lgfx::textdatum::top_left);
+    if (x0 < ZAP_MX0 || y0 < ZAP_MY0 || x1 >= ZAP_MX1 || y1 >= ZAP_MY1) return false;
+    for (int i = 0; i < s_zocc_n; ++i)
+        if (x0 <= s_zocc[i].x1 && x1 >= s_zocc[i].x0 && y0 <= s_zocc[i].y1 && y1 >= s_zocc[i].y0) return false;
+    return true;
+}
+/* first free candidate spot for a w x h tag next to rim r (inside toward the grid centre first) */
+static bool zap_tag_spot(const ZapBox &r, int w, int h, int *ox, int *oy)
+{
+    const int cy = (r.y0 + r.y1) / 2 - h / 2, cx = (r.x0 + r.x1) / 2 - w / 2;
+    const bool left = (r.x0 + r.x1) / 2 < ZAP_CX;
+    const int in_x = left ? r.x1 + 2 : r.x0 - 2 - w + 1, out_x = left ? r.x0 - 2 - w + 1 : r.x1 + 2;
+    const int cand[8][2] = { { in_x, cy }, { cx, r.y0 - 2 - h + 1 }, { cx, r.y1 + 2 }, { out_x, cy },
+                             { in_x, r.y0 - 2 - h + 1 }, { in_x, r.y1 + 2 }, { left ? r.x0 : r.x1 - w + 1, r.y0 - 2 - h + 1 },
+                             { left ? r.x0 : r.x1 - w + 1, r.y1 + 2 } };
+    for (int k = 0; k < 8; ++k)
+        if (zocc_free(cand[k][0], cand[k][1], cand[k][0] + w - 1, cand[k][1] + h - 1)) { *ox = cand[k][0]; *oy = cand[k][1]; return true; }
+    return false;
+}
+#ifdef BOTCORPS_HOST_RENDER
+/* host proof hooks: every zap element's bbox per paint (kind 0 sprite, 1 rim, 2 tag, 3 bolt) */
+int host_zap_dbg_n = 0;
+int16_t host_zap_dbg[48][5];
+static void zap_dbg(int k, int x0, int y0, int x1, int y1)
+{
+    if (host_zap_dbg_n < 48) { int16_t *d = host_zap_dbg[host_zap_dbg_n++]; d[0] = (int16_t)k; d[1] = (int16_t)x0; d[2] = (int16_t)y0; d[3] = (int16_t)x1; d[4] = (int16_t)y1; }
+}
+int host_zap_noclip = 0, host_zap_hide = 0;
+#else
+static inline void zap_dbg(int, int, int, int, int) {}
+#endif
+/* rim: 3 strokes around a rider's halo box (NULL: TERM_M / ZAP / TERM_M, TIME: TERM_M / TFLASH / TCOL) */
+static ZapBox zap_rim(Gfx g, int x, int y, bool time)   /* TIME dock rim */
+{
+    const int x0 = x - ZR_HW - 3, y0 = y - ZR_HH - 3, w = 2 * ZR_HW + 6, h = 2 * ZR_HH + 6;
+    g.drawRect(x0, y0, w, h, PAL_TERM_M);
+    g.drawRect(x0 + 1, y0 + 1, w - 2, h - 2, time ? ZC_TFLASH : ZC_ZAP);
+    g.drawRect(x0 + 2, y0 + 2, w - 4, h - 4, time ? ZC_TCOL : (uint8_t)PAL_TERM_M);
+    const ZapBox b = { (int16_t)x0, (int16_t)y0, (int16_t)(x0 + w - 1), (int16_t)(y0 + h - 1) };
+    zap_dbg(1, b.x0, b.y0, b.x1, b.y1);
+    return b;
+}
+/* NULL tag: etch-font NULL on a black plate, pink double rim (v1019w look at board-silk size) */
+enum { ZN_W = 23, ZN_H = 13 };
+static void zap_null_tag(Gfx g, int x, int y)
+{
+    g.drawRect(x, y, ZN_W, ZN_H, PAL_TERM_M);
+    g.drawRect(x + 1, y + 1, ZN_W - 2, ZN_H - 2, PAL_BFB72);
+    g.fillRect(x + 2, y + 2, ZN_W - 4, ZN_H - 4, PAL_BLACK);
+    tiny_text(g, "NULL", x + 4, y + 4, PAL_TERM_M);
+    zap_dbg(2, x, y, x + ZN_W - 1, y + ZN_H - 1);
+}
+/* TIME tag: TIME, 2 pips, live seconds (v1019w content, etch font) */
+enum { ZT_W = 41, ZT_H = 13 };
+static void zap_time_tag(Gfx g, int x, int y, int secs)
+{
+    g.drawRect(x, y, ZT_W, ZT_H, ZC_TFLASH);
+    g.drawRect(x + 1, y + 1, ZT_W - 2, ZT_H - 2, ZC_TCOL);
+    g.fillRect(x + 2, y + 2, ZT_W - 4, ZT_H - 4, PAL_BLACK);
+    tiny_text(g, "TIME", x + 4, y + 4, ZC_TFLASH);
     if (secs < 0) secs = 0;
     if (secs > 99) secs = 99;
     const int lit = secs >= 2 ? 2 : secs;
-    const int px0 = ttx + 3 + tw + 5;
     for (int i = 0; i < 2; ++i) {
-        const int px = px0 + i * (pw + pg);
-        if (i < lit) { g.fillRect(px, tty + 3, pw, 7, ZC_TFLASH); g.fillRect(px, tty + 3, pw, 1, ZC_TCOL); }
-        else { g.fillRect(px, tty + 3, pw, 7, PAL_BG); g.drawRect(px, tty + 3, pw, 7, ZC_CU_DK); }
+        const int px = x + 21 + i * 4;
+        if (i < lit) { g.fillRect(px, y + 4, 3, 5, ZC_TFLASH); g.fillRect(px, y + 4, 3, 1, ZC_TCOL); }
+        else g.drawRect(px, y + 4, 3, 5, ZC_CU_DK);
     }
     char sb[4];
     snprintf(sb, sizeof sb, "%02d", secs);
-    txt(g, sb, ttx + plate_w - 12 - 2, tty + 3, ZC_TCOL, lgfx::textdatum::top_left);
-    s_px = keep;
+    tiny_text(g, sb, x + 30, y + 4, ZC_TCOL);
+    zap_dbg(2, x, y, x + ZT_W - 1, y + ZT_H - 1);
 }
 
 static uint8_t zap_log_col(const char *ln)
@@ -604,46 +554,76 @@ static bool zap_sb_on(void)
 static void zap_paint_grid_live(Gfx g)
 {
     /* gate: the Defend board is the shell's display (grid + strip, = the MINI screen box) so the shell's
-     * own MINI / PROMPT boxes sit inside it (G4); the zap itself is clipped to the grid rect below. */
+     * own MINI / PROMPT boxes sit inside it (G4); the zap itself stays inside the grid rect below. */
     GATE_BOX(g, "BOARD", "defend", 106, 42, 176, 148, "-");
     bh_grid(g);
+#ifdef BOTCORPS_HOST_RENDER
+    host_zap_dbg_n = 0;
+    if (host_zap_hide) return;
+    ZapClip cl = { 0, 0, 0, 0, false };
+    if (!host_zap_noclip) cl = zap_clip_push(g, ZAP_IX0, ZAP_IY0, ZAP_IX1 - ZAP_IX0, ZAP_IY1 - ZAP_IY0);
+#else
     const ZapClip cl = zap_clip_push(g, ZAP_IX0, ZAP_IY0, ZAP_IX1 - ZAP_IX0, ZAP_IY1 - ZAP_IY0);
+#endif
     for (int t = 0; t < ZAP_NTR; ++t) zap_trace(g, t);
-    for (int t = 0; t < ZAP_NTR; ++t) zap_support(g, t);
-    chip_block(g, ZAP_CX, ZAP_CY, ZAP_CS, 12);   /* stationary centre Gibson (canon chip) */
-    GATE_BOX(g, "DGBOT", "gibson", ZAP_CX - ZAP_CS / 2, ZAP_CY - ZAP_CS / 2, ZAP_CS, ZAP_CS, "-");
-    int null_x = -1, null_y = -1, null_hh = 7;
+    s_zocc_n = 0;
     for (int i = 0; i < ZAP_MAX; ++i) {
         if (!s_zap[i].live || s_zap[i].dock) continue;
         int x, y, hw, hh; zap_at(s_zap[i].tr, s_zap[i].dist, &x, &y);
         zap_rider(g, s_zap[i].tr, x, y, 0, &hw, &hh);
+        GATE_BOX(g, "DGOBJ", "device", x - hw, y - hh, 2 * hw, 2 * hh, "-");
+        zocc_add(x - hw, y - hh, x + hw - 1, y + hh - 1);
+        zap_dbg(0, x - hw, y - hh, x + hw - 1, y + hh - 1);
     }
     if (s_zap_fx_tr >= 0 && s_dg_ms < s_zap_fx_until) {
         const float to = s_zap_fx_to > s_zap_fx_from + 1.f ? s_zap_fx_to : s_zap_fx_from + 1.f;
         zap_draw_bolt(g, s_zap_fx_tr, s_zap_fx_from, to);
     }
+    bool has_null = false;
+    ZapBox nr = { 0, 0, 0, 0 };
     if (s_zap_null_tr >= 0 && s_dg_ms < s_zap_null_until) {
         int x, y, hw, hh; zap_at(s_zap_null_tr, s_zap_fx_to > 0.f ? s_zap_fx_to + 6.f : 40.f, &x, &y);
         zap_rider(g, s_zap_null_tr, x, y, 1, &hw, &hh);
-        g.drawRect(x - hw - 3, y - hh - 3, 2 * hw + 7, 2 * hh + 7, PAL_TERM_M);
-        g.drawRect(x - hw - 2, y - hh - 2, 2 * hw + 5, 2 * hh + 5, ZC_ZAP);
-        g.drawRect(x - hw - 1, y - hh - 1, 2 * hw + 3, 2 * hh + 3, PAL_TERM_M);
-        null_x = x; null_y = y; null_hh = hh;
+        GATE_BOX(g, "DGOBJ", "null", x - hw, y - hh, 2 * hw, 2 * hh, "-");
+        zap_dbg(0, x - hw, y - hh, x + hw - 1, y + hh - 1);
+        /* NULL rim = one ZAP stroke on the halo (inside the sprite box: the vertical traces sit 2 px apart) */
+        g.drawRect(x - hw, y - hh, 2 * hw, 2 * hh, ZC_ZAP);
+        nr.x0 = (int16_t)(x - hw); nr.y0 = (int16_t)(y - hh); nr.x1 = (int16_t)(x + hw - 1); nr.y1 = (int16_t)(y + hh - 1);
+        zap_dbg(1, nr.x0, nr.y0, nr.x1, nr.y1);
+        zocc_add(nr.x0, nr.y0, nr.x1, nr.y1);
+        has_null = true;
     }
+    int nd = 0, dx[ZAP_MAX], dsec[ZAP_MAX];
+    ZapBox dr[ZAP_MAX];
     for (int i = 0; i < ZAP_MAX; ++i) {
         if (!s_zap[i].live || !s_zap[i].dock) continue;
         int x, y, hw, hh; zap_at(s_zap[i].tr, s_zap[i].dist, &x, &y);
         zap_rider(g, s_zap[i].tr, x, y, 2, &hw, &hh);
-        int bx, by; zap_chip_pos(s_zap[i].tr, &bx, &by);
+        GATE_BOX(g, "DGOBJ", "device", x - hw, y - hh, 2 * hw, 2 * hh, "-");
+        zap_dbg(0, x - hw, y - hh, x + hw - 1, y + hh - 1);
+        dr[nd] = zap_rim(g, x, y, true);
+        zocc_add(dr[nd].x0, dr[nd].y0, dr[nd].x1, dr[nd].y1);
         int secs = 2;
         if (s_zap_dock_seen[i]) {
             const uint32_t el = s_dg_ms - s_zap_dock_t0[i];
             secs = el >= ZAP_TIME_MS ? 0 : (int)((ZAP_TIME_MS - el + 999u) / 1000u);
         }
-        zap_time_urgency(g, x, y, hw, hh, bx, by, secs);
+        dx[nd] = i; dsec[nd] = secs; ++nd;
     }
-    if (null_x >= 0) zap_null_label(g, null_x, null_y - null_hh + 6);
+    (void)dx;
+    for (int k = 0; k < nd; ++k) {
+        int tx, ty;
+        if (zap_tag_spot(dr[k], ZT_W, ZT_H, &tx, &ty)) { zap_time_tag(g, tx, ty, dsec[k]); zocc_add(tx, ty, tx + ZT_W - 1, ty + ZT_H - 1); }
+    }
+    if (has_null) {
+        int tx, ty;
+        if (zap_tag_spot(nr, ZN_W, ZN_H, &tx, &ty)) { zap_null_tag(g, tx, ty); zocc_add(tx, ty, tx + ZN_W - 1, ty + ZN_H - 1); }
+    }
+#ifdef BOTCORPS_HOST_RENDER
+    if (!host_zap_noclip) zap_clip_pop(g, cl);
+#else
     zap_clip_pop(g, cl);
+#endif
 }
 
 /* the idle Defend (no round running) shows a fixed still of the zap, as v1019w's idle demo did */
@@ -657,7 +637,7 @@ static void zap_demo_seed(void)
     s_zap[3].live = 1; s_zap[3].tr = 2; s_zap[3].dist = 34.f; s_zap[3].dock = 0;
     s_zap[4].live = 1; s_zap[4].tr = 3; s_zap[4].dist = 36.f; s_zap[4].dock = 0;
     s_zap[5].live = 1; s_zap[5].tr = 5; s_zap[5].dist = 44.f; s_zap[5].dock = 0;
-    s_zap_fx_tr = 1; s_zap_fx_from = 4.f; s_zap_fx_to = 24.f;
+    s_zap_fx_tr = 1; s_zap_fx_from = 2.f; s_zap_fx_to = 24.f;
     s_zap_fx_until = s_dg_ms + 99999u;
     s_zap_null_tr = 1; s_zap_null_until = s_dg_ms + 99999u;
 }
@@ -736,6 +716,9 @@ static void zap_strip(Gfx g, int dx, int th, int ty, int dw)
  * chip, under the chip and its silk. The rect is the clean PCB between the board's gold edge / mount
  * holes / headers and the display bezel side bar. */
 enum { ZR_X = 20, ZR_Y = 44, ZR_W = 76, ZR_H = 148 };
+/* v1019x QA 1 (Mobandy 2:44 PM): no rain on the chip or its name / RADIO CORE silk: cells touching these
+ * world rects {x, y, w, h} are skipped (measured from the no-rain render, +2 px). */
+static const int16_t ZR_EX[2][4] = { { 31, 64, 59, 60 }, { 32, 124, 58, 27 } };   /* chip+pins, silk block */
 static void zap_rain_rect(Gfx g)
 {
     GATE_BOX(g, "RAIN", "layer", ZR_X, ZR_Y, ZR_W, ZR_H, "-");
@@ -749,7 +732,7 @@ static void zap_rain_rect(Gfx g)
 #ifdef BOTCORPS_HOST_RENDER
     host_gate_mute = 1;
 #endif
-    botcorps_rain_draw_win(*g.raw(), g.oy, g.oy + g.raw()->height(), (int)n.x + g.ox, (int)n.y + g.oy, (int)n.w, (int)n.h);
+    botcorps_rain_draw_win(*g.raw(), g.oy, g.oy + g.raw()->height(), (int)n.x + g.ox, (int)n.y + g.oy, (int)n.w, (int)n.h, ZR_EX, 2);
 #ifdef BOTCORPS_HOST_RENDER
     host_gate_mute = 0;
 #endif
@@ -804,9 +787,22 @@ static void zap_rain_tick(void)
     botcorps_rain_set_draw(was);
     if (st) zap_sb_patch(ZR_X, ZR_Y, ZR_W, ZR_H);
 }
+static void sb_bus_keys(uint32_t t, uint32_t *top, uint32_t *rule, uint32_t *sr);
 static void zap_tick_patch(void)
 {
     static uint32_t fs = 0, hs = 0;
+    /* v1019x QA 4: the shell's live bus (top-bar bot squares + top rule + under-grid sweep) and the left
+     * module's trace pulse / LED, on the same keys as the scan screen's sb_tick */
+    static uint32_t k_top = ~0u, k_rule = ~0u, k_sr = ~0u, k_mod = ~0u, k_led = ~0u;
+    const uint32_t t = millis();
+    uint32_t top, rule, sr;
+    sb_bus_keys(t, &top, &rule, &sr);
+    if (top != k_top) { if (k_top != ~0u) zap_sb_patch(0, 0, 320, 24); k_top = top; }
+    if (rule != k_rule) { if (k_rule != ~0u) zap_sb_patch(0, 24, 320, 1); k_rule = rule; }
+    if (sr != k_sr) { if (k_sr != ~0u) zap_sb_patch(106, 144, 176, 1); k_sr = sr; }
+    const uint32_t md = t / 120u, ld = (t / 500u) % 2u;
+    if (md != k_mod) { if (k_mod != ~0u) zap_sb_patch(88, 97, 9, 38); k_mod = md; }
+    if (ld != k_led) { if (k_led != ~0u) zap_sb_patch(93, 54, 5, 3); k_led = ld; }
     const uint32_t f = zap_field_sig();
     if (f != fs) { fs = f; zap_sb_patch(ZAP_BX0, ZAP_BY0, ZAP_BX1 - ZAP_BX0, ZAP_BY1 - ZAP_BY0); }
     const uint32_t h = zap_hud_sig();

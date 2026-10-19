@@ -456,6 +456,46 @@ int main(int argc, char **argv)
         }
         return 0;
     }
+    /* v1019x QA proof (not a gate item): rend zapsim <dir> <frames> <steps/frame> <ai_every> <seed_ms>
+     * per frame: f<k>.rgb (as shipped), f<k>.noclip.rgb (zap clip off), f<k>.hide.rgb (zap layer off),
+     * f<k>.box.txt (zap element bboxes: kind x0 y0 x1 y1; 0 sprite 1 rim 2 tag 3 bolt). */
+    if (argc > 6 && strcmp(argv[1], "zapsim") == 0) {
+        extern void botcorps_host_zap_sim_start(uint8_t *buf, uint32_t seed_ms);
+        extern int botcorps_host_zap_sim_frame(uint8_t *buf, int steps, int ai_every);
+        extern void botcorps_host_repaint(uint8_t *buf);
+        extern int host_zap_dbg_n, host_zap_noclip, host_zap_hide;
+        extern int16_t host_zap_dbg[48][5];
+        host_rain_init(0);
+        botcorps_host_set_color(0);
+        host_gate_norain = 1;
+        botcorps_host_zap_sim_start(g_buf, (uint32_t)atoi(argv[6]));
+        const int n = atoi(argv[3]), st = atoi(argv[4]), ai = atoi(argv[5]);
+        char p[256];
+        for (int k = 0; k < n; ++k) {
+            const int live = botcorps_host_zap_sim_frame(g_buf, st, ai);
+            snprintf(p, sizeof p, "%s/f%d.rgb", argv[2], k); write_raw(p, g_buf, 0);
+            snprintf(p, sizeof p, "%s/f%d.box.txt", argv[2], k);
+            FILE *f = fopen(p, "w");
+            for (int i = 0; i < host_zap_dbg_n; ++i)
+                fprintf(f, "%d %d %d %d %d\n", host_zap_dbg[i][0], host_zap_dbg[i][1], host_zap_dbg[i][2], host_zap_dbg[i][3], host_zap_dbg[i][4]);
+            fclose(f);
+            host_zap_noclip = 1; botcorps_host_repaint(g_buf);
+            snprintf(p, sizeof p, "%s/f%d.noclip.rgb", argv[2], k); write_raw(p, g_buf, 0);
+            host_zap_noclip = 0; host_zap_hide = 1; botcorps_host_repaint(g_buf);
+            snprintf(p, sizeof p, "%s/f%d.hide.rgb", argv[2], k); write_raw(p, g_buf, 0);
+            host_zap_hide = 0; botcorps_host_repaint(g_buf);
+            if (!live) { printf("round ended at frame %d\n", k); break; }
+        }
+        return 0;
+    }
+    /* v1019x V1 proof (not a gate item): rend termcmd <line> - prints the Terminal log rows it adds */
+    if (argc > 2 && strcmp(argv[1], "termcmd") == 0) {
+        extern void botcorps_host_term_cmd(const char *line);
+        host_rain_init(0);
+        host_set_millis(9000u);
+        botcorps_host_term_cmd(argv[2]);
+        return 0;
+    }
     /* v1017c: one-off review render (not a gate item): rend shot <screen id> <out.rgb> [keys] */
     if (argc > 3 && strcmp(argv[1], "shot") == 0) {
         host_rain_init(0);

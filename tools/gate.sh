@@ -1,7 +1,9 @@
 #!/bin/bash
-# BOTcorps Adv render gate (SPEC-LOCKED.md). Builds the host renderer (real UI + real rain),
+# BOTcorps Adv gate (SPEC-LOCKED.md). Builds the host renderer (real UI + real rain),
 # renders EVERY screen (rain on + rain off), then tools/gate/gate.py prints PASS/FAIL per
-# spec item per screen. Exit 0 only when every item passes.
+# spec item per screen. tools/gate/ram.py then checks static RAM against
+# release/gate/ram-caps.txt (PASS at or under, FAIL above). Exit 0 only when every
+# render item and every RAM row passes. RAM fails add to the render fail count.
 #   usage: tools/gate.sh [render_dir]
 set -e
 cd "$(dirname "$0")/.."
@@ -14,4 +16,8 @@ rm -rf "$DIR"; mkdir -p "$DIR"
 set +e
 python3 tools/gate/gate.py "$DIR" release/gate/baseline release/gate/frozen.txt
 rc=$?
-exit $rc
+python3 tools/gate/ram.py
+rr=$?
+total=$((rc + rr))
+if [ "$total" -gt 255 ]; then total=255; fi
+exit $total

@@ -134,4 +134,9 @@ per screen, and every push is checked against a full paint at the same millis().
 | S2 | Scan screens: the idle animation never does a full-screen present (patches only) |
 | S3 | v1017c: every gate screen painted the device way (two 120-row slices, oy 0/120, clipped to the 320x120 sprite) composes to exactly the one-shot frame, rain on and off |
 | S4 | v1017c (bug #1): scan screens' idle ticks draw in place (dirty rect only, botcorps_band_patch_rect): zero slice recomposes in 6 s |
-| | **[device]** The simulator proves the logic. Panel timing, SPI tearing and what you actually see can only be checked on the Adv |
+| | **[device]** The simulator proves the logic. Panel timing, SPI tearing and what you actually see can only be checked on the Adv
+
+## Static RAM (ARCH freeze)
+| id | rule |
+|---|---|
+| R0 | Static RAM is `.dram0.data` + `.dram0.bss` (PlatformIO "RAM: used N bytes"). `tools/gate/ram.py` PASSes at or under the cap in `release/gate/ram-caps.txt` and FAILs above it. Caps: cardputer-adv 71,264 B; cardputer-adv-dual 71,896 B; cardputer-adv-dual-launcher 71,896 B; dual with `BOTCORPS_LIVE_SCAN=1` 71,904 B. An elf older than `src/` or `platformio.ini` is FAIL. Growth has to be paid back with savings. The livescan env is a measurement build, not a flashed product | |

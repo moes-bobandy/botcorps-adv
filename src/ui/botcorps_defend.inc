@@ -274,6 +274,7 @@ static void dl_step(uint32_t t)
 static void zap_paint_grid(Gfx g)
 {
     GATE_BOX(g, "BOARD", "defend", 106, 42, 176, 148, "-");
+    if (!dl_live()) { bh_grid(g); return; }
     const uint32_t t = millis();
     const int tier = dl_tier_of(s_dl_hi);
     const int mix = 8 + tier * 16;
@@ -306,7 +307,7 @@ static void zap_paint_grid(Gfx g)
     if (ch) sb_rect(g, 150, BH_Y + 2, 70 * ch / DL_CHG, 4, bc);
     char hud[24];
     snprintf(hud, sizeof hud, "%ds", s_dl_on ? dl_time_left(t) / 1000 : DL_TIME0 / 1000);
-    sb_text(g, hud, BH_X + 2, BH_Y + 1, (uint8_t)PAL_WHITE, field, false, 1);
+    sb_text(g, hud, BH_X + 22, BH_Y + 2, (uint8_t)PAL_WHITE, field, false, 1);
     snprintf(hud, sizeof hud, "L%d %d", dl_lv_of(s_dl_hi), s_dl_score);
     sb_text(g, hud, 228, BH_Y + 1, (uint8_t)PAL_WHITE, field, false, 1);
     for (int i = 0; i < DL_MAX; ++i) if (s_dl_d[i].live && s_dl_d[i].acq)
@@ -326,6 +327,29 @@ static void zap_paint_grid(Gfx g)
 
 static void zap_strip(Gfx g, int dx, int th, int ty, int dw)
 {
+    if (!dl_live()) {
+        const uint8_t ac = accent();
+        const int b = (s_defend_bot >= 0 && s_defend_bot <= 12) ? s_defend_bot : 12;
+        const char *who = b >= 12 ? "gibson" : BOTS[b].short_name;
+        char body[40];
+        int x = sb_tt(g, "[ ok ] ", dx + 3, th, PAL_OK);
+        snprintf(body, sizeof body, "%s core linked", who);
+        sb_tt(g, body, x, th + 1, sb_tone(3));
+        sb_tt(g, body, x, th, sb_ink());
+        x = sb_tt(g, "[ ok ] ", dx + 3, th + 11, PAL_OK);
+        snprintf(body, sizeof body, "%s bus idle", who);
+        sb_tt(g, body, x, th + 12, sb_tone(3));
+        sb_tt(g, body, x, th + 11, sb_ink());
+        x = sb_tt(g, "user@botcorps:~$ ", dx + 3, ty, ac);
+        x = sb_tt(g, s_gp_buf, x, ty, COL_INK);
+        if ((millis() / 530u) % 2u == 0u) sb_rect(g, x + 1, ty, 5, 9, ac);
+        const bool lit = s_def_cmd >= 0;
+        sb_rect(g, dx + dw - 22, ty - 2, 19, 12, lit ? sb_tone(3) : (uint8_t)8);
+        sb_frame(g, dx + dw - 22, ty - 2, 19, 12, lit ? ac : sb_tone(4));
+        for (int k = 0; k < 3; ++k)
+            sb_rect(g, dx + dw - 18, ty + 1 + k * 3, 11, 1, lit ? ac : (uint8_t)COL_MUTED);
+        return;
+    }
     const uint8_t ac = dl_accent();
     char body[40];
     snprintf(body, sizeof body, "HI %05d  LV%02d  T%d", s_dl_hi < 0 ? 0 : s_dl_hi, dl_lv_of(s_dl_hi), dl_tier_of(s_dl_hi));
@@ -341,13 +365,23 @@ static void zap_strip(Gfx g, int dx, int th, int ty, int dw)
         sb_rect(g, dx + dw - 18, ty + 1 + k * 3, 11, 1, lit ? ac : (uint8_t)COL_MUTED);
 }
 
-/* Rain only in the dark PCB rect behind the left chip. Cells that touch a chip or the silk are skipped. */
+/* Rain only in the dark PCB rect behind the left chip. Cells that touch a chip, the device
+ * name, or the silk are skipped. The device hole follows DEVICE_CHIP_SIDE. */
 enum { ZR_X = 20, ZR_Y = 40, ZR_W = 76, ZR_H = 152 };
-static const int16_t ZR_EX[3][4] = {
-    { 39, 56, 46, 48 },   /* bot chip + pins */
-    { 48, 100, 28, 28 },  /* device chip under it */
-    { 28, 124, 64, 32 }   /* silk */
-};
+static void zr_exclusions(int16_t ex[4][4])
+{
+    const int cxm = 61, ccy = 78;
+    const int dcx = cxm + DEVICE_CHIP_SIDE * DEVICE_CHIP_OFF;
+    const int dcy = ccy + 36;
+    ex[0][0] = 39; ex[0][1] = 56; ex[0][2] = 46; ex[0][3] = 48;
+    ex[1][0] = (int16_t)(dcx - 14); ex[1][1] = (int16_t)(dcy - 14); ex[1][2] = 28; ex[1][3] = 28;
+    if (DEVICE_CHIP_SIDE > 0) {
+        ex[2][0] = 18; ex[2][1] = (int16_t)(dcy - 6); ex[2][2] = (int16_t)(dcx - 14 - 18); ex[2][3] = 14;
+    } else {
+        ex[2][0] = (int16_t)(dcx + 14); ex[2][1] = (int16_t)(dcy - 6); ex[2][2] = 48; ex[2][3] = 14;
+    }
+    ex[3][0] = 22; ex[3][1] = (int16_t)(ccy + 48); ex[3][2] = 74; ex[3][3] = 40;
+}
 #ifdef BOTCORPS_HOST_RENDER
 bool host_gfx_clip_get(int *x, int *y, int *w, int *h);
 void host_gfx_clip_set(bool on, int x, int y, int w, int h);
@@ -403,8 +437,10 @@ static void zap_rain_rect(Gfx g)
 #ifdef BOTCORPS_HOST_RENDER
     host_gate_mute = 1;
 #endif
+    int16_t ex[4][4];
+    zr_exclusions(ex);
     botcorps_rain_draw_win(*g.raw(), g.oy, g.oy + g.raw()->height(), (int)n.x + g.ox, (int)n.y + g.oy,
-                           (int)n.w, (int)n.h, ZR_EX, 3);
+                           (int)n.w, (int)n.h, ex, 4);
 #ifdef BOTCORPS_HOST_RENDER
     host_gate_mute = 0;
 #endif

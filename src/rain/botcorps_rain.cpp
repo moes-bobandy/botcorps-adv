@@ -62,7 +62,8 @@ static bool s_gibson = false;   /* Gibson's screen: the mixed-in bots are ivory 
  * bits, no bot emblems, never a background, never the UI colour). Fixed: the only thing that recolours it
  * is the BOT-RAIN colour toggle (s_mode). */
 static bool s_no_bots = false;
-static bool s_faint = false;   /* terminal tile-gap rain: dim device icons, not full neon */
+static bool s_faint = false;   /* defend panel: device icons at about 1/4 */
+static bool s_half = false;    /* terminal: device icons at about 1/2 of v1019d, white lead */
 
 static const uint16_t SOLID_INK[6] = {
     0x26E8, 0x269C, 0x331F, 0xB21F, 0xF586, 0xFFFF,
@@ -301,9 +302,16 @@ static void draw_cell(lgfx::LovyanGFX &panel, int col, int row)
         if (dev_only_icon(col, row, lv, gl, &d)) {
             uint8_t ink3[3];
             dev_inks(d, lv, ink3);
-            if (s_faint) {
+            if (s_half && lv == 1) {
+                const uint16_t w = botcorps_rgb565(PAL_WHITE);
+                ink3[0] = botcorps_pal_fit(w);
+                ink3[1] = botcorps_pal_fit(scale_native(w, 1, 2));
+                ink3[2] = ink3[0];
+            }
+            const int den = s_half ? 2 : (s_faint ? 4 : 1);
+            if (den != 1) {
                 for (int k = 0; k < 3; ++k)
-                    ink3[k] = botcorps_pal_fit(scale_native(botcorps_rgb565(ink3[k]), 1, 4));
+                    ink3[k] = botcorps_pal_fit(scale_native(botcorps_rgb565(ink3[k]), 1, den));
             }
             dev_art(panel, x, ly, d, ink3);
         }
@@ -485,6 +493,10 @@ void botcorps_rain_set_no_bots(bool on)
 void botcorps_rain_set_faint(bool on)
 {
     s_faint = on;
+}
+void botcorps_rain_set_half(bool on)
+{
+    s_half = on;
 }
 
 void botcorps_rain_draw_win(lgfx::LovyanGFX &dst, int y0, int y1, int wx, int wy, int ww, int wh,

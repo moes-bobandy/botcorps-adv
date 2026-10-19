@@ -306,6 +306,7 @@ void botcorps_rain_set_hub(bool);
 void botcorps_rain_set_gibson(bool);
 void botcorps_rain_set_no_bots(bool);
 void botcorps_rain_set_faint(bool);
+void botcorps_rain_set_half(bool);
 void botcorps_rain_draw(lgfx::v1::LovyanGFX &, int, int);
 void botcorps_rain_draw_win(lgfx::v1::LovyanGFX &, int, int, int, int, int, int, const int16_t (*)[4], int);
 bool botcorps_rain_step(void);

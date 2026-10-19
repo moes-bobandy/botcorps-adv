@@ -172,7 +172,7 @@ static const bot_t BOTS[12] = {
 
 static const uint8_t BOT_PAL[12] = {   /* v1019r-pending (#8): 12 unique fixed bot colours (min dE 36.8) */
     87 /*1BDD wifi*/, 59 /*269C bt*/, 201 /*DA4A deauth*/, 122 /*1E88 hack*/, 185 /*B6CA flock*/, 252 /*FFE0 drone*/,
-    245 /*FDC9 airtag*/, 94 /*5FF8 keyfob*/, 131 /*901F meta*/, 202 /*DA55 skimmer, nearest non-override to FA55*/, 241 /*F2E3 flipper*/, 207 /*E2FF samsung*/,
+    245 /*FDC9 airtag*/, 94 /*5FF8 keyfob*/, 131 /*901F meta*/, 234 /*FA55 skimmer*/, 241 /*F2E3 flipper*/, 207 /*E2FF samsung*/,
 };
 
 static uint8_t bot_color(int i)
@@ -2380,8 +2380,9 @@ static void paint_prompt(Gfx g)
     const int keep = s_px;
     s_px = 6;
     /* Tiles end at y=165. Deep black plate. Enter pulses the hairline cyan. */
-    g.fillRect(4, 168, 312, 68, PAL_BLACK);
-    /* Prompt strip is solid. Device rain stays in the tile gaps, not in this plate. */
+    /* Log area keeps the device-icon rain. The named prompt band and the typed prompt row stay solid. */
+    g.fillRect(44, 190, 196, 10, PAL_BLACK);
+    g.fillRect(4, 220, 312, 16, PAL_BLACK);
     /* Plate chrome is the same with the sheet open or closed. The scan-all
      * frame, if any, is painted later and only inside the sheet rect. */
     {
@@ -3268,13 +3269,13 @@ static const uint8_t GL_INK[GL_N][3] = {
     { 30, 1, 255 },    /* tv #00FFA8 */
     { 240, 44, 255 },  /* speaker #FFA000 */
     { 252, 68, 255 },  /* tracker #FFF000 */
-    { 199, 64, 255 },  /* watch, nearest non-override to #FF2BD6 (was override 231) */
+    { 231, 64, 255 },  /* watch #FF2BD6 */
     { 167, 64, 255 },  /* camera #B026FF */
     { 111, 37, 255 },  /* car #6E74FF */
-    { 211, 64, 255 },  /* unknown, nearest non-override to #FF8AE8 (was override 243) */
+    { 243, 64, 255 },  /* unknown #FF8AE8 */
     { 224, 64, 255 },  /* drone #FF2020 */
     { 51, 37, 252 },   /* dev board #2EA0FF, gold pins */
-    { 202, 64, 255 },  /* printer, nearest non-override to #FF4F9A (was override 234) */
+    { 234, 64, 255 },  /* printer #FF4F9A */
 };
 
 static bool s_gl_mono = false; /* newest scan tile blinks white */
@@ -3659,8 +3660,11 @@ static void sb_bot_chip(Gfx g, int cx, int cy, int S, int bot)
 
 /* Board edge = bot colour mixed with that bot's device colour. Defined after BH_DEV. */
 static uint8_t board_edge_col(int bot);
+/* +1 draws the device chip to the RIGHT of the bot centre. Flip this one line for LEFT. */
+static const int DEVICE_CHIP_SIDE = 1;
+static const int DEVICE_CHIP_OFF = 16;
 static void dev_under_chip(Gfx g, int cx, int cy, int bot);
-static void dev_solder(Gfx g, int cx, int bot_bottom, int dev_top);
+static void dev_mount_row(Gfx g, int cxm, int ccy, int bot);
 
 /* ESP32 dev board around the box (mock cydBoard + module). */
 static void sb_board(Gfx g, bool wifi)
@@ -3718,8 +3722,8 @@ static void sb_board(Gfx g, bool wifi)
         const bool gib = bot >= 12;
         if (zsb) zap_rain_rect(g);   /* rain behind the chips, this rect only */
         chip_block(g, cxm, ccy, 40, gib ? 12 : bot);
-        dev_under_chip(g, cxm, ccy + 36, bot);
-        dev_solder(g, cxm, ccy + 20, ccy + 27);
+        if (zsb) dev_mount_row(g, cxm, ccy, bot);
+        else dev_under_chip(g, cxm, ccy + 36, bot);
         char nmb[16];
         const char *nm;
         if (gib) nm = "GIBSON";
@@ -3768,7 +3772,6 @@ static void sb_board(Gfx g, bool wifi)
     const char *nm = wifi ? "WIFIBOT" : "BLE-BOT"; /* BLUETOOTHBOT is 47 px, wider than the can */
     sb_bot_chip(g, wx + ww / 2, wy + 14, 28, bot);
     dev_under_chip(g, wx + ww / 2, wy + wh + 2, bot);   /* device chip under the bot, still in the can */
-    dev_solder(g, wx + ww / 2, wy + 28, wy + wh + 2 - 9);
     const int cxm = sx + sw / 2;
     /* plain 4 px pitch so every glyph reads; long lines are abbreviated, never squeezed */
     tiny_text(g, nm, cxm - tiny_w(nm) / 2, wy + wh + 14, 41);
@@ -3975,7 +3978,8 @@ static uint8_t board_edge_col(int bot)
     const uint8_t dc = GL_INK[bot_dev_kind(bot)][0];
     return botcorps_pal_fit(mix16(botcorps_rgb565(bc), botcorps_rgb565(dc), 50, 100));
 }
-/* INT pin style B (1 px silver castellations; gold on Gibson's board) around a device icon. */
+/* INT pin style B (1 px silver castellations; gold on Gibson's board) around a device icon.
+ * Scan boards keep this centred chip. Defend panels use dev_mount_row. */
 static void dev_under_chip(Gfx g, int cx, int cy, int bot)
 {
     const int T = 18;
@@ -3983,44 +3987,61 @@ static void dev_under_chip(Gfx g, int cx, int cy, int bot)
     const int D = T - 2, dx = x + 1, dy = y + 1;
     const bool gib = bot >= 12;
     const uint8_t pin = gib ? PAL_GOLD_PIN : (uint8_t)PAL_SOFT;
-    const uint8_t pad = 177, hi = 217;
     GATE_BOX(g, "TCHIP", "device", dx, dy, D, D, "-");
     for (int k = 0; k < 5; ++k) {
         const int i = chip_pin1(D, k);
-        g.fillRect(x - 1, dy + i - 1, 3, 3, pad);
-        g.fillRect(x + T - 2, dy + i - 1, 3, 3, pad);
         g.fillRect(x, dy + i, 2, 1, pin);
         g.fillRect(x + T - 2, dy + i, 2, 1, pin);
-        g.fillRect(dx + i - 1, y - 1, 3, 3, pad);
-        g.fillRect(dx + i - 1, y + T - 2, 3, 3, pad);
-        g.fillRect(dx + i, y, 1, 1, hi);
-        g.fillRect(dx + i, y + T - 1, 1, 1, hi);
+        g.fillRect(dx + i, y, 1, 2, pin);
+        g.fillRect(dx + i, y + T - 2, 1, 2, pin);
     }
     g.fillRect(dx, dy, D, D, PAL_BLACK);
     g.drawRect(dx, dy, D, D, PAL_STEEL);
     gl_icon(g, bot_dev_kind(bot), cx - 6, cy - 6, false);
 }
 
-/* Several copper wires and solder pads between the bot chip's underside and the device chip.
- * Not one trace. y0 is the bot chip bottom, y1 the device chip top. */
-static void dev_solder(Gfx g, int cx, int bot_bottom, int dev_top)
+/* Defend only. Device chip offset by DEVICE_CHIP_SIDE, name on the other side, soldered
+ * into the bot chip's lower pins with several traces. */
+static void dev_mount_row(Gfx g, int cxm, int ccy, int bot)
 {
+    const int dcx = cxm + DEVICE_CHIP_SIDE * DEVICE_CHIP_OFF;
+    const int dcy = ccy + 36;
+    const int T = 18, D = T - 2, S = 40;
+    const int x = dcx - T / 2, y = dcy - T / 2;
+    const int dx = x + 1, dy = y + 1;
+    const bool gib = bot >= 12;
+    const uint8_t pin = gib ? PAL_GOLD_PIN : (uint8_t)PAL_SOFT;
     const uint8_t pad = 177, hi = 217, wire = 104;
-    static const int off[5] = { -6, -3, 0, 3, 6 };
-    static const int jog[5] = { -2, 1, 2, -1, 2 };
-    if (dev_top <= bot_bottom) return;
-    for (int i = 0; i < 5; ++i) {
-        const int x0 = cx + off[i];
-        const int x1 = x0 + jog[i];
+    const int bot_bottom = ccy + S / 2;
+    const int dev_top = y;
+    GATE_BOX(g, "TCHIP", "device", dx, dy, D, D, "-");
+    for (int k = 0; k < 5; ++k) {
+        const int i = chip_pin1(D, k);
+        const int x0 = (cxm - S / 2) + (gib ? chip_pin(S, k) : chip_pin1(S, k));
+        const int x1 = dx + i;
         const int mid = bot_bottom + (dev_top - bot_bottom) / 2;
-        g.fillRect(x0, bot_bottom, 1, mid - bot_bottom + 1, wire);
+        g.fillRect(x0, bot_bottom - 1, 1, mid - (bot_bottom - 1) + 1, wire);
         g.fillRect(x0 < x1 ? x0 : x1, mid, (x0 > x1 ? x0 - x1 : x1 - x0) + 1, 1, wire);
         g.fillRect(x1, mid, 1, dev_top - mid + 1, wire);
-        g.fillRect(x0 - 1, bot_bottom - 1, 3, 2, pad);
-        g.fillRect(x0, bot_bottom - 1, 1, 1, hi);
-        g.fillRect(x1 - 1, dev_top - 1, 3, 2, pad);
+        g.fillRect(x0 - 1, bot_bottom - 2, 3, 3, pad);
+        g.fillRect(x0, bot_bottom - 2, 1, 1, hi);
+        g.fillRect(x1 - 1, dev_top - 1, 3, 3, pad);
         g.fillRect(x1, dev_top, 1, 1, hi);
+        g.fillRect(x - 1, dy + i - 1, 3, 3, pad);
+        g.fillRect(x + T - 2, dy + i - 1, 3, 3, pad);
+        g.fillRect(x, dy + i, 2, 1, pin);
+        g.fillRect(x + T - 2, dy + i, 2, 1, pin);
+        g.fillRect(dx + i - 1, y + T - 2, 3, 3, pad);
+        g.fillRect(dx + i, y + T - 1, 1, 1, hi);
     }
+    g.fillRect(dx, dy, D, D, PAL_BLACK);
+    g.drawRect(dx, dy, D, D, PAL_STEEL);
+    gl_icon(g, bot_dev_kind(bot), dcx - 6, dcy - 6, false);
+    const char *lab = GL_LABEL[bot_dev_kind(bot)];
+    const int tw = tiny_w(lab);
+    const int ly = dcy - 2;
+    const int lx = DEVICE_CHIP_SIDE > 0 ? (x - 3 - tw) : (x + T + 3);
+    tiny_text(g, lab, lx, ly, 41);
 }
 static const int8_t BH_GIB[10] = { GL_AP, GL_PHONE, GL_LAPTOP, GL_TV, GL_SPEAKER, GL_TRACKER, GL_WATCH, GL_CAMERA, GL_CAR, GL_UNKNOWN };
 /* mock non-live grid: C = 19, GC = 9, GR = 5, gx = dx + 2, gy = dy + 2 (display dx 106, dy 42). */
@@ -6514,13 +6535,13 @@ static void paint_gchat(Gfx g)
  * ivory Gibsons; the Terminal's rain has no bot emblems. */
 static void rain_flags(void)
 {
-    /* v1019x: Gibson's Defend (scan shell) rain = BOTcorps canon on Gibson's screen: bits, ivory
-     * Gibsons and devices (not the prompt screen's device-only rain) */
+    /* Defend left panels (all 13, Gibson included) are device icons only: no bits, no bot emblems.
+     * Terminal gaps use the same device-only set at half of v1019d. */
     const bool zsb = zap_sb_on();
-    const bool zgib = zsb && s_defend_bot >= 12;
-    botcorps_rain_set_gibson(s_screen == SCR_GIBSON || (s_screen == SCR_SCAN && s_scan_bot == 12) || zgib);
-    botcorps_rain_set_no_bots(s_screen == SCR_TERMINAL || (zsb && !zgib));
-    botcorps_rain_set_faint(s_screen == SCR_TERMINAL);
+    botcorps_rain_set_gibson((s_screen == SCR_GIBSON || (s_screen == SCR_SCAN && s_scan_bot == 12)) && !zsb);
+    botcorps_rain_set_no_bots(s_screen == SCR_TERMINAL || zsb);
+    botcorps_rain_set_faint(zsb);
+    botcorps_rain_set_half(s_screen == SCR_TERMINAL);
 }
 
 static void paint_ext(Gfx g)

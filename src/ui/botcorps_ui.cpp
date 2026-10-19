@@ -1582,6 +1582,10 @@ static void paint_one_board(Gfx g, int i, bool sel, bool dim)
     const uint8_t hole = (uint8_t)PAL_FIELD;
     g.fillRect(x + 1, y, w - 2, h, base);
     g.fillRect(x, y + 1, w, h - 2, base);
+    /* v1019t D finish: darker horizontal label band behind the bot name (concept D label box, the
+     * PAL_BOARD_D plate) across the inner width, rows y+36..y+43. Drawn before the socket, so the
+     * selected outline at y+36 and the label still sit on top; rain ghost stops at y+35. */
+    g.fillRect(x + 2, y + 36, w - 4, 8, (uint8_t)PAL_BOARD_D);
     /* Traces on focused tile only (same as before); D raises their contrast via STEEL/MUTED + black panel. */
     const bool traces = !dim;
     const int longtr[4] = { 1, 3, 5, 6 };
@@ -1704,7 +1708,16 @@ static void paint_one_board(Gfx g, int i, bool sel, bool dim)
     g.fillRect(x, y + h - bl, 2, bl, rim);
     g.fillRect(x + w - bl, y + h - 2, bl, 2, rim);
     g.fillRect(x + w - 2, y + h - bl, 2, bl, rim);
-    /* Bottom rim doubles as the thin coloured underline under the bot-name label. */
+    /* v1019t D finish: a separate thick underline bar under the bot-name label (concept draw_underline:
+     * 2 px, half-width min(33, len*3+2), bot colour), stacked under the 2 px bottom rim so the label
+     * reads on a 4 px bar while the rest of the rim stays 2 px. Inside the tile's own patch/cover rect
+     * (x-2, y-2, 76, 50). */
+    {
+        int ln = 0;
+        while (lbl[ln]) ++ln;
+        const int hw = ln * 3 + 2 < 33 ? ln * 3 + 2 : 33;
+        g.fillRect(x + 36 - hw, y + h, hw * 2 + 1, 2, rim);
+    }
     /* Faint Wi-Fi arcs on the right of the WIFI tile. Raised contrast (steel), always when radio. */
     if (BOTS[i].radio == 1 && !dim) {
         const uint8_t m = (uint8_t)PAL_STEEL;

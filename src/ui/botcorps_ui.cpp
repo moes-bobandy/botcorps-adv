@@ -1351,7 +1351,7 @@ static void run_cmd(const char *line)
                 }
                 const int f = s_filter & 7;
                 if ((f == 1 && band != 1) || (f == 2 && band != 2) || (f == 4 && dbm < -60)) continue;
-                if (f == 3 && !(band == 1 && (strstr(nm, "guest") || strstr(nm, "lobby")))) continue;
+                if (f == 3 && !(band == 1 && (strstr(nm, "guest") || strstr(nm, "lobby-")))) continue;
                 char row[80];
                 snprintf(row, sizeof(row), "  %s", nm);
                 log_add(row);

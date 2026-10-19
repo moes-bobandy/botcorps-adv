@@ -172,7 +172,7 @@ static const bot_t BOTS[12] = {
 
 static const uint8_t BOT_PAL[12] = {   /* v1019r-pending (#8): 12 unique fixed bot colours (min dE 36.8) */
     87 /*1BDD wifi*/, 59 /*269C bt*/, 201 /*DA4A deauth*/, 122 /*1E88 hack*/, 185 /*B6CA flock*/, 252 /*FFE0 drone*/,
-    245 /*FDC9 airtag*/, 94 /*5FF8 keyfob*/, 131 /*901F meta*/, 234 /*FA55 skimmer*/, 241 /*F2E3 flipper*/, 207 /*E2FF samsung*/,
+    245 /*FDC9 airtag*/, 94 /*5FF8 keyfob*/, 131 /*901F meta*/, 202 /*DA55 skimmer, nearest non-override to FA55*/, 241 /*F2E3 flipper*/, 207 /*E2FF samsung*/,
 };
 
 static uint8_t bot_color(int i)
@@ -487,7 +487,7 @@ static char s_sp_buf[14];        /* typed line after user@botcorps:~$ */
  * it is pending cancels it and still goes straight back (one Esc, OPEN gate); any other key takes over. */
 static uint32_t s_sp_auto_t = 0;
 static void sp_auto_arm(void);
-static char s_sp_l1[32], s_sp_l2[32];   /* last command echo + reply (replace the boot lines) */
+static char s_sp_l1[28], s_sp_l2[28];   /* echo + reply; 28 fits the scan strip and keeps dual RAM under the cap */
 static bool s_sp_has = false;    /* a command ran: the strip shows s_sp_l1/l2 */
 static int s_sp_cmd = -1;        /* SCR_SCAN arrows: index into SP_CMD (≡ chip lit when >= 0) */
 static int s_defend_bot = 12;    /* which bot the idle Defend shell is for (12 = Gibson) */
@@ -2201,8 +2201,8 @@ static void paint_sheet(Gfx g)
         const int y = by + 5 + r * rh;
         const bool on = cmd == sel;
         const uint8_t bg = on ? (uint8_t)PAL_TERM_M18 : (uint8_t)PAL_BG;
-        /* Sheet icon column stays PAL_CYAN (123). Accent 167 was an unlocked brightening. */
-        blit_ico(g, CMD_ICO[cmd], bx + 10, y + 1, on ? (uint8_t)PAL_TERM_M : (uint8_t)PAL_CYAN);
+        /* Unselected sheet icons stay accent 167 (b524ff). PAL_CYAN was not ordered. */
+        blit_ico(g, CMD_ICO[cmd], bx + 10, y + 1, on ? (uint8_t)PAL_TERM_M : accent());
         const uint8_t name_c = on ? (uint8_t)127 : (uint8_t)PAL_TERM_INK;
         if (on) {
             txt(g, CMDN[cmd], bx + 25, y + 2, PAL_TERM_C, lgfx::textdatum::top_left);
@@ -2380,9 +2380,8 @@ static void paint_prompt(Gfx g)
     const int keep = s_px;
     s_px = 6;
     /* Tiles end at y=165. Deep black plate. Enter pulses the hairline cyan. */
-    /* Log area keeps the device-icon rain. The named prompt band and the typed prompt row stay solid. */
-    g.fillRect(44, 190, 196, 10, PAL_BLACK);
-    g.fillRect(4, 220, 312, 16, PAL_BLACK);
+    g.fillRect(4, 168, 312, 68, PAL_BLACK);
+    /* dce1c87: prompt plate is solid. Faint device rain stays in the tile gaps, not in this plate. */
     /* Plate chrome is the same with the sheet open or closed. The scan-all
      * frame, if any, is painted later and only inside the sheet rect. */
     {
@@ -2917,7 +2916,7 @@ static void face_block(Gfx g, int cx, int cy, int s, uint8_t col, bool gib, bool
 static void gib_block(Gfx g, int cx, int cy, int s) { face_block(g, cx, cy, s, PAL_IVORY, true, false); }
 
 /* v1019m: the square block figure everywhere (the intro ID board's dome path was dead code, removed). */
-static void chip_block_ex(Gfx g, int cx, int cy, int S, int bot);
+static void chip_block_ex(Gfx g, int cx, int cy, int S, int bot, int npins = 5);
 static void chip_block(Gfx g, int cx, int cy, int S, int bot) { chip_block_ex(g, cx, cy, S, bot); }
 /* v1019: pre-v1019 chip, centre radar die only (Dirt: leave as-is). */
 static void chip_block_radar(Gfx g, int cx, int cy, int S, int bot)
@@ -2954,7 +2953,7 @@ static void chip_block_radar(Gfx g, int cx, int cy, int S, int bot)
 /* v1019c: when non-zero, the Gibson-form chip face is drawn in this colour (game-board defender chip
  * recolour only: same frame, pins and shades). 0 = the normal ivory Gibson face. */
 static uint8_t s_gib_face = 0;
-static void chip_block_ex(Gfx g, int cx, int cy, int S, int bot)
+static void chip_block_ex(Gfx g, int cx, int cy, int S, int bot, int npins)
 {
     const int x = cx - S / 2, y = cy - S / 2;
     GATE_BOX(g, "CHIP", bot >= 12 ? "gibson" : "bot", x, y, S, S, "-");
@@ -2965,7 +2964,15 @@ static void chip_block_ex(Gfx g, int cx, int cy, int S, int bot)
     g.drawRect(x + 6, y + 6, S - 12, S - 12, PAL_DIAG);
     /* v1019y: the 12 bots use INT-screen pin style B (1 px silver castellations, not bot-coloured).
      * Gibson keeps the existing GOLD pins, same geometry as before. */
-    if (bot >= 12) {
+    if (bot >= 12 && npins == 4) {
+        /* Option-E hub core (5dc1c54): i = 8; i <= S-10; i += 8. Four gold pins, not the later 5. */
+        for (int i = 8; i <= S - 10; i += 8) {
+            g.fillRect(x - 1, y + i, 5, 2, PAL_GOLD_PIN);
+            g.fillRect(x + S - 4, y + i, 5, 2, PAL_GOLD_PIN);
+            g.fillRect(x + i, y - 1, 2, 5, PAL_GOLD_PIN);
+            g.fillRect(x + i, y + S - 4, 2, 5, PAL_GOLD_PIN);
+        }
+    } else if (bot >= 12) {
         for (int k = 0; k < 5; ++k) {
             const int i = chip_pin(S, k);
             g.fillRect(x - 1, y + i, 5, 2, PAL_GOLD_PIN);
@@ -3269,13 +3276,13 @@ static const uint8_t GL_INK[GL_N][3] = {
     { 30, 1, 255 },    /* tv #00FFA8 */
     { 240, 44, 255 },  /* speaker #FFA000 */
     { 252, 68, 255 },  /* tracker #FFF000 */
-    { 231, 64, 255 },  /* watch #FF2BD6 */
+    { 199, 64, 255 },  /* watch, nearest non-override to #FF2BD6 (was override 231) */
     { 167, 64, 255 },  /* camera #B026FF */
     { 111, 37, 255 },  /* car #6E74FF */
-    { 243, 64, 255 },  /* unknown #FF8AE8 */
+    { 211, 64, 255 },  /* unknown, nearest non-override to #FF8AE8 (was override 243) */
     { 224, 64, 255 },  /* drone #FF2020 */
     { 51, 37, 252 },   /* dev board #2EA0FF, gold pins */
-    { 234, 64, 255 },  /* printer #FF4F9A */
+    { 202, 64, 255 },  /* printer, nearest non-override to #FF4F9A (was override 234) */
 };
 
 static bool s_gl_mono = false; /* newest scan tile blinks white */
@@ -4011,7 +4018,10 @@ static void dev_mount_row(Gfx g, int cxm, int ccy, int bot)
     const int dx = x + 1, dy = y + 1;
     const bool gib = bot >= 12;
     const uint8_t pin = gib ? PAL_GOLD_PIN : (uint8_t)PAL_SOFT;
-    const uint8_t pad = 177, hi = 217, wire = 104;
+    /* Gold solder is Gibson only. The other twelve boards use pin-style-B silver. */
+    const uint8_t pad = gib ? (uint8_t)177 : (uint8_t)PAL_SOFT;
+    const uint8_t hi = gib ? (uint8_t)217 : (uint8_t)PAL_WHITE;
+    const uint8_t wire = 104;
     const int bot_bottom = ccy + S / 2;
     const int dev_top = y;
     GATE_BOX(g, "TCHIP", "device", dx, dy, D, D, "-");
@@ -5650,9 +5660,9 @@ static void partial_gp_strip(void)
  * bot 12: black window, gold pins, square frame, Gibson's face). Die, bezel, rings, sparks, floor
  * line, sizes, colours and motion are the flag-0 code paths, untouched. Option E (=5) is D plus the
  * px_ring dotted rings walked on SQUARE paths (same half-size r, same dash/phase/colour/motion). */
-static void gib_core_chip_d(Gfx g, int cx, int cy)
+static void gib_core_chip_d(Gfx g, int cx, int cy, int npins)
 {
-    chip_block_ex(g, cx, cy, 44, 12);           /* 44 px: the whole square, pins + silk, inside the r34 rim */
+    chip_block_ex(g, cx, cy, 44, 12, npins);
 }
 #if GIB_CORE_IS_E
 /* px_ring on a square: same contract (on<=0 = solid 1 px outline; else 1 px dots, `on` px on / on
@@ -5759,7 +5769,7 @@ static void paint_gibson(Gfx g)
     hub_die(g, cx, cy, 34);
     core_bezel(g, cx, cy, 34);
     const int spin = mood == MOOD_HUNTING ? (int)(t / 30u) : mood == MOOD_EXCITED ? (int)(t / 50u) : (int)(t / 90u);
-    GIB_CORE_RING(g, cx, cy, 37, th_ring(0), 5, 5, spin);
+    GIB_CORE_RING(g, cx, cy, 37, PAL_CYAN, 5, 5, spin);
     if (mood == MOOD_HUNTING) {
         for (int k = 0; k < 14; ++k) {
             const float ang = (float)t / 260.f - (float)k * 0.07f;
@@ -5767,14 +5777,14 @@ static void paint_gibson(Gfx g)
             g.fillRect(cx + (int)(cosf(ang) * 40.f), cy + (int)(sinf(ang) * 40.f), 1, 1, ink);
         }
     }
-    GIB_CORE_RING(g, cx, cy, 42, th_ring(1), 2, 4, (int)(t / 140u));
-    GIB_CORE_RING(g, cx, cy, 48, th_ring(2), 1, 5, (int)(t / 80u));
-    GIB_CORE_RING(g, cx, cy, 54, th_ring(4), 2, 6, (int)(t / 200u));
+    GIB_CORE_RING(g, cx, cy, 42, PAL_CYAN, 2, 4, (int)(t / 140u));
+    GIB_CORE_RING(g, cx, cy, 48, PAL_CYAN, 1, 5, (int)(t / 80u));
+    GIB_CORE_RING(g, cx, cy, 54, PAL_CYAN, 2, 6, (int)(t / 200u));
     const int ph = (int)((t % 2400u) * 5u / 2400u);
-    GIB_CORE_RING(g, cx, cy, 44 + ph, th_ring(3), 3, 3, 0);
+    GIB_CORE_RING(g, cx, cy, 44 + ph, PAL_CYAN, 3, 3, 0);
     hub_sparks(g, cx, cy, t);
     g.fillRect(cx - 14, cy + 25, 28, 1, wire);
-    gib_core_chip_d(g, cx, cy);   /* D/E: Gibson's square chip replaces the z7 figure */
+    gib_core_chip_d(g, cx, cy, 4);   /* hub core: Option-E 4 gold pins per side */
     if (s_hub_zone == 3) {
         /* v1017b: Gibson focused (Enter = Gibson game). */
         g.drawCircle(cx, cy, 31, PAL_WHITE);
@@ -5912,7 +5922,7 @@ static void paint_rain_btn(Gfx g)
     GIB_CORE_RING(g, cx, cy, 48, PAL_CYAN, 1, 5, (int)(t / 80u));
     GIB_CORE_RING(g, cx, cy, 54, PAL_CYAN, 2, 6, (int)(t / 200u));
     g.fillRect(cx - 14, cy + 25, 28, 1, wire_ink());
-    gib_core_chip_d(g, cx, cy);   /* D/E: Gibson's square chip replaces the z9 figure */
+    gib_core_chip_d(g, cx, cy, 5);   /* intro disc keeps the frozen 5-pin chip */
 }
 
 static void paint_diag(Gfx g)
@@ -6540,8 +6550,7 @@ static void rain_flags(void)
     const bool zsb = zap_sb_on();
     botcorps_rain_set_gibson((s_screen == SCR_GIBSON || (s_screen == SCR_SCAN && s_scan_bot == 12)) && !zsb);
     botcorps_rain_set_no_bots(s_screen == SCR_TERMINAL || zsb);
-    botcorps_rain_set_faint(zsb);
-    botcorps_rain_set_half(s_screen == SCR_TERMINAL);
+    botcorps_rain_set_faint(s_screen == SCR_TERMINAL || zsb);
 }
 
 static void paint_ext(Gfx g)

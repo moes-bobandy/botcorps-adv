@@ -18,7 +18,7 @@ char botcorps_t0_term_hist[20][26];
 char botcorps_t0_term_log[2048];
 char botcorps_t0_term_found[12][28];
 
-uint8_t botcorps_t0_bot_ui[2560];
+alignas(8) uint8_t botcorps_t0_bot_ui[2560];
 
 uint8_t botcorps_t0_wifi_q[24][32];
 uint8_t botcorps_t0_ble_q[24][32];

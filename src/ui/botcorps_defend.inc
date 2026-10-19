@@ -3,10 +3,12 @@
  * No charge / acquire / deauth-pulse loop — that waits on GIBSON's locked mock.
  * Kept: the shell's grid rect, left-chip rain window, and the live top-bar / sweep tick. */
 enum { DG_ZAP = 14 };
-/* Review-only symbols the old zap painter filled. The grid is empty, so the debug list stays empty. */
+/* Host review scratch only. Kept off the device image: it is 492 B of static RAM and the dual cap is frozen. */
+#ifdef BOTCORPS_HOST_RENDER
 int host_zap_dbg_n = 0;
 int host_zap_noclip = 0, host_zap_hide = 0;
 int16_t host_zap_dbg[48][5];
+#endif
 
 static bool dg_zap_full(void)
 {
@@ -62,11 +64,44 @@ static const char *const DL_TIER_NM[5] = { "INIT", "ARMED", "HOT", "OVERCLOCK", 
 static const int DL_TIER_HI[5] = { 0, 500, 1500, 4000, 10000 };
 enum { DL_MAX = 6, DL_CHG = 300, DL_TIME0 = 45000 };
 struct DlDev { float p; int kind, hp, acq, live; };
-static int s_dl_on = 0, s_dl_hi = 0, s_dl_aw = 0, s_dl_score = 0, s_dl_combo = 0;
-static int s_dl_best_combo = 0, s_dl_nulls = 0, s_dl_docks = 0, s_dl_dwell_kills = 0, s_dl_kinds = 0;
-static int s_dl_rx = 190, s_dl_ry = 96, s_dl_aim = -1, s_dl_pop = -1;
-static uint32_t s_dl_t0 = 0, s_dl_hold = 0, s_dl_bolt = 0, s_dl_pop_until = 0;
-static DlDev s_dl_d[DL_MAX];
+/* Device: the existing tier-0 bot_ui scratch (boot-touched, otherwise unused). Host: a tiny local. */
+#ifdef BOTCORPS_HOST_RENDER
+alignas(8) static uint8_t dl_scratch[256];
+#else
+extern uint8_t botcorps_t0_bot_ui[2560];
+#define dl_scratch botcorps_t0_bot_ui
+#endif
+struct DlMem {
+    int on, hi, aw, score, combo;
+    int best_combo, nulls, docks, dwell_kills, kinds;
+    int rx, ry, aim, pop;
+    uint32_t t0, hold, bolt, pop_until;
+    DlDev d[DL_MAX];
+};
+static DlMem &dl_mem()
+{
+    return *reinterpret_cast<DlMem *>(static_cast<void *>(dl_scratch));
+}
+static_assert(sizeof(DlMem) <= 256, "deauth state fits the bot_ui scratch");
+#define s_dl_on (dl_mem().on)
+#define s_dl_hi (dl_mem().hi)
+#define s_dl_aw (dl_mem().aw)
+#define s_dl_score (dl_mem().score)
+#define s_dl_combo (dl_mem().combo)
+#define s_dl_best_combo (dl_mem().best_combo)
+#define s_dl_nulls (dl_mem().nulls)
+#define s_dl_docks (dl_mem().docks)
+#define s_dl_dwell_kills (dl_mem().dwell_kills)
+#define s_dl_kinds (dl_mem().kinds)
+#define s_dl_rx (dl_mem().rx)
+#define s_dl_ry (dl_mem().ry)
+#define s_dl_aim (dl_mem().aim)
+#define s_dl_pop (dl_mem().pop)
+#define s_dl_t0 (dl_mem().t0)
+#define s_dl_hold (dl_mem().hold)
+#define s_dl_bolt (dl_mem().bolt)
+#define s_dl_pop_until (dl_mem().pop_until)
+#define s_dl_d (dl_mem().d)
 
 static int dl_tier_of(int hi)
 {
@@ -307,7 +342,8 @@ static void zap_paint_grid(Gfx g)
     if (ch) sb_rect(g, 150, BH_Y + 2, 70 * ch / DL_CHG, 4, bc);
     char hud[24];
     snprintf(hud, sizeof hud, "%ds", s_dl_on ? dl_time_left(t) / 1000 : DL_TIME0 / 1000);
-    sb_text(g, hud, BH_X + 22, BH_Y + 2, (uint8_t)PAL_WHITE, field, false, 1);
+    /* Index prompt occupies x108..123, y43..53. "45s" starts at x128 so the boxes do not meet. */
+    sb_text(g, hud, 128, BH_Y + 2, (uint8_t)PAL_WHITE, field, false, 1);
     snprintf(hud, sizeof hud, "L%d %d", dl_lv_of(s_dl_hi), s_dl_score);
     sb_text(g, hud, 228, BH_Y + 1, (uint8_t)PAL_WHITE, field, false, 1);
     for (int i = 0; i < DL_MAX; ++i) if (s_dl_d[i].live && s_dl_d[i].acq)

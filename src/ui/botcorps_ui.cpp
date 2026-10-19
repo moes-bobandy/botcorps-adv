@@ -404,6 +404,20 @@ static bool s_fa_on = false;
 static int s_fa_sel = 0;
 static int s_fa_band = 0;
 static int s_fa_dev = 0;
+/* v1019u: found-alert is DEAD until a live radio scan exists. The Adv scan lists are canned
+ * (cafe-guest etc.), so an alert raised from them is null and void. BOTCORPS_LIVE_SCAN defaults
+ * to 0: fa_live() is then a compile-time false on the device, so the takeover can never paint and
+ * never eats Up/Down/OK/Esc, whatever s_fa_on holds. The host renderer keeps its forced preview
+ * shot of the art (botcorps_host_found_alert*, BOTCORPS_HOST_RENDER only); no scan path sets it. */
+#ifndef BOTCORPS_LIVE_SCAN
+#define BOTCORPS_LIVE_SCAN 0
+#endif
+#if BOTCORPS_LIVE_SCAN || defined(BOTCORPS_HOST_RENDER)
+static const bool FA_ENABLED = true;
+#else
+static const bool FA_ENABLED = false;
+#endif
+static inline bool fa_live(void) { return FA_ENABLED && s_fa_on; }
 /* Nav focus. Drawn in place. Never promotes a full-panel clear. */
 static int s_focus_old = -1;
 static int s_focus_new = -1;
@@ -4675,7 +4689,7 @@ static void paint_sbox(Gfx g, bool wifi)
 
 static void paint_found_alert(Gfx g)
 {
-    if (!s_fa_on) return;
+    if (!fa_live()) return;
     const uint8_t ac = accent();
     const uint8_t red = 228;                 /* mock #ff2a2a */
     const uint8_t hi = sb_tone(0);           /* #00666c on cyan, hexMix(ac,.55,0) */
@@ -6473,7 +6487,7 @@ static void paint_ext(Gfx g)
     case SCR_CONTROL: paint_control(g); break;
     default: break;
     }
-    if (s_fa_on) paint_found_alert(g);
+    if (fa_live()) paint_found_alert(g);
 }
 
 static void tick_gibson(Gfx g)
@@ -7549,7 +7563,7 @@ static void on_arrows(int key)
         }
         return;
     }
-    if (s_fa_on) {
+    if (fa_live()) {
         if (key == 1 || key == 3) s_fa_sel = (s_fa_sel + FA_N - 1) % FA_N;
         if (key == 2 || key == 4) s_fa_sel = (s_fa_sel + 1) % FA_N;
         s_dirty = true;
@@ -7642,7 +7656,7 @@ static void fa_run(int which);
 
 static void on_ok(void)
 {
-    if (s_fa_on) {
+    if (fa_live()) {
         fa_run(s_fa_sel);
         return;
     }
@@ -7768,7 +7782,7 @@ static void fa_run(int which)
 
 static void on_esc(void)
 {
-    if (s_fa_on) {
+    if (fa_live()) {
         fa_run(3);
         return;
     }

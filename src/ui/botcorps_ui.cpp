@@ -3660,6 +3660,7 @@ static void sb_bot_chip(Gfx g, int cx, int cy, int S, int bot)
 /* Board edge = bot colour mixed with that bot's device colour. Defined after BH_DEV. */
 static uint8_t board_edge_col(int bot);
 static void dev_under_chip(Gfx g, int cx, int cy, int bot);
+static void dev_solder(Gfx g, int cx, int bot_bottom, int dev_top);
 
 /* ESP32 dev board around the box (mock cydBoard + module). */
 static void sb_board(Gfx g, bool wifi)
@@ -3718,6 +3719,7 @@ static void sb_board(Gfx g, bool wifi)
         if (zsb) zap_rain_rect(g);   /* rain behind the chips, this rect only */
         chip_block(g, cxm, ccy, 40, gib ? 12 : bot);
         dev_under_chip(g, cxm, ccy + 36, bot);
+        dev_solder(g, cxm, ccy + 20, ccy + 27);
         char nmb[16];
         const char *nm;
         if (gib) nm = "GIBSON";
@@ -3766,6 +3768,7 @@ static void sb_board(Gfx g, bool wifi)
     const char *nm = wifi ? "WIFIBOT" : "BLE-BOT"; /* BLUETOOTHBOT is 47 px, wider than the can */
     sb_bot_chip(g, wx + ww / 2, wy + 14, 28, bot);
     dev_under_chip(g, wx + ww / 2, wy + wh + 2, bot);   /* device chip under the bot, still in the can */
+    dev_solder(g, wx + ww / 2, wy + 28, wy + wh + 2 - 9);
     const int cxm = sx + sw / 2;
     /* plain 4 px pitch so every glyph reads; long lines are abbreviated, never squeezed */
     tiny_text(g, nm, cxm - tiny_w(nm) / 2, wy + wh + 14, 41);
@@ -3980,17 +3983,44 @@ static void dev_under_chip(Gfx g, int cx, int cy, int bot)
     const int D = T - 2, dx = x + 1, dy = y + 1;
     const bool gib = bot >= 12;
     const uint8_t pin = gib ? PAL_GOLD_PIN : (uint8_t)PAL_SOFT;
+    const uint8_t pad = 177, hi = 217;
     GATE_BOX(g, "TCHIP", "device", dx, dy, D, D, "-");
     for (int k = 0; k < 5; ++k) {
         const int i = chip_pin1(D, k);
+        g.fillRect(x - 1, dy + i - 1, 3, 3, pad);
+        g.fillRect(x + T - 2, dy + i - 1, 3, 3, pad);
         g.fillRect(x, dy + i, 2, 1, pin);
         g.fillRect(x + T - 2, dy + i, 2, 1, pin);
-        g.fillRect(dx + i, y, 1, 2, pin);
-        g.fillRect(dx + i, y + T - 2, 1, 2, pin);
+        g.fillRect(dx + i - 1, y - 1, 3, 3, pad);
+        g.fillRect(dx + i - 1, y + T - 2, 3, 3, pad);
+        g.fillRect(dx + i, y, 1, 1, hi);
+        g.fillRect(dx + i, y + T - 1, 1, 1, hi);
     }
     g.fillRect(dx, dy, D, D, PAL_BLACK);
     g.drawRect(dx, dy, D, D, PAL_STEEL);
     gl_icon(g, bot_dev_kind(bot), cx - 6, cy - 6, false);
+}
+
+/* Several copper wires and solder pads between the bot chip's underside and the device chip.
+ * Not one trace. y0 is the bot chip bottom, y1 the device chip top. */
+static void dev_solder(Gfx g, int cx, int bot_bottom, int dev_top)
+{
+    const uint8_t pad = 177, hi = 217, wire = 104;
+    static const int off[5] = { -6, -3, 0, 3, 6 };
+    static const int jog[5] = { -2, 1, 2, -1, 2 };
+    if (dev_top <= bot_bottom) return;
+    for (int i = 0; i < 5; ++i) {
+        const int x0 = cx + off[i];
+        const int x1 = x0 + jog[i];
+        const int mid = bot_bottom + (dev_top - bot_bottom) / 2;
+        g.fillRect(x0, bot_bottom, 1, mid - bot_bottom + 1, wire);
+        g.fillRect(x0 < x1 ? x0 : x1, mid, (x0 > x1 ? x0 - x1 : x1 - x0) + 1, 1, wire);
+        g.fillRect(x1, mid, 1, dev_top - mid + 1, wire);
+        g.fillRect(x0 - 1, bot_bottom - 1, 3, 2, pad);
+        g.fillRect(x0, bot_bottom - 1, 1, 1, hi);
+        g.fillRect(x1 - 1, dev_top - 1, 3, 2, pad);
+        g.fillRect(x1, dev_top, 1, 1, hi);
+    }
 }
 static const int8_t BH_GIB[10] = { GL_AP, GL_PHONE, GL_LAPTOP, GL_TV, GL_SPEAKER, GL_TRACKER, GL_WATCH, GL_CAMERA, GL_CAR, GL_UNKNOWN };
 /* mock non-live grid: C = 19, GC = 9, GR = 5, gx = dx + 2, gy = dy + 2 (display dx 106, dy 42). */

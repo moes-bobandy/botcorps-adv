@@ -1566,27 +1566,23 @@ static void paint_one_board(Gfx g, int i, bool sel, bool dim)
             g.fillRect(x - 2, by, 1, dh, sel_ink(k, 3));
         }
     }
-    const uint8_t base = dim ? (wh ? (uint8_t)PAL_LINE : (uint8_t)PAL_FIELD)
-                             : (wh ? (sel ? (uint8_t)PAL_IVORY : (uint8_t)PAL_BOARD_L)
-                                   : (uint8_t)PAL_BOARD_D);
-    /* v1019r (#7): on every theme but NEON GRAPE the board rims carry the theme (multi: along the 12) */
-    const bool thm = theme_ix(s_color) != 0;
-    const uint8_t edge = sel ? (thm ? th_item(i, 12) : ac) : (wh ? (uint8_t)150 : thm ? th_wire_at(i, 12) : (uint8_t)PAL_LINE);
-    const uint8_t tr = wh ? (uint8_t)PAL_CHIN : (sel ? (uint8_t)PAL_STEEL : (uint8_t)PAL_LINE);
-    const uint8_t ant = wh ? (uint8_t)PAL_HUB_HEAD : (uint8_t)PAL_STEEL;
+    /* v1019s treatment D: darker matte panel (black) so circuit/wave icons read; chip untouched. */
+    (void)wh;
+    const uint8_t base = (uint8_t)PAL_BLACK;
+    /* v1019s D: 1-2 px rim + brackets + label bar in this bot's fixed colour. */
+    const uint8_t rim = bot_color(i);
+    /* v1019s D: raised contrast on traces/antennas against the black panel. */
+    const uint8_t tr = (uint8_t)PAL_STEEL;
+    const uint8_t ant = (uint8_t)PAL_MUTED;
     const uint8_t pad = (uint8_t)PAL_SOFT;
     const uint8_t fp = sel ? (uint8_t)PAL_BLACK : (uint8_t)PAL_FIELD;
-    const uint8_t fpp = wh ? (uint8_t)PAL_ICON_C3 : (uint8_t)PAL_SOFT;
-    const uint8_t silk = wh ? (sel ? (uint8_t)PAL_BLACK : (uint8_t)PAL_LINE)
-                            : (sel ? (uint8_t)PAL_WHITE : (uint8_t)PAL_MUTED);
-    const uint8_t led = wh ? (uint8_t)PAL_CHIN : (uint8_t)PAL_BOARD_D;
+    const uint8_t fpp = (uint8_t)PAL_SOFT;
+    const uint8_t silk = sel ? (uint8_t)PAL_WHITE : (uint8_t)PAL_MUTED;
+    const uint8_t led = (uint8_t)PAL_BOARD_D;
     const uint8_t hole = (uint8_t)PAL_FIELD;
     g.fillRect(x + 1, y, w - 2, h, base);
     g.fillRect(x, y + 1, w, h - 2, base);
-    g.fillRect(x + 1, y, w - 2, 1, edge);
-    g.fillRect(x + 1, y + h - 1, w - 2, 1, edge);
-    g.fillRect(x, y + 1, 1, h - 2, edge);
-    g.fillRect(x + w - 1, y + 1, 1, h - 2, edge);
+    /* Traces on focused tile only (same as before); D raises their contrast via STEEL/MUTED + black panel. */
     const bool traces = !dim;
     const int longtr[4] = { 1, 3, 5, 6 };
     if (traces) {
@@ -1691,13 +1687,27 @@ static void paint_one_board(Gfx g, int i, bool sel, bool dim)
     {
         const int keep = s_px;
         s_px = 6;
-        const uint8_t lab = dim ? (uint8_t)PAL_STEEL : silk;
-        txt(g, lbl, x + 36, y + 37, lab, lgfx::textdatum::top_center);
+        txt(g, lbl, x + 36, y + 37, silk, lgfx::textdatum::top_center);
         s_px = keep;
     }
-    /* Faint Wi-Fi arcs on the right of the WIFI tile. Wire slot, not the accent. */
+    /* v1019s D chrome last so rain/ghost never washes it: 2 px rim, L-brackets, label underline */
+    g.fillRect(x + 1, y, w - 2, 2, rim);
+    g.fillRect(x + 1, y + h - 2, w - 2, 2, rim);
+    g.fillRect(x, y + 1, 2, h - 2, rim);
+    g.fillRect(x + w - 2, y + 1, 2, h - 2, rim);
+    const int bl = 10;
+    g.fillRect(x, y, bl, 2, rim);
+    g.fillRect(x, y, 2, bl, rim);
+    g.fillRect(x + w - bl, y, bl, 2, rim);
+    g.fillRect(x + w - 2, y, 2, bl, rim);
+    g.fillRect(x, y + h - 2, bl, 2, rim);
+    g.fillRect(x, y + h - bl, 2, bl, rim);
+    g.fillRect(x + w - bl, y + h - 2, bl, 2, rim);
+    g.fillRect(x + w - 2, y + h - bl, 2, bl, rim);
+    /* Bottom rim doubles as the thin coloured underline under the bot-name label. */
+    /* Faint Wi-Fi arcs on the right of the WIFI tile. Raised contrast (steel), always when radio. */
     if (BOTS[i].radio == 1 && !dim) {
-        const uint8_t m = th_wire();
+        const uint8_t m = (uint8_t)PAL_STEEL;
         const int ax = x + 54;
         const int ay = y + 26;
         g.fillRect(ax + 1, ay + 2, 2, 2, m);

@@ -305,11 +305,11 @@
   PASS  G2 sprites inside their chip/tile
   PASS  G3 no clipped/overrun text
   PASS  G4 nothing past the board/screen edge
-  PASS  G5 rain layer present + visible  [logged=True visible_px=311 colour_px=205]
+  PASS  G5 rain layer present + visible  [logged=True visible_px=1895 colour_px=905]
   PASS  G6 no instruction text
   PASS  G7 regression vs approved render  [0 px changed (limit 40)]
   PASS  G8 crown back control present  [1 crown]
-  PASS  DG1 Defend board is matte black  [dominant=(0, 0, 0)]
+  PASS  DG1 Defend board is matte black  [dominant=(8, 12, 16)]
   PASS  DG2 centre Gibson is square chip (zap mock)  [chips=[('bot', 14), ('bot', 14), ('bot', 14)]]
   PASS  DG3 zap playfield has centre chip + board  [board=True chips=7]
 == diag
@@ -325,30 +325,30 @@
   PASS  G2 sprites inside their chip/tile
   PASS  G3 no clipped/overrun text
   PASS  G4 nothing past the board/screen edge
-  PASS  G5 rain layer present + visible  [logged=True visible_px=422 colour_px=307]
+  PASS  G5 rain layer present + visible  [logged=True visible_px=958 colour_px=379]
   PASS  G6 no instruction text
   PASS  G8 crown back control present  [1 crown]
-  PASS  C1 square chip_block present (Gibson)  [[('gibson', 40, 40), ('gibson', 22, 22)]]
-  PASS  C2 figure fills the chip square (major side >=60% of chip)  [fill=0.70]
-  PASS  C3 Gibson drawn as the square block figure  [2]
-  PASS  D1 dynamic "<name>> Defend" title present  [['Gibson> Defend']]
+  PASS  C1 square chip_block present (Gibson)  [[('gibson', 54, 54), ('gibson', 24, 24)]]
+  PASS  C2 figure fills the chip square (major side >=60% of chip)  [fill=0.67]
+  PASS  C3 Gibson drawn as the square block figure  [3]
+  PASS  D1 Gibson Defend = restored scan shell (GIBSON silk + scan PCB + defend board)  [photo layout]
 == game-jackin
   PASS  G1 no element/text bbox overlap
   PASS  G2 sprites inside their chip/tile
   PASS  G3 no clipped/overrun text
   PASS  G4 nothing past the board/screen edge
-  PASS  G5 rain layer present + visible  [logged=True visible_px=506 colour_px=299]
+  PASS  G5 rain layer present + visible  [logged=True visible_px=1226 colour_px=606]
   PASS  G6 no instruction text
   PASS  G8 crown back control present  [1 crown]
-  PASS  C1 square chip_block present (Gibson)  [[('gibson', 40, 40), ('gibson', 22, 22)]]
-  PASS  C2 figure fills the chip square (major side >=60% of chip)  [fill=0.70]
-  PASS  C3 Gibson drawn as the square block figure  [2]
+  PASS  C1 square chip_block present (Gibson)  [[('gibson', 54, 54), ('gibson', 24, 24)]]
+  PASS  C2 figure fills the chip square (major side >=60% of chip)  [fill=0.67]
+  PASS  C3 Gibson drawn as the square block figure  [3]
 == game-menu
   PASS  G1 no element/text bbox overlap
   PASS  G2 sprites inside their chip/tile
   PASS  G3 no clipped/overrun text
   PASS  G4 nothing past the board/screen edge
-  PASS  G5 rain layer present + visible  [logged=True visible_px=220 colour_px=105]
+  PASS  G5 rain layer present + visible  [logged=True visible_px=235 colour_px=141]
   PASS  G6 no instruction text
   PASS  G8 crown back control present  [1 crown]
 == scanboard-airtag
@@ -727,8 +727,8 @@
   PASS  S1 scan-ble: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=1 pushes=263 recomposes=0]
   PASS  S2 scan-ble: idle animation never full-screen presents (patches only)  [presents=1 (1 = the screen-enter paint)]
   PASS  S4 scan-ble: idle ticks draw in place (no slice rebuild / recompose)  [recomposes=0]
-  PASS  S1 game-board: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=74 pushes=148 recomposes=0]
-  PASS  S1 game-jackin: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=1 pushes=357 recomposes=176]
+  PASS  S1 game-board: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=11 pushes=316 recomposes=136]
+  PASS  S1 game-jackin: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=1 pushes=549 recomposes=264]
   PASS  S1 terminal-typing: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=67 pushes=150 recomposes=2]
   PASS  S1 gibson-game: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=4px, presents=68 pushes=142 recomposes=0]
   PASS  S1 scan-sbox-hunt: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=1 pushes=286 recomposes=0]
@@ -747,7 +747,7 @@
   PASS  S1 defend-beaconsort: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=2 pushes=164 recomposes=14]
   PASS  S1 defend-firewall: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=1 pushes=149 recomposes=8]
   PASS  S1 defend-maze: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=1 pushes=275 recomposes=9]
-  PASS  S1 defend-zap: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=1 pushes=447 recomposes=216]
+  PASS  S1 defend-zap: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=1 pushes=408 recomposes=190]
   PASS  S1 defend-eviltwin: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=1 pushes=156 recomposes=10]
   PASS  S1 defend-channelhop: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=1 pushes=422 recomposes=7]
   PASS  S1 defend-rangering: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=1 pushes=62 recomposes=9]

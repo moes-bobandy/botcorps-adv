@@ -464,8 +464,7 @@ static void bg_draw_cell(lgfx::LovyanGFX &panel, int col, int row)
     const int x = col * CELL, wy = row * CELL;
     if (wy + CELL <= s_slice_y0 || wy >= s_slice_y1) return;
     if (!cell_open(x, wy)) return;
-    const int ly = wy - s_slice_y0;
-    panel.setClipRect(x, ly < 0 ? 0 : ly, CELL, CELL);
+    if (!cell_clip(panel, x, wy)) return;   /* v1019x: cell clip (and the draw window, when on) */
     bg_paint_cell(panel, col, row);
     panel.clearClipRect();
 }

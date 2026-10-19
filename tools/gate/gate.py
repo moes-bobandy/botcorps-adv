@@ -253,7 +253,15 @@ for scr in screens:
     # D1 (#9/#11 Dirt): the Defend board carries the dynamic "<name>> Defend" title.
     if scr == 'game-board':
         has = [t['s'] for t in texts if '> Defend' in t['s']]
-        rep(scr, 'D1 dynamic "<name>> Defend" title present', bool(has), f'{has[:1]}')
+        # v1019x (Mobandy 2:22 PM photo order): Gibson's Defend IS the restored pre-mod per-bot scan screen
+        # (no title plate in the photo / no new UI): the item checks that shell instead - GIBSON silk under
+        # the left chip and the zap's 'defend' board on the scan PCB.
+        shell = any(b['k'] == 'SILK' and b['n'] == 'GIBSON' for b in boxes) and \
+            any(b['k'] == 'BOARD' and b['n'] == 'scan' for b in boxes) and any(b['k'] == 'BOARD' and b['n'] == 'defend' for b in boxes)
+        if shell:
+            rep(scr, 'D1 Gibson Defend = restored scan shell (GIBSON silk + scan PCB + defend board)', True, 'photo layout')
+        else:
+            rep(scr, 'D1 dynamic "<name>> Defend" title present', bool(has), f'{has[:1]}')
     # v1019j (Dirt LOCKED): the four Defend mini-games. Matte-black board, the active bot (v1019l: as its round
     # sprite, Gibson round ivory on his maze), and the game's own pieces on the board (reused icons + 0/1 bits).
     if scr.startswith('defend-'):
@@ -271,7 +279,7 @@ for scr in screens:
             # zap board is full-width with device-rain + copper; sample the dark centre well
             box = (b['x'] + 6, b['y'] + 6, b['x'] + b['w'] - 6, b['y'] + b['h'] - 6)
             if scr == 'defend-zap':
-                box = (24, 100, 70, 130)  # dark grid well left of centre chip
+                box = (b['x'] + 6, b['y'] + 6, b['x'] + b['w'] - 6, b['y'] + b['h'] - 6)  # v1019x: in-shell display
             dom = dominant(im, box)
             lim = 48 if scr == 'defend-zap' else 24
             rep(scr, 'DG1 Defend board is matte black', luma(dom) <= lim, f'dominant={dom}')

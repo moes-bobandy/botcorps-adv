@@ -36,4 +36,5 @@ defend-botnet
 defend-signaltrace
 defend-jamdodge
 # v1019v: Gibson Hackers zap Defend (full-width mock v5); v1019w relock: 7-gap fix vs mock v5
+# v1019x relock: zap inside the restored pre-mod scan shell grid (Mobandy photo order 2026-10-19)
 defend-zap

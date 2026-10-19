@@ -365,9 +365,13 @@ static void paint_dg_demo_hint(Gfx g, int bot);
 static void paint_dex(Gfx g);
 static void paint_dg_board(Gfx g);
 static void paint_dg_hud_ext(Gfx g);   /* MOD item 14: game HUD in the Defend prompt panel */
-static bool dg_zap_full(void);         /* v1019v: Gibson full-width zap Defend */
-static void paint_zap_screen(Gfx g);
+static bool dg_zap_full(void);         /* v1019v: Gibson zap Defend (v1019x: inside the scan-shell grid) */
 static bool zap_try_cmd(const char *line);
+static bool zap_sb_on(void);           /* v1019x: Gibson Defend = restored scan shell + zap in the grid */
+static void zap_paint_grid(Gfx g);
+static void zap_strip(Gfx g, int dx, int th, int ty, int dw);
+static void zap_rain_rect(Gfx g);
+static void zap_tick_patch(void);
 static void dg_paint_hud(Gfx g, int width, bool full);
 static int s_cursor = 0;
 static int s_bot = 2;
@@ -616,14 +620,15 @@ static bool wants_rain(void)
 {
     return !sbox_on()
         && s_screen != SCR_DIAG
-        && !dg_on();                  /* v1019j: Defend game = static rain around the opaque board */
+        && !dg_on()                   /* v1019j: Defend game = static rain around the opaque board */
+        && !zap_sb_on();              /* v1019x: Gibson Defend steps its own rain, left chip rect only */
 }
 
 /* Panel screens: rain painted once per full paint (no stepping, no covers needed). */
 static bool rain_static(void)
 {
     return sbox_on() || s_screen == SCR_DIAG
-        || dg_on();
+        || dg_on() || zap_sb_on();
 }
 
 /* EXT chrome that moves on its own: sweep, pulse, bob, or the prompt caret. */
@@ -3680,7 +3685,8 @@ static void sb_board(Gfx g, bool wifi)
     const uint8_t ac = accent();
     const uint8_t pcb = PAL_BLACK, tex = PAL_DEEP; /* v1016f-4 (Dirt 8:24): fixed matte-black PCB */
     const uint8_t gold = 177, goldh = 217, goldd = 104;
-    const bool core = s_screen == SCR_SCAN;
+    const bool zsb = zap_sb_on();                 /* v1019x: Gibson Defend = this shell */
+    const bool core = s_screen == SCR_SCAN || zsb;
     /* soft accent glow ring outside the board edge */
     sb_frame(g, 14, 26, 292, 183, PAL_LINE);
     sb_frame(g, 15, 27, 290, 181, PAL_LINE);
@@ -3717,23 +3723,24 @@ static void sb_board(Gfx g, bool wifi)
     sb_rect(g, 298, 110, 4, 16, 4);
     /* WROOM module (radio bots) or the clean Gibson/bot core block */
     const int mx = 34, my = 52, mw = 54, mh = 128;
-    const int bot = core ? s_scan_bot : wifi ? 0 : 1;
+    const int bot = zsb ? 12 : core ? s_scan_bot : wifi ? 0 : 1;
     if (core) {
         /* v1016f-4 (Dirt 8:19): drop the silver module frame; Gibson/bot is the
          * clean control-panel block with uncut labels. */
         const int cxm = mx + mw / 2, ccy = my + 42;
         const bool gib = bot >= 12;
+        if (zsb) zap_rain_rect(g);   /* v1019x: rain behind the chip, this rect only */
         chip_block(g, cxm, ccy, 54, gib ? 12 : bot);
         char nmb[16];
         const char *nm;
         if (gib) nm = "GIBSON";
         else { sb_upper(nmb, 16, BOTS[bot].short_name, 12); if (strlen(nmb) <= 9) strcat(nmb, "BOT"); nm = nmb; }
         const char *l2c = "ESP32-WROOM-32";
-        const char *l3c = gib ? "CORE + PRIME" : "RADIO CORE";
+        const char *l3c = (gib && !zsb) ? "CORE + PRIME" : "RADIO CORE";   /* v1019x: Defend = AIRTAGBOT-style silk */
         tiny_text(g, nm, cxm - tiny_w(nm) / 2, ccy + 32, 41);
         tiny_text(g, l2c, cxm - tiny_w(l2c) / 2, ccy + 42, 41);
         tiny_text(g, l3c, cxm - tiny_w(l3c) / 2, ccy + 50, 41);
-        if (gib) gib_ticker(g);
+        if (gib && !zsb) gib_ticker(g);
     } else {
     sb_rect(g, mx, my, mw, mh, 5);
     sb_frame(g, mx, my, mw, mh, 41);
@@ -4593,13 +4600,14 @@ static void paint_sbox(Gfx g, bool wifi)
     const uint32_t u = (millis() - s_bus_t0) % 3400u;
     sb_rect(g, dx, 144, dw, 1, sb_tone(3));
     sb_rect(g, dx, 144, (int)((uint32_t)dw * u / 3400u), 1, ac);
-    const bool core = s_screen == SCR_SCAN;
+    const bool zsb = zap_sb_on();                 /* v1019x: Gibson Defend = this shell, zap in the grid */
+    const bool core = s_screen == SCR_SCAN || zsb;
     if (core) {
         if (sb_vis(dx, dy, dw, 108)) {
             /* #5 (Dirt locked): the grid runs this bot's own hunt mini game (only its device icons
              * fall; the bot in its fixed colour chases/catches them, catches as pips). */
-            bh_grid(g);
-            bot_hunt(g);
+            if (zsb) zap_paint_grid(g);   /* v1019x: Gibson's zap Defend, inside the grid only */
+            else { bh_grid(g); bot_hunt(g); }
             GATE_BOX(g, "PROMPT", "index", dx + 2, dy + 1, 15, 10, "MINI");
             sb_rect(g, dx + 2, dy + 1, 15, 10, 8);
             sb_frame(g, dx + 2, dy + 1, 15, 10, sb_tone(4));
@@ -4627,7 +4635,9 @@ static void paint_sbox(Gfx g, bool wifi)
     sb_rect(g, dx, th - 3, dw, 1, sb_tone(3));
     const char *bn = wifi ? "wifi" : "bluetooth";
     char l2[40];
-    if (s_sp_has || s_sp_buf[0]) {
+    if (zsb) {
+        zap_strip(g, dx, th, ty, dw);   /* v1019x: shell strip, zap log + typed zap command */
+    } else if (s_sp_has || s_sp_buf[0]) {
         /* v1019: the strip is a live prompt once the user types or runs a command here */
         if (s_sp_has) {
             sb_tt(g, s_sp_l1, dx + 3, th, sb_ink());
@@ -6320,6 +6330,18 @@ static void paint_gc_attack(Gfx g)
 
 static void paint_gchat(Gfx g)
 {
+    /* v1019x (Mobandy photo order): Gibson's Defend is the restored pre-mod per-bot scan screen
+     * (paint_sbox, as on 5608764); the zap plays only inside its right-hand grid. */
+    if (dg_zap_full()) {
+        const int keep = s_px;
+        paint_sbox(g, true);
+        if (s_sheet) paint_gc_sheet(g);
+        if (s_gc_panel == 1) paint_gc_gloss(g);
+        else if (s_gc_panel == 2) paint_gc_attack(g);
+        else if (s_gc_panel == 3) paint_dex(g);
+        s_px = keep;
+        return;
+    }
     const uint8_t ac = PAL_CYAN;
     const uint32_t t = millis();
     g.fillRect(0, 0, 320, 16, PAL_BLACK);       /* v1016k: no full-screen fill, rain shows between panels */
@@ -6345,16 +6367,6 @@ static void paint_gchat(Gfx g)
     txt(g, "RX", 296, 4, (uint32_t)(t - s_last_key) < 220u ? ac : (uint8_t)COL_MUTED,
         lgfx::textdatum::top_left);
     s_px = keep;
-    /* v1019v: Gibson Hackers zap — full-width scan playfield (mock v5). No left chip/rail. */
-    if (dg_zap_full()) {
-        paint_zap_screen(g);
-        if (s_sheet) paint_gc_sheet(g);
-        if (s_gc_panel == 1) paint_gc_gloss(g);
-        else if (s_gc_panel == 2) paint_gc_attack(g);
-        else if (s_gc_panel == 3) paint_dex(g);
-        s_px = keep;
-        return;
-    }
     /* MOD item 1: the Defend game no longer takes over the screen. The Defend screen stays (title plate,
      * the bot's square chip, rail, prompt panel); the game plays inside its grid board and its UI sits in
      * the prompt panel. */
@@ -6456,9 +6468,12 @@ static void paint_gchat(Gfx g)
  * ivory Gibsons; the Terminal's rain has no bot emblems. */
 static void rain_flags(void)
 {
-    botcorps_rain_set_gibson(s_screen == SCR_GIBSON || (s_screen == SCR_SCAN && s_scan_bot == 12));
+    /* v1019x: Gibson's Defend (scan shell) rain = BOTcorps canon on Gibson's screen: bits, ivory
+     * Gibsons and devices (not the prompt screen's device-only rain) */
+    const bool zsb = zap_sb_on();
+    botcorps_rain_set_gibson(s_screen == SCR_GIBSON || (s_screen == SCR_SCAN && s_scan_bot == 12) || zsb);
     /* v1019n (#15): Terminal + the Gibson prompt screen = our fixed device-icon rain only */
-    botcorps_rain_set_no_bots(s_screen == SCR_TERMINAL || s_screen == SCR_GCHAT);
+    botcorps_rain_set_no_bots(s_screen == SCR_TERMINAL || (s_screen == SCR_GCHAT && !zsb));
 }
 
 static void paint_ext(Gfx g)
@@ -6475,7 +6490,9 @@ static void paint_ext(Gfx g)
     /* v1016k (SPEC R1): rain behind EVERY screen. Live (stepped) where it always was;
      * panel screens (terminal, scan box, game, diag) get the same rain painted
      * as a static layer on each full paint, framed by their opaque panels. */
-    const bool rain_bg = wants_rain() || rain_static();
+    /* v1019x: Gibson's Defend draws its rain only inside the left chip rect (zap_rain_rect), never as
+     * the full-screen layer */
+    const bool rain_bg = (wants_rain() || rain_static()) && !zap_sb_on();
     if (hub) g.fillScreen(botcorps_pal_hub_of(COL_FIELD));
     else g.fillScreen(COL_FIELD);
 #ifdef BOTCORPS_HOST_RENDER
@@ -8439,6 +8456,8 @@ void botcorps_ui_draw(void)
             if (dg_on()) dg_snap();
         } else if (dg_on()) {
             dg_tick();
+        } else if (zap_sb_on()) {
+            zap_tick_patch();   /* v1019x: idle Gibson Defend: rain rect + caret */
         } else if (ext_anim && s_screen == SCR_TERMINAL) {
             partial_prompt_line();
         } else if (ext_anim && sbox_on()) {
@@ -8481,6 +8500,7 @@ void botcorps_ui_draw(void)
     }
     if (dirty) return;
     if (dg_on()) dg_tick();
+    else if (zap_sb_on()) zap_tick_patch();   /* v1019x */
     if (botcorps_dual_ok()) {
         botcorps_set_surface(BOTCORPS_SURFACE_CONTENT);
         tick_ext(botcorps_content());
@@ -9000,7 +9020,7 @@ void botcorps_host_defend_g(uint8_t *buf, int bot, int slot, int warm_ms)
 }
 void botcorps_host_defend_zap(uint8_t *buf, int warm_ms)
 {
-    /* v1019v: scripted still matching mock v5 (mid-zap NULL + docked TIME), not a post-WIN frame. */
+    /* v1019v/x: scripted mid-game still (mid-zap NULL + docked TIME), not a post-WIN frame. */
     (void)warm_ms;
     host_frame = buf;
     const uint32_t t1 = millis();
@@ -9011,24 +9031,27 @@ void botcorps_host_defend_zap(uint8_t *buf, int warm_ms)
     s_defend_bot = 12;
     enter_screen(SCR_GCHAT, SCR_GIBSON);
     dg_start_game(12, DG_ZAP);
-    /* Seed traces like the mock: camera mid-zap, flock docked, others travelling. */
+    /* v1019x: seed a mid-game still on the in-grid geometry: camera mid-zap (bolt + NULL), flock docked
+     * (TIME 02), wifi / bt / drone / tower riding in. */
     for (int i = 0; i < ZAP_MAX; ++i) s_zap[i].live = 0;
-    s_zap[0].live = 1; s_zap[0].tr = 1; s_zap[0].dist = 52.f; s_zap[0].dock = 0;
+    s_zap[0].live = 1; s_zap[0].tr = 1; s_zap[0].dist = 30.f; s_zap[0].dock = 0;
     s_zap[1].live = 1; s_zap[1].tr = 4; s_zap[1].dist = zap_len(4) - 2.f; s_zap[1].dock = 1;
-    s_zap_dock_seen[1] = 1; s_zap_dock_t0[1] = s_dg_ms - 900u;   /* v1019w: TIME reads 02 like mock v5 */
-    s_zap[2].live = 1; s_zap[2].tr = 0; s_zap[2].dist = 62.f; s_zap[2].dock = 0;
-    s_zap[3].live = 1; s_zap[3].tr = 2; s_zap[3].dist = 50.f; s_zap[3].dock = 0;
-    s_zap[4].live = 1; s_zap[4].tr = 3; s_zap[4].dist = 55.f; s_zap[4].dock = 0;
-    s_zap[5].live = 1; s_zap[5].tr = 5; s_zap[5].dist = 70.f; s_zap[5].dock = 0;
-    s_zap_fx_tr = 1; s_zap_fx_from = 4.f; s_zap_fx_to = 46.f;
+    s_zap_dock_seen[1] = 1; s_zap_dock_t0[1] = s_dg_ms - 900u;
+    s_zap[2].live = 1; s_zap[2].tr = 0; s_zap[2].dist = 40.f; s_zap[2].dock = 0;
+    s_zap[3].live = 1; s_zap[3].tr = 2; s_zap[3].dist = 34.f; s_zap[3].dock = 0;
+    s_zap[4].live = 1; s_zap[4].tr = 3; s_zap[4].dist = 36.f; s_zap[4].dock = 0;
+    s_zap[5].live = 1; s_zap[5].tr = 5; s_zap[5].dist = 44.f; s_zap[5].dock = 0;
+    s_zap_fx_tr = 1; s_zap_fx_from = 4.f; s_zap_fx_to = 24.f;
     s_zap_fx_until = s_dg_ms + 60000u;
     s_zap_null_tr = 1; s_zap_null_until = s_dg_ms + 60000u;
     s_dg_score = 3; s_dg_miss = 0; s_dg_state = DGS_PLAY;
     s_zap_log_n = 0;
     zap_log("[ ** ] BOARD ARMED. TRACES LIVE");
-    zap_log("[ !! ] ZAP BEFORE DOCK - CAMERA");
+    zap_log("[ !! ] NULL - CAMERA 03/12");
     zap_log("[ !! ] FLOCK DOCKED - TIME");
-    snprintf(s_gp_buf, sizeof s_gp_buf, "%s", "nul");   /* v1019w: typed row like mock v5 (GIBSON > NUL) */
+    s_gp_buf[0] = 0;
+    s_cursor = 0;
+    s_bus_t0 = millis();
     s_gc_caret = -1;
     host_frame = buf;
     memset(buf, PAL_BLACK, 320u * 240u);
@@ -9036,6 +9059,25 @@ void botcorps_host_defend_zap(uint8_t *buf, int warm_ms)
 }
 /* review only (not a gate item): the INT HUD painter drawn into the top-left 240x135 of buf; the bar
  * is a host stand-in (fill + label), the HUD under it is the real dg_paint_hud. */
+/* v1019x review (not a gate item): advance the shared rain one step on Gibson's Defend (game state held)
+ * and repaint the full frame; used for the rain-f*.png sequence + the outside-rect mask check. */
+void botcorps_host_zap_rain_step(uint8_t *buf)
+{
+    host_frame = buf;
+    host_set_millis(millis() + 140u);
+    const bool was = botcorps_rain_draw_enabled();
+    botcorps_rain_set_draw(false);
+    botcorps_rain_step();
+    botcorps_rain_set_draw(was);
+    memset(buf, PAL_BLACK, 320u * 240u);
+    paint_ext(Gfx());
+}
+void botcorps_host_repaint(uint8_t *buf)
+{
+    host_frame = buf;
+    memset(buf, PAL_BLACK, 320u * 240u);
+    paint_ext(Gfx());
+}
 void botcorps_host_defend_hud(uint8_t *buf, int bot, int warm_ms, int slot)
 {
     host_frame = buf;

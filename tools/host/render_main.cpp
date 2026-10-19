@@ -436,6 +436,26 @@ int main(int argc, char **argv)
 {
     if (argc > 2 && strcmp(argv[1], "modc") == 0) return run_mod(argv[2]);   /* Pass C review set (was "mod": clashed with Pass B mod scr/ctl) */
     if (argc > 2 && strcmp(argv[1], "gate") == 0) return run_gate(argv[2]);
+    /* v1019x review (not a gate item): rend zaprain <dir> <frames> - Gibson Defend mid-game still, then the
+     * rain stepped once per frame (game held); writes f<k>.rgb and f<k>.norain.rgb at the same millis. */
+    if (argc > 3 && strcmp(argv[1], "zaprain") == 0) {
+        extern void botcorps_host_zap_rain_step(uint8_t *buf);
+        extern void botcorps_host_repaint(uint8_t *buf);
+        host_rain_init(0);
+        host_set_millis(9000u);
+        botcorps_host_set_color(0);
+        botcorps_host_defend_zap(g_buf, 0);
+        const int n = atoi(argv[3]);
+        char p[256];
+        for (int k = 0; k < n; ++k) {
+            if (k) botcorps_host_zap_rain_step(g_buf);
+            snprintf(p, sizeof p, "%s/f%d.rgb", argv[2], k); write_raw(p, g_buf, 0);
+            host_gate_norain = 1; botcorps_host_repaint(g_buf);
+            snprintf(p, sizeof p, "%s/f%d.norain.rgb", argv[2], k); write_raw(p, g_buf, 0);
+            host_gate_norain = 0; botcorps_host_repaint(g_buf);
+        }
+        return 0;
+    }
     /* v1017c: one-off review render (not a gate item): rend shot <screen id> <out.rgb> [keys] */
     if (argc > 3 && strcmp(argv[1], "shot") == 0) {
         host_rain_init(0);

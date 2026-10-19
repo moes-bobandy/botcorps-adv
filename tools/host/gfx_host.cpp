@@ -140,6 +140,17 @@ void Gfx::setClipRect(int x, int y, int w, int h)
     s_clip_h = h;
 }
 void Gfx::clearClipRect(void) { s_clip = false; }
+/* v1019x: raw (pre-offset) Gfx clip get/set for nested clips (botcorps_defend_zap.inc ZapClip) */
+bool host_gfx_clip_get(int *x, int *y, int *w, int *h)
+{
+    if (!s_clip) { *x = 0; *y = 0; *w = 320; *h = 240; return false; }
+    *x = s_clip_x; *y = s_clip_y; *w = s_clip_w; *h = s_clip_h;
+    return true;
+}
+void host_gfx_clip_set(bool on, int x, int y, int w, int h)
+{
+    s_clip = on; s_clip_x = x; s_clip_y = y; s_clip_w = w; s_clip_h = h;
+}
 void Gfx::setTextWrap(bool, bool) {}
 void Gfx::setTextSize(float s) { s_scale = s < 1.f ? 1 : (int)s; }
 void Gfx::setTextSize(float sx, float) { setTextSize(sx); }

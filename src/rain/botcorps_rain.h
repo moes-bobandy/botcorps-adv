@@ -42,6 +42,8 @@ struct botcorps_cover_t {
 void botcorps_rain_set_covers(const botcorps_cover_t *boxes, int n, bool radar_disc);
 /* False until the UI is up, so the boot probe does not paint. */
 void botcorps_rain_set_draw(bool enable);
+/* v1019x: current draw-enable state (so a caller can step without the panel paint and restore it). */
+bool botcorps_rain_draw_enabled(void);
 
 /* Advance one 140 ms step and paint the open cells. */
 bool botcorps_rain_step(void);
@@ -49,6 +51,8 @@ bool botcorps_rain_step(void);
 void botcorps_rain_paint(void);
 /* Draw the slice [world y0, y1) into dst. dst y is world y - y0. */
 void botcorps_rain_draw(lgfx::LovyanGFX &dst, int y0, int y1);
+/* v1019x: the same slice draw limited to a world-space window (cells clipped to it, others skipped). */
+void botcorps_rain_draw_win(lgfx::LovyanGFX &dst, int y0, int y1, int wx, int wy, int ww, int wh);
 /* Gibson hub: scale rain inks by 0.58 toward #030706 through the fade table. */
 void botcorps_rain_set_hub(bool on);
 /* v1017c: Gibson's screen (hub, Gibson's scan board): bots in the rain are ivory Gibsons and the

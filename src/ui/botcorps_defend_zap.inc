@@ -8,10 +8,16 @@
  * v1019w (GIBSONbot glass vs mock v5, 7 gaps): copper CU/CU_HI/CU_DK traces, clean cyan technical
  * grid (sparse rain), larger grey silver-pin device chips + grey device riders, jagged 3-layer cyan
  * bolt, TIME tag with live "02" digits, no on-screen hint (typed GIBSON > row), mock-style log. */
+/* v1019x (Mobandy 2:22 PM photo order): the zap plays INSIDE the per-bot scan screen's right-hand cyan
+ * grid (bh_grid: BH_X 108, BH_Y 44, 9x5 cells of 19 px) and nowhere else. The full-width v5 layout (pink
+ * rim, title plate, control row, CMD button, prompt well) is gone: the screen around the grid is the
+ * restored pre-mod scan shell (paint_sbox, 5608764). Trace geometry = v1019w mock v5 scaled x0.56 / y0.80
+ * about the grid centre; everything is clipped to the grid rect. */
 enum {
-    ZAP_BX0 = 0, ZAP_BY0 = 17, ZAP_BX1 = 320, ZAP_BY1 = 148,   /* GRID_BORDER exclusive */
-    ZAP_IX0 = 4, ZAP_IY0 = 21, ZAP_IX1 = 316, ZAP_IY1 = 144,   /* GRID_INNER */
-    ZAP_CS = 40,                                               /* centre Gibson: 34*1.15 ~ 39 -> 40 */
+    ZAP_BX0 = 108, ZAP_BY0 = 44, ZAP_BX1 = 280, ZAP_BY1 = 140,  /* grid rect incl. its right tone line */
+    ZAP_IX0 = 109, ZAP_IY0 = 45, ZAP_IX1 = 279, ZAP_IY1 = 139,  /* grid inner */
+    ZAP_CX = 194, ZAP_CY = 92,                                  /* grid centre */
+    ZAP_CS = 24,                                                /* centre Gibson chip, scaled to the grid */
     ZAP_NTR = 6, ZAP_MAX = 6, ZAP_WIN = 12, ZAP_TIME_MS = 2800u, ZAP_NULL_MS = 700u
 };
 /* Trace ids match mock riders: wifi camera bt drone flock tower */
@@ -19,14 +25,14 @@ static const char *const ZAP_CMD[ZAP_NTR] = { "wifi", "camera", "bt", "drone", "
 static const char *const ZAP_ALIAS[ZAP_NTR] = { "ap", "cam", "bluetooth", "uav", "flockbot", "hack" };
 static const int8_t ZAP_BOT[ZAP_NTR] = { 0, 8, 1, 5, 4, 3 };          /* face colour bots */
 static const int8_t ZAP_ICON[ZAP_NTR] = { GL_AP, GL_CAMERA, GL_SPEAKER, GL_DRONE, GL_CAMERA, GL_DEVBOARD };
-/* Polyline waypoints relative to centre (cx,cy)=(160,82); ends near support pads. Fixed mock-like. */
+/* Polyline waypoints relative to the grid centre (ZAP_CX,ZAP_CY); ends near support pads. */
 static const int16_t ZAP_PT[ZAP_NTR][5][2] = {   /* v1019w: exact mock v5 traces dict */
-    { { -10, -17 }, { -10, -30 }, { -116, -30 }, { -116, -45 }, { -138, -45 } }, /* wifi UL */
-    { { -17, -8 }, { -50, -8 }, { -50, -22 }, { -106, -22 }, { -134, -10 } },    /* camera L */
-    { { 8, 17 }, { 8, 32 }, { 101, 32 }, { 101, 44 }, { 136, 44 } },             /* bt BR */
-    { { 17, -6 }, { 42, -6 }, { 42, -43 }, { 128, -43 }, { 140, -49 } },         /* drone UR */
-    { { -6, 17 }, { -6, 28 }, { -86, 28 }, { -86, 46 }, { -128, 46 } },          /* flock BL */
-    { { 17, 6 }, { 58, 6 }, { 58, 24 }, { 138, 24 }, { 138, 24 } },              /* tower R */
+    { { -6, -14 }, { -6, -24 }, { -65, -24 }, { -65, -36 }, { -77, -36 } },      /* wifi UL */
+    { { -10, -6 }, { -28, -6 }, { -28, -18 }, { -59, -18 }, { -75, -8 } },       /* camera L */
+    { { 4, 14 }, { 4, 26 }, { 57, 26 }, { 57, 35 }, { 76, 35 } },                /* bt BR */
+    { { 10, -5 }, { 24, -5 }, { 24, -34 }, { 72, -34 }, { 78, -39 } },           /* drone UR */
+    { { -3, 14 }, { -3, 22 }, { -48, 22 }, { -48, 37 }, { -72, 37 } },           /* flock BL */
+    { { 10, 5 }, { 32, 5 }, { 32, 19 }, { 77, 19 }, { 77, 19 } },                /* tower R */
 };
 static const char *const ZAP_NAME[ZAP_NTR] = { "WIFI", "CAMERA", "BT", "DRONE", "FLOCK", "TOWER" };
 struct ZapDev { float dist; int8_t tr; int8_t live; int8_t dock; }; /* dock=1 in TIME window */
@@ -43,6 +49,7 @@ static uint8_t s_zap_warn[ZAP_MAX];   /* v1019w: ZAP BEFORE DOCK logged once per
 
 static bool dg_zap_full(void)
 {
+    /* v1019x: now "Gibson Defend = scan shell + zap in the grid" (name kept for the call sites). */
     /* Full-width chrome when Gibson is on Defend and idle-demo or playing ZAP (not maze/night). */
     if (s_defend_bot >= 0 && s_defend_bot < 12) return false;
     if (!dg_on()) return true;                 /* idle demo = own game = ZAP */
@@ -76,7 +83,7 @@ static float zap_len(int tr)
 }
 static void zap_at(int tr, float dist, int *ox, int *oy)
 {
-    const int cx = 160, cy = 82;
+    const int cx = ZAP_CX, cy = ZAP_CY;
     float left = dist;
     for (int i = 0; i < 4; ++i) {
         const float L = zap_seglen(tr, i);
@@ -215,29 +222,6 @@ static void zap_step(float dt)
 }
 
 /* ---- paint helpers (palette indices only; host + device) ---- */
-static void zap_pink_rim(Gfx g)
-{
-    const int x0 = ZAP_BX0, y0 = ZAP_BY0, x1 = ZAP_BX1, y1 = ZAP_BY1;
-    /* outer soft pink (HOLD), inner hot (BFB72 / red-pink), outer soft — matches mock 4px rim */
-    g.fillRect(x0, y0, x1 - x0, 1, PAL_HOLD);
-    g.fillRect(x0, y0 + 1, x1 - x0, 2, PAL_BFB72);
-    g.fillRect(x0, y0 + 3, x1 - x0, 1, PAL_HOLD);
-    g.fillRect(x0, y1 - 1, x1 - x0, 1, PAL_HOLD);
-    g.fillRect(x0, y1 - 3, x1 - x0, 2, PAL_BFB72);
-    g.fillRect(x0, y1 - 4, x1 - x0, 1, PAL_HOLD);
-    g.fillRect(x0, y0, 1, y1 - y0, PAL_HOLD);
-    g.fillRect(x0 + 1, y0, 2, y1 - y0, PAL_BFB72);
-    g.fillRect(x0 + 3, y0, 1, y1 - y0, PAL_HOLD);
-    g.fillRect(x1 - 1, y0, 1, y1 - y0, PAL_HOLD);
-    g.fillRect(x1 - 3, y0, 2, y1 - y0, PAL_BFB72);
-    g.fillRect(x1 - 4, y0, 1, y1 - y0, PAL_HOLD);
-    /* corner hot pips */
-    g.fillRect(x0 + 1, y0 + 1, 2, 2, PAL_TERM_M);
-    g.fillRect(x1 - 3, y0 + 1, 2, 2, PAL_TERM_M);
-    g.fillRect(x0 + 1, y1 - 3, 2, 2, PAL_TERM_M);
-    g.fillRect(x1 - 3, y1 - 3, 2, 2, PAL_TERM_M);
-}
-
 /* v1019w palette for the mock v5 copper / bolt / TIME look. Named slots where one is close; the rest
  * are free RGB332 (pack332) slots, same pattern as PAL_GOLD_PIN. Mock RGB in brackets. */
 static const uint8_t ZC_CU_DK  = 100;              /* exact 0x60E2 (99,29,16)   [CU_DK 70,38,0]     */
@@ -272,7 +256,7 @@ static void zap_thick(Gfx g, int x0, int y0, int x1, int y1, int w, uint8_t c)
 /* position + unit-ish direction along a trace (octagon lengths, no libm) */
 static void zap_atd(int tr, float dist, float *ox, float *oy, float *ux, float *uy)
 {
-    const int cx = 160, cy = 82;
+    const int cx = ZAP_CX, cy = ZAP_CY;
     float left = dist;
     for (int i = 0; i < 4; ++i) {
         const float L = zap_seglen(tr, i);
@@ -290,45 +274,10 @@ static void zap_atd(int tr, float dist, float *ox, float *oy, float *ux, float *
     }
 }
 
-/* Gap 2: mock technical_grid_bg — clean dark-cyan circuit grid + sparse cyan/magenta vias. */
-static void zap_grid_bg(Gfx g)
-{
-    const int x0 = ZAP_IX0, y0 = ZAP_IY0, x1 = ZAP_IX1, y1 = ZAP_IY1;
-    g.fillRect(x0, y0, x1 - x0, y1 - y0, PAL_BLACK);
-    for (int x = x0 + 6; x < x1; x += 8) g.fillRect(x, y0, 1, y1 - y0, PAL_BAR);     /* (18,28,36) */
-    for (int y = y0 + 6; y < y1; y += 8) g.fillRect(x0, y, x1 - x0, 1, PAL_BAR);
-    for (int x = x0 + 24; x < x1; x += 32) g.fillRect(x, y0, 1, y1 - y0, PAL_LINE);  /* (28,50,60) */
-    for (int y = y0 + 24; y < y1; y += 32) g.fillRect(x0, y, x1 - x0, 1, ZC_GRID_H); /* (40,20,40) */
-    uint32_t rng = 3u;
-    for (int n = 0; n < 40; ++n) {
-        rng = rng * 1664525u + 1013904223u;
-        const int x = x0 + 4 + (int)((rng >> 8) % (uint32_t)(x1 - x0 - 8));
-        rng = rng * 1664525u + 1013904223u;
-        const int y = y0 + 4 + (int)((rng >> 8) % (uint32_t)(y1 - y0 - 8));
-        rng = rng * 1664525u + 1013904223u;
-        const bool cyan = ((rng >> 9) % 100u) < 55u;
-        g.fillRect(x, y, 1, 1, cyan ? (uint8_t)PAL_CYAN : (uint8_t)PAL_TERM_M);
-        if (((rng >> 17) % 100u) < 35u) g.drawRect(x - 1, y - 1, 3, 3, cyan ? (uint8_t)PAL_WIRE_C : ZC_VIA_MD);
-    }
-}
-
-/* Gap 2: rain kept but sparse + faded (mock paint_device_rain alpha 0.30 reads as a faint hint). */
-static void zap_device_rain(Gfx g)
-{
-    static const int8_t icons[4] = { GL_CAMERA, GL_AP, GL_DRONE, GL_SPEAKER };
-    uint32_t rng = 1019u;
-    for (int cx = ZAP_IX0 + 14; cx < ZAP_IX1 - 8; cx += 46) {
-        rng = rng * 1664525u + 1013904223u;
-        const int y = ZAP_IY0 + 4 + (int)((rng >> 8) % (uint32_t)(ZAP_IY1 - ZAP_IY0 - 20));
-        if (((rng >> 20) % 100u) < 55u) continue;
-        gl_icon(g, icons[(rng >> 4) % 4u], cx - 6, y, true);
-    }
-}
-
 /* Gap 1: mock draw_trace — copper CU_DK(5) / CU(3) / CU_HI(1), CU_DK vias at bends, end pad, cyan dots. */
 static void zap_trace(Gfx g, int tr)
 {
-    const int cx = 160, cy = 82;
+    const int cx = ZAP_CX, cy = ZAP_CY;
     const uint8_t accent = bot_color(ZAP_BOT[tr]);
     static const int W[3] = { 5, 3, 1 };
     const uint8_t C[3] = { ZC_CU_DK, ZC_CU, ZC_CU_HI };
@@ -404,7 +353,7 @@ static void zap_support_pad(Gfx g, int kind, int cx, int cy)
 
 static void zap_chip_pos(int tr, int *bx, int *by)
 {
-    const int ex = 160 + ZAP_PT[tr][4][0], ey = 82 + ZAP_PT[tr][4][1];
+    const int ex = ZAP_CX + ZAP_PT[tr][4][0], ey = ZAP_CY + ZAP_PT[tr][4][1];
     int x = ex + 4, y = ey - 1;
     if (x < ZAP_IX0 + 14) x = ZAP_IX0 + 14;
     if (x > ZAP_IX1 - 14) x = ZAP_IX1 - 14;
@@ -416,7 +365,7 @@ static void zap_chip_pos(int tr, int *bx, int *by)
 static void zap_support(Gfx g, int tr)
 {
     static const int8_t KIND[ZAP_NTR] = { 0, 1, 2, 0, 1, 2 };   /* wifi ic, cam res, bt cap, ... */
-    const int ex = 160 + ZAP_PT[tr][4][0], ey = 82 + ZAP_PT[tr][4][1];
+    const int ex = ZAP_CX + ZAP_PT[tr][4][0], ey = ZAP_CY + ZAP_PT[tr][4][1];
     zap_support_pad(g, KIND[tr], ex - 6, ey);
     int bx, by; zap_chip_pos(tr, &bx, &by);
     zap_dev_chip(g, bx, by, ZAP_BOT[tr]);
@@ -578,89 +527,91 @@ static void zap_time_urgency(Gfx g, int tx, int ty, int shw, int shh, int bx, in
     s_px = keep;
 }
 
-static void zap_controls(Gfx g, uint8_t ac)
+static uint8_t zap_log_col(const char *ln)
 {
-    /* Slim top-right control row ON the scan chrome (mock overlays). */
-    const int bw = 19, bh = 17, gap = 2, n = 4;
-    const int total = n * (bw + gap) - gap;
-    const int bx = 316 - total, by = 22;
-    g.fillRect(bx - 3, by - 2, total + 6, bh + 4, PAL_BLACK);
-    g.drawRect(bx - 3, by - 2, total + 6, bh + 4, ac);
-    for (int i = 0; i < n; ++i) {
-        const int x = bx + i * (bw + gap), y = by;
-        const bool sel = (i == 3);
-        g.fillRect(x, y, bw, bh, PAL_BLACK);
-        g.drawRect(x, y, bw, bh, sel ? (uint8_t)PAL_HOLD : ac);
-        if (sel) {
-            g.drawRect(x - 1, y - 1, bw + 2, bh + 2, PAL_TERM_M);
-            g.drawRect(x, y, bw, bh, ac);
-            g.fillRect(x + 2, y + bh - 2, bw - 4, 1, ac); /* cyan underline */
-        }
-        if (i == 0) { g.drawRect(x + 4, y + 3, 10, 8, ac); g.fillRect(x + 6, y + 5, 6, 2, ac); }
-        else if (i == 1) { g.drawCircle(x + 9, y + 7, 4, ac); g.fillRect(x + 12, y + 10, 4, 1, ac); }
-        else if (i == 2) {
-            g.fillRect(x + 4, y + 4, 10, 1, ac); g.fillRect(x + 4, y + 8, 10, 1, ac);
-            g.fillRect(x + 4, y + 12, 10, 1, ac);
-        } else {
-            g.fillRect(x + 4, y + 6, 3, 3, PAL_HOLD);
-            g.fillRect(x + 8, y + 4, 3, 3, PAL_IVORY);
-            g.fillRect(x + 12, y + 7, 3, 3, ac);
-        }
+    /* Gap 7: mock log colours — armed white, ZAP BEFORE DOCK red, DOCKED - TIME yellow. */
+    if (ln[0] != '[') return PAL_INK;
+    if (ln[2] == '!') {
+        if (strstr(ln, "DOCKED")) return ZC_TCOL;
+        if (strstr(ln, "NULL")) return PAL_TERM_M;
+        return PAL_BFB72;
     }
+    if (ln[2] == 'X') return PAL_BFB72;
+    if (ln[2] == 'O') return PAL_OK;
+    if (ln[2] == '-') return PAL_MUTED;
+    return PAL_INK;
 }
 
-static void zap_title_overlay(Gfx g)
+
+/* v1019x: clip helper. Intersects the current clip (a patch_world / band patch may already clip) with a
+ * world rect and restores it after, so nested draws never widen a patch's clip. Device: the Gfx clip IS
+ * the raw sprite/panel clip. Host: the Gfx clip lives in gfx_host.cpp (host_gfx_clip_get/set). */
+struct ZapClip { int32_t x, y, w, h; bool on; };
+#ifdef BOTCORPS_HOST_RENDER
+bool host_gfx_clip_get(int *x, int *y, int *w, int *h);
+void host_gfx_clip_set(bool on, int x, int y, int w, int h);
+#endif
+static ZapClip zap_clip_get(Gfx g)
 {
-    const int kt = s_px; s_px = 6;
-    char dtitle[32];
-    defend_title(dtitle, sizeof(dtitle), 12);
-    const int n1 = (int)strlen(dtitle);
-    const int px = 6, py = 22;
-    const int pw = n1 * 6 + 6, ph = 15;
-    plate(g, px, py, pw, ph, PAL_DEEP, PAL_CYAN);
-    txt(g, dtitle, px + 3, py + 3, PAL_CYAN, lgfx::textdatum::top_left);
-    g.fillRect(px + 3, py + ph - 4, n1 * 6 - 1, 1, PAL_WIRE_C);
-    s_px = kt;
+    ZapClip c = { 0, 0, 320, 240, false };
+#ifdef BOTCORPS_HOST_RENDER
+    (void)g;
+    int x, y, w, h;
+    c.on = host_gfx_clip_get(&x, &y, &w, &h);
+    c.x = x; c.y = y; c.w = w; c.h = h;
+#else
+    if (g.raw()) { g.raw()->getClipRect(&c.x, &c.y, &c.w, &c.h); c.on = true; }
+#endif
+    return c;
+}
+static void zap_clip_set(Gfx g, const ZapClip &c)
+{
+#ifdef BOTCORPS_HOST_RENDER
+    (void)g;
+    host_gfx_clip_set(c.on, (int)c.x, (int)c.y, (int)c.w, (int)c.h);
+#else
+    if (g.raw()) g.raw()->setClipRect(c.x, c.y, c.w, c.h);
+#endif
+}
+static ZapClip zap_clip_push(Gfx g, int x, int y, int w, int h)
+{
+    const ZapClip old = zap_clip_get(g);
+    int x0 = x - g.ox, y0 = y - g.oy, x1 = x0 + w, y1 = y0 + h;
+    if (old.on) {
+        if (x0 < old.x) x0 = old.x;
+        if (y0 < old.y) y0 = old.y;
+        if (x1 > old.x + old.w) x1 = old.x + old.w;
+        if (y1 > old.y + old.h) y1 = old.y + old.h;
+    }
+    if (x1 < x0) x1 = x0;
+    if (y1 < y0) y1 = y0;
+    const ZapClip n = { x0, y0, x1 - x0, y1 - y0, true };
+    zap_clip_set(g, n);
+    return old;
+}
+static void zap_clip_pop(Gfx g, const ZapClip &c) { zap_clip_set(g, c); }
+
+/* Gibson Defend screen = the restored scan shell (paint_sbox) while Gibson is on Defend. */
+static bool zap_sb_on(void)
+{
+    return s_screen == SCR_GCHAT && dg_zap_full();
 }
 
-static void zap_cmd_button(Gfx g)
+/* v1019x: the zap INSIDE the shell's cyan grid. Called from paint_sbox in place of bh_grid + bot_hunt;
+ * paint_sbox has already filled the display glass (8). Shell grid lines first, then the v1019w zap
+ * content (copper traces, device chips, centre Gibson, riders, bolt, NULL, TIME), all clipped to the
+ * grid rect. */
+static void zap_paint_grid_live(Gfx g)
 {
-    /* Larger prompt-corner Gibson = command-prompt BUTTON (CMD). PROMPT_BTN=(268,188,314,232) */
-    const int x0 = 268, y0 = 188, x1 = 314, y1 = 232;
-    g.fillRect(x0 - 2, y0 - 2, (x1 - x0) + 4, (y1 - y0) + 4, PAL_BLACK);
-    g.drawRect(x0 - 2, y0 - 2, (x1 - x0) + 4, (y1 - y0) + 4, PAL_TERM_M);
-    g.drawRect(x0 - 1, y0 - 1, (x1 - x0) + 2, (y1 - y0) + 2, PAL_CYAN);
-    g.drawRect(x0, y0, x1 - x0, y1 - y0, PAL_TERM_M);
-    g.drawRect(x0 + 1, y0 + 1, (x1 - x0) - 2, (y1 - y0) - 2, PAL_WHITE);
-    g.fillRect(x0 + 3, y0 + 3, (x1 - x0) - 6, (y1 - y0) - 6, PAL_BG);
-    g.drawRect(x0 + 3, y0 + 3, (x1 - x0) - 6, (y1 - y0) - 6, PAL_CYAN);
-    /* corner pips */
-    g.fillRect(x0 + 5, y0 + 5, 5, 5, PAL_CYAN);
-    g.fillRect(x1 - 10, y0 + 5, 5, 5, PAL_TERM_M);
-    g.fillRect(x0 + 5, y1 - 10, 5, 5, PAL_TERM_M);
-    g.fillRect(x1 - 10, y1 - 10, 5, 5, PAL_CYAN);
-    /* Chip centred high so CMD caption sits clear of the CHIP gate-box (G1). */
-    chip_block(g, (x0 + x1) / 2, y0 + 16, 22, 12);
-    const int keep = s_px; s_px = 6;
-    txt(g, "CMD", (x0 + x1) / 2 - 9, y1 - 10, PAL_CYAN, lgfx::textdatum::top_left);
-    g.fillRect((x0 + x1) / 2 + 10, y1 - 9, 3, 5, PAL_TERM_M);
-    s_px = keep;
-}
-
-static void zap_paint_field(Gfx g)
-{
-    GATE_BOX(g, "BOARD", "defend", ZAP_BX0, ZAP_BY0, ZAP_BX1 - ZAP_BX0, ZAP_BY1 - ZAP_BY0, "-");
-    g.fillRect(ZAP_BX0, ZAP_BY0, ZAP_BX1 - ZAP_BX0, ZAP_BY1 - ZAP_BY0, PAL_BLACK);
-    zap_pink_rim(g);
-    zap_grid_bg(g);
-    zap_device_rain(g);
+    /* gate: the Defend board is the shell's display (grid + strip, = the MINI screen box) so the shell's
+     * own MINI / PROMPT boxes sit inside it (G4); the zap itself is clipped to the grid rect below. */
+    GATE_BOX(g, "BOARD", "defend", 106, 42, 176, 148, "-");
+    bh_grid(g);
+    const ZapClip cl = zap_clip_push(g, ZAP_IX0, ZAP_IY0, ZAP_IX1 - ZAP_IX0, ZAP_IY1 - ZAP_IY0);
     for (int t = 0; t < ZAP_NTR; ++t) zap_trace(g, t);
     for (int t = 0; t < ZAP_NTR; ++t) zap_support(g, t);
-    /* centre 5-pin gold Gibson (square chip) */
-    chip_block(g, 160, 82, ZAP_CS, 12);
-    GATE_BOX(g, "DGBOT", "gibson", 160 - ZAP_CS / 2, 82 - ZAP_CS / 2, ZAP_CS, ZAP_CS, "-");
-
-    /* riders (gap 3: grey device sprites; gap 4: jagged bolt; gap 5: TIME digits) */
+    chip_block(g, ZAP_CX, ZAP_CY, ZAP_CS, 12);   /* stationary centre Gibson (canon chip) */
+    GATE_BOX(g, "DGBOT", "gibson", ZAP_CX - ZAP_CS / 2, ZAP_CY - ZAP_CS / 2, ZAP_CS, ZAP_CS, "-");
     int null_x = -1, null_y = -1, null_hh = 7;
     for (int i = 0; i < ZAP_MAX; ++i) {
         if (!s_zap[i].live || s_zap[i].dock) continue;
@@ -672,7 +623,6 @@ static void zap_paint_field(Gfx g)
         zap_draw_bolt(g, s_zap_fx_tr, s_zap_fx_from, to);
     }
     if (s_zap_null_tr >= 0 && s_dg_ms < s_zap_null_until) {
-        /* NULL on the impact device position: the zapped rider drawn lit on top of the bolt tip */
         int x, y, hw, hh; zap_at(s_zap_null_tr, s_zap_fx_to > 0.f ? s_zap_fx_to + 6.f : 40.f, &x, &y);
         zap_rider(g, s_zap_null_tr, x, y, 1, &hw, &hh);
         g.drawRect(x - hw - 3, y - hh - 3, 2 * hw + 7, 2 * hh + 7, PAL_TERM_M);
@@ -693,125 +643,129 @@ static void zap_paint_field(Gfx g)
         zap_time_urgency(g, x, y, hw, hh, bx, by, secs);
     }
     if (null_x >= 0) zap_null_label(g, null_x, null_y - null_hh + 6);
-    zap_title_overlay(g);
-    zap_controls(g, PAL_CYAN);
-    zap_pink_rim(g); /* re-stroke after overlays */
+    zap_clip_pop(g, cl);
 }
 
-static uint8_t zap_log_col(const char *ln)
+/* the idle Defend (no round running) shows a fixed still of the zap, as v1019w's idle demo did */
+static void zap_demo_seed(void)
 {
-    /* Gap 7: mock log colours — armed white, ZAP BEFORE DOCK red, DOCKED - TIME yellow. */
-    if (ln[0] != '[') return PAL_INK;
-    if (ln[2] == '!') {
-        if (strstr(ln, "DOCKED")) return ZC_TCOL;
-        if (strstr(ln, "NULL")) return PAL_TERM_M;
-        return PAL_BFB72;
-    }
-    if (ln[2] == 'X') return PAL_BFB72;
-    if (ln[2] == 'O') return PAL_OK;
-    if (ln[2] == '-') return PAL_MUTED;
-    return PAL_INK;
+    zap_reset();
+    s_dg_score = 0; s_dg_miss = 0; s_dg_state = DGS_PLAY;
+    s_zap[0].live = 1; s_zap[0].tr = 1; s_zap[0].dist = 30.f; s_zap[0].dock = 0;
+    s_zap[1].live = 1; s_zap[1].tr = 4; s_zap[1].dist = zap_len(4) - 2.f; s_zap[1].dock = 1;
+    s_zap[2].live = 1; s_zap[2].tr = 0; s_zap[2].dist = 40.f; s_zap[2].dock = 0;
+    s_zap[3].live = 1; s_zap[3].tr = 2; s_zap[3].dist = 34.f; s_zap[3].dock = 0;
+    s_zap[4].live = 1; s_zap[4].tr = 3; s_zap[4].dist = 36.f; s_zap[4].dock = 0;
+    s_zap[5].live = 1; s_zap[5].tr = 5; s_zap[5].dist = 44.f; s_zap[5].dock = 0;
+    s_zap_fx_tr = 1; s_zap_fx_from = 4.f; s_zap_fx_to = 24.f;
+    s_zap_fx_until = s_dg_ms + 99999u;
+    s_zap_null_tr = 1; s_zap_null_until = s_dg_ms + 99999u;
 }
-
-static void zap_prompt_row(Gfx g, const char *typed, int caret)
+static void zap_paint_grid(Gfx g)
 {
-    /* Gap 6: typed command only, mock `GIBSON > NUL` + caret. No on-screen instruction/hint text. */
-    char row[40];
-    int n = snprintf(row, sizeof row, "GIBSON > %s", typed ? typed : "");
-    if (n < 0) n = 0;
-    if (n > (int)sizeof row - 1) n = (int)sizeof row - 1;
-    for (char *p = row; *p; ++p) if (*p >= 'a' && *p <= 'z') *p = (char)(*p - 'a' + 'A');
-    txt(g, row, 12, 196, PAL_CYAN, lgfx::textdatum::top_left);
-    int ci = n;
-    if (typed && typed[0] && caret >= 0 && caret < (int)strlen(typed)) ci = 9 + caret;
-    g.fillRect(12 + ci * 6, 195, 5, 7, PAL_CYAN);
+    if (dg_on() && s_dg == DG_ZAP) { zap_paint_grid_live(g); return; }
+    const int keep = s_dg, keep_b = s_dg_bot, keep_sc = s_dg_score, keep_mi = s_dg_miss, keep_st = s_dg_state;
+    ZapDev keep_z[ZAP_MAX];
+    memcpy(keep_z, s_zap, sizeof s_zap);
+    const int keep_null = s_zap_null_tr; const uint32_t keep_nu = s_zap_null_until;
+    const int keep_fx = s_zap_fx_tr; const uint32_t keep_fu = s_zap_fx_until;
+    const float keep_ff = s_zap_fx_from, keep_ft = s_zap_fx_to;
+    const int keep_ln = s_zap_log_n;
+    char keep_log[4][36];
+    memcpy(keep_log, s_zap_log, sizeof s_zap_log);
+    uint8_t keep_ds[ZAP_MAX];
+    memcpy(keep_ds, s_zap_dock_seen, sizeof keep_ds);
+    s_dg = DG_ZAP; s_dg_bot = 12;
+    zap_demo_seed();
+    zap_paint_grid_live(g);
+    memcpy(s_zap, keep_z, sizeof s_zap);
+    memcpy(s_zap_log, keep_log, sizeof s_zap_log);
+    memcpy(s_zap_dock_seen, keep_ds, sizeof keep_ds);
+    s_zap_log_n = keep_ln;
+    s_zap_null_tr = keep_null; s_zap_null_until = keep_nu;
+    s_zap_fx_tr = keep_fx; s_zap_fx_until = keep_fu;
+    s_zap_fx_from = keep_ff; s_zap_fx_to = keep_ft;
+    s_dg = keep; s_dg_bot = keep_b; s_dg_score = keep_sc; s_dg_miss = keep_mi; s_dg_state = keep_st;
 }
 
-static void zap_paint_hud(Gfx g)
+/* v1019x: the shell's terminal strip under the grid, same positions / font / inks as paint_sbox's core
+ * strip. Before any zap event it reads exactly like the shell ("gibson core linked" / "gibson bus
+ * idle"); once events land the two newest zap log lines take those two rows (tag in its log ink, body in
+ * the shell ink). The prompt row is the shell prompt with the typed zap command. No hint text. */
+static void zap_strip(Gfx g, int dx, int th, int ty, int dw)
 {
-    /* Gap 7: mock log look — three log lines + typed row; no HACKERS ZAP header, no ZAP/LIFE line
-     * (score and lives ride the NULL / BREACH log lines). CMD button separate. */
-    const int keep = s_px; s_px = 6;
-    GATE_BOX(g, "DGHUD", "zap", 8, 152, 250, 74, "-");
-    g.fillRect(8, 152, 250, 74, PAL_BLACK);
-    const int n = s_zap_log_n < 3 ? s_zap_log_n : 3;
-    const int start = s_zap_log_n - n;
-    for (int k = 0; k < n; ++k) {
-        const char *ln = s_zap_log[start + k];
-        txt(g, ln, 12, 156 + k * 10, zap_log_col(ln), lgfx::textdatum::top_left);
+    const uint8_t ac = accent();
+    const bool play = dg_on() && s_dg == DG_ZAP;
+    char body[2][40];
+    char tag[2][8];
+    uint8_t tc[2] = { PAL_OK, PAL_OK };
+    if (!play || s_zap_log_n <= 1) {
+        snprintf(tag[0], 8, "[ ok ] "); snprintf(body[0], 40, "gibson core linked");
+        snprintf(tag[1], 8, "[ ok ] "); snprintf(body[1], 40, "gibson bus idle");
+    } else {
+        const int n0 = s_zap_log_n - 2;
+        for (int k = 0; k < 2; ++k) {
+            const char *ln = s_zap_log[n0 + k];
+            const bool tagged = ln[0] == '[' && strlen(ln) >= 7;
+            if (tagged) {
+                tag[k][0] = '['; tag[k][1] = ' ';
+                tag[k][2] = (char)((ln[2] >= 'A' && ln[2] <= 'Z') ? ln[2] + 32 : ln[2]);
+                tag[k][3] = (char)((ln[3] >= 'A' && ln[3] <= 'Z') ? ln[3] + 32 : ln[3]);
+                tag[k][4] = ' '; tag[k][5] = ']'; tag[k][6] = ' '; tag[k][7] = 0;
+                tc[k] = (ln[2] == '*' || ln[2] == 'O') ? (uint8_t)PAL_OK : zap_log_col(ln);
+            } else { tag[k][0] = 0; }
+            snprintf(body[k], 40, "%s", tagged ? ln + 7 : ln);
+            for (char *p = body[k]; *p; ++p) if (*p >= 'A' && *p <= 'Z') *p = (char)(*p + 32);
+        }
     }
-    if (s_dg_state == DGS_PAUSE) txt(g, "[ -- ] PAUSED", 12, 186, PAL_MUTED, lgfx::textdatum::top_left);
-    zap_prompt_row(g, s_gp_buf, s_gc_caret);
-    s_px = keep;
+    for (int k = 0; k < 2; ++k) {
+        const int y = th + k * 11;
+        int x = sb_tt(g, tag[k], dx + 3, y, tc[k]);
+        sb_tt(g, body[k], x, y + 1, sb_tone(3));
+        sb_tt(g, body[k], x, y, sb_ink());
+    }
+    int x = sb_tt(g, "user@botcorps:~$ ", dx + 3, ty, ac);
+    x = sb_tt(g, s_gp_buf, x, ty, COL_INK);
+    if ((millis() / 530u) % 2u == 0u) sb_rect(g, x + 1, ty, 5, 9, ac);
+    sb_rect(g, dx + dw - 22, ty - 2, 19, 12, 8);
+    sb_frame(g, dx + dw - 22, ty - 2, 19, 12, sb_tone(4));
+    for (int k = 0; k < 3; ++k) sb_rect(g, dx + dw - 18, ty + 1 + k * 3, 11, 1, COL_MUTED);
 }
 
-static void paint_zap_screen(Gfx g)
+/* v1019x (Mobandy 2:26 PM): the background rain runs ONLY in the dark PCB rectangle behind the left
+ * chip, under the chip and its silk. The rect is the clean PCB between the board's gold edge / mount
+ * holes / headers and the display bezel side bar. */
+enum { ZR_X = 20, ZR_Y = 44, ZR_W = 76, ZR_H = 148 };
+static void zap_rain_rect(Gfx g)
 {
-    /* Full Gibson zap Defend: status already painted by paint_gchat; we own mid + prompt. */
-    const uint32_t t = millis();
-    if (dg_on() && s_dg == DG_ZAP) zap_paint_field(g);
-    else {
-        /* Idle demo: run a short deterministic still of ZAP */
-        const int keep = s_dg, keep_b = s_dg_bot, keep_sc = s_dg_score, keep_mi = s_dg_miss;
-        const int keep_st = s_dg_state;
-        ZapDev keep_z[ZAP_MAX];
-        memcpy(keep_z, s_zap, sizeof s_zap);
-        const int keep_null = s_zap_null_tr; const uint32_t keep_nu = s_zap_null_until;
-        const int keep_fx = s_zap_fx_tr; const uint32_t keep_fu = s_zap_fx_until;
-        const float keep_ff = s_zap_fx_from, keep_ft = s_zap_fx_to;
-        s_dg = DG_ZAP; s_dg_bot = 12; s_dg_t = 1000u;
-        zap_reset();
-        s_dg_score = 0; s_dg_miss = 0; s_dg_state = DGS_PLAY;
-        /* Place a mid-zap camera + a docked flock like the mock. */
-        s_zap[0].live = 1; s_zap[0].tr = 1; s_zap[0].dist = 52.f; s_zap[0].dock = 0;
-        s_zap[1].live = 1; s_zap[1].tr = 4; s_zap[1].dist = zap_len(4) - 2.f; s_zap[1].dock = 1;
-        s_zap[2].live = 1; s_zap[2].tr = 0; s_zap[2].dist = 62.f; s_zap[2].dock = 0;
-        s_zap[3].live = 1; s_zap[3].tr = 2; s_zap[3].dist = 50.f; s_zap[3].dock = 0;
-        s_zap[4].live = 1; s_zap[4].tr = 3; s_zap[4].dist = 55.f; s_zap[4].dock = 0;
-        s_zap[5].live = 1; s_zap[5].tr = 5; s_zap[5].dist = 70.f; s_zap[5].dock = 0;
-        s_zap_fx_tr = 1; s_zap_fx_from = 4.f; s_zap_fx_to = 46.f;
-        s_zap_fx_until = s_dg_ms + 99999u;
-        s_zap_null_tr = 1; s_zap_null_until = s_dg_ms + 99999u;
-        s_zap_log_n = 0;
-        zap_log("[ ** ] BOARD ARMED. TRACES LIVE");
-        zap_log("[ !! ] ZAP BEFORE DOCK - CAMERA");
-        zap_log("[ !! ] FLOCK DOCKED - TIME");
-        zap_paint_field(g);
-        /* DEMO tag */
-        { const int kp = s_px; s_px = 6;
-          plate(g, ZAP_IX0 + 4, ZAP_IY1 - 16, 30, 12, PAL_DEEP, PAL_WIRE_C);
-          txt(g, "DEMO", ZAP_IX0 + 7, ZAP_IY1 - 14, PAL_CYAN, lgfx::textdatum::top_left);
-          s_px = kp; }
-        memcpy(s_zap, keep_z, sizeof s_zap);
-        s_zap_null_tr = keep_null; s_zap_null_until = keep_nu;
-        s_zap_fx_tr = keep_fx; s_zap_fx_until = keep_fu;
-        s_zap_fx_from = keep_ff; s_zap_fx_to = keep_ft;
-        s_dg = keep; s_dg_bot = keep_b; s_dg_score = keep_sc; s_dg_miss = keep_mi; s_dg_state = keep_st;
-    }
-    /* Prompt well */
-    g.fillRect(4, 148, 312, 88, PAL_BLACK);
-    g.drawRect(4, 148, 312, 88, PAL_CYAN);
-    g.drawRect(5, 149, 310, 86, PAL_WIRE_C);
-    g.fillRect(6, 150, 250, 1, (uint32_t)(t - s_bus_t0) < 160u ? (uint8_t)PAL_CYAN : (uint8_t)PAL_WIRE_C);
-    if (dg_on() && s_dg == DG_ZAP) zap_paint_hud(g);
-    else {
-        const int keep = s_px; s_px = 6;
-        txt(g, "[ ** ] BOARD ARMED. TRACES LIVE", 12, 156, PAL_INK, lgfx::textdatum::top_left);
-        txt(g, "[ !! ] ZAP BEFORE DOCK - CAMERA", 12, 166, PAL_BFB72, lgfx::textdatum::top_left);
-        txt(g, "[ !! ] FLOCK DOCKED - TIME", 12, 176, ZC_TCOL, lgfx::textdatum::top_left);
-        zap_prompt_row(g, "nul", -1);
-        s_px = keep;
-    }
-    zap_cmd_button(g);
+    GATE_BOX(g, "RAIN", "layer", ZR_X, ZR_Y, ZR_W, ZR_H, "-");
+#ifdef BOTCORPS_HOST_RENDER
+    if (host_gate_norain) return;
+#endif
+    if (!g.raw() || g.ox != 0) return;
+    /* window = the rect intersected with the caller's clip (a patch may clip tighter), world coords */
+    const ZapClip cl = zap_clip_push(g, ZR_X, ZR_Y, ZR_W, ZR_H);
+    const ZapClip n = zap_clip_get(g);
+#ifdef BOTCORPS_HOST_RENDER
+    host_gate_mute = 1;
+#endif
+    botcorps_rain_draw_win(*g.raw(), g.oy, g.oy + g.raw()->height(), (int)n.x + g.ox, (int)n.y + g.oy, (int)n.w, (int)n.h);
+#ifdef BOTCORPS_HOST_RENDER
+    host_gate_mute = 0;
+#endif
+    zap_clip_pop(g, cl);
 }
 
-/* v1019w: live zap on the device. dg_tick's generic path patched the OLD in-board HUD (paint_dg_hud_ext:
- * "type name  enter zap", "tab next  ` quit") and the old LOST/WIN plate over the full-width chrome, and
- * never repainted the riders, so the TIME digits could not count down. Zap now patches its own field
- * (rider / bolt / TIME change) and its own prompt-panel log + typed row (log / typed / state change). */
+/* Patches: paint_sbox with the patch window (sb_vis), exactly like sb_patch on the scan screen, so a
+ * patch is the full paint's own pixels. */
 static void patch_world(void (*fn)(Gfx), int x, int y, int w, int h);
-static void zap_field_part(Gfx g) { zap_paint_field(g); }
-static void zap_hud_part(Gfx g) { zap_paint_hud(g); }
+static void zap_sb_part(Gfx g) { paint_sbox(g, true); }
+static void zap_sb_patch(int x, int y, int w, int h)
+{
+    s_pc_x = x; s_pc_y = y; s_pc_w = w; s_pc_h = h;
+    patch_world(zap_sb_part, x, y, w, h);
+    s_pc_x = 0; s_pc_y = 0; s_pc_w = 320; s_pc_h = 240;
+}
 static uint32_t zap_mix(uint32_t h, uint32_t v) { return (h ^ v) * 16777619u; }
 static uint32_t zap_field_sig(void)
 {
@@ -825,6 +779,7 @@ static uint32_t zap_field_sig(void)
     const bool nl = s_zap_null_tr >= 0 && s_dg_ms < s_zap_null_until;
     h = zap_mix(h, fx ? (uint32_t)s_zap_fx_tr * 256u + (uint32_t)(int)s_zap_fx_to : 0xFFFFu);
     h = zap_mix(h, nl ? (uint32_t)s_zap_null_tr : 0xFFu);
+    h = zap_mix(h, (uint32_t)(dg_on() && s_dg == DG_ZAP));
     return h;
 }
 static uint32_t zap_hud_sig(void)
@@ -834,17 +789,29 @@ static uint32_t zap_hud_sig(void)
     for (int k = 0; k < 4 && k < s_zap_log_n; ++k)
         for (const char *c = s_zap_log[k]; *c; ++c) h = zap_mix(h, (uint8_t)*c);
     for (const char *c = s_gp_buf; *c; ++c) h = zap_mix(h, (uint8_t)*c);
-    h = zap_mix(h, (uint32_t)(s_gc_caret + 1));
-    h = zap_mix(h, (uint32_t)s_dg_state);
+    h = zap_mix(h, (uint32_t)(dg_on() && s_dg == DG_ZAP));
+    h = zap_mix(h, (millis() / 530u) % 2u);   /* shell caret blink */
     return h;
+}
+/* rain: advance the shared rain state one 140 ms step WITHOUT its own panel paint (set_draw off, so
+ * the direct path cannot paint the open screen), then patch only the rain rect. */
+static void zap_rain_tick(void)
+{
+    if (!s_bg_motion) return;
+    const bool was = botcorps_rain_draw_enabled();
+    botcorps_rain_set_draw(false);
+    const bool st = botcorps_rain_step();
+    botcorps_rain_set_draw(was);
+    if (st) zap_sb_patch(ZR_X, ZR_Y, ZR_W, ZR_H);
 }
 static void zap_tick_patch(void)
 {
     static uint32_t fs = 0, hs = 0;
     const uint32_t f = zap_field_sig();
-    if (f != fs) { fs = f; patch_world(zap_field_part, ZAP_BX0, ZAP_BY0, ZAP_BX1 - ZAP_BX0, ZAP_BY1 - ZAP_BY0); }
+    if (f != fs) { fs = f; zap_sb_patch(ZAP_BX0, ZAP_BY0, ZAP_BX1 - ZAP_BX0, ZAP_BY1 - ZAP_BY0); }
     const uint32_t h = zap_hud_sig();
-    if (h != hs) { hs = h; patch_world(zap_hud_part, 8, 152, 250, 74); }
+    if (h != hs) { hs = h; zap_sb_patch(106, 152, 176, 38); }
+    zap_rain_tick();
 }
 
 static void zap_ai(void)

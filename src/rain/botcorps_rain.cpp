@@ -207,6 +207,30 @@ static int cell_level(int col, int row, int *lead_of)
 static bool rain_pixel_ok(int x, int y);
 static bool icon_pixel_ok(int x, int y);
 
+/* v1019x: optional world-space draw window (botcorps_rain_draw_win). When on, each cell's clip is the
+ * cell intersected with the window and cells outside it are skipped, so the rain can live in one rect. */
+static bool s_win_on = false;
+static int s_win_x = 0, s_win_y = 0, s_win_w = 320, s_win_h = 240;
+static bool cell_clip(lgfx::LovyanGFX &panel, int x, int wy)
+{
+    if (!s_win_on) {                         /* exactly the pre-v1019x cell clip */
+        const int ly = wy - s_slice_y0;
+        panel.setClipRect(x, ly < 0 ? 0 : ly, CELL, CELL);
+        return true;
+    }
+    int x0 = x, y0 = wy, x1 = x + CELL, y1 = wy + CELL;
+    if (y0 < s_slice_y0) y0 = s_slice_y0;
+    {
+        if (x0 < s_win_x) x0 = s_win_x;
+        if (y0 < s_win_y) y0 = s_win_y;
+        if (x1 > s_win_x + s_win_w) x1 = s_win_x + s_win_w;
+        if (y1 > s_win_y + s_win_h) y1 = s_win_y + s_win_h;
+        if (x1 <= x0 || y1 <= y0) return false;
+    }
+    panel.setClipRect(x0, y0 - s_slice_y0, x1 - x0, y1 - y0);
+    return true;
+}
+
 static bool cell_open(int x, int y)
 {
     for (int dy = 0; dy < CELL; dy += 3)
@@ -260,7 +284,7 @@ static void draw_cell(lgfx::LovyanGFX &panel, int col, int row)
     const int ly = wy - s_slice_y0;
     int lead = 0;
     const int lv = cell_level(col, row, &lead);
-    panel.setClipRect(x, ly < 0 ? 0 : ly, CELL, CELL);
+    if (!cell_clip(panel, x, wy)) return;
     botcorps_pal_rect(panel, x, ly, CELL, CELL, PAL_FIELD);
     if (lv == 0) { panel.clearClipRect(); return; }
     const uint8_t gl = *glyph_at(col, row);
@@ -405,6 +429,11 @@ void botcorps_rain_set_draw(bool enable)
     s_draw = enable;
 }
 
+bool botcorps_rain_draw_enabled(void)
+{
+    return s_draw;
+}
+
 bool botcorps_rain_step(void)
 {
     if (!s_built) build_columns();
@@ -440,6 +469,14 @@ void botcorps_rain_set_gibson(bool on)
 void botcorps_rain_set_no_bots(bool on)
 {
     s_no_bots = on;
+}
+
+void botcorps_rain_draw_win(lgfx::LovyanGFX &dst, int y0, int y1, int wx, int wy, int ww, int wh)
+{
+    if (ww <= 0 || wh <= 0) return;
+    s_win_on = true; s_win_x = wx; s_win_y = wy; s_win_w = ww; s_win_h = wh;
+    botcorps_rain_draw(dst, y0, y1);
+    s_win_on = false; s_win_x = 0; s_win_y = 0; s_win_w = 320; s_win_h = 240;
 }
 
 void botcorps_rain_draw(lgfx::LovyanGFX &dst, int y0, int y1)

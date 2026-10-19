@@ -373,6 +373,30 @@ bool botcorps_band_rebuild(void)
 
 Gfx::Gfx(lgfx::LovyanGFX &d) : p(&d), ox(s_ox), oy(botcorps_band_oy()) {}
 
+void botcorps_band_invert_rect(int x, int y, int w, int h)
+{
+    if (!s_sp || !s_live || w <= 0 || h <= 0) return;
+    uint8_t *buf = (uint8_t *)s_sp->getBuffer();
+    if (!buf) return;
+    const int sw = s_sp->width();
+    const int sh = s_sp->height();
+    const int oy = botcorps_band_oy();
+    for (int yy = 0; yy < h; ++yy) {
+        const int sy = y + yy - oy;
+        if (sy < 0 || sy >= sh) continue;
+        for (int xx = 0; xx < w; ++xx) {
+            const int sx = x + xx - s_ox;
+            if (sx < 0 || sx >= sw) continue;
+            uint8_t &px = buf[(size_t)sy * (size_t)sw + (size_t)sx];
+            const uint16_t c = botcorps_rgb565(px);
+            const unsigned r = 31u - ((c >> 11) & 31u);
+            const unsigned g6 = 63u - ((c >> 5) & 63u);
+            const unsigned b = 31u - (c & 31u);
+            px = botcorps_pal_fit((uint16_t)((r << 11) | (g6 << 5) | b));
+        }
+    }
+}
+
 void Gfx::fillRect(int x, int y, int w, int h, uint8_t c)
 {
     with_idx(p, c, [&](auto ink) { p->fillRect(x - s_ox, y - oy, w, h, ink); });

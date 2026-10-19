@@ -172,7 +172,7 @@ static const bot_t BOTS[12] = {
 
 static const uint8_t BOT_PAL[12] = {   /* v1019r-pending (#8): 12 unique fixed bot colours (min dE 36.8) */
     87 /*1BDD wifi*/, 59 /*269C bt*/, 201 /*DA4A deauth*/, 122 /*1E88 hack*/, 185 /*B6CA flock*/, 252 /*FFE0 drone*/,
-    245 /*FDC9 airtag*/, 94 /*5FF8 keyfob*/, 131 /*901F meta*/, 234 /*FA55 skimmer*/, 241 /*F2E3 flipper*/, 207 /*E2FF samsung*/,
+    245 /*FDC9 airtag*/, 94 /*5FF8 keyfob*/, 131 /*901F meta*/, 202 /*DA55 skimmer, nearest non-override to FA55*/, 241 /*F2E3 flipper*/, 207 /*E2FF samsung*/,
 };
 
 static uint8_t bot_color(int i)
@@ -1569,45 +1569,95 @@ static void dash_box(Gfx g, int x, int y, int w, int h, uint8_t c)
     }
 }
 
-/* v1019y: unselected tiles are SOLID bot-colour blocks (no rain, no trace noise).
- * The selected tile is hybrid40: black interior + device rain, white dashed ring on the chip,
- * 1 px pale-magenta outline, 2 px frame = bot colour mixed 40% toward white. */
+/* Literal RGB invert of the tile art. Palette-fit keeps it on the 8-bit panel. */
+static uint8_t idx_rgb_inv(uint8_t idx)
+{
+    const uint16_t c = botcorps_rgb565(idx);
+    const unsigned r = 31u - ((c >> 11) & 31u);
+    const unsigned g6 = 63u - ((c >> 5) & 63u);
+    const unsigned b = 31u - (c & 31u);
+    return botcorps_pal_fit((uint16_t)((r << 11) | (g6 << 5) | b));
+}
+static void tile_invert(Gfx g, int x, int y, int w, int h)
+{
+#ifdef BOTCORPS_HOST_RENDER
+    extern uint8_t *host_frame;
+    extern int host_slice_h;
+    if (!host_frame || w <= 0 || h <= 0) return;
+    for (int yy = 0; yy < h; ++yy) {
+        const int sy = y + yy - g.oy;
+        if (sy < 0 || sy >= 240) continue;
+        if (host_slice_h && sy >= host_slice_h) continue;
+        for (int xx = 0; xx < w; ++xx) {
+            const int sx = x + xx - g.ox;
+            if (sx < 0 || sx >= 320) continue;
+            uint8_t &px = host_frame[sy * 320 + sx];
+            px = idx_rgb_inv(px);
+        }
+    }
+#else
+    (void)g;
+    botcorps_band_invert_rect(x, y, w, h);
+#endif
+}
+
+/* Terminal tiles: the detailed chip (dark #0A0C0E well, bot-colour glyph, pin comb,
+ * side vias, faint traces, corner marks, thin bot-colour border). The selected tile
+ * is that same art with every pixel inverted — nothing is flattened to a solid block. */
 static void paint_one_board(Gfx g, int i, bool sel, bool dim)
 {
     int x, y;
     term_xy(i, &x, &y);
     (void)dim;
+    const uint32_t t = millis();
     const int w = 72;
     const int h = 46;
-    const uint16_t bc = botcorps_rgb565(bot_color(i));
-    const uint8_t frame = botcorps_pal_fit(mix16(bc, 0xFFFF, 40, 100));
-    const uint8_t mag = botcorps_pal_fit(mix16(0xF81F, 0xFFFF, 55, 100));
-    /* Solid fill is 62% of the bot colour (brightest solid averages ~106; the 40% white frame averages ~167). */
-    const uint16_t solid565 = mix16(bc, 0x0000, 62, 100);
-    const uint8_t solid = botcorps_pal_fit(solid565);
-    const int luma = (((solid565 >> 11) & 31) * 8) + (((solid565 >> 5) & 63) * 4) + ((solid565 & 31) * 8);
-    const uint8_t silk = luma > 280 ? (uint8_t)PAL_BLACK : (uint8_t)PAL_WHITE;
-    if (sel) {
-        g.drawRect(x - 1, y - 1, w + 2, h + 2, mag);
-        g.fillRect(x + 2, y + 2, w - 4, h - 4, PAL_BLACK);
-        g.fillRect(x, y, w, 2, frame);
-        g.fillRect(x, y + h - 2, w, 2, frame);
-        g.fillRect(x, y, 2, h, frame);
-        g.fillRect(x + w - 2, y, 2, h, frame);
-#ifdef BOTCORPS_HOST_RENDER
-        if (g.raw() && !host_gate_norain)
-#else
-        if (g.raw())
-#endif
-            botcorps_rain_ghost(*g.raw(), g.ox, g.oy, x + 3, y + 3, w - 6, 32, term_ghost_ink());
-    } else {
-        g.fillRect(x, y, w, h, solid);
-        const uint8_t ant = botcorps_pal_fit(mix16(bc, 0xFFFF, 28, 100));
-        for (int k = 0; k < 6; ++k) g.fillRect(x + 26 + k * 4, y + 3, 1, 5, ant);
+    const uint8_t base = botcorps_pal_fit((uint16_t)(((10 >> 3) << 11) | ((12 >> 2) << 5) | (14 >> 3))); /* #0A0C0E */
+    const uint8_t rim = bot_color(i);
+    const uint8_t tr = (uint8_t)PAL_STEEL;
+    const uint8_t ant = (uint8_t)PAL_MUTED;
+    const uint8_t pad = (uint8_t)PAL_SOFT;
+    const uint8_t fp = (uint8_t)PAL_BLACK;
+    const uint8_t fpp = (uint8_t)PAL_SOFT;
+    const uint8_t led = (uint8_t)PAL_BOARD_D;
+    const uint8_t hole = (uint8_t)PAL_FIELD;
+    g.fillRect(x + 1, y, w - 2, h, base);
+    g.fillRect(x, y + 1, w, h - 2, base);
+    g.fillRect(x + 2, y + 36, w - 4, 8, (uint8_t)PAL_BOARD_D);
+    const int longtr[4] = { 1, 3, 5, 6 };
+    for (int n = 0; n < 4; ++n) {
+        const int k = longtr[n];
+        g.fillRect(x + 4, y + 6 + k * 4, 19, 1, tr);
+        g.fillRect(x + 49, y + 6 + k * 4, 19, 1, tr);
     }
-    const int bob = sel ? -((int)((millis() / 450u) % 2u)) : 0;
-    chip_mini(g, x + 36, y + 25 + bob, 20, i, sel && sprite_blink(i), 0);
-    if (sel) dash_box(g, x + 22, y + 10 + (bob < 0 ? bob : 0), 28, 30, PAL_WHITE);
+    const int shorttr[4] = { 0, 2, 4, 7 };
+    for (int n = 0; n < 4; ++n) {
+        const int k = shorttr[n];
+        g.fillRect(x + 4, y + 6 + k * 4, 5, 1, tr);
+        g.fillRect(x + 63, y + 6 + k * 4, 5, 1, tr);
+    }
+    g.fillRect(x + 26, y + 9, 1, 5, tr);
+    for (int k = 0; k < 6; ++k) {
+        g.fillRect(x + 26 + k * 4, y + 3, 1, 7, ant);          /* IC pin comb */
+        if (k < 5) g.fillRect(x + 26 + k * 4, (k % 2) ? y + 9 : y + 3, 5, 1, ant);
+    }
+    for (int k = 0; k < 8; ++k) {
+        g.fillRect(x + 2, y + 5 + k * 4, 2, 2, pad);           /* side vias */
+        g.fillRect(x + 68, y + 5 + k * 4, 2, 2, pad);
+    }
+    g.fillRect(x + 62, y + 2, 3, 3, pad);
+    g.fillRect(x + 63, y + 3, 1, 1, hole);
+    g.fillRect(x + 23, y + 14, 26, 22, fp);
+    for (int k = 0; k < 8; ++k) {
+        g.fillRect(x + 25 + k * 3, y + 14, 1, 1, fpp);
+        g.fillRect(x + 25 + k * 3, y + 35, 1, 1, fpp);
+    }
+    chip_mini(g, x + 36, y + 25, 20, i, false, 0);
+    const int st = BOTS[i].st;
+    const bool on = st != 0 || ((t / 700u + (uint32_t)i) % 4u) != 0u;
+    uint8_t ledc = led;
+    if (on) ledc = st == 2 ? (uint8_t)PAL_HOLD : st == 1 ? (uint8_t)PAL_AMBER : (uint8_t)PAL_OK;
+    g.fillRect(x + 6, y + 2, 2, 2, ledc);
     char up[16];
     const char *srcn = BOTS[i].short_name;
     int nn = 0;
@@ -1621,14 +1671,48 @@ static void paint_one_board(Gfx g, int i, bool sel, bool dim)
     {
         const int keep = s_px;
         s_px = 6;
-        txt(g, lbl, x + 36, y + 37, sel ? (uint8_t)PAL_WHITE : silk, lgfx::textdatum::top_center);
+        txt(g, lbl, x + 36, y + 37, PAL_WHITE, lgfx::textdatum::top_center);
         s_px = keep;
     }
+    g.fillRect(x + 1, y, w - 2, 1, rim);
+    g.fillRect(x + 1, y + h - 1, w - 2, 1, rim);
+    g.fillRect(x, y + 1, 1, h - 2, rim);
+    g.fillRect(x + w - 1, y + 1, 1, h - 2, rim);
+    const int bl = 8;
+    g.fillRect(x, y, bl, 1, rim);
+    g.fillRect(x, y, 1, bl, rim);
+    g.fillRect(x + w - bl, y, bl, 1, rim);
+    g.fillRect(x + w - 1, y, 1, bl, rim);
+    g.fillRect(x, y + h - 1, bl, 1, rim);
+    g.fillRect(x, y + h - bl, 1, bl, rim);
+    g.fillRect(x + w - bl, y + h - 1, bl, 1, rim);
+    g.fillRect(x + w - 1, y + h - bl, 1, bl, rim);
     {
         int ln = 0;
         while (lbl[ln]) ++ln;
         const int hw = ln * 3 + 2 < 33 ? ln * 3 + 2 : 33;
-        g.fillRect(x + 36 - hw, y + h, hw * 2 + 1, 2, sel ? frame : botcorps_pal_fit(mix16(bc, 0xFFFF, 35, 100)));
+        g.fillRect(x + 36 - hw, y + h, hw * 2 + 1, 2, rim);
+    }
+    if (BOTS[i].radio == 1) {
+        const uint8_t m = (uint8_t)PAL_STEEL;
+        const int ax = x + 54;
+        const int ay = y + 26;
+        g.fillRect(ax + 1, ay + 2, 2, 2, m);
+        g.fillRect(ax, ay - 1, 1, 1, m);
+        g.fillRect(ax + 2, ay - 2, 2, 1, m);
+        g.fillRect(ax + 4, ay - 1, 1, 1, m);
+        g.fillRect(ax + 5, ay + 1, 1, 2, m);
+        g.fillRect(ax - 1, ay - 4, 1, 1, m);
+        g.fillRect(ax + 1, ay - 5, 3, 1, m);
+        g.fillRect(ax + 4, ay - 4, 1, 1, m);
+        g.fillRect(ax + 6, ay - 2, 1, 2, m);
+        g.fillRect(ax + 7, ay, 1, 2, m);
+    }
+    if (sel) {
+        tile_invert(g, x, y, w, h + 2);
+        const uint8_t mag = botcorps_pal_fit(mix16(0xF81F, 0xFFFF, 55, 100));
+        g.drawRect(x - 1, y - 1, w + 2, h + 4, mag);
+        dash_box(g, x + 22, y + 11, 28, 28, PAL_WHITE);
     }
 }
 
@@ -3206,13 +3290,13 @@ static const uint8_t GL_INK[GL_N][3] = {
     { 30, 1, 255 },    /* tv #00FFA8 */
     { 240, 44, 255 },  /* speaker #FFA000 */
     { 252, 68, 255 },  /* tracker #FFF000 */
-    { 231, 64, 255 },  /* watch #FF2BD6 */
+    { 199, 64, 255 },  /* watch, nearest non-override to #FF2BD6 (was override 231) */
     { 167, 64, 255 },  /* camera #B026FF */
     { 111, 37, 255 },  /* car #6E74FF */
-    { 243, 64, 255 },  /* unknown #FF8AE8 */
+    { 211, 64, 255 },  /* unknown, nearest non-override to #FF8AE8 (was override 243) */
     { 224, 64, 255 },  /* drone #FF2020 */
     { 51, 37, 252 },   /* dev board #2EA0FF, gold pins */
-    { 234, 64, 255 },  /* printer #FF4F9A */
+    { 202, 64, 255 },  /* printer, nearest non-override to #FF4F9A (was override 234) */
 };
 
 static bool s_gl_mono = false; /* newest scan tile blinks white */

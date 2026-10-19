@@ -88,6 +88,8 @@ uint8_t botcorps_pal_fit(uint16_t native);
 uint8_t botcorps_pal_ramp(int ink, int age);
 /* True when native is a ramp source. Writes the step index for this age. */
 bool botcorps_pal_ramp_for(uint16_t native, int age, uint8_t *out);
+/* Per-pixel RGB invert of a world rect in the live 8-bit band sprite. */
+void botcorps_band_invert_rect(int x, int y, int w, int h);
 /* Index into the band sprite, native RGB565 on any other surface. */
 void botcorps_pal_rect(lgfx::LovyanGFX &dst, int x, int y, int w, int h, uint8_t idx);
 void botcorps_pal_pixel(lgfx::LovyanGFX &dst, int x, int y, uint8_t idx);

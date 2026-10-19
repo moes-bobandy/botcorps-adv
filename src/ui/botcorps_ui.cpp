@@ -206,7 +206,7 @@ static const char *const CMDS[12] = {
 };
 /* v1019x V1: build version string, set per build by tools/pio_version.py (host: tools/host/build.sh) */
 #ifndef BOTCORPS_BUILD_ID
-#define BOTCORPS_BUILD_ID "v1019y nogit"
+#define BOTCORPS_BUILD_ID "v1019z nogit"
 #endif
 /* v3.2 command menu. 42 names + purposes, const in flash. defend stays in CORE.
  * v1019q (#9): CORE + COMMS (the bots' own commands) stay on top, go / load (screen routing) moved down
@@ -372,6 +372,11 @@ static bool dg_zap_full(void);         /* v1019v: Gibson zap Defend (v1019x: ins
 static bool zap_try_cmd(const char *line);
 static bool zap_sb_on(void);           /* v1019x: Gibson Defend = restored scan shell + zap in the grid */
 static void zap_paint_grid(Gfx g);
+static bool dl_live(void);
+static void dl_begin(int bot);
+static void dl_end(void);
+static void dl_steer(int key);
+static void dl_fire(void);
 static void zap_strip(Gfx g, int dx, int th, int ty, int dw);
 static void zap_rain_rect(Gfx g);
 static void zap_tick_patch(void);
@@ -3704,7 +3709,10 @@ static void sb_board(Gfx g, bool wifi)
     /* WROOM module (radio bots) or the clean Gibson/bot core block */
     const int mx = 34, my = 52, mw = 54, mh = 128;
     if (core) {
-        /* v1019y: bot chip, then that bot's device chip directly under it. Silk sits below both. */
+        /* v1019z: Defend left panel is Gibson's framed chip for every bot. Same size,
+         * frame, labels and placement. Face is the bot colour. Pins are INT style B
+         * (1 px silver); Gibson keeps gold. The framed device chip sits under it.
+         * Not a bare sprite on a blank panel. */
         const int cxm = mx + mw / 2, ccy = my + 26;
         const bool gib = bot >= 12;
         if (zsb) zap_rain_rect(g);   /* rain behind the chips, this rect only */
@@ -6000,9 +6008,8 @@ static void gc_run(const char *line)
     if (strcmp(cmd, "play") == 0) {
         const int b = gc_bot_of(arg);
         if (b == -2) { gc_push(12, "no such bot"); return; }
-        if (b >= 0) s_defend_bot = b;
-        s_dg = -1;
-        gc_push(12, "defend shell");
+        dl_begin(b < 0 ? 12 : b);
+        gc_push(12, "deauth loop");
         return;
     }
     if (strcmp(cmd, "jackin") == 0 || start_def) {
@@ -7481,6 +7488,8 @@ static void sp_auto_poll(void)
 static void on_arrows(int key)
 {
     if (s_screen == SCR_GCHAT) {
+        /* Inside a live deauth round, plain arrows steer the reticle. Fn+arrows still navigate. */
+        if (dl_live() && !s_key_fn && !s_sheet) { dl_steer(key); s_dirty = true; return; }
         /* v1019y: arrows are button navigators. Sheet when open; otherwise the menu chip. Never the prompt. */
         if (s_sheet) {
             if (key == 1 || key == 3) s_sheet_i = (s_sheet_i + GC_N - 1) % GC_N;
@@ -7864,6 +7873,7 @@ static void on_esc(void)
         }
     }
     if (s_screen == SCR_GCHAT) {
+        if (dl_live()) { dl_end(); s_dirty = true; return; }
         if (s_gc_panel == 3) { s_gc_panel = 0; s_dirty = true; return; }   /* v1019r: Esc closes the Device Dex */
         if (s_sheet) {
             s_sheet = false;
@@ -8190,12 +8200,13 @@ static int gp_screen(const char *name)
 /* v1019 (Dirt #6): every Defend path lands in the Gibson game, jacked in, for that bot. */
 static void enter_defend(int bot, int ret)
 {
-    /* v1019y: idle photo-match shell. No game round until the deauth-loop mock is locked. */
+    /* Photo-match shell. The deauth loop runs inside the grid. Left panel stays the framed chip. */
     s_defend_bot = (bot < 0 || bot > 12) ? 12 : bot;
     s_dg = -1;
     s_def_cmd = -1;
     s_sheet = false;
     enter_screen(SCR_GCHAT, ret);
+    dl_begin(s_defend_bot);
     s_dirty = true;
 }
 
@@ -8409,6 +8420,7 @@ static void ui_dispatch(int key, char typed)
             s_dirty = true;
             return;
         }
+        if (dl_live()) { dl_fire(); s_dirty = true; return; }
         if (s_def_cmd >= 0 && s_def_cmd < GC_N) {
             const int i = s_def_cmd;
             s_def_cmd = -1;

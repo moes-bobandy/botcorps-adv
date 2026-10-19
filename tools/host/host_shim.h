@@ -106,12 +106,27 @@ struct botcorps_cover_t {
 };
 
 extern int host_nvs_puts;
+inline unsigned host_nvs_u(const char *k, unsigned v, int put)
+{
+    static const char *uk[8] = {};
+    static unsigned uv[8] = {};
+    if (!k) return v;
+    for (int i = 0; i < 8; ++i) if (uk[i] && strcmp(uk[i], k) == 0) {
+        if (put) uv[i] = v;
+        return uv[i];
+    }
+    if (!put) return v;
+    for (int i = 0; i < 8; ++i) if (!uk[i]) { uk[i] = k; uv[i] = v; return v; }
+    return v;
+}
 class Preferences {
 public:
-    bool begin(const char *, bool ro) { return !ro; }
+    bool begin(const char *, bool) { return true; }
     void end() {}
     unsigned getUChar(const char *, unsigned d = 0) { return d; }
     void putUChar(const char *, uint8_t) { ++host_nvs_puts; }
+    unsigned getUInt(const char *k, unsigned d = 0) { return host_nvs_u(k, d, 0); }
+    void putUInt(const char *k, unsigned v) { ++host_nvs_puts; host_nvs_u(k, v, 1); }
 };
 
 struct HostPrint {

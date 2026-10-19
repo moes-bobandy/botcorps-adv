@@ -424,6 +424,16 @@ int main(int argc, char **argv)
         botcorps_host_term_cmd(argv[2]);
         return 0;
     }
+    /* Defend shell for one bot: rend defend <bot 0-12> <out.rgb> */
+    if (argc > 3 && strcmp(argv[1], "defend") == 0) {
+        extern void botcorps_host_defend(uint8_t *, int, int);
+        host_rain_init(0);
+        host_set_millis(9000u);
+        botcorps_host_set_color(0);
+        botcorps_host_defend(g_buf, atoi(argv[2]), 0);
+        write_raw(argv[3], g_buf, 0);
+        return 0;
+    }
     /* v1017c: one-off review render (not a gate item): rend shot <screen id> <out.rgb> [keys] */
     if (argc > 3 && strcmp(argv[1], "shot") == 0) {
         host_rain_init(0);

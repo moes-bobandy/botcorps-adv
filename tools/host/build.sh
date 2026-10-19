@@ -8,7 +8,7 @@ if [ -f /home/box/Arduino/libraries/M5GFX/src/lgfx/Fonts/glcdfont.h ]; then
 else
   M5=${M5GFX_SRC:-third_party/M5GFX/src}
 fi
-BID="v1019y $(git rev-parse --short=7 HEAD 2>/dev/null || echo nogit)$( [ -z "$(git status --porcelain --untracked-files=no 2>/dev/null)" ] || echo -dirty)"   # v1019y V1
+BID="v1019z $(git rev-parse --short=7 HEAD 2>/dev/null || echo nogit)$( [ -z "$(git status --porcelain --untracked-files=no 2>/dev/null)" ] || echo -dirty)"   # v1019z V1
 printf '#define BOTCORPS_BUILD_ID "%s"\n' "$BID" > $OUT/o/bid.h
 B0="-O1 -std=gnu++17 -DBOTCORPS_HOST_RENDER -w ${HOST_EXTRA} -include $OUT/o/bid.h"; B="$B0 -Isrc -Itools/host -I$M5"; R="$B0 -Itools/host/raindisp -Itools/rainhost/shim -Isrc -Itools/host -I$M5"
 g++ $B -Itools/host/idstub -c src/ui/botcorps_ui.cpp -o $OUT/o/ui.o

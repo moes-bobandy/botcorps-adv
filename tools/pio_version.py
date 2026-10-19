@@ -2,7 +2,7 @@
 # BOTCORPS_BUILD_ID = "v1019y <git short sha>[-dirty]", read at build time; Terminal `version` prints it.
 import subprocess
 Import("env")  # noqa: F821 (PlatformIO SCons)
-CUT = "v1019y"
+CUT = "v1019z"
 def _git(*a):
     try:
         return subprocess.check_output(["git"] + list(a), cwd=env["PROJECT_DIR"], stderr=subprocess.DEVNULL).decode().strip()

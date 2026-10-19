@@ -139,4 +139,4 @@ per screen, and every push is checked against a full paint at the same millis().
 ## Static RAM (ARCH freeze)
 | id | rule |
 |---|---|
-| R0 | Static RAM is `.dram0.data` + `.dram0.bss` (PlatformIO "RAM: used N bytes"). `tools/gate/ram.py` PASSes at or under the cap in `release/gate/ram-caps.txt` and FAILs above it. Caps: cardputer-adv 71,264 B; cardputer-adv-dual 71,896 B; cardputer-adv-dual-launcher 71,896 B; dual with `BOTCORPS_LIVE_SCAN=1` 71,904 B. An elf older than `src/` or `platformio.ini` is FAIL. Growth has to be paid back with savings. The livescan env is a measurement build, not a flashed product | |
+| R0 | Static RAM is `.dram0.data` + `.dram0.bss` (PlatformIO "RAM: used N bytes"). `tools/gate/ram.py` PASSes at or under the cap in `release/gate/ram-caps.txt` and FAILs above it. Caps: cardputer-adv 71,264 B; cardputer-adv-dual 71,896 B; cardputer-adv-dual-launcher 71,896 B; dual with `BOTCORPS_LIVE_SCAN=1` 71,904 B. An elf older than `src/` or `platformio.ini` is FAIL. Growth has to be paid back with savings. The livescan env is a measurement build, not a flashed product (ARCH freeze, GIBSON-ratified 2026-10-19) |

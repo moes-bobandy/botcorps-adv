@@ -18,10 +18,10 @@
  * millis, so a patch matches a full paint pixel for pixel (flicker gate S1). */
 /* v1019m: twelve games, three per category. Ids 0-3 are the v1019j games (unchanged ids). */
 enum { DG_RAIN = 0, DG_BEACON, DG_WALL, DG_MAZE, DG_TWIN, DG_HOP, DG_RING, DG_PAIR, DG_PATCH, DG_BOTNET, DG_TRACE, DG_JAM,
-       DG_NIGHT, DG_SWEEP, DG_N };   /* v1019r (#10): Gibson's own NIGHT SHIFT + bonus SWEEP */
+       DG_NIGHT, DG_SWEEP, DG_ZAP, DG_N };   /* v1019r NIGHT/SWEEP; v1019v HACKERS ZAP */
 static const char *const DG_NAME[DG_N] = { "RAIN CATCH", "BEACON SORT", "FIREWALL WALL", "GIBSON MAZE",
     "EVIL TWIN", "CHANNEL HOP", "RANGE RING", "PAIR LOCK", "PATCH RUN", "BOTNET BREAKER", "SIGNAL TRACE", "JAM DODGE",
-    "NIGHT SHIFT", "SWEEP" };
+    "NIGHT SHIFT", "SWEEP", "HACKERS ZAP" };
 /* per category: slot 0 = the v1019j game every Defend entry starts, then 1C/2C/3A/4C, then 1B/2B/3C/4B */
 static const int8_t DG_SET[4][3] = { { DG_RAIN, DG_TWIN, DG_HOP }, { DG_BEACON, DG_RING, DG_PAIR },
                                      { DG_WALL, DG_PATCH, DG_BOTNET }, { DG_MAZE, DG_TRACE, DG_JAM } };
@@ -29,9 +29,9 @@ static const int8_t DG_SET[4][3] = { { DG_RAIN, DG_TWIN, DG_HOP }, { DG_BEACON, 
 static const int8_t DG_CAT[13] = { 0, 1, 3, 0, 2, 3, 1, 2, 0, 3, 2, 1, 3 };   /* v1019r: meta 1 -> 0 (3 bots per category) */
 /* v1019r (#5): every bot's OWN game - the Defend board's idle demo, `jackin` and Enter on an empty prompt.
  * Twelve bots, twelve distinct games (the category's games split one each over its three bots), Gibson =
- * NIGHT SHIFT. `defend` / `load game` still start the category's first game (v1019j routes). */
+ * HACKERS ZAP (v1019v). `defend` / `load game` still start the category's first game (v1019j routes). */
 static const int8_t DG_OWN[13] = { DG_RAIN, DG_BEACON, DG_JAM, DG_TWIN, DG_WALL, DG_TRACE, DG_RING, DG_PATCH,
-                                   DG_HOP, DG_MAZE, DG_BOTNET, DG_PAIR, DG_NIGHT };
+                                   DG_HOP, DG_MAZE, DG_BOTNET, DG_PAIR, DG_ZAP };
 enum { DGS_PLAY = 0, DGS_WIN, DGS_LOST, DGS_PAUSE };
 static int s_dg_bot_name_only(void);
 /* v1019r (#2): the maze is GIBSON MAZE (round Gibson) only when Gibson plays it; any other bot = BIT MAZE */
@@ -82,6 +82,8 @@ static void dg_bot(Gfx g, int cx, int cy, int scale)
 
 static uint32_t dg_rng(void) { s_dg_rng = s_dg_rng * 1664525u + 1013904223u; return s_dg_rng; }
 static float dg_rngf(void) { return (float)(dg_rng() >> 8) / 16777216.f; }
+
+#include "ui/botcorps_defend_zap.inc"
 
 /* the rain's own 3x5 bit art (botcorps_rain_ghost_ex B0/B1), scaled */
 static const uint8_t DG_B0[5] = { 7, 5, 5, 5, 7 };
@@ -995,6 +997,7 @@ static void dg_begin_round(void)
     else if (s_dg == DG_TRACE) st_reset();
     else if (s_dg == DG_NIGHT) ns_reset();
     else if (s_dg == DG_SWEEP) sw_reset();
+    else if (s_dg == DG_ZAP) zap_reset();
     else jd_reset();
 }
 /* v1019m: step to another game of the same category (Tab, or , / on a WIN / LOST / PAUSE stop) */
@@ -1024,7 +1027,7 @@ static void dg_start(int bot)
 static void dg_start_game(int bot, int game)
 {
     dg_start(bot);
-    if (game == DG_NIGHT || game == DG_SWEEP) {
+    if (game == DG_NIGHT || game == DG_SWEEP || game == DG_ZAP) {
         s_ns_shift = 1; s_sw_lv = 1;
         s_dg = game;
         dg_begin_round();
@@ -1043,7 +1046,7 @@ static const char *const DG_CATN[4] = { "wifi", "ble", "iot", "rogue" };
 static void dg_lobby(void)
 {
     static const char *const SHORT[DG_N] = { "rain", "beacon", "wall", "maze", "twin", "hop", "ring", "pair",
-                                             "patch", "botnet", "trace", "jam", "night", "sweep" };
+                                             "patch", "botnet", "trace", "jam", "night", "sweep", "zap" };
     char b[40];
     for (int c = 0; c < 4; ++c) {
         snprintf(b, sizeof b, "%s %d %s %d %s %d %s", DG_CATN[c], c * 3 + 1, SHORT[DG_SET[c][0]], c * 3 + 2,
@@ -1134,6 +1137,7 @@ static void dg_step(uint32_t t)
     else if (s_dg == DG_TRACE) st_step(dt);
     else if (s_dg == DG_NIGHT) ns_step(dt);
     else if (s_dg == DG_SWEEP) sw_step(dt);
+    else if (s_dg == DG_ZAP) zap_step(dt);
     else jd_step(dt);
     s_dg_launch = false;
 }
@@ -1302,7 +1306,7 @@ static void dg_stop_plate(Gfx g)
     const int keep = s_px; s_px = 8;
     txt(g, w, px + pw / 2, py + 5, c, lgfx::textdatum::top_center);
     s_px = 6;
-    const bool gibg = s_dg == DG_NIGHT || s_dg == DG_SWEEP;
+    const bool gibg = s_dg == DG_NIGHT || s_dg == DG_SWEEP || s_dg == DG_ZAP;
     const char *sub = s_dg_state == DGS_PAUSE ? (gibg ? "tab / space resume" : "space resume")
                     : !gibg ? "enter again  , / game"
                     : s_dg_state == DGS_WIN ? (s_dg == DG_NIGHT ? "enter next shift  , / game" : "enter next level  , / game")
@@ -1336,6 +1340,7 @@ static void paint_dg_board(Gfx g)
     else if (s_dg == DG_JAM) jd_paint(g);
     else if (s_dg == DG_NIGHT) ns_paint(g);
     else if (s_dg == DG_SWEEP) sw_paint(g);
+    else if (s_dg == DG_ZAP) { /* full-width via paint_zap_screen */ }
     dg_stop_plate(g);
 }
 
@@ -1442,6 +1447,9 @@ static void dg_ui(DGUi *u)
     case DG_SWEEP: u->score = s_sw_total - s_sw_left; u->target = s_sw_total ? s_sw_total : 1;
         snprintf(u->stat, 24, "LV %d PTS %d BURST %d", s_sw_lv, s_sw_pts % 1000, s_sw_burst);
         u->read = "eat bits, ROOT = trace blue"; u->keys = "arrows steer  spc burst"; break;
+    case DG_ZAP: u->target = ZAP_WIN;
+        snprintf(u->stat, 24, "TRACES %d", ZAP_NTR);
+        u->read = "zap devices before they dock"; u->keys = "type name  enter zap"; break;
     default: u->score = (int)(s_dg_ms / 1000u); u->target = 45; u->limit_s = 45;
         snprintf(u->stat, 24, "PASSED %d", s_dg_score % 100);
         u->read = "slip through the gap"; u->keys = "; . lane"; break;
@@ -1789,6 +1797,7 @@ static void dg_ai(void)
 {
     if (s_dg_state != DGS_PLAY) return;
     if (s_dg == DG_NIGHT || s_dg == DG_SWEEP) { gib_ai(); return; }
+    if (s_dg == DG_ZAP) { zap_ai(); return; }
     if (s_dg == DG_RAIN) {
         int best = -1; float by = -1e9f;
         for (int i = 0; i < RC_MAX; ++i)

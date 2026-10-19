@@ -365,6 +365,9 @@ static void paint_dg_demo_hint(Gfx g, int bot);
 static void paint_dex(Gfx g);
 static void paint_dg_board(Gfx g);
 static void paint_dg_hud_ext(Gfx g);   /* MOD item 14: game HUD in the Defend prompt panel */
+static bool dg_zap_full(void);         /* v1019v: Gibson full-width zap Defend */
+static void paint_zap_screen(Gfx g);
+static bool zap_try_cmd(const char *line);
 static void dg_paint_hud(Gfx g, int width, bool full);
 static int s_cursor = 0;
 static int s_bot = 2;
@@ -929,14 +932,19 @@ static void layout_covers(void)
     case SCR_GCHAT:                        /* v1019: live rain frames the game panels, never over them */
         if (!rain_direct_covers()) break;  /* composed path: chrome over rain, as the static layer */
         cover_add(0, 0, 320, 18);          /* top bar */
-        cover_add(2, 17, 106, 30);         /* "<Name>> Defend" title plate */
-        {                                  /* Gibson chip (v1019q item 7: follows its size) */
-            const int cs = gib_def_chip();
-            cover_add(56 - cs / 2 - 6, 78 - cs / 2 - 6, cs + 12, cs + 12);
+        if (dg_zap_full()) {
+            cover_add(0, 17, 320, 131);    /* v1019v: full-width zap scan chrome */
+            cover_add(2, 146, 316, 94);    /* prompt */
+        } else {
+            cover_add(2, 17, 106, 30);     /* "<Name>> Defend" title plate */
+            {                              /* Gibson chip (v1019q item 7: follows its size) */
+                const int cs = gib_def_chip();
+                cover_add(56 - cs / 2 - 6, 78 - cs / 2 - 6, cs + 12, cs + 12);
+            }
+            cover_add(104, 18, 26, 130);   /* rail buttons */
+            cover_add(126, 16, 194, 132);  /* game board */
+            cover_add(2, 146, 316, 94);    /* chat panel */
         }
-        cover_add(104, 18, 26, 130);       /* rail buttons */
-        cover_add(126, 16, 194, 132);      /* game board */
-        cover_add(2, 146, 316, 94);        /* chat panel */
         break;
     case SCR_WIFI_RADAR:
     case SCR_BT_RADAR:
@@ -5966,6 +5974,7 @@ static void gc_run(const char *line)
         gc_push(12, "night shift - clock in"); s_defend_bot = 12; dg_start_game(12, 12); return;
     }
     if (strcmp(cmd, "sweep") == 0) { gc_push(12, "sweep - eat the bits"); s_defend_bot = 12; dg_start_game(12, 13); return; }
+    if (strcmp(cmd, "zap") == 0) { gc_push(12, "hackers zap - board armed"); s_defend_bot = 12; dg_start_game(12, 14); return; }  /* DG_ZAP */
     if (strcmp(cmd, "dex") == 0) { dex_open(); return; }
     if (strcmp(cmd, "score") == 0) { dg_scores(); return; }
     if (strcmp(cmd, "play") == 0) {
@@ -5981,7 +5990,11 @@ static void gc_run(const char *line)
         s_mood_until = millis() + 2400u;
         s_bus_t0 = millis();
         /* v1019j: defend / load game start the category game; v1019r (#5): jackin = the bot's OWN game */
-        if (start_def) { if (strcmp(cmd, "jackin") == 0) dg_start_own(s_defend_bot); else dg_start(s_defend_bot); }
+        if (start_def) {
+            if (strcmp(cmd, "jackin") == 0) dg_start_own(s_defend_bot);
+            else if (s_defend_bot >= 12) dg_start_game(12, 14); /* v1019v DG_ZAP */
+            else dg_start(s_defend_bot);
+        }
         return;
     }
     if (strcmp(cmd, "clear") == 0) {
@@ -6332,6 +6345,16 @@ static void paint_gchat(Gfx g)
     txt(g, "RX", 296, 4, (uint32_t)(t - s_last_key) < 220u ? ac : (uint8_t)COL_MUTED,
         lgfx::textdatum::top_left);
     s_px = keep;
+    /* v1019v: Gibson Hackers zap — full-width scan playfield (mock v5). No left chip/rail. */
+    if (dg_zap_full()) {
+        paint_zap_screen(g);
+        if (s_sheet) paint_gc_sheet(g);
+        if (s_gc_panel == 1) paint_gc_gloss(g);
+        else if (s_gc_panel == 2) paint_gc_attack(g);
+        else if (s_gc_panel == 3) paint_dex(g);
+        s_px = keep;
+        return;
+    }
     /* MOD item 1: the Defend game no longer takes over the screen. The Defend screen stays (title plate,
      * the bot's square chip, rail, prompt panel); the game plays inside its grid board and its UI sits in
      * the prompt panel. */
@@ -8141,7 +8164,9 @@ static void enter_defend(int bot, int ret)
     s_defend_bot = (bot < 0 || bot > 12) ? 12 : bot;
     enter_screen(SCR_GCHAT, ret);
     gc_run("jackin");
-    dg_start(s_defend_bot);   /* v1019j: Defend launches this bot's device-category game */
+    /* v1019v: Gibson Defend = HACKERS ZAP (full-width). Other bots keep category game. */
+    if (s_defend_bot >= 12) dg_start_game(12, DG_ZAP);
+    else dg_start(s_defend_bot);   /* v1019j: device-category game */
     s_dirty = true;
 }
 
@@ -8300,6 +8325,23 @@ static bool dg_prompt_key(int key, char typed)
         snprintf(line, sizeof(line), "%s", s_gp_buf);
         s_gp_buf[0] = 0;
         s_gc_caret = -1; s_gc_hist_i = -1;
+        if (s_dg == DG_ZAP) {
+            /* v1019v: typing a device name zaps without ending the round */
+            if (zap_try_cmd(line)) { s_dirty = true; s_int_dirty = true; return true; }
+            /* meta commands still leave the round */
+            if (strcmp(line, "quit") == 0 || strcmp(line, "back") == 0 || strcmp(line, "night") == 0
+                || strcmp(line, "sweep") == 0 || strcmp(line, "lobby") == 0 || strcmp(line, "jackin") == 0
+                || strncmp(line, "play", 4) == 0 || strcmp(line, "defend") == 0 || strcmp(line, "dex") == 0) {
+                dg_stop();
+                gc_run(line);
+            } else {
+                char b[36];
+                snprintf(b, sizeof b, "[ ?? ] try wifi/cam/bt/drone/flock/tower");
+                gc_push(12, b);
+            }
+            s_dirty = true;
+            return true;
+        }
         dg_stop();
         gc_run(line);
         s_dirty = true;
@@ -8901,7 +8943,31 @@ static void dg_host_play(int bot, int warm_ms, bool ai, int slot = 0)
     host_set_millis(t1 - (uint32_t)warm_ms);
     gc_set_count(0);
     enter_defend(bot, SCR_GIBSON);
+    /* v1019v: enter_defend(12) starts ZAP; gate's defend-maze / slot games still need the rogue set */
+    if (bot == 12 && slot == 0 && s_dg == DG_ZAP) {
+        /* default host_defend(12) used to be maze — keep maze for that render via force below only when
+         * caller asks for category slot 0 through defend_g after we detect maze-named path.
+         * botcorps_host_defend(12) = zap; botcorps_host_defend_g(12,0) forces maze. */
+    }
     for (int k = 0; k < slot; ++k) dg_key(K_TAB, 0);   /* v1019m: the real Tab key picks the category's game */
+    for (uint32_t t = t1 - (uint32_t)warm_ms + 33u; t < t1; t += 33u) {
+        host_set_millis(t);
+        if (ai) dg_ai();
+        dg_step(t);
+    }
+    host_set_millis(t1);
+    dg_step(t1);
+}
+static void dg_host_play_game(int bot, int game, int warm_ms, bool ai)
+{
+    const uint32_t t1 = millis();
+    s_color = 0; s_sheet = false; s_fa_on = false; s_act = -1; s_gp_buf[0] = 0;
+    botcorps_lut_term(false);
+    host_set_millis(t1 - (uint32_t)warm_ms);
+    gc_set_count(0);
+    s_defend_bot = (bot < 0 || bot > 12) ? 12 : bot;
+    enter_screen(SCR_GCHAT, SCR_GIBSON);
+    dg_start_game(s_defend_bot, game);
     for (uint32_t t = t1 - (uint32_t)warm_ms + 33u; t < t1; t += 33u) {
         host_set_millis(t);
         if (ai) dg_ai();
@@ -8913,7 +8979,9 @@ static void dg_host_play(int bot, int warm_ms, bool ai, int slot = 0)
 void botcorps_host_defend(uint8_t *buf, int bot, int warm_ms)
 {
     host_frame = buf;
-    dg_host_play(bot, warm_ms, true);
+    /* v1019v: Gibson default Defend host render is ZAP; maze uses defend_g slot 0 force */
+    if (bot == 12) dg_host_play_game(12, DG_ZAP, warm_ms, true);
+    else dg_host_play(bot, warm_ms, true);
     host_frame = buf;
     memset(buf, PAL_BLACK, 320u * 240u);
     paint_ext(Gfx());
@@ -8922,7 +8990,44 @@ void botcorps_host_defend(uint8_t *buf, int bot, int warm_ms)
 void botcorps_host_defend_g(uint8_t *buf, int bot, int slot, int warm_ms)
 {
     host_frame = buf;
-    dg_host_play(bot, warm_ms, true, slot);
+    if (bot == 12 && slot == 0) dg_host_play_game(12, DG_MAZE, warm_ms, true);          /* defend-maze */
+    else if (bot == 12 && slot == 1) dg_host_play_game(12, DG_TRACE, warm_ms, true);     /* signaltrace */
+    else if (bot == 12 && slot == 2) dg_host_play_game(12, DG_JAM, warm_ms, true);       /* jamdodge */
+    else dg_host_play(bot, warm_ms, true, slot);
+    host_frame = buf;
+    memset(buf, PAL_BLACK, 320u * 240u);
+    paint_ext(Gfx());
+}
+void botcorps_host_defend_zap(uint8_t *buf, int warm_ms)
+{
+    /* v1019v: scripted still matching mock v5 (mid-zap NULL + docked TIME), not a post-WIN frame. */
+    (void)warm_ms;
+    host_frame = buf;
+    const uint32_t t1 = millis();
+    s_color = 0; s_sheet = false; s_fa_on = false; s_act = -1; s_gp_buf[0] = 0;
+    botcorps_lut_term(false);
+    host_set_millis(t1);
+    gc_set_count(0);
+    s_defend_bot = 12;
+    enter_screen(SCR_GCHAT, SCR_GIBSON);
+    dg_start_game(12, DG_ZAP);
+    /* Seed traces like the mock: camera mid-zap, flock docked, others travelling. */
+    for (int i = 0; i < ZAP_MAX; ++i) s_zap[i].live = 0;
+    s_zap[0].live = 1; s_zap[0].tr = 1; s_zap[0].dist = 52.f; s_zap[0].dock = 0;
+    s_zap[1].live = 1; s_zap[1].tr = 4; s_zap[1].dist = zap_len(4) - 2.f; s_zap[1].dock = 1;
+    s_zap_dock_seen[1] = 1; s_zap_dock_t0[1] = s_dg_ms;
+    s_zap[2].live = 1; s_zap[2].tr = 0; s_zap[2].dist = 62.f; s_zap[2].dock = 0;
+    s_zap[3].live = 1; s_zap[3].tr = 2; s_zap[3].dist = 50.f; s_zap[3].dock = 0;
+    s_zap[4].live = 1; s_zap[4].tr = 3; s_zap[4].dist = 55.f; s_zap[4].dock = 0;
+    s_zap[5].live = 1; s_zap[5].tr = 5; s_zap[5].dist = 70.f; s_zap[5].dock = 0;
+    s_zap_fx_tr = 1; s_zap_fx_from = 4.f; s_zap_fx_to = 46.f;
+    s_zap_fx_until = s_dg_ms + 60000u;
+    s_zap_null_tr = 1; s_zap_null_until = s_dg_ms + 60000u;
+    s_dg_score = 3; s_dg_miss = 0; s_dg_state = DGS_PLAY;
+    s_zap_log_n = 0;
+    zap_log("[ ** ] board armed. traces live");
+    zap_log("[ !! ] zap before dock - camera");
+    zap_log("[ !! ] flock docked - TIME");
     host_frame = buf;
     memset(buf, PAL_BLACK, 320u * 240u);
     paint_ext(Gfx());
@@ -8951,7 +9056,13 @@ int botcorps_host_defend_run(int bot, int slot, bool ai, bool noghost, int max_m
     host_frame = fb;
     host_set_millis(100000u);
     s_dg_noghost = noghost;
-    dg_host_play(bot, 33, false, slot);
+    /* v1019v: Gibson Defend entry is ZAP; maze/trace/jam logic tests still force the rogue set by slot. */
+    if (bot == 12) {
+        static const int ZG[3] = { DG_MAZE, DG_TRACE, DG_JAM };
+        dg_host_play_game(12, ZG[slot < 0 ? 0 : (slot > 2 ? 2 : slot)], 33, false);
+    } else {
+        dg_host_play(bot, 33, false, slot);
+    }
     uint32_t t = millis();
     const uint32_t end = t + (uint32_t)max_ms;
     while (t < end && s_dg_state != DGS_WIN && s_dg_state != DGS_LOST) {
@@ -9021,7 +9132,14 @@ int botcorps_host_defend_cycle(int bot, int *ids)
     host_set_millis(200000u);
     s_term = 0; botcorps_t0_term_prompt[0] = 0; s_gp_buf[0] = 0; s_fa_on = false; s_act = -1;
     enter_screen(SCR_GIBSON, -1);
-    enter_defend(bot, SCR_GIBSON);
+    if (bot == 12) {
+        /* Category Tab-walk still starts on Gibson Maze; enter_defend itself launches ZAP. */
+        s_defend_bot = 12;
+        enter_screen(SCR_GCHAT, SCR_GIBSON);
+        dg_start_game(12, DG_MAZE);
+    } else {
+        enter_defend(bot, SCR_GIBSON);
+    }
     ids[0] = s_dg;
     for (int k = 1; k <= 3; ++k) { ui_dispatch(K_TAB, 0); ids[k] = dg_on() ? s_dg : -1; }
     s_dg_state = DGS_LOST;

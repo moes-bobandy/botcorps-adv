@@ -149,7 +149,9 @@ static void f_alert(void *) { botcorps_host_set_color(0); botcorps_host_found_al
 extern void botcorps_host_defend(uint8_t *buf, int bot, int warm_ms);
 static void f_defend(void *v) { GArg *g = (GArg *)v; botcorps_host_set_color(0); botcorps_host_defend(g_buf, g->a, g->b); }
 extern void botcorps_host_defend_g(uint8_t *buf, int bot, int slot, int warm_ms);
+extern void botcorps_host_defend_zap(uint8_t *buf, int warm_ms);
 static void f_defend_g(void *v) { GArg *g = (GArg *)v; botcorps_host_set_color(0); botcorps_host_defend_g(g_buf, g->a, g->c, g->b); }
+static void f_defend_zap(void *) { botcorps_host_set_color(0); botcorps_host_defend_zap(g_buf, 4500); }
 static void f_sheet(void *) { botcorps_host_set_color(0); botcorps_host_enter(g_buf, 2); botcorps_host_sheet(g_buf, 0); }
 static int run_gate(const char *dir)
 {
@@ -201,7 +203,7 @@ static int run_gate(const char *dir)
     a = { 0, 6000, 0, nullptr }; gate_one(dir, "defend-raincatch", 0, f_defend, &a);
     a = { 1, 6000, 0, nullptr }; gate_one(dir, "defend-beaconsort", 0, f_defend, &a);
     a = { 4, 6000, 0, nullptr }; gate_one(dir, "defend-firewall", 0, f_defend, &a);
-    a = { 12, 6000, 0, nullptr }; gate_one(dir, "defend-maze", 0, f_defend, &a);
+    a = { 12, 6000, 0, nullptr }; gate_one(dir, "defend-maze", 0, f_defend_g, &a);  /* slot 0 = maze */
     /* v1019m (rendered after every earlier screen so their order is unchanged): the eight added Defend
      * games, each entered through enter_defend for the same category bot, then the real Tab key to the
      * game's slot, played by the host autopilot (6 s; Evil Twin 5 s = pair mid-board, Patch Run 3.3 s =
@@ -214,6 +216,7 @@ static int run_gate(const char *dir)
     a = { 4, 6000, 2, nullptr }; gate_one(dir, "defend-botnet", 0, f_defend_g, &a);
     a = { 12, 1200, 1, nullptr }; gate_one(dir, "defend-signaltrace", 0, f_defend_g, &a);
     a = { 12, 6000, 2, nullptr }; gate_one(dir, "defend-jamdodge", 0, f_defend_g, &a);
+    a = { 0, 0, 0, nullptr }; gate_one(dir, "defend-zap", 0, f_defend_zap, &a);  /* v1019v last so rain L1 of earlier screens stay */
     botcorps_host_set_color(0);
     /* functional: Esc goes back on every screen; each of the 8 settings edits + writes NVS */
     {
@@ -262,7 +265,7 @@ static int run_gate(const char *dir)
             struct { const char *name; int kind, arg; const char *keys; } S[] = {
                 { "scan-gibson", 0, 12, nullptr }, { "scan-flock", 0, 4, nullptr }, { "scan-airtag", 0, 6, nullptr },
                 { "scan-wifi", 1, 3, nullptr }, { "scan-ble", 1, 5, nullptr },
-                { "game-board", 2, 0, "help\nscan\n" }, { "game-jackin", 3, 0, "abc\b\n" },
+                { "game-board", 2, 0, "help\nscan\n" }, { "game-jackin", 3, 0, nullptr },  /* v1019v: zap chrome — idle stability */
                 { "terminal-typing", 4, 0, "scan wifi\b\b\b\b" },
                 { "gibson-game", 1, 1, "hack\b\n" },
                 /* v1017c #1: the scan box in each of its animated modes (hunt meter, info scan line, glossary) */
@@ -275,7 +278,8 @@ static int run_gate(const char *dir)
                 { "defend-raincatch", 6, 0, "\x03\x03\x04\x04\x04\x03\x04\x03\x03\x04\x04\x04\x03\x03\x04\x03\x04\x04\x03" },
                 { "defend-beaconsort", 6, 1, "\x03\x04\x03\x04\x03\x04\x03\x04\x03\x04\x03\x04\x03\x04\x03\x04\x03\x04" },
                 { "defend-firewall", 6, 4, "\n\x03\x03\x04\x04\x04\x03\x03\x04\x03\x04\x04\x03\x03\x04\x03\x04\x03" },
-                { "defend-maze", 6, 12, "\x03\x01\x04\x02\x03\x01\x04\x02\x03\x01\x04\x02\x03\x01\x04\x02\x03" },
+                { "defend-maze", 7, 12 | 0 << 4, "\x03\x01\x04\x02\x03\x01\x04\x02\x03\x01\x04\x02\x03\x01\x04\x02\x03" },
+                { "defend-zap", 8, 0, nullptr },  /* v1019v: still; live zap uses full presents */
                 /* v1019m: the eight added games (arg = bot | slot << 4) with live keys, incl. a Tab game switch */
                 { "defend-eviltwin", 7, 0 | 1 << 4, "\x03\x04\x03\x04\x03\x04\x03\x04\x03\x04\x03\x04\x03\x04\x03" },
                 { "defend-channelhop", 7, 0 | 2 << 4, "\x03\x03\x04\x04\x04\x03\n\x04\x03\x03\x04\x04\x03\x03\x04\x03" },
@@ -295,6 +299,7 @@ static int run_gate(const char *dir)
                 else if (q.kind == 5) botcorps_host_sbox(g_buf, 0, q.arg, q.arg == 3 ? -50 : 0);
                 else if (q.kind == 6) botcorps_host_defend(g_buf, q.arg, 2000);
                 else if (q.kind == 7) { extern void botcorps_host_defend_g(uint8_t *, int, int, int); botcorps_host_defend_g(g_buf, q.arg & 15, q.arg >> 4, 2000); }
+                else if (q.kind == 8) { extern void botcorps_host_defend_zap(uint8_t *, int); botcorps_host_defend_zap(g_buf, 2000); }
                 else botcorps_host_enter(g_buf, 2);
                 long pr = 0, pu = 0, rc = 0, wo = 0;
                 const int bad = botcorps_host_sim(6000, q.keys, &pr, &pu, &rc, &wo);

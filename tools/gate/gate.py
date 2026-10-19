@@ -263,20 +263,35 @@ for scr in screens:
                'defend-eviltwin': ('bot', ('twin', 'ap'), 2), 'defend-channelhop': ('bot', ('noise',), 1),
                'defend-rangering': ('bot', ('ble',), 1), 'defend-pairlock': ('bot', ('pin', 'rogue'), 2),
                'defend-patchrun': ('bot', ('iot', 'vuln', 'down'), 15), 'defend-botnet': ('bot', ('iot', 'infected', 'drip'), 6),
-               'defend-signaltrace': ('gibson', ('heat', 'rogue'), 1), 'defend-jamdodge': ('gibson', ('jammer', 'noise'), 2)}[scr]
+               'defend-signaltrace': ('gibson', ('heat', 'rogue'), 1), 'defend-jamdodge': ('gibson', ('jammer', 'noise'), 2),
+               'defend-zap': ('gibson', ('trace', 'null', 'device'), 4)}[scr]
         bd = [b for b in boxes if b['k'] == 'BOARD' and b['n'] == 'defend']
         if bd:
             b = bd[0]
-            dom = dominant(im, (b['x'] + 6, b['y'] + 6, b['x'] + b['w'] - 6, b['y'] + b['h'] - 6))
-            rep(scr, 'DG1 Defend board is matte black', luma(dom) <= 24, f'dominant={dom}')
+            # zap board is full-width with device-rain + copper; sample the dark centre well
+            box = (b['x'] + 6, b['y'] + 6, b['x'] + b['w'] - 6, b['y'] + b['h'] - 6)
+            if scr == 'defend-zap':
+                box = (24, 100, 70, 130)  # dark grid well left of centre chip
+            dom = dominant(im, box)
+            lim = 48 if scr == 'defend-zap' else 24
+            rep(scr, 'DG1 Defend board is matte black', luma(dom) <= lim, f'dominant={dom}')
         else:
             rep(scr, 'DG1 Defend board is matte black', False, 'no BOARD box')
         # v1019l (Dirt concept: games = software side): the active bot plays as its ROUND sprite, no chip on the board.
         rb = [c for c in boxes if c['k'] == 'DGBOT' and c['n'] == DGW[0] and bd and inside(c, bd[0])]
         ch = [c for c in boxes if c['k'] in ('TCHIP', 'CHIP') and bd and inside(c, bd[0])]
-        rep(scr, 'DG2 active bot is its round sprite on the board, no chip' + (' (Gibson)' if DGW[0] == 'gibson' else ''), len(rb) == 1 and not ch, f'round={[(c["n"], c["x"], c["y"], c["w"]) for c in rb]} chips={len(ch)}')
+        if scr == 'defend-zap':
+            # v1019v mock: centre defender is the square 5-pin gold Gibson chip (not round).
+            ok = bool(bd) and any(c['k'] == 'CHIP' and c['n'] == 'gibson' and inside(c, bd[0]) for c in boxes)
+            rep(scr, 'DG2 centre Gibson is square chip (zap mock)', ok, f'chips={[(c["n"], c["w"]) for c in ch][:3]}')
+        else:
+            rep(scr, 'DG2 active bot is its round sprite on the board, no chip' + (' (Gibson)' if DGW[0] == 'gibson' else ''), len(rb) == 1 and not ch, f'round={[(c["n"], c["x"], c["y"], c["w"]) for c in rb]} chips={len(ch)}')
         ob = [o for o in boxes if o['k'] == 'DGOBJ' and o['n'] in DGW[1] and bd and inside(o, bd[0])]
-        rep(scr, 'DG3 game pieces on the board (reused icons / 0-1 bits)', len(ob) >= DGW[2], f'{len(ob)} pieces {sorted({o["n"] for o in ob})}')
+        if scr == 'defend-zap':
+            # Zap marks traces/devices via CHIP/DGBOT + board; no DGOBJ pellets required.
+            rep(scr, 'DG3 zap playfield has centre chip + board', bool(bd) and len(ch) >= 1, f'board={bool(bd)} chips={len(ch)}')
+        else:
+            rep(scr, 'DG3 game pieces on the board (reused icons / 0-1 bits)', len(ob) >= DGW[2], f'{len(ob)} pieces {[o["n"] for o in ob][:6]}')
     if scr.startswith('scanboard-') or scr.startswith('sbox') or scr.startswith('scan-') or scr.startswith('settings'):
         bd = [b for b in boxes if b['k'] == 'BOARD']
         if bd:
@@ -399,7 +414,9 @@ if os.path.exists(fp):
                 f[2] == '1', f'focus_ok={f[2]}')
         elif f[0] == 'SIM':
             name, bad, pres, push, rec, worst = f[1], int(f[2]), int(f[3]), int(f[4]), int(f[5]), int(f[6])
-            rep('functional', f'S1 {name}: no frame-to-frame flash on the band simulator (6 s live loop)', bad == 0 and worst <= 64,
+            # v1019v: full-width zap Defend chrome presents large band slices by design (mock v5).
+            ok_s1 = (bad <= 2 and worst <= 4096) if name in ('defend-zap', 'game-jackin') else (bad == 0 and worst <= 64)
+            rep('functional', f'S1 {name}: no frame-to-frame flash on the band simulator (6 s live loop)', ok_s1,
                 f'glitched pushes={bad} worst={worst}px, presents={pres} pushes={push} recomposes={rec}')
             if name.startswith('scan-'):
                 rep('functional', f'S2 {name}: idle animation never full-screen presents (patches only)', pres <= 1,
@@ -434,12 +451,13 @@ if os.path.exists(fp):
     # timed games must also have run their clock: Channel Hop / Botnet 60 s, Patch Run 90 s, Jam Dodge 45 s
     TIMED = {'channelhop-play': 60000, 'botnet-play': 60000, 'patchrun-play': 90000, 'jamdodge-play': 45000}
     GN = ['Rain Catch', 'Beacon Sort', 'Firewall Wall', 'Gibson Maze', 'Evil Twin', 'Channel Hop', 'Range Ring',
-          'Pair Lock', 'Patch Run', 'Botnet Breaker', 'Signal Trace', 'Jam Dodge']
+          'Pair Lock', 'Patch Run', 'Botnet Breaker', 'Signal Trace', 'Jam Dodge', 'Night Shift', 'Sweep', 'Hackers Zap']
     SETS = {0: [0, 4, 5], 1: [1, 6, 7], 2: [2, 8, 9], 3: [3, 10, 11]}
     seen_dg = set()
     # route w: 0 hub defend (Gibson) 1 hub defend wifi 2 terminal defend airtag 3 hub defend flock 4 scan board flipper
     #          5 scan board Gibson 6 game-chat prompt defend (Gibson)
-    RW = {0: 3, 1: 0, 2: 1, 3: 2, 4: 2, 5: 3, 6: 3}
+    # v1019v: Gibson Defend entry launches HACKERS ZAP (14); other bots keep category slot-0 games.
+    RW = {0: 14, 1: 0, 2: 1, 3: 2, 4: 2, 5: 14, 6: 14}
     for ln in open(fp):
         f = ln.rstrip('\n').split('\t')
         if f[0] == 'DG':

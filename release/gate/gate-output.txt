@@ -350,7 +350,7 @@
   PASS  G8 crown back control present  [1 crown]
   PASS  C1 square chip_block present (bot)  [[('bot', 54, 54)]]
   PASS  C2 figure fills the chip square (major side >=60% of chip)  [fill=0.67]
-  PASS  D2 hunt grid active (falling icons + chaser + pips)  [bright_px=23]
+  PASS  D2 hunt grid active (falling icons + chaser + pips)  [bright_px=62]
   PASS  B1 board is matte black PCB  [dominant=(8, 12, 16)]
 == scanboard-deauth
   PASS  G1 no element/text bbox overlap
@@ -376,7 +376,7 @@
   PASS  G8 crown back control present  [1 crown]
   PASS  C1 square chip_block present (bot)  [[('bot', 54, 54)]]
   PASS  C2 figure fills the chip square (major side >=60% of chip)  [fill=0.67]
-  PASS  D2 hunt grid active (falling icons + chaser + pips)  [bright_px=17]
+  PASS  D2 hunt grid active (falling icons + chaser + pips)  [bright_px=50]
   PASS  B1 board is matte black PCB  [dominant=(8, 12, 16)]
 == scanboard-flipper
   PASS  G1 no element/text bbox overlap
@@ -467,7 +467,7 @@
   PASS  G8 crown back control present  [1 crown]
   PASS  C1 square chip_block present (bot)  [[('bot', 54, 54)]]
   PASS  C2 figure fills the chip square (major side >=60% of chip)  [fill=0.67]
-  PASS  D2 hunt grid active (falling icons + chaser + pips)  [bright_px=37]
+  PASS  D2 hunt grid active (falling icons + chaser + pips)  [bright_px=22]
   PASS  B1 board is matte black PCB  [dominant=(8, 12, 16)]
 == scanboard-samsungtag
   PASS  G1 no element/text bbox overlap

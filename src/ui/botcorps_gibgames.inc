@@ -70,12 +70,15 @@ static void dex_icon(Gfx g, int t, int x, int y, bool dim)
 static void paint_dex(Gfx g)
 {
     const uint8_t ac = dg_ac();
-    const int bx = 24, by = 24, bw = 272, bh = 196;
-    GATE_BOX(g, "OCCLUDE", "dex", bx, by, bw, bh, "-");
-    g.fillRect(bx, by, bw, bh, PAL_BLACK);
-    g.drawRect(bx, by, bw, bh, ac);
-    g.drawRect(bx + 1, by + 1, bw - 2, bh - 2, dg_wire());
-    g.fillRect(bx + 2, by + 2, bw - 4, 12, PAL_DEEP);
+    const int bx = 24, by = 24, bw = 272;   /* content grid (unchanged) */
+    /* v1019r: the frame reaches down past the idle prompt row (y 216..223, "gibson > ... demo NIGHT SHIFT -
+     * enter" from x 10) so no prompt text shows under the Dex (was 24,24 272x196: bottom 4 rows + "gibson >" leaked) */
+    const int fx = 6, fy = 24, fw = 296, fh = 204;
+    GATE_BOX(g, "OCCLUDE", "dex", fx, fy, fw, fh, "-");
+    g.fillRect(fx, fy, fw, fh, PAL_BLACK);
+    g.drawRect(fx, fy, fw, fh, ac);
+    g.drawRect(fx + 1, fy + 1, fw - 2, fh - 2, dg_wire());
+    g.fillRect(fx + 2, fy + 2, fw - 4, 12, PAL_DEEP);
     const int keep = s_px; s_px = 6;
     txt(g, "DEVICE DEX", bx + 8, by + 4, ac, lgfx::textdatum::top_left);
     char b[24];

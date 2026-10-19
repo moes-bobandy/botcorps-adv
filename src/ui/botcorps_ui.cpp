@@ -170,9 +170,9 @@ static const bot_t BOTS[12] = {
     { "samsungtagbot", "samsung", "SAMSUNG", "o", 0, 1 },
 };
 
-static const uint8_t BOT_PAL[12] = {
-    PAL_B5D3F, PAL_B4E7F, PAL_B5D3F, PAL_B7711, PAL_B9F0B, PAL_BFB72,
-    PAL_BAC7F, PAL_B36B8, PAL_B9F0B, PAL_B36B8, PAL_BFC6B, PAL_BBD3F,
+static const uint8_t BOT_PAL[12] = {   /* v1019r-pending (#8): 12 unique fixed bot colours (min dE 36.8) */
+    87 /*1BDD wifi*/, 59 /*269C bt*/, 201 /*DA4A deauth*/, 122 /*1E88 hack*/, 185 /*B6CA flock*/, 252 /*FFE0 drone*/,
+    245 /*FDC9 airtag*/, 94 /*5FF8 keyfob*/, 131 /*901F meta*/, 234 /*FA55 skimmer*/, 241 /*F2E3 flipper*/, 207 /*E2FF samsung*/,
 };
 
 static uint8_t bot_color(int i)
@@ -7287,7 +7287,7 @@ static void sp_run(const char *line)
     }
     if (strcmp(cmd, "scan") == 0 || strcmp(cmd, "wifi") == 0 || strcmp(cmd, "ble") == 0) {
         s_bus_t0 = millis();
-        sp_say(echo, "[ ok ] sweep restarted");
+        sp_say(echo, "[ ok ] scan restarted");   /* v1019r: wifi + ble share this line (was "sweep restarted") */
         s_dirty = true;
         return;
     }

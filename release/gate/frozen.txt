@@ -21,20 +21,4 @@ scanboard-meta
 scanboard-skimmer
 scanboard-flipper
 scanboard-samsungtag
-# v1019j (Dirt LOCKED): the four Defend mini-game boards (new screens, baselines added in v1019j)
-defend-raincatch
-defend-beaconsort
-defend-firewall
-defend-maze
-# v1019m (Dirt: finished build): the eight added Defend games (new screens, baselines added in v1019m)
-defend-eviltwin
-defend-channelhop
-defend-rangering
-defend-pairlock
-defend-patchrun
-defend-botnet
-defend-signaltrace
-defend-jamdodge
-# v1019v: Gibson Hackers zap Defend (full-width mock v5); v1019w relock: 7-gap fix vs mock v5
-# v1019x relock: zap inside the restored pre-mod scan shell grid (Mobandy photo order 2026-10-19)
-defend-zap
+# v1019y: the 13 old Defend mini-game screens are retired (one-game collapse).

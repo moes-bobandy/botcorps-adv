@@ -1,8 +1,8 @@
-# v1019x V1 (Mobandy 2:53 PM): real build version string in every env's bin.
-# BOTCORPS_BUILD_ID = "v1019x <git short sha>[-dirty]", read at build time; Terminal `version` prints it.
+# v1019y V1: real build version string in every env's bin.
+# BOTCORPS_BUILD_ID = "v1019y <git short sha>[-dirty]", read at build time; Terminal `version` prints it.
 import subprocess
 Import("env")  # noqa: F821 (PlatformIO SCons)
-CUT = "v1019x"
+CUT = "v1019y"
 def _git(*a):
     try:
         return subprocess.check_output(["git"] + list(a), cwd=env["PROJECT_DIR"], stderr=subprocess.DEVNULL).decode().strip()

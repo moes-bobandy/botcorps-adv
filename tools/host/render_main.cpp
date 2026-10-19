@@ -196,27 +196,8 @@ static int run_gate(const char *dir)
     a = { 0, 0, 0, "\n\n\x02\x02\x02\x02\x02\n" }; gate_one(dir, "terminal-atkmenu", 0, f_enter, &a);
     a = { 0, 0, 0, "\n\n\x02\x02\x02\x02\x02\n\x04" }; gate_one(dir, "terminal-atkgloss", 0, f_enter, &a);
     a = { 0, 0, 0, nullptr }; gate_one(dir, "scanboard-hunt-gibson", 0, f_gibhunt, &a);
-    /* v1019j (rendered after every earlier screen so their rain RNG order is unchanged): the four
-     * Defend mini-games, each entered through enter_defend for a bot of that device category and
-     * played 6 s by the host autopilot: Wi-Fi (wifibot) Rain Catch, BLE (bluetoothbot) Beacon Sort,
-     * IoT (flockbot) Firewall Wall, Rogue (Gibson) Gibson Maze. */
-    a = { 0, 6000, 0, nullptr }; gate_one(dir, "defend-raincatch", 0, f_defend, &a);
-    a = { 1, 6000, 0, nullptr }; gate_one(dir, "defend-beaconsort", 0, f_defend, &a);
-    a = { 4, 6000, 0, nullptr }; gate_one(dir, "defend-firewall", 0, f_defend, &a);
-    a = { 12, 6000, 0, nullptr }; gate_one(dir, "defend-maze", 0, f_defend_g, &a);  /* slot 0 = maze */
-    /* v1019m (rendered after every earlier screen so their order is unchanged): the eight added Defend
-     * games, each entered through enter_defend for the same category bot, then the real Tab key to the
-     * game's slot, played by the host autopilot (6 s; Evil Twin 5 s = pair mid-board, Patch Run 3.3 s =
-     * a vulnerable cell with its bar, Signal Trace 1.2 s = a heat scan + the found rogue). */
-    a = { 0, 5000, 1, nullptr }; gate_one(dir, "defend-eviltwin", 0, f_defend_g, &a);
-    a = { 0, 6000, 2, nullptr }; gate_one(dir, "defend-channelhop", 0, f_defend_g, &a);
-    a = { 1, 6000, 1, nullptr }; gate_one(dir, "defend-rangering", 0, f_defend_g, &a);
-    a = { 1, 6000, 2, nullptr }; gate_one(dir, "defend-pairlock", 0, f_defend_g, &a);
-    a = { 4, 3300, 1, nullptr }; gate_one(dir, "defend-patchrun", 0, f_defend_g, &a);
-    a = { 4, 6000, 2, nullptr }; gate_one(dir, "defend-botnet", 0, f_defend_g, &a);
-    a = { 12, 1200, 1, nullptr }; gate_one(dir, "defend-signaltrace", 0, f_defend_g, &a);
-    a = { 12, 6000, 2, nullptr }; gate_one(dir, "defend-jamdodge", 0, f_defend_g, &a);
-    a = { 0, 0, 0, nullptr }; gate_one(dir, "defend-zap", 0, f_defend_zap, &a);  /* v1019v last so rain L1 of earlier screens stay */
+    /* v1019y: the 13 old Defend mini-game screens are retired. defend/play paint the idle shell
+     * (game-board / game-menu / game-jackin). No defend-* goldens. */
     botcorps_host_set_color(0);
     /* functional: Esc goes back on every screen; each of the 8 settings edits + writes NVS */
     {
@@ -265,7 +246,7 @@ static int run_gate(const char *dir)
             struct { const char *name; int kind, arg; const char *keys; } S[] = {
                 { "scan-gibson", 0, 12, nullptr }, { "scan-flock", 0, 4, nullptr }, { "scan-airtag", 0, 6, nullptr },
                 { "scan-wifi", 1, 3, nullptr }, { "scan-ble", 1, 5, nullptr },
-                { "game-board", 2, 0, "help\nscan\n" }, { "game-jackin", 3, 0, nullptr },  /* v1019v: zap chrome — idle stability */
+                { "game-board", 2, 0, "help\nscan\n" }, { "game-jackin", 3, 0, nullptr },  /* v1019y: idle shell */
                 { "terminal-typing", 4, 0, "scan wifi\b\b\b\b" },
                 { "gibson-game", 1, 1, "hack\b\n" },
                 /* v1017c #1: the scan box in each of its animated modes (hunt meter, info scan line, glossary) */
@@ -274,21 +255,7 @@ static int run_gate(const char *dir)
                 { "control-nav", 1, 8, "\x04\x04\x04\x02\x01\x03\x04\x04\x04\x04\x02\x02\x01\x01\x03" },
                 { "hub-to-control", 1, 1, "\x04\x04\n\x04\x04\n\x02\n\x01\x01\n" },
                 { "control-to-hub", 1, 8, "\x1b\x04\x04" },
-                /* v1019j: each Defend game on the real draw loop with live keys (moves, sorts, launch) */
-                { "defend-raincatch", 6, 0, "\x03\x03\x04\x04\x04\x03\x04\x03\x03\x04\x04\x04\x03\x03\x04\x03\x04\x04\x03" },
-                { "defend-beaconsort", 6, 1, "\x03\x04\x03\x04\x03\x04\x03\x04\x03\x04\x03\x04\x03\x04\x03\x04\x03\x04" },
-                { "defend-firewall", 6, 4, "\n\x03\x03\x04\x04\x04\x03\x03\x04\x03\x04\x04\x03\x03\x04\x03\x04\x03" },
-                { "defend-maze", 7, 12 | 0 << 4, "\x03\x01\x04\x02\x03\x01\x04\x02\x03\x01\x04\x02\x03\x01\x04\x02\x03" },
-                { "defend-zap", 8, 0, nullptr },  /* v1019v: still; live zap uses full presents */
-                /* v1019m: the eight added games (arg = bot | slot << 4) with live keys, incl. a Tab game switch */
-                { "defend-eviltwin", 7, 0 | 1 << 4, "\x03\x04\x03\x04\x03\x04\x03\x04\x03\x04\x03\x04\x03\x04\x03" },
-                { "defend-channelhop", 7, 0 | 2 << 4, "\x03\x03\x04\x04\x04\x03\n\x04\x03\x03\x04\x04\x03\x03\x04\x03" },
-                { "defend-rangering", 7, 1 | 1 << 4, "\x01\x02\x03\x04\x01\x02\x03\x04\x01\x02\x03\x04\x01\x02\x03\x04" },
-                { "defend-pairlock", 7, 1 | 2 << 4, "12\b3456\n7890\n1\b2\b34\n5678\n" },
-                { "defend-patchrun", 7, 4 | 1 << 4, "\x04\x02\n\x03\x01\n\x04\x04\x02\n\x03\x02\n\x01\x04\n\x03\x03\n" },
-                { "defend-botnet", 7, 4 | 2 << 4, "1234512345123451234512345" },
-                { "defend-signaltrace", 7, 12 | 1 << 4, "\n\x04\n\x02\n\x03\x03\n\x01\n\x04\n\x02\x02\n\x04\n" },
-                { "defend-jamdodge", 7, 12 | 2 << 4, "\x01\x02\x02\x01\x01\x02\x02\x02\x01\x01\x01\x02\x02\x01\t\x01" },
+                /* v1019y: old Defend mini-game sims retired with the games. */
             };
             for (auto &q : S) {
                 host_set_millis(20000u);
@@ -334,46 +301,7 @@ static int run_gate(const char *dir)
             extern int botcorps_host_cp_start(void);
             if (f) fprintf(f, "CPSTART\t%d\n", botcorps_host_cp_start());
         }
-        /* v1019j DG: each Defend game's win and lose conditions on its real step code (host autopilot =
-         * the same keys a player sends; "idle" = no keys). DGR: which Defend path launches which game,
-         * Esc (backtick) quits the game to the Defend board, a second Esc goes back as before. */
-        {
-            extern int botcorps_host_defend_run(int, int, bool, bool, int, int *, int *, int *, int *, int *);
-            extern int botcorps_host_defend_cycle(int, int *);
-            extern int botcorps_host_defend_route(int, int *, int *, int *, int *);
-            struct { const char *name; int bot, slot; bool ai, noghost; int max_ms; } T[] = {
-                { "raincatch-play", 0, 0, true, false, 600000 }, { "raincatch-idle", 0, 0, false, false, 600000 },
-                { "beaconsort-play", 1, 0, true, false, 600000 }, { "beaconsort-idle", 1, 0, false, false, 600000 },
-                { "firewall-play", 4, 0, true, false, 900000 }, { "firewall-idle", 4, 0, false, false, 600000 },
-                { "maze-clear", 12, 0, true, true, 900000 }, { "maze-idle", 12, 0, false, false, 600000 },
-                /* v1019m: the eight added games, played (autopilot) and idle (no keys), same bots + Tab slot */
-                { "eviltwin-play", 0, 1, true, false, 600000 }, { "eviltwin-idle", 0, 1, false, false, 600000 },
-                { "channelhop-play", 0, 2, true, false, 600000 }, { "channelhop-idle", 0, 2, false, false, 600000 },
-                { "rangering-play", 1, 1, true, false, 600000 }, { "rangering-idle", 1, 1, false, false, 600000 },
-                { "pairlock-play", 1, 2, true, false, 600000 }, { "pairlock-idle", 1, 2, false, false, 600000 },
-                { "patchrun-play", 4, 1, true, false, 600000 }, { "patchrun-idle", 4, 1, false, false, 600000 },
-                { "botnet-play", 4, 2, true, false, 600000 }, { "botnet-idle", 4, 2, false, false, 600000 },
-                { "signaltrace-play", 12, 1, true, false, 600000 }, { "signaltrace-idle", 12, 1, false, false, 600000 },
-                { "jamdodge-play", 12, 2, true, false, 600000 }, { "jamdodge-idle", 12, 2, false, false, 600000 },
-            };
-            for (auto &q : T) {
-                int gm = -1, sc = 0, mi = 0, ju = 0, ms = 0;
-                const int st = botcorps_host_defend_run(q.bot, q.slot, q.ai, q.noghost, q.max_ms, &gm, &sc, &mi, &ju, &ms);
-                if (f) fprintf(f, "DG\t%s\t%d\t%d\t%d\t%d\t%d\t%d\n", q.name, gm, st, sc, mi, ju, ms);
-            }
-            for (int w = 0; w < 7; ++w) {
-                int scr = -1, e1 = -1, e1g = -1, e2 = -1;
-                const int gm = botcorps_host_defend_route(w, &scr, &e1, &e1g, &e2);
-                if (f) fprintf(f, "DGR\t%d\t%d\t%d\t%d\t%d\t%d\n", w, gm, scr, e1, e1g, e2);
-            }
-            /* v1019m DGC: Tab walks each category's three games and wraps; , / step on a LOST stop */
-            static const int CB[4] = { 0, 1, 4, 12 };
-            for (int c = 0; c < 4; ++c) {
-                int ids[6] = { -1, -1, -1, -1, -1, -1 };
-                const int cat = botcorps_host_defend_cycle(CB[c], ids);
-                if (f) fprintf(f, "DGC\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\n", CB[c], cat, ids[0], ids[1], ids[2], ids[3], ids[4], ids[5]);
-            }
-        }
+        /* v1019y: DG / DGR / DGC retired with the old mini-games. */
         if (f) fclose(f);
     }
     return 0;

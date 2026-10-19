@@ -206,7 +206,7 @@ static const char *const CMDS[12] = {
 };
 /* v1019x V1: build version string, set per build by tools/pio_version.py (host: tools/host/build.sh) */
 #ifndef BOTCORPS_BUILD_ID
-#define BOTCORPS_BUILD_ID "v1019x nogit"
+#define BOTCORPS_BUILD_ID "v1019y nogit"
 #endif
 /* v3.2 command menu. 42 names + purposes, const in flash. defend stays in CORE.
  * v1019q (#9): CORE + COMMS (the bots' own commands) stay on top, go / load (screen routing) moved down
@@ -486,7 +486,8 @@ static void sp_auto_arm(void);
 static char s_sp_l1[32], s_sp_l2[32];   /* last command echo + reply (replace the boot lines) */
 static bool s_sp_has = false;    /* a command ran: the strip shows s_sp_l1/l2 */
 static int s_sp_cmd = -1;        /* SCR_SCAN arrows: index into SP_CMD (≡ chip lit when >= 0) */
-static int s_defend_bot = 12;    /* which bot/device the active Defend game is for (12 = Gibson) */
+static int s_defend_bot = 12;    /* which bot the idle Defend shell is for (12 = Gibson) */
+static int s_def_cmd = -1;       /* Defend shell: arrow-selected command; never written into the prompt */
 static int s_gc_panel = 0;       /* game-board overlay: 0 none, 1 device glossary, 2 attack prompts */
 /* v1017b (Dirt 8:26-8:28): hub focus zone. 0 = icon row (Left/Right cycle the icons),
  * 1 = prompt, 2 = command menu, 3 = Gibson (Enter = Gibson game). Up/Down walk the zones. */
@@ -1500,16 +1501,13 @@ static void run_cmd(const char *line)
         s_gib_hunt_keep = true;
         enter_screen(SCR_SCAN, SCR_TERMINAL);
         return;
-    } else if (strcmp(cmd, "score") == 0) {
-        dg_scores_bot(s_term);
-    } else if (strcmp(cmd, "rank") == 0) {
-        dg_rank();
-    } else if (strcmp(cmd, "loadout") == 0) {
-        dg_loadout(s_term);
-    } else if (strcmp(cmd, "lobby") == 0) {
-        dg_lobby();
-    } else if (strcmp(cmd, "duel") == 0 || strcmp(cmd, "stash") == 0) {
-        log_add("sealed");                       /* no duel / stash feature exists yet (listed as sealed) */
+    } else if (strcmp(cmd, "play") == 0) {
+        const int b = gc_bot_of(arg && *arg ? arg : nullptr);
+        if (b == -2) { log_add("no such bot"); }
+        else { enter_defend(b < 0 ? 12 : b, SCR_TERMINAL); return; }
+    } else if (strcmp(cmd, "score") == 0 || strcmp(cmd, "rank") == 0 || strcmp(cmd, "loadout") == 0
+               || strcmp(cmd, "lobby") == 0 || strcmp(cmd, "duel") == 0 || strcmp(cmd, "stash") == 0) {
+        log_add("no game");
     } else if (strcmp(cmd, "defend") == 0) {
         /* v1019 (Dirt #6/#7): CMDP says defend is the typing game; it enters it (was "sealed"). */
         const int b = gc_bot_of(arg && *arg ? arg : nullptr);
@@ -1560,210 +1558,84 @@ static uint8_t term_prompt_ghost_ink(void)
 {
     return botcorps_pal_fit(0x0366);   /* ~(0,108,48) */
 }
+static void dash_box(Gfx g, int x, int y, int w, int h, uint8_t c)
+{
+    for (int i = 0; i < w; i += 4) {
+        int dw = 2;
+        if (i + dw > w) dw = w - i;
+        if (dw <= 0) continue;
+        g.fillRect(x + i, y, dw, 1, c);
+        g.fillRect(x + i, y + h - 1, dw, 1, c);
+    }
+    for (int i = 0; i < h; i += 4) {
+        int dh = 2;
+        if (i + dh > h) dh = h - i;
+        if (dh <= 0) continue;
+        g.fillRect(x, y + i, 1, dh, c);
+        g.fillRect(x + w - 1, y + i, 1, dh, c);
+    }
+}
+
+/* v1019y: unselected tiles are SOLID bot-colour blocks (no rain, no trace noise).
+ * The selected tile is hybrid40: black interior + device rain, white dashed ring on the chip,
+ * 1 px pale-magenta outline, 2 px frame = bot colour mixed 40% toward white. */
 static void paint_one_board(Gfx g, int i, bool sel, bool dim)
 {
     int x, y;
     term_xy(i, &x, &y);
-    /* v3.2 boards are the dark die. Radio no longer lifts a cream tile. */
-    const bool wh = false;
-    const uint8_t ac = accent();
-    const uint32_t t = millis();
+    (void)dim;
     const int w = 72;
     const int h = 46;
-    if (sel && !dim) {
-        const uint8_t wash = th_wash();
-        const uint8_t wire = th_wire();
-        /* Cyan dashes are the select mark. The rim stays wash and wire. */
-        g.drawRect(x - 4, y - 4, w + 8, h + 8, wash);
-        g.drawRect(x - 3, y - 3, w + 6, h + 6, wire);
-        const int ph = (int)((t / 70u) % 2u);
-        const int n = 4;
-        for (int d = 0, k = 0; d < w + 4; d += n, ++k) {
-            if (((k + ph) % 2) != 0) continue;
-            int dw = n;
-            if (d + dw > w + 2) dw = w + 2 - d;
-            if (dw <= 0) continue;
-            g.fillRect(x - 2 + d, y - 2, dw, 1, sel_ink(k, 0));
-            const int bx = x + w + 1 - d - n + (d + n > w + 2 ? d + n - (w + 2) : 0);
-            g.fillRect(bx, y + h + 1, dw, 1, sel_ink(k, 2));
-        }
-        for (int d = 0, k = 0; d < h + 4; d += n, ++k) {
-            if (((k + ph) % 2) != 0) continue;
-            int dh = n;
-            if (d + dh > h + 2) dh = h + 2 - d;
-            if (dh <= 0) continue;
-            g.fillRect(x + w + 1, y - 2 + d, 1, dh, sel_ink(k, 1));
-            const int by = y + h + 1 - d - n + (d + n > h + 2 ? d + n - (h + 2) : 0);
-            g.fillRect(x - 2, by, 1, dh, sel_ink(k, 3));
-        }
-    }
-    /* v1019s treatment D: darker matte panel (black) so circuit/wave icons read; chip untouched. */
-    (void)wh;
-    const uint8_t base = (uint8_t)PAL_BLACK;
-    /* v1019s D: 1-2 px rim + brackets + label bar in this bot's fixed colour. */
-    const uint8_t rim = bot_color(i);
-    /* v1019s D: raised contrast on traces/antennas against the black panel. */
-    const uint8_t tr = (uint8_t)PAL_STEEL;
-    const uint8_t ant = (uint8_t)PAL_MUTED;
-    const uint8_t pad = (uint8_t)PAL_SOFT;
-    const uint8_t fp = sel ? (uint8_t)PAL_BLACK : (uint8_t)PAL_FIELD;
-    const uint8_t fpp = (uint8_t)PAL_SOFT;
-    const uint8_t silk = sel ? (uint8_t)PAL_WHITE : (uint8_t)PAL_MUTED;
-    const uint8_t led = (uint8_t)PAL_BOARD_D;
-    const uint8_t hole = (uint8_t)PAL_FIELD;
-    g.fillRect(x + 1, y, w - 2, h, base);
-    g.fillRect(x, y + 1, w, h - 2, base);
-    /* v1019t D finish: darker horizontal label band behind the bot name (concept D label box, the
-     * PAL_BOARD_D plate) across the inner width, rows y+36..y+43. Drawn before the socket, so the
-     * selected outline at y+36 and the label still sit on top; rain ghost stops at y+35. */
-    g.fillRect(x + 2, y + 36, w - 4, 8, (uint8_t)PAL_BOARD_D);
-    /* Traces on focused tile only (same as before); D raises their contrast via STEEL/MUTED + black panel. */
-    const bool traces = !dim;
-    const int longtr[4] = { 1, 3, 5, 6 };
-    if (traces) {
-        for (int n = 0; n < 4; ++n) {
-            const int k = longtr[n];
-            g.fillRect(x + 4, y + 6 + k * 4, 19, 1, tr);
-            g.fillRect(x + 49, y + 6 + k * 4, 19, 1, tr);
-        }
-        const int shorttr[4] = { 0, 2, 4, 7 };
-        for (int n = 0; n < 4; ++n) {
-            const int k = shorttr[n];
-            g.fillRect(x + 4, y + 6 + k * 4, 5, 1, tr);
-            g.fillRect(x + 63, y + 6 + k * 4, 5, 1, tr);
-        }
-        g.fillRect(x + 26, y + 9, 1, 5, tr);
-    }
-    for (int k = 0; k < 6; ++k) {
-        g.fillRect(x + 26 + k * 4, y + 3, 1, 7, ant);
-        if (traces && k < 5) g.fillRect(x + 26 + k * 4, (k % 2) ? y + 9 : y + 3, 5, 1, ant);
-    }
-    const int run = (int)((t / 90u) % 10u);
-    for (int k = 0; k < 8; ++k) {
-        const bool lit_l = sel && (k == run || (k == run - 1 && k >= 0));
-        const bool lit_r = sel && ((7 - k) == run || (7 - k) == run - 1);
-        g.fillRect(x + 2, y + 5 + k * 4, 2, 2, lit_l ? ac : pad);
-        g.fillRect(x + 68, y + 5 + k * 4, 2, 2, lit_r ? ac : pad);
-    }
-    g.fillRect(x + 62, y + 2, 3, 3, pad);
-    g.fillRect(x + 63, y + 3, 1, 1, hole);
-    g.fillRect(x + 23, y + 14, 26, 22, fp);
-    for (int k = 0; k < 8; ++k) {
-        g.fillRect(x + 25 + k * 3, y + 14, 1, 1, fpp);
-        g.fillRect(x + 25 + k * 3, y + 35, 1, 1, fpp);
-    }
+    const uint16_t bc = botcorps_rgb565(bot_color(i));
+    const uint8_t frame = botcorps_pal_fit(mix16(bc, 0xFFFF, 40, 100));
+    const uint8_t mag = botcorps_pal_fit(mix16(0xF81F, 0xFFFF, 55, 100));
+    /* Solid fill is 62% of the bot colour (brightest solid averages ~106; the 40% white frame averages ~167). */
+    const uint16_t solid565 = mix16(bc, 0x0000, 62, 100);
+    const uint8_t solid = botcorps_pal_fit(solid565);
+    const int luma = (((solid565 >> 11) & 31) * 8) + (((solid565 >> 5) & 63) * 4) + ((solid565 & 31) * 8);
+    const uint8_t silk = luma > 280 ? (uint8_t)PAL_BLACK : (uint8_t)PAL_WHITE;
     if (sel) {
-        g.fillRect(x + 22, y + 13, 28, 1, ac);
-        g.fillRect(x + 22, y + 36, 28, 1, ac);
-        g.fillRect(x + 22, y + 13, 1, 24, ac);
-        g.fillRect(x + 49, y + 13, 1, 24, ac);
-    }
-    /* v1019 (Dirt #5): the live Terminal rain shows faintly through the board tile (glyph pixels
-     * only, dim ink). Drawn before the bot face and the label, so neither is ever crossed. */
+        g.drawRect(x - 1, y - 1, w + 2, h + 2, mag);
+        g.fillRect(x + 2, y + 2, w - 4, h - 4, PAL_BLACK);
+        g.fillRect(x, y, w, 2, frame);
+        g.fillRect(x, y + h - 2, w, 2, frame);
+        g.fillRect(x, y, 2, h, frame);
+        g.fillRect(x + w - 2, y, 2, h, frame);
 #ifdef BOTCORPS_HOST_RENDER
-    if (g.raw() && !host_gate_norain)
+        if (g.raw() && !host_gate_norain)
 #else
-    if (g.raw())
+        if (g.raw())
 #endif
-        botcorps_rain_ghost(*g.raw(), g.ox, g.oy, x + 1, y + 1, w - 2, 35, term_ghost_ink());
-    const int bob = sel ? -((int)((t / 450u) % 2u)) : 0;
-    /* v1017b (Dirt 8:20): every terminal tile is the SQUARE chip-form block (the
-     * same block figure Gibson's control-panel / scan-board chip uses), in this
-     * bot's fixed colour on black. Never the round sprite. Terminal tiles only. */
-    /* v1019e (Dirt): full matched chip (silk outline, black window, silver pins) in the 26x22 socket:
-     * 20 px box at x+26..45, y+15..34, face 14 px. The selected bob lifts the whole chip 1 px
-     * (y+14..33), still inside the socket and clear of the select outline at y+13. */
+            botcorps_rain_ghost(*g.raw(), g.ox, g.oy, x + 3, y + 3, w - 6, 32, term_ghost_ink());
+    } else {
+        g.fillRect(x, y, w, h, solid);
+        const uint8_t ant = botcorps_pal_fit(mix16(bc, 0xFFFF, 28, 100));
+        for (int k = 0; k < 6; ++k) g.fillRect(x + 26 + k * 4, y + 3, 1, 5, ant);
+    }
+    const int bob = sel ? -((int)((millis() / 450u) % 2u)) : 0;
     chip_mini(g, x + 36, y + 25 + bob, 20, i, sel && sprite_blink(i), 0);
-    /* v1019f (Dirt standing rule): the live rain shows faintly THROUGH the chip face too, in the UI
-     * theme's own colour (accent, so it follows the theme), blended 65/35 with the bot's colour so it
-     * stays a faint overlay and the face still reads as that bot. Glyph pixels only, in the face rows
-     * below the control-panel eyes (eye row + 1 px clear, whole glyph tops only) down to the chin: nothing in the eye band, so
-     * no rain fragment ever sits on or beside an eye. The silk frame, pins and label are outside the
-     * face, so the rain never reaches them. Drawn after the chip, before the label. */
-#ifdef BOTCORPS_HOST_RENDER
-    if (g.raw() && !host_gate_norain)
-#else
-    if (g.raw())
-#endif
-    {
-        const int fs = 20 - 6, fx = x + 36 - fs / 2, fy = y + 25 + bob - fs / 2;
-        const int ec = fs / 5 > 2 ? fs / 5 : 2;          /* control-panel eye cell (face_block) */
-        const int gy0 = ec + ec + 1;                     /* first row clear of the eyes */
-        const uint16_t face = botcorps_rgb565(bot_color(i));
-        auto far = [face](uint8_t ix) {                  /* the overlay must still read on the face */
-            const uint16_t c = botcorps_rgb565(ix);
-            const int dr = (int)((c >> 11) & 31) - (int)((face >> 11) & 31);
-            const int dg = ((int)((c >> 5) & 63) - (int)((face >> 5) & 63)) / 2;
-            const int db = (int)(c & 31) - (int)(face & 31);
-            return (dr < 0 ? -dr : dr) + (dg < 0 ? -dg : dg) + (db < 0 ? -db : db) >= 16;
-        };
-        /* v1019n (#19): UI COLOR never recolours rain, so the face ghost no longer mixes the theme accent: a
-         * lifted tint of the face, else a darkened one, so the device-icon rain still reads on every bot */
-        uint8_t gi = botcorps_pal_fit(mix16(face, 0xFFFF, 45, 100));
-        if (!far(gi)) gi = botcorps_pal_fit(mix16(face, 0x0000, 45, 100));
-        botcorps_rain_ghost_ex(*g.raw(), g.ox, g.oy, fx, fy + gy0, fs, fs - gy0, gi, true);
-    }
-    const int st = BOTS[i].st;
-    const bool on = st != 0 || ((t / 700u + (uint32_t)i) % 4u) != 0u;
-    uint8_t ledc = led;
-    if (on) ledc = st == 2 ? (uint8_t)PAL_HOLD : st == 1 ? (uint8_t)PAL_AMBER : (uint8_t)PAL_OK;
-    g.fillRect(x + 6, y + 2, 2, 2, ledc);
+    if (sel) dash_box(g, x + 22, y + 10 + (bob < 0 ? bob : 0), 28, 30, PAL_WHITE);
     char up[16];
-    const char *src = BOTS[i].short_name;
-    int n = 0;
-    for (; src[n] && n < 15; ++n) {
-        char c = src[n];
+    const char *srcn = BOTS[i].short_name;
+    int nn = 0;
+    for (; srcn[nn] && nn < 15; ++nn) {
+        char c = srcn[nn];
         if (c >= 'a' && c <= 'z') c = (char)(c - 32);
-        up[n] = c;
+        up[nn] = c;
     }
-    up[n] = 0;
-    /* v1016f-2 #5: the 12th board reads SAMSUNGTAG, abbreviated to fit the tile. */
+    up[nn] = 0;
     const char *lbl = (i == 11) ? "SAMSUNGTAG" : up;
     {
         const int keep = s_px;
         s_px = 6;
-        txt(g, lbl, x + 36, y + 37, silk, lgfx::textdatum::top_center);
+        txt(g, lbl, x + 36, y + 37, sel ? (uint8_t)PAL_WHITE : silk, lgfx::textdatum::top_center);
         s_px = keep;
     }
-    /* v1019s D chrome last so rain/ghost never washes it: 2 px rim, L-brackets, label underline */
-    g.fillRect(x + 1, y, w - 2, 2, rim);
-    g.fillRect(x + 1, y + h - 2, w - 2, 2, rim);
-    g.fillRect(x, y + 1, 2, h - 2, rim);
-    g.fillRect(x + w - 2, y + 1, 2, h - 2, rim);
-    const int bl = 10;
-    g.fillRect(x, y, bl, 2, rim);
-    g.fillRect(x, y, 2, bl, rim);
-    g.fillRect(x + w - bl, y, bl, 2, rim);
-    g.fillRect(x + w - 2, y, 2, bl, rim);
-    g.fillRect(x, y + h - 2, bl, 2, rim);
-    g.fillRect(x, y + h - bl, 2, bl, rim);
-    g.fillRect(x + w - bl, y + h - 2, bl, 2, rim);
-    g.fillRect(x + w - 2, y + h - bl, 2, bl, rim);
-    /* v1019t D finish: a separate thick underline bar under the bot-name label (concept draw_underline:
-     * 2 px, half-width min(33, len*3+2), bot colour), stacked under the 2 px bottom rim so the label
-     * reads on a 4 px bar while the rest of the rim stays 2 px. Inside the tile's own patch/cover rect
-     * (x-2, y-2, 76, 50). */
     {
         int ln = 0;
         while (lbl[ln]) ++ln;
         const int hw = ln * 3 + 2 < 33 ? ln * 3 + 2 : 33;
-        g.fillRect(x + 36 - hw, y + h, hw * 2 + 1, 2, rim);
-    }
-    /* Faint Wi-Fi arcs on the right of the WIFI tile. Raised contrast (steel), always when radio. */
-    if (BOTS[i].radio == 1 && !dim) {
-        const uint8_t m = (uint8_t)PAL_STEEL;
-        const int ax = x + 54;
-        const int ay = y + 26;
-        g.fillRect(ax + 1, ay + 2, 2, 2, m);
-        g.fillRect(ax, ay - 1, 1, 1, m);
-        g.fillRect(ax + 2, ay - 2, 2, 1, m);
-        g.fillRect(ax + 4, ay - 1, 1, 1, m);
-        g.fillRect(ax + 5, ay + 1, 1, 2, m);
-        g.fillRect(ax - 1, ay - 4, 1, 1, m);
-        g.fillRect(ax + 1, ay - 5, 3, 1, m);
-        g.fillRect(ax + 4, ay - 4, 1, 1, m);
-        g.fillRect(ax + 6, ay - 2, 1, 2, m);
-        g.fillRect(ax + 7, ay, 1, 2, m);
+        g.fillRect(x + 36 - hw, y + h, hw * 2 + 1, 2, sel ? frame : botcorps_pal_fit(mix16(bc, 0xFFFF, 35, 100)));
     }
 }
 
@@ -2545,13 +2417,15 @@ static void paint_prompt(Gfx g)
      * button keeps its nav stop (one Down past ≡) and sits just left of it on the same row. */
     const bool po = (s_focus_cmds || s_cmd_btn) && !s_sheet;
     plate(g, TERM_CMD_X, TERM_BTN_Y, 20, 12, po ? COL_SEL : COL_DEEP, po ? accent() : COL_LINE);
-    for (int k = 0; k < 3; ++k) g.fillRect(TERM_CMD_X + 5, TERM_BTN_Y + 3 + k * 3, 10, 1, po ? accent() : COL_MUTED);
+    if (po) g.drawRect(TERM_CMD_X - 1, TERM_BTN_Y - 1, 22, 14, PAL_WHITE);
+    for (int k = 0; k < 3; ++k) g.fillRect(TERM_CMD_X + 5, TERM_BTN_Y + 3 + k * 3, 10, 1, po ? (uint8_t)PAL_WHITE : (uint8_t)COL_MUTED);
     if (s_focus_cmds && !s_sheet) paint_palette(g);
     {   /* #10: attack-prompt button (target reticle), one stop below the commands button */
         const bool ao = (s_atk_btn || s_term_ovl == 1 || s_term_ovl == 2) && !s_sheet;
         const int ax = TERM_ATK_X, ay = TERM_BTN_Y;
         plate(g, ax, ay, 20, 12, ao ? COL_SEL : COL_DEEP, ao ? accent() : COL_LINE);
-        const uint8_t ic = ao ? accent() : (uint8_t)COL_MUTED;
+        if (ao) g.drawRect(ax - 1, ay - 1, 22, 14, PAL_WHITE);
+        const uint8_t ic = ao ? (uint8_t)PAL_WHITE : (uint8_t)COL_MUTED;
         g.drawCircle(ax + 10, ay + 6, 3, ic);
         g.fillRect(ax + 10, ay + 1, 1, 3, ic);
         g.fillRect(ax + 10, ay + 9, 1, 2, ic);
@@ -3033,14 +2907,24 @@ static void chip_block_ex(Gfx g, int cx, int cy, int S, int bot)
     g.drawRect(x, y, S, S, PAL_BLACK);                   /* black outer border */
     g.drawRect(x + 2, y + 2, S - 4, S - 4, PAL_LINE);
     g.drawRect(x + 6, y + 6, S - 12, S - 12, PAL_DIAG);
-    /* v1019 (Dirt LOCKED): GOLD pins on Gibson's chip only; every other bot SILVER. */
-    const uint8_t pin = bot >= 12 ? PAL_GOLD_PIN : (uint8_t)PAL_SOFT;
-    for (int k = 0; k < 5; ++k) {                        /* castellated pins, 5 per side (v1019n #16) */
-        const int i = chip_pin(S, k);
-        g.fillRect(x - 1, y + i, 5, 2, pin);
-        g.fillRect(x + S - 4, y + i, 5, 2, pin);
-        g.fillRect(x + i, y - 1, 2, 5, pin);
-        g.fillRect(x + i, y + S - 4, 2, 5, pin);
+    /* v1019y: the 12 bots use INT-screen pin style B (1 px silver castellations, not bot-coloured).
+     * Gibson keeps the existing GOLD pins, same geometry as before. */
+    if (bot >= 12) {
+        for (int k = 0; k < 5; ++k) {
+            const int i = chip_pin(S, k);
+            g.fillRect(x - 1, y + i, 5, 2, PAL_GOLD_PIN);
+            g.fillRect(x + S - 4, y + i, 5, 2, PAL_GOLD_PIN);
+            g.fillRect(x + i, y - 1, 2, 5, PAL_GOLD_PIN);
+            g.fillRect(x + i, y + S - 4, 2, 5, PAL_GOLD_PIN);
+        }
+    } else {
+        for (int k = 0; k < 5; ++k) {
+            const int i = chip_pin1(S, k);
+            g.fillRect(x - 2, y + i, 2, 1, PAL_SOFT);
+            g.fillRect(x + S, y + i, 2, 1, PAL_SOFT);
+            g.fillRect(x + i, y - 2, 1, 2, PAL_SOFT);
+            g.fillRect(x + i, y + S, 1, 2, PAL_SOFT);
+        }
     }
     g.fillRect(x + 7, y + 7, 2, 2, PAL_IVORY);
     /* v1019 (Dirt LOCKED S-18): slight even black window between the face and the square
@@ -3376,6 +3260,41 @@ static void gl_icon(Gfx g, int type, int x, int y, bool dim)
         }
     }
 }
+/* Nearest-neighbour scale of the 12 px glossary icon. sz 14 ~= +15%. */
+static void gl_icon_sz(Gfx g, int type, int x, int y, bool dim, int sz)
+{
+    if (sz <= 12) { gl_icon(g, type, x, y, dim); return; }
+    if (type < 0 || type >= GL_N) type = GL_UNKNOWN;
+    const char *const *rows = nullptr;
+    switch (type) {
+    case GL_AP: rows = DEV_ROW[DEV_AP]; break;
+    case GL_TV: rows = DEV_ROW[DEV_TV]; break;
+    case GL_TRACKER: rows = DEV_ROW[DEV_TAG]; break;
+    case GL_CAMERA: rows = DEV_ROW[DEV_CAM]; break;
+    case GL_UNKNOWN: rows = DEV_ROW[DEV_UNK]; break;
+    case GL_DRONE: rows = DEV_ROW[DEV_DRONE]; break;
+    case GL_PHONE: rows = GL_NEW[0]; break;
+    case GL_LAPTOP: rows = GL_NEW[1]; break;
+    case GL_SPEAKER: rows = GL_NEW[2]; break;
+    case GL_WATCH: rows = GL_NEW[3]; break;
+    case GL_CAR: rows = GL_NEW[4]; break;
+    case GL_DEVBOARD: rows = GL_NEW[5]; break;
+    default: rows = GL_NEW[6]; break;
+    }
+    const uint8_t *ink = GL_INK[type];
+    for (int dy = 0; dy < sz; ++dy) {
+        const int r = dy * 12 / sz;
+        for (int dx = 0; dx < sz; ++dx) {
+            const int c = dx * 12 / sz;
+            const char ch = rows[r][c];
+            if (ch != 'a' && ch != 'b' && ch != 'c') continue;
+            uint8_t k = ink[ch - 'a'];
+            if (ch == 'c' && (type == GL_AP || type == GL_DRONE || type == GL_UNKNOWN)) k = ink[0];
+            if (dim) k = (ch == 'b') ? (uint8_t)PAL_DEEP : (uint8_t)PAL_LINE;
+            sb_rect(g, x + dx, y + dy, 1, 1, k);
+        }
+    }
+}
 
 #define LIST_N (s_sb_n)
 /* v1016 1604 mock devices, strongest first. Cells, ids and MACs come from FNV-1a of the name, as in the mock. */
@@ -3683,14 +3602,21 @@ static void sb_bot_chip(Gfx g, int cx, int cy, int S, int bot)
     chip_block(g, cx, cy, S, bot);
 }
 
+/* Board edge = bot colour mixed with that bot's device colour. Defined after BH_DEV. */
+static uint8_t board_edge_col(int bot);
+static void dev_under_chip(Gfx g, int cx, int cy, int bot);
+
 /* ESP32 dev board around the box (mock cydBoard + module). */
 static void sb_board(Gfx g, bool wifi)
 {
     const uint8_t ac = accent();
     const uint8_t pcb = PAL_BLACK, tex = PAL_DEEP; /* v1016f-4 (Dirt 8:24): fixed matte-black PCB */
     const uint8_t gold = 177, goldh = 217, goldd = 104;
-    const bool zsb = zap_sb_on();                 /* v1019x: Gibson Defend = this shell */
+    const bool zsb = zap_sb_on();                 /* v1019y: Defend = this shell, empty grid */
     const bool core = s_screen == SCR_SCAN || zsb;
+    const int bot = zsb ? ((s_defend_bot >= 0 && s_defend_bot <= 12) ? s_defend_bot : 12)
+                        : core ? s_scan_bot : wifi ? 0 : 1;
+    const uint8_t edge = board_edge_col(bot);     /* bot colour mixed with its device colour */
     /* soft accent glow ring outside the board edge */
     sb_frame(g, 14, 26, 292, 183, PAL_LINE);
     sb_frame(g, 15, 27, 290, 181, PAL_LINE);
@@ -3699,7 +3625,7 @@ static void sb_board(Gfx g, bool wifi)
     GATE_BOX(g, "BOARD", "scan", 14, 26, 292, 183, "-");
     sb_rect(g, 18, 30, 284, 175, pcb);
     for (int x = 24; x < 300; x += 8) sb_rect(g, x, 31, 1, 173, tex);
-    sb_frame(g, 18, 30, 284, 175, gold); /* gold board edge, fixed */
+    sb_frame(g, 18, 30, 284, 175, edge); /* v1019y: edge matches the bot and its device */
     /* 2.54 mm headers, top and bottom */
     for (int row = 0; row < 2; ++row) {
         const int y = row ? 195 : 33;
@@ -3713,7 +3639,7 @@ static void sb_board(Gfx g, bool wifi)
     }
     const int hx[4] = { 26, 294, 26, 294 }, hy[4] = { 38, 38, 197, 197 };
     for (int k = 0; k < 4; ++k) {
-        sb_circ(g, hx[k], hy[k], 4, gold);
+        sb_circ(g, hx[k], hy[k], 4, edge);
         sb_circ(g, hx[k], hy[k], 2, PAL_BLACK);
     }
     /* BOOT / EN buttons and the USB port on the right edge */
@@ -3727,23 +3653,22 @@ static void sb_board(Gfx g, bool wifi)
     sb_rect(g, 298, 110, 4, 16, 4);
     /* WROOM module (radio bots) or the clean Gibson/bot core block */
     const int mx = 34, my = 52, mw = 54, mh = 128;
-    const int bot = zsb ? 12 : core ? s_scan_bot : wifi ? 0 : 1;
     if (core) {
-        /* v1016f-4 (Dirt 8:19): drop the silver module frame; Gibson/bot is the
-         * clean control-panel block with uncut labels. */
-        const int cxm = mx + mw / 2, ccy = my + 42;
+        /* v1019y: bot chip, then that bot's device chip directly under it. Silk sits below both. */
+        const int cxm = mx + mw / 2, ccy = my + 26;
         const bool gib = bot >= 12;
-        if (zsb) zap_rain_rect(g);   /* v1019x: rain behind the chip, this rect only */
-        chip_block(g, cxm, ccy, 54, gib ? 12 : bot);
+        if (zsb) zap_rain_rect(g);   /* rain behind the chips, this rect only */
+        chip_block(g, cxm, ccy, 40, gib ? 12 : bot);
+        dev_under_chip(g, cxm, ccy + 36, bot);
         char nmb[16];
         const char *nm;
         if (gib) nm = "GIBSON";
         else { sb_upper(nmb, 16, BOTS[bot].short_name, 12); if (strlen(nmb) <= 9) strcat(nmb, "BOT"); nm = nmb; }
         const char *l2c = "ESP32-WROOM-32";
-        const char *l3c = (gib && !zsb) ? "CORE + PRIME" : "RADIO CORE";   /* v1019x: Defend = AIRTAGBOT-style silk */
-        tiny_text(g, nm, cxm - tiny_w(nm) / 2, ccy + 32, 41);
-        tiny_text(g, l2c, cxm - tiny_w(l2c) / 2, ccy + 42, 41);
-        tiny_text(g, l3c, cxm - tiny_w(l3c) / 2, ccy + 50, 41);
+        const char *l3c = (gib && !zsb) ? "CORE + PRIME" : "RADIO CORE";
+        tiny_text(g, nm, cxm - tiny_w(nm) / 2, ccy + 50, 41);
+        tiny_text(g, l2c, cxm - tiny_w(l2c) / 2, ccy + 60, 41);
+        tiny_text(g, l3c, cxm - tiny_w(l3c) / 2, ccy + 70, 41);
         if (gib && !zsb) gib_ticker(g);
     } else {
     sb_rect(g, mx, my, mw, mh, 5);
@@ -3781,12 +3706,13 @@ static void sb_board(Gfx g, bool wifi)
     sb_rect(g, wx, wy, ww, wh, 8);
     char nmb[16];
     const char *nm = wifi ? "WIFIBOT" : "BLE-BOT"; /* BLUETOOTHBOT is 47 px, wider than the can */
-    sb_bot_chip(g, wx + ww / 2, wy + 21, 40, bot);
+    sb_bot_chip(g, wx + ww / 2, wy + 14, 28, bot);
+    dev_under_chip(g, wx + ww / 2, wy + wh + 2, bot);   /* device chip under the bot, still in the can */
     const int cxm = sx + sw / 2;
     /* plain 4 px pitch so every glyph reads; long lines are abbreviated, never squeezed */
-    tiny_text(g, nm, cxm - tiny_w(nm) / 2, wy + wh + 4, 41);
-    tiny_text(g, "WROOM-32", cxm - tiny_w("WROOM-32") / 2, wy + wh + 14, 41);
-    tiny_text(g, "FCC 2AC7Z", cxm - tiny_w("FCC 2AC7Z") / 2, wy + wh + 22, 41);
+    tiny_text(g, nm, cxm - tiny_w(nm) / 2, wy + wh + 14, 41);
+    tiny_text(g, "WROOM-32", cxm - tiny_w("WROOM-32") / 2, wy + wh + 24, 41);
+    tiny_text(g, "FCC 2AC7Z", cxm - tiny_w("FCC 2AC7Z") / 2, wy + wh + 34, 41);
     static const char *const PIN_L[12] = { "3V3", "EN", "VP", "VN", "34", "35", "32", "33", "25", "26", "27", "14" };
     int i = 0;
     for (int y = my + 30; y < my + mh - 8; y += 8, ++i) {
@@ -3972,6 +3898,42 @@ static const int8_t BH_DEV[13][2] = {
     { GL_TRACKER, -1 }, /* 11 samsungtag */
     { -2, -1 },         /* 12 gibson = mock RAIN_DEV (Dirt's ten) */
 };
+/* v1019y: one device kind per bot (BH_DEV). Gibson has no single device; the dev-board glyph
+ * stands in for the crew bus until Block 2 names the aggregate. */
+static int bot_dev_kind(int bot)
+{
+    if (bot >= 0 && bot < 12) {
+        const int k = BH_DEV[bot][0];
+        return k >= 0 ? k : GL_UNKNOWN;
+    }
+    return GL_DEVBOARD;
+}
+static uint8_t board_edge_col(int bot)
+{
+    const uint8_t bc = (bot >= 0 && bot < 12) ? bot_color(bot) : (uint8_t)PAL_IVORY;
+    const uint8_t dc = GL_INK[bot_dev_kind(bot)][0];
+    return botcorps_pal_fit(mix16(botcorps_rgb565(bc), botcorps_rgb565(dc), 50, 100));
+}
+/* INT pin style B (1 px silver castellations; gold on Gibson's board) around a device icon. */
+static void dev_under_chip(Gfx g, int cx, int cy, int bot)
+{
+    const int T = 18;
+    const int x = cx - T / 2, y = cy - T / 2;
+    const int D = T - 2, dx = x + 1, dy = y + 1;
+    const bool gib = bot >= 12;
+    const uint8_t pin = gib ? PAL_GOLD_PIN : (uint8_t)PAL_SOFT;
+    GATE_BOX(g, "TCHIP", "device", dx, dy, D, D, "-");
+    for (int k = 0; k < 5; ++k) {
+        const int i = chip_pin1(D, k);
+        g.fillRect(x, dy + i, 2, 1, pin);
+        g.fillRect(x + T - 2, dy + i, 2, 1, pin);
+        g.fillRect(dx + i, y, 1, 2, pin);
+        g.fillRect(dx + i, y + T - 2, 1, 2, pin);
+    }
+    g.fillRect(dx, dy, D, D, PAL_BLACK);
+    g.drawRect(dx, dy, D, D, PAL_STEEL);
+    gl_icon(g, bot_dev_kind(bot), cx - 6, cy - 6, false);
+}
 static const int8_t BH_GIB[10] = { GL_AP, GL_PHONE, GL_LAPTOP, GL_TV, GL_SPEAKER, GL_TRACKER, GL_WATCH, GL_CAMERA, GL_CAR, GL_UNKNOWN };
 /* mock non-live grid: C = 19, GC = 9, GR = 5, gx = dx + 2, gy = dy + 2 (display dx 106, dy 42). */
 static const int BH_C = 19, BH_GC = 9, BH_GR = 5;
@@ -4567,19 +4529,22 @@ static void sb_hud(Gfx g, int band)
     for (int d = 0; d < LIST_N; ++d)
         if (!s_dev_ign[band][d]) tally[sb_ty(band, d)]++;
     const int cur = (s_cursor >= 0 && s_cursor < LIST_N) ? s_cursor : 0;
-    gl_icon(g, sb_ty(band, cur), 12, 218, false);
+    /* v1019y: device row ~15% (12 -> 14). A non-zero count is white so the lit icon reads. */
+    gl_icon_sz(g, sb_ty(band, cur), 8, 216, false, 14);
     const int lit = sb_lit(sb_db(band, cur));
     for (int k = 0; k < 4; ++k) {
-        const int bh = (k + 1) * 3;
-        sb_rect(g, 30 + k * 5, 227 - bh, 3, bh, k < lit ? ac : (uint8_t)41);
+        const int bh = ((k + 1) * 3 * 115) / 100;
+        sb_rect(g, 26 + k * 6, 228 - bh, 4, bh, k < lit ? ac : (uint8_t)41);
     }
     for (int i = 0; i < GL_N; ++i) {
-        const int x = 58 + i * 20;
-        gl_icon(g, i, x, 218, tally[i] == 0);
+        const int x = 54 + i * 20;
+        const bool on = tally[i] != 0;
+        gl_icon_sz(g, i, x, 216, !on, 14);
         char num[4];
         snprintf(num, sizeof(num), "%d", tally[i]);
-        if (tally[i] >= 10) tiny_text(g, num, x + 13, 222, COL_INK);   /* mod item 9: 2-digit counts fit the 20 px slot */
-        else sb_text(g, num, x + 13, 221, tally[i] ? (uint8_t)COL_INK : (uint8_t)73, PAL_BLACK, false, 1);
+        const uint8_t nc = on ? (uint8_t)PAL_WHITE : (uint8_t)73;
+        if (tally[i] >= 10) tiny_text(g, num, x + 14, 222, nc);
+        else sb_text(g, num, x + 14, 220, nc, PAL_BLACK, false, 1);
     }
 }
 
@@ -5982,17 +5947,18 @@ static void gc_run(const char *line)
      * print "jacking you in" and leave the board idle); lobby lists all 12 games; play <1-12> starts any of
      * them on this board; score shows the best run of each game of this bot's category. */
     if (strcmp(cmd, "jackin") == 0) start_def = true;
-    if (strcmp(cmd, "lobby") == 0) { dg_lobby(); return; }
-    /* v1019r (#10): Gibson's own games + the shared Device Dex */
-    if (strcmp(cmd, "night") == 0 || strcmp(cmd, "nightshift") == 0 || (strcmp(cmd, "night") == 0 && arg)) {
-        gc_push(12, "night shift - clock in"); s_defend_bot = 12; dg_start_game(12, 12); return;
+    if (strcmp(cmd, "lobby") == 0 || strcmp(cmd, "score") == 0 || strcmp(cmd, "night") == 0
+        || strcmp(cmd, "nightshift") == 0 || strcmp(cmd, "sweep") == 0 || strcmp(cmd, "zap") == 0
+        || strcmp(cmd, "dex") == 0) {
+        gc_push(12, "no game");   /* v1019y: old mini-games removed; the shell stays idle */
+        return;
     }
-    if (strcmp(cmd, "sweep") == 0) { gc_push(12, "sweep - eat the bits"); s_defend_bot = 12; dg_start_game(12, 13); return; }
-    if (strcmp(cmd, "zap") == 0) { gc_push(12, "hackers zap - board armed"); s_defend_bot = 12; dg_start_game(12, 14); return; }  /* DG_ZAP */
-    if (strcmp(cmd, "dex") == 0) { dex_open(); return; }
-    if (strcmp(cmd, "score") == 0) { dg_scores(); return; }
     if (strcmp(cmd, "play") == 0) {
-        if (!arg || !arg[0] || !dg_play_n(atoi(arg))) gc_push(12, "play <1-12> - see lobby");
+        const int b = gc_bot_of(arg);
+        if (b == -2) { gc_push(12, "no such bot"); return; }
+        if (b >= 0) s_defend_bot = b;
+        s_dg = -1;
+        gc_push(12, "defend shell");
         return;
     }
     if (strcmp(cmd, "jackin") == 0 || start_def) {
@@ -6003,12 +5969,7 @@ static void gc_run(const char *line)
         s_mood = MOOD_ALERT;
         s_mood_until = millis() + 2400u;
         s_bus_t0 = millis();
-        /* v1019j: defend / load game start the category game; v1019r (#5): jackin = the bot's OWN game */
-        if (start_def) {
-            if (strcmp(cmd, "jackin") == 0) dg_start_own(s_defend_bot);
-            else if (s_defend_bot >= 12) dg_start_game(12, 14); /* v1019v DG_ZAP */
-            else dg_start(s_defend_bot);
-        }
+        s_dg = -1;   /* idle shell, empty grid */
         return;
     }
     if (strcmp(cmd, "clear") == 0) {
@@ -6475,9 +6436,9 @@ static void rain_flags(void)
     /* v1019x: Gibson's Defend (scan shell) rain = BOTcorps canon on Gibson's screen: bits, ivory
      * Gibsons and devices (not the prompt screen's device-only rain) */
     const bool zsb = zap_sb_on();
-    botcorps_rain_set_gibson(s_screen == SCR_GIBSON || (s_screen == SCR_SCAN && s_scan_bot == 12) || zsb);
-    /* v1019n (#15): Terminal + the Gibson prompt screen = our fixed device-icon rain only */
-    botcorps_rain_set_no_bots(s_screen == SCR_TERMINAL || (s_screen == SCR_GCHAT && !zsb));
+    const bool zgib = zsb && s_defend_bot >= 12;
+    botcorps_rain_set_gibson(s_screen == SCR_GIBSON || (s_screen == SCR_SCAN && s_scan_bot == 12) || zgib);
+    botcorps_rain_set_no_bots(s_screen == SCR_TERMINAL || (zsb && !zgib));
 }
 
 static void paint_ext(Gfx g)
@@ -7475,21 +7436,15 @@ static void sp_auto_poll(void)
 static void on_arrows(int key)
 {
     if (s_screen == SCR_GCHAT) {
-        /* MOD item 2 (Mobandy): in the Defend-screen prompt the arrows drive ONLY the prompt. Left / Right
-         * move the caret, Up / Down walk the prompt history. They never open or walk the command sheet
-         * (the Gibson bot command glossary: Tab opens it, Tab steps it, Enter picks, Esc closes) and never
-         * reach the rail or the board. */
-        const int n = (int)strlen(s_gp_buf);
-        int c = (s_gc_caret < 0 || s_gc_caret > n) ? n : s_gc_caret;
-        if (key == 3 && c > 0) --c;
-        if (key == 4 && c < n) ++c;
-        if ((key == 1 || key == 2) && s_hist_n > 0) {
-            if (key == 1) s_gc_hist_i = s_gc_hist_i < 0 ? s_hist_n - 1 : (s_gc_hist_i > 0 ? s_gc_hist_i - 1 : 0);
-            else s_gc_hist_i = s_gc_hist_i < 0 ? -1 : (s_gc_hist_i + 1 < s_hist_n ? s_gc_hist_i + 1 : -1);
-            snprintf(s_gp_buf, sizeof(s_gp_buf), "%s", s_gc_hist_i >= 0 ? botcorps_t0_term_hist[s_gc_hist_i] : "");
-            c = (int)strlen(s_gp_buf);
+        /* v1019y: arrows are button navigators. Sheet when open; otherwise the menu chip. Never the prompt. */
+        if (s_sheet) {
+            if (key == 1 || key == 3) s_sheet_i = (s_sheet_i + GC_N - 1) % GC_N;
+            if (key == 2 || key == 4) s_sheet_i = (s_sheet_i + 1) % GC_N;
+            s_dirty = true;
+            return;
         }
-        s_gc_caret = c >= (int)strlen(s_gp_buf) ? -1 : c;
+        const int d = (key == 1 || key == 3) ? -1 : 1;
+        s_def_cmd = s_def_cmd < 0 ? (d > 0 ? 0 : GC_N - 1) : (s_def_cmd + d + GC_N) % GC_N;
         s_dirty = true;
         return;
     }
@@ -7567,9 +7522,8 @@ static void on_arrows(int key)
         }
         if (s_cmd_btn) {
             s_cmd_btn = false;
-            if (key == 1) s_term_prompt = true;      /* Up: button -> prompt */
-            else if (key == 2) s_atk_btn = true;     /* #10 Down: commands button -> attack-prompt button */
-            else partial_tile(s_term);               /* Left / Right: back to the boards */
+            if (key == 2) s_atk_btn = true;          /* Down: commands button -> attack-prompt button */
+            else partial_tile(s_term);               /* Up / Left / Right: back to the boards, skip the prompt */
             partial_term_lower();
             return;
         }
@@ -7577,8 +7531,8 @@ static void on_arrows(int key)
         int c = s_term % 4;
         int r = s_term / 4;
         if (key == 2 && r == 2) {
-            /* v1017c: Down from the bottom board row stops on the prompt (then the commands button). */
-            s_term_prompt = true;
+            /* v1019y: Down from the bottom board row stops on the commands button. The prompt is typed. */
+            s_cmd_btn = true;
             partial_tile(old);
             partial_term_lower();
             return;
@@ -7623,11 +7577,9 @@ static void on_arrows(int key)
     }
     if (gd_key(key)) { s_dirty = true; return; }   /* mod item 10: Gibson drop-down owns the arrows */
     if (s_screen == SCR_SCAN) {
-        /* v1019 (Dirt #6): arrows drive the ≡ command menu: each press steps a command into the
-         * prompt (the ≡ chip lights); Enter runs it, Esc clears it. */
+        /* v1019y: arrows light the ≡ chip. They do not write the prompt. Enter runs the lit command. */
         const int d = (key == 1 || key == 3) ? -1 : 1;
         s_sp_cmd = s_sp_cmd < 0 ? (d > 0 ? 0 : SP_CMD_N - 1) : (s_sp_cmd + d + SP_CMD_N) % SP_CMD_N;
-        snprintf(s_sp_buf, sizeof(s_sp_buf), "%s", SP_CMD[s_sp_cmd]);
         sp_strip();
         return;
     }
@@ -7719,7 +7671,15 @@ static void on_ok(void)
         sp_run(line);
         return;
     }
-    if (s_screen == SCR_SCAN) return;
+    if (s_screen == SCR_SCAN) {
+        if (!s_sp_buf[0] && s_sp_cmd >= 0 && s_sp_cmd < SP_CMD_N) {
+            char line[16];
+            snprintf(line, sizeof(line), "%s", SP_CMD[s_sp_cmd]);
+            s_sp_cmd = -1;
+            sp_run(line);
+        }
+        return;
+    }
     if (sbox_on()) {
         if (s_hunt_dev >= 0 || s_gloss >= 0) return; /* Esc steps back */
         if (s_info_dev >= 0) s_info_dev = -1;
@@ -7996,13 +7956,8 @@ static void on_char(char c)
         s_term_crown = false;
         partial_prompt_panel();
     }
-    s_cmd_btn = false;
-    s_atk_btn = false;
+    /* v1019y: typing reaches the prompt without pulling button focus onto it. */
     if (s_term_ovl) { s_term_ovl = 0; s_dirty = true; }
-    if (!s_term_prompt) {
-        s_term_prompt = true;    /* v1017c: typing puts focus on the prompt (hub: same) */
-        partial_tile(s_term);
-    }
     botcorps_t0_term_prompt[n] = c;
     botcorps_t0_term_prompt[n + 1] = 0;
     s_tab_i = -1;
@@ -8111,7 +8066,7 @@ static int read_key(char *typed)
      * Terminal is driven like the hub's walk, so its arrows are always arrows. */
     /* v1019r (#3): the scan boxes too (Gibson's scan board incl.): once a line is open, plain ; . , / type
      * into it instead of becoming arrows that replaced the typed line with a command-rail entry. */
-    const bool prompt_owns = (s_screen == SCR_GCHAT && !dg_on()) || (s_screen == SCR_GIBSON && s_gp_buf[0])
+    const bool prompt_owns = (s_screen == SCR_GCHAT && !dg_on() && s_gp_buf[0]) || (s_screen == SCR_GIBSON && s_gp_buf[0])
                           || (sbox_on() && s_sp_buf[0]);
     if (!prompt_owns) {
         if (c == ';' || c == ':') return K_UP;
@@ -8190,12 +8145,12 @@ static int gp_screen(const char *name)
 /* v1019 (Dirt #6): every Defend path lands in the Gibson game, jacked in, for that bot. */
 static void enter_defend(int bot, int ret)
 {
+    /* v1019y: idle photo-match shell. No game round until the deauth-loop mock is locked. */
     s_defend_bot = (bot < 0 || bot > 12) ? 12 : bot;
+    s_dg = -1;
+    s_def_cmd = -1;
+    s_sheet = false;
     enter_screen(SCR_GCHAT, ret);
-    gc_run("jackin");
-    /* v1019v: Gibson Defend = HACKERS ZAP (full-width). Other bots keep category game. */
-    if (s_defend_bot >= 12) dg_start_game(12, DG_ZAP);
-    else dg_start(s_defend_bot);   /* v1019j: device-category game */
     s_dirty = true;
 }
 
@@ -8271,8 +8226,7 @@ static void gp_run(const char *line)
         gp_open(SCR_SCAN);
         return;
     }
-    if (strcmp(cmd, "defend") == 0) {
-        /* v1019 (Dirt #6): Defend enters the Gibson game (it used to open the Terminal). */
+    if (strcmp(cmd, "defend") == 0 || strcmp(cmd, "play") == 0) {
         const int b = gc_bot_of(arg);
         if (b == -2) { gp_push("no such bot"); partial_gp_strip(); return; }
         enter_defend(b < 0 ? 12 : b, SCR_GIBSON);
@@ -8411,9 +8365,13 @@ static void ui_dispatch(int key, char typed)
             s_dirty = true;
             return;
         }
-        /* v1019p (field fix, item 1): Enter on the empty Defend prompt PLAYS this bot's game on the board
-         * (it used to open the command sheet, so Enter never reached a game; Tab still opens the sheet) */
-        gc_run("jackin");
+        if (s_def_cmd >= 0 && s_def_cmd < GC_N) {
+            const int i = s_def_cmd;
+            s_def_cmd = -1;
+            gc_run(GC_NM[i]);
+        } else {
+            gc_run("jackin");
+        }
         s_dirty = true;
         return;
     }
@@ -8967,112 +8925,32 @@ void botcorps_host_jackin(uint8_t *buf)
 
 /* v1019j: Defend game host hooks. The game is entered through the real Defend path (enter_defend)
  * warm_ms before the frame clock, then played by the host autopilot (same keys) at the 33 ms tick. */
-static void dg_host_play(int bot, int warm_ms, bool ai, int slot = 0)
+static void dg_host_idle(int bot)
 {
-    const uint32_t t1 = millis();
     s_color = 0; s_sheet = false; s_fa_on = false; s_act = -1; s_gp_buf[0] = 0;
     botcorps_lut_term(false);
-    host_set_millis(t1 - (uint32_t)warm_ms);
     gc_set_count(0);
     enter_defend(bot, SCR_GIBSON);
-    /* v1019v: enter_defend(12) starts ZAP; gate's defend-maze / slot games still need the rogue set */
-    if (bot == 12 && slot == 0 && s_dg == DG_ZAP) {
-        /* default host_defend(12) used to be maze — keep maze for that render via force below only when
-         * caller asks for category slot 0 through defend_g after we detect maze-named path.
-         * botcorps_host_defend(12) = zap; botcorps_host_defend_g(12,0) forces maze. */
-    }
-    for (int k = 0; k < slot; ++k) dg_key(K_TAB, 0);   /* v1019m: the real Tab key picks the category's game */
-    for (uint32_t t = t1 - (uint32_t)warm_ms + 33u; t < t1; t += 33u) {
-        host_set_millis(t);
-        if (ai) dg_ai();
-        dg_step(t);
-    }
-    host_set_millis(t1);
-    dg_step(t1);
-}
-static void dg_host_play_game(int bot, int game, int warm_ms, bool ai)
-{
-    const uint32_t t1 = millis();
-    s_color = 0; s_sheet = false; s_fa_on = false; s_act = -1; s_gp_buf[0] = 0;
-    botcorps_lut_term(false);
-    host_set_millis(t1 - (uint32_t)warm_ms);
-    gc_set_count(0);
-    s_defend_bot = (bot < 0 || bot > 12) ? 12 : bot;
-    enter_screen(SCR_GCHAT, SCR_GIBSON);
-    dg_start_game(s_defend_bot, game);
-    for (uint32_t t = t1 - (uint32_t)warm_ms + 33u; t < t1; t += 33u) {
-        host_set_millis(t);
-        if (ai) dg_ai();
-        dg_step(t);
-    }
-    host_set_millis(t1);
-    dg_step(t1);
 }
 void botcorps_host_defend(uint8_t *buf, int bot, int warm_ms)
 {
+    (void)warm_ms;
     host_frame = buf;
-    /* v1019v: Gibson default Defend host render is ZAP; maze uses defend_g slot 0 force */
-    if (bot == 12) dg_host_play_game(12, DG_ZAP, warm_ms, true);
-    else dg_host_play(bot, warm_ms, true);
+    dg_host_idle(bot);
     host_frame = buf;
     memset(buf, PAL_BLACK, 320u * 240u);
     paint_ext(Gfx());
 }
-/* v1019m: the same, for game slot 0-2 of the bot's category (Tab pressed slot times after entry) */
 void botcorps_host_defend_g(uint8_t *buf, int bot, int slot, int warm_ms)
 {
-    host_frame = buf;
-    if (bot == 12 && slot == 0) dg_host_play_game(12, DG_MAZE, warm_ms, true);          /* defend-maze */
-    else if (bot == 12 && slot == 1) dg_host_play_game(12, DG_TRACE, warm_ms, true);     /* signaltrace */
-    else if (bot == 12 && slot == 2) dg_host_play_game(12, DG_JAM, warm_ms, true);       /* jamdodge */
-    else dg_host_play(bot, warm_ms, true, slot);
-    host_frame = buf;
-    memset(buf, PAL_BLACK, 320u * 240u);
-    paint_ext(Gfx());
+    (void)slot;
+    botcorps_host_defend(buf, bot, warm_ms);
 }
 void botcorps_host_defend_zap(uint8_t *buf, int warm_ms)
 {
-    /* v1019v/x: scripted mid-game still (mid-zap NULL + docked TIME), not a post-WIN frame. */
-    (void)warm_ms;
-    host_frame = buf;
-    const uint32_t t1 = millis();
-    s_color = 0; s_sheet = false; s_fa_on = false; s_act = -1; s_gp_buf[0] = 0;
-    botcorps_lut_term(false);
-    host_set_millis(t1);
-    gc_set_count(0);
-    s_defend_bot = 12;
-    enter_screen(SCR_GCHAT, SCR_GIBSON);
-    dg_start_game(12, DG_ZAP);
-    /* v1019x: seed a mid-game still on the in-grid geometry: camera mid-zap (bolt + NULL), flock docked
-     * (TIME 02), wifi / bt / drone / tower riding in. */
-    for (int i = 0; i < ZAP_MAX; ++i) s_zap[i].live = 0;
-    s_zap[0].live = 1; s_zap[0].tr = 1; s_zap[0].dist = 30.f; s_zap[0].dock = 0;
-    s_zap[1].live = 1; s_zap[1].tr = 4; s_zap[1].dist = zap_len(4) - 2.f; s_zap[1].dock = 1;
-    s_zap_dock_seen[1] = 1; s_zap_dock_t0[1] = s_dg_ms - 900u;
-    s_zap[2].live = 1; s_zap[2].tr = 0; s_zap[2].dist = 40.f; s_zap[2].dock = 0;
-    s_zap[3].live = 1; s_zap[3].tr = 2; s_zap[3].dist = 34.f; s_zap[3].dock = 0;
-    s_zap[4].live = 1; s_zap[4].tr = 3; s_zap[4].dist = 36.f; s_zap[4].dock = 0;
-    s_zap[5].live = 1; s_zap[5].tr = 5; s_zap[5].dist = 44.f; s_zap[5].dock = 0;
-    s_zap_fx_tr = 1; s_zap_fx_from = 4.f; s_zap_fx_to = 24.f;
-    s_zap_fx_until = s_dg_ms + 60000u;
-    s_zap_null_tr = 1; s_zap_null_until = s_dg_ms + 60000u;
-    s_dg_score = 3; s_dg_miss = 0; s_dg_state = DGS_PLAY;
-    s_zap_log_n = 0;
-    zap_log("[ ** ] BOARD ARMED. TRACES LIVE");
-    zap_log("[ !! ] NULL - CAMERA 03/12");
-    zap_log("[ !! ] FLOCK DOCKED - TIME");
-    s_gp_buf[0] = 0;
-    s_cursor = 0;
-    s_bus_t0 = millis();
-    s_gc_caret = -1;
-    host_frame = buf;
-    memset(buf, PAL_BLACK, 320u * 240u);
-    paint_ext(Gfx());
+    botcorps_host_defend(buf, 12, warm_ms);
 }
-/* review only (not a gate item): the INT HUD painter drawn into the top-left 240x135 of buf; the bar
- * is a host stand-in (fill + label), the HUD under it is the real dg_paint_hud. */
-/* v1019x review (not a gate item): advance the shared rain one step on Gibson's Defend (game state held)
- * and repaint the full frame; used for the rain-f*.png sequence + the outside-rect mask check. */
+
 void botcorps_host_zap_rain_step(uint8_t *buf)
 {
     host_frame = buf;
@@ -9088,31 +8966,18 @@ void botcorps_host_zap_rain_step(uint8_t *buf)
  * zapping once every ai_every steps (0 = never: devices dock and time out). */
 void botcorps_host_zap_sim_start(uint8_t *buf, uint32_t seed_ms)
 {
+    (void)seed_ms;
+    dg_host_idle(12);
     host_frame = buf;
-    host_set_millis(9000u + seed_ms);
-    s_color = 0; s_sheet = false; s_fa_on = false; s_act = -1; s_gp_buf[0] = 0;
-    botcorps_lut_term(false);
-    gc_set_count(0);
-    s_defend_bot = 12;
-    enter_screen(SCR_GCHAT, SCR_GIBSON);
-    dg_start_game(12, DG_ZAP);
-    for (uint32_t k = 0; k < seed_ms % 97u; ++k) (void)dg_rng();
 }
 int botcorps_host_zap_sim_frame(uint8_t *buf, int steps, int ai_every)
 {
-    static int n = 0;
-    for (int k = 0; k < steps; ++k) {
-        const uint32_t t = millis() + 33u;
-        host_set_millis(t);
-        if (ai_every > 0 && (++n % ai_every) == 0) dg_ai();
-        dg_step(t);
-    }
+    (void)steps; (void)ai_every;
     host_frame = buf;
     memset(buf, PAL_BLACK, 320u * 240u);
     paint_ext(Gfx());
-    return s_dg_state == DGS_PLAY;
+    return 0;
 }
-/* v1019x V1 proof (not a gate item): run one Terminal command line, print every log row it added */
 void botcorps_host_term_cmd(const char *line)
 {
     const int n0 = s_log_n, next0 = s_log_next;
@@ -9127,122 +8992,38 @@ void botcorps_host_repaint(uint8_t *buf)
     memset(buf, PAL_BLACK, 320u * 240u);
     paint_ext(Gfx());
 }
+
 void botcorps_host_defend_hud(uint8_t *buf, int bot, int warm_ms, int slot)
 {
+    (void)warm_ms; (void)slot;
     host_frame = buf;
-    dg_host_play(bot, warm_ms, true, slot);
-    host_frame = buf;
-    memset(buf, PAL_BLACK, 320u * 240u);
-    Gfx g = Gfx();
-    g.fillRect(0, 0, 240, 135, PAL_DEEP);
-    g.fillRect(0, 0, 240, BAR_H, COL_BAR);
-    g.fillRect(0, BAR_H, 240, 1, COL_LINE);
-    const int keep = s_px; s_px = 8;
-    txt(g, "BOTcorps", 6, 7, COL_WHITE, lgfx::textdatum::top_left);
-    s_px = keep;
-    dg_paint_hud(g, 240, true);
-}
-/* logic test: play from a fresh start for up to max_ms; returns the end state */
-int botcorps_host_defend_run(int bot, int slot, bool ai, bool noghost, int max_ms, int *game, int *score, int *miss, int *junk, int *ms)
-{
-    static uint8_t fb[320 * 240];
-    host_frame = fb;
-    host_set_millis(100000u);
-    s_dg_noghost = noghost;
-    /* v1019v: Gibson Defend entry is ZAP; maze/trace/jam logic tests still force the rogue set by slot. */
-    if (bot == 12) {
-        static const int ZG[3] = { DG_MAZE, DG_TRACE, DG_JAM };
-        dg_host_play_game(12, ZG[slot < 0 ? 0 : (slot > 2 ? 2 : slot)], 33, false);
-    } else {
-        dg_host_play(bot, 33, false, slot);
-    }
-    uint32_t t = millis();
-    const uint32_t end = t + (uint32_t)max_ms;
-    while (t < end && s_dg_state != DGS_WIN && s_dg_state != DGS_LOST) {
-        t += 33u;
-        host_set_millis(t);
-        if (ai) dg_ai();
-        else if (s_dg == DG_WALL && s_fw_serve) dg_key(K_OK, 0);   /* idle wall: launch only, never move */
-        dg_step(t);
-    }
-    s_dg_noghost = false;
-    *game = s_dg; *score = s_dg_score; *miss = s_dg_miss; *junk = s_dg_junk; *ms = (int)s_dg_ms;
-    const int st = s_dg_state;
-    dg_stop();
-    return st;
-}
-/* v1019r (#10) host proof: Gibson's NIGHT SHIFT (12) / SWEEP (13) started by the real Defend prompt command
- * ("night" / "sweep" typed through ui_dispatch), played by the host autopilot (same keys) for warm_ms, then
- * painted; panel 3 = open the Device Dex afterwards. Also a logic run: plays `rounds` rounds (Enter on each
- * WIN / LOST) and prints every round's end state. Host only, not a gate item. */
-void botcorps_host_gib(uint8_t *buf, int game, int warm_ms, int panel, int rounds)
-{
-    host_frame = buf;
-    s_color = 0; s_sheet = false; s_fa_on = false; s_act = -1; s_gp_buf[0] = 0; s_gc_panel = 0;
-    memset(s_dex, 0, sizeof s_dex);
-    botcorps_lut_term(false);
-    uint32_t t = 300000u;
-    host_set_millis(t);
-    gc_set_count(0);
-    s_defend_bot = 12;
-    enter_screen(SCR_GCHAT, SCR_GIBSON);
-    const char *cmd = game == 13 ? "sweep" : "night";
-    for (const char *c = cmd; *c; ++c) ui_dispatch(K_CHAR, *c);
-    ui_dispatch(K_OK, 0);
-    printf("GIB start dg=%d bot=%d\n", s_dg, s_dg_bot);
-    for (int r = 0; r < rounds; ++r) {
-        uint32_t end = t + 400000u;
-        while (t < end && s_dg_state != DGS_WIN && s_dg_state != DGS_LOST) {
-            t += 33u; host_set_millis(t); if (!getenv("GIB_NOAI")) dg_ai(); dg_step(t); dg_note();
-        }
-        printf("GIB round %d game=%s state=%s score=%d miss=%d ms=%u shift=%d lv=%d n=%d alert=%d left=%d pts=%d dex=%d\n", r + 1,
-               DG_NAME[s_dg], s_dg_state == DGS_WIN ? "WIN" : s_dg_state == DGS_LOST ? "LOST" : "PLAY", s_dg_score, s_dg_miss,
-               (unsigned)s_dg_ms, s_ns_shift, s_sw_lv, s_ns_n, (int)s_ns_alert, s_sw_left, s_sw_pts, dex_have());
-        if (r + 1 < rounds) ui_dispatch(K_OK, 0);
-    }
-    if (rounds > 0) { /* fresh round for the picture */
-        ui_dispatch(K_OK, 0);
-    }
-    const uint32_t stop = t + (uint32_t)warm_ms;
-    while (t < stop) {
-        t += 33u; host_set_millis(t);
-        if (s_dg_state == DGS_PLAY) dg_ai();
-        dg_step(t); dg_note();
-    }
-    if (panel == 3) { const char *d = "dex"; for (const char *c = d; *c; ++c) ui_dispatch(K_CHAR, *c); ui_dispatch(K_OK, 0); }
-    printf("GIB shot dg=%s state=%d ms=%u score=%d alert=%d left=%d dex=%d panel=%d\n", s_dg >= 0 ? DG_NAME[s_dg] : "-",
-           s_dg_state, (unsigned)s_dg_ms, s_dg_score, (int)s_ns_alert, s_sw_left, dex_have(), s_gc_panel);
+    dg_host_idle(bot);
     host_frame = buf;
     memset(buf, PAL_BLACK, 320u * 240u);
     paint_ext(Gfx());
 }
-/* v1019m cycle test: from a Defend entry for this bot, Tab x3 walks the category's three games and wraps;
- * on a LOST stop `/` steps next and `,` steps back. Writes the 6 game ids seen; returns the category. */
+int botcorps_host_defend_run(int bot, int slot, bool ai, bool noghost, int max_ms, int *game, int *score, int *miss, int *junk, int *ms)
+{
+    (void)bot; (void)slot; (void)ai; (void)noghost; (void)max_ms;
+    *game = -1; *score = 0; *miss = 0; *junk = 0; *ms = 0;
+    return 0;
+}
+void botcorps_host_gib(uint8_t *buf, int game, int warm_ms, int panel, int rounds)
+{
+    (void)game; (void)warm_ms; (void)panel; (void)rounds;
+    host_frame = buf;
+    dg_host_idle(12);
+    printf("GIB shot idle shell panel=%d\n", s_gc_panel);
+    host_frame = buf;
+    memset(buf, PAL_BLACK, 320u * 240u);
+    paint_ext(Gfx());
+}
 int botcorps_host_defend_cycle(int bot, int *ids)
 {
-    static uint8_t fb[320 * 240];
-    host_frame = fb;
-    host_set_millis(200000u);
-    s_term = 0; botcorps_t0_term_prompt[0] = 0; s_gp_buf[0] = 0; s_fa_on = false; s_act = -1;
-    enter_screen(SCR_GIBSON, -1);
-    if (bot == 12) {
-        /* Category Tab-walk still starts on Gibson Maze; enter_defend itself launches ZAP. */
-        s_defend_bot = 12;
-        enter_screen(SCR_GCHAT, SCR_GIBSON);
-        dg_start_game(12, DG_MAZE);
-    } else {
-        enter_defend(bot, SCR_GIBSON);
-    }
-    ids[0] = s_dg;
-    for (int k = 1; k <= 3; ++k) { ui_dispatch(K_TAB, 0); ids[k] = dg_on() ? s_dg : -1; }
-    s_dg_state = DGS_LOST;
-    ui_dispatch(K_RT, 0); ids[4] = dg_on() ? s_dg : -1;
-    s_dg_state = DGS_LOST;
-    ui_dispatch(K_LT, 0); ids[5] = dg_on() ? s_dg : -1;
-    dg_stop();
-    return DG_CAT[(bot < 0 || bot > 12) ? 12 : bot];
+    (void)bot;
+    for (int i = 0; i < 6; ++i) ids[i] = -1;
+    return -1;
 }
-/* route test: which Defend path launches which game; Esc quits the game to the Defend board */
 int botcorps_host_defend_route(int which, int *screen, int *esc1, int *esc1_game, int *esc2)
 {
     static uint8_t fb[320 * 240];
@@ -9611,13 +9392,7 @@ static void host_play_state(const char *tag)
                (int)s_sheet, s_log_n ? (log_line(s_log_n - 1)[0] == '\x01' ? log_line(s_log_n - 1) + 2 : log_line(s_log_n - 1)) : "");
         return;
     }
-    printf("PLAY %s prompt='%s'\n", tag, s_gp_buf);   /* v1019q: the Defend prompt line while a game runs */
-    DGUi u; dg_ui(&u);
-    static const char *const ST[4] = { "PLAY", "WIN", "LOST", "PAUSE" };
-    printf("PLAY %s t=%u game=%s slot=%d bot=%d state=%s score=%d/%d lost=%d/%d ms=%u stat='%s' ctl[rc=%d fw=%d mz=%d tw=%d ch=%d pin='%s' pr=%d bn=%d st=%d jd=%d]\n",
-           tag, (unsigned)millis(), DG_NAME[s_dg], s_dg_slot, s_dg_bot, ST[s_dg_state & 3], u.score, u.target,
-           u.lives_lost, u.lives_n, (unsigned)s_dg_ms, u.stat, s_rc_lane, (int)s_fw_px, (int)s_mz_p.want,
-           (int)s_tw_side, s_ch_lane, s_pl_in, s_pr_cur, s_bn_at, s_st_cur, s_jd_lane);
+    printf("PLAY %s t=%u screen=%d game=none prompt='%s'\n", tag, (unsigned)millis(), s_screen, s_gp_buf);
 }
 void botcorps_host_play(uint8_t *buf, int bot, const char *script)
 {
@@ -9686,15 +9461,13 @@ void botcorps_host_kb(uint8_t *buf, int scr, int sb, int hunt, const char *scrip
             int n = 0;
             for (int k = 0; k < 1000; k += 10) {
                 t += 10u; host_set_millis(t);
-                const int before = s_ns_gx * 100 + s_ns_gy + s_pr_cur * 7 + s_rc_lane * 3;
                 botcorps_ui_input();
-                const int after = s_ns_gx * 100 + s_ns_gy + s_pr_cur * 7 + s_rc_lane * 3;
-                n += before != after;
+                (void)n;
                 if (dg_on() && k % 30 == 0) { dg_step(t); dg_note(); }
             }
             M5Cardputer.Keyboard.release(hx, hy);
             botcorps_ui_input();
-            printf("KB hold '%c' 1000ms -> %d moves (night guard %d,%d)\n", *p, n, s_ns_gx, s_ns_gy);
+            printf("KB hold '%c' 1000ms -> %d moves\n", *p, n);
             continue;
         }
         bool fn = false;
@@ -9822,10 +9595,10 @@ int botcorps_host_cmd_btn(uint8_t *buf, int *reach, int *opened, int *esc_back, 
 {
     botcorps_host_enter(buf, SCR_TERMINAL);
     s_term = 1;
-    botcorps_host_seq(buf, "\x02\x02\x02");
-    const bool at_prompt = s_term_prompt && !s_cmd_btn && !s_focus_cmds && s_screen == SCR_TERMINAL;
+    botcorps_host_seq(buf, "\x02\x02");
+    const bool at_bottom = !s_term_prompt && !s_cmd_btn && s_term == 9 && s_screen == SCR_TERMINAL;
     botcorps_host_seq(buf, "\x02");
-    *reach = at_prompt && s_cmd_btn && !s_term_prompt && !s_focus_cmds && s_screen == SCR_TERMINAL;
+    *reach = at_bottom && s_cmd_btn && !s_term_prompt && !s_focus_cmds && s_screen == SCR_TERMINAL;
     botcorps_host_seq(buf, "\n");
     *opened = s_focus_cmds && !s_cmd_btn && s_screen == SCR_TERMINAL;
     {   /* the palette is painted (chip 0 plate at 8,171) */
@@ -9843,11 +9616,9 @@ int botcorps_host_cmd_btn(uint8_t *buf, int *reach, int *opened, int *esc_back, 
     botcorps_host_seq(buf, "\x1b");
     *esc_back = s_cmd_btn && !s_focus_cmds && s_screen == SCR_TERMINAL;
     botcorps_host_seq(buf, "\x01");
-    const bool up_prompt = s_term_prompt && !s_cmd_btn && !s_focus_cmds;
-    botcorps_host_seq(buf, "\x01");
-    *up_leaves = up_prompt && !s_term_prompt && !s_cmd_btn && !s_focus_cmds && s_term == 9;
-    /* menu really runs a command: open, pick chip 'help' (index 2), Enter -> log grows */
-    botcorps_host_seq(buf, "\x02\x02\n\x04\x04");
+    *up_leaves = !s_term_prompt && !s_cmd_btn && !s_focus_cmds && s_term == 9;
+    /* menu really runs a command: one Down from the boards opens the button, Enter the palette */
+    botcorps_host_seq(buf, "\x02\n\x04\x04");
     const int n0 = s_log_next;
     botcorps_host_seq(buf, "\n");
     *menu_runs = s_log_next != n0;
@@ -9894,17 +9665,17 @@ int botcorps_host_k1(uint8_t *buf, char *out, int n, int *focus_ok)
     k1_ev((char)KEY_BACKSPACE, true);
     k1_ev('x', false);
     k1_ev((char)KEY_BACKSPACE, false);
-    const bool f0 = s_term_prompt && !s_cmd_btn;
-    /* Fn + . (Down) released Fn first: exactly one stop (prompt -> button) */
+    const bool f0 = !s_term_prompt && !s_cmd_btn && s_term == 9;
+    /* Fn + . (Down) released Fn first: exactly one stop (boards -> commands button). Prompt stays typed. */
     k1_ev((char)KEY_FN, true);
     k1_ev('.', true);
     k1_ev((char)KEY_FN, false);
     k1_ev('.', false);
     const bool f1 = s_cmd_btn && !s_term_prompt && !s_focus_cmds;
-    /* plain ; (Up) with text in the prompt is an arrow, not a typed ';' */
+    /* plain ; (Up) with text in the prompt is an arrow, not a typed ';', and returns to the boards */
     k1_ev(';', true);
     k1_ev(';', false);
-    const bool f2 = s_term_prompt && !s_cmd_btn;
+    const bool f2 = !s_term_prompt && !s_cmd_btn && s_term == 9 && strchr(botcorps_t0_term_prompt, ';') == nullptr;
     snprintf(out, n, "%s", botcorps_t0_term_prompt);
     *focus_ok = f0 && f1 && f2;
     host_frame = buf;

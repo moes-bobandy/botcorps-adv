@@ -70,6 +70,8 @@ teal or accent-tinted), and the mock's game is disabled (GAME_ENABLED=false). In
 | id | rule |
 |---|---|
 | T1 | Log text is pale cyan and "[ ok ]" is green (terminal-typed pixel classes) |
+| T2 | v1019y LOCKED (Mobandy, dce1c87): every unselected board tile is the detailed chip — dark well `#0A0C0E`, bright bot-colour chip glyph, IC pin comb, side via-holes, faint traces, corner marks, thin bot-colour border. The selected tile is that same art with every pixel inverted (full detail kept). A white dashed ring and a pale-magenta outline sit on top of the invert. Not a flat solid block |
+| | Device rain in the tile gaps is faint. The prompt strip has no rain |
 | | terminal and terminal-tab are frozen (G7) |
 | C1 | v1017c (bug #3, hub model): arrows always move focus. Down from the bottom board row stops on the prompt (terminal-prompt), one more Down on the commands (≡) button (terminal-cmdbtn); Left/Right from either go back to the boards; typing focuses the prompt |
 | C2 | Enter on it opens the commands menu, the 6x2 chip palette (terminal-cmdmenu); Enter on an empty focused prompt does nothing |

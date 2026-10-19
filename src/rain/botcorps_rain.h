@@ -63,6 +63,8 @@ void botcorps_rain_set_gibson(bool on);
 /* v1019n (#15): Terminal / prompt: OUR DEVICE-ICON RAIN ONLY (the 10 device icons; no bits, no bots, no
  * background; recoloured only by the BOT-RAIN colour toggle). */
 void botcorps_rain_set_no_bots(bool on);
+/* Terminal tile gaps: device icons at about a quarter strength. Other screens stay full. */
+void botcorps_rain_set_faint(bool on);
 /* v1019: faint ghost bits of the live rain over a chrome rect (world coords, dst rows from oy). */
 void botcorps_rain_ghost(lgfx::LovyanGFX &dst, int ox, int oy, int rx, int ry, int rw, int rh, uint8_t ink);
 void botcorps_rain_ghost_ex(lgfx::LovyanGFX &dst, int ox, int oy, int rx, int ry, int rw, int rh, uint8_t ink,

@@ -213,7 +213,10 @@ static const char *const CMDS[12] = {
  * to SYS; two-word forms added only where clearer ("scan all", "hunt run"); every single word kept. The
  * first 8 CORE rows are unchanged (the Tab sheet window, G7-frozen terminal-tab). */
 /* v1019y: dead game verbs (score, rank, loadout, lobby, duel, stash) are not listed.
- * CORE "sweep" stays: it is the scan alias, not the removed SWEEP game. */
+ * CORE "sweep" stays: it is the scan alias, not the removed SWEEP game.
+ * Count is 37, not the old 40 and not 42. The two names that raised 40 to 42 are
+ * "scan all" and "hunt run" (2a8c547, GIBSONbot, v1019q #9, two-word forms).
+ * 2990e18 then removed the six dead game names. The 40-list still contains those. */
 static const int CMD_N = 37;
 static const int G_AT[5] = { 0, 16, 24, 28, 37 };
 static const char *const G_NAME[4] = { "CORE", "COMMS", "GAME", "SYS" };
@@ -1539,18 +1542,6 @@ static uint8_t term_low(void);
 static uint8_t glow_of(int step);
 
 
-/* v1019d (Dirt #4): brighter ghost-rain ink for the Terminal (was index 12, (0,89,16), which left the
- * panel lost in black). Still glyph pixels only, under faces / labels / prompt text, never over. */
-/* v1019n (#15/#19): the Terminal / prompt rain is OUR DEVICE-ICON RAIN only (botcorps_rain_set_no_bots);
- * it and its ghosts never follow the UI colour. */
-static uint8_t term_ghost_ink(void)
-{
-    return botcorps_pal_fit(0x2CAA);   /* ~(40,150,80); the device-only ghost draws each icon in its own ink */
-}
-static uint8_t term_prompt_ghost_ink(void)
-{
-    return botcorps_pal_fit(0x0366);   /* ~(0,108,48) */
-}
 static void dash_box(Gfx g, int x, int y, int w, int h, uint8_t c)
 {
     for (int i = 0; i < w; i += 4) {
@@ -2205,8 +2196,8 @@ static void paint_sheet(Gfx g)
         const int y = by + 5 + r * rh;
         const bool on = cmd == sel;
         const uint8_t bg = on ? (uint8_t)PAL_TERM_M18 : (uint8_t)PAL_BG;
-        const uint8_t ac = accent();
-        blit_ico(g, CMD_ICO[cmd], bx + 10, y + 1, on ? (uint8_t)PAL_TERM_M : ac);
+        /* Sheet icon column stays PAL_CYAN (123). Accent 167 was an unlocked brightening. */
+        blit_ico(g, CMD_ICO[cmd], bx + 10, y + 1, on ? (uint8_t)PAL_TERM_M : (uint8_t)PAL_CYAN);
         const uint8_t name_c = on ? (uint8_t)127 : (uint8_t)PAL_TERM_INK;
         if (on) {
             txt(g, CMDN[cmd], bx + 25, y + 2, PAL_TERM_C, lgfx::textdatum::top_left);
@@ -2385,25 +2376,7 @@ static void paint_prompt(Gfx g)
     s_px = 6;
     /* Tiles end at y=165. Deep black plate. Enter pulses the hairline cyan. */
     g.fillRect(4, 168, 312, 68, PAL_BLACK);
-    /* v1019d (Dirt #4): the live rain shows faintly through the empty part of the prompt plate so the
-     * panel no longer sinks into black. Only the rows below the last log line and above the prompt
-     * row (y < 216), drawn before the sweep, text, buttons and candidates, so it never crosses text. */
-    {
-        int nl = 0;
-        for (int i = s_log_n - 1; i >= 0 && nl < 6; --i) {
-            const char *l = log_line(i);
-            if (l && strncmp(l, "gibson>", 7) == 0) continue;
-            ++nl;
-        }
-        /* whole 8 px rain cells only (glyph rows y+1..y+5), so no clipped half-glyphs at either edge */
-        const int gy0 = ((171 + nl * 8 + 1) + 7) / 8 * 8, gy1 = 216;
-#ifdef BOTCORPS_HOST_RENDER
-        if (g.raw() && !host_gate_norain && gy1 > gy0)
-#else
-        if (g.raw() && gy1 > gy0)
-#endif
-            botcorps_rain_ghost(*g.raw(), g.ox, g.oy, 6, gy0, 308, gy1 - gy0, term_prompt_ghost_ink());
-    }
+    /* Prompt strip is solid. Device rain stays in the tile gaps, not in this plate. */
     /* Plate chrome is the same with the sheet open or closed. The scan-all
      * frame, if any, is painted later and only inside the sheet rect. */
     {
@@ -6510,6 +6483,7 @@ static void rain_flags(void)
     const bool zgib = zsb && s_defend_bot >= 12;
     botcorps_rain_set_gibson(s_screen == SCR_GIBSON || (s_screen == SCR_SCAN && s_scan_bot == 12) || zgib);
     botcorps_rain_set_no_bots(s_screen == SCR_TERMINAL || (zsb && !zgib));
+    botcorps_rain_set_faint(s_screen == SCR_TERMINAL);
 }
 
 static void paint_ext(Gfx g)

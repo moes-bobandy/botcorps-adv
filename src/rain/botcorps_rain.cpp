@@ -62,6 +62,7 @@ static bool s_gibson = false;   /* Gibson's screen: the mixed-in bots are ivory 
  * bits, no bot emblems, never a background, never the UI colour). Fixed: the only thing that recolours it
  * is the BOT-RAIN colour toggle (s_mode). */
 static bool s_no_bots = false;
+static bool s_faint = false;   /* terminal tile-gap rain: dim device icons, not full neon */
 
 static const uint16_t SOLID_INK[6] = {
     0x26E8, 0x269C, 0x331F, 0xB21F, 0xF586, 0xFFFF,
@@ -300,6 +301,10 @@ static void draw_cell(lgfx::LovyanGFX &panel, int col, int row)
         if (dev_only_icon(col, row, lv, gl, &d)) {
             uint8_t ink3[3];
             dev_inks(d, lv, ink3);
+            if (s_faint) {
+                for (int k = 0; k < 3; ++k)
+                    ink3[k] = botcorps_pal_fit(scale_native(botcorps_rgb565(ink3[k]), 1, 4));
+            }
             dev_art(panel, x, ly, d, ink3);
         }
         panel.clearClipRect();
@@ -476,6 +481,10 @@ void botcorps_rain_set_gibson(bool on)
 void botcorps_rain_set_no_bots(bool on)
 {
     s_no_bots = on;
+}
+void botcorps_rain_set_faint(bool on)
+{
+    s_faint = on;
 }
 
 void botcorps_rain_draw_win(lgfx::LovyanGFX &dst, int y0, int y1, int wx, int wy, int ww, int wh,

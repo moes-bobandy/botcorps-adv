@@ -212,32 +212,33 @@ static const char *const CMDS[12] = {
  * v1019q (#9): CORE + COMMS (the bots' own commands) stay on top, go / load (screen routing) moved down
  * to SYS; two-word forms added only where clearer ("scan all", "hunt run"); every single word kept. The
  * first 8 CORE rows are unchanged (the Tab sheet window, G7-frozen terminal-tab). */
-static const int CMD_N = 42;
-static const int G_AT[5] = { 0, 16, 24, 33, 42 };
+/* v1019y: dead game verbs (score, rank, loadout, lobby, duel, stash) are not listed.
+ * CORE "sweep" stays: it is the scan alias, not the removed SWEEP game. */
+static const int CMD_N = 37;
+static const int G_AT[5] = { 0, 16, 24, 28, 37 };
 static const char *const G_NAME[4] = { "CORE", "COMMS", "GAME", "SYS" };
 static const char *const CMDN[CMD_N] = {
     "scan", "hunt", "help", "bots", "rain", "filter", "ping", "info", "track", "sniff",
     "defend", "scan all", "sweep", "roster", "pulse", "dig",
     "hail", "say", "ask", "rollcall", "whisper", "broadcast", "link", "mute",
-    "train", "hunt-run", "hunt run", "score", "rank", "loadout", "lobby", "duel", "stash",
+    "play", "train", "hunt-run", "hunt run",
     "go", "load", "clear", "history", "theme", "about", "cmds", "version", "uptime"
 };
 static const char *const CMDP[CMD_N] = {
     "sweep \x7f wifi|ble|all", "drone|flock|skimmer|deauth", "list the commands", "board status",
     "rain \x7f <colour>|mixed", "wifi|ble|threats|strong|off", "ping a found device", "device details",
     "pin a device \x7f off", "list heard (filtered)",
-    "defend game \x7f <bot>", "crew sweep, 12 boards", "alias \x7f scan", "alias \x7f bots", "alias \x7f ping", "alias \x7f info",
+    "defend shell \x7f <bot>", "crew sweep, 12 boards", "alias \x7f scan", "alias \x7f bots", "alias \x7f ping", "alias \x7f info",
     "greet a bot", "send a line to a bot", "query bot status", "crew check-in",
     "quiet line to a bot", "speak to the crew", "open a bot channel", "hush a bot",
-    "play this bot's game", "gibson hunt game", "gibson hunt game", "best runs", "games by best run",
-    "this bot's 3 games", "all 12 games", "sealed", "sealed",
+    "open the defend shell", "open this bot's defend shell", "gibson hunt game", "gibson hunt game",
     "jump to a screen", "load a screen",
     "wipe the log", "recent lines", "next ui colour", "build blurb", "this menu", "term build", "session clock"
 };
 static const uint8_t CMD_ARG[CMD_N] = {
     1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 1,
     1, 1, 1, 0, 1, 0, 1, 1,
-    0, 0, 0, 0, 0, 0, 0, 0, 0,
+    1, 0, 0, 0,
     1, 1, 0, 0, 0, 0, 0, 0, 0
 };
 static const int PCMD_N = CMD_N;
@@ -246,30 +247,30 @@ static const char *const *const PCMD = CMDN;
  * v1019q (#9): the Defend board's own GAME commands lead, then the bot commands (ASK), then hub / route /
  * system. Two-word forms only where clearer ("jack in", "go hub"); every single word kept; "play" (wired in
  * v1019p, never listed) is now listed. */
-static const int GC_N = 25;
-static const int GC_GAT[6] = { 0, 9, 13, 17, 22, 25 };
+/* v1019y: night, sweep, dex, lobby, score are not listed. They were the removed games. */
+static const int GC_N = 20;
+static const int GC_GAT[6] = { 0, 4, 8, 12, 17, 20 };
 static const char *const GC_GN[5] = { "GAME", "ASK", "HUB", "ROUTE", "SYS" };
 static const char *const GC_NM[GC_N] = {
-    "jackin", "jack in", "play", "lobby", "score", "defend", "night", "sweep", "dex",
+    "jackin", "jack in", "play", "defend",
     "ask", "hail", "whisper", "why",
     "crew", "scan", "status", "mood",
     "terminal", "go", "go hub", "load", "control",
     "clear", "history", "about"
 };
 static const char *const GC_PP[GC_N] = {
-    "play this bot's game", "same as jackin", "<1-12> any game", "list all 12 games", "best runs", "<bot>|beginner|veteran",
-    "gibson night shift", "gibson sweep", "device dex",
+    "open the defend shell", "same as jackin", "open the defend shell", "<bot>|beginner|veteran",
     "ask a bot", "call a bot", "quiet line", "gibson explains",
     "roll the crew", "bus sweep", "core link status", "gibson mood",
     "open terminal", "terminal|scan|control|hub", "back to the hub", "screen|game", "control panel",
     "wipe the chat", "recent lines", "gibson build"
 };
 static const uint8_t GC_ARG[GC_N] = {
-    0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 1, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0
+    0, 0, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0
 };
-/* Index into CMD_ICO. Flash only. */
+/* Index into CMD_ICO. Flash only. Icons follow the surviving verbs (play keeps its old slot 24). */
 static const uint8_t GC_II[GC_N] = {
-    10, 10, 24, 19, 23, 22, 2, 15, 17, 2, 3, 0, 7, 2, 34, 33, 33, 34, 4, 32, 35, 37
+    10, 10, 24, 10, 2, 3, 0, 7, 2, 0, 7, 7, 0, 28, 28, 29, 32, 0, 0, 0
 };
 static const char *const HAIL[13] = {
     "reading you", "channel clear", "link warm", "quiet", "keys ready", "eyes open",
@@ -331,15 +332,10 @@ static const uint8_t CMD_ICO[CMD_N][8] = {
     { 0x10, 0x38, 0x54, 0x92, 0x10, 0x10, 0x10, 0x00 },
     { 0x00, 0x66, 0x99, 0x81, 0x42, 0x3c, 0x00, 0x00 },
     { 0x81, 0x42, 0x24, 0x18, 0x18, 0x24, 0x42, 0x81 },
-    { 0x00, 0x7e, 0x81, 0xbd, 0xa5, 0xbd, 0x81, 0x7e },
+    { 0x7e, 0xff, 0xff, 0x7e, 0x7e, 0x3c, 0x18, 0x00 }, /* play */
+    { 0x00, 0x7e, 0x81, 0xbd, 0xa5, 0xbd, 0x81, 0x7e }, /* train */
     { 0x18, 0x18, 0x24, 0xe7, 0xe7, 0x24, 0x18, 0x18 },
     { 0x18, 0x18, 0x24, 0xe7, 0xe7, 0x24, 0x18, 0x18 },
-    { 0x3c, 0x42, 0xa5, 0x81, 0x99, 0x42, 0x3c, 0x00 },
-    { 0x18, 0x3c, 0x7e, 0xff, 0x18, 0x18, 0x18, 0x00 },
-    { 0xff, 0x81, 0xbd, 0xa5, 0xbd, 0x81, 0xff, 0x00 },
-    { 0x3c, 0x42, 0x81, 0x99, 0x81, 0x42, 0x3c, 0x00 },
-    { 0x81, 0xc3, 0x66, 0x3c, 0x3c, 0x66, 0xc3, 0x81 },
-    { 0x3c, 0x42, 0x81, 0xbd, 0xbd, 0x81, 0x42, 0x3c },
     { 0x00, 0x08, 0x04, 0xfe, 0x04, 0x08, 0x00, 0x00 },
     { 0x00, 0x08, 0x04, 0xfe, 0x04, 0x08, 0x00, 0x00 },
     { 0x81, 0x42, 0x24, 0x18, 0x18, 0x24, 0x42, 0x81 },
@@ -1505,9 +1501,6 @@ static void run_cmd(const char *line)
         const int b = gc_bot_of(arg && *arg ? arg : nullptr);
         if (b == -2) { log_add("no such bot"); }
         else { enter_defend(b < 0 ? 12 : b, SCR_TERMINAL); return; }
-    } else if (strcmp(cmd, "score") == 0 || strcmp(cmd, "rank") == 0 || strcmp(cmd, "loadout") == 0
-               || strcmp(cmd, "lobby") == 0 || strcmp(cmd, "duel") == 0 || strcmp(cmd, "stash") == 0) {
-        log_add("no game");
     } else if (strcmp(cmd, "defend") == 0) {
         /* v1019 (Dirt #6/#7): CMDP says defend is the typing game; it enters it (was "sealed"). */
         const int b = gc_bot_of(arg && *arg ? arg : nullptr);
@@ -5947,12 +5940,6 @@ static void gc_run(const char *line)
      * print "jacking you in" and leave the board idle); lobby lists all 12 games; play <1-12> starts any of
      * them on this board; score shows the best run of each game of this bot's category. */
     if (strcmp(cmd, "jackin") == 0) start_def = true;
-    if (strcmp(cmd, "lobby") == 0 || strcmp(cmd, "score") == 0 || strcmp(cmd, "night") == 0
-        || strcmp(cmd, "nightshift") == 0 || strcmp(cmd, "sweep") == 0 || strcmp(cmd, "zap") == 0
-        || strcmp(cmd, "dex") == 0) {
-        gc_push(12, "no game");   /* v1019y: old mini-games removed; the shell stays idle */
-        return;
-    }
     if (strcmp(cmd, "play") == 0) {
         const int b = gc_bot_of(arg);
         if (b == -2) { gc_push(12, "no such bot"); return; }
@@ -8312,9 +8299,8 @@ static bool dg_prompt_key(int key, char typed)
             /* v1019v: typing a device name zaps without ending the round */
             if (zap_try_cmd(line)) { s_dirty = true; s_int_dirty = true; return true; }
             /* meta commands still leave the round */
-            if (strcmp(line, "quit") == 0 || strcmp(line, "back") == 0 || strcmp(line, "night") == 0
-                || strcmp(line, "sweep") == 0 || strcmp(line, "lobby") == 0 || strcmp(line, "jackin") == 0
-                || strncmp(line, "play", 4) == 0 || strcmp(line, "defend") == 0 || strcmp(line, "dex") == 0) {
+            if (strcmp(line, "quit") == 0 || strcmp(line, "back") == 0 || strcmp(line, "jackin") == 0
+                || strncmp(line, "play", 4) == 0 || strcmp(line, "defend") == 0) {
                 dg_stop();
                 gc_run(line);
             } else {

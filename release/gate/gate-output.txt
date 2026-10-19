@@ -310,7 +310,7 @@
   PASS  G7 regression vs approved render  [0 px changed (limit 40)]
   PASS  G8 crown back control present  [1 crown]
   PASS  DG1 Defend board is matte black  [dominant=(0, 0, 0)]
-  PASS  DG2 centre Gibson is square chip (zap mock)  [chips=[('bot', 12), ('bot', 12), ('bot', 12)]]
+  PASS  DG2 centre Gibson is square chip (zap mock)  [chips=[('bot', 14), ('bot', 14), ('bot', 14)]]
   PASS  DG3 zap playfield has centre chip + board  [board=True chips=7]
 == diag
   PASS  G1 no element/text bbox overlap
@@ -728,7 +728,7 @@
   PASS  S2 scan-ble: idle animation never full-screen presents (patches only)  [presents=1 (1 = the screen-enter paint)]
   PASS  S4 scan-ble: idle ticks draw in place (no slice rebuild / recompose)  [recomposes=0]
   PASS  S1 game-board: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=74 pushes=148 recomposes=0]
-  PASS  S1 game-jackin: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=1 worst=3276px, presents=1 pushes=8 recomposes=0]
+  PASS  S1 game-jackin: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=1 pushes=357 recomposes=176]
   PASS  S1 terminal-typing: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=67 pushes=150 recomposes=2]
   PASS  S1 gibson-game: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=4px, presents=68 pushes=142 recomposes=0]
   PASS  S1 scan-sbox-hunt: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=1 pushes=286 recomposes=0]
@@ -747,7 +747,7 @@
   PASS  S1 defend-beaconsort: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=2 pushes=164 recomposes=14]
   PASS  S1 defend-firewall: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=1 pushes=149 recomposes=8]
   PASS  S1 defend-maze: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=1 pushes=275 recomposes=9]
-  PASS  S1 defend-zap: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=1 worst=3428px, presents=1 pushes=10 recomposes=0]
+  PASS  S1 defend-zap: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=1 pushes=447 recomposes=216]
   PASS  S1 defend-eviltwin: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=1 pushes=156 recomposes=10]
   PASS  S1 defend-channelhop: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=1 pushes=422 recomposes=7]
   PASS  S1 defend-rangering: no frame-to-frame flash on the band simulator (6 s live loop)  [glitched pushes=0 worst=0px, presents=1 pushes=62 recomposes=9]

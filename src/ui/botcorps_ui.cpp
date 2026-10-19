@@ -9015,7 +9015,7 @@ void botcorps_host_defend_zap(uint8_t *buf, int warm_ms)
     for (int i = 0; i < ZAP_MAX; ++i) s_zap[i].live = 0;
     s_zap[0].live = 1; s_zap[0].tr = 1; s_zap[0].dist = 52.f; s_zap[0].dock = 0;
     s_zap[1].live = 1; s_zap[1].tr = 4; s_zap[1].dist = zap_len(4) - 2.f; s_zap[1].dock = 1;
-    s_zap_dock_seen[1] = 1; s_zap_dock_t0[1] = s_dg_ms;
+    s_zap_dock_seen[1] = 1; s_zap_dock_t0[1] = s_dg_ms - 900u;   /* v1019w: TIME reads 02 like mock v5 */
     s_zap[2].live = 1; s_zap[2].tr = 0; s_zap[2].dist = 62.f; s_zap[2].dock = 0;
     s_zap[3].live = 1; s_zap[3].tr = 2; s_zap[3].dist = 50.f; s_zap[3].dock = 0;
     s_zap[4].live = 1; s_zap[4].tr = 3; s_zap[4].dist = 55.f; s_zap[4].dock = 0;
@@ -9025,9 +9025,11 @@ void botcorps_host_defend_zap(uint8_t *buf, int warm_ms)
     s_zap_null_tr = 1; s_zap_null_until = s_dg_ms + 60000u;
     s_dg_score = 3; s_dg_miss = 0; s_dg_state = DGS_PLAY;
     s_zap_log_n = 0;
-    zap_log("[ ** ] board armed. traces live");
-    zap_log("[ !! ] zap before dock - camera");
-    zap_log("[ !! ] flock docked - TIME");
+    zap_log("[ ** ] BOARD ARMED. TRACES LIVE");
+    zap_log("[ !! ] ZAP BEFORE DOCK - CAMERA");
+    zap_log("[ !! ] FLOCK DOCKED - TIME");
+    snprintf(s_gp_buf, sizeof s_gp_buf, "%s", "nul");   /* v1019w: typed row like mock v5 (GIBSON > NUL) */
+    s_gc_caret = -1;
     host_frame = buf;
     memset(buf, PAL_BLACK, 320u * 240u);
     paint_ext(Gfx());

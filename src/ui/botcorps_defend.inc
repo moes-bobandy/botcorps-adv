@@ -1676,6 +1676,7 @@ static void dg_tick(void)
     last = t;
     dg_step(t);
     dg_note();
+    if (s_dg == DG_ZAP && dg_zap_full()) { zap_tick_patch(); return; }   /* v1019w: zap owns its patches */
     DGRect cur[DG_SLOTS];
     dg_rects(cur);
     for (int i = 0; i < DG_SLOTS; ++i) {

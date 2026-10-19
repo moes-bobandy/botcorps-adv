@@ -35,5 +35,5 @@ defend-patchrun
 defend-botnet
 defend-signaltrace
 defend-jamdodge
-# v1019v: Gibson Hackers zap Defend (full-width mock v5)
+# v1019v: Gibson Hackers zap Defend (full-width mock v5); v1019w relock: 7-gap fix vs mock v5
 defend-zap

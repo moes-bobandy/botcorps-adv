@@ -63,8 +63,8 @@ static bool s_gibson = false;   /* Gibson's screen: the mixed-in bots are ivory 
  * is the BOT-RAIN colour toggle (s_mode). */
 static bool s_no_bots = false;
 static bool s_faint = false;   /* dce1c87 canon: device icons at 1/4. Terminal gaps and the defend panel. */
-static int s_faint_num = 1, s_faint_den = 4;
-static int s_dev_n = 0, s_dev_k0 = 0, s_dev_k1 = 0;
+/* Defend filter lives in unused rain plane 1 (tab scratch starts at byte 1120). No new static RAM. */
+static uint8_t *rain_ctl(void) { return &botcorps_t0_rain_cell[1][0]; }
 
 static const uint16_t SOLID_INK[6] = {
     0x26E8, 0x269C, 0x331F, 0xB21F, 0xF586, 0xFFFF,
@@ -283,8 +283,9 @@ static bool dev_only_icon(int col, int row, int lv, uint8_t gl, int *d)
 {
     const uint32_t h = (uint32_t)gl * 37u + (uint32_t)col * 11u + (uint32_t)row * 5u;
     int d0 = (int)(h % DEV_N);
-    if (s_dev_n == 1) d0 = s_dev_k0 % DEV_N;
-    else if (s_dev_n >= 2) d0 = ((h & 1u) ? s_dev_k1 : s_dev_k0) % DEV_N;
+    const int dn = rain_ctl()[2];
+    if (dn == 1) d0 = rain_ctl()[3] % DEV_N;
+    else if (dn >= 2) d0 = ((h & 1u) ? rain_ctl()[4] : rain_ctl()[3]) % DEV_N;
     *d = d0;
     return lv == 1 || ((h / DEV_N) % 9u) < 4u;
 }
@@ -308,7 +309,8 @@ static void draw_cell(lgfx::LovyanGFX &panel, int col, int row)
             dev_inks(d, lv, ink3);
             if (s_faint) {
                 for (int k = 0; k < 3; ++k)
-                    ink3[k] = botcorps_pal_fit(scale_native(botcorps_rgb565(ink3[k]), s_faint_num, s_faint_den));
+                    ink3[k] = botcorps_pal_fit(scale_native(botcorps_rgb565(ink3[k]),
+                        rain_ctl()[0] ? rain_ctl()[0] : 1, rain_ctl()[1] ? rain_ctl()[1] : 4));
             }
             dev_art(panel, x, ly, d, ink3);
         }
@@ -495,14 +497,14 @@ void botcorps_rain_set_faint_scale(int num, int den)
 {
     if (num < 1) num = 1;
     if (den < 1) den = 1;
-    s_faint_num = num;
-    s_faint_den = den;
+    rain_ctl()[0] = (uint8_t)num;
+    rain_ctl()[1] = (uint8_t)den;
 }
 void botcorps_rain_set_devsel(int n, int k0, int k1)
 {
-    s_dev_n = n < 0 ? 0 : n;
-    s_dev_k0 = k0;
-    s_dev_k1 = k1;
+    rain_ctl()[2] = (uint8_t)(n < 0 ? 0 : n);
+    rain_ctl()[3] = (uint8_t)k0;
+    rain_ctl()[4] = (uint8_t)k1;
 }
 
 void botcorps_rain_draw_win(lgfx::LovyanGFX &dst, int y0, int y1, int wx, int wy, int ww, int wh,

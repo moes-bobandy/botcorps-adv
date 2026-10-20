@@ -111,6 +111,10 @@ Mobandy's zi/zj2 renders are the lock for the header-rail pins. This is not a B.
 | Non-Gibson scanboard | silver, Gibson's pin geometry |
 | Gibson | gold, unchanged |
 
+## v1019zl rebaseline (2026-10-20)
+
+Mobandy approved a bounded rebaseline of the 63 LOCK_ONLY rows from tip `a331fce` (v1019zk). The matching L1 hashes in `release/gate/locked-675c87d.sha256` and the 16 G7 no-rain baselines now store those v1019zk renders. No other lock row was changed. The header-rail table above is unchanged.
+
 ## Game screens (game-board, game-menu, game-jackin = GCHAT)
 - C1/C3 square Gibson block, G1–G8.
 

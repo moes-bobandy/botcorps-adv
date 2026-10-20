@@ -4,7 +4,7 @@ import re
 import subprocess
 import sys
 
-REV = "c53579e1b8ea30f7743dfb0a0505c47d4bc400d7"
+REV = "efaefb73ed9c5ed72c344b494e61c89f6f43ddef"
 PATHS = {
     "k_fit4": "src/ui/botcorps_pal_fit.inc",
     "k_hub_fade": "src/ui/botcorps_pal_hub.inc",

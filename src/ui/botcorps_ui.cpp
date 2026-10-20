@@ -4105,7 +4105,10 @@ static void framed_mount(Gfx g, int cxm, int ccy, int bot, int *dcy_out)
     const bool gib = bot >= 12;
     const int kind = gib ? GL_DEVBOARD : bot_dev_kind(bot);
     const uint8_t land = gib ? (uint8_t)177 : bot_color(bot);
-    const uint8_t pin = gib ? (uint8_t)217 : GL_INK[kind][0];
+    /* Device-chip pads match the bot chip: gold on Gibson, silver on the others.
+     * The land under them, and the traces, stay bot-colour copper. */
+    const uint8_t pad = gib ? (uint8_t)177 : (uint8_t)PAL_SOFT;
+    const uint8_t ink = gib ? (uint8_t)PAL_IVORY : GL_INK[kind][0];
     const uint8_t edge = gib ? (uint8_t)PAL_STEEL : GL_INK[kind][0];
     const uint8_t copper = botcorps_pal_fit(mix16(botcorps_rgb565(land), 0x0000, 30, 100));
     const int dcx = 76, dcy = 170;
@@ -4141,10 +4144,10 @@ static void framed_mount(Gfx g, int cxm, int ccy, int bot, int *dcy_out)
         via_drill(g, x + o, y - 6, copper);
         hrun(g, x - 3, x - 1, y + o, copper);
         via_drill(g, x - 3, y + o, copper);
-        pin_land(g, x - 2, y + o, 2, 2, land, pin);
-        pin_land(g, x + T, y + o, 2, 2, land, pin);
-        pin_land(g, x + o, y - 2, 2, 2, land, pin);
-        pin_land(g, x + o, y + T, 2, 2, land, pin);
+        pin_land(g, x - 2, y + o, 2, 2, land, pad);
+        pin_land(g, x + T, y + o, 2, 2, land, pad);
+        pin_land(g, x + o, y - 2, 2, 2, land, pad);
+        pin_land(g, x + o, y + T, 2, 2, land, pad);
     }
     /* Silk courtyard: corner brackets only, not a filled frame. */
     const uint8_t br = gib ? (uint8_t)PAL_IVORY : land;
@@ -4160,8 +4163,8 @@ static void framed_mount(Gfx g, int cxm, int ccy, int bot, int *dcy_out)
     if (!gib) {
         gl_icon(g, kind, dcx - 6, dcy - 6, false);
         const char *lab = GL_LABEL[kind];
-        tiny_text(g, lab, 28, y + 6, pin);
-        tiny_text(g, "U2", 28, y + 14, pin);
+        tiny_text(g, lab, 28, y + 6, ink);
+        tiny_text(g, "U2", 28, y + 14, ink);
     }
 }
 /* Shared mount: 12px bare PCB, device offset -30, Font0 name beside the chip.

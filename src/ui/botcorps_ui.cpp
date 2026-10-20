@@ -5831,8 +5831,10 @@ static void paint_gibson(Gfx g)
     hub_die(g, cx, cy, 34);
     core_bezel(g, cx, cy, 34);
     const int spin = mood == MOOD_HUNTING ? (int)(t / 30u) : mood == MOOD_EXCITED ? (int)(t / 50u) : (int)(t / 90u);
-    /* 5dc1c54 hub-amber rings are PAL_CYAN on the square path. th_ring() on theme 1 is 00ffff. */
-    GIB_CORE_RING(g, cx, cy, 37, PAL_CYAN, 5, 5, spin);
+    /* 5dc1c54:5410 passes PAL_CYAN here, not th_ring(). Hub-amber's locked L1 image is the later
+     * th_ring() amber ink (00ffff). Hard PAL_CYAN moves 868 px beyond the B.4 approval, so the
+     * rings stay on th_ring() and that extra is not in the hub hash. */
+    GIB_CORE_RING(g, cx, cy, 37, th_ring(0), 5, 5, spin);
     if (mood == MOOD_HUNTING) {
         for (int k = 0; k < 14; ++k) {
             const float ang = (float)t / 260.f - (float)k * 0.07f;
@@ -5840,11 +5842,11 @@ static void paint_gibson(Gfx g)
             g.fillRect(cx + (int)(cosf(ang) * 40.f), cy + (int)(sinf(ang) * 40.f), 1, 1, ink);
         }
     }
-    GIB_CORE_RING(g, cx, cy, 42, PAL_CYAN, 2, 4, (int)(t / 140u));
-    GIB_CORE_RING(g, cx, cy, 48, PAL_CYAN, 1, 5, (int)(t / 80u));
-    GIB_CORE_RING(g, cx, cy, 54, PAL_CYAN, 2, 6, (int)(t / 200u));
+    GIB_CORE_RING(g, cx, cy, 42, th_ring(1), 2, 4, (int)(t / 140u));
+    GIB_CORE_RING(g, cx, cy, 48, th_ring(2), 1, 5, (int)(t / 80u));
+    GIB_CORE_RING(g, cx, cy, 54, th_ring(4), 2, 6, (int)(t / 200u));
     const int ph = (int)((t % 2400u) * 5u / 2400u);
-    GIB_CORE_RING(g, cx, cy, 44 + ph, PAL_CYAN, 3, 3, 0);
+    GIB_CORE_RING(g, cx, cy, 44 + ph, th_ring(3), 3, 3, 0);
     hub_sparks(g, cx, cy, t);
     g.fillRect(cx - 14, cy + 25, 28, 1, wire);
     gib_core_chip_d(g, cx, cy, 4);   /* Option-E 5dc1c54: four gold pins per side */

@@ -4118,31 +4118,33 @@ static void framed_mount(Gfx g, int cxm, int ccy, int bot, int *dcy_out)
     const int x = dcx - T / 2, y = dcy - T / 2;
     const int bx = cxm - S / 2, by = ccy - S / 2;
     static const int poff[5] = { 2, 7, 12, 17, 22 };
-    static const int leftx[3] = { 21, 23, 25 };
-    static const int rightx[2] = { 93, 95 };
-    const int desty = by + S - 3;
     if (dcy_out) *dcy_out = dcy;
-    (void)cxm; (void)ccy; (void)S; (void)bx; (void)by; (void)desty; (void)leftx; (void)rightx;
-    /* Short stubs only. A few px off the pad, then a via. No margin rail. */
-    for (int k = 0; k < 3; ++k) {
-        const int px = x + poff[k];
-        const int py = y + T + 2;
-        vrun(g, px, py, py + 5, copper);
-        via_drill(g, px, py + 7, copper);
-    }
-    for (int k = 0; k < 2; ++k) {
-        const int py = y + poff[3 + k];
-        const int px = x + T + 1;
-        /* Stop at x95 so the stub and via stay inside the left panel. */
-        hrun(g, px, 93, py, copper);
-        via_drill(g, 94, py, copper);
+    /* Four wires from the device top pads up into the bot's lower pins.
+     * They run together up the open gap on the silk's left, then peel into
+     * the pins. One side only, so they do not box the silk. */
+    static const int lane[4] = { 27, 29, 31, 33 };
+    static const int top_y[4] = { 122, 123, 124, 125 };
+    static const int low_y[4] = { 149, 150, 151, 152 };
+    for (int k = 0; k < 4; ++k) {
+        const int dxs = x + poff[k];
+        const int bxp = bx + chip_pin(S, k + 1);
+        vrun(g, dxs, low_y[k], y - 4, copper);
+        hrun(g, lane[k], dxs, low_y[k], copper);
+        vrun(g, lane[k], top_y[k], low_y[k], copper);
+        hrun(g, lane[k], bxp, top_y[k], copper);
     }
     for (int k = 0; k < 5; ++k) {
         const int o = poff[k];
-        vrun(g, x + o, y - 4, y - 1, copper);
-        via_drill(g, x + o, y - 6, copper);
-        hrun(g, x - 3, x - 1, y + o, copper);
-        via_drill(g, x - 3, y + o, copper);
+        if (k == 4) {
+            vrun(g, x + o, y - 8, y - 4, copper);
+            via_drill(g, x + o, y - 10, copper);
+        }
+        hrun(g, x - 4, x - 2, y + o, copper);
+        via_drill(g, x - 5, y + o, copper);
+        hrun(g, x + T + 2, 93, y + o, copper);
+        via_drill(g, 94, y + o, copper);
+        vrun(g, x + o, y + T + 2, y + T + 6, copper);
+        via_drill(g, x + o, y + T + 8, copper);
         pin_land(g, x - 2, y + o, 2, 2, land, pad);
         pin_land(g, x + T, y + o, 2, 2, land, pad);
         pin_land(g, x + o, y - 2, 2, 2, land, pad);

@@ -4128,8 +4128,9 @@ static void framed_mount(Gfx g, int cxm, int ccy, int bot, int *dcy_out)
             GL_SPEAKER, GL_TRACKER, GL_WATCH, GL_CAMERA
         };
         const int cw = 14, pitch = 18, x0 = 22;
-        const int row_y[2] = { 156, 178 };
-        const int via_y[2] = { 150, 172 };
+        /* Silk block ends at y=148. Via top is via_y-1, so row 1 starts at 151: 2 px clear. */
+        const int row_y[2] = { 158, 180 };
+        const int via_y[2] = { 152, 174 };
         for (int i = 0; i < 8; ++i) {
             const int col = i & 3;
             const int row = i >> 2;
@@ -4137,11 +4138,25 @@ static void framed_mount(Gfx g, int cxm, int ccy, int bot, int *dcy_out)
             const int cy = row_y[row];
             const uint8_t rim = GL_INK[kinds[i]][0];
             const int px = cx + 3;
-            const int py = cy - 2;
-            vrun(g, px, via_y[row] + 2, py - 1, copper);
+            vrun(g, px, via_y[row] + 2, cy - 4, copper);
             via_drill(g, px, via_y[row], copper);
-            pin_land(g, px, py, 2, 2, land, pad);
-            pin_land(g, cx + 9, py, 2, 2, land, pad);
+            /* Top pads: gold body, highlight, dark core. */
+            for (int s = 0; s < 2; ++s) {
+                const int qx = cx + 2 + s * 6;
+                sb_rect(g, qx, cy - 3, 3, 3, 177);
+                sb_rect(g, qx, cy - 3, 3, 1, 217);
+                sb_rect(g, qx + 1, cy - 2, 1, 1, 108);
+            }
+            /* Side castellations, two per edge, same gold / dark-core pins. */
+            for (int s = 0; s < 2; ++s) {
+                const int qy = cy + 3 + s * 5;
+                sb_rect(g, cx - 2, qy, 3, 2, 177);
+                sb_rect(g, cx - 2, qy, 3, 1, 217);
+                sb_rect(g, cx - 1, qy + 1, 1, 1, 108);
+                sb_rect(g, cx + cw - 1, qy, 3, 2, 177);
+                sb_rect(g, cx + cw - 1, qy, 3, 1, 217);
+                sb_rect(g, cx + cw, qy + 1, 1, 1, 108);
+            }
             g.fillRect(cx + 1, cy + 1, cw - 2, cw - 2, PAL_BLACK);
             g.drawRect(cx, cy, cw, cw, rim);
             gl_icon(g, kinds[i], cx + 1, cy + 1, false);

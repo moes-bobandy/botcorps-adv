@@ -3670,6 +3670,7 @@ static uint8_t board_edge_col(int bot);
 /* Defend device chip is mounted to the RIGHT. Mobandy locked that side. */
 static const int DEVICE_CHIP_OFF = 16;
 static void dev_under_chip(Gfx g, int cx, int cy, int bot);
+static void dev_solder(Gfx g, int cx, int bot_bottom, int dev_top, int bot);
 static void dev_mount_row(Gfx g, int cxm, int ccy, int bot);
 
 /* ESP32 dev board around the box (mock cydBoard + module). */
@@ -3730,7 +3731,10 @@ static void sb_board(Gfx g, bool wifi)
         if (zsb) zap_rain_rect(g);   /* rain behind the chips, this rect only */
         chip_block(g, cxm, ccy, 40, gib ? 12 : bot);
         if (zsb) dev_mount_row(g, cxm, ccy, bot);
-        else dev_under_chip(g, cxm, ccy + 36, bot);
+        else {
+            dev_under_chip(g, cxm, ccy + 36, bot);
+            dev_solder(g, cxm, ccy + 20, ccy + 27, bot);
+        }
         char nmb[16];
         const char *nm;
         if (gib) nm = "GIBSON";
@@ -3779,6 +3783,7 @@ static void sb_board(Gfx g, bool wifi)
     const char *nm = wifi ? "WIFIBOT" : "BLE-BOT"; /* BLUETOOTHBOT is 47 px, wider than the can */
     sb_bot_chip(g, wx + ww / 2, wy + 14, 28, bot);
     dev_under_chip(g, wx + ww / 2, wy + wh + 2, bot);   /* device chip under the bot, still in the can */
+    dev_solder(g, wx + ww / 2, wy + 28, wy + wh + 2 - 9, bot);
     const int cxm = sx + sw / 2;
     /* plain 4 px pitch so every glyph reads; long lines are abbreviated, never squeezed */
     tiny_text(g, nm, cxm - tiny_w(nm) / 2, wy + wh + 14, 41);
@@ -3786,16 +3791,18 @@ static void sb_board(Gfx g, bool wifi)
     tiny_text(g, "FCC 2AC7Z", cxm - tiny_w("FCC 2AC7Z") / 2, wy + wh + 34, 41);
     static const char *const PIN_L[12] = { "3V3", "EN", "VP", "VN", "34", "35", "32", "33", "25", "26", "27", "14" };
     int i = 0;
+    /* Wi-Fi / BLE can is never Gibson: module pads are style-B silver, not gold 177. */
+    const uint8_t mpad = (uint8_t)PAL_SOFT;
     for (int y = my + 30; y < my + mh - 8; y += 8, ++i) {
-        sb_rect(g, mx - 2, y, 4, 4, gold);
+        sb_rect(g, mx - 2, y, 4, 4, mpad);
         sb_rect(g, mx - 2, y, 1, 4, 213);
         sb_rect(g, mx - 2, y + 1, 1, 2, 4);
-        sb_rect(g, mx + mw - 2, y, 4, 4, gold);
+        sb_rect(g, mx + mw - 2, y, 4, 4, mpad);
         sb_rect(g, mx + mw + 1, y + 1, 1, 2, 4);
         if (i < 12) tiny_text(g, PIN_L[i], mx - 4 - tiny_w(PIN_L[i]), y - 1, 223);
     }
     for (int x = mx + 8; x < mx + mw - 8; x += 7) {
-        sb_rect(g, x, my + mh - 2, 4, 4, gold);
+        sb_rect(g, x, my + mh - 2, 4, 4, mpad);
         sb_rect(g, x, my + mh - 2, 4, 1, 213);
     }
     sb_rect(g, mx + 2, my + 27, 1, 2, 223);
@@ -3994,17 +4001,48 @@ static void dev_under_chip(Gfx g, int cx, int cy, int bot)
     const int D = T - 2, dx = x + 1, dy = y + 1;
     const bool gib = bot >= 12;
     const uint8_t pin = gib ? PAL_GOLD_PIN : (uint8_t)PAL_SOFT;
+    const uint8_t pad = gib ? (uint8_t)177 : (uint8_t)PAL_SOFT;
+    const uint8_t hi = gib ? (uint8_t)217 : (uint8_t)PAL_WHITE;
     GATE_BOX(g, "TCHIP", "device", dx, dy, D, D, "-");
     for (int k = 0; k < 5; ++k) {
         const int i = chip_pin1(D, k);
+        g.fillRect(x - 1, dy + i - 1, 3, 3, pad);
+        g.fillRect(x + T - 2, dy + i - 1, 3, 3, pad);
         g.fillRect(x, dy + i, 2, 1, pin);
         g.fillRect(x + T - 2, dy + i, 2, 1, pin);
-        g.fillRect(dx + i, y, 1, 2, pin);
-        g.fillRect(dx + i, y + T - 2, 1, 2, pin);
+        g.fillRect(dx + i - 1, y - 1, 3, 3, pad);
+        g.fillRect(dx + i - 1, y + T - 2, 3, 3, pad);
+        g.fillRect(dx + i, y, 1, 1, hi);
+        g.fillRect(dx + i, y + T - 1, 1, 1, hi);
     }
     g.fillRect(dx, dy, D, D, PAL_BLACK);
     g.drawRect(dx, dy, D, D, PAL_STEEL);
     gl_icon(g, bot_dev_kind(bot), cx - 6, cy - 6, false);
+}
+
+/* Several copper wires and solder pads between the bot chip's underside and the device chip.
+ * Wire stays index 104. Pads are gold on Gibson only; the other 12 are style-B silver. */
+static void dev_solder(Gfx g, int cx, int bot_bottom, int dev_top, int bot)
+{
+    const bool gib = bot >= 12;
+    const uint8_t pad = gib ? (uint8_t)177 : (uint8_t)PAL_SOFT;
+    const uint8_t hi = gib ? (uint8_t)217 : (uint8_t)PAL_WHITE;
+    const uint8_t wire = 104;
+    static const int off[5] = { -6, -3, 0, 3, 6 };
+    static const int jog[5] = { -2, 1, 2, -1, 2 };
+    if (dev_top <= bot_bottom) return;
+    for (int i = 0; i < 5; ++i) {
+        const int x0 = cx + off[i];
+        const int x1 = x0 + jog[i];
+        const int mid = bot_bottom + (dev_top - bot_bottom) / 2;
+        g.fillRect(x0, bot_bottom, 1, mid - bot_bottom + 1, wire);
+        g.fillRect(x0 < x1 ? x0 : x1, mid, (x0 > x1 ? x0 - x1 : x1 - x0) + 1, 1, wire);
+        g.fillRect(x1, mid, 1, dev_top - mid + 1, wire);
+        g.fillRect(x0 - 1, bot_bottom - 1, 3, 2, pad);
+        g.fillRect(x0, bot_bottom - 1, 1, 1, hi);
+        g.fillRect(x1 - 1, dev_top - 1, 3, 2, pad);
+        g.fillRect(x1, dev_top, 1, 1, hi);
+    }
 }
 
 /* Defend only. Device chip is mounted to the RIGHT. Label sits on its left.

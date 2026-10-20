@@ -265,6 +265,15 @@ static bool cell_open(int x, int y)
 
 /* device-icon rain inks: the icon's own 3 inks (Gibson-screen set on Gibson's screens), or the BOT-RAIN
  * solid ink (body = ink, fill = ink 25%); faded with the trail age */
+static uint8_t fit_dev(uint16_t c)
+{
+    const uint8_t s = botcorps_pal_fit(c);
+    /* B.4: device ink must not land on the sheet override slots. */
+    if (s == 231) return 199;
+    if (s == 234) return 202;
+    if (s == 243) return 211;
+    return s;
+}
 static void dev_inks(int d, int lv, uint8_t ink3[3])
 {
     const uint16_t *pc = s_gibson ? DEV_GIB[d] : DEV_NEON[d];
@@ -274,7 +283,7 @@ static void dev_inks(int d, int lv, uint8_t ink3[3])
         sc[0] = ink; sc[1] = scale_native(ink, 1, 4); sc[2] = ink;
         pc = sc;
     }
-    for (int k = 0; k < 3; ++k) ink3[k] = botcorps_pal_fit(lv <= 3 ? pc[k] : scale_native(pc[k], lv == 4 ? 2 : 1, 3));
+    for (int k = 0; k < 3; ++k) ink3[k] = fit_dev(lv <= 3 ? pc[k] : scale_native(pc[k], lv == 4 ? 2 : 1, 3));
 }
 static void dev_art(lgfx::LovyanGFX &panel, int x, int ly, int d, const uint8_t ink3[3])
 {
@@ -328,14 +337,14 @@ static void draw_cell(lgfx::LovyanGFX &panel, int col, int row)
                 for (int k = 0; k < 3; ++k) ink3[k] = DEV_ALL_INK[d][k];
                 if (lv > 3) {
                     for (int k = 0; k < 3; ++k)
-                        ink3[k] = botcorps_pal_fit(scale_native(botcorps_rgb565(ink3[k]), lv == 4 ? 2 : 1, 3));
+                        ink3[k] = fit_dev(scale_native(botcorps_rgb565(ink3[k]), lv == 4 ? 2 : 1, 3));
                 }
             } else {
                 dev_inks(d, lv, ink3);
             }
             if (s_faint) {
                 for (int k = 0; k < 3; ++k)
-                    ink3[k] = botcorps_pal_fit(scale_native(botcorps_rgb565(ink3[k]),
+                    ink3[k] = fit_dev(scale_native(botcorps_rgb565(ink3[k]),
                         rain_ctl()[0] ? rain_ctl()[0] : 1, rain_ctl()[1] ? rain_ctl()[1] : 4));
             }
             dev_art(panel, x, ly, d, ink3);

@@ -305,14 +305,24 @@ static void draw_cell(lgfx::LovyanGFX &panel, int col, int row)
     if (s_no_bots) {                          /* v1019n (#15): Terminal / prompt: device icons only */
         int d;
         if (dev_only_icon(col, row, lv, gl, &d)) {
-            uint8_t ink3[3];
-            dev_inks(d, lv, ink3);
-            if (s_faint) {
-                for (int k = 0; k < 3; ++k)
-                    ink3[k] = botcorps_pal_fit(scale_native(botcorps_rgb565(ink3[k]),
-                        rain_ctl()[0] ? rain_ctl()[0] : 1, rain_ctl()[1] ? rain_ctl()[1] : 4));
+            const uint32_t h = (uint32_t)gl * 37u + (uint32_t)col * 11u + (uint32_t)row * 5u;
+            /* Gibson's framed panel: ivory Gibsons among the device icons. No 0/1, no other bots. */
+            if (s_gibson && (h % 4u) == 0u) {
+                uint16_t c = GIB_IVORY_N;
+                if (s_faint) c = scale_native(c, rain_ctl()[0] ? rain_ctl()[0] : 1,
+                                              rain_ctl()[1] ? rain_ctl()[1] : 4);
+                const uint8_t body = botcorps_pal_fit(lv <= 3 ? c : scale_native(c, lv == 4 ? 2 : 1, 3));
+                botcorps_sprite_draw_inks(panel, x + 4, ly + 4, BOTCORPS_SHAPE_ROUND, 1, body, PAL_BLACK, false);
+            } else {
+                uint8_t ink3[3];
+                dev_inks(d, lv, ink3);
+                if (s_faint) {
+                    for (int k = 0; k < 3; ++k)
+                        ink3[k] = botcorps_pal_fit(scale_native(botcorps_rgb565(ink3[k]),
+                            rain_ctl()[0] ? rain_ctl()[0] : 1, rain_ctl()[1] ? rain_ctl()[1] : 4));
+                }
+                dev_art(panel, x, ly, d, ink3);
             }
-            dev_art(panel, x, ly, d, ink3);
         }
         panel.clearClipRect();
         return;

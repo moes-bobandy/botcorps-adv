@@ -4119,26 +4119,26 @@ static void framed_mount(Gfx g, int cxm, int ccy, int bot, int *dcy_out)
     const int bx = cxm - S / 2, by = ccy - S / 2;
     static const int poff[5] = { 2, 7, 12, 17, 22 };
     if (dcy_out) *dcy_out = dcy;
-    /* Four wires from the device top pads up into the bot's lower pins.
-     * They run together up the open gap on the silk's left, then peel into
-     * the pins. One side only, so they do not box the silk. */
-    static const int lane[4] = { 27, 29, 31, 33 };
-    static const int top_y[4] = { 122, 123, 124, 125 };
-    static const int low_y[4] = { 149, 150, 151, 152 };
+    /* Four separate wires. Each leaves one device top pad, runs in the open
+     * gap beside the silk (never across the letters), and ends on its own
+     * bot-chip lower pin with a via. */
+    static const int lane[4] = { 22, 30, 90, 94 };
+    static const int pink[4] = { 0, 1, 3, 4 };
+    static const int top_y[4] = { 122, 125, 122, 125 };
+    static const int low_y[4] = { 149, 152, 149, 152 };
+    const int pin_y = by + S - 2;
     for (int k = 0; k < 4; ++k) {
         const int dxs = x + poff[k];
-        const int bxp = bx + chip_pin(S, k + 1);
+        const int bxp = bx + chip_pin(S, pink[k]);
         vrun(g, dxs, low_y[k], y - 4, copper);
         hrun(g, lane[k], dxs, low_y[k], copper);
         vrun(g, lane[k], top_y[k], low_y[k], copper);
         hrun(g, lane[k], bxp, top_y[k], copper);
+        vrun(g, bxp, pin_y, top_y[k], copper);
+        via_drill(g, bxp, pin_y, copper);
     }
     for (int k = 0; k < 5; ++k) {
         const int o = poff[k];
-        if (k == 4) {
-            vrun(g, x + o, y - 8, y - 4, copper);
-            via_drill(g, x + o, y - 10, copper);
-        }
         hrun(g, x - 4, x - 2, y + o, copper);
         via_drill(g, x - 5, y + o, copper);
         hrun(g, x + T + 2, 93, y + o, copper);
@@ -6728,8 +6728,8 @@ static void paint_gchat(Gfx g)
  * ivory Gibsons; the Terminal's rain has no bot emblems. */
 static void rain_flags(void)
 {
-    /* Defend left panels (all 13, Gibson included): the 10 device icons only, faint.
-     * No 0/1 strands and no bot chips. Terminal gaps stay the dce1c87 faint device rain. */
+    /* Framed panels: device icons only, one step brighter than 2/5. Gibson's panel
+     * also drops ivory Gibsons. No 0/1 strands and no other bot chips. Terminal stays 1/4. */
     const bool zsb = zap_sb_on();
     const bool radio = s_screen == SCR_WIFI_RADAR || s_screen == SCR_BT_RADAR;
     const bool devrain = zsb || radio;
@@ -6739,7 +6739,8 @@ static void rain_flags(void)
     if (devrain) {
         const int b = zsb ? ((s_defend_bot >= 0 && s_defend_bot <= 12) ? s_defend_bot : 12)
                           : (s_screen == SCR_BT_RADAR ? 1 : 0);
-        botcorps_rain_set_faint_scale(2, 5);   /* ~40% on the framed panel; terminal stays 1/4 */
+        botcorps_rain_set_faint_scale(3, 5);   /* one step up from 2/5; terminal stays 1/4 */
+        if (b >= 12) botcorps_rain_set_gibson(true); /* ivory Gibsons join the device rain */
         if (b >= 12 || BH_DEV[b][0] < 0)
             botcorps_rain_set_devsel(0, 0, 0); /* Gibson: all 10 device icons */
         else if (BH_DEV[b][1] >= 0)

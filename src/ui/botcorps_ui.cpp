@@ -3691,14 +3691,17 @@ static void sb_board(Gfx g, bool wifi)
     const uint8_t pcb = PAL_BLACK, tex = PAL_DEEP; /* v1016f-4 (Dirt 8:24): fixed matte-black PCB */
     const uint8_t gold = 177, goldh = 217, goldd = 104;
     const bool zsb = zap_sb_on();                 /* v1019y: Defend = this shell, empty grid */
+    /* Live Wi-Fi / BLE scan (not Defend) uses the same framed left panel. */
+    const bool radio = s_screen == SCR_WIFI_RADAR || s_screen == SCR_BT_RADAR;
+    const bool framed = zsb || radio;
     const bool core = s_screen == SCR_SCAN || zsb;
     const int bot = zsb ? ((s_defend_bot >= 0 && s_defend_bot <= 12) ? s_defend_bot : 12)
                         : core ? s_scan_bot : wifi ? 0 : 1;
     const uint8_t botc = (bot >= 0 && bot < 12) ? bot_color(bot) : (uint8_t)PAL_IVORY;
     const bool gib = bot >= 12;
-    /* The 12 defend boards keep bot-colour chrome. Gibson's shell keeps the locked
-     * non-ivory frame, edge, and gold header rails. */
-    const bool bot_chrome = zsb && !gib;
+    /* Defend and the wifi/ble scan boards: edge, headers, holes, glow stay bot colour.
+     * Gibson keeps gold rails. */
+    const bool bot_chrome = framed && !gib;
     const uint8_t edge = bot_chrome ? botc : board_edge_col(bot);
     const uint8_t hdr = bot_chrome ? botc : gold;
     const uint8_t hdrh = bot_chrome ? botcorps_pal_fit(mix16(botcorps_rgb565(botc), 0xFFFF, 35, 100)) : goldh;
@@ -3720,7 +3723,7 @@ static void sb_board(Gfx g, bool wifi)
         sb_rect(g, 36, y - 1, 246, 8, 64);
         sb_rect(g, 36, y - 1, 246, 1, 68);
         for (int x = 38; x <= 276; x += 8) {
-            if (zsb && !gib)
+            if (bot_chrome)
                 pin_pad(g, x, y + 1, 4, botc, PAL_WHITE, PAL_BLACK);
             else
                 pin_pad(g, x, y + 1, 4, x == 38 ? pins.body0 : pins.body, pins.hi, x == 38 ? pins.core0 : pins.core);
@@ -3742,14 +3745,14 @@ static void sb_board(Gfx g, bool wifi)
     sb_rect(g, 298, 110, 4, 16, 4);
     /* WROOM module (radio bots) or the clean Gibson/bot core block */
     const int mx = 34, my = 52, mw = 54, mh = 128;
-    if (core) {
+    if (core || radio) {
         /* Addendum 5: steel outline, black window, style-B silver pads (gold on Gibson),
          * face in the bot colour. Device chip is mounted to the right, label on its left. */
-        const int cxm = zsb ? 61 : mx + mw / 2, ccy = zsb ? 94 : my + 26;
-        if (zsb) zap_rain_rect(g);   /* rain behind the chips, this rect only */
-        chip_block(g, cxm, ccy, zsb ? 54 : 40, gib ? 12 : bot);
+        const int cxm = framed ? 61 : mx + mw / 2, ccy = framed ? 94 : my + 26;
+        if (framed) zap_rain_rect(g);   /* device rain behind the chips, this rect only */
+        chip_block(g, cxm, ccy, framed ? 54 : 40, gib ? 12 : bot);
         int dcy = 0;
-        if (zsb) framed_mount(g, cxm, ccy, bot, &dcy);
+        if (framed) framed_mount(g, cxm, ccy, bot, &dcy);
         else dev_mount_row(g, cxm, ccy, bot, &dcy);
         char nmb[16];
         const char *nm;
@@ -3757,8 +3760,8 @@ static void sb_board(Gfx g, bool wifi)
         else { sb_upper(nmb, 16, BOTS[bot].short_name, 12); if (strlen(nmb) <= 9) strcat(nmb, "BOT"); nm = nmb; }
         const char *l2c = "ESP32-WROOM-32";
         const char *l3c = (gib && !zsb) ? "CORE + PRIME" : "RADIO CORE";
-        const uint8_t silk = zsb ? (gib ? (uint8_t)PAL_IVORY : botc) : (uint8_t)41;
-        if (zsb) {
+        const uint8_t silk = framed ? (gib ? (uint8_t)PAL_IVORY : botc) : (uint8_t)41;
+        if (framed) {
             /* Three baselines, 8-10 px apart, so the 5 px silk does not stack. */
             const int ys[3] = { ccy + 32, ccy + 42, ccy + 50 };
             const char *ls[3] = { nm, l2c, l3c };
@@ -4119,24 +4122,20 @@ static void framed_mount(Gfx g, int cxm, int ccy, int bot, int *dcy_out)
     static const int rightx[2] = { 93, 95 };
     const int desty = by + S - 3;
     if (dcy_out) *dcy_out = dcy;
-    int bot_px[5];
-    for (int k = 0; k < 5; ++k) bot_px[k] = bx + chip_pin(S, k);
+    (void)cxm; (void)ccy; (void)S; (void)bx; (void)by; (void)desty; (void)leftx; (void)rightx;
+    /* Short stubs only. A few px off the pad, then a via. No margin rail. */
     for (int k = 0; k < 3; ++k) {
         const int px = x + poff[k];
-        const int py = y + T;
-        const int bus = py + 4 + k;
-        vrun(g, px, py, bus, copper);
-        hrun(g, leftx[k], px, bus, copper);
-        vrun(g, leftx[k], desty + k, bus, copper);
-        hrun(g, leftx[k], bot_px[k], desty + k, copper);
+        const int py = y + T + 2;
+        vrun(g, px, py, py + 5, copper);
+        via_drill(g, px, py + 7, copper);
     }
     for (int k = 0; k < 2; ++k) {
         const int py = y + poff[3 + k];
-        const int px = x + T;
-        const int bus = desty + k;
-        hrun(g, px, rightx[k], py, copper);
-        vrun(g, rightx[k], bus, py, copper);
-        hrun(g, bot_px[3 + k], rightx[k], bus, copper);
+        const int px = x + T + 1;
+        /* Stop at x95 so the stub and via stay inside the left panel. */
+        hrun(g, px, 93, py, copper);
+        via_drill(g, 94, py, copper);
     }
     for (int k = 0; k < 5; ++k) {
         const int o = poff[k];
@@ -4163,8 +4162,22 @@ static void framed_mount(Gfx g, int cxm, int ccy, int bot, int *dcy_out)
     if (!gib) {
         gl_icon(g, kind, dcx - 6, dcy - 6, false);
         const char *lab = GL_LABEL[kind];
-        tiny_text(g, lab, 28, y + 6, ink);
-        tiny_text(g, "U2", 28, y + 14, ink);
+        const int lx = 20;
+        const int max_r = x - 2;
+        int ly = y + 2;
+        const char *sp = strchr(lab, ' ');
+        if (sp && lx + (int)(sp - lab) * 6 <= max_r) {
+            char word[16];
+            snprintf(word, sizeof word, "%.*s", (int)(sp - lab), lab);
+            sb_text(g, word, lx, ly, ink, PAL_BLACK, false, 1);
+            ly += 9;
+            sb_text(g, sp + 1, lx, ly, ink, PAL_BLACK, false, 1);
+            ly += 9;
+        } else {
+            sb_text(g, lab, lx, ly, ink, PAL_BLACK, false, 1);
+            ly += 9;
+        }
+        sb_text(g, "U2", lx, ly, ink, PAL_BLACK, false, 1);
     }
 }
 /* Shared mount: 12px bare PCB, device offset -30, Font0 name beside the chip.
@@ -6716,12 +6729,15 @@ static void rain_flags(void)
     /* Defend left panels (all 13, Gibson included): the 10 device icons only, faint.
      * No 0/1 strands and no bot chips. Terminal gaps stay the dce1c87 faint device rain. */
     const bool zsb = zap_sb_on();
+    const bool radio = s_screen == SCR_WIFI_RADAR || s_screen == SCR_BT_RADAR;
+    const bool devrain = zsb || radio;
     botcorps_rain_set_gibson((s_screen == SCR_GIBSON || (s_screen == SCR_SCAN && s_scan_bot == 12)) && !zsb);
-    botcorps_rain_set_no_bots(s_screen == SCR_TERMINAL || zsb);
-    botcorps_rain_set_faint(s_screen == SCR_TERMINAL || zsb);
-    if (zsb) {
-        const int b = (s_defend_bot >= 0 && s_defend_bot <= 12) ? s_defend_bot : 12;
-        botcorps_rain_set_faint_scale(2, 5);   /* ~40% on the defend panel; terminal stays 1/4 */
+    botcorps_rain_set_no_bots(s_screen == SCR_TERMINAL || devrain);
+    botcorps_rain_set_faint(s_screen == SCR_TERMINAL || devrain);
+    if (devrain) {
+        const int b = zsb ? ((s_defend_bot >= 0 && s_defend_bot <= 12) ? s_defend_bot : 12)
+                          : (s_screen == SCR_BT_RADAR ? 1 : 0);
+        botcorps_rain_set_faint_scale(2, 5);   /* ~40% on the framed panel; terminal stays 1/4 */
         if (b >= 12 || BH_DEV[b][0] < 0)
             botcorps_rain_set_devsel(0, 0, 0); /* Gibson: all 10 device icons */
         else if (BH_DEV[b][1] >= 0)

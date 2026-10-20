@@ -3685,8 +3685,15 @@ static void sb_board(Gfx g, bool wifi)
                         : core ? s_scan_bot : wifi ? 0 : 1;
     const uint8_t botc = (bot >= 0 && bot < 12) ? bot_color(bot) : (uint8_t)PAL_IVORY;
     const uint8_t edge = zsb ? botc : board_edge_col(bot);
+    const bool gib = bot >= 12;
     const uint8_t hdr = zsb ? botc : gold;
     const uint8_t hdrh = zsb ? botcorps_pal_fit(mix16(botcorps_rgb565(botc), 0xFFFF, 35, 100)) : goldh;
+    /* Non-Gibson header-rail pins are style-B silver, the same ink as the chip pins.
+     * Gibson keeps gold 177, the gold highlight, and the copper core. */
+    const uint8_t rail = gib ? hdr : (uint8_t)PAL_SOFT;
+    const uint8_t railh = gib ? hdrh : (uint8_t)PAL_SOFT;
+    const uint8_t railc = gib ? (uint8_t)108 : (uint8_t)PAL_SOFT;
+    const uint8_t rail0 = gib ? goldd : (uint8_t)PAL_SOFT;
     /* Defend glow ring is the bot colour. Scan keeps the neutral ring. */
     sb_frame(g, 14, 26, 292, 183, zsb ? botc : (uint8_t)PAL_LINE);
     sb_frame(g, 15, 27, 290, 181, zsb ? botc : (uint8_t)PAL_LINE);
@@ -3702,9 +3709,9 @@ static void sb_board(Gfx g, bool wifi)
         sb_rect(g, 36, y - 1, 246, 8, 64);
         sb_rect(g, 36, y - 1, 246, 1, 68);
         for (int x = 38; x <= 276; x += 8) {
-            sb_rect(g, x, y + 1, 4, 4, x == 38 ? (uint8_t)209 : hdr);
-            sb_rect(g, x, y + 1, 4, 1, hdrh);
-            sb_rect(g, x + 1, y + 2, 2, 2, x == 38 ? (uint8_t)goldd : (uint8_t)108);
+            sb_rect(g, x, y + 1, 4, 4, x == 38 ? (gib ? (uint8_t)209 : rail) : rail);
+            sb_rect(g, x, y + 1, 4, 1, x == 38 && gib ? hdrh : railh);
+            sb_rect(g, x + 1, y + 2, 2, 2, x == 38 ? rail0 : railc);
         }
     }
     const int hx[4] = { 26, 294, 26, 294 }, hy[4] = { 38, 38, 197, 197 };
@@ -3727,7 +3734,6 @@ static void sb_board(Gfx g, bool wifi)
         /* Addendum 5: steel outline, black window, style-B silver pads (gold on Gibson),
          * face in the bot colour. Device chip is mounted to the right, label on its left. */
         const int cxm = mx + mw / 2, ccy = my + 26;
-        const bool gib = bot >= 12;
         if (zsb) zap_rain_rect(g);   /* rain behind the chips, this rect only */
         chip_block(g, cxm, ccy, 40, gib ? 12 : bot);
         if (zsb) dev_mount_row(g, cxm, ccy, bot);

@@ -2962,8 +2962,8 @@ static void chip_block_ex(Gfx g, int cx, int cy, int S, int bot, int npins)
     g.drawRect(x, y, S, S, PAL_BLACK);                   /* black outer border */
     g.drawRect(x + 2, y + 2, S - 4, S - 4, PAL_LINE);
     g.drawRect(x + 6, y + 6, S - 12, S - 12, PAL_DIAG);
-    /* v1019y: the 12 bots use INT-screen pin style B (1 px silver castellations, not bot-coloured).
-     * Gibson keeps the existing GOLD pins, same geometry as before. */
+    /* Edge leads are Gibson's 5x2 castellations. Non-Gibson is that same chip in silver. */
+    const uint8_t pin = (bot >= 12) ? (uint8_t)PAL_GOLD_PIN : (uint8_t)PAL_SOFT;
     if (bot >= 12 && npins == 4) {
         /* Option-E hub core (5dc1c54): i = 8; i <= S-10; i += 8. Four gold pins, not the later 5. */
         for (int i = 8; i <= S - 10; i += 8) {
@@ -2972,21 +2972,13 @@ static void chip_block_ex(Gfx g, int cx, int cy, int S, int bot, int npins)
             g.fillRect(x + i, y - 1, 2, 5, PAL_GOLD_PIN);
             g.fillRect(x + i, y + S - 4, 2, 5, PAL_GOLD_PIN);
         }
-    } else if (bot >= 12) {
-        for (int k = 0; k < 5; ++k) {
-            const int i = chip_pin(S, k);
-            g.fillRect(x - 1, y + i, 5, 2, PAL_GOLD_PIN);
-            g.fillRect(x + S - 4, y + i, 5, 2, PAL_GOLD_PIN);
-            g.fillRect(x + i, y - 1, 2, 5, PAL_GOLD_PIN);
-            g.fillRect(x + i, y + S - 4, 2, 5, PAL_GOLD_PIN);
-        }
     } else {
         for (int k = 0; k < 5; ++k) {
-            const int i = chip_pin1(S, k);
-            g.fillRect(x - 2, y + i, 2, 1, PAL_SOFT);
-            g.fillRect(x + S, y + i, 2, 1, PAL_SOFT);
-            g.fillRect(x + i, y - 2, 1, 2, PAL_SOFT);
-            g.fillRect(x + i, y + S, 1, 2, PAL_SOFT);
+            const int i = chip_pin(S, k);
+            g.fillRect(x - 1, y + i, 5, 2, pin);
+            g.fillRect(x + S - 4, y + i, 5, 2, pin);
+            g.fillRect(x + i, y - 1, 2, 5, pin);
+            g.fillRect(x + i, y + S - 4, 2, 5, pin);
         }
     }
     g.fillRect(x + 7, y + 7, 2, 2, PAL_IVORY);
@@ -3246,17 +3238,21 @@ static int list_band(void)
 }
 
 static inline void sb_rect(Gfx g, int x, int y, int w, int h, uint8_t c) { g.fillRect(x, y, w, h, c); }
-/* Gibson's pin, scaled. Light body, bright cap, dark socket. n=4 is his exact 4x4;
- * n=6 is the silver size that still reads at 320x240. */
-static void silver_pin(Gfx g, int x, int y, int n)
+/* Shared pin. Palette is the only gold/silver difference.
+ * n=4 is the header rail (4x1 cap, 2x2 dark socket). n=3 is the device pad (cap, no socket). */
+struct PinPal { uint8_t body, hi, core, body0, core0; };
+static const PinPal PIN_GOLD = { 177, 217, 108, 209, 104 };
+static const PinPal PIN_SILVER = { PAL_SOFT, PAL_WHITE, PAL_BLACK, PAL_SOFT, PAL_BLACK };
+static void pin_pad(Gfx g, int x, int y, int n, uint8_t body, uint8_t hi, uint8_t core)
 {
-    sb_rect(g, x, y, n, n, PAL_SOFT);
+    sb_rect(g, x, y, n, n, body);
+    if (n <= 3) { sb_rect(g, x, y, n, 1, hi); return; }
     const int hh = n >= 6 ? 2 : 1;
-    sb_rect(g, x, y, n, hh, PAL_WHITE);
+    sb_rect(g, x, y, n, hh, hi);
     const int c = n >= 6 ? 3 : 2;
     const int ox = (n - c) / 2;
     const int oy = hh + (n - hh - c) / 2;
-    sb_rect(g, x + ox, y + oy, c, c, PAL_BLACK);
+    sb_rect(g, x + ox, y + oy, c, c, core);
 }
 static inline void sb_circ(Gfx g, int x, int y, int r, uint8_t c) { g.fillCircle(x, y, r, c); }
 
@@ -3682,7 +3678,7 @@ static uint8_t board_edge_col(int bot);
 /* Device chip sits LEFT of the bot chip, with a bare-PCB gap under it. */
 static const int DEVICE_CHIP_OFF = -30;
 static const int DEV_GAP = 12;
-static const int SILVER_PIN_N = 6;
+static const int SILVER_PIN_N = 6; /* clearance under the bot chip; pin size stays 4x4 / 3x3 */
 static void dev_under_chip(Gfx g, int cx, int cy, int bot);
 static void dev_solder(Gfx g, int cx, int bot_bottom, int dev_top, int bot);
 static void dev_mount_row(Gfx g, int cxm, int ccy, int bot, int *dcy_out);
@@ -3705,12 +3701,9 @@ static void sb_board(Gfx g, bool wifi)
     const uint8_t edge = bot_chrome ? botc : board_edge_col(bot);
     const uint8_t hdr = bot_chrome ? botc : gold;
     const uint8_t hdrh = bot_chrome ? botcorps_pal_fit(mix16(botcorps_rgb565(botc), 0xFFFF, 35, 100)) : goldh;
-    /* Non-Gibson header-rail pins are style-B silver, the same ink as the chip pins.
-     * Gibson keeps gold 177, the gold highlight, and the copper core. */
-    const uint8_t rail = gib ? hdr : (uint8_t)PAL_SOFT;
-    const uint8_t railh = gib ? hdrh : (uint8_t)PAL_SOFT;
-    const uint8_t railc = gib ? (uint8_t)108 : (uint8_t)PAL_SOFT;
-    const uint8_t rail0 = gib ? goldd : (uint8_t)PAL_SOFT;
+    /* Header rails: Gibson's 4x4 at the same x. Silver is that pin, recoloured. */
+    const PinPal &pins = gib ? PIN_GOLD : PIN_SILVER;
+    (void)hdr; (void)hdrh; (void)goldd;
     /* Non-Gibson defend keeps a bot-colour glow. Gibson and the scan boards stay PAL_LINE. */
     sb_frame(g, 14, 26, 292, 183, bot_chrome ? botc : (uint8_t)PAL_LINE);
     sb_frame(g, 15, 27, 290, 181, bot_chrome ? botc : (uint8_t)PAL_LINE);
@@ -3725,17 +3718,8 @@ static void sb_board(Gfx g, bool wifi)
         const int y = row ? 195 : 33;
         sb_rect(g, 36, y - 1, 246, 8, 64);
         sb_rect(g, 36, y - 1, 246, 1, 68);
-        for (int x = 38; x <= 276; x += 8) {
-            if (gib) {
-                /* Gold rail pin, unchanged: 4x4, idx 177 / 209, highlight 217, core 108 / 104. */
-                sb_rect(g, x, y + 1, 4, 4, x == 38 ? (uint8_t)209 : rail);
-                sb_rect(g, x, y + 1, 4, 1, hdrh);
-                sb_rect(g, x + 1, y + 2, 2, 2, x == 38 ? rail0 : railc);
-            } else {
-                /* Same cap + dark socket, 6x6 so it reads at 320x240. Pitch is 8. */
-                silver_pin(g, x - 1, y + 1, SILVER_PIN_N);
-            }
-        }
+        for (int x = 38; x <= 276; x += 8)
+            pin_pad(g, x, y + 1, 4, x == 38 ? pins.body0 : pins.body, pins.hi, x == 38 ? pins.core0 : pins.core);
     }
     const int hx[4] = { 26, 294, 26, 294 }, hy[4] = { 38, 38, 197, 197 };
     for (int k = 0; k < 4; ++k) {
@@ -4030,22 +4014,16 @@ static void dev_under_chip(Gfx g, int cx, int cy, int bot)
     const int D = T - 2, dx = x + 1, dy = y + 1;
     const bool gib = bot >= 12;
     const uint8_t pin = gib ? PAL_GOLD_PIN : (uint8_t)PAL_SOFT;
+    const PinPal &pads = gib ? PIN_GOLD : PIN_SILVER;
     GATE_BOX(g, "TCHIP", "device", dx, dy, D, D, "-");
     for (int k = 0; k < 5; ++k) {
         const int i = chip_pin1(D, k);
-        if (gib) {
-            sb_rect(g, x - 1, dy + i - 1, 3, 3, 177);
-            sb_rect(g, x + T - 2, dy + i - 1, 3, 3, 177);
-            sb_rect(g, dx + i - 1, y - 1, 3, 3, 177);
-            sb_rect(g, dx + i - 1, y + T - 2, 3, 3, 177);
-            sb_rect(g, dx + i, y, 1, 1, 217);
-            sb_rect(g, dx + i, y + T - 1, 1, 1, 217);
-        } else if ((k & 1) == 0) {
-            silver_pin(g, x - 1, dy + i - 2, 4);
-            silver_pin(g, x + T - 2, dy + i - 2, 4);
-            silver_pin(g, dx + i - 2, y - 2, 4);
-            silver_pin(g, dx + i - 2, y + T - 2, 4);
-        }
+        sb_rect(g, x - 1, dy + i - 1, 3, 3, pads.body);
+        sb_rect(g, x + T - 2, dy + i - 1, 3, 3, pads.body);
+        sb_rect(g, dx + i - 1, y - 1, 3, 3, pads.body);
+        sb_rect(g, dx + i - 1, y + T - 2, 3, 3, pads.body);
+        sb_rect(g, dx + i, y, 1, 1, pads.hi);
+        sb_rect(g, dx + i, y + T - 1, 1, 1, pads.hi);
         g.fillRect(x, dy + i, 2, 1, pin);
         g.fillRect(x + T - 2, dy + i, 2, 1, pin);
     }
@@ -4059,6 +4037,7 @@ static void dev_under_chip(Gfx g, int cx, int cy, int bot)
 static void dev_solder(Gfx g, int cx, int bot_bottom, int dev_top, int bot)
 {
     const bool gib = bot >= 12;
+    const PinPal &pads = gib ? PIN_GOLD : PIN_SILVER;
     const uint8_t wire = 104;
     static const int off[5] = { -6, -3, 0, 3, 6 };
     static const int jog[5] = { -2, 1, 2, -1, 2 };
@@ -4070,25 +4049,21 @@ static void dev_solder(Gfx g, int cx, int bot_bottom, int dev_top, int bot)
         g.fillRect(x0, bot_bottom, 1, mid - bot_bottom + 1, wire);
         g.fillRect(x0 < x1 ? x0 : x1, mid, (x0 > x1 ? x0 - x1 : x1 - x0) + 1, 1, wire);
         g.fillRect(x1, mid, 1, dev_top - mid + 1, wire);
-        if (gib) {
-            sb_rect(g, x0 - 1, bot_bottom - 1, 3, 2, 177);
-            sb_rect(g, x0, bot_bottom - 1, 1, 1, 217);
-            sb_rect(g, x1 - 1, dev_top - 1, 3, 2, 177);
-            sb_rect(g, x1, dev_top, 1, 1, 217);
-        } else {
-            silver_pin(g, x0 - 2, bot_bottom - 2, 4);
-            silver_pin(g, x1 - 2, dev_top - 2, 4);
-        }
+        sb_rect(g, x0 - 1, bot_bottom - 1, 3, 2, pads.body);
+        sb_rect(g, x0, bot_bottom - 1, 1, 1, pads.hi);
+        sb_rect(g, x1 - 1, dev_top - 1, 3, 2, pads.body);
+        sb_rect(g, x1, dev_top, 1, 1, pads.hi);
     }
 }
 
-/* Shared mount: bare PCB between the chips, device offset left, Font0 name beside it.
- * Gibson pads stay 3x3 gold. Non-Gibson pads are the 6x6 silver pin. */
+/* Shared mount: 12px bare PCB, device offset -30, Font0 name beside the chip.
+ * Device pads are Gibson's 3x3. Silver uses the same rects. */
 static void dev_mount_row(Gfx g, int cxm, int ccy, int bot, int *dcy_out)
 {
     const int S = 40, T = 18, D = T - 2;
     const bool gib = bot >= 12;
     const int kind = bot_dev_kind(bot);
+    const PinPal &pads = gib ? PIN_GOLD : PIN_SILVER;
     const uint8_t wire = 104;
     const uint8_t accent = GL_INK[kind][0];
     const int bot_bottom = ccy + S / 2;
@@ -4109,15 +4084,8 @@ static void dev_mount_row(Gfx g, int cxm, int ccy, int bot, int *dcy_out)
         g.fillRect(x0, bot_bottom, 1, mid_y - bot_bottom + 1, wire);
         g.fillRect(xLo, mid_y, (x0 > x1 ? x0 - x1 : x1 - x0) + 1, 1, wire);
         g.fillRect(x1 + 2, mid_y, 1, pad_y - mid_y + 1, wire);
-        if (gib) {
-            sb_rect(g, x0 - 1, bot_bottom - 1, 3, 3, 177);
-            sb_rect(g, x0 - 1, bot_bottom - 1, 3, 1, 217);
-            sb_rect(g, x1, pad_y, 3, 3, 177);
-            sb_rect(g, x1, pad_y, 3, 1, 217);
-        } else {
-            silver_pin(g, x0 - 2, bot_bottom - 2, 4);
-            silver_pin(g, x1, pad_y, SILVER_PIN_N);
-        }
+        pin_pad(g, x0 - 1, bot_bottom - 1, 3, pads.body, pads.hi, pads.core);
+        pin_pad(g, x1, pad_y, 3, pads.body, pads.hi, pads.core);
     }
     g.fillRect(dx, dy, D, D, PAL_BLACK);
     g.drawRect(dx, dy, D, D, gib ? (uint8_t)PAL_STEEL : accent);
@@ -4125,7 +4093,7 @@ static void dev_mount_row(Gfx g, int cxm, int ccy, int bot, int *dcy_out)
     const char *lab = GL_LABEL[kind];
     const int lw = (int)strlen(lab) * 6;
     int lx = x + T + 4;
-    /* Stop before the steel column at x97 and the grid at x108. */
+    /* Longest GL_LABEL stays left of the steel column at x97. */
     if (lx + lw > 96) lx = 96 - lw;
     if (lx < x + T + 2) lx = x + T + 2;
     sb_text(g, lab, lx, dcy - 4, PAL_WHITE, PAL_BLACK, false, 1);

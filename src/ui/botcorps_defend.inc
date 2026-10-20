@@ -45,7 +45,8 @@ static void paint_dex(Gfx) {}
 static void dex_open(void) {}
 static void dg_paint_hud(Gfx, int, bool) {}
 
-/* Deauth loop inside the photo-match grid. Fork B: field glow follows career HI.
+/* Deauth loop inside the photo-match grid. The field is the shell cyan grid
+ * (bh_grid, same lines as the scan board). Tier still scores; it does not recolour the field.
  * Left panel is not drawn here — sb_board keeps the framed chip. */
 enum {
     DL_AW_BLOOD = 1 << 0, DL_AW_DWELL = 1 << 1, DL_AW_FULL = 1 << 2, DL_AW_SWEEP = 1 << 3,
@@ -309,21 +310,12 @@ static void dl_step(uint32_t t)
 static void zap_paint_grid(Gfx g)
 {
     GATE_BOX(g, "BOARD", "defend", 106, 42, 176, 148, "-");
-    if (!dl_live()) { bh_grid(g); return; }
+    /* Pre-Fork-B field: the scan-board cyan grid. No matrix fill, no tier glow. */
+    bh_grid(g);
+    if (!dl_live()) return;
     const uint32_t t = millis();
-    const int tier = dl_tier_of(s_dl_hi);
-    const int mix = 8 + tier * 16;
-    const uint8_t field = botcorps_pal_fit(mix16(botcorps_rgb565(PAL_CODE), 0x0000, mix > 80 ? 80 : mix, 100));
-    const uint8_t glow = botcorps_pal_fit(mix16(botcorps_rgb565(PAL_CODE), 0xFFFF, 20 + tier * 12, 100));
     const uint8_t bc = dl_accent();
-    sb_rect(g, BH_X, BH_Y, BH_W, BH_H, field);
-    for (int c = 0; c <= BH_GC; ++c) sb_rect(g, BH_X + c * BH_C, BH_Y, 1, BH_H, glow);
-    for (int r = 0; r <= BH_GR; ++r) sb_rect(g, BH_X, BH_Y + r * BH_C, BH_W, 1, glow);
-    for (int i = 0; i < 6 + tier * 8; ++i) {
-        const int sx = BH_X + 2 + (int)((t / 40u + (uint32_t)i * 37u) % (uint32_t)(BH_W - 4));
-        const int sy = BH_Y + 2 + (int)((t / 55u + (uint32_t)i * 19u) % (uint32_t)(BH_H - 4));
-        sb_rect(g, sx, sy, 1, 2, (uint8_t)PAL_CODE);
-    }
+    const uint8_t glass = 8;
     const uint8_t copper = botcorps_pal_fit(mix16(0xC300, botcorps_rgb565(bc), 40, 100));
     for (int i = 0; i < DL_MAX; ++i) {
         int x, y; dl_xy(i, &x, &y);
@@ -331,7 +323,7 @@ static void zap_paint_grid(Gfx g)
         sb_rect(g, 190, y < 96 ? y : 96, 1, (y > 96 ? y - 96 : 96 - y) + 1, copper);
         if (!s_dl_d[i].live) continue;
         gl_icon(g, s_dl_d[i].kind, x - 6, y - 6, false);
-        if (s_dl_d[i].acq) sb_text(g, "ACQ", x - 8, y - 12, 228, field, false, 1);
+        if (s_dl_d[i].acq) sb_text(g, "ACQ", x - 8, y - 12, 228, glass, false, 1);
     }
     if (g.raw()) botcorps_sprite_draw(*g.raw(), 190 - g.ox, 96 - g.oy, BOTCORPS_SHAPE_ROUND, 2, bc, false);
     sb_frame(g, s_dl_rx - 5, s_dl_ry - 5, 11, 11, bc);
@@ -343,9 +335,9 @@ static void zap_paint_grid(Gfx g)
     char hud[24];
     snprintf(hud, sizeof hud, "%ds", s_dl_on ? dl_time_left(t) / 1000 : DL_TIME0 / 1000);
     /* Index prompt occupies x108..123, y43..53. "45s" starts at x128 so the boxes do not meet. */
-    sb_text(g, hud, 128, BH_Y + 2, (uint8_t)PAL_WHITE, field, false, 1);
+    sb_text(g, hud, 128, BH_Y + 2, (uint8_t)PAL_WHITE, glass, false, 1);
     snprintf(hud, sizeof hud, "L%d %d", dl_lv_of(s_dl_hi), s_dl_score);
-    sb_text(g, hud, 228, BH_Y + 1, (uint8_t)PAL_WHITE, field, false, 1);
+    sb_text(g, hud, 228, BH_Y + 1, (uint8_t)PAL_WHITE, glass, false, 1);
     for (int i = 0; i < DL_MAX; ++i) if (s_dl_d[i].live && s_dl_d[i].acq)
         sb_text(g, "TARGET ACQUIRED", 128, 78, (uint8_t)PAL_WHITE, 228, false, 1);
     if (s_dl_bolt && (uint32_t)(t - s_dl_bolt) < 280u) {

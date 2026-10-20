@@ -395,14 +395,16 @@ static void zap_strip(Gfx g, int dx, int th, int ty, int dw)
 
 /* Device-only rain in the dark rect behind both chips. Cells that touch a chip, the
  * device name (right of the left-mounted chip), or the silk are skipped. */
-enum { ZR_X = 20, ZR_Y = 44, ZR_W = 76, ZR_H = 148 };
+/* Same window the gate already counts (top cell row at y=40). Spec crop (20,44)
+ * is this rect with the top 4 px removed; those 4 px are the visible rain under the bar. */
+enum { ZR_X = 20, ZR_Y = 40, ZR_W = 76, ZR_H = 152 };
 static void zr_exclusions(int16_t ex[4][4])
 {
-    /* Bot chip, silk under it, device+label, right-margin traces. */
-    ex[0][0] = 22; ex[0][1] = 52; ex[0][2] = 48; ex[0][3] = 48;
-    ex[1][0] = 16; ex[1][1] = 96; ex[1][2] = 62; ex[1][3] = 20;
-    ex[2][0] = 16; ex[2][1] = 132; ex[2][2] = 80; ex[2][3] = 44;
-    ex[3][0] = 88; ex[3][1] = 90; ex[3][2] = 8; ex[3][3] = 80;
+    /* Tight boxes so device-icon rain stays in the gaps and off the chip, silk, and label. */
+    ex[0][0] = 24; ex[0][1] = 54; ex[0][2] = 44; ex[0][3] = 44;   /* bot chip */
+    ex[1][0] = 18; ex[1][1] = 96; ex[1][2] = 58; ex[1][3] = 18;   /* silk */
+    ex[2][0] = 66; ex[2][1] = 134; ex[2][2] = 30; ex[2][3] = 32;  /* device chip */
+    ex[3][0] = 16; ex[3][1] = 138; ex[3][2] = 50; ex[3][3] = 24;  /* name + U2 */
 }
 #ifdef BOTCORPS_HOST_RENDER
 bool host_gfx_clip_get(int *x, int *y, int *w, int *h);

@@ -3684,19 +3684,22 @@ static void sb_board(Gfx g, bool wifi)
     const int bot = zsb ? ((s_defend_bot >= 0 && s_defend_bot <= 12) ? s_defend_bot : 12)
                         : core ? s_scan_bot : wifi ? 0 : 1;
     const uint8_t botc = (bot >= 0 && bot < 12) ? bot_color(bot) : (uint8_t)PAL_IVORY;
-    const uint8_t edge = zsb ? botc : board_edge_col(bot);
     const bool gib = bot >= 12;
-    const uint8_t hdr = zsb ? botc : gold;
-    const uint8_t hdrh = zsb ? botcorps_pal_fit(mix16(botcorps_rgb565(botc), 0xFFFF, 35, 100)) : goldh;
+    /* The 12 defend boards keep bot-colour chrome. Gibson's shell keeps the locked
+     * non-ivory frame, edge, and gold header rails. */
+    const bool bot_chrome = zsb && !gib;
+    const uint8_t edge = bot_chrome ? botc : board_edge_col(bot);
+    const uint8_t hdr = bot_chrome ? botc : gold;
+    const uint8_t hdrh = bot_chrome ? botcorps_pal_fit(mix16(botcorps_rgb565(botc), 0xFFFF, 35, 100)) : goldh;
     /* Non-Gibson header-rail pins are style-B silver, the same ink as the chip pins.
      * Gibson keeps gold 177, the gold highlight, and the copper core. */
     const uint8_t rail = gib ? hdr : (uint8_t)PAL_SOFT;
     const uint8_t railh = gib ? hdrh : (uint8_t)PAL_SOFT;
     const uint8_t railc = gib ? (uint8_t)108 : (uint8_t)PAL_SOFT;
     const uint8_t rail0 = gib ? goldd : (uint8_t)PAL_SOFT;
-    /* Defend glow ring is the bot colour. Scan keeps the neutral ring. */
-    sb_frame(g, 14, 26, 292, 183, zsb ? botc : (uint8_t)PAL_LINE);
-    sb_frame(g, 15, 27, 290, 181, zsb ? botc : (uint8_t)PAL_LINE);
+    /* Non-Gibson defend keeps a bot-colour glow. Gibson and the scan boards stay PAL_LINE. */
+    sb_frame(g, 14, 26, 292, 183, bot_chrome ? botc : (uint8_t)PAL_LINE);
+    sb_frame(g, 15, 27, 290, 181, bot_chrome ? botc : (uint8_t)PAL_LINE);
     sb_frame(g, 16, 28, 288, 179, PAL_DEEP);
     sb_frame(g, 17, 29, 286, 177, PAL_DEEP);
     GATE_BOX(g, "BOARD", "scan", 14, 26, 292, 183, "-");
@@ -3736,7 +3739,9 @@ static void sb_board(Gfx g, bool wifi)
         const int cxm = mx + mw / 2, ccy = my + 26;
         if (zsb) zap_rain_rect(g);   /* rain behind the chips, this rect only */
         chip_block(g, cxm, ccy, 40, gib ? 12 : bot);
-        if (zsb) dev_mount_row(g, cxm, ccy, bot);
+        /* The 12 defend panels keep the offset-right mount. Gibson's device icon
+         * stays on the locked centre so the game rows match that position. */
+        if (zsb && !gib) dev_mount_row(g, cxm, ccy, bot);
         else {
             dev_under_chip(g, cxm, ccy + 36, bot);
             dev_solder(g, cxm, ccy + 20, ccy + 27, bot);
@@ -3994,6 +3999,9 @@ static int bot_dev_kind(int bot)
 }
 static uint8_t board_edge_col(int bot)
 {
+    /* Meta's frame is the locked magenta idx 199. Watch ink left override 231 for B.4,
+     * and the 50/50 mix then fits to accent 167. That frame shift is not part of B.4. */
+    if (bot == 8) return 199;
     const uint8_t bc = (bot >= 0 && bot < 12) ? bot_color(bot) : (uint8_t)PAL_IVORY;
     const uint8_t dc = GL_INK[bot_dev_kind(bot)][0];
     return botcorps_pal_fit(mix16(botcorps_rgb565(bc), botcorps_rgb565(dc), 50, 100));
@@ -4447,7 +4455,11 @@ static void bot_hunt(Gfx g)
         const int dx = (int)lroundf(s_bh_d[i].x), dy = (int)lroundf(s_bh_d[i].y);
         for (int k = 1; k < 5; ++k) {
             const int ty = dy - k * 4;
-            if (ty >= BH_Y) sb_rect(g, dx + 5, ty, 2, 2, trail[k]);
+            uint8_t ink = trail[k];
+            /* Skimmer strand step k=2 fits to flat grey 68 after DA55. The lock is idx 33.
+             * The fainter steps were already grey in the lock; leave those. */
+            if (k == 2 && col == 202 && ink == PAL_BOARD_D) ink = 33;
+            if (ty >= BH_Y) sb_rect(g, dx + 5, ty, 2, 2, ink);
         }
         gl_icon(g, s_bh_d[i].k, dx, dy, false);
     }
@@ -5819,10 +5831,8 @@ static void paint_gibson(Gfx g)
     hub_die(g, cx, cy, 34);
     core_bezel(g, cx, cy, 34);
     const int spin = mood == MOOD_HUNTING ? (int)(t / 30u) : mood == MOOD_EXCITED ? (int)(t / 50u) : (int)(t / 90u);
-    /* 5dc1c54:5410 passes PAL_CYAN here, not th_ring(). Hub-amber's locked L1 image is the later
-     * th_ring() amber ink (00ffff). Hard PAL_CYAN moves 868 px beyond the B.4 approval, so the
-     * rings stay on th_ring() and that extra is not in the hub hash. */
-    GIB_CORE_RING(g, cx, cy, 37, th_ring(0), 5, 5, spin);
+    /* 5dc1c54 hub-amber rings are PAL_CYAN on the square path. th_ring() on theme 1 is 00ffff. */
+    GIB_CORE_RING(g, cx, cy, 37, PAL_CYAN, 5, 5, spin);
     if (mood == MOOD_HUNTING) {
         for (int k = 0; k < 14; ++k) {
             const float ang = (float)t / 260.f - (float)k * 0.07f;
@@ -5830,11 +5840,11 @@ static void paint_gibson(Gfx g)
             g.fillRect(cx + (int)(cosf(ang) * 40.f), cy + (int)(sinf(ang) * 40.f), 1, 1, ink);
         }
     }
-    GIB_CORE_RING(g, cx, cy, 42, th_ring(1), 2, 4, (int)(t / 140u));
-    GIB_CORE_RING(g, cx, cy, 48, th_ring(2), 1, 5, (int)(t / 80u));
-    GIB_CORE_RING(g, cx, cy, 54, th_ring(4), 2, 6, (int)(t / 200u));
+    GIB_CORE_RING(g, cx, cy, 42, PAL_CYAN, 2, 4, (int)(t / 140u));
+    GIB_CORE_RING(g, cx, cy, 48, PAL_CYAN, 1, 5, (int)(t / 80u));
+    GIB_CORE_RING(g, cx, cy, 54, PAL_CYAN, 2, 6, (int)(t / 200u));
     const int ph = (int)((t % 2400u) * 5u / 2400u);
-    GIB_CORE_RING(g, cx, cy, 44 + ph, th_ring(3), 3, 3, 0);
+    GIB_CORE_RING(g, cx, cy, 44 + ph, PAL_CYAN, 3, 3, 0);
     hub_sparks(g, cx, cy, t);
     g.fillRect(cx - 14, cy + 25, 28, 1, wire);
     gib_core_chip_d(g, cx, cy, 4);   /* Option-E 5dc1c54: four gold pins per side */

@@ -4127,10 +4127,37 @@ static void framed_mount(Gfx g, int cxm, int ccy, int bot, int *dcy_out)
             GL_AP, GL_PHONE, GL_LAPTOP, GL_TV,
             GL_SPEAKER, GL_TRACKER, GL_WATCH, GL_CAMERA
         };
-        const int cw = 14, pitch = 18, x0 = 22;
-        /* Silk block ends at y=148. Via top is via_y-1, so row 1 starts at 151: 2 px clear. */
+        const int cw = 14, pitch = 18, x0 = 27; /* body centres average to the chip centre, x=61 */
+        /* Silk block ends at y=148. First copper is the via at y=151: 2 px clear. */
         const int row_y[2] = { 158, 180 };
         const int via_y[2] = { 152, 174 };
+        const int pin_y = by + S - 2;
+        /* Four runs in the gutter left of the silk. Each meets the cluster below
+         * y=151 and a different lower pin above y=123, two pixels clear of the letters. */
+        static const int glane[4] = { 20, 22, 24, 26 };
+        static const int gpink[4] = { 0, 1, 2, 3 };
+        static const int gtop[4] = { 121, 122, 123, 121 };
+        static const int gbot[4] = { 161, 156, 154, 152 };
+        static const int gto[4] = { 26, 30, 30, 30 };
+        for (int k = 0; k < 3; ++k) {
+            const int bxp = bx + chip_pin(S, gpink[k]);
+            vrun(g, glane[k], gtop[k], gbot[k], copper);
+            hrun(g, glane[k], bxp, gtop[k], copper);
+            vrun(g, bxp, pin_y, gtop[k], copper);
+            via_drill(g, bxp, pin_y, copper);
+            hrun(g, glane[k], gto[k], gbot[k], copper);
+        }
+        {
+            /* Fourth run joins the cluster via, then steps past the first pin on y=121. */
+            const int bxp = bx + chip_pin(S, 3);
+            vrun(g, 26, 124, 152, copper);
+            hrun(g, 26, 30, 152, copper);
+            hrun(g, 26, 44, 124, copper);
+            vrun(g, 44, 121, 124, copper);
+            hrun(g, 44, bxp, 121, copper);
+            vrun(g, bxp, pin_y, 121, copper);
+            via_drill(g, bxp, pin_y, copper);
+        }
         for (int i = 0; i < 8; ++i) {
             const int col = i & 3;
             const int row = i >> 2;
@@ -4140,22 +4167,20 @@ static void framed_mount(Gfx g, int cxm, int ccy, int bot, int *dcy_out)
             const int px = cx + 3;
             vrun(g, px, via_y[row] + 2, cy - 4, copper);
             via_drill(g, px, via_y[row], copper);
-            /* Top pads: gold body, highlight, dark core. */
             for (int s = 0; s < 2; ++s) {
                 const int qx = cx + 2 + s * 6;
                 sb_rect(g, qx, cy - 3, 3, 3, 177);
                 sb_rect(g, qx, cy - 3, 3, 1, 217);
                 sb_rect(g, qx + 1, cy - 2, 1, 1, 108);
             }
-            /* Side castellations, two per edge, same gold / dark-core pins. */
             for (int s = 0; s < 2; ++s) {
                 const int qy = cy + 3 + s * 5;
-                sb_rect(g, cx - 2, qy, 3, 2, 177);
-                sb_rect(g, cx - 2, qy, 3, 1, 217);
-                sb_rect(g, cx - 1, qy + 1, 1, 1, 108);
-                sb_rect(g, cx + cw - 1, qy, 3, 2, 177);
-                sb_rect(g, cx + cw - 1, qy, 3, 1, 217);
-                sb_rect(g, cx + cw, qy + 1, 1, 1, 108);
+                sb_rect(g, cx - 1, qy, 3, 2, 177);
+                sb_rect(g, cx - 1, qy, 3, 1, 217);
+                sb_rect(g, cx, qy + 1, 1, 1, 108);
+                sb_rect(g, cx + cw - 2, qy, 3, 2, 177);
+                sb_rect(g, cx + cw - 2, qy, 3, 1, 217);
+                sb_rect(g, cx + cw - 1, qy + 1, 1, 1, 108);
             }
             g.fillRect(cx + 1, cy + 1, cw - 2, cw - 2, PAL_BLACK);
             g.drawRect(cx, cy, cw, cw, rim);
@@ -5996,9 +6021,9 @@ static void paint_gibson(Gfx g)
     hub_die(g, cx, cy, 34);
     core_bezel(g, cx, cy, 34);
     const int spin = mood == MOOD_HUNTING ? (int)(t / 30u) : mood == MOOD_EXCITED ? (int)(t / 50u) : (int)(t / 90u);
-    /* 5dc1c54:5410 passes PAL_CYAN here, not th_ring(). Hub-amber's locked L1 image is the later
-     * th_ring() amber ink (00ffff). Hard PAL_CYAN moves 868 px beyond the B.4 approval, so the
-     * rings stay on th_ring() and that extra is not in the hub hash. */
+    /* 5dc1c54 paints these rings with PAL_CYAN. Hub-amber's locked image uses th_ring().
+     * B.4 was never an approval of the hard cyan; the rings stay on th_ring() so that
+     * colour is not added to the hub hash. */
     GIB_CORE_RING(g, cx, cy, 37, th_ring(0), 5, 5, spin);
     if (mood == MOOD_HUNTING) {
         for (int k = 0; k < 14; ++k) {

@@ -101,6 +101,16 @@ teal or accent-tinted), and the mock's game is disabled (GAME_ENABLED=false). In
 | | Settings keeps the UI colour selection and the bot colour/shape settings. No MASHUP overflow (G2/G4) |
 | L1 | Layout and look are locked: settings-c0..c7 and settings-amber renders are byte-identical to 675c87d (release/gate/locked-675c87d.sha256, which also locks the terminal, scan, sbox, game and hub renders; v1017b re-locked only the terminal / terminal-typed / terminal-tab hashes (square chip-form tiles) and hub / hub-amber (strong selected-button halo + command-menu stop); v1017c re-locked every rain-on render (rain glyph set #4, host rain fidelity) with all their .norain twins unchanged, plus terminal.norain / terminal-typed.norain (bugs #2/#3/#6)); v1019 re-locked the theme (every settings / hub / terminal / scan / sbox / game render), Gibson/bot chip faces, Terminal prompt row + live rain ghost, and the Gibson ticker; a host-only legacy-accent build (HOST_EXTRA=-DBOTCORPS_LEGACY_ACCENT) shows the non-theme diffs are confined to chips/faces, the Terminal tiles + prompt row and the Gibson ticker) |
 
+## Header rails (approved as rendered, v1019zj2)
+
+Mobandy's zi/zj2 renders are the lock for the header-rail pins. This is not a B.4 item and it is not a rebaseline of the 675c87d hashes.
+
+| surface | header-rail pads |
+|---|---|
+| Wi-Fi / BLE scan and the scan box (sbox) | bot colour |
+| Non-Gibson scanboard | silver, Gibson's pin geometry |
+| Gibson | gold, unchanged |
+
 ## Game screens (game-board, game-menu, game-jackin = GCHAT)
 - C1/C3 square Gibson block, G1–G8.
 

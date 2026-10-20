@@ -4119,6 +4119,35 @@ static void framed_mount(Gfx g, int cxm, int ccy, int bot, int *dcy_out)
     const int bx = cxm - S / 2, by = ccy - S / 2;
     static const int poff[5] = { 2, 7, 12, 17, 22 };
     if (dcy_out) *dcy_out = dcy;
+    if (gib) {
+        /* 4×2 mounted glossary chips under the silk. Gold pads, one short
+         * trace each, stopping clear of the letters. The single device chip
+         * is not drawn. */
+        static const int kinds[8] = {
+            GL_AP, GL_PHONE, GL_LAPTOP, GL_TV,
+            GL_SPEAKER, GL_TRACKER, GL_WATCH, GL_CAMERA
+        };
+        const int cw = 14, pitch = 18, x0 = 22;
+        const int row_y[2] = { 156, 178 };
+        const int via_y[2] = { 150, 172 };
+        for (int i = 0; i < 8; ++i) {
+            const int col = i & 3;
+            const int row = i >> 2;
+            const int cx = x0 + col * pitch;
+            const int cy = row_y[row];
+            const uint8_t rim = GL_INK[kinds[i]][0];
+            const int px = cx + 3;
+            const int py = cy - 2;
+            vrun(g, px, via_y[row] + 2, py - 1, copper);
+            via_drill(g, px, via_y[row], copper);
+            pin_land(g, px, py, 2, 2, land, pad);
+            pin_land(g, cx + 9, py, 2, 2, land, pad);
+            g.fillRect(cx + 1, cy + 1, cw - 2, cw - 2, PAL_BLACK);
+            g.drawRect(cx, cy, cw, cw, rim);
+            gl_icon(g, kinds[i], cx + 1, cy + 1, false);
+        }
+        return;
+    }
     /* Four verticals in the open gap left of the silk. Each leaves one
      * device top pad and ends on its own bot-chip lower pin. No right rail,
      * so the runs do not close a box around the letters. */
@@ -4183,12 +4212,6 @@ static void framed_mount(Gfx g, int cxm, int ccy, int bot, int *dcy_out)
             ly += 9;
         }
         sb_text(g, "U2", lx, ly, ink, PAL_BLACK, false, 1);
-    } else {
-        /* Gibson defends every device: the glossary '?' glyph, gold pads unchanged. */
-        gl_icon(g, GL_UNKNOWN, dcx - 6, dcy - 6, false);
-        const uint8_t qink = GL_INK[GL_UNKNOWN][0];
-        sb_text(g, "?", 20, y + 2, qink, PAL_BLACK, false, 1);
-        sb_text(g, "ALL", 20, y + 11, qink, PAL_BLACK, false, 1);
     }
 }
 /* Shared mount: 12px bare PCB, device offset -30, Font0 name beside the chip.
@@ -6749,8 +6772,9 @@ static void rain_flags(void)
         const int b = zsb ? ((s_defend_bot >= 0 && s_defend_bot <= 12) ? s_defend_bot : 12)
                           : (s_screen == SCR_BT_RADAR ? 1 : 0);
         botcorps_rain_set_faint_scale(3, 5);   /* one step up from 2/5; terminal stays 1/4 */
+        botcorps_rain_set_devall(b >= 12);     /* Gibson: full glossary set, fixed colours */
         if (b >= 12 || BH_DEV[b][0] < 0)
-            botcorps_rain_set_devsel(0, 0, 0); /* Gibson: all 10 device icons */
+            botcorps_rain_set_devsel(0, 0, 0);
         else if (BH_DEV[b][1] >= 0)
             botcorps_rain_set_devsel(2, BH_DEV[b][0], BH_DEV[b][1]);
         else
@@ -6758,6 +6782,7 @@ static void rain_flags(void)
     } else {
         botcorps_rain_set_faint_scale(1, 4);
         botcorps_rain_set_devsel(0, 0, 0);
+        botcorps_rain_set_devall(false);
     }
 }
 

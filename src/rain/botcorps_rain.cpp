@@ -56,6 +56,20 @@ static const uint16_t DEV_GIB[DEV_N][3] = {
     {0xF9C6,0x4881,0xFC0F}, {0xC21F,0x3889,0xD41F}, {0xFAF4,0x48E6,0xFCB8}, {0xFE20,0x49C0,0xFECB}, {0x9BDF,0x2929,0xBD5F},
 };
 static const uint16_t GIB_IVORY_N = 0xF79C;   /* GIBSONbot's fixed ivory */
+/* Glossary strip past the 10 rain icons: drone, dev board, printer. 8×8, a/b/c. */
+enum { DEV_ALL_N = 13 };
+static const char DEV_EXTRA[3][8][9] = {
+    { "c......c", ".c....c.", "..aaaa..", ".abbbba.", ".abbbba.", "..aaaa..", ".c....c.", "c......c" }, /* drone */
+    { "c.c.c.c.", "aaaaaaaa", "abbbbbaa", "abccbbaa", "abbbbbaa", "aaaaaaaa", "c.c.c.c.", "........" }, /* dev board */
+    { ".aaaaaa.", "abbbbbba", "abccccba", "aaaaaaaa", ".abbbba.", ".abbbba.", ".aaaaaa.", "........" }, /* printer */
+};
+/* Same fixed slots as the glossary strip. Not the theme, not the BOT-RAIN solid ink. */
+static const uint8_t DEV_ALL_INK[DEV_ALL_N][3] = {
+    { 31, 1, 255 }, { 92, 36, 255 }, { 188, 44, 255 }, { 30, 1, 255 },
+    { 240, 44, 255 }, { 252, 68, 255 }, { 199, 64, 255 }, { 167, 64, 255 },
+    { 111, 37, 255 }, { 211, 64, 255 }, { 224, 64, 255 }, { 51, 37, 252 },
+    { 202, 64, 255 },
+};
 static int s_shape = 0;
 static bool s_gibson = false;   /* Gibson's screen: the mixed-in bots are ivory Gibsons */
 /* v1019n (#15): Terminal / prompt rain = OUR DEVICE-ICON RAIN ONLY: only the 10 device icons fall (no 0/1
@@ -265,7 +279,7 @@ static void dev_inks(int d, int lv, uint8_t ink3[3])
 static void dev_art(lgfx::LovyanGFX &panel, int x, int ly, int d, const uint8_t ink3[3])
 {
     for (int yy = 0; yy < 8; ++yy) {
-        const char *rw = DEV_ART[d][yy];
+        const char *rw = (d >= DEV_N) ? DEV_EXTRA[d - DEV_N][yy] : DEV_ART[d][yy];
         for (int xx = 0; xx < 8;) {
             const char ch = rw[xx];
             if (ch == '.') { ++xx; continue; }
@@ -282,6 +296,10 @@ static void dev_art(lgfx::LovyanGFX &panel, int x, int ly, int d, const uint8_t 
 static bool dev_only_icon(int col, int row, int lv, uint8_t gl, int *d)
 {
     const uint32_t h = (uint32_t)gl * 37u + (uint32_t)col * 11u + (uint32_t)row * 5u;
+    if (rain_ctl()[5]) {
+        *d = (int)(h % (uint32_t)DEV_ALL_N);
+        return lv == 1 || ((h / (uint32_t)DEV_ALL_N) % 9u) < 4u;
+    }
     int d0 = (int)(h % DEV_N);
     const int dn = rain_ctl()[2];
     if (dn == 1) d0 = rain_ctl()[3] % DEV_N;
@@ -306,7 +324,15 @@ static void draw_cell(lgfx::LovyanGFX &panel, int col, int row)
         int d;
         if (dev_only_icon(col, row, lv, gl, &d)) {
             uint8_t ink3[3];
-            dev_inks(d, lv, ink3);
+            if (rain_ctl()[5] && d >= 0 && d < DEV_ALL_N) {
+                for (int k = 0; k < 3; ++k) ink3[k] = DEV_ALL_INK[d][k];
+                if (lv > 3) {
+                    for (int k = 0; k < 3; ++k)
+                        ink3[k] = botcorps_pal_fit(scale_native(botcorps_rgb565(ink3[k]), lv == 4 ? 2 : 1, 3));
+                }
+            } else {
+                dev_inks(d, lv, ink3);
+            }
             if (s_faint) {
                 for (int k = 0; k < 3; ++k)
                     ink3[k] = botcorps_pal_fit(scale_native(botcorps_rgb565(ink3[k]),
@@ -505,6 +531,10 @@ void botcorps_rain_set_devsel(int n, int k0, int k1)
     rain_ctl()[2] = (uint8_t)(n < 0 ? 0 : n);
     rain_ctl()[3] = (uint8_t)k0;
     rain_ctl()[4] = (uint8_t)k1;
+}
+void botcorps_rain_set_devall(bool on)
+{
+    rain_ctl()[5] = on ? 1 : 0;
 }
 
 void botcorps_rain_draw_win(lgfx::LovyanGFX &dst, int y0, int y1, int wx, int wy, int ww, int wh,

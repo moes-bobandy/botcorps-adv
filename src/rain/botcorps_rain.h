@@ -69,6 +69,8 @@ void botcorps_rain_set_faint(bool on);
 void botcorps_rain_set_faint_scale(int num, int den);
 /* Defend only: 0 = all 10 device icons, 1 = k0, 2 = k0 or k1. Kinds are rain DEV index. */
 void botcorps_rain_set_devsel(int n, int k0, int k1);
+/* Gibson's framed panel: the full glossary device set, each in its fixed colour. */
+void botcorps_rain_set_devall(bool on);
 /* v1019: faint ghost bits of the live rain over a chrome rect (world coords, dst rows from oy). */
 void botcorps_rain_ghost(lgfx::LovyanGFX &dst, int ox, int oy, int rx, int ry, int rw, int rh, uint8_t ink);
 void botcorps_rain_ghost_ex(lgfx::LovyanGFX &dst, int ox, int oy, int rx, int ry, int rw, int rh, uint8_t ink,

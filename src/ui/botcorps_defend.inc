@@ -402,17 +402,18 @@ static void zap_strip(Gfx g, int dx, int th, int ty, int dw)
 }
 
 /* Device-only rain in the dark rect behind both chips. Cells that touch a chip, the
- * device name (left of the right-mounted chip), or the silk are skipped. */
+ * device name (right of the left-mounted chip), or the silk are skipped. */
 enum { ZR_X = 20, ZR_Y = 40, ZR_W = 76, ZR_H = 152 };
 static void zr_exclusions(int16_t ex[4][4])
 {
     const int cxm = 61, ccy = 78;
     const int dcx = cxm + DEVICE_CHIP_OFF;
-    const int dcy = ccy + 36;
+    const int chip_top = ccy + 20 + 2 + DEV_GAP + SILVER_PIN_N;
+    const int dcy = chip_top + 9;
     ex[0][0] = 39; ex[0][1] = 56; ex[0][2] = 46; ex[0][3] = 48;
-    ex[1][0] = (int16_t)(dcx - 14); ex[1][1] = (int16_t)(dcy - 14); ex[1][2] = 28; ex[1][3] = 28;
-    ex[2][0] = 18; ex[2][1] = (int16_t)(dcy - 6); ex[2][2] = (int16_t)(dcx - 14 - 18); ex[2][3] = 14;
-    ex[3][0] = 22; ex[3][1] = (int16_t)(ccy + 48); ex[3][2] = 74; ex[3][3] = 40;
+    ex[1][0] = (int16_t)(dcx - 16); ex[1][1] = (int16_t)(dcy - 16); ex[1][2] = 40; ex[1][3] = 36;
+    ex[2][0] = (int16_t)(dcx + 8); ex[2][1] = (int16_t)(dcy - 6); ex[2][2] = 60; ex[2][3] = 14;
+    ex[3][0] = 22; ex[3][1] = (int16_t)(dcy + 12); ex[3][2] = 80; ex[3][3] = 36;
 }
 #ifdef BOTCORPS_HOST_RENDER
 bool host_gfx_clip_get(int *x, int *y, int *w, int *h);

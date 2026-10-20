@@ -3246,6 +3246,18 @@ static int list_band(void)
 }
 
 static inline void sb_rect(Gfx g, int x, int y, int w, int h, uint8_t c) { g.fillRect(x, y, w, h, c); }
+/* Gibson's pin, scaled. Light body, bright cap, dark socket. n=4 is his exact 4x4;
+ * n=6 is the silver size that still reads at 320x240. */
+static void silver_pin(Gfx g, int x, int y, int n)
+{
+    sb_rect(g, x, y, n, n, PAL_SOFT);
+    const int hh = n >= 6 ? 2 : 1;
+    sb_rect(g, x, y, n, hh, PAL_WHITE);
+    const int c = n >= 6 ? 3 : 2;
+    const int ox = (n - c) / 2;
+    const int oy = hh + (n - hh - c) / 2;
+    sb_rect(g, x + ox, y + oy, c, c, PAL_BLACK);
+}
 static inline void sb_circ(Gfx g, int x, int y, int r, uint8_t c) { g.fillCircle(x, y, r, c); }
 
 /* v1016 scan box. Thirteen glossary types, one 12x12 icon each, three inks.
@@ -3667,11 +3679,13 @@ static void sb_bot_chip(Gfx g, int cx, int cy, int S, int bot)
 
 /* Scan boards mix bot and device. Defend panels use the bot colour alone (Addendum 5). */
 static uint8_t board_edge_col(int bot);
-/* Defend device chip is mounted to the RIGHT. Mobandy locked that side. */
-static const int DEVICE_CHIP_OFF = 16;
+/* Device chip sits LEFT of the bot chip, with a bare-PCB gap under it. */
+static const int DEVICE_CHIP_OFF = -30;
+static const int DEV_GAP = 12;
+static const int SILVER_PIN_N = 6;
 static void dev_under_chip(Gfx g, int cx, int cy, int bot);
 static void dev_solder(Gfx g, int cx, int bot_bottom, int dev_top, int bot);
-static void dev_mount_row(Gfx g, int cxm, int ccy, int bot);
+static void dev_mount_row(Gfx g, int cxm, int ccy, int bot, int *dcy_out);
 
 /* ESP32 dev board around the box (mock cydBoard + module). */
 static void sb_board(Gfx g, bool wifi)
@@ -3712,9 +3726,15 @@ static void sb_board(Gfx g, bool wifi)
         sb_rect(g, 36, y - 1, 246, 8, 64);
         sb_rect(g, 36, y - 1, 246, 1, 68);
         for (int x = 38; x <= 276; x += 8) {
-            sb_rect(g, x, y + 1, 4, 4, x == 38 ? (gib ? (uint8_t)209 : rail) : rail);
-            sb_rect(g, x, y + 1, 4, 1, x == 38 && gib ? hdrh : railh);
-            sb_rect(g, x + 1, y + 2, 2, 2, x == 38 ? rail0 : railc);
+            if (gib) {
+                /* Gold rail pin, unchanged: 4x4, idx 177 / 209, highlight 217, core 108 / 104. */
+                sb_rect(g, x, y + 1, 4, 4, x == 38 ? (uint8_t)209 : rail);
+                sb_rect(g, x, y + 1, 4, 1, hdrh);
+                sb_rect(g, x + 1, y + 2, 2, 2, x == 38 ? rail0 : railc);
+            } else {
+                /* Same cap + dark socket, 6x6 so it reads at 320x240. Pitch is 8. */
+                silver_pin(g, x - 1, y + 1, SILVER_PIN_N);
+            }
         }
     }
     const int hx[4] = { 26, 294, 26, 294 }, hy[4] = { 38, 38, 197, 197 };
@@ -3739,22 +3759,17 @@ static void sb_board(Gfx g, bool wifi)
         const int cxm = mx + mw / 2, ccy = my + 26;
         if (zsb) zap_rain_rect(g);   /* rain behind the chips, this rect only */
         chip_block(g, cxm, ccy, 40, gib ? 12 : bot);
-        /* The 12 defend panels keep the offset-right mount. Gibson's device icon
-         * stays on the locked centre so the game rows match that position. */
-        if (zsb && !gib) dev_mount_row(g, cxm, ccy, bot);
-        else {
-            dev_under_chip(g, cxm, ccy + 36, bot);
-            dev_solder(g, cxm, ccy + 20, ccy + 27, bot);
-        }
+        int dcy = 0;
+        dev_mount_row(g, cxm, ccy, bot, &dcy);
         char nmb[16];
         const char *nm;
         if (gib) nm = "GIBSON";
         else { sb_upper(nmb, 16, BOTS[bot].short_name, 12); if (strlen(nmb) <= 9) strcat(nmb, "BOT"); nm = nmb; }
         const char *l2c = "ESP32-WROOM-32";
         const char *l3c = (gib && !zsb) ? "CORE + PRIME" : "RADIO CORE";
-        tiny_text(g, nm, cxm - tiny_w(nm) / 2, ccy + 50, 41);
-        tiny_text(g, l2c, cxm - tiny_w(l2c) / 2, ccy + 60, 41);
-        tiny_text(g, l3c, cxm - tiny_w(l3c) / 2, ccy + 70, 41);
+        tiny_text(g, nm, cxm - tiny_w(nm) / 2, dcy + 12, 41);
+        tiny_text(g, l2c, cxm - tiny_w(l2c) / 2, dcy + 17, 41);
+        tiny_text(g, l3c, cxm - tiny_w(l3c) / 2, dcy + 22, 41);
         if (gib && !zsb) gib_ticker(g);
     } else {
     sb_rect(g, mx, my, mw, mh, 5);
@@ -4015,19 +4030,24 @@ static void dev_under_chip(Gfx g, int cx, int cy, int bot)
     const int D = T - 2, dx = x + 1, dy = y + 1;
     const bool gib = bot >= 12;
     const uint8_t pin = gib ? PAL_GOLD_PIN : (uint8_t)PAL_SOFT;
-    const uint8_t pad = gib ? (uint8_t)177 : (uint8_t)PAL_SOFT;
-    const uint8_t hi = gib ? (uint8_t)217 : (uint8_t)PAL_WHITE;
     GATE_BOX(g, "TCHIP", "device", dx, dy, D, D, "-");
     for (int k = 0; k < 5; ++k) {
         const int i = chip_pin1(D, k);
-        g.fillRect(x - 1, dy + i - 1, 3, 3, pad);
-        g.fillRect(x + T - 2, dy + i - 1, 3, 3, pad);
+        if (gib) {
+            sb_rect(g, x - 1, dy + i - 1, 3, 3, 177);
+            sb_rect(g, x + T - 2, dy + i - 1, 3, 3, 177);
+            sb_rect(g, dx + i - 1, y - 1, 3, 3, 177);
+            sb_rect(g, dx + i - 1, y + T - 2, 3, 3, 177);
+            sb_rect(g, dx + i, y, 1, 1, 217);
+            sb_rect(g, dx + i, y + T - 1, 1, 1, 217);
+        } else if ((k & 1) == 0) {
+            silver_pin(g, x - 1, dy + i - 2, 4);
+            silver_pin(g, x + T - 2, dy + i - 2, 4);
+            silver_pin(g, dx + i - 2, y - 2, 4);
+            silver_pin(g, dx + i - 2, y + T - 2, 4);
+        }
         g.fillRect(x, dy + i, 2, 1, pin);
         g.fillRect(x + T - 2, dy + i, 2, 1, pin);
-        g.fillRect(dx + i - 1, y - 1, 3, 3, pad);
-        g.fillRect(dx + i - 1, y + T - 2, 3, 3, pad);
-        g.fillRect(dx + i, y, 1, 1, hi);
-        g.fillRect(dx + i, y + T - 1, 1, 1, hi);
     }
     g.fillRect(dx, dy, D, D, PAL_BLACK);
     g.drawRect(dx, dy, D, D, PAL_STEEL);
@@ -4039,8 +4059,6 @@ static void dev_under_chip(Gfx g, int cx, int cy, int bot)
 static void dev_solder(Gfx g, int cx, int bot_bottom, int dev_top, int bot)
 {
     const bool gib = bot >= 12;
-    const uint8_t pad = gib ? (uint8_t)177 : (uint8_t)PAL_SOFT;
-    const uint8_t hi = gib ? (uint8_t)217 : (uint8_t)PAL_WHITE;
     const uint8_t wire = 104;
     static const int off[5] = { -6, -3, 0, 3, 6 };
     static const int jog[5] = { -2, 1, 2, -1, 2 };
@@ -4052,64 +4070,65 @@ static void dev_solder(Gfx g, int cx, int bot_bottom, int dev_top, int bot)
         g.fillRect(x0, bot_bottom, 1, mid - bot_bottom + 1, wire);
         g.fillRect(x0 < x1 ? x0 : x1, mid, (x0 > x1 ? x0 - x1 : x1 - x0) + 1, 1, wire);
         g.fillRect(x1, mid, 1, dev_top - mid + 1, wire);
-        g.fillRect(x0 - 1, bot_bottom - 1, 3, 2, pad);
-        g.fillRect(x0, bot_bottom - 1, 1, 1, hi);
-        g.fillRect(x1 - 1, dev_top - 1, 3, 2, pad);
-        g.fillRect(x1, dev_top, 1, 1, hi);
+        if (gib) {
+            sb_rect(g, x0 - 1, bot_bottom - 1, 3, 2, 177);
+            sb_rect(g, x0, bot_bottom - 1, 1, 1, 217);
+            sb_rect(g, x1 - 1, dev_top - 1, 3, 2, 177);
+            sb_rect(g, x1, dev_top, 1, 1, 217);
+        } else {
+            silver_pin(g, x0 - 2, bot_bottom - 2, 4);
+            silver_pin(g, x1 - 2, dev_top - 2, 4);
+        }
     }
 }
 
-/* Defend only. Device chip is mounted to the RIGHT. Label sits on its left.
- * Several traces run up the left and right margins into the bot chip's lower pins. */
-static void dev_mount_row(Gfx g, int cxm, int ccy, int bot)
+/* Shared mount: bare PCB between the chips, device offset left, Font0 name beside it.
+ * Gibson pads stay 3x3 gold. Non-Gibson pads are the 6x6 silver pin. */
+static void dev_mount_row(Gfx g, int cxm, int ccy, int bot, int *dcy_out)
 {
-    const int dcx = cxm + DEVICE_CHIP_OFF;
-    const int dcy = ccy + 36;
-    const int T = 18, D = T - 2, S = 40;
-    const int x = dcx - T / 2, y = dcy - T / 2;
-    const int dx = x + 1, dy = y + 1;
+    const int S = 40, T = 18, D = T - 2;
     const bool gib = bot >= 12;
     const int kind = bot_dev_kind(bot);
-    const uint8_t pin = gib ? PAL_GOLD_PIN : (uint8_t)PAL_SOFT;
-    const uint8_t pad = gib ? (uint8_t)177 : (uint8_t)PAL_SOFT;
-    const uint8_t hi = gib ? (uint8_t)217 : (uint8_t)PAL_WHITE;
     const uint8_t wire = 104;
     const uint8_t accent = GL_INK[kind][0];
     const int bot_bottom = ccy + S / 2;
-    const int dev_top = y;
-    const int yA = bot_bottom + 2;
-    const int yB = dev_top - 2;
-    /* Two lanes in the left margin, three in the right. */
-    static const int lane_off[5] = { -24, -22, 22, 24, 26 };
+    const int chip_top = bot_bottom + 2 + DEV_GAP + SILVER_PIN_N;
+    const int dcx = cxm + DEVICE_CHIP_OFF;
+    const int dcy = chip_top + T / 2;
+    const int x = dcx - T / 2, y = dcy - T / 2;
+    const int dx = x + 1, dy = y + 1;
+    const int pad_y = chip_top - SILVER_PIN_N;
+    const int mid_y = bot_bottom + 2 + DEV_GAP / 2;
+    static const int bot_i[4] = { 9, 14, 24, 29 };
+    if (dcy_out) *dcy_out = dcy;
     GATE_BOX(g, "TCHIP", "device", dx, dy, D, D, "-");
-    for (int k = 0; k < 5; ++k) {
-        const int i = chip_pin1(D, k);
-        const int x0 = (cxm - S / 2) + (gib ? chip_pin(S, k) : chip_pin1(S, k));
-        const int x1 = dx + i;
-        const int lane = cxm + lane_off[k];
-        const int xLo0 = x0 < lane ? x0 : lane;
-        const int xLo1 = x1 < lane ? x1 : lane;
-        g.fillRect(x0, bot_bottom - 1, 1, yA - (bot_bottom - 1) + 1, wire);
-        g.fillRect(xLo0, yA, (x0 > lane ? x0 - lane : lane - x0) + 1, 1, wire);
-        g.fillRect(lane, yA, 1, yB - yA + 1, wire);
-        g.fillRect(xLo1, yB, (x1 > lane ? x1 - lane : lane - x1) + 1, 1, wire);
-        g.fillRect(x1, yB, 1, dev_top - yB + 1, wire);
-        g.fillRect(x0 - 1, bot_bottom - 2, 3, 3, pad);
-        g.fillRect(x0, bot_bottom - 2, 1, 1, hi);
-        g.fillRect(x1 - 1, dev_top - 1, 3, 3, pad);
-        g.fillRect(x1, dev_top, 1, 1, hi);
-        g.fillRect(x - 1, dy + i - 1, 3, 3, pad);
-        g.fillRect(x + T - 2, dy + i - 1, 3, 3, pad);
-        g.fillRect(x, dy + i, 2, 1, pin);
-        g.fillRect(x + T - 2, dy + i, 2, 1, pin);
-        g.fillRect(dx + i - 1, y + T - 2, 3, 3, pad);
-        g.fillRect(dx + i, y + T - 1, 1, 1, hi);
+    for (int k = 0; k < 4; ++k) {
+        const int x0 = (cxm - S / 2) + bot_i[k];
+        const int x1 = dcx - 6 + k * 8;
+        const int xLo = x0 < x1 ? x0 : x1;
+        g.fillRect(x0, bot_bottom, 1, mid_y - bot_bottom + 1, wire);
+        g.fillRect(xLo, mid_y, (x0 > x1 ? x0 - x1 : x1 - x0) + 1, 1, wire);
+        g.fillRect(x1 + 2, mid_y, 1, pad_y - mid_y + 1, wire);
+        if (gib) {
+            sb_rect(g, x0 - 1, bot_bottom - 1, 3, 3, 177);
+            sb_rect(g, x0 - 1, bot_bottom - 1, 3, 1, 217);
+            sb_rect(g, x1, pad_y, 3, 3, 177);
+            sb_rect(g, x1, pad_y, 3, 1, 217);
+        } else {
+            silver_pin(g, x0 - 2, bot_bottom - 2, 4);
+            silver_pin(g, x1, pad_y, SILVER_PIN_N);
+        }
     }
     g.fillRect(dx, dy, D, D, PAL_BLACK);
-    g.drawRect(dx, dy, D, D, accent);          /* device accent, not the bot colour */
+    g.drawRect(dx, dy, D, D, gib ? (uint8_t)PAL_STEEL : accent);
     gl_icon(g, kind, dcx - 6, dcy - 6, false);
     const char *lab = GL_LABEL[kind];
-    tiny_text(g, lab, x - 3 - tiny_w(lab), dcy - 2, 41);
+    const int lw = (int)strlen(lab) * 6;
+    int lx = x + T + 4;
+    /* Stop before the steel column at x97 and the grid at x108. */
+    if (lx + lw > 96) lx = 96 - lw;
+    if (lx < x + T + 2) lx = x + T + 2;
+    sb_text(g, lab, lx, dcy - 4, PAL_WHITE, PAL_BLACK, false, 1);
 }
 static const int8_t BH_GIB[10] = { GL_AP, GL_PHONE, GL_LAPTOP, GL_TV, GL_SPEAKER, GL_TRACKER, GL_WATCH, GL_CAMERA, GL_CAR, GL_UNKNOWN };
 /* mock non-live grid: C = 19, GC = 9, GR = 5, gx = dx + 2, gy = dy + 2 (display dx 106, dy 42). */

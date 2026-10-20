@@ -3745,9 +3745,9 @@ static void sb_board(Gfx g, bool wifi)
     if (core) {
         /* Addendum 5: steel outline, black window, style-B silver pads (gold on Gibson),
          * face in the bot colour. Device chip is mounted to the right, label on its left. */
-        const int cxm = zsb ? 46 : mx + mw / 2, ccy = zsb ? 76 : my + 26;
+        const int cxm = zsb ? 61 : mx + mw / 2, ccy = zsb ? 94 : my + 26;
         if (zsb) zap_rain_rect(g);   /* rain behind the chips, this rect only */
-        chip_block(g, cxm, ccy, 40, gib ? 12 : bot);
+        chip_block(g, cxm, ccy, zsb ? 54 : 40, gib ? 12 : bot);
         int dcy = 0;
         if (zsb) framed_mount(g, cxm, ccy, bot, &dcy);
         else dev_mount_row(g, cxm, ccy, bot, &dcy);
@@ -3758,10 +3758,22 @@ static void sb_board(Gfx g, bool wifi)
         const char *l2c = "ESP32-WROOM-32";
         const char *l3c = (gib && !zsb) ? "CORE + PRIME" : "RADIO CORE";
         const uint8_t silk = zsb ? (gib ? (uint8_t)PAL_IVORY : botc) : (uint8_t)41;
-        const int syk = zsb ? ccy + 22 : dcy + 12;
-        tiny_text(g, nm, cxm - tiny_w(nm) / 2, syk, silk);
-        tiny_text(g, l2c, cxm - tiny_w(l2c) / 2, syk + 5, silk);
-        tiny_text(g, l3c, cxm - tiny_w(l3c) / 2, syk + 10, silk);
+        if (zsb) {
+            /* Three baselines, 8-10 px apart, so the 5 px silk does not stack. */
+            const int ys[3] = { ccy + 32, ccy + 42, ccy + 50 };
+            const char *ls[3] = { nm, l2c, l3c };
+            for (int i = 0; i < 3; ++i) {
+                int sx = cxm - tiny_w(ls[i]) / 2;
+                const int sw = tiny_w(ls[i]);
+                if (sx < 20) sx = 20;
+                if (sx + sw > 95) sx = 95 - sw;
+                tiny_text(g, ls[i], sx, ys[i], silk);
+            }
+        } else {
+            tiny_text(g, nm, cxm - tiny_w(nm) / 2, dcy + 12, silk);
+            tiny_text(g, l2c, cxm - tiny_w(l2c) / 2, dcy + 17, silk);
+            tiny_text(g, l3c, cxm - tiny_w(l3c) / 2, dcy + 22, silk);
+        }
         if (gib && !zsb) gib_ticker(g);
     } else {
     sb_rect(g, mx, my, mw, mh, 5);
@@ -4064,73 +4076,92 @@ static void dev_solder(Gfx g, int cx, int bot_bottom, int dev_top, int bot)
     }
 }
 
-/* Defend left panel: 26px device chip offset right, label + U2 to its left.
- * Three bottom traces run under the label and up the left margin. Two right-pin
- * traces run up the right margin. Top and left pins stub out to vias. */
-static void via_dot(Gfx g, int x, int y, uint8_t col)
+/* Defend left panel. Mock geometry: device 26 px at (76,170). Traces are 1 px
+ * copper (70% of the bot colour) on their own columns so they read at 3x.
+ * Solder lands stay small and under each pin. Courtyard is four corner brackets. */
+static void hrun(Gfx g, int x0, int x1, int y, uint8_t c)
 {
-    sb_circ(g, x, y, 2, col);
-    sb_circ(g, x, y, 1, PAL_BLACK);
+    if (x1 < x0) { const int t = x0; x0 = x1; x1 = t; }
+    g.fillRect(x0, y, x1 - x0 + 1, 1, c);
+}
+static void vrun(Gfx g, int x, int y0, int y1, uint8_t c)
+{
+    if (y1 < y0) { const int t = y0; y0 = y1; y1 = t; }
+    g.fillRect(x, y0, 1, y1 - y0 + 1, c);
+}
+static void via_drill(Gfx g, int x, int y, uint8_t ring)
+{
+    sb_rect(g, x - 1, y - 1, 3, 3, ring);
+    sb_rect(g, x, y, 1, 1, PAL_BLACK);
+}
+static void pin_land(Gfx g, int x, int y, int w, int h, uint8_t land, uint8_t pin)
+{
+    sb_rect(g, x - 1, y - 1, w + 2, h + 2, land);
+    sb_rect(g, x, y, w, h, pin);
 }
 static void framed_mount(Gfx g, int cxm, int ccy, int bot, int *dcy_out)
 {
-    const int S = 40, T = 26;
+    const int S = 54, T = 26;
     const bool gib = bot >= 12;
     const int kind = gib ? GL_DEVBOARD : bot_dev_kind(bot);
     const uint8_t land = gib ? (uint8_t)177 : bot_color(bot);
     const uint8_t pin = gib ? (uint8_t)217 : GL_INK[kind][0];
     const uint8_t edge = gib ? (uint8_t)PAL_STEEL : GL_INK[kind][0];
-    const int dcx = 80, dcy = 150;
+    const uint8_t copper = botcorps_pal_fit(mix16(botcorps_rgb565(land), 0x0000, 30, 100));
+    const int dcx = 76, dcy = 170;
     const int x = dcx - T / 2, y = dcy - T / 2;
     const int bx = cxm - S / 2, by = ccy - S / 2;
-    const int marginL = 22, marginR = 94;
-    const int under = y + T + 6;
-    const int desty = by + S - 2;
+    static const int poff[5] = { 2, 7, 12, 17, 22 };
+    static const int leftx[3] = { 21, 23, 25 };
+    static const int rightx[2] = { 93, 95 };
+    const int desty = by + S - 3;
     if (dcy_out) *dcy_out = dcy;
     int bot_px[5];
-    for (int k = 0; k < 5; ++k) bot_px[k] = bx + chip_pin(S, k) + 1;
+    for (int k = 0; k < 5; ++k) bot_px[k] = bx + chip_pin(S, k);
     for (int k = 0; k < 3; ++k) {
-        const int i = chip_pin(T, k);
-        const int px = x + i;
-        const int py = y + T - 1;
-        g.fillRect(px, py, 1, under - py, land);
-        g.fillRect(marginL, under, px - marginL + 1, 1, land);
-        g.fillRect(marginL, desty, 1, under - desty + 1, land);
-        g.fillRect(marginL, desty, bot_px[k] - marginL + 1, 1, land);
+        const int px = x + poff[k];
+        const int py = y + T;
+        const int bus = py + 4 + k;
+        vrun(g, px, py, bus, copper);
+        hrun(g, leftx[k], px, bus, copper);
+        vrun(g, leftx[k], desty + k, bus, copper);
+        hrun(g, leftx[k], bot_px[k], desty + k, copper);
     }
     for (int k = 0; k < 2; ++k) {
-        const int i = chip_pin(T, 3 + k);
-        const int py = y + i;
-        const int px = x + T - 1;
-        g.fillRect(px, py, marginR - px, 1, land);
-        g.fillRect(marginR, desty, 1, py - desty + 1, land);
-        g.fillRect(bot_px[3 + k], desty, marginR - bot_px[3 + k] + 1, 1, land);
+        const int py = y + poff[3 + k];
+        const int px = x + T;
+        const int bus = desty + k;
+        hrun(g, px, rightx[k], py, copper);
+        vrun(g, rightx[k], bus, py, copper);
+        hrun(g, bot_px[3 + k], rightx[k], bus, copper);
     }
     for (int k = 0; k < 5; ++k) {
-        const int i = chip_pin(T, k);
-        g.fillRect(x + i, y - 5, 1, 4, land);
-        via_dot(g, x + i, y - 7, land);
-        g.fillRect(x - 5, y + i, 4, 1, land);
-        via_dot(g, x - 7, y + i, land);
-        sb_rect(g, x - 2, y + i - 1, 7, 4, land);
-        sb_rect(g, x - 1, y + i, 5, 2, pin);
-        sb_rect(g, x + T - 5, y + i - 1, 7, 4, land);
-        sb_rect(g, x + T - 4, y + i, 5, 2, pin);
-        sb_rect(g, x + i - 1, y - 2, 4, 7, land);
-        sb_rect(g, x + i, y - 1, 2, 5, pin);
-        sb_rect(g, x + i - 1, y + T - 5, 4, 7, land);
-        sb_rect(g, x + i, y + T - 4, 2, 5, pin);
+        const int o = poff[k];
+        vrun(g, x + o, y - 4, y - 1, copper);
+        via_drill(g, x + o, y - 6, copper);
+        hrun(g, x - 3, x - 1, y + o, copper);
+        via_drill(g, x - 3, y + o, copper);
+        pin_land(g, x - 2, y + o, 2, 2, land, pin);
+        pin_land(g, x + T, y + o, 2, 2, land, pin);
+        pin_land(g, x + o, y - 2, 2, 2, land, pin);
+        pin_land(g, x + o, y + T, 2, 2, land, pin);
     }
+    /* Silk courtyard: corner brackets only, not a filled frame. */
+    const uint8_t br = gib ? (uint8_t)PAL_IVORY : land;
+    const int arm = 4;
+    const int x0 = x - 4, y0 = y - 4, x1 = x + T + 3, y1 = y + T + 3;
+    sb_rect(g, x0, y0, arm, 1, br); sb_rect(g, x0, y0, 1, arm, br);
+    sb_rect(g, x1 - arm + 1, y0, arm, 1, br); sb_rect(g, x1, y0, 1, arm, br);
+    sb_rect(g, x0, y1, arm, 1, br); sb_rect(g, x0, y1 - arm + 1, 1, arm, br);
+    sb_rect(g, x1 - arm + 1, y1, arm, 1, br); sb_rect(g, x1, y1 - arm + 1, 1, arm, br);
     g.fillRect(x + 4, y + 4, T - 8, T - 8, PAL_BLACK);
     g.drawRect(x, y, T, T, edge);
     g.drawRect(x + 2, y + 2, T - 4, T - 4, PAL_BLACK);
     if (!gib) {
         gl_icon(g, kind, dcx - 6, dcy - 6, false);
         const char *lab = GL_LABEL[kind];
-        const int lx = 18;
-        const int ly = y + 4;
-        sb_text(g, lab, lx, ly, pin, PAL_BLACK, false, 1);
-        sb_text(g, "U2", lx, ly + 10, pin, PAL_BLACK, false, 1);
+        tiny_text(g, lab, 28, y + 6, pin);
+        tiny_text(g, "U2", 28, y + 14, pin);
     }
 }
 /* Shared mount: 12px bare PCB, device offset -30, Font0 name beside the chip.

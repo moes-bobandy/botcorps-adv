@@ -400,11 +400,11 @@ static void zap_strip(Gfx g, int dx, int th, int ty, int dw)
 enum { ZR_X = 20, ZR_Y = 40, ZR_W = 76, ZR_H = 152 };
 static void zr_exclusions(int16_t ex[4][4])
 {
-    /* Tight boxes so device-icon rain stays in the gaps and off the chip, silk, and label. */
-    ex[0][0] = 24; ex[0][1] = 54; ex[0][2] = 44; ex[0][3] = 44;   /* bot chip */
-    ex[1][0] = 18; ex[1][1] = 96; ex[1][2] = 58; ex[1][3] = 18;   /* silk */
-    ex[2][0] = 66; ex[2][1] = 134; ex[2][2] = 30; ex[2][3] = 32;  /* device chip */
-    ex[3][0] = 16; ex[3][1] = 138; ex[3][2] = 50; ex[3][3] = 24;  /* name + U2 */
+    /* Chip 54 at (61,94), silk at +32/+42/+50, device 26 at (76,170), tiny label at x28. */
+    ex[0][0] = 32; ex[0][1] = 64; ex[0][2] = 60; ex[0][3] = 60;
+    ex[1][0] = 18; ex[1][1] = 124; ex[1][2] = 74; ex[1][3] = 28;
+    ex[2][0] = 58; ex[2][1] = 152; ex[2][2] = 36; ex[2][3] = 36;
+    ex[3][0] = 26; ex[3][1] = 160; ex[3][2] = 34; ex[3][3] = 20;
 }
 #ifdef BOTCORPS_HOST_RENDER
 bool host_gfx_clip_get(int *x, int *y, int *w, int *h);

@@ -372,7 +372,8 @@ int main(int argc, char **argv)
         host_rain_init(0);
         host_set_millis(9000u);
         botcorps_host_set_color(0);
-        botcorps_host_defend_zap(g_buf, 0);
+        const int bot = argc > 4 ? atoi(argv[4]) : 12;
+        botcorps_host_defend(g_buf, bot, 0);
         const int n = atoi(argv[3]);
         char p[256];
         for (int k = 0; k < n; ++k) {

@@ -395,17 +395,14 @@ static void zap_strip(Gfx g, int dx, int th, int ty, int dw)
 
 /* Device-only rain in the dark rect behind both chips. Cells that touch a chip, the
  * device name (right of the left-mounted chip), or the silk are skipped. */
-enum { ZR_X = 20, ZR_Y = 40, ZR_W = 76, ZR_H = 152 };
+enum { ZR_X = 20, ZR_Y = 44, ZR_W = 76, ZR_H = 148 };
 static void zr_exclusions(int16_t ex[4][4])
 {
-    const int cxm = 61, ccy = 78;
-    const int dcx = cxm + DEVICE_CHIP_OFF;
-    const int chip_top = ccy + 20 + 2 + DEV_GAP + SILVER_PIN_N;
-    const int dcy = chip_top + 9;
-    ex[0][0] = 39; ex[0][1] = 56; ex[0][2] = 46; ex[0][3] = 48;
-    ex[1][0] = (int16_t)(dcx - 16); ex[1][1] = (int16_t)(dcy - 16); ex[1][2] = 40; ex[1][3] = 36;
-    ex[2][0] = (int16_t)(dcx + 8); ex[2][1] = (int16_t)(dcy - 6); ex[2][2] = 60; ex[2][3] = 14;
-    ex[3][0] = 22; ex[3][1] = (int16_t)(dcy + 12); ex[3][2] = 80; ex[3][3] = 36;
+    /* Bot chip, silk under it, device+label, right-margin traces. */
+    ex[0][0] = 22; ex[0][1] = 52; ex[0][2] = 48; ex[0][3] = 48;
+    ex[1][0] = 16; ex[1][1] = 96; ex[1][2] = 62; ex[1][3] = 20;
+    ex[2][0] = 16; ex[2][1] = 132; ex[2][2] = 80; ex[2][3] = 44;
+    ex[3][0] = 88; ex[3][1] = 90; ex[3][2] = 8; ex[3][3] = 80;
 }
 #ifdef BOTCORPS_HOST_RENDER
 bool host_gfx_clip_get(int *x, int *y, int *w, int *h);
@@ -473,7 +470,7 @@ static void zap_rain_rect(Gfx g)
 }
 
 static void patch_world(void (*fn)(Gfx), int x, int y, int w, int h);
-static void zap_sb_part(Gfx g) { paint_sbox(g, true); }
+static void zap_sb_part(Gfx g) { paint_sbox(g, s_defend_bot != 1); }
 static void zap_sb_patch(int x, int y, int w, int h)
 {
     s_pc_x = x; s_pc_y = y; s_pc_w = w; s_pc_h = h;

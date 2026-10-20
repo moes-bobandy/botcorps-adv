@@ -65,6 +65,10 @@ void botcorps_rain_set_gibson(bool on);
 void botcorps_rain_set_no_bots(bool on);
 /* Device icons at about a quarter strength (dce1c87 canon faint). */
 void botcorps_rain_set_faint(bool on);
+/* Faint mix. Terminal stays 1/4. Defend uses 2/5 (~40%). */
+void botcorps_rain_set_faint_scale(int num, int den);
+/* Defend only: 0 = all 10 device icons, 1 = k0, 2 = k0 or k1. Kinds are rain DEV index. */
+void botcorps_rain_set_devsel(int n, int k0, int k1);
 /* v1019: faint ghost bits of the live rain over a chrome rect (world coords, dst rows from oy). */
 void botcorps_rain_ghost(lgfx::LovyanGFX &dst, int ox, int oy, int rx, int ry, int rw, int rh, uint8_t ink);
 void botcorps_rain_ghost_ex(lgfx::LovyanGFX &dst, int ox, int oy, int rx, int ry, int rw, int rh, uint8_t ink,

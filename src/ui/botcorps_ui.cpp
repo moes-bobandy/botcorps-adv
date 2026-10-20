@@ -4183,6 +4183,12 @@ static void framed_mount(Gfx g, int cxm, int ccy, int bot, int *dcy_out)
             ly += 9;
         }
         sb_text(g, "U2", lx, ly, ink, PAL_BLACK, false, 1);
+    } else {
+        /* Gibson defends every device: the glossary '?' glyph, gold pads unchanged. */
+        gl_icon(g, GL_UNKNOWN, dcx - 6, dcy - 6, false);
+        const uint8_t qink = GL_INK[GL_UNKNOWN][0];
+        sb_text(g, "?", 20, y + 2, qink, PAL_BLACK, false, 1);
+        sb_text(g, "ALL", 20, y + 11, qink, PAL_BLACK, false, 1);
     }
 }
 /* Shared mount: 12px bare PCB, device offset -30, Font0 name beside the chip.

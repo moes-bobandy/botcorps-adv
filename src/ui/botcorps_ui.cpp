@@ -3824,11 +3824,12 @@ static void sb_board(Gfx g, bool wifi)
                 tiny_text(g, ls[i], sx, ys[i], silk);
             }
         } else if (gib) {
-            /* 5 px silk, one empty row between lines, three empty rows above the ticker at y=154.
+            /* 5 px silk. Line 1 is y=135, two rows under the outline ring at y=132.
+             * One empty row between lines. Line 3 ends at y=151, two rows above the ticker at y=154.
              * Not derived from the device-chip centre. */
-            tiny_text(g, nm, cxm - tiny_w(nm) / 2, 134, silk);
-            tiny_text(g, l2c, cxm - tiny_w(l2c) / 2, 140, silk);
-            tiny_text(g, l3c, cxm - tiny_w(l3c) / 2, 146, silk);
+            tiny_text(g, nm, cxm - tiny_w(nm) / 2, 135, silk);
+            tiny_text(g, l2c, cxm - tiny_w(l2c) / 2, 141, silk);
+            tiny_text(g, l3c, cxm - tiny_w(l3c) / 2, 147, silk);
         } else {
             tiny_text(g, nm, cxm - tiny_w(nm) / 2, dcy + 12, silk);
             tiny_text(g, l2c, cxm - tiny_w(l2c) / 2, dcy + 17, silk);
@@ -4367,7 +4368,7 @@ static void dev_mount_dual(Gfx g, int cxm, int ccy, int bot, int *dcy_out)
     (void)bot;
     (void)cxm;
     (void)ccy;
-    /* Historical centre. Silk baselines are 134/140/146, not this chip's centre. */
+    /* Historical centre. Silk baselines are 135/141/147, not this chip's centre. */
     if (dcy_out) *dcy_out = 127;
     const int T = 24;
     const int wcx = 40, bcx = 82, cy = 120;

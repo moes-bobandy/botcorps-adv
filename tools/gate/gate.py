@@ -277,9 +277,15 @@ for scr in screens:
                 if boxgap(parts[i], parts[j]) < 2:
                     tight.append(f"{parts[i]['n']}x{parts[j]['n']}")
         silk_gap = True
+        ring_near = []
         for t in tchips:
+            # Steel outline is drawRect(x-1, y-1, S+2, S+2). Last pixel is x+S, y+S.
+            # The S×S TCHIP box ends one row higher (y=131 on these chips).
+            ring = dict(x=t['x'] - 1, y=t['y'] - 1, w=t['w'] + 2, h=t['h'] + 2, n=t['n'])
             for s in silk:
-                if boxgap(t, s) < 2: silk_gap = False
+                if boxgap(ring, s) < 2:
+                    silk_gap = False
+                    ring_near.append(f"{t['n']}/{s['n']}")
         labels = list(silk) + [dict(x=t['x'], y=t['y'], w=t['w'], h=t['h'], n=t['s'][:16]) for t in texts]
         near_lbl = []
         for part in traces + pads:
@@ -310,7 +316,8 @@ for scr in screens:
             for y in range(H):
                 for x in range(W):
                     if pix[x, y][:3] != WIRE104: continue
-                    if x < 20 or 139 <= y <= 154:
+                    # Silk ink is y 135–151. The window continues through the ticker border at y=154.
+                    if x < 20 or 135 <= y <= 154:
                         wire_bad.append((x, y))
                         if len(wire_bad) >= 6: break
                 if len(wire_bad) >= 6: break
@@ -322,7 +329,7 @@ for scr in screens:
               and all(100 <= b['y'] and b['y'] + b['h'] <= 136 for b in silver)
               and all(b['y'] >= 97 for b in gold))
         rep(scr, 'P2 wires, pads, silk, chip entry, and wire pixels', p2,
-            f"traces={len(traces)} tight={tight[:4]} silk_ok={silk_gap} near={near_lbl[:3]} invade={invade[:3]} wire104={sample} bad={wire_bad[:3]}")
+            f"traces={len(traces)} tight={tight[:4]} silk_ok={silk_gap} ring={ring_near[:3]} near={near_lbl[:3]} invade={invade[:3]} wire104={sample} band=135-154 bad={wire_bad[:3]}")
         left = [b for b in traces if b['n'].startswith('wf')]
         right = [b for b in traces if b['n'].startswith('bt')]
         spr = [b for b in boxes if b['k'] == 'SPR' and b['n'] in ('wifi', 'bt')]

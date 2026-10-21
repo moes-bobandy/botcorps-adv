@@ -280,20 +280,56 @@ for scr in screens:
         for t in tchips:
             for s in silk:
                 if boxgap(t, s) < 2: silk_gap = False
+        labels = list(silk) + [dict(x=t['x'], y=t['y'], w=t['w'], h=t['h'], n=t['s'][:16]) for t in texts]
+        near_lbl = []
+        for part in traces + pads:
+            for s in labels:
+                if boxgap(part, s) < 2:
+                    near_lbl.append(f"{part['k']}:{part['n']}/{s['n']}")
+        def covered(ix0, iy0, ix1, iy1, own):
+            return any(ix0 >= p['x'] and iy0 >= p['y'] and ix1 <= p['x'] + p['w'] and iy1 <= p['y'] + p['h'] for p in own)
+        bodies = tchips + [b for b in boxes if b['k'] == 'CHIP']
+        invade = []
+        for tr in traces:
+            for ch in bodies:
+                if not inter(tr, ch): continue
+                ix0, iy0 = max(tr['x'], ch['x']), max(tr['y'], ch['y'])
+                ix1 = min(tr['x'] + tr['w'], ch['x'] + ch['w'])
+                iy1 = min(tr['y'] + tr['h'], ch['y'] + ch['h'])
+                own = [p for p in pads if p['n'] == tr['n']]
+                if not covered(ix0, iy0, ix1, iy1, own):
+                    invade.append(f"{tr['n']}->{ch['k']}:{ch['n']}")
+        # Index 104 is reserved. k_exact_nat[104] = 0x6242, which the norain frame expands to this RGB.
+        WIRE104 = (99, 73, 16)
+        wire_bad = []
+        sample = None
+        if nr is not None:
+            pix = nr.load()
+            if 0 <= 100 < H and 0 <= 50 < W:
+                sample = pix[50, 100][:3]
+            for y in range(H):
+                for x in range(W):
+                    if pix[x, y][:3] != WIRE104: continue
+                    if x < 20 or 139 <= y <= 154:
+                        wire_bad.append((x, y))
+                        if len(wire_bad) >= 6: break
+                if len(wire_bad) >= 6: break
+        p2_5 = nr is not None and sample == WIRE104 and not wire_bad
         silver = [b for b in pads if b['y'] >= 100]
         gold = [b for b in pads if b['y'] < 100]
         p2 = (len(traces) >= 8 and len(silver) >= 4 and len(gold) >= 4 and not tight and silk_gap
+              and not near_lbl and not invade and p2_5
               and all(100 <= b['y'] and b['y'] + b['h'] <= 136 for b in silver)
               and all(b['y'] >= 97 for b in gold))
-        rep(scr, 'P2 wires, pads, and 2px clearance from silk', p2,
-            f"traces={len(traces)} tight={tight[:4]} silk_ok={silk_gap}")
+        rep(scr, 'P2 wires, pads, silk, chip entry, and wire pixels', p2,
+            f"traces={len(traces)} tight={tight[:4]} silk_ok={silk_gap} near={near_lbl[:3]} invade={invade[:3]} wire104={sample} bad={wire_bad[:3]}")
         left = [b for b in traces if b['n'].startswith('wf')]
         right = [b for b in traces if b['n'].startswith('bt')]
         spr = [b for b in boxes if b['k'] == 'SPR' and b['n'] in ('wifi', 'bt')]
         fill = [round(s['w'] / 24, 3) for s in spr]
-        p3 = (len(left) >= 4 and len(right) >= 4 and all(b['x'] + b['w'] <= 61 for b in left)
+        psplit = (len(left) >= 4 and len(right) >= 4 and all(b['x'] + b['w'] <= 61 for b in left)
               and all(b['x'] >= 61 for b in right) and len(spr) == 2 and all(v >= 0.60 for v in fill))
-        rep(scr, 'P3 split at x=61 and glyph fill >= 60%', p3, f"fill={fill}")
+        rep(scr, 'P3-split wires split at x=61 and glyph fill >= 60%', psplit, f"fill={fill}")
     if scr.startswith('scanboard-'):
         p = im.load(); bright = 0
         for y in range(56, 140, 2):
@@ -478,6 +514,11 @@ if os.path.exists(fp):
                 # v1017c (#1): scan parts are drawn in place; a part tick never rebuilds a whole 120-row slice
                 rep('functional', f'S4 {name}: idle ticks draw in place (no slice rebuild / recompose)', rec == 0,
                     f'recomposes={rec}')
+            if name == 'scan-gibson':
+                # Contract P3: the new device chips do not repaint while idle. S1/S2/S4 already measure this.
+                rep('functional', 'P3 scan-gibson idle repaint is 0 px',
+                    bad == 0 and worst <= 64 and pres <= 1 and rec == 0,
+                    f'glitched={bad} worst={worst}px presents={pres} recomposes={rec}')
 
 rep('functional', 'K0 keyboard test ran', k1_seen, '' if k1_seen else 'no K1 line in functional.txt')
 rep('functional', 'LS-D1 device heap with the band held', None, 'on-device feel check')

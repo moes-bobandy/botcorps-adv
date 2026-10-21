@@ -2983,10 +2983,12 @@ static void chip_block_radar(Gfx g, int cx, int cy, int S, int bot)
 /* v1019c: when non-zero, the Gibson-form chip face is drawn in this colour (game-board defender chip
  * recolour only: same frame, pins and shades). 0 = the normal ivory Gibson face. */
 static uint8_t s_gib_face = 0;
-static void chip_block_ex(Gfx g, int cx, int cy, int S, int bot, int npins)
+/* Steel shell shared by chip_block_ex and the SCR_SCAN device chips. Rings, castellations,
+ * ivory mark, then the black window. The caller draws the face. bot >= 12 keeps gold pins. */
+static void chip_shell(Gfx g, int cx, int cy, int S, int bot, int npins, const char *kind, const char *name)
 {
     const int x = cx - S / 2, y = cy - S / 2;
-    GATE_BOX(g, "CHIP", bot >= 12 ? "gibson" : "bot", x, y, S, S, "-");
+    GATE_BOX(g, kind, name, x, y, S, S, "-");
     g.fillRect(x + 3, y + 3, S - 6, S - 6, PAL_BG);     /* black face */
     g.drawRect(x - 1, y - 1, S + 2, S + 2, PAL_STEEL);   /* v1016f-4: silk outline reads on black PCB */
     g.drawRect(x, y, S, S, PAL_BLACK);                   /* black outer border */
@@ -3015,8 +3017,13 @@ static void chip_block_ex(Gfx g, int cx, int cy, int S, int bot, int npins)
     /* v1019 (Dirt LOCKED S-18): slight even black window between the face and the square
      * (6 px / 56), face 38 px in the 56 px chip (S-18), scaled for smaller chips. */
     int wi = (S * 6 + 28) / 56;  if (wi < 3) wi = 3;
-    int fi = (S * 9 + 28) / 56;  if (fi < wi + 1) fi = wi + 1;
     g.fillRect(x + wi, y + wi, S - 2 * wi, S - 2 * wi, PAL_BLACK);
+}
+static void chip_block_ex(Gfx g, int cx, int cy, int S, int bot, int npins)
+{
+    chip_shell(g, cx, cy, S, bot, npins, "CHIP", bot >= 12 ? "gibson" : "bot");
+    int wi = (S * 6 + 28) / 56;  if (wi < 3) wi = 3;
+    int fi = (S * 9 + 28) / 56;  if (fi < wi + 1) fi = wi + 1;
     const int gs = S - 2 * fi > 8 ? S - 2 * fi : 8;
     if (bot >= 12) {
         GATE_BOX(g, "SPR", "gibson_block", cx - gs / 2, cy - gs / 2, gs, gs, "-");
@@ -4308,52 +4315,31 @@ static void framed_mount(Gfx g, int cxm, int ccy, int bot, int *dcy_out)
 /* SCR_SCAN Gibson only. Two device chips under the static Gibson chip.
  * Wi-Fi left (k=0,1), Bluetooth right (k=3,4). Centre pin k=2 is unused.
  * Device traces land on non-adjacent top pins k=1 and k=3. */
-static void dual_seg(Gfx g, int x0, int y0, int x1, int y1, uint8_t col)
+static int dual_pix(const uint8_t *row, int col)
 {
-    int dx = x1 - x0; if (dx < 0) dx = -dx;
-    int dy = y1 - y0; if (dy < 0) dy = -dy;
-    const int sx = x0 < x1 ? 1 : -1;
-    const int sy = y0 < y1 ? 1 : -1;
-    int err = dx - dy;
-    for (;;) {
-        g.fillRect(x0, y0, 1, 1, col);
-        if (x0 == x1 && y0 == y1) break;
-        const int e2 = err * 2;
-        if (e2 > -dy) { err -= dy; x0 += sx; }
-        if (e2 < dx) { err += dx; y0 += sy; }
-    }
+    const int bit = col * 2;
+    const int shift = 6 - (bit & 7);
+    return (row[bit >> 3] >> shift) & 3;
 }
-static void dual_glyph(Gfx g, int cx, int cy, int icon, uint8_t c1, uint8_t c2, uint8_t c3)
+static void dual_glyph(Gfx g, int cx, int cy, int icon, uint8_t ink)
 {
-    (void)c1; (void)c2; (void)c3;
-    const uint8_t c = PAL_WHITE;
+    /* Same 12x12 art as botcorps_glyph.cpp. One scale on x and y into the 16 px face.
+     * Cropping the ink box and stretching it made the rune wide and tall at different rates. */
+    static const uint8_t WF[36] = {
+        0x00,0x00,0x00, 0x03,0xFF,0xC0, 0x0F,0x00,0xF0, 0x3C,0x00,0x3C,
+        0x00,0xFF,0x00, 0x03,0x00,0xC0, 0x00,0x3C,0x00, 0x00,0x3C,0x00,
+        0x00,0x00,0x00, 0x00,0x3C,0x00, 0x00,0x00,0x00, 0x00,0x00,0x00 };
+    static const uint8_t BT[36] = {
+        0x00,0xF0,0x00, 0x00,0xFC,0x00, 0x03,0xCF,0x00, 0x0F,0x3C,0x00,
+        0x03,0xF0,0x00, 0x00,0xFC,0x00, 0x0F,0x3C,0x00, 0x03,0xCF,0x00,
+        0x00,0xFC,0x00, 0x00,0xF0,0x00, 0x00,0x00,0x00, 0x00,0x00,0x00 };
+    const uint8_t *bits = icon == 7 ? BT : WF;
     const int ox = cx - 8, oy = cy - 8;
-    if (icon == 7) {
-        /* Bluetooth rune: stem, two right-pointing triangles, two crossing diagonals. */
-        dual_seg(g, ox + 7, oy + 0, ox + 7, oy + 15, c);
-        dual_seg(g, ox + 7, oy + 0, ox + 13, oy + 4, c);
-        dual_seg(g, ox + 13, oy + 4, ox + 7, oy + 7, c);
-        dual_seg(g, ox + 7, oy + 8, ox + 13, oy + 11, c);
-        dual_seg(g, ox + 13, oy + 11, ox + 7, oy + 15, c);
-        dual_seg(g, ox + 2, oy + 4, ox + 13, oy + 11, c);
-        dual_seg(g, ox + 2, oy + 11, ox + 13, oy + 4, c);
-        return;
+    for (int y = 0; y < 16; ++y) {
+        const uint8_t *row = bits + (y * 12 / 16) * 3;
+        for (int x = 0; x < 16; ++x)
+            if (dual_pix(row, x * 12 / 16)) g.fillRect(ox + x, oy + y, 1, 1, ink);
     }
-    /* Three open arcs and a centre dot. Not a filled canopy. */
-    g.fillRect(ox + 5, oy + 2, 6, 1, c);
-    g.fillRect(ox + 3, oy + 3, 2, 1, c);
-    g.fillRect(ox + 11, oy + 3, 2, 1, c);
-    g.fillRect(ox + 2, oy + 4, 1, 1, c);
-    g.fillRect(ox + 13, oy + 4, 1, 1, c);
-    g.fillRect(ox + 6, oy + 6, 4, 1, c);
-    g.fillRect(ox + 4, oy + 7, 2, 1, c);
-    g.fillRect(ox + 10, oy + 7, 2, 1, c);
-    g.fillRect(ox + 4, oy + 8, 1, 1, c);
-    g.fillRect(ox + 11, oy + 8, 1, 1, c);
-    g.fillRect(ox + 7, oy + 10, 2, 1, c);
-    g.fillRect(ox + 6, oy + 11, 1, 1, c);
-    g.fillRect(ox + 9, oy + 11, 1, 1, c);
-    g.fillRect(ox + 7, oy + 13, 2, 2, c);
 }
 static void dual_run(Gfx g, int x0, int y0, int x1, int y1, int jog, const char *nm)
 {
@@ -4368,25 +4354,12 @@ static void dual_run(Gfx g, int x0, int y0, int x1, int y1, int jog, const char 
     GATE_BOX(g, "TRACE", nm, xa, jog, xb - xa + 1, 1, "-");
     GATE_BOX(g, "TRACE", nm, x1, yc, 1, yd - yc + 1, "-");
 }
-static void dual_chip(Gfx g, int cx, int cy, int S, const char *name, int icon, uint8_t c1, uint8_t c2, uint8_t c3)
+static void dual_chip(Gfx g, int cx, int cy, int S, const char *name, int icon)
 {
-    const int x = cx - S / 2, y = cy - S / 2;
-    GATE_BOX(g, "TCHIP", name, x, y, S, S, "-");
-    g.fillRect(x + 3, y + 3, S - 6, S - 6, PAL_BG);
-    g.drawRect(x - 1, y - 1, S + 2, S + 2, PAL_STEEL);
-    g.drawRect(x, y, S, S, PAL_BLACK);
-    g.drawRect(x + 2, y + 2, S - 4, S - 4, PAL_LINE);
-    g.drawRect(x + 6, y + 6, S - 12, S - 12, PAL_DIAG);
-    for (int k = 0; k < 5; ++k) {
-        const int i = chip_pin(S, k);
-        g.fillRect(x - 1, y + i, 5, 2, PAL_SOFT);
-        g.fillRect(x + S - 4, y + i, 5, 2, PAL_SOFT);
-        g.fillRect(x + i, y - 1, 2, 5, PAL_SOFT);
-        g.fillRect(x + i, y + S - 4, 2, 5, PAL_SOFT);
-    }
-    const int wi = 3;
-    g.fillRect(x + wi, y + wi, S - 2 * wi, S - 2 * wi, PAL_BLACK);
-    dual_glyph(g, cx, cy, icon, c1, c2, c3);
+    /* bot 0: silver castellations, same shell as every other non-Gibson chip. */
+    chip_shell(g, cx, cy, S, 0, 5, "TCHIP", name);
+    /* Wi-Fi is wifibot (index 87). Bluetooth is bluetoothbot (index 59). */
+    dual_glyph(g, cx, cy, icon, icon == 7 ? bot_color(1) : bot_color(0));
     GATE_BOX(g, "SPR", name, cx - 8, cy - 8, 16, 16, "-");
 }
 static void dev_mount_dual(Gfx g, int cxm, int ccy, int bot, int *dcy_out)
@@ -4402,8 +4375,10 @@ static void dev_mount_dual(Gfx g, int cxm, int ccy, int bot, int *dcy_out)
     const int gpin[4] = { 50, 55, 65, 70 }; /* k = 0,1 and 3,4 */
     const int wdev[2] = { 28 + chip_pin(T, 1), 28 + chip_pin(T, 3) };
     const int bdev[2] = { 70 + chip_pin(T, 1), 70 + chip_pin(T, 3) };
-    const int wjog[2] = { 102, 105 };
-    const int bjog[2] = { 104, 101 }; /* outer run jogs above the inner run so they do not cross */
+    /* wf1's horizontal is y=104. Steel outline is y=107, so two rows stay clear.
+     * The outer Bluetooth run still jogs above the inner run so the two do not cross. */
+    const int wjog[2] = { 101, 104 };
+    const int bjog[2] = { 104, 101 };
     const char *wn[2] = { "wf0", "wf1" };
     const char *bn[2] = { "bt0", "bt1" };
     for (int i = 0; i < 2; ++i) {
@@ -4418,8 +4393,8 @@ static void dev_mount_dual(Gfx g, int cxm, int ccy, int bot, int *dcy_out)
         pin_pad(g, bdev[i] - 1, 105, 3, PIN_SILVER.body, PIN_SILVER.hi, PIN_SILVER.core);
         GATE_BOX(g, "PAD", bn[i], bdev[i] - 1, 105, 3, 3, "-");
     }
-    dual_chip(g, wcx, cy, T, "wifi", 6, 31, 30, 255);
-    dual_chip(g, bcx, cy, T, "bt", 7, 47, 46, 255);
+    dual_chip(g, wcx, cy, T, "wifi", 6);
+    dual_chip(g, bcx, cy, T, "bt", 7);
 }
 
 /* Shared mount: 12px bare PCB, device offset -30, Font0 name beside the chip.

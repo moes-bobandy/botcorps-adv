@@ -1020,6 +1020,8 @@ static int ls_fa_ty(void);
 static int ls_fa_db(void);
 static int ls_fa_icon(void);
 static void ls_fa_mac(char *out, int n);
+static int ls_fa_take(int *band, uint8_t *mac, int *ix);
+static void ls_fa_clear(void);
 static const char *ls_dev_name(int band, int d);
 static int ls_dev_db(int band, int d);
 static int ls_dev_ty(int band, int d);
@@ -3973,7 +3975,7 @@ static void sb_grid(Gfx g, int band, bool tiles)
         s_gl_mono = fresh;
         gl_icon(g, sb_ty(band, d), x + 3, y + 3, false);
         s_gl_mono = false;
-        if (s_dev_tag[band][d] > 0) sb_rect(g, x + 13, y + 1, 4, 4, TAG_COL[s_dev_tag[band][d] - 1]);
+        if (sb_tagv(band, d) > 0) sb_rect(g, x + 13, y + 1, 4, 4, TAG_COL[sb_tagv(band, d) - 1]);
         if (sel) { hx0 = x; hy0 = y; }
     }
     if (hx0 >= 0) sb_halo(g, hx0, hy0, 18);   /* last, so no neighbour tile paints over it */
@@ -4760,6 +4762,8 @@ static void sb_panel(Gfx g, int band)
 
 static void sb_info(Gfx g, int band)
 {
+    /* LS24: an empty live model has no device 0 to open. */
+    if (ls_model_on() && LIST_N <= 0) return;
     const int d = (s_info_dev >= 0 && s_info_dev < LIST_N) ? s_info_dev : 0;
     const uint8_t ac = accent(), gold = 177;
     const uint32_t hs = sb_hash(sb_name(band, d));
@@ -4940,12 +4944,15 @@ static void sb_hud(Gfx g, int band)
     for (int d = 0; d < LIST_N; ++d)
         if (!sb_ignored(band, d)) tally[sb_ty(band, d)]++;
     const int cur = (s_cursor >= 0 && s_cursor < LIST_N) ? s_cursor : 0;
+    /* LS24: empty live model paints no current-device icon or bars (no cur=0 stand-in). */
+    if (!(ls_model_on() && LIST_N <= 0)) {
     /* v1019y: device row ~15% (12 -> 14). A non-zero count is white so the lit icon reads. */
     gl_icon_sz(g, sb_ty(band, cur), 8, 216, false, 14);
     const int lit = sb_lit(sb_db(band, cur));
     for (int k = 0; k < 4; ++k) {
         const int bh = ((k + 1) * 3 * 115) / 100;
         sb_rect(g, 26 + k * 6, 228 - bh, 4, bh, k < lit ? ac : (uint8_t)41);
+    }
     }
     for (int i = 0; i < GL_N; ++i) {
         const int x = 54 + i * 20;
@@ -8058,6 +8065,8 @@ static void on_arrows(int key)
         const int band = list_band();
         const int dir = (key == 1 || key == 3) ? -1 : (key == 2 || key == 4) ? 1 : 0;
         if (dir == 0) return;
+#if BOTCORPS_LIVE_SCAN || defined(BOTCORPS_HOST_RENDER)
+        /* Arm stop exists only on the live radar screens. Non-LIVE keeps Up-from-prompt → last tile. */
         if (s_cursor == GIB_STOP) {
             if (key == 2) s_cursor = LIST_N;
             partial_box(s_cursor, true);
@@ -8068,6 +8077,7 @@ static void on_arrows(int key)
             partial_box(s_cursor, true);
             return;
         }
+#endif
         /* positions: 0..LIST_N-1 devices, LIST_N = the > GLOSSARY prompt.
          * mod item 9: Left/Right step one cell, Up/Down step one grid ROW (7) so the halo moves the way
          * the arrow points; off the top = the > prompt, off the end wraps to the prompt. */
@@ -8107,15 +8117,23 @@ static void act_pick(void)
     } else if (which == 1) {
         s_info_dev = dev;
     } else if (which == 2) {
+        /* Live tiles keep the tag on the MAC. Non-LIVE and the canned fixture keep the index array. */
+#if BOTCORPS_LIVE_SCAN || defined(BOTCORPS_HOST_RENDER)
+        if (!ls_gate_legacy()) {
+            const int cur = sb_tagv(band, dev);
+            ls_tag_set(band, dev, cur >= 4 ? 0 : cur + 1);
+        } else
+#endif
         s_dev_tag[band][dev] = s_dev_tag[band][dev] >= 4 ? 0 : (uint8_t)(s_dev_tag[band][dev] + 1);
-        if (!ls_gate_legacy()) ls_tag_set(band, dev, s_dev_tag[band][dev]);
     } else if (which == 3) {
-        s_dev_ign[band][dev] = 1;
+#if BOTCORPS_LIVE_SCAN || defined(BOTCORPS_HOST_RENDER)
         if (!ls_gate_legacy()) {
             uint8_t macb[6];
             ls_mac_of(band, dev, macb);
             ls_ign_add(band, macb);
-        }
+        } else
+#endif
+        s_dev_ign[band][dev] = 1;
         if (s_cursor == dev) {
             s_cursor = LIST_N;
             for (int i = 0; i < LIST_N; ++i) {
@@ -8153,7 +8171,9 @@ static void on_ok(void)
         return;
     }
     if (sbox_on()) {
+#if BOTCORPS_LIVE_SCAN || defined(BOTCORPS_HOST_RENDER)
         if (s_cursor == GIB_STOP) { ls_toggle_arm(); s_dirty = true; return; }
+#endif
         if (s_hunt_dev >= 0 || s_gloss >= 0) return; /* Esc steps back */
         if (s_info_dev >= 0) s_info_dev = -1;
         else if (s_act >= 0) act_pick();
@@ -8241,25 +8261,43 @@ static void on_ok(void)
 
 static void fa_run(int which)
 {
-    const int band = s_fa_band;
+    int band = s_fa_band;
     const int dev = s_fa_dev;
+    uint8_t mac[6];
+    int ix = -1;
+    /* Capture the found-alert record before any enter_screen teardown. */
+    const int have = ls_fa_take(&band, mac, &ix);
     s_fa_on = false;
-    if (which == 0) { /* hunt */
-        enter_screen(band == 0 ? SCR_WIFI_RADAR : SCR_BT_RADAR, -1);
-        s_hunt_dev = dev;
-        s_hunt_band = band;
-        s_hunt_len = 0;
-        s_hunt_tS = 0;
-        s_hunt_force = 0;
-        s_cursor = dev;
-        s_dirty = true;
-    } else if (which == 1) { /* info */
-        enter_screen(band == 0 ? SCR_WIFI_RADAR : SCR_BT_RADAR, -1);
-        s_info_dev = (dev < LIST_N) ? dev : 0;
-        s_cursor = s_info_dev;
+    if (have) ls_fa_clear();
+    if (which == 0 || which == 1) {
+        const int screen = band == 0 ? SCR_WIFI_RADAR : SCR_BT_RADAR;
+        int use = -1;
+        if (!have) {
+            enter_screen(screen, -1);
+            use = (which == 1) ? ((dev < LIST_N) ? dev : 0) : dev;
+        } else if (s_screen != screen) {
+            /* A screen change clears the live model. Do not attach hunt/info to index 0. */
+            enter_screen(screen, -1);
+            use = -1;
+        } else if (ix >= 0 && ix < LIST_N) {
+            use = ix;
+        }
+        if (use >= 0 && which == 0) {
+            s_hunt_dev = use;
+            s_hunt_band = band;
+            s_hunt_len = 0;
+            s_hunt_tS = 0;
+            s_hunt_force = 0;
+            s_cursor = use;
+        } else if (use >= 0) {
+            s_info_dev = use;
+            s_cursor = use;
+        }
         s_dirty = true;
     } else if (which == 2) { /* ignore */
-        if (dev >= 0 && dev < LIST_N) {
+        if (have) {
+            ls_ign_add(band, mac);
+        } else if (dev >= 0 && dev < LIST_N) {
             s_dev_ign[band][dev] = 1;
             if (!ls_gate_legacy()) {
                 uint8_t macb[6];
@@ -8269,7 +8307,7 @@ static void fa_run(int which)
         }
         s_dirty = true;
     }
-    /* back / ignore: dismiss only */
+    /* back: dismiss only */
 }
 
 static void on_esc(void)

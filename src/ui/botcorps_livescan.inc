@@ -282,7 +282,8 @@ static int ls_model_add(int band, const uint8_t mac[6], int rssi, int ty, const 
     return i;
 }
 
-static void ls_first_sighting(int band, const uint8_t mac[6], int ignored)
+static void ls_first_sighting(int band, const uint8_t mac[6], int ignored,
+                              const char *fall_name = nullptr, int fall_rssi = -90, int fall_ty = -1)
 {
     if (ls_gate_legacy()) return;
     if (band < 0 || band > 1 || !mac) return;
@@ -296,11 +297,27 @@ static void ls_first_sighting(int band, const uint8_t mac[6], int ignored)
     if (!ls_armed()) return;
     ls_mem().catch_n++;
     const int ix = ls_model_find(band, mac);
-    const char *nm = ix >= 0 ? ls_mem().dev[band][ix].name : "device";
-    const int rssi = ix >= 0 ? ls_mem().dev[band][ix].rssi : -90;
-    const int ty = ix >= 0 ? ls_mem().dev[band][ix].ty : GL_UNKNOWN;
+    const char *nm;
+    int rssi;
+    int ty;
+    if (ix >= 0) {
+        nm = ls_mem().dev[band][ix].name;
+        rssi = ls_mem().dev[band][ix].rssi;
+        ty = ls_mem().dev[band][ix].ty;
+    } else if (fall_name && fall_name[0]) {
+        nm = fall_name;
+        rssi = fall_rssi;
+        ty = fall_ty >= 0 ? fall_ty : GL_UNKNOWN;
+    } else {
+        nm = "device";
+        rssi = -90;
+        ty = GL_UNKNOWN;
+    }
     snprintf(ls_mem().log_line, sizeof ls_mem().log_line, "found %s %d", nm, rssi);
     log_add(ls_mem().log_line);
+    ls_mem().latch = 1;
+    /* An open alert keeps its own record. Do not invent device index 0. */
+    if (s_fa_on) return;
     ls_mem().fa_on = 1;
     ls_mem().fa_band = (uint8_t)band;
     ls_mem().fa_ty = (uint8_t)ty;
@@ -309,9 +326,8 @@ static void ls_first_sighting(int band, const uint8_t mac[6], int ignored)
     snprintf(ls_mem().fa_name, sizeof ls_mem().fa_name, "%s", nm);
     s_fa_on = true;
     s_fa_sel = 0;
-    s_fa_band = band;
-    s_fa_dev = ix >= 0 ? ix : 0;
-    ls_mem().latch = 1;
+    s_fa_band = (int8_t)band;
+    s_fa_dev = (ix >= 0) ? (int8_t)ix : (int8_t)-1;
 }
 
 static int ls_q_push(int band, const uint8_t mac[6], int rssi, int ty, const char *name)
@@ -357,10 +373,11 @@ static void ls_drain(int band)
         LsHit h = ls_q(band)[last];
         ls_mem().qn[band] = (uint8_t)last;
         const int known = ls_model_find(band, h.mac);
-        if (known < 0 && ls_mem().n[band] >= LS_MCAP) continue;
-        ls_model_add(band, h.mac, h.rssi, h.ty, h.name);
+        const int dropped = (known < 0 && ls_mem().n[band] >= LS_MCAP);
+        if (!dropped) ls_model_add(band, h.mac, h.rssi, h.ty, h.name);
         const int ign = ls_ign_has(band, h.mac);
-        ls_first_sighting(band, h.mac, ign);
+        /* A full model still reports the sighting (LS17). The hit is not stored. */
+        ls_first_sighting(band, h.mac, ign, h.name, h.rssi, h.ty);
     }
     ls_repin(band, was_n, was_prompt, pin, had);
 }
@@ -443,6 +460,16 @@ static void ls_fa_mac(char *out, int n)
     snprintf(out, (size_t)n, "%02X:%02X:%02X:%02X:%02X:%02X",
              m[0], m[1], m[2], m[3], m[4], m[5]);
 }
+static int ls_fa_take(int *band, uint8_t *mac, int *ix)
+{
+    if (!ls_mem().fa_on || !mac) return 0;
+    const int b = ls_mem().fa_band;
+    if (band) *band = b;
+    memcpy(mac, ls_mem().fa_mac, 6);
+    if (ix) *ix = (b >= 0 && b <= 1) ? ls_model_find(b, mac) : -1;
+    return 1;
+}
+static void ls_fa_clear(void) { ls_mem().fa_on = 0; }
 
 #if BOTCORPS_LIVE_SCAN && !defined(BOTCORPS_HOST_RENDER)
 #include <NimBLEDevice.h>
@@ -847,6 +874,8 @@ static int ls_fa_ty(void) { return 0; }
 static int ls_fa_db(void) { return 0; }
 static int ls_fa_icon(void) { return 0; }
 static void ls_fa_mac(char *out, int n) { if (n > 0) out[0] = 0; }
+static int ls_fa_take(int *, uint8_t *, int *) { return 0; }
+static void ls_fa_clear(void) {}
 static const char *ls_dev_name(int, int) { return ""; }
 static int ls_dev_db(int, int) { return 0; }
 static int ls_dev_ty(int, int) { return 0; }

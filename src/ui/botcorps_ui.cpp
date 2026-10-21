@@ -3817,10 +3817,11 @@ static void sb_board(Gfx g, bool wifi)
                 tiny_text(g, ls[i], sx, ys[i], silk);
             }
         } else if (gib) {
-            /* Literal baselines. Do not derive these from the device-chip centre. */
-            tiny_text(g, nm, cxm - tiny_w(nm) / 2, 139, silk);
-            tiny_text(g, l2c, cxm - tiny_w(l2c) / 2, 144, silk);
-            tiny_text(g, l3c, cxm - tiny_w(l3c) / 2, 149, silk);
+            /* 5 px silk, one empty row between lines, three empty rows above the ticker at y=154.
+             * Not derived from the device-chip centre. */
+            tiny_text(g, nm, cxm - tiny_w(nm) / 2, 134, silk);
+            tiny_text(g, l2c, cxm - tiny_w(l2c) / 2, 140, silk);
+            tiny_text(g, l3c, cxm - tiny_w(l3c) / 2, 146, silk);
         } else {
             tiny_text(g, nm, cxm - tiny_w(nm) / 2, dcy + 12, silk);
             tiny_text(g, l2c, cxm - tiny_w(l2c) / 2, dcy + 17, silk);
@@ -4307,47 +4308,52 @@ static void framed_mount(Gfx g, int cxm, int ccy, int bot, int *dcy_out)
 /* SCR_SCAN Gibson only. Two device chips under the static Gibson chip.
  * Wi-Fi left (k=0,1), Bluetooth right (k=3,4). Centre pin k=2 is unused.
  * Device traces land on non-adjacent top pins k=1 and k=3. */
-static int dual_icon_px(const uint8_t *p, int col, int row)
+static void dual_seg(Gfx g, int x0, int y0, int x1, int y1, uint8_t col)
 {
-    const int bit = col * 2;
-    const uint8_t byte = p[row * 3 + (bit >> 3)];
-    return (byte >> (6 - (bit & 7))) & 3;
+    int dx = x1 - x0; if (dx < 0) dx = -dx;
+    int dy = y1 - y0; if (dy < 0) dy = -dy;
+    const int sx = x0 < x1 ? 1 : -1;
+    const int sy = y0 < y1 ? 1 : -1;
+    int err = dx - dy;
+    for (;;) {
+        g.fillRect(x0, y0, 1, 1, col);
+        if (x0 == x1 && y0 == y1) break;
+        const int e2 = err * 2;
+        if (e2 > -dy) { err -= dy; x0 += sx; }
+        if (e2 < dx) { err += dx; y0 += sy; }
+    }
 }
 static void dual_glyph(Gfx g, int cx, int cy, int icon, uint8_t c1, uint8_t c2, uint8_t c3)
 {
-    /* icon 6 = BOTCORPS_ICON_WIFI, 7 = BOTCORPS_ICON_BT. 12x12 scaled into a 16 px face (16/24). */
-    static const uint8_t WIFI[36] = {
-        0x00,0x00,0x00, 0x03,0xFF,0xC0, 0x0F,0x00,0xF0, 0x3C,0x00,0x3C,
-        0x00,0xFF,0x00, 0x03,0x00,0xC0, 0x00,0x3C,0x00, 0x00,0x3C,0x00,
-        0x00,0x00,0x00, 0x00,0x3C,0x00, 0x00,0x00,0x00, 0x00,0x00,0x00
-    };
-    static const uint8_t BT[36] = {
-        0x00,0xF0,0x00, 0x00,0xFC,0x00, 0x03,0xCF,0x00, 0x0F,0x3C,0x00,
-        0x03,0xF0,0x00, 0x00,0xFC,0x00, 0x0F,0x3C,0x00, 0x03,0xCF,0x00,
-        0x00,0xFC,0x00, 0x00,0xF0,0x00, 0x00,0x00,0x00, 0x00,0x00,0x00
-    };
-    const uint8_t *src = icon == 7 ? BT : WIFI;
-    const uint8_t ink[4] = { 0, c1, c2, c3 };
-    int x0 = 11, y0 = 11, x1 = 0, y1 = 0;
-    for (int r = 0; r < 12; ++r)
-        for (int c = 0; c < 12; ++c)
-            if (dual_icon_px(src, c, r)) {
-                if (c < x0) x0 = c;
-                if (r < y0) y0 = r;
-                if (c > x1) x1 = c;
-                if (r > y1) y1 = r;
-            }
-    const int gw = x1 - x0 + 1, gh = y1 - y0 + 1;
-    const int face = 16;
-    const int ox = cx - face / 2, oy = cy - face / 2;
-    for (int y = 0; y < face; ++y) {
-        const int sy = y0 + y * gh / face;
-        for (int x = 0; x < face; ++x) {
-            const int sx = x0 + x * gw / face;
-            const int ix = dual_icon_px(src, sx, sy);
-            if (ix) g.fillRect(ox + x, oy + y, 1, 1, ink[ix]);
-        }
+    (void)c1; (void)c2; (void)c3;
+    const uint8_t c = PAL_WHITE;
+    const int ox = cx - 8, oy = cy - 8;
+    if (icon == 7) {
+        /* Bluetooth rune: stem, two right-pointing triangles, two crossing diagonals. */
+        dual_seg(g, ox + 7, oy + 0, ox + 7, oy + 15, c);
+        dual_seg(g, ox + 7, oy + 0, ox + 13, oy + 4, c);
+        dual_seg(g, ox + 13, oy + 4, ox + 7, oy + 7, c);
+        dual_seg(g, ox + 7, oy + 8, ox + 13, oy + 11, c);
+        dual_seg(g, ox + 13, oy + 11, ox + 7, oy + 15, c);
+        dual_seg(g, ox + 2, oy + 4, ox + 13, oy + 11, c);
+        dual_seg(g, ox + 2, oy + 11, ox + 13, oy + 4, c);
+        return;
     }
+    /* Three open arcs and a centre dot. Not a filled canopy. */
+    g.fillRect(ox + 5, oy + 2, 6, 1, c);
+    g.fillRect(ox + 3, oy + 3, 2, 1, c);
+    g.fillRect(ox + 11, oy + 3, 2, 1, c);
+    g.fillRect(ox + 2, oy + 4, 1, 1, c);
+    g.fillRect(ox + 13, oy + 4, 1, 1, c);
+    g.fillRect(ox + 6, oy + 6, 4, 1, c);
+    g.fillRect(ox + 4, oy + 7, 2, 1, c);
+    g.fillRect(ox + 10, oy + 7, 2, 1, c);
+    g.fillRect(ox + 4, oy + 8, 1, 1, c);
+    g.fillRect(ox + 11, oy + 8, 1, 1, c);
+    g.fillRect(ox + 7, oy + 10, 2, 1, c);
+    g.fillRect(ox + 6, oy + 11, 1, 1, c);
+    g.fillRect(ox + 9, oy + 11, 1, 1, c);
+    g.fillRect(ox + 7, oy + 13, 2, 2, c);
 }
 static void dual_run(Gfx g, int x0, int y0, int x1, int y1, int jog, const char *nm)
 {
@@ -4388,7 +4394,7 @@ static void dev_mount_dual(Gfx g, int cxm, int ccy, int bot, int *dcy_out)
     (void)bot;
     (void)cxm;
     (void)ccy;
-    /* Historical centre. Silk baselines stay 139/144/149, not this chip's centre. */
+    /* Historical centre. Silk baselines are 134/140/146, not this chip's centre. */
     if (dcy_out) *dcy_out = 127;
     const int T = 24;
     const int wcx = 40, bcx = 82, cy = 120;

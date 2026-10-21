@@ -289,10 +289,11 @@ static void ls_first_sighting(int band, const uint8_t mac[6], int ignored,
     if (band < 0 || band > 1 || !mac) return;
     ls_mem().sight_n++;
     if (ls_set_has(ls_mem().seen[band], ls_mem().seen_n[band], mac) >= 0) return;
-    if (ls_mem().seen_n[band] < LS_MCAP) {
-        memcpy(ls_mem().seen[band][ls_mem().seen_n[band]], mac, 6);
-        ls_mem().seen_n[band]++;
-    }
+    /* A full seen-set cannot record this MAC, so it is not a first sighting
+     * on this pass or any later one. No alert, log, score, or latch. */
+    if (ls_mem().seen_n[band] >= LS_MCAP) return;
+    memcpy(ls_mem().seen[band][ls_mem().seen_n[band]], mac, 6);
+    ls_mem().seen_n[band]++;
     if (ignored) return;
     if (!ls_armed()) return;
     ls_mem().catch_n++;
@@ -376,7 +377,7 @@ static void ls_drain(int band)
         const int dropped = (known < 0 && ls_mem().n[band] >= LS_MCAP);
         if (!dropped) ls_model_add(band, h.mac, h.rssi, h.ty, h.name);
         const int ign = ls_ign_has(band, h.mac);
-        /* A full model still reports the sighting (LS17). The hit is not stored. */
+        /* A full model still reports a MAC the seen-set can record (LS17). */
         ls_first_sighting(band, h.mac, ign, h.name, h.rssi, h.ty);
     }
     ls_repin(band, was_n, was_prompt, pin, had);
@@ -787,6 +788,43 @@ void botcorps_host_ls_report(void *file)
     fprintf(f, "LS\t1\t%d\tlive model count drives the grid\n", r1);
     fprintf(f, "LS\t2\t%d\tpaint path does not wait on the radio\n", 1);
     fprintf(f, "LS\t16\t%d\tstatic RAM is the ram.py rows\n", 1);
+
+    /* 17 distinct MACs, two drains. The 16 that fit the seen-set alert once.
+     * The overflow MAC alerts on neither pass. The set is not grown. */
+    botcorps_host_ls_live();
+    s_screen = SCR_WIFI_RADAR;
+    ls_mem().armed = 1;
+    int recorded = 0;
+    int overflow_fired = 0;
+    const int nfeed = LS_MCAP + 1;
+    for (int pass = 0; pass < 2; ++pass) {
+        for (int i = 0; i < nfeed; ++i) {
+            s_fa_on = false;
+            ls_fa_clear();
+            ls_mem().latch = 0;
+            const uint16_t catch_before = ls_mem().catch_n;
+            char log_before[48];
+            snprintf(log_before, sizeof log_before, "%s", ls_mem().log_line);
+            uint8_t m[6] = { 8, 0, 0, 0, 1, (uint8_t)i };
+            char nm[16];
+            snprintf(nm, sizeof nm, "ov%d", i);
+            ls_q_push(0, m, -40 - i, GL_AP, nm);
+            ls_drain(0);
+            const int fired = ls_mem().catch_n != catch_before || s_fa_on || ls_mem().latch
+                || strcmp(ls_mem().log_line, log_before) != 0;
+            if (i < LS_MCAP) {
+                if (pass == 0 && ls_mem().catch_n == (uint16_t)(catch_before + 1) && s_fa_on
+                    && ls_mem().latch && strcmp(ls_mem().log_line, log_before) != 0)
+                    recorded++;
+                if (pass == 1 && fired) overflow_fired = 1;
+            } else if (fired) {
+                overflow_fired = 1;
+            }
+        }
+    }
+    const int seen_ok = ls_mem().seen_n[0] == LS_MCAP && ls_mem().catch_n == LS_MCAP;
+    fprintf(f, "LS\tseen\t%d\t17 devices x 2 passes; overflow never alerts\n",
+            recorded == LS_MCAP && !overflow_fired && seen_ok);
 
     botcorps_host_ls_pass_begin();
 }

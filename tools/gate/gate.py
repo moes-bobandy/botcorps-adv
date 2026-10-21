@@ -411,6 +411,7 @@ if os.path.exists(fp):
                 '22': 'LS22 legacy boards still key the canned ignore array',
                 '24': 'LS24 a radar screen enters with an empty model',
                 '25': 'LS25 the alert keeps its own device copy',
+                'seen': 'LS seen-set overflow is not a first sighting',
             }
             title = names.get(f[1], 'LS' + f[1])
             rep('functional', title, len(f) > 2 and f[2] == '1', f[3] if len(f) > 3 else '')

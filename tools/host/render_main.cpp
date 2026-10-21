@@ -109,9 +109,11 @@ extern void botcorps_host_gc_title(uint8_t *buf, int bot);
 /* gate.sh: render every screen twice (rain on / rain off) at a fixed clock,
  * dumping <name>.rgb, <name>.norain.rgb and <name>.log (element + text bboxes). */
 static uint8_t g_buf[320 * 240];
+extern void botcorps_host_ls_pass_begin(void);
 static void gate_one(const char *dir, const char *name, int term, void (*fn)(void *), void *arg)
 {
     char p[256];
+    botcorps_host_ls_pass_begin();
     for (int pass = 0; pass < 2; ++pass) {
         host_gate_norain = pass;
         host_rain_init(0);
@@ -136,6 +138,8 @@ static void f_enter(void *v) { GArg *g = (GArg *)v; botcorps_host_set_color(g->b
     if (g->c > 0) { host_set_millis(9000u + (uint32_t)g->c); memset(g_buf, 0, sizeof g_buf); botcorps_host_paint(g_buf); } }
 extern void botcorps_host_scan_gibhunt(uint8_t *buf);
 static void f_gibhunt(void *) { botcorps_host_set_color(0); botcorps_host_scan_gibhunt(g_buf); }
+extern void botcorps_host_hub_alert(uint8_t *buf);
+static void f_hub_alert(void *) { botcorps_host_set_color(0); botcorps_host_hub_alert(g_buf); }
 static void f_scan(void *v) { GArg *g = (GArg *)v; botcorps_host_set_color(0); botcorps_host_scan_n(g_buf, g->a); }
 static void f_ctl(void *v) { GArg *g = (GArg *)v; botcorps_host_set_color(g->b); botcorps_host_control(g_buf, g->a); }
 /* v1019m: "intro" is the LIVE intro (boot rain + Gibson chip in the square rings, SCR_RAIN, same path as
@@ -196,6 +200,8 @@ static int run_gate(const char *dir)
     a = { 0, 0, 0, "\n\n\x02\x02\x02\x02\x02\n" }; gate_one(dir, "terminal-atkmenu", 0, f_enter, &a);
     a = { 0, 0, 0, "\n\n\x02\x02\x02\x02\x02\n\x04" }; gate_one(dir, "terminal-atkgloss", 0, f_enter, &a);
     a = { 0, 0, 0, nullptr }; gate_one(dir, "scanboard-hunt-gibson", 0, f_gibhunt, &a);
+    /* Block 2: hub latch after a live sighting. Additions-only; idle hub rows stay above. */
+    a = { 0, 0, 0, nullptr }; gate_one(dir, "hub-alert", 0, f_hub_alert, &a);
     /* v1019y: the 13 old Defend mini-game screens are retired. defend/play paint the idle shell
      * (game-board / game-menu / game-jackin). No defend-* goldens. */
     botcorps_host_set_color(0);
@@ -302,6 +308,8 @@ static int run_gate(const char *dir)
             if (f) fprintf(f, "CPSTART\t%d\n", botcorps_host_cp_start());
         }
         /* v1019y: DG / DGR / DGC retired with the old mini-games. */
+        extern void botcorps_host_ls_report(void *file);
+        if (f) botcorps_host_ls_report(f);
         if (f) fclose(f);
     }
     return 0;
@@ -432,6 +440,23 @@ int main(int argc, char **argv)
         host_set_millis(9000u);
         botcorps_host_set_color(0);
         botcorps_host_defend(g_buf, atoi(argv[2]), 0);
+        write_raw(argv[3], g_buf, 0);
+        return 0;
+    }
+    /* Block 2 review frames (not gate rows): rend liveshot <wifi-off|wifi-on|ble-off|ble-on|alert|gibson> <out.rgb> */
+    if (argc > 3 && strcmp(argv[1], "liveshot") == 0) {
+        extern void botcorps_host_ls_shot(uint8_t *, int);
+        extern void botcorps_host_scan_n(uint8_t *, int);
+        host_rain_init(0);
+        host_set_millis(12000u);
+        botcorps_host_set_color(0);
+        const char *k = argv[2];
+        if (strcmp(k, "gibson") == 0) botcorps_host_scan_n(g_buf, 12);
+        else if (strcmp(k, "wifi-off") == 0) botcorps_host_ls_shot(g_buf, 0);
+        else if (strcmp(k, "wifi-on") == 0) botcorps_host_ls_shot(g_buf, 1);
+        else if (strcmp(k, "ble-off") == 0) botcorps_host_ls_shot(g_buf, 2);
+        else if (strcmp(k, "ble-on") == 0) botcorps_host_ls_shot(g_buf, 3);
+        else botcorps_host_ls_shot(g_buf, 4);
         write_raw(argv[3], g_buf, 0);
         return 0;
     }

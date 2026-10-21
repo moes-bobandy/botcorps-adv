@@ -144,39 +144,14 @@ void botcorps_probe_run(void)
     s_probe.sprite_freed = botcorps_rain_sprite_held() ? 0 : 1;
     take(BOTCORPS_ST_SF, "free-after");
 
-    WiFi.persistent(false);
-    WiFi.mode(WIFI_STA);
-    WiFi.disconnect(true, false);
-    WiFi.scanNetworks(true);
-    /* Start has settled when the scan is running or already finished.
-     * WIFI_SCAN_FAILED is the gap before the radio task is up. */
-    {
-        const uint32_t t0 = millis();
-        int sc = WiFi.scanComplete();
-        while (sc == WIFI_SCAN_FAILED && (uint32_t)(millis() - t0) < 1000u) {
-            delay(20);
-            sc = WiFi.scanComplete();
-        }
-    }
-    take(BOTCORPS_ST_W0, "wifi-start");
-    int n = WIFI_SCAN_RUNNING;
-    const uint32_t t1 = millis();
-    while ((n = WiFi.scanComplete()) == WIFI_SCAN_RUNNING &&
-           (uint32_t)(millis() - t1) < 8000u) {
-        delay(50);
-    }
-    s_probe.wifi_n = n;
-    WiFi.scanDelete();
+    /* LS11: the boot probe does not call scanNetworks and does not delay-wait.
+     * NIM_GATE (48 KB) stays in nim_gate(). A live scan starts only at arm. */
+    s_probe.wifi_n = -1;
     WiFi.mode(WIFI_OFF);
-    {
-        const uint32_t t2 = millis();
-        while (WiFi.getMode() != WIFI_OFF && (uint32_t)(millis() - t2) < 500u) {
-            delay(20);
-        }
-        delay(50);
-    }
-    take(BOTCORPS_ST_W1, "wifi-stop");
-    Serial.printf("[botcorps] probe %02d WIFI n=%d\n", s_log_stage, n);
+    take(BOTCORPS_ST_W0, "wifi-skip");
+    take(BOTCORPS_ST_W1, "wifi-skip");
+    Serial.printf("[botcorps] probe %02d WIFI skipped gate=%u\n",
+                  s_log_stage, (unsigned)NIM_GATE);
 
     take(BOTCORPS_ST_OV0, "ov-before");
     {

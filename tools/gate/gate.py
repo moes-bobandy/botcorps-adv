@@ -387,6 +387,33 @@ if os.path.exists(fp):
                 f[1] == '1' and got == 'scan wifi', f'prompt={got!r} (want \'scan wifi\')')
             rep('functional', 'K2 one arrow chord = one focus stop; arrows stay arrows with text in the prompt',
                 f[2] == '1', f'focus_ok={f[2]}')
+        elif f[0] == 'LS':
+            names = {
+                '1': 'LS1 live model drives the tiles',
+                '2': 'LS2 paint does not wait on the radio',
+                '3': 'LS3 arm, disarm, disarmed on enter (T1/T2)',
+                '4': 'LS4 found-alert only from the handler while armed',
+                '5': 'LS5 ignored never counts or re-alerts',
+                '6': 'LS6 selection stays on the MAC; prompt re-pins; GIB_STOP stays 36',
+                '7': 'LS7 queue overflow drops without corrupting the model',
+                '9': 'LS9 hub latch is set by the first sighting',
+                '10': 'LS10 48 KB NimBLE check at arm, short does not retry',
+                '11': 'LS11 boot probe does not wait; NIM_GATE is 48 KB',
+                '12': 'LS12 defend bots 0/1 stay on the canned tally while armed',
+                '13': 'LS13 radar strip is radio-off or the armed count',
+                '14': 'LS14 GIB_STOP arms on the radar screens and not on Gibson',
+                '15': 'LS15 armed glow is the two radar screens only',
+                '16': 'LS16 static RAM is enforced by ram.py',
+                '17': 'LS17 one first-sighting writer',
+                '18': 'LS18 the canned fixture does not call the handler',
+                '20': 'LS20 tag and ignore follow the MAC',
+                '21': 'LS21 each gate pass starts disarmed, unlatched, fixture off',
+                '22': 'LS22 legacy boards still key the canned ignore array',
+                '24': 'LS24 a radar screen enters with an empty model',
+                '25': 'LS25 the alert keeps its own device copy',
+            }
+            title = names.get(f[1], 'LS' + f[1])
+            rep('functional', title, len(f) > 2 and f[2] == '1', f[3] if len(f) > 3 else '')
         elif f[0] == 'SIM':
             name, bad, pres, push, rec, worst = f[1], int(f[2]), int(f[3]), int(f[4]), int(f[5]), int(f[6])
             # v1019v: full-width zap Defend chrome presents large band slices by design (mock v5).
@@ -401,6 +428,8 @@ if os.path.exists(fp):
                     f'recomposes={rec}')
 
 rep('functional', 'K0 keyboard test ran', k1_seen, '' if k1_seen else 'no K1 line in functional.txt')
+rep('functional', 'LS-D1 device heap with the band held', None, 'on-device feel check')
+rep('functional', 'LS-D2 ten-minute live scan per band', None, 'on-device field test')
 
 # v1019y: DG / DGR / DGC retired with the old mini-games (968 -> fewer; no new loop checks).
 

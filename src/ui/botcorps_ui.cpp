@@ -416,9 +416,9 @@ static int s_gloss = -1;      /* glossary row, -1 closed */
 static const int FA_N = 4;
 static const char *const FA_NAME[FA_N] = { "hunt", "info", "ignore", "back" };
 static bool s_fa_on = false;
-static int s_fa_sel = 0;
-static int s_fa_band = 0;
-static int s_fa_dev = 0;
+static int8_t s_fa_sel = 0;
+static int8_t s_fa_band = 0;
+static int8_t s_fa_dev = 0;
 /* v1019u: found-alert is DEAD until a live radio scan exists. The Adv scan lists are canned
  * (cafe-guest etc.), so an alert raised from them is null and void. BOTCORPS_LIVE_SCAN defaults
  * to 0: fa_live() is then a compile-time false on the device, so the takeover can never paint and
@@ -999,6 +999,33 @@ static int button_count(void)
 
 static void partial_int(void);
 static void scan_all_set(bool on);
+static const int GIB_STOP = 36;
+static int ls_owned_band(void);
+static bool ls_gate_legacy(void);
+static void ls_on_enter(void);
+static void ls_pump(void);
+static void ls_toggle_arm(void);
+static int ls_list_n(void);
+static bool ls_model_on(void);
+static bool ls_glow_on(void);
+static int ls_hub_latched(void);
+static void ls_glow_tick(uint32_t t);
+static void ls_glow_draw(Gfx g);
+static bool sb_ignored(int band, int d);
+static int sb_tagv(int band, int d);
+static void ls_strip_text(int band, char *a, int na, char *b, int nb);
+static int ls_fa_on(void);
+static const char *ls_fa_name(void);
+static int ls_fa_ty(void);
+static int ls_fa_db(void);
+static int ls_fa_icon(void);
+static void ls_fa_mac(char *out, int n);
+static const char *ls_dev_name(int band, int d);
+static int ls_dev_db(int band, int d);
+static int ls_dev_ty(int band, int d);
+static void ls_ign_add(int band, const uint8_t *mac);
+static void ls_tag_set(int band, int d, int v);
+static void ls_mac_of(int band, int d, uint8_t *mac);
 
 static void enter_screen(int id, int ret)
 {
@@ -1048,6 +1075,7 @@ static void enter_screen(int id, int ret)
     }
     Serial.printf("[int] enter_screen %s\n", screen_name(id));
     botcorps_probe_screen(from, screen_name(id));
+    ls_on_enter();
 }
 
 static void go_back(void)
@@ -3367,7 +3395,7 @@ static void gl_icon_sz(Gfx g, int type, int x, int y, bool dim, int sz)
     }
 }
 
-#define LIST_N (s_sb_n)
+#define LIST_N (ls_list_n())
 /* v1016 1604 mock devices, strongest first. Cells, ids and MACs come from FNV-1a of the name, as in the mock. */
 /* mod item 9: entries 12..34 are extra idle samples so the overflow (grid extends past 7x4) can be shown;
  * the stock list is still the first 12 (s_sb_n = 12). */
@@ -3410,9 +3438,21 @@ static const uint8_t LIST_BLE_DT[SB_N] = {
     DEV_BT, DEV_TAG, DEV_BT, DEV_BT, DEV_BT, DEV_BT, DEV_BT, DEV_BT, DEV_SKIM, DEV_TAG, DEV_BT
 };
 
-static const char *sb_name(int band, int d) { return (band ? LIST_BLE_N : LIST_WIFI_N)[d]; }
-static int sb_db(int band, int d) { return (band ? LIST_BLE_DB : LIST_WIFI_DB)[d]; }
-static int sb_ty(int band, int d) { return (band ? LIST_BLE_TY : LIST_WIFI_TY)[d]; }
+static const char *sb_name(int band, int d)
+{
+    if (ls_model_on() && band == ls_owned_band()) return ls_dev_name(band, d);
+    return (band ? LIST_BLE_N : LIST_WIFI_N)[d];
+}
+static int sb_db(int band, int d)
+{
+    if (ls_model_on() && band == ls_owned_band()) return ls_dev_db(band, d);
+    return (band ? LIST_BLE_DB : LIST_WIFI_DB)[d];
+}
+static int sb_ty(int band, int d)
+{
+    if (ls_model_on() && band == ls_owned_band()) return ls_dev_ty(band, d);
+    return (band ? LIST_BLE_TY : LIST_WIFI_TY)[d];
+}
 
 static uint32_t sb_hash(const char *s)
 {
@@ -3862,6 +3902,7 @@ static void sb_board(Gfx g, bool wifi)
 
 static int sb_shown(void)
 {
+    if (ls_model_on()) return ls_list_n();
     if (s_screen == SCR_SCAN) return LIST_N; /* v1016f-3 #7: core scan shows the full dense device cloud */
     /* mock: nShow = 1 + floor(u * 1.6 * 12). mod item 9: found devices STAY on the grid (the reveal
      * runs once from the scan start and holds; it no longer loops every 3.4 s and empties the board). */
@@ -3920,7 +3961,7 @@ static void sb_grid(Gfx g, int band, bool tiles)
     const uint32_t t = millis();
     int hx0 = -1, hy0 = -1;
     for (int d = 0; d < n; ++d) {
-        if (s_dev_ign[band][d]) continue;
+        if (sb_ignored(band, d)) continue;
         int cx = 0, cy = 0;
         if (!sb_cell(band, d, &cx, &cy)) continue;
         const int x = cx - 9, y = cy - 9;
@@ -4676,7 +4717,7 @@ static void sb_ghost(Gfx g, int band, int px, int py, int pw, int ph)
 {
     const int n = sb_shown();
     for (int d = 0; d < n; ++d) {
-        if (s_dev_ign[band][d]) continue;
+        if (sb_ignored(band, d)) continue;
         int cx = 0, cy = 0;
         if (!sb_cell(band, d, &cx, &cy)) continue;
         if (cx - 10 < px + 1 || cy - 10 < py + 1 || cx + 10 > px + pw - 1 || cy + 10 > py + ph - 1) continue;
@@ -4713,7 +4754,7 @@ static void sb_panel(Gfx g, int band)
         blit_ico(g, ACT_ICO[j], x0 + 9, yy + 3, on ? (uint8_t)PAL_WHITE : ac);
         sb_text(g, ACT_NAME[j], x0 + 22, yy + 3, on ? (uint8_t)PAL_WHITE : (uint8_t)COL_INK, bg, false, 1);
         if (on) sb_text(g, ACT_NAME[j], x0 + 23, yy + 3, PAL_WHITE, bg, false, 1);
-        if (j == 2 && s_dev_tag[band][d] > 0) sb_rect(g, x0 + w - 14, yy + 4, 6, 6, TAG_COL[s_dev_tag[band][d] - 1]);
+        if (j == 2 && sb_tagv(band, d) > 0) sb_rect(g, x0 + w - 14, yy + 4, 6, 6, TAG_COL[sb_tagv(band, d) - 1]);
     }
 }
 
@@ -4854,6 +4895,7 @@ static void sb_top(Gfx g)
     sb_rect(g, 0, 24, 320, 1, sb_tone(3));
     sb_rect(g, 0, 24, (int)(320.f * u), 1, ac);
     chip_mini(g, 14, 12, 14, 12, false, 0);   /* v1019l (Dirt concept): outside games Gibson is a square chip */
+    ls_glow_draw(g);
     for (int i = 0; i < 12; ++i) {
         const bool out = u > (float)i * .02f && u < .7f;
         const uint8_t c = bot_color(i);
@@ -4896,7 +4938,7 @@ static void sb_hud(Gfx g, int band)
     int tally[GL_N];
     for (int i = 0; i < GL_N; ++i) tally[i] = 0;
     for (int d = 0; d < LIST_N; ++d)
-        if (!s_dev_ign[band][d]) tally[sb_ty(band, d)]++;
+        if (!sb_ignored(band, d)) tally[sb_ty(band, d)]++;
     const int cur = (s_cursor >= 0 && s_cursor < LIST_N) ? s_cursor : 0;
     /* v1019y: device row ~15% (12 -> 14). A non-zero count is white so the lit icon reads. */
     gl_icon_sz(g, sb_ty(band, cur), 8, 216, false, 14);
@@ -5019,6 +5061,17 @@ static void paint_sbox(Gfx g, bool wifi)
         sb_rect(g, dx + dw - 22, ty - 2, 19, 12, 8);
         sb_frame(g, dx + dw - 22, ty - 2, 19, 12, sb_tone(4));
         for (int k = 0; k < 3; ++k) sb_rect(g, dx + dw - 18, ty + 1 + k * 3, 11, 1, COL_MUTED);
+    } else if (ls_model_on()) {
+        char ra[40], rb[40];
+        ls_strip_text(band, ra, 40, rb, 40);
+        int x = sb_tt(g, "[ ok ] ", dx + 3, th, PAL_OK);
+        sb_tt(g, ra, x, th + 1, sb_tone(3));
+        sb_tt(g, ra, x, th, sb_ink());
+        x = sb_tt(g, "[ ok ] ", dx + 3, th + 11, PAL_OK);
+        sb_tt(g, rb, x, th + 12, sb_tone(3));
+        sb_tt(g, rb, x, th + 11, sb_ink());
+        x = sb_tt(g, "user@botcorps:~$ ", dx + 3, ty, ac);
+        if ((millis() / 530u) % 2u == 0u) sb_rect(g, x + 1, ty, 5, 9, ac);
     } else {
     int x = sb_tt(g, "[ ok ] ", dx + 3, th, PAL_OK);
     snprintf(l2, sizeof(l2), "%s radio up \xfa ch sweep", bn);
@@ -5053,6 +5106,7 @@ static void paint_found_alert(Gfx g)
     const uint8_t hi = sb_tone(0);           /* #00666c on cyan, hexMix(ac,.55,0) */
     const bool wifi = s_fa_band == 0;
     const int band = wifi ? 0 : 1;
+    const bool live_fa = ls_fa_on() != 0;
     const int d = (s_fa_dev >= 0 && s_fa_dev < LIST_N) ? s_fa_dev : 0;
     GATE_BOX(g, "OCCLUDE", "alert", 0, 0, 320, 240, "-");
     sb_rect(g, 0, 0, 320, 240, 4);
@@ -5064,19 +5118,21 @@ static void paint_found_alert(Gfx g)
     sb_text(g, wifi ? "WI-FI" : "BLE", 268, 15, PAL_WHITE, red, false, 1);
     sb_rect(g, 14, 40, 40, 40, 37);
     sb_frame(g, 14, 40, 40, 40, ac);
-    dev_icon(g, (wifi ? LIST_WIFI_DT : LIST_BLE_DT)[d], 28, 54, false);
+    dev_icon(g, live_fa ? ls_fa_icon() : (wifi ? LIST_WIFI_DT : LIST_BLE_DT)[d], 28, 54, false);
     char who[17];
-    sb_upper(who, sizeof(who), sb_name(band, d), 15);
+    sb_upper(who, sizeof(who), live_fa ? ls_fa_name() : sb_name(band, d), 15);
     sb_text(g, who, 64, 42, PAL_WHITE, 4, false, 2);
     char mac[24];
-    sb_mac(mac, sizeof(mac), band, d, 4);
+    if (live_fa) ls_fa_mac(mac, (int)sizeof mac);
+    else sb_mac(mac, sizeof(mac), band, d, 4);
     if (wifi) {
         const size_t n = strlen(mac);
-        snprintf(mac + n, sizeof(mac) - n, "  CH%u", (unsigned)(1u + sb_hash(sb_name(band, d)) % 11u));
+        const char *nm = live_fa ? ls_fa_name() : sb_name(band, d);
+        snprintf(mac + n, sizeof(mac) - n, "  CH%u", (unsigned)(1u + sb_hash(nm) % 11u));
     }
     sb_text(g, mac, 64, 62, 146, 4, false, 1);
     char db[16];
-    snprintf(db, sizeof(db), "%d DBM", sb_db(band, d));
+    snprintf(db, sizeof(db), "%d DBM", live_fa ? ls_fa_db() : sb_db(band, d));
     sb_text(g, db, 64, 72, ac, 4, false, 1);
     static const int FA_ICO_I[FA_N] = { 0, 1, 3, 4 };
     for (int j = 0; j < FA_N; ++j) {
@@ -5941,6 +5997,14 @@ static void px_sq_ring(Gfx g, int cx, int cy, int r, uint8_t col, int on, int of
 #define GIB_CORE_RING px_ring
 #endif
 
+static void ls_glow_draw(Gfx g)
+{
+    if (!ls_glow_on()) return;
+    const uint32_t t = millis();
+    const int ph = (int)((t % 1400u) * 3u / 1400u);
+    GIB_CORE_RING(g, 14, 12, 9 + ph, th_ring(ph % 5), 2, 2, (int)(t / 120u));
+}
+
 static void paint_gibson(Gfx g)
 {
     /* extGibsonHub. Rain is dimmed by the fade table before this chrome. No read-back. */
@@ -6059,6 +6123,10 @@ static void paint_gibson(Gfx g)
         g.fillRect(bx + 6, 35, 3, 2, ac);
     }
     gib_crown(g, cx, 22);
+    if (ls_hub_latched()) {
+        g.fillRect(6, 6, 11, 11, ac);
+        txt(g, "1", 8, 7, COL_IVORY, lgfx::textdatum::top_left);
+    }
     chip_plate(g, cx - 15, cy + 40, 30, 12, PAL_DEEP, ac);
     g.fillRect(cx - 6, cy + 43, 12, 6, ac);
     g.fillRect(cx - 4, cy + 44, 8, 4, PAL_BG);
@@ -7346,6 +7414,7 @@ static void sb_tick(void)
     const uint32_t t = millis(), e = (t - s_bus_t0) % 3400u;
     uint32_t top, rule, sr;
     sb_bus_keys(t, &top, &rule, &sr);
+    ls_glow_tick(t);
     if (top != k_top) { if (k_top != ~0u) sb_patch(0, 0, 320, 24); k_top = top; }
     if (rule != k_rule) { if (k_rule != ~0u) sb_patch(0, 24, 320, 1); k_rule = rule; }
     if (sr != k_srule) { if (k_srule != ~0u) sb_patch(106, 144, 176, 1); k_srule = sr; }
@@ -7681,8 +7750,8 @@ static void enter_defend(int bot, int ret);
 static int sp_dev(void)
 {
     const int band = list_band();
-    if (s_cursor >= 0 && s_cursor < LIST_N && !s_dev_ign[band][s_cursor]) return s_cursor;
-    for (int i = 0; i < LIST_N; ++i) if (!s_dev_ign[band][i]) return i;
+    if (s_cursor >= 0 && s_cursor < LIST_N && !sb_ignored(band, s_cursor)) return s_cursor;
+    for (int i = 0; i < LIST_N; ++i) if (!sb_ignored(band, i)) return i;
     return -1;
 }
 static void sp_run(const char *line)
@@ -7989,6 +8058,16 @@ static void on_arrows(int key)
         const int band = list_band();
         const int dir = (key == 1 || key == 3) ? -1 : (key == 2 || key == 4) ? 1 : 0;
         if (dir == 0) return;
+        if (s_cursor == GIB_STOP) {
+            if (key == 2) s_cursor = LIST_N;
+            partial_box(s_cursor, true);
+            return;
+        }
+        if (key == 1 && s_cursor == LIST_N) {
+            s_cursor = GIB_STOP;
+            partial_box(s_cursor, true);
+            return;
+        }
         /* positions: 0..LIST_N-1 devices, LIST_N = the > GLOSSARY prompt.
          * mod item 9: Left/Right step one cell, Up/Down step one grid ROW (7) so the halo moves the way
          * the arrow points; off the top = the > prompt, off the end wraps to the prompt. */
@@ -8000,7 +8079,7 @@ static void on_arrows(int key)
             if (key == 2 && j >= LIST_N && i / SG_COLS < (LIST_N - 1) / SG_COLS) j = LIST_N - 1;   /* short last row */
             i = (j < 0 || j >= LIST_N) ? LIST_N : j;
         }
-        for (int k = 0; k <= LIST_N && i < LIST_N && s_dev_ign[band][i]; ++k) {
+        for (int k = 0; k <= LIST_N && i < LIST_N && sb_ignored(band, i); ++k) {
             i += dir;
             if (i < 0 || i >= LIST_N) i = LIST_N;
         }
@@ -8029,12 +8108,18 @@ static void act_pick(void)
         s_info_dev = dev;
     } else if (which == 2) {
         s_dev_tag[band][dev] = s_dev_tag[band][dev] >= 4 ? 0 : (uint8_t)(s_dev_tag[band][dev] + 1);
+        if (!ls_gate_legacy()) ls_tag_set(band, dev, s_dev_tag[band][dev]);
     } else if (which == 3) {
         s_dev_ign[band][dev] = 1;
+        if (!ls_gate_legacy()) {
+            uint8_t macb[6];
+            ls_mac_of(band, dev, macb);
+            ls_ign_add(band, macb);
+        }
         if (s_cursor == dev) {
             s_cursor = LIST_N;
             for (int i = 0; i < LIST_N; ++i) {
-                if (!s_dev_ign[band][i]) {
+                if (!sb_ignored(band, i)) {
                     s_cursor = i;
                     break;
                 }
@@ -8068,11 +8153,12 @@ static void on_ok(void)
         return;
     }
     if (sbox_on()) {
+        if (s_cursor == GIB_STOP) { ls_toggle_arm(); s_dirty = true; return; }
         if (s_hunt_dev >= 0 || s_gloss >= 0) return; /* Esc steps back */
         if (s_info_dev >= 0) s_info_dev = -1;
         else if (s_act >= 0) act_pick();
         else if (s_cursor == LIST_N) s_gloss = 0;
-        else if (s_cursor >= 0 && s_cursor < LIST_N && !s_dev_ign[list_band()][s_cursor]) {
+        else if (s_cursor >= 0 && s_cursor < LIST_N && !sb_ignored(list_band(), s_cursor)) {
             s_act = 0;
             s_act_dev = s_cursor;
         }
@@ -8173,7 +8259,14 @@ static void fa_run(int which)
         s_cursor = s_info_dev;
         s_dirty = true;
     } else if (which == 2) { /* ignore */
-        if (dev >= 0 && dev < LIST_N) s_dev_ign[band][dev] = 1;
+        if (dev >= 0 && dev < LIST_N) {
+            s_dev_ign[band][dev] = 1;
+            if (!ls_gate_legacy()) {
+                uint8_t macb[6];
+                ls_mac_of(band, dev, macb);
+                ls_ign_add(band, macb);
+            }
+        }
         s_dirty = true;
     }
     /* back / ignore: dismiss only */
@@ -8784,6 +8877,7 @@ static void ui_dispatch(int key, char typed)
 
 void botcorps_ui_draw(void)
 {
+    ls_pump();
     sp_auto_poll();
     botcorps_rain_set_hub(s_screen == SCR_GIBSON);
     rain_flags();
@@ -10126,3 +10220,4 @@ int botcorps_host_slice_diff(void)
     return bad;
 }
 #endif
+#include "ui/botcorps_livescan.inc"

@@ -243,6 +243,57 @@ for scr in screens:
             rep(scr, 'C3 Gibson drawn as the square block figure', bool(gb), f'{len(gb)}')
     # D2 (#5 Dirt locked): the per-bot hunt grid is alive - this bot's falling device icons, the
     # chasing bot and the catch pips light the grid playfield (bright, non-grid pixels present).
+    if scr in ('scanboard-gibson', 'scanboard-hunt-gibson'):
+        def boxgap(a, b):
+            ax2, ay2 = a['x'] + a['w'], a['y'] + a['h']
+            bx2, by2 = b['x'] + b['w'], b['y'] + b['h']
+            if ax2 <= b['x']: dx = b['x'] - ax2
+            elif bx2 <= a['x']: dx = a['x'] - bx2
+            else: dx = 0
+            if ay2 <= b['y']: dy = b['y'] - ay2
+            elif by2 <= a['y']: dy = a['y'] - by2
+            else: dy = 0
+            if dx and dy: return max(dx, dy)
+            return dx + dy
+        tchips = [b for b in boxes if b['k'] == 'TCHIP' and b['n'] in ('wifi', 'bt')]
+        wf = [b for b in tchips if b['n'] == 'wifi']
+        bt = [b for b in tchips if b['n'] == 'bt']
+        def band_ok(b, cx, top):
+            return (b['w'] == b['h'] and b['w'] >= 22 and abs(b['x'] + b['w'] / 2 - cx) <= 1
+                    and abs(b['y'] - top) <= 1 and b['x'] >= 20 and b['x'] + b['w'] <= 96
+                    and b['y'] >= 100 and b['y'] + b['h'] <= 136)
+        p1 = (len(wf) == 1 and len(bt) == 1 and band_ok(wf[0], 40, 108) and band_ok(bt[0], 82, 108)
+              and boxgap(wf[0], bt[0]) >= 2)
+        rep(scr, 'P1 two device chips, Wi-Fi then Bluetooth', p1,
+            f"wifi={[(b['x'], b['y'], b['w']) for b in wf]} bt={[(b['x'], b['y'], b['w']) for b in bt]}")
+        traces = [b for b in boxes if b['k'] == 'TRACE']
+        pads = [b for b in boxes if b['k'] == 'PAD']
+        silk = [b for b in boxes if b['k'] == 'SILK']
+        tight = []
+        parts = traces + pads
+        for i in range(len(parts)):
+            for j in range(i + 1, len(parts)):
+                if parts[i]['n'] == parts[j]['n']: continue
+                if boxgap(parts[i], parts[j]) < 2:
+                    tight.append(f"{parts[i]['n']}x{parts[j]['n']}")
+        silk_gap = True
+        for t in tchips:
+            for s in silk:
+                if boxgap(t, s) < 2: silk_gap = False
+        silver = [b for b in pads if b['y'] >= 100]
+        gold = [b for b in pads if b['y'] < 100]
+        p2 = (len(traces) >= 8 and len(silver) >= 4 and len(gold) >= 4 and not tight and silk_gap
+              and all(100 <= b['y'] and b['y'] + b['h'] <= 136 for b in silver)
+              and all(b['y'] >= 97 for b in gold))
+        rep(scr, 'P2 wires, pads, and 2px clearance from silk', p2,
+            f"traces={len(traces)} tight={tight[:4]} silk_ok={silk_gap}")
+        left = [b for b in traces if b['n'].startswith('wf')]
+        right = [b for b in traces if b['n'].startswith('bt')]
+        spr = [b for b in boxes if b['k'] == 'SPR' and b['n'] in ('wifi', 'bt')]
+        fill = [round(s['w'] / 24, 3) for s in spr]
+        p3 = (len(left) >= 4 and len(right) >= 4 and all(b['x'] + b['w'] <= 61 for b in left)
+              and all(b['x'] >= 61 for b in right) and len(spr) == 2 and all(v >= 0.60 for v in fill))
+        rep(scr, 'P3 split at x=61 and glyph fill >= 60%', p3, f"fill={fill}")
     if scr.startswith('scanboard-'):
         p = im.load(); bright = 0
         for y in range(56, 140, 2):

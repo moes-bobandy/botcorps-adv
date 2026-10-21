@@ -3724,6 +3724,7 @@ static const int SILVER_PIN_N = 6; /* clearance under the bot chip; pin size sta
 static void dev_under_chip(Gfx g, int cx, int cy, int bot);
 static void dev_solder(Gfx g, int cx, int bot_bottom, int dev_top, int bot);
 static void dev_mount_row(Gfx g, int cxm, int ccy, int bot, int *dcy_out);
+static void dev_mount_dual(Gfx g, int cxm, int ccy, int bot, int *dcy_out);
 
 /* ESP32 dev board around the box (mock cydBoard + module). */
 static void framed_mount(Gfx g, int cxm, int ccy, int bot, int *dcy_out);
@@ -3795,6 +3796,7 @@ static void sb_board(Gfx g, bool wifi)
         chip_block(g, cxm, ccy, framed ? 54 : 40, gib ? 12 : bot);
         int dcy = 0;
         if (framed) framed_mount(g, cxm, ccy, bot, &dcy);
+        else if (s_screen == SCR_SCAN && gib) dev_mount_dual(g, cxm, ccy, bot, &dcy);
         else dev_mount_row(g, cxm, ccy, bot, &dcy);
         char nmb[16];
         const char *nm;
@@ -3814,6 +3816,11 @@ static void sb_board(Gfx g, bool wifi)
                 if (sx + sw > 95) sx = 95 - sw;
                 tiny_text(g, ls[i], sx, ys[i], silk);
             }
+        } else if (gib) {
+            /* Literal baselines. Do not derive these from the device-chip centre. */
+            tiny_text(g, nm, cxm - tiny_w(nm) / 2, 139, silk);
+            tiny_text(g, l2c, cxm - tiny_w(l2c) / 2, 144, silk);
+            tiny_text(g, l3c, cxm - tiny_w(l3c) / 2, 149, silk);
         } else {
             tiny_text(g, nm, cxm - tiny_w(nm) / 2, dcy + 12, silk);
             tiny_text(g, l2c, cxm - tiny_w(l2c) / 2, dcy + 17, silk);
@@ -4297,6 +4304,118 @@ static void framed_mount(Gfx g, int cxm, int ccy, int bot, int *dcy_out)
         sb_text(g, "U2", lx, ly, ink, PAL_BLACK, false, 1);
     }
 }
+/* SCR_SCAN Gibson only. Two device chips under the static Gibson chip.
+ * Wi-Fi left (k=0,1), Bluetooth right (k=3,4). Centre pin k=2 is unused.
+ * Device traces land on non-adjacent top pins k=1 and k=3. */
+static int dual_icon_px(const uint8_t *p, int col, int row)
+{
+    const int bit = col * 2;
+    const uint8_t byte = p[row * 3 + (bit >> 3)];
+    return (byte >> (6 - (bit & 7))) & 3;
+}
+static void dual_glyph(Gfx g, int cx, int cy, int icon, uint8_t c1, uint8_t c2, uint8_t c3)
+{
+    /* icon 6 = BOTCORPS_ICON_WIFI, 7 = BOTCORPS_ICON_BT. 12x12 scaled into a 16 px face (16/24). */
+    static const uint8_t WIFI[36] = {
+        0x00,0x00,0x00, 0x03,0xFF,0xC0, 0x0F,0x00,0xF0, 0x3C,0x00,0x3C,
+        0x00,0xFF,0x00, 0x03,0x00,0xC0, 0x00,0x3C,0x00, 0x00,0x3C,0x00,
+        0x00,0x00,0x00, 0x00,0x3C,0x00, 0x00,0x00,0x00, 0x00,0x00,0x00
+    };
+    static const uint8_t BT[36] = {
+        0x00,0xF0,0x00, 0x00,0xFC,0x00, 0x03,0xCF,0x00, 0x0F,0x3C,0x00,
+        0x03,0xF0,0x00, 0x00,0xFC,0x00, 0x0F,0x3C,0x00, 0x03,0xCF,0x00,
+        0x00,0xFC,0x00, 0x00,0xF0,0x00, 0x00,0x00,0x00, 0x00,0x00,0x00
+    };
+    const uint8_t *src = icon == 7 ? BT : WIFI;
+    const uint8_t ink[4] = { 0, c1, c2, c3 };
+    int x0 = 11, y0 = 11, x1 = 0, y1 = 0;
+    for (int r = 0; r < 12; ++r)
+        for (int c = 0; c < 12; ++c)
+            if (dual_icon_px(src, c, r)) {
+                if (c < x0) x0 = c;
+                if (r < y0) y0 = r;
+                if (c > x1) x1 = c;
+                if (r > y1) y1 = r;
+            }
+    const int gw = x1 - x0 + 1, gh = y1 - y0 + 1;
+    const int face = 16;
+    const int ox = cx - face / 2, oy = cy - face / 2;
+    for (int y = 0; y < face; ++y) {
+        const int sy = y0 + y * gh / face;
+        for (int x = 0; x < face; ++x) {
+            const int sx = x0 + x * gw / face;
+            const int ix = dual_icon_px(src, sx, sy);
+            if (ix) g.fillRect(ox + x, oy + y, 1, 1, ink[ix]);
+        }
+    }
+}
+static void dual_run(Gfx g, int x0, int y0, int x1, int y1, int jog, const char *nm)
+{
+    const uint8_t wire = 104;
+    vrun(g, x0, y0, jog, wire);
+    hrun(g, x0, x1, jog, wire);
+    vrun(g, x1, jog, y1, wire);
+    const int ya = y0 < jog ? y0 : jog, yb = y0 > jog ? y0 : jog;
+    const int yc = jog < y1 ? jog : y1, yd = jog > y1 ? jog : y1;
+    const int xa = x0 < x1 ? x0 : x1, xb = x0 > x1 ? x0 : x1;
+    GATE_BOX(g, "TRACE", nm, x0, ya, 1, yb - ya + 1, "-");
+    GATE_BOX(g, "TRACE", nm, xa, jog, xb - xa + 1, 1, "-");
+    GATE_BOX(g, "TRACE", nm, x1, yc, 1, yd - yc + 1, "-");
+}
+static void dual_chip(Gfx g, int cx, int cy, int S, const char *name, int icon, uint8_t c1, uint8_t c2, uint8_t c3)
+{
+    const int x = cx - S / 2, y = cy - S / 2;
+    GATE_BOX(g, "TCHIP", name, x, y, S, S, "-");
+    g.fillRect(x + 3, y + 3, S - 6, S - 6, PAL_BG);
+    g.drawRect(x - 1, y - 1, S + 2, S + 2, PAL_STEEL);
+    g.drawRect(x, y, S, S, PAL_BLACK);
+    g.drawRect(x + 2, y + 2, S - 4, S - 4, PAL_LINE);
+    g.drawRect(x + 6, y + 6, S - 12, S - 12, PAL_DIAG);
+    for (int k = 0; k < 5; ++k) {
+        const int i = chip_pin(S, k);
+        g.fillRect(x - 1, y + i, 5, 2, PAL_SOFT);
+        g.fillRect(x + S - 4, y + i, 5, 2, PAL_SOFT);
+        g.fillRect(x + i, y - 1, 2, 5, PAL_SOFT);
+        g.fillRect(x + i, y + S - 4, 2, 5, PAL_SOFT);
+    }
+    const int wi = 3;
+    g.fillRect(x + wi, y + wi, S - 2 * wi, S - 2 * wi, PAL_BLACK);
+    dual_glyph(g, cx, cy, icon, c1, c2, c3);
+    GATE_BOX(g, "SPR", name, cx - 8, cy - 8, 16, 16, "-");
+}
+static void dev_mount_dual(Gfx g, int cxm, int ccy, int bot, int *dcy_out)
+{
+    (void)bot;
+    (void)cxm;
+    (void)ccy;
+    /* Historical centre. Silk baselines stay 139/144/149, not this chip's centre. */
+    if (dcy_out) *dcy_out = 127;
+    const int T = 24;
+    const int wcx = 40, bcx = 82, cy = 120;
+    /* Gibson S=40 at (61,78). chip_pin offsets 9,14,19,24,29 → pin x 50,55,60,65,70. */
+    const int gpin[4] = { 50, 55, 65, 70 }; /* k = 0,1 and 3,4 */
+    const int wdev[2] = { 28 + chip_pin(T, 1), 28 + chip_pin(T, 3) };
+    const int bdev[2] = { 70 + chip_pin(T, 1), 70 + chip_pin(T, 3) };
+    const int wjog[2] = { 102, 105 };
+    const int bjog[2] = { 104, 101 }; /* outer run jogs above the inner run so they do not cross */
+    const char *wn[2] = { "wf0", "wf1" };
+    const char *bn[2] = { "bt0", "bt1" };
+    for (int i = 0; i < 2; ++i) {
+        dual_run(g, gpin[i], 99, wdev[i], 107, wjog[i], wn[i]);
+        pin_pad(g, gpin[i] - 1, 97, 3, PIN_GOLD.body, PIN_GOLD.hi, PIN_GOLD.core);
+        GATE_BOX(g, "PAD", wn[i], gpin[i] - 1, 97, 3, 3, "-");
+        pin_pad(g, wdev[i] - 1, 105, 3, PIN_SILVER.body, PIN_SILVER.hi, PIN_SILVER.core);
+        GATE_BOX(g, "PAD", wn[i], wdev[i] - 1, 105, 3, 3, "-");
+        dual_run(g, gpin[i + 2], 99, bdev[i], 107, bjog[i], bn[i]);
+        pin_pad(g, gpin[i + 2] - 1, 97, 3, PIN_GOLD.body, PIN_GOLD.hi, PIN_GOLD.core);
+        GATE_BOX(g, "PAD", bn[i], gpin[i + 2] - 1, 97, 3, 3, "-");
+        pin_pad(g, bdev[i] - 1, 105, 3, PIN_SILVER.body, PIN_SILVER.hi, PIN_SILVER.core);
+        GATE_BOX(g, "PAD", bn[i], bdev[i] - 1, 105, 3, 3, "-");
+    }
+    dual_chip(g, wcx, cy, T, "wifi", 6, 31, 30, 255);
+    dual_chip(g, bcx, cy, T, "bt", 7, 47, 46, 255);
+}
+
 /* Shared mount: 12px bare PCB, device offset -30, Font0 name beside the chip.
  * Device pads are Gibson's 3x3. Silver uses the same rects. Scan boards keep this.
  * Gibson's panel does not paint the words DEV BOARD. */

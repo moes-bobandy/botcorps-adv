@@ -92,6 +92,27 @@ void botcorps_while_content(void (*fn)(void))
     s_surface = prev;
 }
 
+/* CS stays high (panel off the bus, SD slot enabled). DC idles high.
+ * RST is active-low: hold it low, then release, then wait out the
+ * ILI9341 reset. Does not write COLMOD. begin() owns 0x3A. */
+static void ext_pin_settle(void)
+{
+    pinMode(BOTCORPS_PIN_SD_CS, OUTPUT);
+    digitalWrite(BOTCORPS_PIN_SD_CS, HIGH);
+    pinMode(BOTCORPS_PIN_LCD_CS, OUTPUT);
+    pinMode(BOTCORPS_PIN_LCD_DC, OUTPUT);
+    pinMode(BOTCORPS_PIN_LCD_RST, OUTPUT);
+    digitalWrite(BOTCORPS_PIN_LCD_CS, HIGH);
+    digitalWrite(BOTCORPS_PIN_LCD_DC, HIGH);
+    digitalWrite(BOTCORPS_PIN_LCD_RST, HIGH);
+    delay(20);
+    digitalWrite(BOTCORPS_PIN_LCD_RST, LOW);
+    delay(20);
+    digitalWrite(BOTCORPS_PIN_LCD_RST, HIGH);
+    digitalWrite(BOTCORPS_PIN_LCD_CS, HIGH);
+    delay(120);
+}
+
 bool botcorps_dual_begin(void)
 {
     if (s_ext_ok) return true;
@@ -101,25 +122,25 @@ bool botcorps_dual_begin(void)
      * (RST on G3) is not parked low here — G3 is the panel reset. */
     delay(100);
 
-    pinMode(BOTCORPS_PIN_LCD_CS, OUTPUT);
-    digitalWrite(BOTCORPS_PIN_LCD_CS, HIGH);
-
-    /* Boot-only color depth, before begin() writes COLMOD.
-     * One retry on begin or size failure. Pins and rotation stay. */
+    /* Boot-only color depth, once, before begin() writes COLMOD.
+     * Never setColorDepth again, and never write 0x3A from here. */
     g_ext.setColorDepth(16);
     bool up = false;
     bool live = false;
-    for (int attempt = 0; attempt < 2 && !up; ++attempt) {
+    for (int attempt = 0; attempt < 3 && !up; ++attempt) {
         if (attempt) {
-            Serial.println("[botcorps] ILI9341 begin retry");
-            /* Drop the SPI host before begin() runs again. */
+            Serial.printf("[botcorps] ILI9341 begin retry %d\n", attempt);
             g_ext.releaseBus();
             live = false;
-            delay(50);
+            delay(80);
         }
-        if (!g_ext.begin()) continue;
+        ext_pin_settle();
+        if (!g_ext.begin()) {
+            delay(40);
+            continue;
+        }
         live = true;
-        delay(50);
+        delay(80);
         g_ext.setRotation(3);
         g_ext.setTextWrap(false, false);
         g_ext.setTextSize(1);
@@ -129,6 +150,7 @@ bool botcorps_dual_begin(void)
         if (!up) {
             Serial.printf("[botcorps] EXT geometry %dx%d, want 320x240\n",
                           (int)g_ext.width(), (int)g_ext.height());
+            delay(40);
         }
     }
     if (!up) {

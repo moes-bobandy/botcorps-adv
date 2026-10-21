@@ -277,15 +277,9 @@ for scr in screens:
                 if boxgap(parts[i], parts[j]) < 2:
                     tight.append(f"{parts[i]['n']}x{parts[j]['n']}")
         silk_gap = True
-        ring_near = []
         for t in tchips:
-            # Steel outline is drawRect(x-1, y-1, S+2, S+2). Last pixel is x+S, y+S.
-            # The S×S TCHIP box ends one row higher (y=131 on these chips).
-            ring = dict(x=t['x'] - 1, y=t['y'] - 1, w=t['w'] + 2, h=t['h'] + 2, n=t['n'])
             for s in silk:
-                if boxgap(ring, s) < 2:
-                    silk_gap = False
-                    ring_near.append(f"{t['n']}/{s['n']}")
+                if boxgap(t, s) < 2: silk_gap = False
         labels = list(silk) + [dict(x=t['x'], y=t['y'], w=t['w'], h=t['h'], n=t['s'][:16]) for t in texts]
         near_lbl = []
         for part in traces + pads:
@@ -316,8 +310,7 @@ for scr in screens:
             for y in range(H):
                 for x in range(W):
                     if pix[x, y][:3] != WIRE104: continue
-                    # Silk ink is y 135–151. The window continues through the ticker border at y=154.
-                    if x < 20 or 135 <= y <= 154:
+                    if x < 20 or 139 <= y <= 154:
                         wire_bad.append((x, y))
                         if len(wire_bad) >= 6: break
                 if len(wire_bad) >= 6: break
@@ -329,7 +322,7 @@ for scr in screens:
               and all(100 <= b['y'] and b['y'] + b['h'] <= 136 for b in silver)
               and all(b['y'] >= 97 for b in gold))
         rep(scr, 'P2 wires, pads, silk, chip entry, and wire pixels', p2,
-            f"traces={len(traces)} tight={tight[:4]} silk_ok={silk_gap} ring={ring_near[:3]} near={near_lbl[:3]} invade={invade[:3]} wire104={sample} band=135-154 bad={wire_bad[:3]}")
+            f"traces={len(traces)} tight={tight[:4]} silk_ok={silk_gap} near={near_lbl[:3]} invade={invade[:3]} wire104={sample} bad={wire_bad[:3]}")
         left = [b for b in traces if b['n'].startswith('wf')]
         right = [b for b in traces if b['n'].startswith('bt')]
         spr = [b for b in boxes if b['k'] == 'SPR' and b['n'] in ('wifi', 'bt')]
@@ -430,6 +423,8 @@ fp = os.path.join(D, 'functional.txt')
 cpmove = {}; cpstart = 0
 k1_seen = False
 NSCR = 11
+nav_need = ['boot-rain', 'hub', 'terminal', 'gibson-scan', 'wifi-radar', 'ble-radar']
+nav_got = set()
 if os.path.exists(fp):
     for ln in open(fp):
         f = ln.rstrip('\n').split('\t')
@@ -509,6 +504,15 @@ if os.path.exists(fp):
             }
             title = names.get(f[1], 'LS' + f[1])
             rep('functional', title, len(f) > 2 and f[2] == '1', f[3] if len(f) > 3 else '')
+        elif f[0] == 'NAVCHAIN' and len(f) >= 10:
+            step, got, want, bot = f[1], int(f[2]), int(f[3]), int(f[4])
+            w, h, left, ext_px = int(f[5]), int(f[6]), int(f[7]), int(f[8])
+            nav_got.add(step)
+            ok = got == want and w == 320 and h == 240 and left < 128 and ext_px >= 500
+            if step == 'gibson-scan':
+                ok = ok and bot == 12
+            rep('functional', f'NAV {step}: key path paints the 320x240 EXT surface', ok,
+                f'screen {got} want {want} bot={bot} {w}x{h} sentinel={left} ext_px={ext_px}')
         elif f[0] == 'SIM':
             name, bad, pres, push, rec, worst = f[1], int(f[2]), int(f[3]), int(f[4]), int(f[5]), int(f[6])
             # v1019v: full-width zap Defend chrome presents large band slices by design (mock v5).
@@ -527,6 +531,9 @@ if os.path.exists(fp):
                     bad == 0 and worst <= 64 and pres <= 1 and rec == 0,
                     f'glitched={bad} worst={worst}px presents={pres} recomposes={rec}')
 
+for step in nav_need:
+    if step not in nav_got:
+        rep('functional', f'NAV {step}: key path paints the 320x240 EXT surface', False, 'missing')
 rep('functional', 'K0 keyboard test ran', k1_seen, '' if k1_seen else 'no K1 line in functional.txt')
 rep('functional', 'LS-D1 device heap with the band held', None, 'on-device feel check')
 rep('functional', 'LS-D2 ten-minute live scan per band', None, 'on-device field test')

@@ -3824,12 +3824,11 @@ static void sb_board(Gfx g, bool wifi)
                 tiny_text(g, ls[i], sx, ys[i], silk);
             }
         } else if (gib) {
-            /* 5 px silk. Line 1 is y=135, two rows under the outline ring at y=132.
-             * One empty row between lines. Line 3 ends at y=151, two rows above the ticker at y=154.
+            /* 5 px silk, one empty row between lines, three empty rows above the ticker at y=154.
              * Not derived from the device-chip centre. */
-            tiny_text(g, nm, cxm - tiny_w(nm) / 2, 135, silk);
-            tiny_text(g, l2c, cxm - tiny_w(l2c) / 2, 141, silk);
-            tiny_text(g, l3c, cxm - tiny_w(l3c) / 2, 147, silk);
+            tiny_text(g, nm, cxm - tiny_w(nm) / 2, 134, silk);
+            tiny_text(g, l2c, cxm - tiny_w(l2c) / 2, 140, silk);
+            tiny_text(g, l3c, cxm - tiny_w(l3c) / 2, 146, silk);
         } else {
             tiny_text(g, nm, cxm - tiny_w(nm) / 2, dcy + 12, silk);
             tiny_text(g, l2c, cxm - tiny_w(l2c) / 2, dcy + 17, silk);
@@ -4368,7 +4367,7 @@ static void dev_mount_dual(Gfx g, int cxm, int ccy, int bot, int *dcy_out)
     (void)bot;
     (void)cxm;
     (void)ccy;
-    /* Historical centre. Silk baselines are 135/141/147, not this chip's centre. */
+    /* Historical centre. Silk baselines are 134/140/146, not this chip's centre. */
     if (dcy_out) *dcy_out = 127;
     const int T = 24;
     const int wcx = 40, bcx = 82, cy = 120;
@@ -9828,6 +9827,56 @@ void botcorps_host_enter(uint8_t *buf, int id)
     paint_ext(Gfx());
 }
 int botcorps_host_screen_now(void) { return s_screen; }
+/* Cold boot on RAIN, then the real key path. Each stop must paint the
+ * 320x240 EXT buffer: a sentinel byte left behind means the paint
+ * collapsed to a smaller surface. */
+void botcorps_host_nav_chain(void *file)
+{
+    FILE *f = static_cast<FILE *>(file);
+    static uint8_t buf[320 * 240];
+    host_frame = buf;
+    botcorps_ui_begin();
+    auto row = [&](const char *step, int want, int bot) {
+        memset(buf, 0xA5, sizeof buf);
+        paint_ext(Gfx());
+        int left = 0, ext_px = 0;
+        for (int y = 0; y < 240; ++y) {
+            for (int x = 0; x < 320; ++x) {
+                const int same = buf[y * 320 + x] == 0xA5;
+                if (same) ++left;
+                if (x >= 240 && !same) ++ext_px;
+            }
+        }
+        /* A 240x135 collapse leaves the x>=240 strip untouched (~19200
+         * sentinel pixels). A few sentinel hits are just ink index 0xA5. */
+        const int bot_ok = bot < 0 || s_scan_bot == bot;
+        const int ok = s_screen == want && bot_ok && left < 128 && ext_px >= 500;
+        if (f) fprintf(f, "NAVCHAIN\t%s\t%d\t%d\t%d\t320\t240\t%d\t%d\t%d\n",
+                       step, s_screen, want, s_scan_bot, left, ext_px, ok);
+        printf("NAVCHAIN %s screen=%d want=%d scan_bot=%d sentinel=%d ext_px=%d %s\n",
+               step, s_screen, want, s_scan_bot, left, ext_px, ok ? "PASS" : "FAIL");
+    };
+    row("boot-rain", SCR_RAIN, -1);
+    ui_dispatch(K_OK, 0);
+    row("hub", SCR_GIBSON, -1);
+    ui_dispatch(K_OK, 0);
+    row("terminal", SCR_TERMINAL, -1);
+    ui_dispatch(K_ESC, 0);
+    ui_dispatch(K_RT, 0);
+    ui_dispatch(K_OK, 0);
+    row("gibson-scan", SCR_SCAN, 12);
+    ui_dispatch(K_CHAR, 'w');
+    ui_dispatch(K_CHAR, 'i');
+    ui_dispatch(K_CHAR, 'f');
+    ui_dispatch(K_CHAR, 'i');
+    ui_dispatch(K_OK, 0);
+    row("wifi-radar", SCR_WIFI_RADAR, -1);
+    ui_dispatch(K_CHAR, 'b');
+    ui_dispatch(K_CHAR, 'l');
+    ui_dispatch(K_CHAR, 'e');
+    ui_dispatch(K_OK, 0);
+    row("ble-radar", SCR_BT_RADAR, -1);
+}
 /* v1017a flicker sim (tools/host band simulator): full reference paint at the current millis */
 extern int host_band_sim;
 extern long host_sim_presents, host_sim_pushes, host_sim_recomposes, host_sim_bad, host_sim_worst;

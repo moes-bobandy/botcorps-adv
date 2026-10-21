@@ -309,7 +309,9 @@ static int run_gate(const char *dir)
         }
         /* v1019y: DG / DGR / DGC retired with the old mini-games. */
         extern void botcorps_host_ls_report(void *file);
+        extern void botcorps_host_nav_chain(void *file);
         if (f) botcorps_host_ls_report(f);
+        if (f) botcorps_host_nav_chain(f);
         if (f) fclose(f);
     }
     return 0;
@@ -444,6 +446,14 @@ int main(int argc, char **argv)
         return 0;
     }
     /* Block 2 review frames (not gate rows): rend liveshot <wifi-off|wifi-on|ble-off|ble-on|alert|gibson> <out.rgb> */
+    if (argc > 1 && strcmp(argv[1], "nav") == 0) {
+        extern void botcorps_host_nav_chain(void *);
+        host_rain_init(0);
+        host_set_millis(12000u);
+        botcorps_host_set_color(0);
+        botcorps_host_nav_chain(stdout);
+        return 0;
+    }
     if (argc > 3 && strcmp(argv[1], "liveshot") == 0) {
         extern void botcorps_host_ls_shot(uint8_t *, int);
         extern void botcorps_host_scan_n(uint8_t *, int);

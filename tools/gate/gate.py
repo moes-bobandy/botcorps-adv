@@ -259,10 +259,9 @@ for scr in screens:
         wf = [b for b in tchips if b['n'] == 'wifi']
         bt = [b for b in tchips if b['n'] == 'bt']
         def band_ok(b, cx, top):
-            return (b['w'] == b['h'] and b['w'] >= 22 and abs(b['x'] + b['w'] / 2 - cx) <= 1
-                    and abs(b['y'] - top) <= 1 and b['x'] >= 20 and b['x'] + b['w'] <= 96
-                    and b['y'] >= 100 and b['y'] + b['h'] <= 136)
-        p1 = (len(wf) == 1 and len(bt) == 1 and band_ok(wf[0], 40, 108) and band_ok(bt[0], 82, 108)
+            return (b['w'] == b['h'] and b['w'] == 22 and abs(b['x'] + b['w'] / 2 - cx) <= 1
+                    and abs(b['y'] - top) <= 1 and b['x'] >= 20 and b['x'] + b['w'] <= 96)
+        p1 = (len(wf) == 1 and len(bt) == 1 and band_ok(wf[0], 43, 144) and band_ok(bt[0], 77, 144)
               and boxgap(wf[0], bt[0]) >= 2)
         rep(scr, 'P1 two device chips, Wi-Fi then Bluetooth', p1,
             f"wifi={[(b['x'], b['y'], b['w']) for b in wf]} bt={[(b['x'], b['y'], b['w']) for b in bt]}")
@@ -305,22 +304,22 @@ for scr in screens:
         sample = None
         if nr is not None:
             pix = nr.load()
-            if 0 <= 100 < H and 0 <= 50 < W:
-                sample = pix[50, 100][:3]
+            if 0 <= 110 < H and 0 <= 21 < W:
+                sample = pix[21, 110][:3]
             for y in range(H):
                 for x in range(W):
                     if pix[x, y][:3] != WIRE104: continue
-                    if x < 20 or 139 <= y <= 154:
+                    if x < 20 or x > 101:
                         wire_bad.append((x, y))
                         if len(wire_bad) >= 6: break
                 if len(wire_bad) >= 6: break
         p2_5 = nr is not None and sample == WIRE104 and not wire_bad
-        silver = [b for b in pads if b['y'] >= 100]
-        gold = [b for b in pads if b['y'] < 100]
+        silver = [b for b in pads if b['y'] >= 140]
+        gold = [b for b in pads if b['y'] < 140]
         p2 = (len(traces) >= 8 and len(silver) >= 4 and len(gold) >= 4 and not tight and silk_gap
               and not near_lbl and not invade and p2_5
-              and all(100 <= b['y'] and b['y'] + b['h'] <= 136 for b in silver)
-              and all(b['y'] >= 97 for b in gold))
+              and all(b['y'] >= 140 for b in silver)
+              and all(80 <= b['y'] <= 130 for b in gold))
         rep(scr, 'P2 wires, pads, silk, chip entry, and wire pixels', p2,
             f"traces={len(traces)} tight={tight[:4]} silk_ok={silk_gap} near={near_lbl[:3]} invade={invade[:3]} wire104={sample} bad={wire_bad[:3]}")
         left = [b for b in traces if b['n'].startswith('wf')]
@@ -424,6 +423,9 @@ cpmove = {}; cpstart = 0
 k1_seen = False
 NSCR = 11
 nav_need = ['boot-rain', 'hub', 'terminal', 'gibson-scan', 'wifi-radar', 'ble-radar']
+keyfob_need = ['go-keyfob', 'load-keyfob', 'scan-keyfob']
+keyfob_got = set()
+chip_got = set()
 nav_got = set()
 nav_direct = set()
 nav_band = set()
@@ -514,9 +516,31 @@ if os.path.exists(fp):
             ok = got == want and w == 320 and h == 240 and left < 128 and ext_px >= 500
             if step == 'gibson-scan':
                 ok = ok and bot == 12
+            if step in ('go-keyfob', 'load-keyfob'):
+                ok = ok and bot == 7 and got == 7 and want == 7
+                keyfob_got.add(step)
             label = 'NAV' if f[0] == 'NAVCHAIN' else f[0]
             rep('functional', f'{label} {step}: key path paints the 320x240 EXT surface', ok,
                 f'screen {got} want {want} bot={bot} {w}x{h} sentinel={left} ext_px={ext_px}')
+        elif f[0] == 'KEYFOBSCAN' and len(f) >= 9:
+            step, got, want, who = f[1], int(f[2]), int(f[3]), int(f[4])
+            log_ok, before, after, okb = int(f[5]), int(f[6]), int(f[7]), int(f[8])
+            keyfob_got.add(step)
+            ok = (step == 'scan-keyfob' and got == want == 2 and who == 7 and log_ok == 1
+                  and before == after and okb == 1)
+            rep('functional', 'CHIP-G-KEYFOB scan-keyfob stays on the terminal', ok,
+                f'got {got} want {want} who {who} log {log_ok} cursor {before}->{after}')
+        elif f[0] == 'CHIPFSM' and len(f) >= 4:
+            chip_got.add(f[1])
+            rep('functional', f'CHIP-G-FSM {f[1]} {f[2]}', f[3] == '1', f[2])
+        elif f[0] == 'GD3' and len(f) >= 4:
+            ok = int(f[1]) == 17 and int(f[2]) >= 3 and int(f[3]) == 3
+            rep('functional', 'CHIP-G-GD3 Gibson drop-down is 3 rows of 17', ok,
+                f'count {f[1]} rows-cap {f[2]} rows {f[3]}')
+        elif f[0] == 'RAINWIN' and len(f) >= 3:
+            ok = int(f[1]) == 0 and int(f[2]) == 0
+            rep('functional', 'CHIP-G-RAIN panel rain stays in the window', ok,
+                f'over_info {f[1]} outside {f[2]}')
         elif f[0] == 'PARTIALS':
             rep('functional', 'V2 partials: no band-only caller without a direct twin',
                 len(f) > 1 and f[1] == 'empty', f[1] if len(f) > 1 else '')
@@ -537,6 +561,58 @@ if os.path.exists(fp):
                 rep('functional', 'P3 scan-gibson idle repaint is 0 px',
                     bad == 0 and worst <= 64 and pres <= 1 and rec == 0,
                     f'glitched={bad} worst={worst}px presents={pres} recomposes={rec}')
+
+for step in keyfob_need:
+    if step not in keyfob_got:
+        rep('functional', f'CHIP-G-KEYFOB {step}', False, 'missing')
+for n, name in (('1', 'repress'), ('2', 'esc'), ('3', 'focus'), ('4', 'doneidle'),
+                ('5', 'airtag'), ('6', 'gibson'), ('7', 'timing')):
+    if n not in chip_got:
+        rep('functional', f'CHIP-G-FSM {n} {name}', False, 'missing')
+
+def _src(rel):
+    p = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), rel)
+    return open(p, encoding='utf-8', errors='replace').read() if os.path.exists(p) else ''
+
+ui_src = _src('src/ui/botcorps_ui.cpp')
+id_src = _src('src/ui/botcorps_id.cpp')
+main_src = _src('src/main.cpp')
+probe_src = _src('src/probe/botcorps_probe.cpp')
+ini_src = _src('platformio.ini')
+alloc_fmt = 'direct tile alloc fail w=%d h=%d largest=%u'
+di = ui_src.find('static void direct_tile_invert')
+di_body = ui_src[di:ui_src.find('\n#endif', di)] if di >= 0 else ''
+alloc_ok = (di >= 0 and alloc_fmt in di_body and 'static bool latched' in di_body
+            and 'createSprite' in di_body and di_body.find(alloc_fmt) < di_body.find('return;'))
+rep('functional', 'CHIP-G-ALLOC-GATE direct tile alloc fail is latched', alloc_ok,
+    'SERIAL-UNPROVEN' if alloc_ok else 'missing latch or format')
+heap_i = main_src.find('band after-probe')
+heap_j = main_src.find('botcorps_ui_mark_dirty')
+heap_ok = (heap_i >= 0 and heap_j > heap_i and 'botcorps_heap_log("i4")' in main_src[heap_i:heap_j]
+           and '[botcorps] heap %s free=%u largest=%u min=%u' in probe_src)
+rep('functional', 'CHIP-G-HEAP after-probe heap print', heap_ok, 'i4' if heap_ok else 'missing')
+live_ok = 'build_src_flags = -DBOTCORPS_LIVE_SCAN=0' in ini_src
+rep('functional', 'CHIP-G-LIVE0 launcher LIVE_SCAN=0', live_ok, '')
+grey_ok = 'sb_rect(g, dx - 9, dy + 44, 5, 44, 41)' not in ui_src and 'static void paint_sbox' in ui_src
+rep('functional', 'CHIP-G-GREY grey strip deleted', grey_ok, '')
+king_ok = 'k_slot_bot[12] = { 12, 0, 1, 2, 3, 4, 5, 6, 8, 9, 10, 11 }' in ui_src
+rep('functional', 'CHIP-G-KING slot to bot table', king_ok, '')
+import hashlib as _hl
+id_sha = _hl.sha256(id_src.encode()).hexdigest() if id_src else ''
+id_ok = id_sha == 'bb688f822f1935d89457addd633d22c33039d7039436d73395320667b92ce95e'
+rep('functional', 'CHIP-G-INT botcorps_id.cpp byte-identical', id_ok, id_sha[:12])
+cb = ui_src.find('static void chip_button(')
+cb2 = ui_src.find('static void chip_button(', cb + 1) if cb >= 0 else -1
+cb_end = ui_src.find('\nstatic void ', cb + 1) if cb >= 0 else -1
+cb_body = ui_src[cb:cb_end] if cb >= 0 and cb_end > cb else ''
+chip_ok = (cb >= 0 and cb2 < 0 and 'PAL_GOLD_PIN' not in cb_body and 'PAL_SOFT' not in cb_body
+           and 'chip_button(g, bot)' in ui_src
+           and all(s in ui_src for s in ('WIFIBOT', 'BLUETOOTHBOT', 'Gibson SCAN', 'AIRTAG', 'Gibson game')))
+rep('functional', 'CHIP-G-CHIPONE one chip_button, pins from chip_shell', chip_ok, '')
+deauth_ok = 'return bot == 0 || bot == 1 || bot == 6 || bot >= 12;' in ui_src
+rep('functional', 'CHIP-G-DEAUTH chip panel is the closed set', deauth_ok, '')
+rain_ok = 'zr_clip_push(g, 20, 43, 82, 149)' in ui_src
+rep('functional', 'CHIP-G-RAIN window is RAIN_WIN', rain_ok, '')
 
 for step in nav_need:
     if step not in nav_got:

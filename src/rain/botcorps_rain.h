@@ -71,6 +71,9 @@ void botcorps_rain_set_faint_scale(int num, int den);
 void botcorps_rain_set_devsel(int n, int k0, int k1);
 /* Gibson's framed panel: the full glossary device set, each in its fixed colour. */
 void botcorps_rain_set_devall(bool on);
+/* v2 board rain only. Off (scratch byte 0) leaves every other render unchanged. */
+void botcorps_rain_mock_strand(bool on);
+void botcorps_rain_mock_strand_dx(int dx);
 /* v1019: faint ghost bits of the live rain over a chrome rect (world coords, dst rows from oy). */
 void botcorps_rain_ghost(lgfx::LovyanGFX &dst, int ox, int oy, int rx, int ry, int rw, int rh, uint8_t ink);
 void botcorps_rain_ghost_ex(lgfx::LovyanGFX &dst, int ox, int oy, int rx, int ry, int rw, int rh, uint8_t ink,

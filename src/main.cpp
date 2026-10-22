@@ -105,6 +105,7 @@ void setup(void)
     Serial.printf("[botcorps] band after-probe live=%d direct=%d largest=%u\n",
                   botcorps_band_live() ? 1 : 0, botcorps_band_direct() ? 1 : 0,
                   (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL));
+    botcorps_heap_log("i4");
     botcorps_ui_mark_dirty();
 
     /* Rain boot is the first real screen. loop() owns keys and rain.

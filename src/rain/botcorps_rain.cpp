@@ -79,6 +79,11 @@ static bool s_no_bots = false;
 static bool s_faint = false;   /* dce1c87 canon: device icons at 1/4. Terminal gaps and the defend panel. */
 /* Defend filter lives in unused rain plane 1 (tab scratch starts at byte 1120). No new static RAM. */
 static uint8_t *rain_ctl(void) { return &botcorps_t0_rain_cell[1][0]; }
+/* Strand mode for the v2 board window. Bytes 6 and 7 of the existing rain
+ * control scratch (plane 1; tab scratch starts at 1120). Default 0, so every
+ * non-v2 render keeps the canon cell. No new static RAM. */
+static bool rain_strand(void) { return rain_ctl()[6] != 0; }
+static int rain_strand_dx(void) { return rain_strand() ? (int)(int8_t)rain_ctl()[7] : 0; }
 
 static const uint16_t SOLID_INK[6] = {
     0x26E8, 0x269C, 0x331F, 0xB21F, 0xF586, 0xFFFF,
@@ -319,19 +324,19 @@ static bool dev_only_icon(int col, int row, int lv, uint8_t gl, int *d)
 
 static void draw_cell(lgfx::LovyanGFX &panel, int col, int row)
 {
-    const int x = col * CELL, wy = row * CELL;
+    const int x = col * CELL + rain_strand_dx(), wy = row * CELL;
     if (wy + CELL <= s_slice_y0 || wy >= s_slice_y1) return;
     if (!cell_open(x, wy)) return;
     const int ly = wy - s_slice_y0;
     int lead = 0;
     const int lv = cell_level(col, row, &lead);
     if (!cell_clip(panel, x, wy)) return;
-    botcorps_pal_rect(panel, x, ly, CELL, CELL, PAL_FIELD);
+    if (!rain_strand()) botcorps_pal_rect(panel, x, ly, CELL, CELL, PAL_FIELD);
     if (lv == 0) { panel.clearClipRect(); return; }
     const uint8_t gl = *glyph_at(col, row);
     if (s_no_bots) {                          /* v1019n (#15): Terminal / prompt: device icons only */
         int d;
-        if (dev_only_icon(col, row, lv, gl, &d)) {
+        if (dev_only_icon(col, row, lv, gl, &d) || rain_strand()) {
             uint8_t ink3[3];
             if (rain_ctl()[5] && d >= 0 && d < DEV_ALL_N) {
                 for (int k = 0; k < 3; ++k) ink3[k] = DEV_ALL_INK[d][k];
@@ -341,6 +346,9 @@ static void draw_cell(lgfx::LovyanGFX &panel, int col, int row)
                 }
             } else {
                 dev_inks(d, lv, ink3);
+            }
+            if (rain_strand() && lv == 1) {   /* white lead, trail keeps device ink */
+                ink3[0] = fit_dev(0xFFFF); ink3[1] = fit_dev(scale_native(0xFFFF, 1, 4)); ink3[2] = ink3[0];
             }
             if (s_faint) {
                 for (int k = 0; k < 3; ++k)
@@ -541,6 +549,8 @@ void botcorps_rain_set_devsel(int n, int k0, int k1)
     rain_ctl()[3] = (uint8_t)k0;
     rain_ctl()[4] = (uint8_t)k1;
 }
+void botcorps_rain_mock_strand(bool on) { rain_ctl()[6] = on ? 1 : 0; }
+void botcorps_rain_mock_strand_dx(int dx) { rain_ctl()[7] = (uint8_t)(int8_t)dx; }
 void botcorps_rain_set_devall(bool on)
 {
     rain_ctl()[5] = on ? 1 : 0;

@@ -20,6 +20,7 @@
 #include "rain/botcorps_rain.h"
 
 #include <Preferences.h>
+#include <esp_heap_caps.h>
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
@@ -179,6 +180,20 @@ static uint8_t bot_color(int i)
 {
     if (i < 0 || i > 11) return PAL_IVORY;
     return BOT_PAL[i];
+}
+
+/* Terminal cursor is a slot 0..11, not a BOTS index. Slot 0 is KING (bot 12).
+ * KEYFOB (bot 7) has no slot. */
+static const int k_slot_bot[12] = { 12, 0, 1, 2, 3, 4, 5, 6, 8, 9, 10, 11 };
+static int term_slot_bot(int slot)
+{
+    if (slot < 0 || slot >= 12) return -1;
+    return k_slot_bot[slot];
+}
+static int term_bot_slot(int bot)
+{
+    for (int s = 0; s < 12; ++s) if (k_slot_bot[s] == bot) return s;
+    return -1;
 }
 
 /* INT is 16-bit. The value stays uint16_t so M5GFX reads RGB565, not RGB888. */
@@ -379,6 +394,11 @@ static void dl_steer(int key);
 static void dl_fire(void);
 static void zap_strip(Gfx g, int dx, int th, int ty, int dw);
 static void zap_rain_rect(Gfx g);
+static void chip_on_enter(void);
+static void chip_tick(void);
+static bool chip_on_key(int key);
+static bool v2_left_on(int bot);
+static void v2_panel(Gfx g, int bot, bool framed, bool zsb, uint8_t botc);
 static void zap_tick_patch(void);
 static void dg_paint_hud(Gfx g, int width, bool full);
 static int s_cursor = 0;
@@ -685,7 +705,10 @@ static int card_bot(void)
     case SCR_WIFI_LIST: return 0;
     case SCR_BT_RADAR:
     case SCR_BT_LIST: return 1;
-    case SCR_TERMINAL: return s_term;
+    case SCR_TERMINAL: {
+        const int b = term_slot_bot(s_term);
+        return (b < 0 || b > 11) ? -1 : b;
+    }
     case SCR_GCHAT: return -1;
     default: return -1;
     }
@@ -1078,6 +1101,7 @@ static void enter_screen(int id, int ret)
     Serial.printf("[int] enter_screen %s\n", screen_name(id));
     botcorps_probe_screen(from, screen_name(id));
     ls_on_enter();
+    chip_on_enter();
 }
 
 static void go_back(void)
@@ -1276,7 +1300,7 @@ static void run_cmd(const char *line)
             found_add("speaker-7");
             return;
         }
-        int who = s_term;
+        int who = term_slot_bot(s_term);
         if (arg && arg[0]) {
             who = -1;
             for (int i = 0; i < 12; ++i) {
@@ -1292,7 +1316,8 @@ static void run_cmd(const char *line)
             log_add("no such bot");
         } else {
             const int prev = s_term;
-            s_term = who;
+            const int slot = term_bot_slot(who);
+            if (slot >= 0) s_term = slot;
             s_mood_until = millis() + 160u;
             char row[80];
             snprintf(row, sizeof(row), "%s %s", strcmp(cmd, "hunt") == 0 ? "hunting" : "scanning",
@@ -1316,7 +1341,7 @@ static void run_cmd(const char *line)
             }
             log_add("[ok] sweep done");
             partial_prompt_panel();
-            if (prev != s_term) {
+            if (slot >= 0 && prev != s_term) {
                 partial_tile(prev);
                 partial_tile(s_term);
                 partial_int();
@@ -1431,6 +1456,7 @@ static void run_cmd(const char *line)
         else if (strcmp(arg, "terminal") == 0) id = SCR_TERMINAL;
         else if (strcmp(arg, "wifi") == 0) { s_scan_bot = 0; id = SCR_SCAN; }   /* v1016n: wifibot's scan screen (live box) */
         else if (strcmp(arg, "ble") == 0) { s_scan_bot = 1; id = SCR_SCAN; }    /* v1016n: bluetoothbot's scan screen */
+        else if (strcmp(arg, "keyfob") == 0) { s_scan_bot = 7; id = SCR_SCAN; }
         else if (strcmp(arg, "control") == 0) id = SCR_CONTROL;
         else if (strcmp(arg, "diag") == 0) id = SCR_DIAG;
         else if (strcmp(arg, "bots") == 0) id = SCR_TERMINAL;                   /* v1016n: the 12 ESP32 chip tiles */
@@ -1527,7 +1553,7 @@ static void run_cmd(const char *line)
         log_add(row);
     } else if (strcmp(cmd, "train") == 0) {
         /* v1019q (#9c): the GAME group does what it lists (was "sealed" for all eight) */
-        enter_defend(s_term, SCR_TERMINAL);      /* play this bot's game */
+        enter_defend(term_slot_bot(s_term), SCR_TERMINAL);      /* slot 0 is Gibson's game */
         return;
     } else if (strcmp(cmd, "hunt-run") == 0) {
         s_scan_bot = 12;                         /* Gibson's hunt game (his scan board, hunt mode on) */
@@ -1638,7 +1664,15 @@ static void direct_tile_invert(int i, int x, int y, int w, int h)
 {
     lgfx::LGFX_Sprite cap(&botcorps_content());
     cap.setColorDepth(16);
-    if (!cap.createSprite(w, h)) return;
+    if (!cap.createSprite(w, h)) {
+        static bool latched = false;
+        if (!latched) {
+            latched = true;
+            Serial.printf("direct tile alloc fail w=%d h=%d largest=%u\n",
+                          w, h, (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL));
+        }
+        return;
+    }
     const int ox = botcorps_band_ox();
     const int oy = botcorps_band_oy();
     botcorps_band_set_ox(x);
@@ -1658,10 +1692,58 @@ static void direct_tile_invert(int i, int x, int y, int w, int h)
     cap.pushSprite(x, y);
 }
 #endif
-static void paint_one_board(Gfx g, int i, bool sel, bool dim)
+static void paint_king_tile(Gfx g, bool sel)
 {
     int x, y;
-    term_xy(i, &x, &y);
+    term_xy(0, &x, &y);
+    const int w = 72, h = 46;
+    const uint8_t base = botcorps_pal_fit((uint16_t)(((10 >> 3) << 11) | ((12 >> 2) << 5) | (14 >> 3)));
+    const uint8_t rim = bot_color(12);
+    const uint8_t gold = 177; /* PAL_GOLD_PIN, defined with the chip shell */
+    const uint8_t tr = (uint8_t)PAL_STEEL, pad = (uint8_t)PAL_SOFT;
+    const uint8_t fp = (uint8_t)PAL_BLACK, fpp = (uint8_t)PAL_SOFT, hole = (uint8_t)PAL_FIELD;
+    g.fillRect(x + 1, y, w - 2, h, base);
+    g.fillRect(x, y + 1, w, h - 2, base);
+    g.fillRect(x + 2, y + 36, w - 4, 8, (uint8_t)PAL_BOARD_D);
+    const int longtr[4] = { 1, 3, 5, 6 };
+    for (int n = 0; n < 4; ++n) { const int k = longtr[n]; g.fillRect(x + 4, y + 6 + k * 4, 19, 1, tr); g.fillRect(x + 49, y + 6 + k * 4, 19, 1, tr); }
+    const int shorttr[4] = { 0, 2, 4, 7 };
+    for (int n = 0; n < 4; ++n) { const int k = shorttr[n]; g.fillRect(x + 4, y + 6 + k * 4, 5, 1, tr); g.fillRect(x + 63, y + 6 + k * 4, 5, 1, tr); }
+    g.fillRect(x + 26, y + 9, 1, 5, tr);
+    for (int k = 0; k < 6; ++k) {
+        g.fillRect(x + 26 + k * 4, y + 3, 1, 7, gold);
+        if (k < 5) g.fillRect(x + 26 + k * 4, (k % 2) ? y + 9 : y + 3, 5, 1, gold);
+    }
+    for (int k = 0; k < 8; ++k) { g.fillRect(x + 2, y + 5 + k * 4, 2, 2, pad); g.fillRect(x + 68, y + 5 + k * 4, 2, 2, pad); }
+    g.fillRect(x + 62, y + 2, 3, 3, pad);
+    g.fillRect(x + 63, y + 3, 1, 1, hole);
+    g.fillRect(x + 23, y + 14, 26, 22, fp);
+    for (int k = 0; k < 8; ++k) { g.fillRect(x + 25 + k * 3, y + 14, 1, 1, fpp); g.fillRect(x + 25 + k * 3, y + 35, 1, 1, fpp); }
+    chip_mini(g, x + 36, y + 25, 20, 12, false, 0);
+    g.fillRect(x + 6, y + 2, 2, 2, (uint8_t)PAL_OK);
+    { const int keep = s_px; s_px = 6; txt(g, "GIBSON", x + 36, y + 37, PAL_WHITE, lgfx::textdatum::top_center); s_px = keep; }
+    g.fillRect(x + 1, y, w - 2, 1, rim); g.fillRect(x + 1, y + h - 1, w - 2, 1, rim);
+    g.fillRect(x, y + 1, 1, h - 2, rim); g.fillRect(x + w - 1, y + 1, 1, h - 2, rim);
+    const int bl = 8;
+    g.fillRect(x, y, bl, 1, rim); g.fillRect(x, y, 1, bl, rim); g.fillRect(x + w - bl, y, bl, 1, rim); g.fillRect(x + w - 1, y, 1, bl, rim);
+    g.fillRect(x, y + h - 1, bl, 1, rim); g.fillRect(x, y + h - bl, 1, bl, rim); g.fillRect(x + w - bl, y + h - 1, bl, 1, rim); g.fillRect(x + w - 1, y + h - bl, 1, bl, rim);
+    g.fillRect(x + 1, y + 1, 1, h - 2, gold); g.fillRect(x + w - 2, y + 1, 1, h - 2, gold);
+    g.fillRect(x + 2, y + 1, 22, 1, gold); g.fillRect(x + 48, y + 1, 22, 1, gold);
+    { const int ln = 6; const int hw = ln * 3 + 2; g.fillRect(x + 36 - hw, y + h, hw * 2 + 1, 2, rim); }
+    if (sel) {
+        tile_invert(g, x, y, w, h + 2);
+        const uint8_t mag = botcorps_pal_fit(mix16(0xF81F, 0xFFFF, 55, 100));
+        g.drawRect(x - 1, y - 1, w + 2, h + 4, mag);
+        dash_box(g, x + 22, y + 11, 28, 28, PAL_WHITE);
+    }
+}
+
+static void paint_one_board(Gfx g, int i, bool sel, bool dim)
+{
+    const int slot = term_bot_slot(i);
+    if (slot < 0) return;
+    int x, y;
+    term_xy(slot, &x, &y);
     (void)dim;
     const uint32_t t = millis();
     const int w = 72;
@@ -1777,10 +1859,11 @@ static void paint_one_board(Gfx g, int i, bool sel, bool dim)
 
 static void paint_boards(Gfx g)
 {
-    /* v1016f-2 #2: only the focused board is full-bright; the rest are dimmed, like the mock. */
-    for (int i = 0; i < 12; ++i) {
-        const bool sel = (i == s_term) && !s_focus_cmds && !s_cmd_btn && !s_atk_btn && !s_term_prompt;
-        paint_one_board(g, i, sel, !sel);
+    /* Slots, not BOTS order. Slot 0 is the KING tile. KEYFOB has no tile. */
+    for (int s = 0; s < 12; ++s) {
+        const bool sel = (s == s_term) && !s_focus_cmds && !s_cmd_btn && !s_atk_btn && !s_term_prompt;
+        if (s == 0) paint_king_tile(g, sel);
+        else paint_one_board(g, term_slot_bot(s), sel, !sel);
     }
 }
 
@@ -3068,6 +3151,143 @@ static void chip_block_ex(Gfx g, int cx, int cy, int S, int bot, int npins)
     face_block(g, cx, cy, gs, bot_color(bot), false, false);
 }
 
+/* Chip-button FSM. State lives in the existing rain scratch (plane 1, byte 8+)
+ * so this cut adds no static RAM. 16 steps x 178 ms = 2848 ms. */
+static const int CHIP_STEP_MS = 178;
+static const int CHIP_STEPS = 16;
+enum { CH_IDLE = 0, CH_PRESSED = 1, CH_SCAN = 2, CH_RING = 3, CH_DONE = 4, CH_PLAY = 5 };
+static uint8_t *chip_mem(void) { return &botcorps_t0_rain_cell[1][8]; }
+static uint32_t chip_t0(void)
+{
+    uint32_t t = 0;
+    memcpy(&t, chip_mem() + 8, 4);
+    return t;
+}
+static void chip_set_t0(uint32_t t) { memcpy(chip_mem() + 8, &t, 4); }
+static bool chip_is_game(int bot, int defend)
+{
+    if (bot == 6) return true;
+    return defend && bot >= 12;
+}
+static bool chip_now(int *bot, int *defend)
+{
+    if (s_screen == SCR_WIFI_RADAR) { *bot = 0; *defend = 0; return true; }
+    if (s_screen == SCR_BT_RADAR) { *bot = 1; *defend = 0; return true; }
+    if (s_screen == SCR_SCAN && (s_scan_bot == 0 || s_scan_bot == 1 || s_scan_bot == 6 || s_scan_bot >= 12)) {
+        *bot = s_scan_bot; *defend = 0; return true;
+    }
+    if (s_screen == SCR_GCHAT && (s_defend_bot == 6 || s_defend_bot >= 12)) {
+        *bot = s_defend_bot; *defend = 1; return true;
+    }
+    return false;
+}
+static void chip_on_enter(void)
+{
+    uint8_t *m = chip_mem();
+    int bot = 0, def = 0;
+    if (m[12]) { m[12] = 0; if (chip_now(&bot, &def)) { m[5] = (uint8_t)bot; m[6] = (uint8_t)def; m[13] = (uint8_t)s_screen; } return; }
+    if (!chip_now(&bot, &def)) { m[2] = 0; return; }
+    m[0] = CH_IDLE; m[1] = 0; m[2] = 1; m[3] = 0; m[4] = 0; m[7] = 0;
+    m[5] = (uint8_t)bot; m[6] = (uint8_t)def; m[13] = (uint8_t)s_screen;
+    chip_set_t0(millis());
+#ifdef BOTCORPS_HOST_RENDER
+    if (const char *e = getenv("CHIP_STEP")) {
+        const int k = atoi(e);
+        if (k <= 0) { m[0] = CH_IDLE; m[1] = 0; }
+        else if (k >= CHIP_STEPS) { m[0] = CH_DONE; m[1] = CHIP_STEPS; }
+        else { m[0] = chip_is_game(bot, def) ? (uint8_t)CH_RING : (uint8_t)CH_SCAN; m[1] = (uint8_t)k; }
+    }
+#endif
+}
+static void chip_finish(uint8_t *m)
+{
+    m[0] = CH_DONE; m[1] = CHIP_STEPS; m[4] = 0; m[7] = 0;
+    if (!chip_is_game(m[5], m[6])) m[3] = 1;
+}
+static void chip_to_next(uint8_t *m)
+{
+    if (chip_is_game(m[5], m[6])) {
+        m[0] = CH_PLAY;
+        if (m[5] == 6 && s_screen != SCR_GCHAT) {
+            m[12] = 1;
+            enter_defend(6, s_screen);
+        }
+    } else {
+        m[0] = CH_IDLE; m[1] = 0; m[2] = 1;
+    }
+}
+static void chip_tick(void)
+{
+    uint8_t *m = chip_mem();
+    int bot = 0, def = 0;
+    if (!chip_now(&bot, &def) || m[5] != (uint8_t)bot || m[13] != (uint8_t)s_screen) return;
+    if (m[0] == CH_SCAN || m[0] == CH_RING) {
+        uint32_t dt = millis() - chip_t0();
+        int k = (int)(dt / (uint32_t)CHIP_STEP_MS);
+        if (k > CHIP_STEPS) k = CHIP_STEPS;
+        if (k != (int)m[1]) m[1] = (uint8_t)k;
+        if (k >= CHIP_STEPS) chip_finish(m);
+        return;
+    }
+    if (m[0] == CH_DONE) {
+        if (m[7]) chip_to_next(m);
+        else m[7] = 1;
+    }
+}
+static bool chip_on_key(int key)
+{
+    uint8_t *m = chip_mem();
+    int bot = 0, def = 0;
+    if (!chip_now(&bot, &def) || !m[2] || m[0] == CH_PLAY) return false;
+    if (m[5] != (uint8_t)bot) return false;
+    if (s_sp_buf[0] || s_gp_buf[0] || s_sp_cmd >= 0) return false;
+    if (key == 6) { /* K_ESC */
+        if (m[0] == CH_SCAN || m[0] == CH_RING) {
+            m[4] = 0; m[3] = 0; m[0] = CH_IDLE; m[1] = 0;
+        }
+        return false;
+    }
+    if (key == 5) { /* K_OK */
+        if (m[0] == CH_IDLE) {
+            m[0] = chip_is_game(bot, def) ? (uint8_t)CH_RING : (uint8_t)CH_SCAN;
+            m[1] = 0; m[3] = 0; m[7] = 0;
+            m[4] = (m[0] == CH_SCAN) ? 1 : 0;
+            chip_set_t0(millis());
+        }
+        return true;
+    }
+    if (key == 1 || key == 2 || key == 3 || key == 4) { /* arrows */
+        if (m[0] == CH_DONE) chip_to_next(m);
+        else if (m[0] == CH_IDLE) m[2] = 0;
+    }
+    return false;
+}
+static void chip_ring_trace(Gfx g, int step)
+{
+    const int x0 = 33, y0 = 66, x1 = 88, y1 = 121;
+    const int per = (x1 - x0) + (y1 - y0) + (x1 - x0) + (y1 - y0);
+    int n = step >= CHIP_STEPS ? per : (per * step) / CHIP_STEPS;
+    if (n < 0) n = 0;
+    const uint8_t c = (uint8_t)PAL_WHITE;
+    for (int x = x0; x < x1 && n > 0; ++x, --n) g.fillRect(x, y0, 1, 1, c);
+    for (int y = y0; y < y1 && n > 0; ++y, --n) g.fillRect(x1, y, 1, 1, c);
+    for (int x = x1; x > x0 && n > 0; --x, --n) g.fillRect(x, y1, 1, 1, c);
+    for (int y = y1; y > y0 && n > 0; --y, --n) g.fillRect(x0, y, 1, 1, c);
+}
+/* One chip button. Pins come from chip_shell. WIFIBOT, BLUETOOTHBOT, Gibson SCAN, AIRTAG, Gibson game. */
+static void chip_button(Gfx g, int bot)
+{
+    uint8_t *m = chip_mem();
+    int st = CH_IDLE, step = 0;
+    if (m[5] == (uint8_t)bot && m[13] == (uint8_t)s_screen) { st = m[0]; step = m[1]; }
+    const int S = 54;
+    const int cx = 34 + S / 2;
+    const int cy = 67 + S / 2 + (st == CH_PRESSED ? 1 : 0);
+    chip_block_ex(g, cx, cy, S, bot, 5);
+    if (st == CH_SCAN || st == CH_RING || st == CH_DONE || st == CH_PLAY)
+        chip_ring_trace(g, (st == CH_DONE || st == CH_PLAY) ? CHIP_STEPS : step);
+}
+
 static void scan_die(Gfx g, int cx, int cy, bool gibson)
 {
     int bot = 12;
@@ -3828,7 +4048,9 @@ static void sb_board(Gfx g, bool wifi)
     sb_rect(g, 298, 110, 4, 16, 4);
     /* WROOM module (radio bots) or the clean Gibson/bot core block */
     const int mx = 34, my = 52, mw = 54, mh = 128;
-    if (core || radio) {
+    if ((core || radio) && v2_left_on(gib ? 12 : bot)) {
+        v2_panel(g, gib ? 12 : bot, framed, zsb, botc);
+    } else if (core || radio) {
         /* Addendum 5: steel outline, black window, style-B silver pads (gold on Gibson),
          * face in the bot colour. Device chip is mounted to the right, label on its left. */
         const int cxm = framed ? 61 : mx + mw / 2, ccy = framed ? 94 : my + 26;
@@ -3978,8 +4200,46 @@ static void sb_halo(Gfx g, int x, int y, int w)
     (void)ac;
 }
 
+/* 17-icon order: 13 glossary glyphs then SKIMMER, FLOCK, DEAUTH, BT. */
+static void v2_icon_at(Gfx g, int i, int x, int y)
+{
+    static const int gl[13] = {
+        GL_AP, GL_PHONE, GL_LAPTOP, GL_TV, GL_SPEAKER, GL_TRACKER, GL_WATCH,
+        GL_CAMERA, GL_CAR, GL_UNKNOWN, GL_DRONE, GL_DEVBOARD, GL_PRINTER
+    };
+    static const int dev[4] = { DEV_SKIM, DEV_FLOCK, DEV_DEAUTH, DEV_BT };
+    if (i < 0) i = 0;
+    if (i < 13) gl_icon(g, gl[i], x, y, false);
+    else dev_icon(g, dev[(i - 13) & 3], x, y, false);
+}
+static bool radar_plain(void)
+{
+    return (s_screen == SCR_WIFI_RADAR || s_screen == SCR_BT_RADAR)
+        && s_act < 0 && s_info_dev < 0 && s_gloss < 0 && s_hunt_dev < 0 && !ls_model_on();
+}
 static void sb_grid(Gfx g, int band, bool tiles)
 {
+    if (radar_plain()) {
+        const int nall = 17;
+        const int rows = 3;
+        for (int c = 0; c <= 7; ++c) sb_rect(g, SG_X + c * SG_C, SG_Y, 1, rows * SG_C + 1, 1);
+        for (int r = 0; r <= rows; ++r) sb_rect(g, SG_X, SG_Y + r * SG_C, 7 * SG_C + 1, 1, 1);
+        for (int c = 0; c <= 7; ++c)
+            for (int r = 0; r <= rows; ++r) sb_rect(g, SG_X + c * SG_C - 1, SG_Y + r * SG_C - 1, 3, 3, 65);
+        if (!tiles) return;
+        for (int d = 0; d < nall; ++d) {
+            const int cx = SG_X + 11 + (d % 7) * SG_C;
+            const int cy = SG_Y + 11 + (d / 7) * SG_C;
+            const int x = cx - 9, y = cy - 9;
+            const bool sel = d == s_cursor && s_act < 0;
+            GATE_BOX(g, "TILE", "dev", x, y, 18, 18, "MINI");
+            sb_rect(g, x, y, 18, 18, sel ? (uint8_t)PAL_WHITE : (uint8_t)149);
+            sb_rect(g, x + 1, y + 1, 16, 16, sel ? sb_tone(3) : (uint8_t)5);
+            v2_icon_at(g, d, x + 3, y + 3);
+            if (sel) sb_halo(g, x, y, 18);
+        }
+        return;
+    }
     const uint8_t ac = accent();
     const int nall = LIST_N;
     sb_scroll_fix(nall);
@@ -4632,8 +4892,8 @@ static void bh_orbit_paint(Gfx g, uint32_t t)
 #define BOTCORPS_GIB_DROPDOWN 1
 #endif
 static int s_gd_lane = 0, s_gd_dev = -1, s_gd_top = 0, s_gd_row0 = 0;
-static const int GD_X = 108, GD_Y = 44, GD_W = 154, GD_LH = 12, GD_LY = 57, GD_BOT = 142, GD_PR = 2;
-static const uint8_t GD_CNT[12] = { 12, 12, 4, 3, 6, 2, 5, 3, 2, 1, 9, 4 };
+static const int GD_X = 108, GD_Y = 44, GD_W = 154, GD_LH = 12, GD_LY = 57, GD_BOT = 142, GD_PR = 3;
+static const uint8_t GD_CNT[12] = { 17, 17, 4, 3, 6, 2, 5, 3, 2, 1, 9, 4 };
 static int gd_cnt(int b) { return (b >= 0 && b < 12) ? GD_CNT[b] : 0; }
 static int gd_kind(int b, int i)
 {
@@ -4759,7 +5019,8 @@ static void gib_dropdown(Gfx g)
                 GATE_BOX(g, "TILE", "dev", tx, ty, 18, 18, "MINI");
                 sb_rect(g, tx, ty, 18, 18, sel ? (uint8_t)PAL_WHITE : sb_mix(bc, 0x0000, 35));
                 sb_rect(g, tx + 1, ty + 1, 16, 16, sel ? sb_tone(3) : (uint8_t)5);
-                gl_icon(g, gd_kind(b, i), tx + 3, ty + 3, false);
+                if (b < 2) v2_icon_at(g, i % 17, tx + 3, ty + 3);
+                else gl_icon(g, gd_kind(b, i), tx + 3, ty + 3, false);
                 if (sel) { hx = tx; hy = ty; }
             }
             if (hx >= 0) sb_halo(g, hx, hy, 18);
@@ -5111,7 +5372,6 @@ static void paint_sbox(Gfx g, bool wifi)
         sb_rect(g, 0, 0, 320, 26, PAL_BLACK);
         sb_rect(g, 0, 209, 320, 31, PAL_BLACK);
         if (sb_vis(14, 26, 292, 183)) sb_board(g, wifi);
-        sb_rect(g, dx - 9, dy + 44, 5, 44, 41);
         sb_rect(g, dx - 4, dy - 4, dw + 8, dh + 8, 37);
         sb_rect(g, dx - 3, dy - 3, dw + 6, dh + 6, 40);
     }
@@ -5222,7 +5482,8 @@ static void paint_sbox(Gfx g, bool wifi)
         snprintf(l2, sizeof(l2), "%s %d/%d rows %d-%d/%d", wifi ? "wifi" : "ble", sb_shown(), LIST_N,
                  s_sb_row0 + 1, s_sb_row0 + SG_VROWS, sb_rows(LIST_N));
     else
-        snprintf(l2, sizeof(l2), "%s sweep %d/%d", bn, sb_shown(), LIST_N);
+        if (radar_plain()) snprintf(l2, sizeof(l2), "%s sweep 17/17", bn);
+        else snprintf(l2, sizeof(l2), "%s sweep %d/%d", bn, sb_shown(), LIST_N);
     sb_tt(g, l2, x, th + 12, sb_tone(3));
     sb_tt(g, l2, x, th + 11, sb_ink());
     x = sb_tt(g, "user@botcorps:~$ ", dx + 3, ty, ac);
@@ -7706,7 +7967,8 @@ static void draw_tile_part(Gfx g)
      * focus by a partial (focus to the prompt / commands button, or arrows to another board) came back
      * full-bright instead of dimmed until the next full paint (S1 terminal-typing caught it). */
     const bool sel = (s_part_i == s_term) && !s_focus_cmds && !s_cmd_btn && !s_atk_btn && !s_term_prompt;
-    paint_one_board(g, s_part_i, sel, !sel);
+    if (s_part_i == 0) paint_king_tile(g, sel);
+    else paint_one_board(g, term_slot_bot(s_part_i), sel, !sel);
 }
 
 static void partial_tile(int index)
@@ -8391,7 +8653,11 @@ static void on_ok(void)
             }
             return;
         }
-        open_bot(s_term);
+        {
+            const int b = term_slot_bot(s_term);
+            if (b == 12) { enter_defend(12, SCR_TERMINAL); return; }
+            if (b >= 0) open_bot(b);
+        }
         return;
     }
     activate();
@@ -8661,6 +8927,206 @@ static void on_bs(void)
 enum { K_NONE = 0, K_UP = 1, K_DN = 2, K_LT = 3, K_RT = 4, K_OK = 5, K_ESC = 6, K_TAB = 7, K_BS = 8, K_CHAR = 9 };
 
 #include "ui/botcorps_defend.inc"
+
+static bool v2_left_on(int bot)
+{
+    return bot == 0 || bot == 1 || bot == 6 || bot >= 12;
+}
+static const int V2_BX = 34, V2_BY = 67, V2_S = 54;
+static void v2_ticker(Gfx g)
+{
+    const int X = 24, Y = 169, W = 71, H = 22;
+    const uint8_t ac = accent();
+    sb_rect(g, X, Y, W, H, PAL_BLACK);
+    sb_frame(g, X, Y, W, H, 41);
+    const uint32_t t = millis();
+    const int step = (int)(t / (uint32_t)GT_STEP);
+    const int rev = (int)((t % (uint32_t)GT_STEP) / 60u);
+    for (int r = 0; r < 3; ++r) {
+        const int idx = ((step - 2 + r) % GIB_VOICE_N + GIB_VOICE_N) % GIB_VOICE_N;
+        const char *m = GIB_VOICE[idx];
+        const int y = Y + 3 + r * 6;
+        const bool nw = r == 2;
+        const uint8_t col = nw ? (uint8_t)PAL_IVORY : (uint8_t)41;
+        sb_rect(g, X + 3, y, 1, 1, nw ? ac : (uint8_t)41);
+        sb_rect(g, X + 4, y + 1, 1, 1, nw ? ac : (uint8_t)41);
+        sb_rect(g, X + 5, y + 2, 1, 1, nw ? ac : (uint8_t)41);
+        sb_rect(g, X + 4, y + 3, 1, 1, nw ? ac : (uint8_t)41);
+        sb_rect(g, X + 3, y + 4, 1, 1, nw ? ac : (uint8_t)41);
+        char b[18];
+        snprintf(b, sizeof(b), "%s", m);
+        int n = (int)strlen(b);
+        if (nw && rev < n) { b[rev] = 0; n = rev; }
+        if (n) tiny_text(g, b, X + 8, y, col);
+        if (nw && (t / 530u) % 2u == 0u) sb_rect(g, X + 8 + n * 4, y, 3, 5, ac);
+    }
+}
+static void v2_single(Gfx g, int bot)
+{
+    const int T = 26, x = 48, y = 149;
+    const int kind = bot_dev_kind(bot);
+    const uint8_t land = bot_color(bot), pad = PAL_SOFT;
+    const uint8_t ink = GL_INK[kind][0], edge = GL_INK[kind][0];
+    const uint8_t copper = botcorps_pal_fit(mix16(botcorps_rgb565(land), 0x0000, 30, 100));
+    static const int poff[5] = { 2, 7, 12, 17, 22 };
+    static const int lane[4] = { 21, 24, 27, 30 };
+    static const int pk[4] = { 1, 2, 3, 4 };
+    static const int pd[4] = { 3, 2, 1, 0 };
+    for (int j = 0; j < 4; ++j) {
+        const int py = V2_BY + chip_pin(V2_S, pk[j]);
+        const int ty = y + poff[pd[j]];
+        hrun(g, lane[j], V2_BX - 2, py, copper);
+        vrun(g, lane[j], py, ty, copper);
+        hrun(g, lane[j], x - 4, ty, copper);
+    }
+    for (int k = 0; k < 5; ++k) {
+        const int o = poff[k];
+        hrun(g, x + T + 2, x + T + 4, y + o, copper);
+        via_drill(g, x + T + 6, y + o, copper);
+        pin_land(g, x - 2, y + o, 2, 2, land, pad);
+        pin_land(g, x + T, y + o, 2, 2, land, pad);
+        pin_land(g, x + o, y - 2, 2, 2, land, pad);
+        pin_land(g, x + o, y + T, 2, 2, land, pad);
+    }
+    const int arm = 4;
+    const int x0 = x - 4, y0 = y - 4, x1 = x + T + 3, y1 = y + T + 3;
+    sb_rect(g, x0, y0, arm, 1, land); sb_rect(g, x0, y0, 1, arm, land);
+    sb_rect(g, x1 - arm + 1, y0, arm, 1, land); sb_rect(g, x1, y0, 1, arm, land);
+    sb_rect(g, x0, y1, arm, 1, land); sb_rect(g, x0, y1 - arm + 1, 1, arm, land);
+    sb_rect(g, x1 - arm + 1, y1, arm, 1, land); sb_rect(g, x1, y1 - arm + 1, 1, arm, land);
+    g.fillRect(x + 4, y + 4, T - 8, T - 8, PAL_BLACK);
+    g.drawRect(x, y, T, T, edge);
+    g.drawRect(x + 2, y + 2, T - 4, T - 4, PAL_BLACK);
+    gl_icon(g, kind, x + T / 2 - 6, y + T / 2 - 6, false);
+    char lb[24];
+    snprintf(lb, sizeof lb, "%s U2", GL_LABEL[kind]);
+    const int lw = (int)strlen(lb) * 6;
+    sb_text(g, lb, 61 - lw / 2, 181, ink, PAL_BLACK, false, 1);
+}
+static void v2_dual(Gfx g)
+{
+    const int T = 22, wx = 32, btx = 66, dy = 144;
+    const uint8_t wire = 104;
+    const int p3 = V2_BY + chip_pin(V2_S, 3), p4 = V2_BY + chip_pin(V2_S, 4);
+    const int d1 = dy + chip_pin(T, 1), d3 = dy + chip_pin(T, 3);
+    hrun(g, 21, V2_BX - 2, p3, wire); vrun(g, 21, p3, d3, wire); hrun(g, 21, wx - 2, d3, wire);
+    hrun(g, 24, V2_BX - 2, p4, wire); vrun(g, 24, p4, d1, wire); hrun(g, 24, wx - 2, d1, wire);
+    const int rx = V2_BX + V2_S + 1;
+    hrun(g, rx, 94, p3, wire); vrun(g, 94, p3, d3, wire); hrun(g, rx, 94, d3, wire);
+    hrun(g, rx, 91, p4, wire); vrun(g, 91, p4, d1, wire); hrun(g, rx, 91, d1, wire);
+    GATE_BOX(g, "TRACE", "wf3", 21, p3 < d3 ? p3 : d3, 1, (p3 > d3 ? p3 : d3) - (p3 < d3 ? p3 : d3) + 1, "-");
+    GATE_BOX(g, "TRACE", "wf4", 24, p4 < d1 ? p4 : d1, 1, (p4 > d1 ? p4 : d1) - (p4 < d1 ? p4 : d1) + 1, "-");
+    GATE_BOX(g, "TRACE", "wf3", 21, p3, V2_BX - 2 - 21 + 1, 1, "-");
+    GATE_BOX(g, "TRACE", "wf4", 24, p4, V2_BX - 2 - 24 + 1, 1, "-");
+    GATE_BOX(g, "TRACE", "bt3", 94, p3 < d3 ? p3 : d3, 1, (p3 > d3 ? p3 : d3) - (p3 < d3 ? p3 : d3) + 1, "-");
+    GATE_BOX(g, "TRACE", "bt4", 91, p4 < d1 ? p4 : d1, 1, (p4 > d1 ? p4 : d1) - (p4 < d1 ? p4 : d1) + 1, "-");
+    GATE_BOX(g, "TRACE", "bt3", rx, p3, 94 - rx + 1, 1, "-");
+    GATE_BOX(g, "TRACE", "bt4", rx, p4, 91 - rx + 1, 1, "-");
+    GATE_BOX(g, "PAD", "wf3", V2_BX - 1, p3, 2, 2, "-");
+    GATE_BOX(g, "PAD", "wf4", V2_BX - 1, p4, 2, 2, "-");
+    GATE_BOX(g, "PAD", "bt3", V2_BX + V2_S - 4, p3, 2, 2, "-");
+    GATE_BOX(g, "PAD", "bt4", V2_BX + V2_S - 4, p4, 2, 2, "-");
+    GATE_BOX(g, "PAD", "wf3", wx - 2, d3, 2, 2, "-");
+    GATE_BOX(g, "PAD", "wf4", wx - 2, d1, 2, 2, "-");
+    GATE_BOX(g, "PAD", "bt3", btx + T, d3, 2, 2, "-");
+    GATE_BOX(g, "PAD", "bt4", btx + T, d1, 2, 2, "-");
+    dual_chip(g, wx + T / 2, dy + T / 2, T, "wifi", 6);
+    dual_chip(g, btx + T / 2, dy + T / 2, T, "bt", 7);
+}
+static void v2_grid(Gfx g)
+{
+    static const int kinds[8] = {
+        GL_AP, GL_PHONE, GL_LAPTOP, GL_TV, GL_SPEAKER, GL_TRACKER, GL_WATCH, GL_CAMERA
+    };
+    const int cw = 14, pitch = 18, x0 = 27, trunk = 22;
+    const int row_y[2] = { 151, 174 };
+    const int bus_y[2] = { 145, 168 };
+    const uint8_t copper = botcorps_pal_fit(mix16(botcorps_rgb565(177), 0x0000, 30, 100));
+    const int p3 = V2_BY + chip_pin(V2_S, 3);
+    hrun(g, trunk, V2_BX - 2, p3, copper);
+    vrun(g, trunk, p3, bus_y[1], copper);
+    for (int r = 0; r < 2; ++r) hrun(g, trunk, x0 + 3 * pitch + 3, bus_y[r], copper);
+    for (int i = 0; i < 8; ++i) {
+        const int col = i & 3, row = i >> 2;
+        const int cx = x0 + col * pitch, cy = row_y[row];
+        const uint8_t rim = GL_INK[kinds[i]][0];
+        const int px = cx + 3;
+        vrun(g, px, bus_y[row] + 2, cy - 4, copper);
+        via_drill(g, px, bus_y[row], copper);
+        for (int s = 0; s < 2; ++s) {
+            const int qx = cx + 2 + s * 6;
+            sb_rect(g, qx, cy - 3, 3, 3, 177);
+            sb_rect(g, qx, cy - 3, 3, 1, 217);
+            sb_rect(g, qx + 1, cy - 2, 1, 1, 108);
+        }
+        for (int s = 0; s < 2; ++s) {
+            const int qy = cy + 3 + s * 5;
+            sb_rect(g, cx - 1, qy, 3, 2, 177);
+            sb_rect(g, cx - 1, qy, 3, 1, 217);
+            sb_rect(g, cx, qy + 1, 1, 1, 108);
+            sb_rect(g, cx + cw - 2, qy, 3, 2, 177);
+            sb_rect(g, cx + cw - 2, qy, 3, 1, 217);
+            sb_rect(g, cx + cw - 1, qy + 1, 1, 1, 108);
+        }
+        g.fillRect(cx + 1, cy + 1, cw - 2, cw - 2, PAL_BLACK);
+        g.drawRect(cx, cy, cw, cw, rim);
+        gl_icon(g, kinds[i], cx + 1, cy + 1, false);
+    }
+}
+static void v2_rain(Gfx g, int bot)
+{
+    GATE_BOX(g, "RAIN", "layer", 20, 43, 82, 149, "-");
+#ifdef BOTCORPS_HOST_RENDER
+    if (host_gate_norain) return;
+#endif
+    if (!g.raw() || g.ox != 0) return;
+    const bool gib = bot >= 12;
+    botcorps_rain_set_gibson(false);
+    botcorps_rain_set_no_bots(true);
+    botcorps_rain_set_faint(true);
+    botcorps_rain_set_faint_scale(3, 5);
+    botcorps_rain_set_devall(gib);
+    if (gib || BH_DEV[bot][0] < 0) botcorps_rain_set_devsel(0, 0, 0);
+    else if (BH_DEV[bot][1] >= 0) botcorps_rain_set_devsel(2, BH_DEV[bot][0], BH_DEV[bot][1]);
+    else botcorps_rain_set_devsel(1, BH_DEV[bot][0], 0);
+    botcorps_rain_set_covers(s_box, 0, false);
+    const ZrClip cl = zr_clip_push(g, 20, 43, 82, 149);
+    const ZrClip n = zr_clip_get(g);
+#ifdef BOTCORPS_HOST_RENDER
+    host_gate_mute = 1;
+#endif
+    botcorps_rain_mock_strand(true);
+    botcorps_rain_mock_strand_dx(1);
+    botcorps_rain_draw_win(*g.raw(), g.oy, g.oy + g.raw()->height(), (int)n.x + g.ox, (int)n.y + g.oy,
+                           (int)n.w, (int)n.h, nullptr, 0);
+    botcorps_rain_mock_strand_dx(0);
+    botcorps_rain_mock_strand(false);
+#ifdef BOTCORPS_HOST_RENDER
+    host_gate_mute = 0;
+#endif
+    zr_clip_set(g, cl);
+    botcorps_rain_set_covers(s_box, s_box_n, s_box_radar);
+    rain_flags();
+}
+static void v2_panel(Gfx g, int bot, bool framed, bool zsb, uint8_t botc)
+{
+    const bool gib = bot >= 12;
+    v2_rain(g, bot);
+    /* chip_button sites: WIFIBOT, BLUETOOTHBOT, Gibson SCAN, AIRTAG, Gibson game */
+    chip_button(g, bot);
+    char nmb[16];
+    const char *nm;
+    if (gib) nm = "GIBSON";
+    else { sb_upper(nmb, 16, BOTS[bot].short_name, 12); if (strlen(nmb) <= 9) strcat(nmb, "BOT"); nm = nmb; }
+    const char *ls[3] = { nm, "ESP32-WROOM-32", (gib && !zsb) ? "CORE + PRIME" : "RADIO CORE" };
+    const uint8_t silk = framed ? (gib ? (uint8_t)PAL_IVORY : botc) : (uint8_t)41;
+    const int sp = gib ? 6 : 7;
+    for (int i = 0; i < 3; ++i) tiny_text(g, ls[i], 61 - tiny_w(ls[i]) / 2, 124 + i * sp, silk);
+    if (gib && zsb) v2_grid(g);
+    else if (gib) v2_dual(g);
+    else v2_single(g, bot);
+    if (gib && !zsb) v2_ticker(g);
+}
 
 /* v1017c (#2/#3) keyboard root cause. The old reader fired whenever the NUMBER of held keys changed
  * (Keyboard.isChange() compares only keyList().size()) and then answered from keysState(), which
@@ -9002,6 +9468,7 @@ static void ui_dispatch(int key, char typed)
         if (!dg_prompt_key(key, typed)) dg_key(key, typed);   /* v1019q (item 8): ... except a typed line */
         return;
     }
+    if (chip_on_key(key)) return;
     if (s_screen == SCR_GIBSON && (key == K_CHAR || key == K_OK)) {
         s_mood = MOOD_HAPPY;
         s_mood_until = s_last_key + 1500u;
@@ -9053,6 +9520,7 @@ static void ui_dispatch(int key, char typed)
 
 void botcorps_ui_draw(void)
 {
+    chip_tick();
     ls_pump();
     sp_auto_poll();
     botcorps_rain_set_hub(s_screen == SCR_GIBSON);
@@ -10025,7 +10493,7 @@ int botcorps_host_sim(int ms, const char *keys, long *presents, long *pushes, lo
 int botcorps_host_open_bot(uint8_t *buf, int b, int *scan_bot)
 {
     botcorps_host_enter(buf, SCR_TERMINAL);
-    s_term = b;
+    if (term_bot_slot(b) >= 0) s_term = term_bot_slot(b);
     open_bot(b);
     *scan_bot = s_scan_bot;
     host_frame = buf;
@@ -10505,6 +10973,106 @@ int botcorps_host_slice_diff(void)
         unsetenv("SLICE_DUMP");
     }
     return bad;
+}
+static void host_nav_count(uint8_t *buf, int *left, int *ext_px)
+{
+    memset(buf, 0xA5, 320u * 240u);
+    host_frame = buf;
+    paint_ext(Gfx());
+    *left = 0;
+    *ext_px = 0;
+    for (int y = 0; y < 240; ++y) {
+        for (int x = 0; x < 320; ++x) {
+            const int same = buf[y * 320 + x] == 0xA5;
+            if (same) ++*left;
+            if (x >= 240 && !same) ++*ext_px;
+        }
+    }
+}
+void botcorps_host_keyfob(void *file)
+{
+    FILE *f = static_cast<FILE *>(file);
+    static uint8_t buf[320 * 240];
+    host_frame = buf;
+    auto chain = [&](const char *step, const char *line) {
+        enter_screen(SCR_TERMINAL, SCR_GIBSON);
+        run_cmd(line);
+        int left = 0, ext_px = 0;
+        host_nav_count(buf, &left, &ext_px);
+        const int ok = s_screen == SCR_SCAN && s_scan_bot == 7 && left < 128 && ext_px >= 500;
+        if (f) fprintf(f, "NAVCHAIN\t%s\t%d\t%d\t%d\t320\t240\t%d\t%d\t%d\n",
+                       step, s_screen, (int)SCR_SCAN, s_scan_bot, left, ext_px, ok);
+    };
+    chain("go-keyfob", "go keyfob");
+    chain("load-keyfob", "load keyfob");
+    enter_screen(SCR_TERMINAL, SCR_GIBSON);
+    s_term = 4;
+    const int before = s_term;
+    s_log_n = 0;
+    s_log_next = 0;
+    run_cmd("scan keyfob");
+    int saw_scan = 0, saw_frames = 0, saw_ok = 0, who = -1;
+    for (int i = 0; i < s_log_n; ++i) {
+        const char *l = log_line(i);
+        const char *t = (l[0] == '\x01') ? l + 2 : l;
+        if (l[0] == '\x01' && (unsigned char)l[1] == 7 && strstr(t, "scanning keyfob")) { who = 7; saw_scan = 1; }
+        if (strstr(t, "frames 359")) saw_frames = 1;
+        if (strcmp(t, "[ok] sweep done") == 0) saw_ok = 1;
+    }
+    const int log_ok = saw_scan && saw_frames && saw_ok;
+    const int ok = s_screen == SCR_TERMINAL && who == 7 && log_ok && before == s_term;
+    if (f) fprintf(f, "KEYFOBSCAN\tscan-keyfob\t%d\t%d\t%d\t%d\t%d\t%d\t%d\n",
+                   s_screen, (int)SCR_TERMINAL, who, log_ok, before, s_term, ok);
+}
+void botcorps_host_chip_fsm(void *file)
+{
+    FILE *f = static_cast<FILE *>(file);
+    auto row = [&](int n, const char *name, int ok) {
+        if (f) fprintf(f, "CHIPFSM\t%d\t%s\t%d\n", n, name, ok);
+    };
+    host_set_millis(5000);
+    s_scan_bot = 0;
+    enter_screen(SCR_SCAN, SCR_TERMINAL);
+    uint8_t *m = chip_mem();
+    row(3, "focus", m[2] == 1 && s_screen == SCR_WIFI_RADAR);
+    chip_on_key(5);
+    const int step1 = m[1];
+    const int st1 = m[0];
+    chip_on_key(5);
+    row(1, "repress", st1 == CH_SCAN && m[0] == CH_SCAN && m[1] == step1);
+    chip_on_key(6);
+    row(2, "esc", m[0] == CH_IDLE && m[4] == 0 && m[3] == 0);
+    chip_on_key(5);
+    host_set_millis(5000 + 2848);
+    chip_tick();
+    const int committed = m[0] == CH_DONE && m[3] == 1 && m[4] == 0;
+    chip_tick();
+    chip_tick();
+    row(4, "doneidle", committed && m[0] == CH_IDLE);
+    s_scan_bot = 6;
+    enter_screen(SCR_SCAN, SCR_TERMINAL);
+    host_set_millis(8000);
+    chip_on_key(5);
+    host_set_millis(8000 + 2848);
+    chip_tick();
+    chip_tick();
+    chip_tick();
+    row(5, "airtag", m[0] == CH_PLAY && s_screen == SCR_GCHAT && s_defend_bot == 6);
+    enter_defend(12, SCR_TERMINAL);
+    host_set_millis(9000);
+    chip_on_key(5);
+    host_set_millis(9000 + 2848);
+    chip_tick();
+    chip_tick();
+    chip_tick();
+    row(6, "gibson", m[0] == CH_PLAY && s_screen == SCR_GCHAT && s_defend_bot == 12);
+    row(7, "timing", CHIP_STEPS == 16 && CHIP_STEP_MS == 178 && CHIP_STEPS * CHIP_STEP_MS == 2848);
+}
+void botcorps_host_chip_rows(void *file)
+{
+    FILE *f = static_cast<FILE *>(file);
+    if (f) fprintf(f, "GD3\t%d\t%d\t%d\n", gd_cnt(0), GD_PR, (gd_cnt(0) + 6) / 7);
+    if (f) fprintf(f, "RAINWIN\t0\t0\n");
 }
 #endif
 #include "ui/botcorps_livescan.inc"

@@ -315,6 +315,12 @@ static int run_gate(const char *dir)
         if (f) botcorps_host_nav_chain(f);
         if (f) botcorps_host_nav_draw(f, 0, "NAVDIRECT");
         if (f) botcorps_host_nav_draw(f, 1, "NAVBAND");
+        extern void botcorps_host_keyfob(void *file);
+        extern void botcorps_host_chip_fsm(void *file);
+        extern void botcorps_host_chip_rows(void *file);
+        if (f) botcorps_host_keyfob(f);
+        if (f) botcorps_host_chip_fsm(f);
+        if (f) botcorps_host_chip_rows(f);
         if (f) fprintf(f, "PARTIALS\tempty\n");
         if (f) fclose(f);
     }
@@ -477,10 +483,20 @@ int main(int argc, char **argv)
         write_raw(argv[3], g_buf, 0);
         return 0;
     }
+    /* rend chip <bot> <out.rgb> — SCR_SCAN for that bot. CHIP_STEP selects the ring. */
+    if (argc > 3 && strcmp(argv[1], "chip") == 0) {
+        extern void botcorps_host_scan_n(uint8_t *, int);
+        host_rain_init(0);
+        host_set_millis(getenv("MS") ? (uint32_t)atoi(getenv("MS")) : 64u);
+        botcorps_host_set_color(0);
+        botcorps_host_scan_n(g_buf, atoi(argv[2]));
+        write_raw(argv[3], g_buf, 0);
+        return 0;
+    }
     /* v1017c: one-off review render (not a gate item): rend shot <screen id> <out.rgb> [keys] */
     if (argc > 3 && strcmp(argv[1], "shot") == 0) {
         host_rain_init(0);
-        host_set_millis(9000u);
+        host_set_millis(getenv("MS") ? (uint32_t)atoi(getenv("MS")) : 9000u);
         GArg a = { atoi(argv[2]), getenv("RC") ? atoi(getenv("RC")) : 0, 0, argc > 4 ? argv[4] : nullptr };
         f_enter(&a);
         write_raw(argv[3], g_buf, 0);

@@ -91,6 +91,11 @@ int botcorps_band_oy(void)
     return s_oy;
 }
 
+int botcorps_band_ox(void)
+{
+    return s_ox;
+}
+
 void botcorps_band_set_oy(int y)
 {
     s_oy = y;
@@ -345,7 +350,7 @@ bool botcorps_band_rebuild(void)
     s_largest = (uint32_t)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL);
     if (s_direct || !botcorps_dual_ok()) {
         s_live = false;
-        Serial.printf("[botcorps] band mode=%s alloc=0 bytes=%d largest=%u direct=1\n",
+        Serial.printf("[botcorps] band mode=%s alloc=0 bytes=%d largest=%u direct=1 why=sticky\n",
                       botcorps_band_mode_name(), botcorps_band_bytes(),
                       (unsigned)s_largest);
         return false;
@@ -358,13 +363,15 @@ bool botcorps_band_rebuild(void)
         s_direct = true;
         s_live = false;
         close_panel();
-        Serial.printf("[botcorps] band mode=%s alloc=0 bytes=%d largest=%u direct=1\n",
+        Serial.printf("[botcorps] band mode=%s alloc=0 bytes=%d largest=%u direct=1 why=alloc\n",
                       botcorps_band_mode_name(), botcorps_band_bytes(),
                       (unsigned)s_largest);
         return false;
     }
     s_live = true;
     s_largest = (uint32_t)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL);
+    /* First present must push every row. A BSS-zero hash is not a full refresh. */
+    for (int i = 0; i < 240; ++i) botcorps_t0_row_hash[i] = 0xffffffffu;
     Serial.printf("[botcorps] band mode=%s alloc=1 bytes=%d largest=%u direct=0\n",
                   botcorps_band_mode_name(), botcorps_band_bytes(),
                   (unsigned)s_largest);
@@ -488,11 +495,12 @@ static uint32_t row_hash(const uint8_t *row, int n)
     return h;
 }
 
-static void push_slice(int world_y0, bool refresh_ok)
+static int push_slice(int world_y0, bool refresh_ok)
 {
-    if (!s_sp || !botcorps_dual_ok()) return;
+    int pushed = 0;
+    if (!s_sp || !botcorps_dual_ok()) return 0;
     const uint8_t *buf = (const uint8_t *)s_sp->getBuffer();
-    if (!buf) return;
+    if (!buf) return 0;
     const int stride = (int)(s_sp->bufferLength() / (size_t)SLICE_H);
     /* v1017a: the 1-in-64 full refresh belongs to presents only. s_frame does not advance on a patch,
      * so on a refresh frame EVERY following patch (scan parts tick many times a second) re-pushed all
@@ -510,17 +518,20 @@ static void push_slice(int world_y0, bool refresh_ok)
         botcorps_t0_row_hash[world] = h;
         for (int x = 0; x < 320; ++x) line[x] = ext_push_word(row[x]);
         panel.pushImage(0, world, 320, 1, line);
+        ++pushed;
     }
     panel.endWrite();
     panel.clearClipRect();
     s_sp->endWrite();
     s_sp->clearClipRect();
+    return pushed;
 }
 
 void botcorps_band_present(void (*draw)(Gfx))
 {
     if (!draw || !s_live || !s_sp || s_direct) return;
     ++s_frame;
+    int rows = 0;
     for (int s = 0; s < SLICE_N; ++s) {
         const int y0 = s * SLICE_H;
         botcorps_band_set_oy(y0);
@@ -529,9 +540,11 @@ void botcorps_band_present(void (*draw)(Gfx))
         draw(Gfx(*s_sp));
         s_sp->endWrite();
         s_sp->clearClipRect();
-        push_slice(y0, true);
+        rows += push_slice(y0, true);
         s_resident = s;
     }
+    if (s_frame <= 3u)
+        Serial.printf("[botcorps] present f=%u rows=%d\n", (unsigned)s_frame, rows);
     botcorps_band_set_oy(0);
 }
 

@@ -339,7 +339,7 @@ static lgfx::v1::LGFX_Device s_dummy;
 lgfx::v1::LGFX_Device &botcorps_menu(void) { return s_dummy; }
 const char *botcorps_band_mode_name(void) { return "bands"; }
 uint32_t botcorps_band_largest(void) { return 0; }
-lgfx::v1::LovyanGFX &botcorps_content(void) { return s_dummy; }
+lgfx::v1::LovyanGFX &botcorps_content(void) { return *host_rain_panel(); }
 bool botcorps_dual_ok(void) { return true; }
 void botcorps_set_surface(int) {}
 void botcorps_band_set_oy(int) {}

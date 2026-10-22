@@ -1630,6 +1630,34 @@ static void tile_invert(Gfx g, int x, int y, int w, int h)
 /* Terminal tiles: the detailed chip (dark #0A0C0E well, bot-colour glyph, pin comb,
  * side vias, faint traces, corner marks, thin bot-colour border). The selected tile
  * is that same art with every pixel inverted — nothing is flattened to a solid block. */
+static void paint_one_board(Gfx g, int i, bool sel, bool dim);
+#ifndef BOTCORPS_HOST_RENDER
+/* direct tile invert: the ILI9341 is write-only, so replay the tile into a
+ * sprite, invert RGB565, and push it over the panel. */
+static void direct_tile_invert(int i, int x, int y, int w, int h)
+{
+    lgfx::LGFX_Sprite cap(&botcorps_content());
+    cap.setColorDepth(16);
+    if (!cap.createSprite(w, h)) return;
+    const int ox = botcorps_band_ox();
+    const int oy = botcorps_band_oy();
+    botcorps_band_set_ox(x);
+    botcorps_band_set_oy(y);
+    paint_one_board(Gfx(cap), i, false, false);
+    botcorps_band_set_ox(ox);
+    botcorps_band_set_oy(oy);
+    for (int yy = 0; yy < h; ++yy) {
+        for (int xx = 0; xx < w; ++xx) {
+            const uint32_t c = cap.readPixel(xx, yy);
+            const unsigned r = 31u - ((c >> 11) & 31u);
+            const unsigned g6 = 63u - ((c >> 5) & 63u);
+            const unsigned b = 31u - (c & 31u);
+            cap.drawPixel(xx, yy, (uint16_t)((r << 11) | (g6 << 5) | b));
+        }
+    }
+    cap.pushSprite(x, y);
+}
+#endif
 static void paint_one_board(Gfx g, int i, bool sel, bool dim)
 {
     int x, y;
@@ -1735,6 +1763,11 @@ static void paint_one_board(Gfx g, int i, bool sel, bool dim)
         g.fillRect(ax + 7, ay, 1, 2, m);
     }
     if (sel) {
+#ifndef BOTCORPS_HOST_RENDER
+        if (botcorps_band_direct())
+            direct_tile_invert(i, x, y, w, h + 2);
+        else
+#endif
         tile_invert(g, x, y, w, h + 2);
         const uint8_t mag = botcorps_pal_fit(mix16(0xF81F, 0xFFFF, 55, 100));
         g.drawRect(x - 1, y - 1, w + 2, h + 4, mag);
@@ -7161,6 +7194,11 @@ static void paint_ext_full(void)
 {
     layout_covers();
     if (!botcorps_dual_ok()) return;
+    static int s_direct_paint_n = 0;
+    if (s_direct_paint_n < 3) {
+        ++s_direct_paint_n;
+        Serial.printf("[botcorps] direct paint scr=%d\n", s_screen);
+    }
     botcorps_set_surface(BOTCORPS_SURFACE_CONTENT);
     auto &ext = botcorps_content();
     ext.clearClipRect();
@@ -9876,6 +9914,67 @@ void botcorps_host_nav_chain(void *file)
     ui_dispatch(K_CHAR, 'e');
     ui_dispatch(K_OK, 0);
     row("ble-radar", SCR_BT_RADAR, -1);
+}
+/* Same key chain through botcorps_ui_draw. sim=0 is the direct panel.
+ * sim=1 is the band present. host content is the 320x240 frame. */
+void botcorps_host_nav_draw(void *file, int sim, const char *tag)
+{
+    FILE *f = static_cast<FILE *>(file);
+    extern int host_band_sim;
+    extern uint8_t host_sim_panel[320 * 240];
+    static uint8_t buf[320 * 240];
+    host_frame = buf;
+    host_band_sim = 0;
+    botcorps_ui_begin();
+    auto measure = [](const uint8_t *view, int *left, int *ext_px) {
+        *left = 0;
+        *ext_px = 0;
+        for (int y = 0; y < 240; ++y) {
+            for (int x = 0; x < 320; ++x) {
+                const int same = view[y * 320 + x] == 0xA5;
+                if (same) ++*left;
+                if (x >= 240 && !same) ++*ext_px;
+            }
+        }
+    };
+    auto snap = [&](const char *step, int want, int bot) {
+        host_band_sim = sim;
+        s_int_dirty = false;
+        s_dirty = true;
+        memset(buf, 0xA5, sizeof buf);
+        if (sim) memset(host_sim_panel, 0xA5, sizeof host_sim_panel);
+        host_frame = buf;
+        botcorps_ui_draw();
+        int left = 0, ext_px = 0;
+        measure(sim ? host_sim_panel : buf, &left, &ext_px);
+        const int bot_ok = bot < 0 || s_scan_bot == bot;
+        const int ok = s_screen == want && bot_ok && left < 128 && ext_px >= 500;
+        if (f) fprintf(f, "%s\t%s\t%d\t%d\t%d\t320\t240\t%d\t%d\t%d\n",
+                       tag, step, s_screen, want, s_scan_bot, left, ext_px, ok);
+        printf("%s %s screen=%d want=%d scan_bot=%d sentinel=%d ext_px=%d %s\n",
+               tag, step, s_screen, want, s_scan_bot, left, ext_px, ok ? "PASS" : "FAIL");
+    };
+    snap("boot-rain", SCR_RAIN, -1);
+    ui_dispatch(K_OK, 0);
+    snap("hub", SCR_GIBSON, -1);
+    ui_dispatch(K_OK, 0);
+    snap("terminal", SCR_TERMINAL, -1);
+    ui_dispatch(K_ESC, 0);
+    ui_dispatch(K_RT, 0);
+    ui_dispatch(K_OK, 0);
+    snap("gibson-scan", SCR_SCAN, 12);
+    ui_dispatch(K_CHAR, 'w');
+    ui_dispatch(K_CHAR, 'i');
+    ui_dispatch(K_CHAR, 'f');
+    ui_dispatch(K_CHAR, 'i');
+    ui_dispatch(K_OK, 0);
+    snap("wifi-radar", SCR_WIFI_RADAR, -1);
+    ui_dispatch(K_CHAR, 'b');
+    ui_dispatch(K_CHAR, 'l');
+    ui_dispatch(K_CHAR, 'e');
+    ui_dispatch(K_OK, 0);
+    snap("ble-radar", SCR_BT_RADAR, -1);
+    host_band_sim = 0;
 }
 /* v1017a flicker sim (tools/host band simulator): full reference paint at the current millis */
 extern int host_band_sim;

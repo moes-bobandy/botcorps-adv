@@ -11,6 +11,12 @@
 #include "ui/botcorps_band.h"
 #include "ui/botcorps_ui.h"
 
+#include <esp_heap_caps.h>
+
+#ifndef BOTCORPS_BUILD_ID
+#define BOTCORPS_BUILD_ID "v1019z nogit"
+#endif
+
 #include <memory>
 #include "utility/Keyboard/KeyboardReader/TCA8418.h"
 
@@ -53,7 +59,7 @@ void setup(void)
     M5Cardputer.Display.setRotation(1);
 
     const auto board = M5.getBoard();
-    Serial.printf("\n[botcorps] %s\n", BOTCORPS_VERSION);
+    Serial.printf("\n[botcorps] %s %s\n", BOTCORPS_VERSION, BOTCORPS_BUILD_ID);
     Serial.printf("[botcorps] board=%d (%s)\n", (int)board,
                   board == m5::board_t::board_M5CardputerADV ? "Cardputer-Adv" :
                   board == m5::board_t::board_M5Cardputer    ? "Cardputer-K126" :
@@ -82,11 +88,23 @@ void setup(void)
     Serial.println("[botcorps] sd mount is on demand, not at boot");
 
     botcorps_band_touch();
+    {
+        uint16_t sum = 0;
+        int zero = 0;
+        for (int i = 0; i < 256; ++i) {
+            sum = (uint16_t)(sum + botcorps_t0_lut565[i]);
+            if (botcorps_t0_lut565[i] == 0) ++zero;
+        }
+        Serial.printf("[botcorps] lut sum=%04x zero=%d\n", sum, zero);
+    }
     botcorps_frame_diag();
     botcorps_band_release();
-    botcorps_probe_run();
     botcorps_band_rebuild();
     botcorps_id_strip_alloc();
+    botcorps_probe_run();
+    Serial.printf("[botcorps] band after-probe live=%d direct=%d largest=%u\n",
+                  botcorps_band_live() ? 1 : 0, botcorps_band_direct() ? 1 : 0,
+                  (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL));
     botcorps_ui_mark_dirty();
 
     /* Rain boot is the first real screen. loop() owns keys and rain.
@@ -94,6 +112,8 @@ void setup(void)
     botcorps_ui_begin();
     botcorps_probe_screen("-", "rain");
     botcorps_ui_draw();
+    Serial.printf("[botcorps] first frame path=%s\n",
+                  botcorps_band_direct() ? "direct" : "band");
 }
 
 void loop(void)

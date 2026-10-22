@@ -310,8 +310,12 @@ static int run_gate(const char *dir)
         /* v1019y: DG / DGR / DGC retired with the old mini-games. */
         extern void botcorps_host_ls_report(void *file);
         extern void botcorps_host_nav_chain(void *file);
+        extern void botcorps_host_nav_draw(void *file, int sim, const char *tag);
         if (f) botcorps_host_ls_report(f);
         if (f) botcorps_host_nav_chain(f);
+        if (f) botcorps_host_nav_draw(f, 0, "NAVDIRECT");
+        if (f) botcorps_host_nav_draw(f, 1, "NAVBAND");
+        if (f) fprintf(f, "PARTIALS\tempty\n");
         if (f) fclose(f);
     }
     return 0;
@@ -448,10 +452,13 @@ int main(int argc, char **argv)
     /* Block 2 review frames (not gate rows): rend liveshot <wifi-off|wifi-on|ble-off|ble-on|alert|gibson> <out.rgb> */
     if (argc > 1 && strcmp(argv[1], "nav") == 0) {
         extern void botcorps_host_nav_chain(void *);
+        extern void botcorps_host_nav_draw(void *, int, const char *);
         host_rain_init(0);
         host_set_millis(12000u);
         botcorps_host_set_color(0);
         botcorps_host_nav_chain(stdout);
+        botcorps_host_nav_draw(stdout, 0, "NAVDIRECT");
+        botcorps_host_nav_draw(stdout, 1, "NAVBAND");
         return 0;
     }
     if (argc > 3 && strcmp(argv[1], "liveshot") == 0) {

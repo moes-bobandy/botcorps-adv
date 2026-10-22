@@ -425,6 +425,8 @@ k1_seen = False
 NSCR = 11
 nav_need = ['boot-rain', 'hub', 'terminal', 'gibson-scan', 'wifi-radar', 'ble-radar']
 nav_got = set()
+nav_direct = set()
+nav_band = set()
 if os.path.exists(fp):
     for ln in open(fp):
         f = ln.rstrip('\n').split('\t')
@@ -504,15 +506,20 @@ if os.path.exists(fp):
             }
             title = names.get(f[1], 'LS' + f[1])
             rep('functional', title, len(f) > 2 and f[2] == '1', f[3] if len(f) > 3 else '')
-        elif f[0] == 'NAVCHAIN' and len(f) >= 10:
+        elif f[0] in ('NAVCHAIN', 'NAVDIRECT', 'NAVBAND') and len(f) >= 10:
             step, got, want, bot = f[1], int(f[2]), int(f[3]), int(f[4])
             w, h, left, ext_px = int(f[5]), int(f[6]), int(f[7]), int(f[8])
-            nav_got.add(step)
+            bucket = nav_got if f[0] == 'NAVCHAIN' else nav_direct if f[0] == 'NAVDIRECT' else nav_band
+            bucket.add(step)
             ok = got == want and w == 320 and h == 240 and left < 128 and ext_px >= 500
             if step == 'gibson-scan':
                 ok = ok and bot == 12
-            rep('functional', f'NAV {step}: key path paints the 320x240 EXT surface', ok,
+            label = 'NAV' if f[0] == 'NAVCHAIN' else f[0]
+            rep('functional', f'{label} {step}: key path paints the 320x240 EXT surface', ok,
                 f'screen {got} want {want} bot={bot} {w}x{h} sentinel={left} ext_px={ext_px}')
+        elif f[0] == 'PARTIALS':
+            rep('functional', 'V2 partials: no band-only caller without a direct twin',
+                len(f) > 1 and f[1] == 'empty', f[1] if len(f) > 1 else '')
         elif f[0] == 'SIM':
             name, bad, pres, push, rec, worst = f[1], int(f[2]), int(f[3]), int(f[4]), int(f[5]), int(f[6])
             # v1019v: full-width zap Defend chrome presents large band slices by design (mock v5).
@@ -534,6 +541,10 @@ if os.path.exists(fp):
 for step in nav_need:
     if step not in nav_got:
         rep('functional', f'NAV {step}: key path paints the 320x240 EXT surface', False, 'missing')
+    if step not in nav_direct:
+        rep('functional', f'NAVDIRECT {step}: key path paints the 320x240 EXT surface', False, 'missing')
+    if step not in nav_band:
+        rep('functional', f'NAVBAND {step}: key path paints the 320x240 EXT surface', False, 'missing')
 rep('functional', 'K0 keyboard test ran', k1_seen, '' if k1_seen else 'no K1 line in functional.txt')
 rep('functional', 'LS-D1 device heap with the band held', None, 'on-device feel check')
 rep('functional', 'LS-D2 ten-minute live scan per band', None, 'on-device field test')

@@ -154,3 +154,27 @@ per screen, and every push is checked against a full paint at the same millis().
 | id | rule |
 |---|---|
 | R0 | Static RAM is `.dram0.data` + `.dram0.bss` (PlatformIO "RAM: used N bytes"). `tools/gate/ram.py` PASSes at or under the cap in `release/gate/ram-caps.txt` and FAILs above it. Caps: cardputer-adv 71,264 B; cardputer-adv-dual 71,896 B; cardputer-adv-dual-launcher 71,896 B; dual with `BOTCORPS_LIVE_SCAN=1` 71,904 B. An elf older than `src/` or `platformio.ini` is FAIL. Growth has to be paid back with savings. The livescan env is a measurement build, not a flashed product (ARCH freeze, GIBSON-ratified 2026-10-19) |
+
+## Scan-chip button (FINAL-v2 lock, 2026-10-22)
+
+This is the current EXT chip-button lock. It is implemented on `9cc4c191b4ca085ee2ffe249573629f2b979e67a` (parent `d1773002674d4a2e64be8e05907ae539b967260d`).
+
+| Source | sha256 |
+|---|---|
+| LOCK.md (FINAL-v2 look lock) | `bfe9ff935ea17693c06aeb6dcf135a8fe005e6327b3b08c5543f84ff071687a3` |
+| ARCH-SCAN-CHIP-BUTTON-v004 (behaviour, gates, holds) | `b4d6925ceaf2dfe30846eb30d47ddcfa237a586728ade714b60ca794e8448704` |
+
+Where an older paragraph in this file disagrees, this section wins. Superseded: the Terminal "12 ESP32 chip tiles" wording in N1 (the grid is 12 slots, KING then the bots, no KEYFOB tile); N2 Select indexes those slots (slot 0 enters Gibson's game); the dual-device chip centres at y=108; the grey strip in `paint_sbox`. HOLD-A1 (L1 `scanboard-gibson` lines 39–40 of `release/gate/locked-675c87d.sha256`) is not re-locked. HOLD-DIFF (0 px against the 17 shipped FINAL-v2 1× PNGs) stays held: the cut may land, merge stays red until that diff is 0.
+
+| id | rule |
+|---|---|
+| CHIP | One `chip_button`. 54×54 at (34,67) on WIFIBOT, BLUETOOTHBOT, Gibson SCAN, AIRTAG (scan and Defend), and Gibson's game. Pins come only from `chip_shell` (`bot >= 12` gold, otherwise silver). Idle is a 1 px steel bevel. Press drops the face 1 px, then a clockwise rim runs 16 steps × 178 ms = 2848 ms. Scan bots commit results and return to idle. AIRTAG and Gibson's game start Defend. Esc mid-ring aborts with no partial results and no Defend start |
+| KING | `s_term` is a slot 0..11. The table is `{12,0,1,2,3,4,5,6,8,9,10,11}`. Slot 0 is the KING tile (ivory rim, gold comb, label GIBSON). KEYFOB (bot 7) has no tile. Enter on slot 0 is `enter_defend(12)`. Left/right move between slots |
+| KEYFOB | `go keyfob` and `load keyfob` set `s_scan_bot = 7` and open `SCR_SCAN`, in the Terminal `run_cmd` go/load block only. `scan keyfob` stays on `SCR_TERMINAL`, logs the same sweep as before, and leaves the cursor where it was |
+| PANEL | Left panel inside (20,43)–(101,193). Silk from y=124 (pitch 7, Gibson pitch 6). Single device T=26 at (48,149). Gibson SCAN dual chips T=22 at (32,144) and (66,144), wire index 104, ticker 22×71 at (24,169). Gibson game is the 4×2 glossary grid. BT glyph is the existing `BOTCORPS_ICON_BT` |
+| RAIN | Board rain is the background layer in RAIN_WIN (20,43)–(101,191), strand mode, faint 3/5, white lead. WIFI→AP, BLE→SPEAKER, AIRTAG→TRACKER, Gibson→all. Full-screen rain stays the firmware default. Gibson Defend is board rain only. No rain through Terminal tile faces |
+| GREY | `sb_rect(g, dx - 9, dy + 44, 5, 44, 41)` is absent from `paint_sbox` (x97..101 y86..129) |
+| ICONS | Plain Wi-Fi and BLE radar show 17 icons in 3 rows, no rail, console `sweep 17/17`. Gibson's crew drop-down is 3 rows for that lane. Lanes over 21 still use the rail. Scan-box overlays keep the previous 12-icon grid so their pixels stay inside the edit box |
+| HEAP | `direct_tile_invert` logs `direct tile alloc fail w=%d h=%d largest=%u` once, then returns with no invert. After the I4 band line and before `botcorps_ui_mark_dirty`, the boot log prints `[botcorps] heap i4 free=%u largest=%u min=%u` |
+| LIVE | Launcher `LIVE_SCAN=0`. NimBLE admit gate stays 48 KB. R0 caps unchanged |
+| G7 | `release/gate/frozen.txt` masks only the scan-chip allow-list: Terminal tile slots, the grey strip on non-chip scan boards, and EDIT∪ZR (20,40)–(101,193) on the sbox, AIRTAG scan board, and game rows. `scan-wifi` and `scan-ble` may change freely and are not frozen. Settings, hub, hub-amber, and boot stay byte-identical to `locked-675c87d.sha256` |

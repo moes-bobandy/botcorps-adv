@@ -67,7 +67,7 @@ static bool cp_part_rect_spread(int index, int *x, int *y, int *w, int *h)
         case 2: X = 158; Y = 26;  W = 40; H = 54; break;
         case 5: X = 42;  Y = 98;  W = 40; H = 54; break;
         case 7: X = 158; Y = 98;  W = 40; H = 54; break;
-        case 6: X = 196; Y = 182; W = 12; H = 10; break; /* PWR right of C1, clear */
+        case 6: X = 178; Y = 182; W = 12; H = 10; break; /* PWR inside bay (fx 40..199), right of C1 */
         case 4: X = 120; Y = 286; W = 22; H = 22; break;
         case 3: X = 156; Y = 294; W = 22; H = 12; break;
         case 8: X = 192; Y = 294; W = 22; H = 12; break;
@@ -1188,154 +1188,477 @@ static void paint_scan_tiles_p(Gfx g, int gx, int gy, int pitch, int n, bool wif
     if (hx0 >= 0) sb_halo(g, hx0, hy0, 18);
 }
 
-/* Wi-Fi / BT: bot-colour chrome + landscape tile recipe + traced chips. */
+/* ---- Mock B scan-board template (portrait only): shared by Wi-Fi / BT / bot / Gibson scan.
+ * Geometry measured from the approved mock B frames (240x320). ---- */
+struct ScanB {
+    uint8_t outer, inner, pad_top, pad_side; /* frame, inner line + chevrons, pad top, pad sides */
+    uint8_t gear, trace, bus24;              /* corner gears, board traces, y24 accent (0 = none) */
+};
+static void scanb_mark_p(Gfx g, int cx, int y, uint8_t c, bool gear)
+{
+    /* Chevron (top corners) or gear ring (bottom corners), 7-9 px wide. */
+    if (!gear) {
+        g.fillRect(cx, y, 1, 1, c);
+        g.fillRect(cx - 2, y + 1, 5, 1, c);
+        g.fillRect(cx - 3, y + 2, 3, 1, c); g.fillRect(cx + 1, y + 2, 3, 1, c);
+        g.fillRect(cx - 3, y + 3, 2, 1, c); g.fillRect(cx + 2, y + 3, 2, 1, c);
+        return;
+    }
+    g.fillRect(cx - 2, y, 5, 1, c);
+    g.fillRect(cx - 3, y + 1, 3, 1, c); g.fillRect(cx + 1, y + 1, 3, 1, c);
+    g.fillRect(cx - 3, y + 2, 2, 1, c); g.fillRect(cx + 2, y + 2, 2, 1, c);
+    g.fillRect(cx - 4, y + 3, 2, 1, c); g.fillRect(cx + 3, y + 3, 2, 1, c);
+    g.fillRect(cx - 3, y + 4, 2, 1, c); g.fillRect(cx + 2, y + 4, 2, 1, c);
+    g.fillRect(cx - 3, y + 5, 3, 1, c); g.fillRect(cx + 1, y + 5, 3, 1, c);
+    g.fillRect(cx - 2, y + 6, 5, 1, c);
+    g.fillRect(cx, y + 7, 1, 1, c);
+}
+static void scanb_pad_p(Gfx g, int x, int y, int w, bool top, const ScanB &s)
+{
+    /* 4x4 castellated pad: white edge facing the board centre. */
+    const int x1 = x + w - 1;
+    if (top) {
+        g.fillRect(x, y, w, 1, s.pad_top);
+        if (w == 4) g.fillRect(x, y + 1, 1, 2, s.pad_side);
+        g.fillRect(x1, y + 1, 1, 2, s.pad_side);
+        g.fillRect(x, y + 3, w, 1, s.pad_side);
+    } else {
+        g.fillRect(x, y, w, 1, s.pad_top);
+        if (w == 4) g.fillRect(x, y + 1, 1, 2, s.pad_side);
+        g.fillRect(x1, y + 1, 1, 2, s.pad_side);
+        g.fillRect(x, y + 3, w, 1, s.pad_side);
+    }
+}
+static void paint_scanb_frame_p(Gfx g, const ScanB &s)
+{
+    g.fillRect(0, 24, 240, 1, (uint8_t)69);
+    if (s.bus24) g.fillRect(0, 24, 37, 1, s.bus24);
+    g.fillRect(0, 25, 240, 295, PAL_BLACK); /* mock B scan boards are matte: no rain */
+    g.drawRect(5, 26, 230, 294, s.outer);
+    g.drawRect(6, 27, 228, 292, s.outer);
+    g.drawRect(9, 30, 222, 286, s.inner);
+    for (int k = 0; k < 24; ++k) {
+        const int x = 23 + k * 8;
+        const int xx = k ? x : 25, w = k ? 4 : 2;
+        scanb_pad_p(g, xx, 34, w, true, s);
+        scanb_pad_p(g, xx, 307, w, false, s);
+    }
+    scanb_mark_p(g, 17, 34, s.inner, false);
+    scanb_mark_p(g, 223, 34, s.inner, false);
+    scanb_mark_p(g, 17, 305, s.gear, true);
+    scanb_mark_p(g, 223, 305, s.gear, true);
+}
+/* Upper panel: 1 px grape rim + green grid (5 rows, open bottom) at the landscape pitch. */
+static void paint_scanb_panel_p(Gfx g, bool grid)
+{
+    g.drawRect(29, 41, 182, 119, (uint8_t)69);
+    if (!grid) return;
+    g.fillRect(207, 45, 1, 110, (uint8_t)69);
+    for (int c = 0; c < 8; ++c) g.fillRect(33 + c * 22, 46, 1, 109, (uint8_t)1);
+    for (int r = 0; r < 5; ++r) g.fillRect(33, 46 + r * 22, 174, 1, (uint8_t)1);
+    for (int c = 0; c < 8; ++c)
+        for (int r = 0; r < 5; ++r)
+            g.fillRect(32 + c * 22, 45 + r * 22, 3, 3, (uint8_t)65);
+}
+static void scanb_diag_p(Gfx g, int x, int y, int dx, int dy, int n, uint8_t c)
+{
+    for (int i = 0; i < n; ++i) g.fillRect(x + i * dx, y + i * dy, 1, 1, c);
+}
+/* Side buses from the panel edge pads down around the panel into the chip's top pins,
+ * plus the five bottom pins dropping into the terminal. */
+static void paint_scanb_traces_p(Gfx g, uint8_t tr)
+{
+    const uint8_t gold = (uint8_t)177;
+    /* Left outer: pad (29,112) -> x16 -> y169 -> pin x102. */
+    g.fillRect(19, 112, 10, 1, tr);
+    scanb_diag_p(g, 18, 113, -1, 1, 2, tr);
+    g.fillRect(16, 115, 1, 49, tr);
+    scanb_diag_p(g, 16, 164, 0, 1, 3, tr);
+    scanb_diag_p(g, 17, 167, 1, 1, 2, tr);
+    g.fillRect(19, 169, 81, 1, tr);
+    scanb_diag_p(g, 100, 170, 1, 1, 2, tr);
+    g.fillRect(102, 172, 1, 8, tr);
+    /* Left inner: pad (29,120) -> x19 -> y166 -> pin x110. */
+    g.fillRect(22, 120, 7, 1, tr);
+    scanb_diag_p(g, 21, 121, -1, 1, 2, tr);
+    g.fillRect(19, 123, 1, 41, tr);
+    scanb_diag_p(g, 20, 164, 1, 1, 2, tr);
+    g.fillRect(22, 166, 86, 1, tr);
+    scanb_diag_p(g, 108, 167, 1, 1, 2, tr);
+    g.fillRect(110, 169, 1, 11, tr);
+    /* Right inner / outer, mirrored. */
+    g.fillRect(211, 112, 10, 1, tr);
+    scanb_diag_p(g, 221, 113, 1, 1, 2, tr);
+    g.fillRect(223, 115, 1, 52, tr);
+    scanb_diag_p(g, 222, 167, -1, 1, 2, tr);
+    g.fillRect(136, 169, 85, 1, tr);
+    scanb_diag_p(g, 135, 170, -1, 1, 2, tr);
+    g.fillRect(133, 172, 1, 8, tr);
+    g.fillRect(211, 120, 7, 1, tr);
+    scanb_diag_p(g, 218, 121, 1, 1, 2, tr);
+    g.fillRect(220, 123, 1, 41, tr);
+    scanb_diag_p(g, 219, 164, -1, 1, 2, tr);
+    g.fillRect(128, 166, 90, 1, tr);
+    scanb_diag_p(g, 127, 167, -1, 1, 2, tr);
+    g.fillRect(125, 169, 1, 11, tr);
+    /* Centre drop from the panel exit pad. */
+    g.fillRect(117, 160, 1, 20, tr);
+    g.fillRect(117, 158, 2, 2, gold);
+    for (int i = 0; i < 2; ++i) {
+        g.fillRect(29, 112 + i * 8, 2, 1, gold);
+        g.fillRect(209, 112 + i * 8, 2, 1, gold);
+    }
+    /* Bottom pins into the terminal. */
+    static const int PX[5] = { 102, 110, 117, 125, 133 };
+    for (int i = 0; i < 5; ++i) g.fillRect(PX[i], 236, 1, 13, tr);
+}
+static void paint_scanb_boards_p(Gfx g)
+{
+    g.drawRect(20, 174, 76, 69, (uint8_t)69);
+    g.drawRect(144, 174, 76, 69, (uint8_t)69);
+}
+/* MCU package: steel ring + silver pins + bot face with two eyes (mock B 56 px / 36 px face). */
+static void paint_scanb_chip_p(Gfx g, uint8_t face, uint8_t hi, uint8_t lo, uint8_t tr, bool eyes)
+{
+    const uint8_t ring = (uint8_t)110, pin = (uint8_t)186;
+    g.fillRect(92, 180, 56, 56, PAL_BLACK);
+    g.drawRect(92, 180, 56, 56, ring);
+    g.fillRect(95, 183, 51, 1, ring);
+    g.fillRect(95, 183, 1, 53, ring);
+    g.fillRect(94, 191, 1, 42, (uint8_t)9);
+    g.fillRect(144, 184, 1, 48, (uint8_t)41);
+    g.fillRect(94, 232, 50, 1, (uint8_t)41);
+    g.fillRect(94, 233, 6, 1, (uint8_t)9);
+    static const int PX[5] = { 101, 109, 117, 125, 133 };
+    for (int i = 0; i < 5; ++i) {
+        g.fillRect(PX[i], 180, 2, 5, pin);
+        g.fillRect(PX[i], 231, 2, 5, pin);
+        g.fillRect(92, 189 + i * 8, 5, 2, pin);
+        g.fillRect(143, 189 + i * 8, 5, 2, pin);
+        g.fillRect(148, 190 + i * 8 - (i > 1 ? 1 : 0), 2, 1, tr);
+    }
+    g.fillRect(102, 190, 36, 36, face);
+    g.fillRect(102, 190, 36, 2, hi);
+    g.fillRect(102, 224, 36, 2, lo);
+    if (eyes) {
+        g.fillRect(109, 197, 7, 7, PAL_BLACK);
+        g.fillRect(123, 197, 7, 7, PAL_BLACK);
+    }
+}
+/* Peri die: 1 px device-ink rim, silver/steel castellations, device glyph, fan-in traces. */
+static void paint_scanb_peri_p(Gfx g, int kind, uint8_t rim, uint8_t tooth, uint8_t tr)
+{
+    const int x = 158, y = 193, T = 26;
+    g.fillRect(x, y, T, T, PAL_BLACK);
+    g.drawRect(x, y, T, T, rim);
+    for (int k = 0; k < 5; ++k) {
+        const int i = 1 + k * 5;
+        g.fillRect(x + i, y - 2, 4, 2, tooth); g.fillRect(x + i + 1, y - 2, 2, 2, (uint8_t)186);
+        g.fillRect(x + i, y + T, 4, 2, tooth); g.fillRect(x + i + 1, y + T, 2, 2, (uint8_t)186);
+        g.fillRect(x - 2, y + i, 2, 4, tooth); g.fillRect(x - 2, y + i + 1, 2, 2, (uint8_t)186);
+        g.fillRect(x + T, y + i, 2, 4, tooth); g.fillRect(x + T, y + i + 1, 2, 2, (uint8_t)186);
+    }
+    gl_icon(g, kind, x + 7, y + 7, false);
+    /* Chip right pins -> peri left teeth. */
+    scanb_diag_p(g, 150, 191, 1, 1, 6, tr);
+    scanb_diag_p(g, 150, 199, 1, 1, 2, tr);
+    g.fillRect(152, 201, 4, 1, tr);
+    g.fillRect(148, 205, 8, 1, tr);
+    g.fillRect(152, 210, 4, 1, tr);
+    scanb_diag_p(g, 151, 211, -1, 1, 2, tr);
+    scanb_diag_p(g, 155, 215, -1, 1, 6, tr);
+}
+/* Silk block: name / module / role in the board ink, device label in the device ink (Font0). */
+static void paint_scanb_silk_p(Gfx g, const char *nm, const char *l3, const char *lab,
+                               uint8_t silk, uint8_t ink, int dx)
+{
+    tiny_text(g, nm, 52 + dx - tiny_w(nm) / 2, 194, silk);
+    tiny_text(g, "ESP32-WROOM-32", 25 + dx, 201, silk);
+    tiny_text(g, l3, 52 + dx - tiny_w(l3) / 2, 208, silk);
+    if (lab && *lab) {
+        g.setFont(&fonts::Font0);
+        g.setTextSize(1);
+        g.setTextDatum(lgfx::textdatum::top_left);
+        g.setTextColor(ink);
+        g.drawString(lab, strlen(lab) > 10 ? 23 : 25, 216);
+    }
+}
+
+/* Mock B tiles: 18x18 rim 149 / face 5; selected = white rim, grape face, white corner ticks. */
+static void paint_scanb_tiles_at_p(Gfx g, int y0, int n, bool wifi)
+{
+    for (int k = 0; k < n && k < 40; ++k) {
+        const int c = k % 8, r = k / 8;
+        const int x = 35 + c * 22, y = y0 + r * 22;
+        const bool sel = (k == 0);
+        g.fillRect(x, y, 18, 18, sel ? (uint8_t)PAL_WHITE : (uint8_t)149);
+        g.fillRect(x + 1, y + 1, 16, 16, sel ? (uint8_t)69 : (uint8_t)5);
+        if (wifi) v2_icon_at(g, k, x + 3, y + 3);
+        else gl_icon(g, (int)LIST_BLE_TY[k % SB_N], x + 3, y + 3, false);
+        if (sel) {
+            g.fillRect(x + 21, y - 3, 1, 4, PAL_WHITE);
+            g.fillRect(x + 21, y + 17, 1, 2, PAL_WHITE);
+            g.fillRect(x - 1, y + 19, 1, 3, PAL_WHITE);
+            g.fillRect(x - 3, y + 21, 3, 1, PAL_WHITE);
+        }
+    }
+}
+
+/* Wi-Fi / BT: mock B board (bot-colour frame, grape panel, traced MCU + device die). */
 static void paint_radar_p(Gfx g, bool wifi)
 {
     const int bot = wifi ? 0 : 1;
-    const uint8_t botc = bot_color(bot);
-    paint_chrome_bot_p(g, botc);
-    g.fillRect(10, 28, 220, 218, PAL_FIELD);
-    /* Mock B top bus + white pin teeth (y≈30/34). */
-    g.fillRect(16, 30, 208, 1, botc);
-    for (int i = 0; i < 24; ++i) {
-        const int tx = 20 + i * 8;
-        g.fillRect(tx, 33, 3, 2, PAL_WHITE);
-    }
-    const int gx = 33, gy = 46, cols = 8, rows = 5, pitch = 22;
-    paint_scan_grid_p(g, gx, gy, cols, rows, pitch, botc);
-    paint_scan_tiles_p(g, gx, gy, pitch, wifi ? 17 : 16, wifi);
-    /* Side rails mid-board (mock B). */
-    for (int i = 0; i < 4; ++i) {
-        g.fillRect(gx - 3, gy + 20 + i * 22, 2, 10, botc);
-        g.fillRect(gx + cols * pitch + 1, gy + 20 + i * 22, 2, 10, botc);
-    }
-    /* Mock B: MCU face ~y192–222; peri cyan die ~24–26 px. */
-    const int mcx = 120, mcy = 207, ms = 48;
-    const int pcx = 172, pcy = 205, ps = 24;
-    paint_chip_traces_p(g, mcx, mcy, ms, pcx, pcy, ps, botc, 0);
-    paint_scan_silk_p(g, bot, false, wifi, !wifi);
-    chip_block(g, mcx, mcy, ms, bot);
-    paint_peri_p(g, pcx, pcy, bot, (uint8_t)PAL_CYAN);
+    const uint8_t fc = wifi ? (uint8_t)87 : (uint8_t)59;
+    const ScanB sb = { fc, fc, (uint8_t)PAL_WHITE, fc, fc, wifi ? (uint8_t)10 : (uint8_t)50, (uint8_t)167 };
+    paint_chrome_p(g);
+    paint_scanb_frame_p(g, sb);
+    paint_scanb_panel_p(g, true);
+    paint_scanb_tiles_at_p(g, 48, wifi ? 17 : 16, wifi);
+    paint_scanb_traces_p(g, sb.trace);
+    paint_scanb_boards_p(g);
+    paint_scanb_chip_p(g, fc, wifi ? (uint8_t)151 : (uint8_t)155, wifi ? (uint8_t)10 : (uint8_t)14, sb.trace, true);
+    const int kind = bot_dev_kind(bot);
+    paint_scanb_peri_p(g, kind, GL_INK[kind][0], fc, sb.trace);
+    paint_scanb_silk_p(g, wifi ? "WIFIBOT" : "BLUETOOTHBOT", "RADIO CORE",
+                       wifi ? "WI-FI AP U2" : "SPEAKER U2", fc, GL_INK[kind][0], wifi ? -2 : 0);
     port_seed_scan_logs(wifi, !wifi, false, bot);
     paint_pterm(g, PT_X, PT_Y, PT_W, PT_H);
 }
 
-/* Gibson accordion vs mock B: purple frame, teal WIFI open, 3-row tiles, BT/DEAUTH meters. */
-static void paint_gibson_accordion_p(Gfx g)
+/* Gibson crew lane die: 13 px, steel side pins, body with a lit top row, two eyes, dark foot. */
+static void gib_lane_die_p(Gfx g, int y0, uint8_t body, uint8_t hi, uint8_t lo)
 {
-    const uint8_t ice = bot_color(1);      /* BT cyan */
-    const uint8_t ice_bar = (uint8_t)155;  /* RGB332 light ice top bus */
-    const uint8_t wifi_c = bot_color(0);
-    const uint8_t grape = (uint8_t)69;     /* muted grape ~mock (90,36,99) */
-    const uint8_t chalk = (uint8_t)8;
-    const uint8_t deauth_c = (uint8_t)224; /* red accent */
-    /* Top bus + ice/copper pins. */
-    g.fillRect(16, 30, 208, 1, ice_bar);
-    for (int i = 0; i < 24; ++i) {
-        const int tx = 20 + i * 8;
-        g.fillRect(tx, 33, 3, 2, (uint8_t)217);
-        g.fillRect(tx + 1, 34, 1, 1, PAL_BLACK);
+    g.fillRect(39, y0 + 1, 11, 9, PAL_BLACK);
+    g.fillRect(40, y0 + 1, 9, 9, body);
+    g.fillRect(40, y0 + 1, 9, 1, hi);
+    g.fillRect(40, y0 + 9, 9, 1, lo);
+    g.fillRect(41, y0 + 3, 2, 1, PAL_BLACK);
+    g.fillRect(45, y0 + 3, 2, 1, PAL_BLACK);
+    for (int r = 1; r < 10; r += 2) {
+        g.fillRect(38, y0 + r, 1, 1, (uint8_t)186);
+        g.fillRect(50, y0 + r, 1, 1, (uint8_t)186);
     }
-    /* Outer accordion — mock 1px muted-purple rim ~x32–208, y41–160. */
-    const int ax = 32, aw = 176, ay = 41, ah = 120;
-    g.fillRect(ax, ay, aw, ah, chalk);
-    sb_frame(g, ax, ay, aw, ah, grape);
-    /* Crew header. */
-    chip_mini(g, ax + 10, ay + 8, 12, 12, false, 0);
-    tiny_text(g, "GIBSON", ax + 20, ay + 3, PAL_IVORY);
-    tiny_text(g, "CREW DROP-DOWN", ax + 20, ay + 9, COL_MUTED);
-    tiny_text(g, "63 FINDS", ax + aw - 40, ay + 5, PAL_IVORY);
-    /* WIFI open lane — landscape recipe: sb_mix(bc,0,72) body + left accent. */
-    const int y1 = 58, x = ax, w = aw;
-    const uint8_t wifi_body = sb_mix(wifi_c, 0x0000, 72);
-    g.fillRect(x, y1, w, 12, wifi_body);
-    g.fillRect(x, y1, 3, 12, wifi_c);
-    chip_mini(g, x + 10, y1 + 5, 10, 0, false, 0);
-    tiny_text(g, "WIFI", x + 20, y1 + 3, PAL_WHITE);
-    tiny_text(g, "12", x + w - 28, y1 + 3, PAL_IVORY);
-    tiny_text(g, "v", x + w - 12, y1 + 3, PAL_IVORY);
-    /* 3-row tiles (mock y≈70–128): 16 wifi + 1 ble start; rest empty black. */
-    const int gx = 40, gy = 72, pitch = 20;
-    paint_scan_grid_p(g, gx, gy, 8, 3, pitch, (uint8_t)65);
-    paint_scan_tiles_p(g, gx, gy, pitch, 17, true);
-    /* White corner brackets around open panel (mock B). */
-    g.fillRect(gx - 2, gy - 2, 6, 2, PAL_WHITE);
-    g.fillRect(gx - 2, gy - 2, 2, 6, PAL_WHITE);
-    g.fillRect(gx + 8 * pitch - 4, gy - 2, 6, 2, PAL_WHITE);
-    g.fillRect(gx + 8 * pitch, gy - 2, 2, 6, PAL_WHITE);
-    g.fillRect(gx - 2, gy + 3 * pitch - 0, 6, 2, PAL_WHITE);
-    g.fillRect(gx - 2, gy + 3 * pitch - 4, 2, 6, PAL_WHITE);
-    /* Side blue jog traces (mock), not copper teeth. */
-    for (int i = 0; i < 4; ++i) {
-        const int yy = 70 + i * 20;
-        g.fillRect(ax - 5, yy, 4, 1, wifi_c);
-        g.fillRect(ax - 5, yy, 1, 12, wifi_c);
-        g.fillRect(ax + aw + 1, yy, 4, 1, wifi_c);
-        g.fillRect(ax + aw + 4, yy, 1, 12, wifi_c);
+}
+/* Collapsed crew lane (BT / DEAUTH): slate body split by the trace channel, meter pips, count, caret. */
+static void gib_lane_closed_p(Gfx g, int y0, const char *nm, const char *cnt, uint8_t acc,
+                              uint8_t hi, uint8_t lo, uint8_t pip, int pips)
+{
+    g.fillRect(34, y0, 3, 11, acc);
+    g.fillRect(37, y0, 89, 11, (uint8_t)5);
+    g.fillRect(142, y0, 46, 11, (uint8_t)5);
+    gib_lane_die_p(g, y0, acc, hi, lo);
+    tiny_text(g, nm, 52, y0 + 3, (uint8_t)223);
+    for (int k = 0; k < pips; ++k) {
+        const int x = k < 3 ? 112 + k * 5 : 142 + (k - 3) * 5;
+        g.fillRect(x, y0 + 5, 3, 3, pip);
     }
-    /* BT collapsed — charcoal + ice + meter pips (mock y≈136). */
-    const int yb = 136;
-    g.fillRect(x, yb, w, 10, chalk);
-    g.fillRect(x, yb, 3, 10, ice);
-    sb_frame(g, x, yb, w, 10, ice);
-    chip_mini(g, x + 10, yb + 4, 10, 1, false, 0);
-    tiny_text(g, "BLUETOOTH", x + 20, yb + 2, PAL_WHITE);
-    for (int k = 0; k < 6; ++k)
-        g.fillRect(x + 78 + k * 5, yb + 3, 3, 3, ice);
-    tiny_text(g, "12", x + w - 28, yb + 2, PAL_IVORY);
-    tiny_text(g, ">", x + w - 12, yb + 2, ice);
-    /* DEAUTH collapsed — red accent + meter pips (mock y≈148). */
-    const int yd = 148;
-    g.fillRect(x, yd, w, 10, chalk);
-    g.fillRect(x, yd, 3, 10, deauth_c);
-    sb_frame(g, x, yd, w, 10, deauth_c);
-    chip_mini(g, x + 10, yd + 4, 10, 2, false, 0);
-    tiny_text(g, "DEAUTH", x + 20, yd + 2, PAL_WHITE);
-    for (int k = 0; k < 4; ++k)
-        g.fillRect(x + 78 + k * 5, yd + 3, 3, 3, deauth_c);
-    tiny_text(g, "4", x + w - 28, yd + 2, PAL_IVORY);
-    tiny_text(g, ">", x + w - 12, yd + 2, deauth_c);
+    tiny_text(g, cnt, 172 - tiny_w(cnt), y0 + 3, acc);
+    tiny_text(g, ">", 179, y0 + 2, (uint8_t)146);
+    g.fillRect(205, y0, 1, 11, (uint8_t)1);
+    g.fillRect(206, y0, 1, 11, (uint8_t)69);
+    g.fillRect(193, y0, 3, 11, (uint8_t)33);
 }
 
-/* AirTag pattern: PAL_LINE chrome (caller), gold top bus, radar targets + chips. */
+/* Gibson crew drop-down vs mock B: header, open WIFI lane with 17 finds, BT / DEAUTH collapsed. */
+static void paint_gibson_accordion_p(Gfx g)
+{
+    paint_scanb_panel_p(g, false);
+    g.fillRect(30, 42, 180, 117, PAL_FIELD);
+    /* Header: violet bracket, Gibson chip, name, finds. */
+    const uint8_t vio = (uint8_t)134;
+    g.fillRect(34, 44, 15, 1, vio);
+    g.fillRect(34, 45, 1, 8, vio);
+    g.fillRect(48, 45, 1, 8, vio);
+    g.fillRect(34, 53, 2, 1, vio);
+    g.fillRect(42, 53, 7, 1, vio);
+    g.fillRect(54, 45, 11, 11, PAL_BLACK);
+    for (int k = 0; k < 5; ++k) {
+        g.fillRect(55 + k * 2, 44, 1, 1, (uint8_t)177);
+        g.fillRect(53, 46 + k * 2, 1, 1, (uint8_t)177);
+        g.fillRect(65, 46 + k * 2, 1, 1, (uint8_t)177);
+    }
+    g.fillRect(55, 46, 9, 1, (uint8_t)251);
+    g.fillRect(55, 48, 1, 2, (uint8_t)251);
+    g.fillRect(59, 48, 1, 2, (uint8_t)251);
+    g.fillRect(63, 48, 1, 2, (uint8_t)251);
+    g.fillRect(55, 50, 9, 4, (uint8_t)251);
+    g.fillRect(55, 54, 9, 1, (uint8_t)214);
+    tiny_text(g, "GIBSON", 68, 45, (uint8_t)251);
+    tiny_text(g, "CREW DROP-DOWN", 68, 51, (uint8_t)146);
+    tiny_text(g, "63 FINDS", 157, 48, (uint8_t)251);
+    g.fillRect(205, 44, 1, 23, (uint8_t)1);
+    g.fillRect(206, 44, 1, 23, (uint8_t)69);
+    /* Open WIFI lane. */
+    g.fillRect(34, 58, 3, 10, (uint8_t)87);
+    g.fillRect(37, 58, 151, 10, (uint8_t)1);
+    gib_lane_die_p(g, 57, (uint8_t)87, (uint8_t)151, (uint8_t)10);
+    tiny_text(g, "WIFI", 52, 61, PAL_WHITE);
+    tiny_text(g, "12", 165, 61, PAL_WHITE);
+    for (int r = 0; r < 4; ++r) g.fillRect(178 + r, 62 + r, 7 - 2 * r, 1, (uint8_t)251);
+    g.fillRect(186, 55, 5, 1, PAL_WHITE);
+    g.fillRect(190, 56, 1, 4, PAL_WHITE);
+    for (int r = 0; r < 3; ++r) g.fillRect(194 - r, 58 + r, 1 + 2 * r, 1, (uint8_t)69);
+    /* Finds grid: 2 full rows + Bluetooth start, then empty slots. */
+    for (int c = 0; c < 8; ++c) g.fillRect(33 + c * 22, c ? 68 : 93, 1, c ? 66 : 41, (uint8_t)1);
+    for (int c = 0; c < 8; ++c) {
+        if (c >= 2) g.fillRect(32 + c * 22, 68, 3, 3, (uint8_t)65);
+        g.fillRect(32 + c * 22, 90, 3, 3, (uint8_t)65);
+    }
+    g.fillRect(32, 112, 3, 3, (uint8_t)65);
+    g.fillRect(35, 113, 19, 1, (uint8_t)1);
+    for (int c = 1; c < 8; ++c) {
+        g.fillRect(32 + c * 22, 132, 19, 1, (uint8_t)1);
+        g.fillRect(51 + c * 22, 113, 1, 20, (uint8_t)251);
+    }
+    paint_scanb_tiles_at_p(g, 71, 17, true);
+    gib_lane_closed_p(g, 135, "BLUETOOTH", "12", (uint8_t)59, (uint8_t)155, (uint8_t)14, (uint8_t)50, 6);
+    gib_lane_closed_p(g, 147, "DEAUTH", "4", (uint8_t)201, (uint8_t)210, (uint8_t)100, (uint8_t)165, 3);
+    g.fillRect(192, 156, 5, 1, PAL_WHITE);
+}
+
+/* Tracker ring (mock B AirTag find / die glyph): 10x10, ink ring, white pip, smoke core. */
+static void scanb_ring_p(Gfx g, int x, int y, uint8_t ink)
+{
+    static const char *const R[10] = {
+        "..######..", ".########.", "###....###", "##..ww..##", "##.w..w.##",
+        "##.w..w.##", "##..ww..##", "###....###", ".########.", "..######..",
+    };
+    for (int r = 0; r < 10; ++r)
+        for (int c = 0; c < 10; ++c) {
+            const char ch = R[r][c];
+            if (ch == '.') continue;
+            g.fillRect(x + c, y + r, 1, 1, ch == '#' ? ink : (uint8_t)PAL_WHITE);
+        }
+    g.fillRect(x + 3, y + 2, 4, 1, (uint8_t)68);
+    g.fillRect(x + 2, y + 3, 2, 4, (uint8_t)68);
+    g.fillRect(x + 6, y + 3, 2, 4, (uint8_t)68);
+    g.fillRect(x + 4, y + 3, 2, 1, (uint8_t)68);
+    g.fillRect(x + 4, y + 6, 2, 1, (uint8_t)68);
+    g.fillRect(x + 3, y + 7, 4, 1, (uint8_t)68);
+    g.fillRect(x + 4, y + 4, 2, 2, (uint8_t)68);
+}
+
+/* Bot SCAN (AirTag pattern): gold board, green radar grid, tag + tracker finds, traced MCU. */
 static void paint_bot_board_p(Gfx g, int bot)
 {
     const uint8_t bc = bot_color(bot);
-    const uint8_t gold = (uint8_t)248; /* RGB332 gold top bus (255,219,0) */
-    g.fillRect(10, 28, 220, 218, PAL_FIELD);
-    g.fillRect(16, 30, 208, 1, gold);
-    /* White pin teeth (mock y=34). */
-    for (int i = 0; i < 24; ++i) {
-        const int tx = 20 + i * 8;
-        g.fillRect(tx, 33, 3, 2, PAL_WHITE);
+    const int kind = bot_dev_kind(bot);
+    const uint8_t ink = GL_INK[kind][0];
+    const ScanB sb = { (uint8_t)41, (uint8_t)248, (uint8_t)PAL_WHITE, (uint8_t)186, (uint8_t)248, (uint8_t)177, 0 };
+    paint_scanb_frame_p(g, sb);
+    paint_scanb_panel_p(g, false);
+    g.fillRect(30, 42, 180, 117, PAL_FIELD);
+    g.fillRect(204, 53, 1, 95, (uint8_t)69);
+    for (int c = 0; c < 9; ++c) g.fillRect(34 + c * 19, 53, 1, 95, (uint8_t)1);
+    for (int r = 0; r < 5; ++r) g.fillRect(34, 53 + r * 19, 170, 1, (uint8_t)1);
+    for (int c = 0; c < 9; ++c)
+        for (int r = 0; r < 6; ++r) {
+            const int x0 = c ? 33 + c * 19 : 34, y0 = 52 + r * 19;
+            g.fillRect(x0, y0, c ? 3 : 2, r < 5 ? 3 : 1, (uint8_t)65);
+        }
+    /* Tag (bot colour) with its find trail and two tracker rings. */
+    g.fillRect(143, 68, 1, 2, bc);
+    g.fillRect(143, 70, 7, 2, bc);
+    g.fillRect(143, 72, 1, 4, bc);
+    g.fillRect(144, 72, 4, 4, (uint8_t)PAL_BLACK);
+    g.fillRect(148, 72, 2, 4, bc);
+    g.fillRect(143, 76, 7, 2, bc);
+    g.fillRect(143, 78, 5, 4, bc);
+    g.fillRect(144, 82, 4, 4, bc);
+    g.fillRect(164, 60, 2, 2, (uint8_t)109); g.fillRect(164, 64, 2, 2, (uint8_t)109);
+    g.fillRect(157, 69, 2, 2, (uint8_t)109); g.fillRect(157, 73, 2, 2, (uint8_t)109);
+    scanb_ring_p(g, 160, 73, ink);
+    scanb_ring_p(g, 153, 82, ink);
+    paint_scanb_traces_p(g, sb.trace);
+    paint_scanb_boards_p(g);
+    paint_scanb_chip_p(g, bc, (uint8_t)250, (uint8_t)140, sb.trace, true);
+    paint_scanb_peri_p(g, kind, ink, bc, sb.trace);
+    if (kind == GL_TRACKER) {
+        g.fillRect(159, 194, 24, 24, PAL_BLACK);
+        scanb_ring_p(g, 166, 201, ink);
     }
-    const int gx = 34, gy = 50, cols = 8, rows = 5, pitch = 21;
-    /* Frame stays PAL_LINE — bot colour only on targets / traces, not outer chrome. */
-    paint_scan_grid_p(g, gx, gy, cols, rows, pitch, (uint8_t)PAL_LINE, true);
-    chip_mini(g, gx + 40, gy + 36, 18, bot, false, 0);
-    g.fillRect(gx + 34, gy + 30, 12, 12, bc);
-    g.drawRect(gx + 33, gy + 29, 14, 14, PAL_WHITE);
-    /* Targets — mock AirTag cluster around x≈150,y≈75. */
-    static const int TX[3] = { 120, 150, 170 };
-    static const int TY[3] = { 28, 40, 55 };
-    for (int t = 0; t < 3; ++t) {
-        const int cx = gx + TX[t], cy = gy + TY[t];
-        g.drawCircle(cx, cy, 7, bc);
-        g.drawCircle(cx, cy, 5, bc);
-        g.fillCircle(cx, cy, 2, PAL_BLACK);
-        for (int d = 1; d <= 4; ++d)
-            g.fillRect(cx, cy + 8 + d * 3, 1, 1, sb_tone(3));
+    char nm[16];
+    sb_upper(nm, 16, BOTS[bot].short_name, 12);
+    if (strlen(nm) <= 9) strcat(nm, "BOT");
+    char lab[20];
+    snprintf(lab, sizeof lab, "%s U2", GL_LABEL[kind]);
+    paint_scanb_silk_p(g, nm, "RADIO CORE", lab, (uint8_t)41, ink, 0);
+}
+
+/* Gibson crew die (mock B): 24 px steel rim, slate core, silver castellations, one crew glyph. */
+static void scanb_crew_die_p(Gfx g, int x, int y, bool bt)
+{
+    const uint8_t rim = (uint8_t)110, core = (uint8_t)41, pin = (uint8_t)186;
+    g.fillRect(x, y, 24, 24, PAL_BLACK);
+    g.drawRect(x, y, 24, 24, rim);
+    g.drawRect(x + 3, y + 3, 18, 18, core);
+    for (int k = 0; k < 5; ++k) {
+        const int o = 5 + k * 3;
+        g.fillRect(x + o, y, 2, 4, pin);
+        g.fillRect(x + o, y + 20, 2, 4, pin);
+        g.fillRect(x, y + o, 4, 2, pin);
+        g.fillRect(x + 20, y + o, 4, 2, pin);
     }
-    for (int i = 0; i < 4; ++i) {
-        g.fillRect(gx - 3, gy + 16 + i * 18, 2, 10, bc);
-        g.fillRect(gx + cols * pitch + 1, gy + 16 + i * 18, 2, 10, bc);
+    static const char *const WIFI_G[12] = {
+        "....########....", "...###.....###..", "..##........###.", "..##........###.",
+        "......#####.....", "....##.....#....", ".......###......", ".......###......",
+        ".......###......", "................", ".......###......", ".......###......",
+    };
+    static const char *const BT_G[14] = {
+        "......##......", "......##......", "......####....", "....###.###...",
+        "...###.###....", "...###.###....", "....####......", "......####....",
+        "...###.###....", "...###.###....", "....###.###...", "......####....",
+        "......##......", "......##......",
+    };
+    const char *const *gl = bt ? BT_G : WIFI_G;
+    const int rows = bt ? 14 : 12, gy = bt ? y + 4 : y + 6;
+    const uint8_t ink = bt ? (uint8_t)59 : (uint8_t)87;
+    for (int r = 0; r < rows; ++r)
+        for (int c = 0; gl[r][c]; ++c)
+            if (gl[r][c] == '#') g.fillRect(x + 4 + c, gy + r, 1, 1, ink);
+}
+
+/* Gibson SCAN lower board (mock B): gold-pinned ivory MCU in shades, two crew dies, dim silk. */
+static void paint_gibson_board_p(Gfx g)
+{
+    const ScanB sb = { (uint8_t)41, (uint8_t)155, (uint8_t)217, (uint8_t)177, (uint8_t)155, (uint8_t)10, 0 };
+    const uint8_t tr = sb.trace;
+    paint_scanb_traces_p(g, tr);
+    paint_scanb_boards_p(g);
+    paint_scanb_chip_p(g, (uint8_t)251, (uint8_t)255, (uint8_t)214, tr, false);
+    static const int PX[5] = { 101, 109, 117, 125, 133 };
+    for (int i = 0; i < 5; ++i) {
+        g.fillRect(PX[i], 180, 2, 5, (uint8_t)177);
+        g.fillRect(PX[i], 231, 2, 5, (uint8_t)177);
+        g.fillRect(92, 189 + i * 8, 5, 2, (uint8_t)177);
+        g.fillRect(143, 189 + i * 8, 5, 2, (uint8_t)177);
+        g.fillRect(148, 190 + i * 8 - (i > 1 ? 1 : 0), 2, 1, PAL_BLACK);
     }
-    const int mcx = 120, mcy = 207, ms = 48;
-    const int pcx = 172, pcy = 205, ps = 24;
-    paint_chip_traces_p(g, mcx, mcy, ms, pcx, pcy, ps, bc, 0);
-    paint_scan_silk_p(g, bot, false, false, false);
-    chip_block(g, mcx, mcy, ms, bot);
-    paint_peri_p(g, pcx, pcy, bot, bc);
+    /* Shades: a full brow bar, two lenses with steel glints, a bridge. */
+    g.fillRect(106, 196, 28, 1, PAL_BLACK);
+    g.fillRect(109, 197, 9, 6, PAL_BLACK);
+    g.fillRect(122, 197, 9, 6, PAL_BLACK);
+    g.fillRect(110, 203, 7, 1, PAL_BLACK);
+    g.fillRect(123, 203, 7, 1, PAL_BLACK);
+    g.fillRect(111, 198, 2, 1, (uint8_t)110);
+    g.fillRect(124, 198, 2, 1, (uint8_t)110);
+    /* Pin stubs into the two crew dies. */
+    g.fillRect(148, 190, 8, 1, tr);
+    g.fillRect(148, 198, 4, 1, tr); g.fillRect(152, 197, 1, 1, tr); g.fillRect(153, 196, 3, 1, tr);
+    g.fillRect(148, 213, 4, 1, tr); g.fillRect(152, 214, 1, 1, tr); g.fillRect(153, 215, 3, 1, tr);
+    g.fillRect(148, 221, 8, 1, tr);
+    scanb_crew_die_p(g, 156, 178, false);
+    scanb_crew_die_p(g, 156, 210, true);
+    /* Dim crew-bus glyph on the right board. */
+    static const char *const RG[8] = {
+        "..####..", ".##..##.", "##.ff.##", "#.f..f.#", "#.f..f.#", "##.ff.##", ".##..##.", "..####..",
+    };
+    for (int r = 0; r < 8; ++r)
+        for (int c = 0; c < 8; ++c) {
+            const char ch = RG[r][c];
+            if (ch != '.') g.fillRect(190 + c, 176 + r, 1, 1, ch == '#' ? (uint8_t)109 : (uint8_t)41);
+        }
+    paint_scanb_silk_p(g, "GIBSON", "CORE   PRIME", nullptr, (uint8_t)41, 0, 4);
 }
 
 /* Bot / Gibson SCAN — Gibson keeps PAL_LINE chrome; bots keep PAL_LINE (not bot chrome). */
@@ -1346,18 +1669,13 @@ static void paint_scan_p(Gfx g)
     const int bot = gib ? 12 : (s_scan_bot % 12);
     const uint8_t ac = accent();
     if (gib) {
-        g.fillRect(10, 28, 220, 218, PAL_FIELD);
+        const ScanB sb = { (uint8_t)41, (uint8_t)155, (uint8_t)217, (uint8_t)177, (uint8_t)155, (uint8_t)10, 0 };
+        paint_scanb_frame_p(g, sb);
         paint_gibson_accordion_p(g);
-        const int mcx = 120, mcy = 207, ms = 48;
-        paint_chip_traces_p(g, mcx, mcy, ms, 172, 192, 24, (uint8_t)PAL_IVORY, 0);
-        paint_chip_traces_p(g, mcx, mcy, ms, 172, 220, 24, (uint8_t)PAL_IVORY, 0);
-        paint_scan_silk_p(g, 12, true, false, false);
-        chip_block(g, mcx, mcy, ms, 12);
-        chip_block(g, 172, 192, 24, 0);
-        chip_block(g, 172, 220, 24, 1);
+        paint_gibson_board_p(g);
         port_seed_scan_logs(false, false, true, 12);
     } else {
-        /* Outer chrome stays PAL_LINE (mock B); gold bus is inside paint_bot_board_p. */
+        /* Mock B board: frame, bus and pads are drawn inside paint_bot_board_p. */
         paint_bot_board_p(g, bot);
         port_seed_scan_logs(false, false, false, bot);
     }

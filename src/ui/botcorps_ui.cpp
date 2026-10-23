@@ -3285,11 +3285,13 @@ static void chip_block_radar(Gfx g, int cx, int cy, int S, int bot)
 static uint8_t s_gib_face = 0;
 /* One chip-edge castellation tooth — same 5×2 (horiz) / 2×5 (vert) art as chip_shell.
  * Portrait Control side headers call this so pin art stays identical to board/chip pins. */
+#ifdef BOTCORPS_CYD
 static void chip_edge_pin(Gfx g, int x, int y, bool horiz, uint8_t pin)
 {
     if (horiz) g.fillRect(x, y, 5, 2, pin);
     else       g.fillRect(x, y, 2, 5, pin);
 }
+#endif
 
 /* Steel shell shared by chip_block_ex and the SCR_SCAN device chips. Rings, castellations,
  * ivory mark, then the black window. The caller draws the face. bot >= 12 keeps gold pins. */
@@ -3307,18 +3309,32 @@ static void chip_shell(Gfx g, int cx, int cy, int S, int bot, int npins, const c
     if (bot >= 12 && npins == 4) {
         /* Option-E hub core (5dc1c54): i = 8; i <= S-10; i += 8. Four gold pins, not the later 5. */
         for (int i = 8; i <= S - 10; i += 8) {
+#ifdef BOTCORPS_CYD
             chip_edge_pin(g, x - 1, y + i, true, PAL_GOLD_PIN);
             chip_edge_pin(g, x + S - 4, y + i, true, PAL_GOLD_PIN);
             chip_edge_pin(g, x + i, y - 1, false, PAL_GOLD_PIN);
             chip_edge_pin(g, x + i, y + S - 4, false, PAL_GOLD_PIN);
+#else  /* Adv: original inline teeth (keeps the flag-off build byte-identical to bd49100) */
+            g.fillRect(x - 1, y + i, 5, 2, PAL_GOLD_PIN);
+            g.fillRect(x + S - 4, y + i, 5, 2, PAL_GOLD_PIN);
+            g.fillRect(x + i, y - 1, 2, 5, PAL_GOLD_PIN);
+            g.fillRect(x + i, y + S - 4, 2, 5, PAL_GOLD_PIN);
+#endif
         }
     } else {
         for (int k = 0; k < 5; ++k) {
             const int i = chip_pin(S, k);
+#ifdef BOTCORPS_CYD
             chip_edge_pin(g, x - 1, y + i, true, pin);
             chip_edge_pin(g, x + S - 4, y + i, true, pin);
             chip_edge_pin(g, x + i, y - 1, false, pin);
             chip_edge_pin(g, x + i, y + S - 4, false, pin);
+#else  /* Adv: original inline teeth (keeps the flag-off build byte-identical to bd49100) */
+            g.fillRect(x - 1, y + i, 5, 2, pin);
+            g.fillRect(x + S - 4, y + i, 5, 2, pin);
+            g.fillRect(x + i, y - 1, 2, 5, pin);
+            g.fillRect(x + i, y + S - 4, 2, 5, pin);
+#endif
         }
     }
     g.fillRect(x + 7, y + 7, 2, 2, PAL_IVORY);

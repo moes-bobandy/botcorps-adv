@@ -11133,14 +11133,40 @@ void botcorps_host_cyd_sim(const char *dir, FILE *script)
             printf("DIFF %-28s px=%ld bbox=%d,%d-%d,%d worst=%ld bad=%ld rows=%ld idcard=%ld\n", a, n, x0, y0, x1, y1, host_sim_worst, host_sim_bad, host_sim_rows, host_id_recompose_n);
             host_sim_rows = 0;
             if (n) { char path[512]; snprintf(path, sizeof path, "%s/%s-ref.rgb", dir, a); write_raw(path, ref, 0); snprintf(path, sizeof path, "%s/%s.rgb", dir, a); write_raw(path, host_sim_panel, 0); }
+        } else if (op == 'A') {            /* A: reachability audit of the generic cursor ring on this screen */
+            const int scr = s_screen, n = button_count();
+            int nav[64] = { 0 };
+            enter_screen(scr, SCR_GIBSON); s_dirty = true; step(3);
+            const int k0 = s_cursor;
+            if (k0 >= 0 && k0 < 64) nav[k0] = 1;
+            const int keys[2] = { K_RT, K_DN };
+            for (int kk = 0; kk < 2; ++kk) {
+                enter_screen(scr, SCR_GIBSON); s_dirty = true; step(3);
+                for (int r = 0; r < 3 * n + 2 && s_screen == scr; ++r) {
+                    ui_dispatch(keys[kk], 0); step(1);
+                    if (s_cursor >= 0 && s_cursor < 64) nav[s_cursor] = 1;
+                }
+            }
+            for (int i = 0; i < n; ++i) {
+                enter_screen(scr, SCR_GIBSON); s_dirty = true; step(3);
+                int x, y, w, h;
+                if (!cursor_box(i, &x, &y, &w, &h)) { printf("AUDIT %s btn=%d nobox nav=%d\n", screen_name(scr), i, nav[i]); continue; }
+                tap(x + w / 2, y + h / 2);
+                const bool foc = s_screen != scr || s_cursor == i;
+                int after = s_screen;
+                if (s_screen == scr) { tap(x + w / 2, y + h / 2); after = s_screen; }
+                printf("AUDIT %s btn=%d box=%d,%d,%d,%d nav=%d touch=%d after=%s\n", screen_name(scr), i, x, y, w, h,
+                       i < 64 ? nav[i] : 0, foc ? 1 : 0, screen_name(after));
+            }
+            enter_screen(scr, SCR_GIBSON); s_dirty = true; step(3);
         } else if (op == 'S') {
             char path[512];
             snprintf(path, sizeof path, "%s/%s.rgb", dir, a);
             write_raw(path, host_sim_panel, 0);
-            printf("SHOT %-28s scr=%-9s osk=%d sym=%d tovl=%d gcp=%d sheet=%d sel=%d term=%d tp=%d atk=%d cmd=%d fc=%d dg=%d defbot=%d prompt='%s' gp='%s' chip=%d/%d/%d/%d dl=%d sp='%s' log='%s'\n",
+            printf("SHOT %-28s scr=%-9s osk=%d sym=%d tovl=%d gcp=%d sheet=%d sel=%d term=%d tp=%d atk=%d cmd=%d fc=%d dg=%d defbot=%d prompt='%s' gp='%s' chip=%d/%d/%d/%d dl=%d sp='%s' cur=%d act=%d info=%d gl=%d hunt=%d gd=%d/%d/%d hz=%d ret=%d,%d pl=%d sc=%d log='%s'\n",
                    a, screen_name(s_screen), s_osk_open, s_osk_sym, s_term_ovl, s_gc_panel, s_sheet, s_sheet_i, s_term,
                    s_term_prompt, s_atk_btn, s_cmd_btn, s_focus_cmds, dg_on() ? s_dg : -1, s_defend_bot,
-                   botcorps_t0_term_prompt, s_gp_buf, chip_mem()[0], chip_mem()[1], chip_mem()[2], chip_mem()[5], dl_live() ? 1 : 0, s_sp_buf, s_log_n ? aud_ln() : "-");
+                   botcorps_t0_term_prompt, s_gp_buf, chip_mem()[0], chip_mem()[1], chip_mem()[2], chip_mem()[5], dl_live() ? 1 : 0, s_sp_buf, s_cursor, s_act, s_info_dev, s_gloss, s_hunt_dev, s_gd_lane, s_gd_dev, s_gd_top, s_hub_zone, s_dl_rx, s_dl_ry, s_cyd_pl ? 1 : 0, (int)s_dl_score, s_log_n ? aud_ln() : "-");
         }
     }
     host_touch_down = 0;

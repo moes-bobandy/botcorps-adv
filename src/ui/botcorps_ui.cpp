@@ -391,6 +391,11 @@ static bool dl_live(void);
 static int dl_bot(void);
 static void dl_begin(int bot);
 static void dl_end(void);
+/* NEW CUT: Defend round state (DlMem.on, botcorps_defend.inc). */
+enum { DL_OFF = 0, DL_LIVE = 1, DL_HOWTO = 2, DL_DOWN = 3 };
+static int dl_st(void);
+static void dl_set_st(int st);
+static void dl_go(void);
 static void dl_steer(int key);
 static void dl_fire(void);
 static void zap_strip(Gfx g, int dx, int th, int ty, int dw);
@@ -1014,11 +1019,14 @@ static void layout_covers(void)
     botcorps_rain_set_covers(s_box, s_box_n, s_box_radar);
 }
 
+/* ADD 2:44 / LL-20: the hub's bottom nav keeps two slots, Terminal and Control. The Scan plate (plate 1)
+ * is unhooked, not deleted: no slot maps to it, so it is neither drawn nor reachable. */
+static const int HUB_NAV_PLATE[2] = { 0, 2 };   /* nav slot -> plate (0 terminal, 1 scan, 2 control) */
 static int button_count(void)
 {
     switch (s_screen) {
     case SCR_RAIN: return 1;
-    case SCR_GIBSON: return 3;
+    case SCR_GIBSON: return 2;   /* LL-20: was 3 (Scan slot unhooked) */
     case SCR_WIFI_RADAR:
     case SCR_BT_RADAR: return 0;
     case SCR_SCAN: return 2;
@@ -3226,7 +3234,8 @@ static void chip_to_next(uint8_t *m)
             m[12] = 1;
             enter_defend(m[5], s_screen);
         } else {
-            dl_begin(m[5]);   /* P0 C3: a press on an open Defend board restarts the round */
+            if (dl_st() == DL_DOWN || dl_st() == DL_OFF) dl_begin(m[5]);   /* death card: ENTER/CHIP RESTART */
+            s_dirty = true;
         }
     } else {
         m[0] = CH_IDLE; m[1] = 0; m[2] = 1;
@@ -3257,6 +3266,8 @@ static bool chip_on_key(int key)
     if (!chip_now(&bot, &def) || !m[2] || m[0] == CH_PLAY) return false;
     if (m[5] != (uint8_t)bot) return false;
     if (s_sp_buf[0] || s_gp_buf[0] || s_sp_cmd >= 0) return false;
+    /* LOCK 2:44: on an open Defend board the chip restarts only from the death card (ENTER/CHIP RESTART) */
+    if (s_screen == SCR_GCHAT && dl_st() != DL_DOWN) return false;
     if (key == 6) { /* K_ESC */
         if (m[0] == CH_SCAN || m[0] == CH_RING) {
             m[4] = 0; m[3] = 0; m[0] = CH_IDLE; m[1] = 0;
@@ -6651,9 +6662,10 @@ static void paint_gibson(Gfx g)
     };
     const uint8_t face = tint(22), glow1 = tint(55), glow2 = tint(30);
     const uint8_t gold = (uint8_t)PAL_AMBER;
-    for (int i = 0; i < 3; ++i) {
+    for (int si = 0; si < 2; ++si) {
+        const int i = HUB_NAV_PLATE[si];
         const int x = xs[i], y = 206;
-        const bool sel = s_hub_zone == 0 && s_cursor == i;
+        const bool sel = s_hub_zone == 0 && s_cursor == si;
         GATE_BOX(g, "BTN", "hubnav", x, y, BS, BS, "-");
         /* glow halo */
         g.fillRect(x - 3, y - 2, BS + 6, BS + 4, glow2);
@@ -7570,11 +7582,13 @@ static void tick_gibson(Gfx g)
     (void)g;
 }
 
+static bool sb_rain_step(void);
 static void tick_ext(Gfx g)
 {
     if (s_screen == SCR_GIBSON) tick_gibson(g);
     else if (sbox_on() && botcorps_band_direct()) {
         const bool wifi = list_band() == 0;
+        sb_rain_step();   /* fix 1: the full repaint below shows the stepped panel rain */
         g.startWrite();
         g.setClipRect(0, 0, 320, 120);
         paint_list(g, wifi);
@@ -7776,16 +7790,17 @@ static void activate(void)
             gp_run(line);
             break;
         }
-        if (s_hub_zone == 3) {           /* Gibson: Enter enters the Gibson game */
+        if (s_hub_zone == 3) {           /* Gibson: Enter opens Gibson's scan board (LL-19; was SCR_GCHAT) */
             s_defend_bot = 12;           /* v1019b: Gibson's own game */
-            enter_screen(SCR_GCHAT, SCR_GIBSON);
+            s_scan_bot = 12;
+            enter_screen(SCR_SCAN, SCR_GIBSON);
             s_dirty = true;
             break;
         }
-        if (s_cursor == 0) {
+        if (HUB_NAV_PLATE[s_cursor < 0 || s_cursor > 1 ? 0 : s_cursor] == 0) {
             enter_screen(SCR_TERMINAL, SCR_GIBSON);
             boot_log();
-        } else if (s_cursor == 1) {
+        } else if (HUB_NAV_PLATE[s_cursor < 0 || s_cursor > 1 ? 0 : s_cursor] == 1) {   /* unhooked: no slot maps here */
             s_scan_bot = 12;
             enter_screen(SCR_SCAN, SCR_GIBSON);
         } else {
@@ -7864,8 +7879,8 @@ static bool cursor_box(int index, int *x, int *y, int *w, int *h)
     *h = BS;
     switch (s_screen) {
     case SCR_GIBSON:
-        if (index < 0 || index > 2) return false;
-        *x = xs_g[index];
+        if (index < 0 || index > 1) return false;
+        *x = xs_g[HUB_NAV_PLATE[index]];
         *y = 206;
         return true;
     case SCR_WIFI_RADAR:
@@ -8021,6 +8036,16 @@ static void sb_bus_keys(uint32_t t, uint32_t *top, uint32_t *rule, uint32_t *sr)
     *rule = (uint32_t)(320.f * u) / 8u;
     *sr = (uint32_t)(176.f * u) / 4u;
 }
+/* fix 1: step the panel rain with drawing off (the patch / repaint presents it); true when it moved. */
+static bool sb_rain_step(void)
+{
+    if (!s_bg_motion) return false;
+    const bool was = botcorps_rain_draw_enabled();
+    botcorps_rain_set_draw(false);
+    const bool st = botcorps_rain_step();
+    botcorps_rain_set_draw(was);
+    return st;
+}
 static void sb_tick(void)
 {
     static uint32_t k_top = ~0u, k_rule = ~0u, k_srule = ~0u, k_line = ~0u, k_prompt = ~0u;
@@ -8048,6 +8073,9 @@ static void sb_tick(void)
     if (md != k_mod) { if (k_mod != ~0u) sb_patch(88, 97, 9, 38); k_mod = md; }
     const uint32_t ld = (t / 500u) % 2u;
     if (ld != k_led) { if (k_led != ~0u) sb_patch(93, 54, 5, 3); k_led = ld; }
+    /* fix 1: wants_rain() is false on scan boards, so the main loop never stepped the left-panel rain
+     * (RAIN_WIN 20,43-101,191). Step it here as zap_rain_tick does and patch only that window. */
+    if (sb_rain_step()) sb_patch(20, 43, 82, 149);
     if (s_screen == SCR_SCAN && s_scan_bot >= 12) {             /* v1019: Gibson voice ticker */
         static uint32_t k_tick = ~0u;
         const uint32_t tk = gib_ticker_key(t);
@@ -8102,7 +8130,7 @@ static int cursor_icon(int index)
 {
     if (s_screen == SCR_GIBSON) {
         const int ids[3] = { ICO_TERM, ICO_RADAR, ICO_CTRL };
-        return ids[index];
+        return ids[HUB_NAV_PLATE[index < 0 || index > 1 ? 0 : index]];
     }
     if (s_screen == SCR_WIFI_RADAR || s_screen == SCR_BT_RADAR) {
         const int ids[3] = { ICO_TRACK, ICO_LIST, ICO_BACK };
@@ -8964,13 +8992,15 @@ static void on_esc(void)
         }
     }
     if (s_screen == SCR_GCHAT) {
-        if (dl_live()) { dl_end(); s_dirty = true; return; }
-        if (s_gc_panel == 3) { s_gc_panel = 0; s_dirty = true; return; }   /* v1019r: Esc closes the Device Dex */
+        /* fix 2b: the Tab sheet closes first (it used to end the live round underneath it) */
         if (s_sheet) {
             s_sheet = false;
             s_dirty = true;
             return;
         }
+        if (s_gc_panel == 3) { s_gc_panel = 0; s_dirty = true; return; }   /* v1019r: Esc closes the Device Dex */
+        if (dl_live()) { dl_end(); s_dirty = true; return; }   /* Esc mid-round: round ends, death card */
+        if (dl_st() == DL_DOWN && !s_gp_buf[0]) { dl_set_st(DL_OFF); enter_screen(SCR_GIBSON, -1); return; }   /* ESC = BACK */
         if (s_gp_buf[0]) {
             s_gp_buf[0] = 0;
             s_gc_caret = -1; s_gc_hist_i = -1;
@@ -9497,8 +9527,8 @@ static void enter_defend(int bot, int ret)
     s_def_cmd = -1;
     s_sheet = false;
     enter_screen(SCR_GCHAT, ret);
-    if (bot == 0 || bot == 1) dl_end();
-    else dl_begin(s_defend_bot);
+    if (bot == 0 || bot == 1) { dl_end(); dl_set_st(DL_OFF); }   /* no round (and no death card) on 0/1 */
+    else { dl_begin(s_defend_bot); dl_set_st(DL_HOWTO); }   /* NEW CUT: Look A how-to on every game entry */
     s_dirty = true;
 }
 
@@ -9691,6 +9721,9 @@ static void ui_dispatch(int key, char typed)
         if (!dg_prompt_key(key, typed)) dg_key(key, typed);   /* v1019q (item 8): ... except a typed line */
         return;
     }
+    /* NEW CUT (Look A how-to): on game entry the how-to card holds the round; any key dismisses it and
+     * starts play (the key itself is consumed). */
+    if (s_screen == SCR_GCHAT && dl_st() == DL_HOWTO) { dl_go(); return; }
     if (chip_on_key(key)) return;
     if (s_screen == SCR_GIBSON && (key == K_CHAR || key == K_OK)) {
         s_mood = MOOD_HAPPY;
@@ -9715,6 +9748,7 @@ static void ui_dispatch(int key, char typed)
             return;
         }
         if (dl_live()) { dl_fire(); s_dirty = true; return; }
+        if (dl_st() == DL_DOWN) { dl_begin(dl_bot()); s_dirty = true; return; }   /* death card: ENTER = RESTART */
         if (s_def_cmd >= 0 && s_def_cmd < GC_N) {
             const int i = s_def_cmd;
             s_def_cmd = -1;
@@ -10273,7 +10307,7 @@ void botcorps_host_jackin(uint8_t *buf)
     gc_set_count(0);
     gc_run("jackin");
     paint_ext(Gfx());
-    s_dl_on = 0;   /* P0 B1: jackin now starts a live round; the hook leaves none behind (as e7ba692's idle shell) */
+    dl_set_st(DL_OFF);   /* P0 B1: jackin now starts a live round; the hook leaves none behind (as e7ba692's idle shell) */
 }
 
 /* v1019j: Defend game host hooks. The game is entered through the real Defend path (enter_defend)
@@ -10284,6 +10318,7 @@ static void dg_host_idle(int bot)
     botcorps_lut_term(false);
     gc_set_count(0);
     enter_defend(bot, SCR_GIBSON);
+    if (dl_st() == DL_HOWTO) dl_go();   /* gate frames gc-*: the live round (how-to has its own frames) */
 }
 void botcorps_host_defend(uint8_t *buf, int bot, int warm_ms)
 {
@@ -10597,7 +10632,7 @@ void botcorps_host_nav_chain(void *file)
     ui_dispatch(K_OK, 0);
     row("terminal", SCR_TERMINAL, -1);
     ui_dispatch(K_ESC, 0);
-    ui_dispatch(K_RT, 0);
+    ui_dispatch(K_UP, 0);      /* NEW CUT (LL-19): hub zone 3 (Gibson) Enter -> SCR_SCAN bot 12; the nav Scan plate is unhooked */
     ui_dispatch(K_OK, 0);
     row("gibson-scan", SCR_SCAN, 12);
     ui_dispatch(K_CHAR, 'w');
@@ -10657,7 +10692,7 @@ void botcorps_host_nav_draw(void *file, int sim, const char *tag)
     ui_dispatch(K_OK, 0);
     snap("terminal", SCR_TERMINAL, -1);
     ui_dispatch(K_ESC, 0);
-    ui_dispatch(K_RT, 0);
+    ui_dispatch(K_UP, 0);      /* NEW CUT (LL-19): hub zone 3 (Gibson) Enter -> SCR_SCAN bot 12; the nav Scan plate is unhooked */
     ui_dispatch(K_OK, 0);
     snap("gibson-scan", SCR_SCAN, 12);
     ui_dispatch(K_CHAR, 'w');
@@ -11289,12 +11324,14 @@ void botcorps_host_chip_fsm(void *file)
     row(5, "airtag", m[0] == CH_PLAY && s_screen == SCR_GCHAT && s_defend_bot == 6);
     enter_defend(12, SCR_TERMINAL);
     host_set_millis(9000);
+    dl_go();                     /* NEW CUT / LOCK 2:44: how-to dismissed, round played and ended ...  */
+    dl_end();                    /* ... so the chip press is ENTER/CHIP RESTART on the death card */
     chip_on_key(5);
     host_set_millis(9000 + 2848);
     chip_tick();
     chip_tick();
     chip_tick();
-    row(6, "gibson", m[0] == CH_PLAY && s_screen == SCR_GCHAT && s_defend_bot == 12);
+    row(6, "gibson", m[0] == CH_PLAY && s_screen == SCR_GCHAT && s_defend_bot == 12 && dl_st() == DL_LIVE);
     row(7, "timing", CHIP_STEPS == 16 && CHIP_STEP_MS == 178 && CHIP_STEPS * CHIP_STEP_MS == 2848);
 }
 void botcorps_host_chip_rows(void *file)
@@ -11315,6 +11352,7 @@ void botcorps_host_chip_rows(void *file)
 void botcorps_host_p0_sheet(uint8_t *buf, int bot)
 {
     botcorps_host_gchat(buf);
+    if (dl_st() == DL_HOWTO) dl_set_st(DL_LIVE);   /* NEW CUT: as botcorps_host_p0_sheet_at */
     s_fa_on = false;
     s_defend_bot = bot;
     s_sheet = true;
@@ -11326,6 +11364,9 @@ void botcorps_host_p0_sheet(uint8_t *buf, int bot)
 void botcorps_host_p0_sheet_at(uint8_t *buf, int bot, int sel)
 {
     botcorps_host_gchat(buf);
+    /* NEW CUT: Tab is a key, so on the device it always lands on a dismissed how-to; the frame keeps the
+     * round the earlier rows left (as before the how-to card existed). */
+    if (dl_st() == DL_HOWTO) dl_set_st(DL_LIVE);
     s_fa_on = false;
     s_defend_bot = bot;
     s_sheet = true;
@@ -11396,7 +11437,16 @@ static void board(int b)
     s_gp_buf[0] = 0; s_gc_caret = -1; s_gc_hist_i = -1;
     gc_set_count(0);
     enter_defend(b, SCR_GIBSON);
+    if (dl_st() == DL_HOWTO) ui_dispatch(K_OK, 0);        /* NEW CUT: a key dismisses the how-to card (real path) */
     s_dl_hi = 1 << 30; s_dl_aw = 0x3FF; s_dl_pop_until = 0; s_dl_pop = -1;
+}
+/* NEW CUT: a game entry lands on the Look A how-to (round held), and any key (here a typed 'x', through
+ * ui_dispatch) dismisses it into live play. True only when both halves hold. */
+static bool howto_then_live(void)
+{
+    const bool howto = s_screen == SCR_GCHAT && dl_st() == DL_HOWTO && !dl_live();
+    if (howto) ui_dispatch(K_CHAR, 'x');
+    return howto && dl_live() && !s_gp_buf[0];
 }
 struct Snap { uint8_t m[sizeof(DlMem)]; int defend, screen; };
 static void snap(Snap &s) { memcpy(s.m, &dl_mem(), sizeof(DlMem)); s.defend = s_defend_bot; s.screen = s_screen; }
@@ -11554,10 +11604,12 @@ static void g4(void)
         enter_screen(SCR_SCAN, SCR_TERMINAL);
         const bool armed = m[2] == 1;
         ring();
+        const int bot = dl_bot();
+        const bool hl = howto_then_live();
         char it[32], d[96];
         snprintf(it, sizeof it, "chip start bot %d", b);
-        snprintf(d, sizeof d, "armed=%d screen=%d dl_bot=%d live=%d", (int)armed, s_screen, dl_bot(), (int)dl_live());
-        row("G4", it, armed && s_screen == SCR_GCHAT && dl_bot() == b && dl_live(), d);
+        snprintf(d, sizeof d, "armed=%d screen=%d dl_bot=%d howto->key->live=%d", (int)armed, s_screen, bot, (int)hl);
+        row("G4", it, armed && s_screen == SCR_GCHAT && bot == b && hl, d);
     }
     /* Gibson via KING slot 0: the Terminal train entry for slot 0 (T10) */
     dl_end();
@@ -11565,9 +11617,10 @@ static void g4(void)
     enter_screen(SCR_TERMINAL, -1);
     s_term = 0;
     run_cmd("train");
+    const bool hl = howto_then_live();
     char d[96];
-    snprintf(d, sizeof d, "screen=%d dl_bot=%d live=%d", s_screen, dl_bot(), (int)dl_live());
-    row("G4", "Gibson via KING slot 0", s_screen == SCR_GCHAT && dl_bot() == 12 && dl_live(), d);
+    snprintf(d, sizeof d, "screen=%d dl_bot=%d howto->key->live=%d", s_screen, dl_bot(), (int)hl);
+    row("G4", "Gibson via KING slot 0", s_screen == SCR_GCHAT && dl_bot() == 12 && hl, d);
 }
 static void g5(void)
 {
@@ -11577,11 +11630,17 @@ static void g5(void)
         const bool armed = m[2] == 1 && m[0] == CH_IDLE;
         const uint32_t t0 = s_dl_t0;
         s_dl_score = 77;
-        ring();
-        char it[32], d[96];
+        ring();                                   /* LOCK 2:44: a ring mid-round does not restart */
+        const bool kept = dl_live() && s_dl_score == 77 && s_dl_t0 == t0;
+        dl_end();                                 /* round over -> death card */
+        const bool down = dl_st() == DL_DOWN && s_screen == SCR_GCHAT;
+        const uint32_t t1 = s_dl_t0;
+        ring();                                   /* ENTER/CHIP RESTART on the death card */
+        char it[32], d[112];
         snprintf(it, sizeof it, "chip restart bot %d", b);
-        snprintf(d, sizeof d, "armed=%d live=%d score=%d t0 %u->%u", (int)armed, (int)dl_live(), s_dl_score, (unsigned)t0, (unsigned)s_dl_t0);
-        row("G5", it, armed && dl_live() && s_dl_score == 0 && s_dl_t0 != t0 && dl_bot() == b, d);
+        snprintf(d, sizeof d, "armed=%d live-ring kept=%d down=%d live=%d score=%d t0 %u->%u", (int)armed, (int)kept, (int)down,
+                 (int)dl_live(), s_dl_score, (unsigned)t1, (unsigned)s_dl_t0);
+        row("G5", it, armed && kept && down && dl_live() && s_dl_score == 0 && s_dl_t0 != t1 && dl_bot() == b, d);
     }
 }
 static void g6(void)
@@ -11637,6 +11696,7 @@ static void g7(void)
             host_set_millis(s_t);
             s_sheet = false; s_gc_panel = 0; s_gp_buf[0] = 0; gc_set_count(0);
             enter_defend(hosts[h], SCR_GIBSON);
+            if (dl_st() == DL_HOWTO) ui_dispatch(K_OK, 0);   /* NEW CUT: how-to dismissed first */
             Snap s; snap(s);
             char res[48];
             snprintf(res, sizeof res, "[ ?? ] %s", dl[i]);
@@ -11669,7 +11729,7 @@ static void g8_g20(void)
         snprintf(it, sizeof it, "overlay Enter slot %d (bot %d)", slot, b);
         bool ok;
         if (b >= 2) {
-            ok = ovl && s_screen == SCR_GCHAT && dl_live() && dl_bot() == b;
+            ok = ovl && s_screen == SCR_GCHAT && dl_bot() == b && howto_then_live();
         } else {
             const int scr = s_screen, sb = s_scan_bot;
             const bool st = same(s) || (memcmp(s.m, &dl_mem(), sizeof(DlMem)) == 0 && s.defend == s_defend_bot);
@@ -11715,7 +11775,7 @@ static void g8_g20(void)
         char ln[32];
         if (b == 12) snprintf(ln, sizeof ln, "defend"); else snprintf(ln, sizeof ln, "defend %s", OWN[b][0]);
         run_cmd(ln);
-        if (!(s_screen == SCR_GCHAT && dl_live() && dl_bot() == b)) { ok = false; snprintf(d, sizeof d, "'%s' screen=%d bot=%d", ln, s_screen, dl_bot()); }
+        if (!(s_screen == SCR_GCHAT && dl_bot() == b && howto_then_live())) { ok = false; snprintf(d, sizeof d, "'%s' screen=%d bot=%d st=%d", ln, s_screen, dl_bot(), dl_st()); }
     }
     row("G20", "Terminal defend <b> 2..12 and bare defend enter Defend", ok, d);
 }
@@ -11862,7 +11922,7 @@ static void g14(void)
         board(b);
         s_t += DL_TIME0 + 1000u; host_set_millis(s_t);
         dl_step(s_t);                      /* time out -> dl_end */
-        const bool ended = !s_dl_on;
+        const bool ended = dl_st() == DL_DOWN;
         type("restart");
         if (!(ended && dl_live())) { ok = false; snprintf(d, sizeof d, "restart: ended=%d live=%d", (int)ended, (int)dl_live()); }
         board(b); dl_end();
@@ -11965,6 +12025,166 @@ static void g15()
         row("G15", item, bad == 0, det);
     }
 }
+/* NEW CUT (GIBSON 2:43 / LOCK 2:44 / LL-19 LL-20): real-behaviour rows. Every frame here comes from the
+ * device draw loop (botcorps_ui_draw) on the direct panel (host_band_sim=0), the path the WASM viewer
+ * froze with host_band_sim=1. Each row fails on 90d5cc2. */
+static uint8_t s_fa[320 * 240], s_fb[320 * 240];
+}   /* namespace p0t */
+extern uint8_t *host_frame;
+extern int host_band_sim;
+namespace p0t {
+static void run_draw(uint8_t *buf, uint32_t ms)
+{
+    host_frame = buf;
+    for (uint32_t k = 0; k < ms; k += 10) { s_t += 10; host_set_millis(s_t); botcorps_ui_draw(); }
+}
+static void full_draw(uint8_t *buf)
+{
+    host_frame = buf;
+    s_dirty = true;
+    botcorps_ui_draw();
+}
+static void ndiff(const uint8_t *a, const uint8_t *b, int x0, int y0, int x1, int y1, int *in, int *out, int bb[4])
+{
+    *in = *out = 0; bb[0] = bb[1] = 9999; bb[2] = bb[3] = -1;
+    for (int y = 0; y < 240; ++y) for (int x = 0; x < 320; ++x) {
+        if (a[y * 320 + x] == b[y * 320 + x]) continue;
+        if (x >= x0 && x <= x1 && y >= y0 && y <= y1) ++*in; else ++*out;
+        if (x < bb[0]) bb[0] = x; if (y < bb[1]) bb[1] = y; if (x > bb[2]) bb[2] = x; if (y > bb[3]) bb[3] = y;
+    }
+}
+static void gnc(void)
+{
+    uint8_t *keep = host_frame;
+    host_band_sim = 0;
+    char d[160];
+    int in, out, bb[4];
+    /* NC1 rain: two frames >= 2 s apart on the deauth scan board and on the live Gibson game */
+    gc_set_count(0); s_gp_buf[0] = 0;
+    s_scan_bot = 2; host_set_millis(s_t); enter_screen(SCR_SCAN, SCR_TERMINAL);
+    full_draw(s_fa); run_draw(s_fa, 50); memcpy(s_fb, s_fa, sizeof s_fa);
+    run_draw(s_fb, 2000);
+    ndiff(s_fa, s_fb, 20, 43, 101, 191, &in, &out, bb);
+    snprintf(d, sizeof d, "scanboard-deauth 2.0 s: %d px in RAIN_WIN (20,43)-(101,191), %d outside, bbox %d,%d,%d,%d", in, out, bb[0], bb[1], bb[2], bb[3]);
+    row("NC", "scan-board panel rain moves (deauth, direct panel)", s_screen == SCR_SCAN && in >= 40, d);
+    board(12);
+    full_draw(s_fa); run_draw(s_fa, 50); memcpy(s_fb, s_fa, sizeof s_fa);
+    run_draw(s_fb, 2000);
+    ndiff(s_fa, s_fb, 20, 43, 101, 191, &in, &out, bb);
+    snprintf(d, sizeof d, "gibson game 2.0 s: %d px in RAIN_WIN, %d outside (clock/grid), bbox %d,%d,%d,%d", in, out, bb[0], bb[1], bb[2], bb[3]);
+    row("NC", "Gibson game panel rain moves (direct panel)", dl_live() && in >= 40, d);
+    /* NC2 how-to: entry holds the round (clock frozen), any key dismisses into live play */
+    dl_end(); dl_set_st(DL_OFF);
+    s_sheet = false; s_gc_panel = 0; s_gp_buf[0] = 0; host_set_millis(s_t);
+    enter_defend(12, SCR_GIBSON);
+    const bool h0 = dl_st() == DL_HOWTO && s_screen == SCR_GCHAT && !dl_live();
+    run_draw(s_fa, 3000);
+    const bool held = dl_st() == DL_HOWTO;
+    const uint32_t t0 = s_dl_t0;
+    ui_dispatch(K_CHAR, 'q');
+    snprintf(d, sizeof d, "howto=%d held 3 s=%d key->live=%d t0 %u->%u buf='%s'", (int)h0, (int)held, (int)dl_live(), (unsigned)t0, (unsigned)s_dl_t0, s_gp_buf);
+    row("NC", "how-to on game entry, round held, any key starts play", h0 && held && dl_live() && s_dl_t0 != t0 && !s_gp_buf[0], d);
+    /* NC3 death card: ENTER = RESTART, ESC = BACK (hub) */
+    board(12); s_dl_score = 55; dl_end();
+    const bool dn = dl_st() == DL_DOWN && s_screen == SCR_GCHAT;
+    ui_dispatch(K_OK, 0);                               /* armed chip takes Enter: ring, then RESTART */
+    run_draw(s_fa, 4000);
+    const bool rs = dl_live() && s_dl_score == 0 && s_screen == SCR_GCHAT;
+    board(12); dl_end();
+    ui_dispatch(K_ESC, 0);
+    snprintf(d, sizeof d, "down=%d enter->live score0=%d esc->screen %d st %d", (int)dn, (int)rs, s_screen, dl_st());
+    row("NC", "death card ENTER restarts, ESC goes back", dn && rs && s_screen == SCR_GIBSON && dl_st() == DL_OFF, d);
+    /* NC4 tier-up card: a tier advance shows pop 6 for 1.8 s, then it clears on the draw loop */
+    board(12);
+    s_dl_hi = 0; s_dl_score = 0;
+    const int tw = dl_tier_of(0);
+    int sc = 0; while (dl_tier_of(sc) == tw && sc < 100000) sc += 10;
+    s_dl_score = sc; dl_note_hi();
+    const bool pop = s_dl_pop == 6;
+    run_draw(s_fa, 2000);
+    snprintf(d, sizeof d, "score %d tier %d->%d pop6=%d cleared after 2 s=%d", sc, tw, dl_tier_of(s_dl_hi), (int)pop, (int)(s_dl_pop < 0));
+    row("NC", "tier-up card on a tier advance (AWARD pop), clears after 1.8 s", pop && s_dl_pop < 0, d);
+    /* NC5 Esc closes the Tab sheet first, round stays live */
+    board(6);
+    ui_dispatch(K_TAB, 0);
+    const bool sh = s_sheet;
+    ui_dispatch(K_ESC, 0);
+    snprintf(d, sizeof d, "tab sheet=%d esc: sheet=%d screen=%d live=%d", (int)sh, (int)s_sheet, s_screen, (int)dl_live());
+    row("NC", "Esc closes the Tab sheet first (AirTag)", sh && !s_sheet && s_screen == SCR_GCHAT && dl_live(), d);
+    /* NC6 Tab sheet labels survive the idle patch: patched frame == a full paint at the same clock */
+    for (int k = 0; k < 2; ++k) {
+        const int b = k ? 12 : 6;
+        board(b);
+        ui_dispatch(K_TAB, 0);
+        full_draw(s_fa); run_draw(s_fa, 1500);          /* s_fa: 1.5 s of idle patches over the open sheet */
+        full_draw(s_fb);                                /* s_fb: a full paint at the same clock */
+        static uint8_t s_fc[320 * 240];
+        s_sheet = false; full_draw(s_fc); s_sheet = true; /* s_fc: same clock, sheet closed -> the sheet's footprint */
+        int foot = 0, bad = 0, fb[4] = { 9999, 9999, -1, -1 };
+        for (int i = 0; i < 320 * 240; ++i) {
+            if (s_fb[i] == s_fc[i]) continue;
+            ++foot;
+            if (s_fa[i] != s_fb[i]) {
+                ++bad; const int x = i % 320, y = i / 320;
+                if (x < fb[0]) fb[0] = x; if (y < fb[1]) fb[1] = y; if (x > fb[2]) fb[2] = x; if (y > fb[3]) fb[3] = y;
+            }
+        }
+        snprintf(d, sizeof d, "bot %d sheet footprint %d px; patched != full on it: %d px bbox %d,%d,%d,%d", b, foot, bad, fb[0], fb[1], fb[2], fb[3]);
+        row("NC", k ? "Tab sheet labels intact under the idle patch (Gibson)" : "Tab sheet labels intact under the idle patch (AirTag)", s_sheet && foot > 1000 && bad == 0, d);
+        s_sheet = false;
+    }
+    /* NC7 typed prompt result is drawn on the strip (Gibson, AirTag, deauth) */
+    static const int rb[3] = { 12, 6, 2 };
+    for (int k = 0; k < 3; ++k) {
+        board(rb[k]);
+        full_draw(s_fa);
+        char ln[32];
+        if (rb[k] == 12) snprintf(ln, sizeof ln, "scan"); else snprintf(ln, sizeof ln, "scan %s", OWN[rb[k]][0]);
+        type(ln);
+        full_draw(s_fb);
+        const char *last = s_log_n ? log_line(s_log_n - 1) : "";
+        const bool tagged = last[0] == '\x01' && (int)(uint8_t)last[1] == rb[k];
+        ndiff(s_fa, s_fb, 0, 0, 319, 239, &in, &out, bb);
+        snprintf(d, sizeof d, "bot %d '%s' -> '%s' drawn: %d px bbox %d,%d,%d,%d", rb[k], ln, tagged ? last + 2 : "-", in, bb[0], bb[1], bb[2], bb[3]);
+        char it[48];
+        snprintf(it, sizeof it, "typed scan result drawn on the strip bot %d", rb[k]);
+        row("NC", it, tagged && in > 0, d);
+    }
+    /* NC8 hub zone 3 Enter -> SCR_SCAN (Gibson scan board), no round */
+    dl_end(); dl_set_st(DL_OFF);
+    enter_screen(SCR_GIBSON, -1);
+    ui_dispatch(K_UP, 0);
+    const int z = s_hub_zone;
+    ui_dispatch(K_OK, 0);
+    snprintf(d, sizeof d, "zone=%d screen=%d scan_bot=%d st=%d", z, s_screen, s_scan_bot, dl_st());
+    row("NC", "hub zone-3 Enter lands on SCR_SCAN bot 12", z == 3 && s_screen == SCR_SCAN && s_scan_bot == 12 && dl_st() == DL_OFF, d);
+    /* NC9 hub nav order after: [terminal, control]; Right wraps; the Scan plate has no slot */
+    enter_screen(SCR_GIBSON, -1);
+    const int n = button_count();
+    const int c0 = s_cursor;
+    ui_dispatch(K_OK, 0);
+    const int s0 = s_screen;
+    enter_screen(SCR_GIBSON, -1);
+    ui_dispatch(K_RT, 0);
+    const int c1 = s_cursor;
+    ui_dispatch(K_OK, 0);
+    const int s1 = s_screen;
+    enter_screen(SCR_GIBSON, -1);
+    ui_dispatch(K_RT, 0); ui_dispatch(K_RT, 0);
+    snprintf(d, sizeof d, "count=%d slot%d->%d slot%d->%d RT RT->slot %d", n, c0, s0, c1, s1, s_cursor);
+    row("NC", "hub nav order [terminal, control], no scan slot", n == 2 && c0 == 0 && s0 == SCR_TERMINAL && c1 == 1 && s1 == SCR_CONTROL && s_cursor == 0, d);
+    /* NC10 Terminal -> Gibson game: hub Enter (terminal), 'defend', how-to, key, live */
+    enter_screen(SCR_GIBSON, -1);
+    ui_dispatch(K_OK, 0);
+    const int ts = s_screen;
+    s_gp_buf[0] = 0;
+    run_cmd("defend");
+    const bool hl = howto_then_live();
+    snprintf(d, sizeof d, "hub Enter->%d 'defend'->screen %d bot %d howto->key->live=%d", ts, s_screen, dl_bot(), (int)hl);
+    row("NC", "Terminal -> Gibson game still works", ts == SCR_TERMINAL && s_screen == SCR_GCHAT && dl_bot() == 12 && hl, d);
+    dl_end(); dl_set_st(DL_OFF);
+    host_frame = keep;
+}
 }   /* namespace p0t */
 void botcorps_host_p0(void *file)
 {
@@ -11982,7 +12202,74 @@ void botcorps_host_p0(void *file)
     p0t::g14();
     p0t::g18();
     p0t::g15();
+    p0t::gnc();
     p0t::s_f = nullptr;
+}
+/* NEW CUT proof dumps (rend newcut <dir>); host_band_sim must be 0. Not a gate item. */
+void botcorps_host_newcut_proof(const char *dir)
+{
+    extern uint8_t *host_frame;
+    extern int host_band_sim;
+    host_band_sim = 0;
+    static uint8_t buf[320 * 240];
+    uint8_t *keep = host_frame;
+    host_frame = buf;
+    auto dump = [&](const char *name) {
+        char p[256]; snprintf(p, sizeof p, "%s/%s.idx", dir, name);
+        FILE *f = fopen(p, "wb"); if (f) { fwrite(buf, 1, sizeof buf, f); fclose(f); }
+    };
+    auto paint = [&]() { s_dirty = true; botcorps_ui_draw(); };
+    auto step = [&](int ms) {
+        for (int i = 0; i < ms; i += 10) { host_set_millis(host_millis() + 10u); botcorps_ui_draw(); }
+    };
+    /* rain pair: scanboard-deauth, t0 and t0+2000 */
+    enter_screen(SCR_SCAN, 2);
+    host_set_millis(9000u); paint(); dump("rain-deauth-t0");
+    step(2000); dump("rain-deauth-t2s");
+    /* rain pair: Gibson live */
+    enter_defend(12, SCR_TERMINAL);
+    paint();
+    if (dl_st() == DL_HOWTO) dump("looka-howto");
+    if (dl_st() == DL_HOWTO) ui_dispatch(K_CHAR, 'x');
+    paint(); dump("rain-gibson-t0");
+    step(2000); dump("rain-gibson-t2s");
+    /* status rail on live Gibson */
+    paint(); dump("looka-rail");
+    /* death card (mock hi=1720) */
+    s_dl_hi = 1720; s_dl_score = 1720;
+    dl_end(); paint(); dump("looka-death");
+    /* death ENTER -> restart (after chip arm) */
+    ui_dispatch(K_OK, 0); step(4000); dump("looka-death-enter");
+    /* death ESC -> back (re-enter death) */
+    dl_end(); paint();
+    ui_dispatch(K_ESC, 0); paint(); dump("looka-death-esc");
+    /* tier-up: mock is T2 HOT at hi=1500 */
+    enter_defend(12, SCR_TERMINAL);
+    if (dl_st() == DL_HOWTO) ui_dispatch(K_CHAR, 'x');
+    s_dl_hi = 499; s_dl_score = 1500; dl_note_hi(); paint(); dump("looka-tier");
+    /* prompts: Gibson / AirTag / deauth */
+    auto prompt = [&](int bot, const char *line, const char *tag) {
+        enter_defend(bot, SCR_TERMINAL);
+        if (dl_st() == DL_HOWTO) ui_dispatch(K_CHAR, 'x');
+        paint();
+        for (const char *p = line; *p; ++p) ui_dispatch(K_CHAR, *p);
+        ui_dispatch(K_OK, 0);
+        paint(); dump(tag);
+    };
+    prompt(12, "scan", "prompt-gibson-scan");
+    prompt(6, "scan airtag", "prompt-airtag-scan");
+    prompt(2, "scan deauth", "prompt-deauth-scan");
+    /* hub before (ref in newcut) is external; dump after */
+    enter_screen(SCR_GIBSON, -1); paint(); dump("hub-after");
+    /* zone-3 -> SCR_SCAN */
+    enter_screen(SCR_GIBSON, -1);
+    ui_dispatch(K_UP, 0); ui_dispatch(K_OK, 0); paint(); dump("hub-zone3-scan");
+    /* Terminal -> game */
+    enter_screen(SCR_GIBSON, -1);
+    ui_dispatch(K_OK, 0); s_gp_buf[0] = 0; run_cmd("defend"); paint(); dump("term-defend-howto");
+    ui_dispatch(K_CHAR, 'x'); paint(); dump("term-defend-live");
+    dl_end(); dl_set_st(DL_OFF);
+    host_frame = keep;
 }
 #endif
 #include "ui/botcorps_livescan.inc"

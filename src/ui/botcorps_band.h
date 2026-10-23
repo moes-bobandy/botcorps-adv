@@ -91,6 +91,9 @@ uint8_t botcorps_pal_ramp(int ink, int age);
 bool botcorps_pal_ramp_for(uint16_t native, int age, uint8_t *out);
 /* Per-pixel RGB invert of a world rect in the live 8-bit band sprite. */
 void botcorps_band_invert_rect(int x, int y, int w, int h);
+/* NEW CUT (Look A): scale each pixel of a world rect to k/100 of its RGB in the resident slice.
+ * False when no band sprite is live (direct mode); the caller then fills. */
+bool botcorps_band_dim_rect(int x, int y, int w, int h, int k);
 /* Index into the band sprite, native RGB565 on any other surface. */
 void botcorps_pal_rect(lgfx::LovyanGFX &dst, int x, int y, int w, int h, uint8_t idx);
 void botcorps_pal_pixel(lgfx::LovyanGFX &dst, int x, int y, uint8_t idx);

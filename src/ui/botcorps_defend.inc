@@ -129,7 +129,16 @@ static int dl_pick_kind(int bot, int n)
     if (bot >= 12) return DL_KINDS[n % 12];
     return bot_dev_kind(bot);
 }
-static bool dl_live(void) { return s_dl_on && s_screen == SCR_GCHAT; }
+/* NEW CUT (Look A): DlMem.on is the round state (no new RAM). Low nibble: 0 off, 1 live, 2 how-to card
+ * (game entry, any key starts play), 3 down (death card: ENTER/CHIP restart, ESC back). Bit 0x10: a typed
+ * zap command posted its result this round (zap_strip line 2 shows it). */
+/* (the DL_* state enum is declared up front in botcorps_ui.cpp) */
+static int dl_st(void) { return s_dl_on & 0x0F; }
+static void dl_set_st(int st) { s_dl_on = st; }
+static bool dl_live(void) { return dl_st() == DL_LIVE && s_screen == SCR_GCHAT; }
+static bool dl_round(void) { return dl_st() != DL_OFF && s_screen == SCR_GCHAT && dl_bot() >= 2; }
+/* How-to dismissed: the clock starts now. */
+static void dl_go(void) { s_dl_t0 = millis(); dl_set_st(DL_LIVE); s_dirty = true; }
 static void dl_save(void)
 {
     Preferences prefs;
@@ -160,8 +169,15 @@ static void dl_note_hi(void)
     if (s_dl_score > s_dl_hi) {
         s_dl_hi = s_dl_score;
         dl_award(DL_AW_HI);
-        if (dl_tier_of(s_dl_hi) > was) dl_award(DL_AW_TIER);
         if (dl_tier_of(s_dl_hi) >= 4) dl_award(DL_AW_ROOT);
+        if (dl_tier_of(s_dl_hi) > was) {
+            /* Look A tier-up card: every tier advance shows it for the 1.8 s pop (pop 6 = "tier up"),
+             * even when the one-time award bit is already set. */
+            dl_award(DL_AW_TIER);
+            s_dl_pop = 6;
+            s_dl_pop_until = millis() + 1800u;
+            s_dirty = true;
+        }
         dl_save();
     }
 }
@@ -177,7 +193,7 @@ static void dl_begin(int bot)
 {
     dl_load();
     s_defend_bot = (bot < 0 || bot > 12) ? 12 : bot;
-    s_dl_on = 1;
+    dl_set_st(DL_LIVE);
     s_dl_score = 0;
     s_dl_combo = 0;
     s_dl_best_combo = 0;
@@ -194,18 +210,21 @@ static void dl_begin(int bot)
     s_dl_ry = 96;
     for (int i = 0; i < DL_MAX; ++i) dl_place(i, dl_pick_kind(s_defend_bot, i));
 }
+static int dl_time_left(uint32_t t);
 static void dl_end(void)
 {
-    if (!s_dl_on) return;
+    if (dl_st() != DL_LIVE) { dl_set_st(DL_OFF); return; }
     const uint32_t spent = millis() - s_dl_t0 + (uint32_t)s_dl_docks * 3000u;
     if (spent < (uint32_t)DL_TIME0 && (uint32_t)DL_TIME0 - spent > 15000u) dl_award(DL_AW_SURV);
     if (s_dl_nulls >= 12 && s_dl_docks == 0) dl_award(DL_AW_SWEEP);
     dl_note_hi();
-    s_dl_on = 0;
+    s_dl_hold = (uint32_t)dl_time_left(millis());   /* the death card's frozen clock (aim dwell is unused now) */
+    dl_set_st(DL_DOWN);
+    s_dirty = true;
 }
 static int dl_charge_at(uint32_t t)
 {
-    if (!s_dl_on) return 0;
+    if (dl_st() != DL_LIVE) return 0;
     int c = (int)((t - s_dl_t0) / 25u);
     return c > DL_CHG ? DL_CHG : c;
 }
@@ -348,7 +367,7 @@ static bool zp_is_sig(const char *w)
     for (int b = 2; b <= 12; ++b) if (strcmp(w, ZP_SIG[b]) == 0) return true;
     return false;
 }
-static void zp_out(const char *row) { gc_push(dl_bot(), row); }
+static void zp_out(const char *row) { gc_push(dl_bot(), row); }   /* fix 2a: zap_strip line 2 shows the newest of these */
 static void zp_miss(const char *line)
 {
     char row[44];
@@ -526,12 +545,13 @@ static void dl_step(uint32_t t)
     }
 }
 
+static void zap_look_a(Gfx g, uint32_t t);
 static void zap_paint_grid(Gfx g)
 {
     GATE_BOX(g, "BOARD", "defend", 106, 42, 176, 148, "-");
     /* Pre-Fork-B field: the scan-board cyan grid. No matrix fill, no tier glow. */
     bh_grid(g);
-    if (!dl_live()) return;
+    if (!dl_round()) return;   /* NEW CUT: the how-to and death cards sit over this round's field */
     const uint32_t t = millis();
     const uint8_t bc = dl_accent();
     const uint8_t glass = 8;
@@ -548,33 +568,38 @@ static void zap_paint_grid(Gfx g)
     sb_frame(g, s_dl_rx - 5, s_dl_ry - 5, 11, 11, bc);
     sb_rect(g, s_dl_rx - 1, s_dl_ry, 3, 1, (uint8_t)PAL_WHITE);
     sb_rect(g, s_dl_rx, s_dl_ry - 1, 1, 3, (uint8_t)PAL_WHITE);
-    const int ch = s_dl_on ? dl_charge_at(t) : 0;
+    const int ch = dl_charge_at(t);
     sb_rect(g, 150, BH_Y + 2, 70, 4, (uint8_t)8);
     if (ch) sb_rect(g, 150, BH_Y + 2, 70 * ch / DL_CHG, 4, bc);
     char hud[24];
-    snprintf(hud, sizeof hud, "%ds", s_dl_on ? dl_time_left(t) / 1000 : DL_TIME0 / 1000);
+    const int st = dl_st();
+    snprintf(hud, sizeof hud, "%ds", st == DL_LIVE ? dl_time_left(t) / 1000 : st == DL_DOWN ? (int)s_dl_hold / 1000 : DL_TIME0 / 1000);
     /* Index prompt occupies x108..123, y43..53. "45s" starts at x128 so the boxes do not meet. */
     sb_text(g, hud, 128, BH_Y + 2, (uint8_t)PAL_WHITE, glass, false, 1);
     snprintf(hud, sizeof hud, "L%d %d", dl_lv_of(s_dl_hi), s_dl_score);
-    sb_text(g, hud, 228, BH_Y + 1, (uint8_t)PAL_WHITE, glass, false, 1);
+    {   /* Look A header_score: right edge held at x256 once the score outgrows the x228 slot */
+        const int hw = (int)strlen(hud) * 6 - 1;
+        sb_text(g, hud, 257 - hw < 228 ? 257 - hw : 228, BH_Y + 1, (uint8_t)PAL_WHITE, glass, false, 1);
+    }
     for (int i = 0; i < DL_MAX; ++i) if (s_dl_d[i].live && s_dl_d[i].acq)
         sb_text(g, "TARGET ACQUIRED", 128, 78, (uint8_t)PAL_WHITE, 228, false, 1);
     if (s_dl_bolt && (uint32_t)(t - s_dl_bolt) < 280u) {
         sb_rect(g, s_dl_rx < 190 ? s_dl_rx : 190, s_dl_ry, (s_dl_rx > 190 ? s_dl_rx - 190 : 190 - s_dl_rx) + 1, 1, (uint8_t)PAL_WHITE);
         sb_frame(g, s_dl_rx - 8, s_dl_ry - 8, 17, 17, bc);
     }
-    if (s_dl_pop >= 0 && (int32_t)(s_dl_pop_until - t) > 0) {
+    if (s_dl_pop >= 0 && s_dl_pop != 6 && (int32_t)(s_dl_pop_until - t) > 0) {   /* pop 6: Look A tier card */
         sb_rect(g, 124, 70, 140, 36, (uint8_t)8);
         sb_frame(g, 124, 70, 140, 36, bc);
         sb_text(g, "AWARD UNLOCKED", 132, 74, bc, 8, false, 1);
         gl_icon(g, DL_KINDS[s_dl_pop % 12], 132, 86, false);
         sb_text(g, DL_AW_NM[s_dl_pop], 148, 88, (uint8_t)PAL_WHITE, 8, false, 1);
     }
+    zap_look_a(g, t);
 }
 
 static void zap_strip(Gfx g, int dx, int th, int ty, int dw)
 {
-    if (!dl_live()) {
+    if (!dl_round()) {
         const uint8_t ac = accent();
         const int b = (s_defend_bot >= 0 && s_defend_bot <= 12) ? s_defend_bot : 12;
         const char *who = b >= 12 ? "gibson" : BOTS[b].short_name;
@@ -601,7 +626,22 @@ static void zap_strip(Gfx g, int dx, int th, int ty, int dw)
     char body[40];
     snprintf(body, sizeof body, "HI %05d  LV%02d  T%d", s_dl_hi < 0 ? 0 : s_dl_hi, dl_lv_of(s_dl_hi), dl_tier_of(s_dl_hi));
     sb_tt(g, body, dx + 3, th, (uint8_t)PAL_WHITE);
-    sb_tt(g, DL_TIER_NM[dl_tier_of(s_dl_hi)], dx + 3, th + 11, ac);
+    /* fix 2a: line 2 is the last typed command's result (its own bot row) while the round runs;
+     * the death card's round shows "<TIER>  DOWN" (mock prompt_stats); else the tier name. */
+    const char *last = s_log_n ? log_line(s_log_n - 1) : "";
+    if (dl_st() == DL_DOWN) {
+        snprintf(body, sizeof body, "%s  DOWN", DL_TIER_NM[dl_tier_of(s_dl_hi)]);
+        sb_tt(g, body, dx + 3, th + 11, ac);
+    } else if (last[0] == '\x01' && (int)(uint8_t)last[1] == dl_bot()) {
+        const char *r = last + 2;
+        const bool ok = strncmp(r, "[ OK ]", 6) == 0;
+        char tag[8];
+        snprintf(tag, sizeof tag, "%.7s", r);
+        const int x2 = sb_tt(g, tag, dx + 3, th + 11, ok ? (uint8_t)PAL_OK : ac);
+        sb_tt(g, strlen(r) > 7 ? r + 7 : "", x2, th + 11, sb_ink());
+    } else {
+        sb_tt(g, DL_TIER_NM[dl_tier_of(s_dl_hi)], dx + 3, th + 11, ac);
+    }
     int x = sb_tt(g, "user@botcorps:~$ ", dx + 3, ty, ac);
     x = sb_tt(g, s_gp_buf, x, ty, COL_INK);
     if ((millis() / 530u) % 2u == 0u) sb_rect(g, x + 1, ty, 5, 9, ac);
@@ -668,6 +708,215 @@ static ZrClip zr_clip_push(Gfx g, int x, int y, int w, int h)
     zr_clip_set(g, n);
     return old;
 }
+/* ===== NEW CUT: Look A (mocks game-prompt-restart v2/LOOK-A how-to + status-rail + death,
+ * v1/LOOK-A tier-up). Geometry is the mock's render.py, inclusive boxes, ported op for op. ===== */
+static uint8_t la_c(uint8_t r, uint8_t gr, uint8_t b)
+{
+    return botcorps_pal_fit((uint16_t)(((r & 0xF8u) << 8) | ((gr & 0xFCu) << 3) | (b >> 3)));
+}
+#define LA_BG la_c(8, 12, 16)
+#define LA_PANEL la_c(16, 16, 16)
+#define LA_PUR la_c(181, 36, 255)
+#define LA_PUR2 la_c(148, 36, 173)
+#define LA_PURD la_c(90, 36, 99)
+#define LA_IVORY la_c(247, 243, 231)
+#define LA_WHITE la_c(255, 255, 255)
+#define LA_CYAN la_c(0, 255, 255)
+#define LA_GOLD la_c(222, 219, 82)
+#define LA_SOFT la_c(140, 154, 165)
+#define LA_RED la_c(255, 60, 60)
+#define LA_GREEN la_c(0, 255, 120)
+static uint8_t la_tier_c(int t)
+{
+    switch (t) {
+    case 1: return LA_GOLD;
+    case 2: return la_c(255, 138, 24);
+    case 3: return la_c(255, 82, 181);
+    case 4: return LA_IVORY;
+    default: return la_c(107, 121, 132);
+    }
+}
+static void la_fill(Gfx g, int x0, int y0, int x1, int y1, uint8_t c) { g.fillRect(x0, y0, x1 - x0 + 1, y1 - y0 + 1, c); }
+static void la_box(Gfx g, int x0, int y0, int x1, int y1, uint8_t c) { g.drawRect(x0, y0, x1 - x0 + 1, y1 - y0 + 1, c); }
+static int la_gw(const char *s, int size = 1) { const int n = (int)strlen(s); return n ? (n * 6 - 1) * size : 0; }
+static void la_glcd(Gfx g, int x, int y, const char *s, uint8_t c, int size = 1)
+{
+    g.setFont(&fonts::Font0);
+    g.setTextSize(size);
+    g.setTextColor(c);
+    g.setTextDatum(lgfx::textdatum::top_left);
+    g.drawString(s, x, y);
+    g.setTextSize(1);
+}
+/* TINY3 3x5 plus the mock's extra glyphs (render.py TX). Separate from tiny_text so no locked silk moves. */
+static void la_tiny(Gfx g, int x, int y, const char *s, uint8_t c)
+{
+    for (int i = 0; s[i]; ++i) {
+        const char ch = s[i];
+        uint16_t m = 0;
+        if (ch >= '0' && ch <= '9') m = TINY3[ch - '0'];
+        else if (ch >= 'A' && ch <= 'Z') m = TINY3[10 + ch - 'A'];
+        else if (ch == '-') m = TINY3[36];
+        else if (ch == ':') m = 0x0410;
+        else if (ch == '/') m = 0x12A4;
+        else if (ch == '+') m = 0x05D0;
+        else if (ch == '.') m = 0x0002;
+        if (!m) continue;
+        for (int b = 0; b < 15; ++b)
+            if (m & (1u << (14 - b))) g.fillRect(x + i * 4 + b % 3, y + b / 3, 1, 1, c);
+    }
+}
+static void la_tiny_c(Gfx g, int cx, int y, const char *s, uint8_t c) { la_tiny(g, cx - tiny_w(s) / 2, y, s, c); }
+/* dim(box, 0.30): every pixel already drawn in the box (clipped to the open patch) to 30 % RGB. */
+static void la_dim(Gfx g, int x0, int y0, int x1, int y1)
+{
+    const ZrClip c = zr_clip_get(g);
+    int bx0 = x0 - g.ox, by0 = y0 - g.oy, bx1 = x1 - g.ox + 1, by1 = y1 - g.oy + 1;
+    if (c.on) {
+        if (bx0 < c.x) bx0 = (int)c.x;
+        if (by0 < c.y) by0 = (int)c.y;
+        if (bx1 > c.x + c.w) bx1 = (int)(c.x + c.w);
+        if (by1 > c.y + c.h) by1 = (int)(c.y + c.h);
+    }
+    if (bx1 <= bx0 || by1 <= by0) return;
+#ifdef BOTCORPS_HOST_RENDER
+    extern uint8_t *host_frame;
+    extern int host_slice_h;
+    if (!host_frame) return;
+    for (int sy = by0; sy < by1; ++sy) {
+        if (sy < 0 || sy >= 240 || (host_slice_h && sy >= host_slice_h)) continue;
+        for (int sx = bx0; sx < bx1; ++sx) {
+            if (sx < 0 || sx >= 320) continue;
+            uint8_t &px = host_frame[sy * 320 + sx];
+            const uint16_t v = botcorps_rgb565(px);
+            px = botcorps_pal_fit((uint16_t)(((((v >> 11) & 31u) * 30u / 100u) << 11)
+                                             | ((((v >> 5) & 63u) * 30u / 100u) << 5) | ((v & 31u) * 30u / 100u)));
+        }
+    }
+#else
+    if (!botcorps_band_dim_rect(bx0 + g.ox, by0 + g.oy, bx1 - bx0, by1 - by0, 30))
+        g.fillRect(bx0 + g.ox, by0 + g.oy, bx1 - bx0, by1 - by0, la_c(2, 3, 4));
+#endif
+}
+static void la_card(Gfx g, int x0, int y0, int x1, int y1, uint8_t rim, uint8_t fill, uint8_t rim2)
+{
+    la_fill(g, x0, y0, x1, y1, fill);
+    la_box(g, x0, y0, x1, y1, rim);
+    la_box(g, x0 + 1, y0 + 1, x1 - 1, y1 - 1, rim2);
+}
+static int la_key(Gfx g, int x, int y, const char *label, uint8_t col)
+{
+    const int w = la_gw(label) + 4;
+    la_fill(g, x, y, x + w - 1, y + 9, col);
+    la_glcd(g, x + 2, y + 1, label, LA_BG);
+    return x + w;
+}
+/* rail_A: the 7 px dead strip between the grid frame (y144) and the prompt (y152). */
+static void la_rail(Gfx g, bool flash)
+{
+    const int hi = s_dl_hi < 0 ? 0 : s_dl_hi, t = dl_tier_of(hi);
+    const uint8_t tc = la_tier_c(t);
+    char b[24];
+    la_fill(g, 106, 145, 279, 151, LA_BG);
+    snprintf(b, sizeof b, "LV%02d", dl_lv_of(hi));
+    la_tiny(g, 108, 146, b, LA_IVORY);
+    snprintf(b, sizeof b, "HI %05d", hi);
+    la_tiny(g, 128, 146, b, LA_IVORY);
+    snprintf(b, sizeof b, "T%d %s", t, DL_TIER_NM[t]);
+    la_tiny(g, 164, 146, b, tc);
+    for (int i = 0; i < 4; ++i) {
+        const int px = 260 + i * 5;
+        la_fill(g, px, 147, px + 2, 149, i < t ? la_tier_c(i + 1) : LA_PURD);
+    }
+    la_tiny(g, 236, 146, "AWD", LA_SOFT);
+    if (flash) la_box(g, 162, 145, 162 + tiny_w(b) + 3, 151, tc);
+}
+/* Defend boards other than Gibson: the how-to's GIBSON row and worked example are his; the same card
+ * names this board's own signature verb and subs from the lock table (derived, flagged in CLOSEOUT). */
+static void la_howto(Gfx g)
+{
+    const int b = dl_bot(), CX = 193;
+    char r3[40], r4[40], ex[4][24];
+    if (b >= 12) {
+        snprintf(r3, sizeof r3, "GIBSON: OVERLOAD  SUBS: CORE ROOT");
+        snprintf(r4, sizeof r4, "OVERLOAD HITS ALL  ANY DEVICE NAME");
+        snprintf(ex[0], 24, "scan airtag"); snprintf(ex[1], 24, "lock airtag");
+        snprintf(ex[2], 24, "overload core"); snprintf(ex[3], 24, "purge airtag root");
+    } else {
+        char v[12], s0[12], s1[12], n[16];
+        zp_upper(ZP_SIG[b], v, sizeof v);
+        zp_upper(ZP_SUB[b][0], s0, sizeof s0);
+        zp_upper(ZP_SUB[b][1], s1, sizeof s1);
+        zp_upper(BOTS[b].short_name, n, sizeof n);
+        snprintf(r3, sizeof r3, "%s: %s  SUBS: %s %s", n, v, s0, s1);
+        snprintf(r4, sizeof r4, "%s HITS ITS DEVICE", v);
+        char dn[16];
+        zp_name(b, dn, sizeof dn);                            /* the bot's own name is always its device */
+        for (int k = 12; k < ZP_NAMES; ++k) if (zp_kind(k) == bot_dev_kind(b)) { zp_name(k, dn, sizeof dn); break; }
+        snprintf(ex[0], 24, "scan %s", dn); snprintf(ex[1], 24, "lock %s", dn);
+        snprintf(ex[2], 24, "%s %s", ZP_SIG[b], dn); snprintf(ex[3], 24, "purge %s %s", dn, ZP_SUB[b][0]);
+    }
+    la_dim(g, 107, 55, 279, 142);
+    la_card(g, 112, 55, 274, 142, LA_PUR, LA_PANEL, LA_PURD);
+    la_fill(g, 114, 57, 272, 66, LA_PUR2);
+    la_glcd(g, CX - la_gw("HOW TO DEFEND") / 2, 58, "HOW TO DEFEND", LA_WHITE);
+    la_tiny_c(g, CX, 69, "TYPE AT PROMPT: VERB DEVICE SUB", LA_CYAN);
+    la_tiny_c(g, CX, 75, "ALL: SCAN LOCK ZAP PURGE RESTART", LA_IVORY);
+    la_tiny_c(g, CX, 81, r3, LA_GOLD);
+    la_tiny_c(g, CX, 87, r4, LA_SOFT);
+    la_fill(g, 118, 93, 268, 93, LA_PURD);
+    for (int i = 0; i < 4; ++i) {
+        const int y = 95 + i * 9;
+        la_glcd(g, 120, y, "$", LA_PUR);
+        la_glcd(g, 129, y, ex[i], LA_GREEN);
+    }
+    la_tiny_c(g, CX, 134, "RESTART AFTER DOWN  TAB: NAMES+VERBS", LA_SOFT);
+}
+static void la_tierup(Gfx g)
+{
+    const int hi = s_dl_hi < 0 ? 0 : s_dl_hi, t = dl_tier_of(hi);
+    const uint8_t tc = la_tier_c(t);
+    char b[24];
+    la_box(g, 150, 73, 238, 113, tc);
+    la_card(g, 152, 75, 236, 111, tc, LA_PANEL, LA_PURD);
+    la_glcd(g, 194 - la_gw("TIER UP") / 2, 78, "TIER UP", tc);
+    snprintf(b, sizeof b, "T%d %s", t, DL_TIER_NM[t]);
+    la_glcd(g, 194 - la_gw(b, 2) / 2, 88, b, LA_WHITE, 2);
+    snprintf(b, sizeof b, "LV%02d  AWARD +1", dl_lv_of(hi));
+    la_tiny_c(g, 194, 104, b, LA_GOLD);
+    static const uint8_t TK[4][2] = { { 146, 75 }, { 242, 75 }, { 146, 111 }, { 242, 111 } };
+    for (int i = 0; i < 4; ++i) {
+        la_fill(g, TK[i][0] - 1, TK[i][1], TK[i][0] + 1, TK[i][1], tc);
+        la_fill(g, TK[i][0], TK[i][1] - 1, TK[i][0], TK[i][1] + 1, tc);
+    }
+}
+static void la_death(Gfx g)
+{
+    const int hi = s_dl_hi < 0 ? 0 : s_dl_hi;
+    char b[24];
+    la_dim(g, 107, 55, 279, 142);
+    la_card(g, 134, 62, 254, 136, LA_RED, LA_PANEL, LA_PURD);
+    la_glcd(g, 194 - la_gw("DOWN", 2) / 2, 67, "DOWN", LA_RED, 2);
+    la_tiny_c(g, 194, 84, "CORE BREACHED", LA_SOFT);
+    snprintf(b, sizeof b, "HI %05d LV%02d", hi, dl_lv_of(hi));
+    la_glcd(g, 194 - la_gw(b) / 2, 92, b, LA_IVORY);
+    int r = la_key(g, 140, 105, "ENTER", LA_GOLD);
+    la_tiny(g, r + 3, 107, "/CHIP", LA_GOLD);
+    la_glcd(g, 202, 106, "RESTART", LA_WHITE);
+    la_key(g, 140, 120, "ESC", LA_SOFT);
+    la_glcd(g, 202, 121, "BACK", LA_SOFT);
+}
+static bool la_tier_pop(uint32_t t) { return s_dl_pop == 6 && (int32_t)(s_dl_pop_until - t) > 0; }
+/* Called last in zap_paint_grid: the round's overlay card, then the rail. */
+static void zap_look_a(Gfx g, uint32_t t)
+{
+    const int st = dl_st();
+    if (st == DL_HOWTO) la_howto(g);
+    else if (st == DL_DOWN) la_death(g);
+    else if (la_tier_pop(t)) la_tierup(g);
+    la_rail(g, st == DL_LIVE && la_tier_pop(t));
+}
+
 static void zap_rain_rect(Gfx g)
 {
     GATE_BOX(g, "RAIN", "layer", ZR_X, ZR_Y, ZR_W, ZR_H, "-");
@@ -691,7 +940,10 @@ static void zap_rain_rect(Gfx g)
 }
 
 static void patch_world(void (*fn)(Gfx), int x, int y, int w, int h);
-static void zap_sb_part(Gfx g) { paint_sbox(g, s_defend_bot != 1); }
+static void paint_gchat(Gfx g);
+/* fix 2c: a patch repaints the whole Defend composition (paint_sbox, then the Tab sheet and gc panels),
+ * so an open sheet's verb labels are no longer overpainted by the bare board. */
+static void zap_sb_part(Gfx g) { paint_gchat(g); }
 static void zap_sb_patch(int x, int y, int w, int h)
 {
     s_pc_x = x; s_pc_y = y; s_pc_w = w; s_pc_h = h;
@@ -722,5 +974,7 @@ static void zap_tick_patch(void)
     if (ld != k_led) { if (k_led != ~0u) zap_sb_patch(93, 54, 5, 3); k_led = ld; }
     if (ct != k_caret) { if (k_caret != ~0u) zap_sb_patch(106, 164, 176, 26); k_caret = ct; }
     dl_step(t);
+    /* NEW CUT: a pop's 1.8 s ends without a key; repaint so the tier card / award box leaves */
+    if (s_dl_pop >= 0 && (int32_t)(s_dl_pop_until - t) <= 0) { s_dl_pop = -1; s_dirty = true; }
     zap_rain_tick();
 }

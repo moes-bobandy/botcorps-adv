@@ -404,6 +404,31 @@ void botcorps_band_invert_rect(int x, int y, int w, int h)
     }
 }
 
+bool botcorps_band_dim_rect(int x, int y, int w, int h, int k)
+{
+    if (!s_sp || !s_live) return false;
+    uint8_t *buf = (uint8_t *)s_sp->getBuffer();
+    if (!buf) return false;
+    const int sw = s_sp->width();
+    const int sh = s_sp->height();
+    const int oy = botcorps_band_oy();
+    for (int yy = 0; yy < h; ++yy) {
+        const int sy = y + yy - oy;
+        if (sy < 0 || sy >= sh) continue;
+        for (int xx = 0; xx < w; ++xx) {
+            const int sx = x + xx - s_ox;
+            if (sx < 0 || sx >= sw) continue;
+            uint8_t &px = buf[(size_t)sy * (size_t)sw + (size_t)sx];
+            const uint16_t c = botcorps_rgb565(px);
+            const unsigned r = ((c >> 11) & 31u) * (unsigned)k / 100u;
+            const unsigned g6 = ((c >> 5) & 63u) * (unsigned)k / 100u;
+            const unsigned b = (c & 31u) * (unsigned)k / 100u;
+            px = botcorps_pal_fit((uint16_t)((r << 11) | (g6 << 5) | b));
+        }
+    }
+    return true;
+}
+
 void Gfx::fillRect(int x, int y, int w, int h, uint8_t c)
 {
     with_idx(p, c, [&](auto ink) { p->fillRect(x - s_ox, y - oy, w, h, ink); });

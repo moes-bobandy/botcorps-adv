@@ -224,7 +224,8 @@ for scr in screens:
             lum = luma(m)
             det.append(f'{int(m[0])},{int(m[1])},{int(m[2])}')
             if lum >= 28 and (max(luma(e) for e in edge) >= 120 or any(near(e, theme_of(scr)['ac']) for e in edge)): lit += 1
-        rep(scr, 'H2 three lit nav buttons (filled face + bright edge)', len(navs) == 3 and lit == 3, 'mean ' + ' | '.join(det))
+        # NEW CUT N3: hub bottom Scan plate unhooked; two lit navs (Terminal, Control).
+        rep(scr, 'H2 two lit nav buttons (filled face + bright edge; NEW CUT N3 no Scan plate)', len(navs) == 2 and lit == 2, 'mean ' + ' | '.join(det))
         rep(scr, 'H3 rain carries bots/devices (>=150 coloured px)', col >= 150, f'colour_px={col}')
         tiles = [b for b in boxes if b['k'] == 'TILE' and b['n'] == 'hubbot']
         rep(scr, 'H4 12 bot side tiles', len(tiles) == 12, f'{len(tiles)}')
@@ -662,13 +663,43 @@ if cpmove:
 # panel (all 8 focus states + amber), terminal, scan screens, scan boxes, game and hub. Input-only change.
 import hashlib
 LOCK = os.path.join(os.path.dirname(FROZEN or '.'), 'locked-675c87d.sha256')
+# NEW CUT: hub / hub-amber / game-jackin move inside HUBPLATE or RAIL; other locked rows stay byte-identical.
+NCUT = os.path.join(os.path.dirname(FROZEN or '.'), 'newcut')
+NCUT_MAN = os.path.join(NCUT, '90d5cc2-moved.sha256')
+NCUT_RGB = os.path.join(NCUT, 'rgb')
+_HUBPLATE = lambda x, y: 143 <= x <= 176 and 203 <= y <= 236
+_RAIL = lambda x, y: 108 <= x <= 277 and 146 <= y <= 150
+_RAINWIN = lambda x, y: 20 <= x <= 101 and 43 <= y <= 191
+_NCUT_L1 = {
+    'hub.rgb': _HUBPLATE, 'hub.norain.rgb': _HUBPLATE,
+    'hub-amber.rgb': _HUBPLATE, 'hub-amber.norain.rgb': _HUBPLATE,
+    'game-jackin.rgb': _RAIL, 'game-jackin.norain.rgb': _RAIL,
+}
 if os.path.exists(LOCK):
+    ncut_man = {}
+    if os.path.exists(NCUT_MAN):
+        for l in open(NCUT_MAN):
+            if l.strip():
+                hh, nn = l.split()
+                ncut_man[nn] = hh
     for l in open(LOCK):
         h, name = l.split()
         pth = os.path.join(D, name)
         got = hashlib.sha256(open(pth, 'rb').read()).hexdigest() if os.path.exists(pth) else 'missing'
         grp = 'control-panel' if name.startswith('settings') else 'locked'
-        rep(grp, f'L1 {name} byte-identical to 675c87d', got == h, '' if got == h else f'sha {got[:12]} != {h[:12]}')
+        if name in _NCUT_L1:
+            # provenance: the newcut ref sha equals the 675c87d lock
+            refp = os.path.join(NCUT_RGB, name)
+            ref = open(refp, 'rb').read() if os.path.exists(refp) else b''
+            tip = open(pth, 'rb').read() if os.path.exists(pth) else b''
+            ok_prov = ncut_man.get(name) == h and hashlib.sha256(ref).hexdigest() == h
+            pts = [((i // 3) % W, (i // 3) // W) for i in range(0, min(len(ref), len(tip)), 3) if ref[i:i+3] != tip[i:i+3]]
+            bad = [p for p in pts if not _NCUT_L1[name](*p)]
+            bb = (min(p[0] for p in pts), min(p[1] for p in pts), max(p[0] for p in pts), max(p[1] for p in pts)) if pts else None
+            rep(grp, f'L1 {name} NEW CUT confined to allowed rect vs 675c87d/90d5cc2', ok_prov and not bad and bool(pts),
+                f'prov={ok_prov} {len(pts)}px bbox {bb}; outside {len(bad)}')
+        else:
+            rep(grp, f'L1 {name} byte-identical to 675c87d', got == h, '' if got == h else f'sha {got[:12]} != {h[:12]}')
 
 # ---------------------------------------------------------------------------------------------
 # P0 v003 (ARCH-GAME-P0-CHIP-PROMPT-v003.md sha256 39e76347...0bf4) gates G1-G21 + GIBSON rulings
@@ -704,16 +735,38 @@ if os.path.isdir(P0REF):
     SBBOT = dict(deauth=2, hack=3, flock=4, drone=5, keyfob=7, meta=8, skimmer=9, flipper=10, samsungtag=11)
     NSCR = ['scanboard-' + n for n in SB] + ['game-jackin', 'game-menu', 'terminal-atkmenu', 'terminal-cmdmenu']
     NFR = sorted(s + v + '.rgb' for s in NSCR for v in ('', '.norain'))
+    # NEW CUT N3/N4: hub family also moves (Scan plate removed). Final N = old 26 + 6 hub frames.
+    NFR_HUB = sorted(s + v + '.rgb' for s in ('hub', 'hub-amber', 'hub-alert') for v in ('', '.norain'))
+    NFR_ALL = sorted(set(NFR) | set(NFR_HUB))
     base = _man(os.path.join(P0REF, 'e7ba692-render.sha256'))
     bman = ''.join(f'{base[k]}  render/{k}\n' for k in sorted(base))
     rep('p0-v003', 'G1 e7ba692 reference manifest is 69052dcf', hashlib.sha256(bman.encode()).hexdigest().startswith('69052dcf'),
         hashlib.sha256(bman.encode()).hexdigest()[:12])
     got = {k: _sha(os.path.join(D, k)) for k in base}
     rep('p0-v003', 'GIBSON-R1 N = 26 frames (13 screens x rgb/norain, terminal-cmdmenu x2 added)', len(NFR) == 26 and all(k in base for k in NFR), f'{len(NFR)}')
+    rep('p0-v003', 'NEW CUT N = 32 frames (26 + hub/hub-amber/hub-alert rgb+norain)', len(NFR_ALL) == 32 and all(k in base for k in NFR_ALL), f'{len(NFR_ALL)}')
     moved = sorted(k for k in base if got[k] != base[k])
-    rep('p0-v003', 'G1 only the 26 N frames differ from e7ba692 (HOLD if any other moves)', set(moved) <= set(NFR), f'moved={len(moved)} outside N={sorted(set(moved) - set(NFR))[:4]}')
-    same = [k for k in base if k not in NFR and got[k] == base[k]]
-    rep('p0-v003', 'G1 the other 70 frames byte-identical to e7ba692', len(same) == 70, f'{len(same)}/70')
+    rep('p0-v003', 'G1 only the NEW CUT N frames differ from e7ba692 (HOLD if any other moves)', set(moved) <= set(NFR_ALL), f'moved={len(moved)} outside N={sorted(set(moved) - set(NFR_ALL))[:4]}')
+    same = [k for k in base if k not in NFR_ALL and got[k] == base[k]]
+    rep('p0-v003', 'G1 the other 64 frames byte-identical to e7ba692', len(same) == 64, f'{len(same)}/64')
+    # NEW CUT: hub plate / rail / rain confined vs 90d5cc2 refs
+    def _ncut_rgb(name):
+        p = os.path.join(os.path.dirname(P0REF), 'newcut', 'rgb', name)
+        return open(p, 'rb').read() if os.path.exists(p) else None
+    for hn in NFR_HUB:
+        tip = _b(os.path.join(D, hn)); ref = _ncut_rgb(hn)
+        if tip is None or ref is None:
+            rep('p0-v003', f'NEW CUT {hn} confined to HUBPLATE vs 90d5cc2', False, 'missing'); continue
+        pts = _diff(tip, ref); bad = [p for p in pts if not (143 <= p[0] <= 176 and 203 <= p[1] <= 236)]
+        rep('p0-v003', f'NEW CUT {hn} confined to HUBPLATE (143,203)-(176,236) vs 90d5cc2', bool(pts) and not bad,
+            f'{len(pts)}px {_bb(pts)}; outside {len(bad)}')
+    for gj in ('game-jackin.rgb', 'game-jackin.norain.rgb'):
+        tip = _b(os.path.join(D, gj)); ref = _ncut_rgb(gj)
+        if tip is None or ref is None:
+            rep('p0-v003', f'NEW CUT {gj} confined to RAIL vs 90d5cc2', False, 'missing'); continue
+        pts = _diff(tip, ref); bad = [p for p in pts if not (108 <= p[0] <= 277 and 146 <= p[1] <= 150)]
+        rep('p0-v003', f'NEW CUT {gj} confined to RAIL (108,146)-(277,150) vs 90d5cc2', bool(pts) and not bad,
+            f'{len(pts)}px {_bb(pts)}; outside {len(bad)}')
     srcref = _man(os.path.join(P0REF, 'e7ba692-src.sha256'))
     root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     for rel, h in sorted(srcref.items()):
@@ -769,11 +822,22 @@ if os.path.isdir(P0REF):
         rep('p0-v003', f'G3 scanboard-{n} rain diff inside panel confined to RAIN_WIN (20,43) 82x149', not rd,
             f'{len(rp)}px {_bb(rp)}; outside RAIN_WIN {len(rd)}; outside v003-literal (20,44) 76x148 {len(lit)}')
 
-    # G2g (GCHAT Defend via botcorps_host_defend(b)) vs AirTag's GCHAT frame from the same tip; AirTag gc-6 0-px vs e7ba692
+    # G2g (GCHAT Defend via botcorps_host_defend(b)) vs AirTag's GCHAT frame from the same tip.
+    # NEW CUT N2: Look A status rail (108,146)-(277,150) + rain phase on .rgb; AirTag no longer byte-identical.
     p0ref = _man(os.path.join(P0REF, 'e7ba692-p0.sha256'))
-    for k in ('gc-6.rgb', 'gc-6.norain.rgb'):
-        g6 = _sha(os.path.join(P0D, k))
-        rep('p0-v003', f'G2g AirTag GCHAT {k} byte-identical to e7ba692', g6 == p0ref.get(k), g6[:12])
+    def _in_rail(x, y): return 108 <= x <= 277 and 146 <= y <= 150
+    def _in_rainwin(x, y): return 20 <= x <= 101 and 43 <= y <= 191
+    for k, allow in (('gc-6.norain.rgb', _in_rail),
+                     ('gc-6.rgb', lambda x, y: _in_rail(x, y) or _in_rainwin(x, y))):
+        tip = _b(os.path.join(P0D, k))
+        # 90d5cc2 ref (matches e7ba692-p0 sha — provenance checked below)
+        refp = os.path.join(os.path.dirname(P0REF), 'newcut', 'rgb', 'p0', k)
+        ref = open(refp, 'rb').read() if os.path.exists(refp) else None
+        ok_prov = ref is not None and hashlib.sha256(ref).hexdigest() == p0ref.get(k)
+        pts = _diff(tip, ref) if tip and ref else []
+        bad = [p for p in pts if not allow(*p)]
+        rep('p0-v003', f'G2g AirTag GCHAT {k} NEW CUT confined (rail[+rain]) vs e7ba692/90d5cc2',
+            ok_prov and bool(pts) and not bad, f'prov={ok_prov} {len(pts)}px {_bb(pts)}; outside {len(bad)}')
     gair = _b(os.path.join(P0D, 'gc-6.norain.rgb'))
     gairsig = boxsig(_boxes(os.path.join(P0D, 'gc-6.log')))
     for b in (2, 3, 4, 5, 7, 8, 9, 10, 11):
@@ -782,14 +846,14 @@ if os.path.isdir(P0REF):
             rep('p0-v003', f'G2g gc-{b} rendered', False, 'missing'); continue
         r = _png(f'e7ba692-gc-{b}.norain.png')
         mini = [bx for bx in _boxes(os.path.join(P0D, f'gc-{b}.log')) if bx[0] == 'MINI']
-        out = [p for p in _diff(t, r) if not in_panel(*p)]
+        out = [p for p in _diff(t, r) if not in_panel(*p) and not _in_rail(*p)]
         if b == 5:   # A5 X5/X7: Defend board 5 now spawns/rains GL_DRONE; bounded to the MINI defend screen
             m = mini[0] if mini else ('MINI', '', 0, 0, 0, 0)
             o2 = [p for p in out if not (m[2] <= p[0] < m[2] + m[4] and m[3] <= p[1] < m[3] + m[5])]
-            rep('p0-v003', 'G2g(a) gc-5 outside panel: diff only inside the MINI defend screen (A5 X5/X7)', bool(mini) and not o2,
+            rep('p0-v003', 'G2g(a) gc-5 outside panel: diff only inside the MINI defend screen (A5 X5/X7) [+NEW CUT rail]', bool(mini) and not o2,
                 f'{len(out)}px {_bb(out)} in MINI {m[2:]}; outside MINI {len(o2)}px')
         else:
-            rep('p0-v003', f'G2g(a) gc-{b} 0-px outside (20,40)-(102,194) vs e7ba692', not out, f'{len(out)}px {_bb(out)}')
+            rep('p0-v003', f'G2g(a) gc-{b} 0-px outside (20,40)-(102,194) vs e7ba692 [+NEW CUT rail]', not out, f'{len(out)}px {_bb(out)}')
         bad, nc = cmap_bad(gair, t)
         rep('p0-v003', f'G2g(b) gc-{b} panel = AirTag GCHAT under one colour map', bad == 0, f'bad={bad} colours={nc}')
         s2 = boxsig(_boxes(os.path.join(P0D, f'gc-{b}.log')))
@@ -804,7 +868,7 @@ if os.path.isdir(P0REF):
             if f[0] == 'P0' and len(f) >= 5:
                 cnt[f[1]] = cnt.get(f[1], 0) + 1
                 rep('p0-v003', f'{f[1]} {f[2]}', f[3] == '1', f[4][:110])
-    need = dict(G3=9, G4=11, G5=11, G6=3, G7=15, G8=12, G9=11, G10=10, G11=11, G12=2, G13=1, G14=11, G15=13, G18=1, G20=7)
+    need = dict(G3=9, G4=11, G5=11, G6=3, G7=15, G8=12, G9=11, G10=10, G11=11, G12=2, G13=1, G14=11, G15=13, G18=1, G20=7, NC=14)
     short = {g: (cnt.get(g, 0), n) for g, n in need.items() if cnt.get(g, 0) < n}
     rep('p0-v003', 'P0 harness ran every G3-G20 row', not short, f'{sum(cnt.values())} rows' + (f' short={short}' if short else ''))
     # G6: CHIPFSM rows (0/1/Gibson SCAN) unchanged is the existing CHIP-G-FSM block above.
@@ -847,10 +911,19 @@ if os.path.isdir(P0REF):
         ok, det = atk_check(f'gcatk-{b}', b)
         rep('p0-v003', f'G8 GCHAT bot {b} overlay rows = §4.3 strings', ok, det)
 
-    # G15: WiFi/BT sheet byte-identical to e7ba692 (BOARD rows: harness G15 rows above)
-    for k in ('sheet-0.rgb', 'sheet-0.norain.rgb', 'sheet-1.rgb', 'sheet-1.norain.rgb'):
+    # G15: WiFi/BT sheet. NEW CUT N1: .rgb rain phase inside RAIN_WIN; .norain still byte-identical.
+    for k in ('sheet-0.norain.rgb', 'sheet-1.norain.rgb'):
         g5 = _sha(os.path.join(P0D, k))
         rep('p0-v003', f'G15 WiFi/BT {k} byte-identical to e7ba692', g5 == p0ref.get(k), g5[:12])
+    for k in ('sheet-0.rgb', 'sheet-1.rgb'):
+        tip = _b(os.path.join(P0D, k))
+        refp = os.path.join(os.path.dirname(P0REF), 'newcut', 'rgb', 'p0', k)
+        ref = open(refp, 'rb').read() if os.path.exists(refp) else None
+        ok_prov = ref is not None and hashlib.sha256(ref).hexdigest() == p0ref.get(k)
+        pts = _diff(tip, ref) if tip and ref else []
+        bad = [p for p in pts if not _in_rainwin(*p)]
+        rep('p0-v003', f'G15 WiFi/BT {k} NEW CUT rain confined to RAIN_WIN vs e7ba692/90d5cc2',
+            ok_prov and bool(pts) and not bad, f'prov={ok_prov} {len(pts)}px {_bb(pts)}; outside {len(bad)}')
     sp0 = os.path.join(P0D, 'slice.txt')
     if os.path.exists(sp0):
         bads = [ln.split('\t')[1] for ln in open(sp0) if ln.startswith('SLICE') and int(ln.rstrip().split('\t')[2]) != 0]
@@ -892,7 +965,12 @@ if os.path.isdir(P0REF):
     # G21 (A5): tip vs tip-with-only-the-BH_DEV-drone-row-reverted (a5off-render.sha256, a5off PNGs + log)
     a5 = _man(os.path.join(P0REF, 'a5off-render.sha256'))
     a5mv = sorted(k for k in a5 if got.get(k) != a5[k])
-    rep('p0-v003', 'G21(a) A5 on vs off: only scanboard-drone.rgb/.norain.rgb differ', a5mv == ['scanboard-drone.norain.rgb', 'scanboard-drone.rgb'], f'{a5mv[:4]}')
+    # NEW CUT frames (hub plate + Look A rail on game-jackin) also differ tip-vs-a5off; strip them for A5.
+    # Exclude only NEW CUT hub-plate + Look A rail frames; keep the old N (incl. drone) for A5.
+    ncut_a5 = set(NFR_HUB) | {'game-jackin.rgb', 'game-jackin.norain.rgb'}
+    a5mv_a5 = sorted(k for k in a5mv if k not in ncut_a5)
+    rep('p0-v003', 'G21(a) A5 on vs off: only scanboard-drone.rgb/.norain.rgb differ (NEW CUT hub/rail excluded)',
+        a5mv_a5 == ['scanboard-drone.norain.rgb', 'scanboard-drone.rgb'], f'a5={a5mv_a5[:4]} ncut={sorted(set(a5mv)&ncut_a5)[:4]}')
     for v in ('', '.norain'):
         t = _b(os.path.join(D, f'scanboard-drone{v}.rgb')); r = _png(f'a5off-scanboard-drone{v}.png')
         dd = _diff(t, r)

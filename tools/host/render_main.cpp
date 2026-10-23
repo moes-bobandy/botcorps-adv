@@ -260,7 +260,7 @@ static int run_gate(const char *dir)
                 { "scan-sbox-hunt", 5, 3, nullptr }, { "scan-sbox-info", 5, 2, nullptr }, { "scan-sbox-gloss", 5, 4, nullptr },
                 /* v1017c #5: control panel navigation (every arrow, Enter edits) on the real draw loop */
                 { "control-nav", 1, 8, "\x04\x04\x04\x02\x01\x03\x04\x04\x04\x04\x02\x02\x01\x01\x03" },
-                { "hub-to-control", 1, 1, "\x04\x04\n\x04\x04\n\x02\n\x01\x01\n" },
+                { "hub-to-control", 1, 1, "\x04\n\x04\x04\n\x02\n\x01\x01\n" },
                 { "control-to-hub", 1, 8, "\x1b\x04\x04" },
                 /* v1019y: old Defend mini-game sims retired with the games. */
             };
@@ -412,6 +412,34 @@ int main(int argc, char **argv)
     if (argc > 2 && strcmp(argv[1], "gate") == 0) return run_gate(argv[2]);
     /* v1019x review (not a gate item): rend zaprain <dir> <frames> - Gibson Defend mid-game still, then the
      * rain stepped once per frame (game held); writes f<k>.rgb and f<k>.norain.rgb at the same millis. */
+    /* NEW CUT proof frames (not a gate item): rend newcut <dir> */
+    if (argc > 2 && strcmp(argv[1], "newcut") == 0) {
+        extern void botcorps_host_newcut_proof(const char *dir);
+        extern int host_band_sim;
+        host_band_sim = 0;
+        host_rain_init(0);
+        host_set_millis(9000u);
+        botcorps_host_newcut_proof(argv[2]);
+        /* convert .idx dumps to .rgb via write_raw */
+        static const char *names[] = {
+            "rain-deauth-t0","rain-deauth-t2s","rain-gibson-t0","rain-gibson-t2s",
+            "looka-howto","looka-rail","looka-death","looka-death-enter","looka-death-esc","looka-tier",
+            "prompt-gibson-scan","prompt-airtag-scan","prompt-deauth-scan",
+            "hub-after","hub-zone3-scan","term-defend-howto","term-defend-live", nullptr
+        };
+        for (int i = 0; names[i]; ++i) {
+            char ip[256], op[256];
+            snprintf(ip, sizeof ip, "%s/%s.idx", argv[2], names[i]);
+            snprintf(op, sizeof op, "%s/%s.rgb", argv[2], names[i]);
+            FILE *f = fopen(ip, "rb");
+            if (!f) { printf("missing %s\n", ip); continue; }
+            if (fread(g_buf, 1, sizeof g_buf, f) != sizeof g_buf) { fclose(f); continue; }
+            fclose(f);
+            write_raw(op, g_buf, 0);
+            printf("proof %s\n", names[i]);
+        }
+        return 0;
+    }
     if (argc > 3 && strcmp(argv[1], "zaprain") == 0) {
         extern void botcorps_host_zap_rain_step(uint8_t *buf);
         extern void botcorps_host_repaint(uint8_t *buf);

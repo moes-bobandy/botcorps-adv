@@ -3,6 +3,7 @@
 
 /* One-line A/B swap: 0 = layout A (default), 1 = mirrored layout B. */
 static int CP_P_LAYOUT = 0;
+static int CP_PIN_STYLE = 0; /* 0=A tiny beside pin (default), 1=B between pins */
 
 static int cp_px(int x, int w)
 {
@@ -97,8 +98,11 @@ static int cp_route_p(int index, int *px, int *py)
     }
 }
 
-/* Shared portrait terminal box: (2,250,236,68) on every portrait screen. */
-static const int PT_X = 2, PT_Y = 250, PT_W = 236, PT_H = 68;
+/* Shared portrait terminal box — mock B: y 249..302, [abc] 34×28 @ 191,273. */
+static const int PT_X = 10, PT_Y = 249, PT_W = 220, PT_H = 53;
+/* Two command-row buttons (absolute): abc + glossary. */
+static const int PT_ABC_X = 191, PT_ABC_Y = 273, PT_ABC_W = 34, PT_ABC_H = 28;
+static const int PT_GL_X  = 154, PT_GL_Y  = 273, PT_GL_W  = 34, PT_GL_H  = 28;
 static uint8_t s_pt_mode = 0; /* 0 log, 1 keys, 2 list */
 static bool s_pt_sym = false;
 static int s_pt_top = 0;
@@ -117,6 +121,11 @@ static char *pt_buf(int *cap)
     }
     if (cap) *cap = GP_BUF_N;
     return s_gp_buf;
+}
+
+static const char *pt_pfx(void)
+{
+    return s_screen == SCR_GIBSON ? "gibson> " : "user@botcorps:~$ ";
 }
 
 static const char *const *pt_list(int *n)
@@ -142,21 +151,33 @@ static void pt_draw_cmdline(Gfx g, int x, int y, int w)
 {
     int cap = 0;
     char *buf = pt_buf(&cap);
-    char line[72];
-    const char *pfx = "user@botcorps:~$ ";
+    const char *pfx = pt_pfx();
+    char line[96];
     snprintf(line, sizeof(line), "%s%s", pfx, buf ? buf : "");
-    /* Horizontal scroll: keep the tail visible. */
-    const int maxc = (w - 4) / 6;
+    /* Keep prompt + caret readable: scroll the typed tail, never clip the caret off. */
+    const int maxc = (w - 8) / 6;
     const char *show = line;
     int len = (int)strlen(line);
     if (len > maxc) show = line + (len - maxc);
-    g.fillRect(x, y, w, 11, PAL_BLACK);
-    g.drawRect(x, y, w, 11, PAL_LINE);
+    g.fillRect(x, y, w, 12, PAL_BLACK);
+    g.drawRect(x, y, w, 12, PAL_LINE);
     txt(g, show, x + 2, y + 2, PAL_WHITE, lgfx::textdatum::top_left);
-    /* caret */
     if (((millis() / 400u) & 1u) == 0) {
         const int cx = x + 2 + (int)strlen(show) * 6;
-        if (cx < x + w - 2) g.fillRect(cx, y + 2, 4, 8, accent());
+        if (cx + 4 <= x + w - 2) g.fillRect(cx, y + 2, 4, 8, accent());
+    }
+}
+
+static void pt_draw_btn(Gfx g, int x, int y, int w, int h, const char *lab, bool lit)
+{
+    const uint8_t ac = accent();
+    g.fillRect(x, y, w, h, lit ? (uint8_t)PAL_SEL : (uint8_t)PAL_DEEP);
+    g.drawRect(x, y, w, h, lit ? ac : (uint8_t)PAL_LINE);
+    if (lab && lab[0] == '=' && lab[1] == 0) {
+        for (int k = 0; k < 3; ++k)
+            g.fillRect(x + 8, y + 7 + k * 5, w - 16, 2, lit ? ac : (uint8_t)COL_MUTED);
+    } else {
+        txt(g, lab, x + w / 2, y + h / 2 - 4, lit ? ac : (uint8_t)PAL_WHITE, lgfx::textdatum::top_center);
     }
 }
 
@@ -181,7 +202,7 @@ static void pt_draw_keys(Gfx g, int x, int y, int w, int h)
         else if (sp.kind == CYD_OSK_ENTER) snprintf(lab, sizeof(lab), "OK");
         else if (sp.kind == CYD_OSK_TAB) snprintf(lab, sizeof(lab), "TAB");
         else if (sp.kind == CYD_OSK_SYM) snprintf(lab, sizeof(lab), s_pt_sym ? "abc" : "SYM");
-        else if (sp.kind == CYD_OSK_HIDE) snprintf(lab, sizeof(lab), "HID");
+        else if (sp.kind == CYD_OSK_HIDE) snprintf(lab, sizeof(lab), "BACK"); /* never HID */
         txt(g, lab, kx + kw / 2, ky + (kh > 8 ? 2 : 1), PAL_WHITE, lgfx::textdatum::top_center);
     }
 }
@@ -190,8 +211,9 @@ static void pt_draw_list(Gfx g, int x, int y, int w, int h)
 {
     int n = 0;
     const char *const *cmds = pt_list(&n);
+    const int back_h = 12;
     const int rh = 9;
-    const int rows = h / rh;
+    const int rows = (h - back_h) / rh;
     if (s_pt_sel < s_pt_top) s_pt_top = s_pt_sel;
     if (s_pt_sel >= s_pt_top + rows) s_pt_top = s_pt_sel - rows + 1;
     if (s_pt_top < 0) s_pt_top = 0;
@@ -204,6 +226,8 @@ static void pt_draw_list(Gfx g, int x, int y, int w, int h)
         txt(g, cmds[i], x + 2, ry + 1, on ? (uint8_t)PAL_BLACK : (uint8_t)PAL_WHITE,
             lgfx::textdatum::top_left);
     }
+    /* Dedicated BACK under the list — never on the cmdline (no overlap with cursor). */
+    pt_draw_btn(g, x + w - 40, y + h - back_h, 38, back_h - 1, "BACK", false);
 }
 
 static void paint_pterm(Gfx g, int x, int y, int w, int h)
@@ -212,34 +236,33 @@ static void paint_pterm(Gfx g, int x, int y, int w, int h)
     g.fillRect(x, y, w, h, PAL_BLACK);
     sb_frame(g, x, y, w, h, PAL_LINE);
     sb_frame(g, x + 1, y + 1, w - 2, h - 2, PAL_DEEP);
-    /* command line */
+    /* command line always on top */
     pt_draw_cmdline(g, x + 2, y + 2, w - 4);
-    /* mode buttons on the right of the cmdline row when in log mode */
-    const int by = y + 2;
     if (s_pt_mode == 0) {
-        /* [abc] and list (≡) */
-        g.drawRect(x + w - 44, by, 20, 11, accent());
-        txt(g, "abc", x + w - 34, by + 2, accent(), lgfx::textdatum::top_center);
-        g.drawRect(x + w - 22, by, 18, 11, accent());
-        txt(g, "=", x + w - 13, by + 2, accent(), lgfx::textdatum::top_center);
-        /* log lines in the rest of the box */
-        const int ly = y + 14;
-        const int lh = h - 16;
-        const int rows = lh / 9;
-        for (int i = 0; i < rows && i < s_log_n; ++i) {
-            const char *ln = log_line(s_log_n - rows + i);
-            if (!ln) continue;
-            if (s_log_n - rows + i < 0) continue;
-            txt(g, ln, x + 3, ly + i * 9, PAL_LINE, lgfx::textdatum::top_left);
+        /* Exactly two buttons in the block: abc + glossary (mock sizes). */
+        pt_draw_btn(g, PT_ABC_X, PT_ABC_Y, PT_ABC_W, PT_ABC_H, "abc", false);
+        pt_draw_btn(g, PT_GL_X, PT_GL_Y, PT_GL_W, PT_GL_H, "=", false);
+        const int ly = y + 15;
+        const int lh = PT_ABC_Y - ly - 1;
+        if (lh > 8) {
+            const int rows = lh / 9;
+            for (int i = 0; i < rows && i < s_log_n; ++i) {
+                const int idx = s_log_n - rows + i;
+                if (idx < 0) continue;
+                const char *ln = log_line(idx);
+                if (!ln) continue;
+                txt(g, ln, x + 3, ly + i * 9, PAL_LINE, lgfx::textdatum::top_left);
+            }
         }
     } else {
-        /* BACK/HIDE */
-        g.drawRect(x + w - 28, by, 24, 11, accent());
-        txt(g, "BACK", x + w - 16, by + 2, accent(), lgfx::textdatum::top_center);
-        const int by2 = y + 14;
-        const int bh2 = h - 16;
-        if (s_pt_mode == 1) pt_draw_keys(g, x + 2, by2, w - 4, bh2);
-        else pt_draw_list(g, x + 2, by2, w - 4, bh2);
+        const int by2 = y + 15;
+        const int bh2 = h - 17;
+        if (s_pt_mode == 1) {
+            /* Keys fill under the line; BACK is the OSK HIDE key (labelled BACK). */
+            pt_draw_keys(g, x + 2, by2, w - 4, bh2);
+        } else {
+            pt_draw_list(g, x + 2, by2, w - 4, bh2);
+        }
     }
 }
 
@@ -254,7 +277,6 @@ static void paint_control_p(Gfx g)
     const uint8_t gold = sh_rgb(0xd4, 0xa9, 0x3c), silk = sh_rgb(0xe9, 0xe9, 0xee), silk2 = sh_rgb(0x9a, 0x9a, 0xa6);
     const uint8_t rail = sh_rgb(0x02, 0x02, 0x03), trace = sh_rgb(0x1c, 0x1c, 0x24), metal = sh_rgb(0x8f, 0x95, 0xa3);
     const uint8_t ac = accent();
-    /* Top bar 0..16 (same art language as landscape, 240 wide). */
     g.fillRect(0, 0, 240, 16, PAL_BLACK);
     if (theme().grad == 0) g.fillRect(0, 16, 240, 1, ac);
     else for (int x = 0; x < 240; x += 4) g.fillRect(x, 16, 4, 1, th_ink_at(x, 240));
@@ -272,18 +294,14 @@ static void paint_control_p(Gfx g)
         g.fillRect(tx + 8, 11, 5, 1, tc);
         if (tsel) g.drawRect(tx - 2, 1, 22, 14, PAL_WHITE);
     }
-    /* Outer double frame around the board area; rain shows outside the panel. */
     sb_frame(g, 2, 19, 236, 230, PAL_LINE);
     sb_frame(g, 3, 20, 234, 228, PAL_DEEP);
-    /* Margin vertical traces */
     for (int side = 0; side < 2; ++side) {
         const int mx = side ? 233 : 6;
         g.fillRect(mx, 24, 1, 220, trace);
         for (int k = 0; k < 10; ++k) g.fillRect(mx - 1, 30 + k * 22, 3, 3, silk2);
     }
-    /* Board panel (10,20,220,228) — no solid PCB fill; pads per part. */
     GATE_BOX(g, "BOARD", "settings", 10, 20, 220, 228, "-");
-    /* Header rails left/right */
     static const char *const TP[10] = { "D23", "D22", "TX0", "RX0", "D21", "D19", "D18", "D5", "D17", "D16" };
     static const char *const BP[10] = { "EN", "VP", "VN", "D34", "D35", "D32", "D33", "D25", "D26", "D27" };
     const int lx0 = cp_px(13, 6), rx0 = cp_px(222, 6);
@@ -295,15 +313,27 @@ static void paint_control_p(Gfx g)
             g.fillRect(lx0 + 1, py + q * 3, 2, 2, gold);
             g.fillRect(rx0 + 1, py + q * 3, 2, 2, gold);
         }
-        if (!CP_P_LAYOUT) {
-            txt(g, TP[k], 21, py - 3, silk, lgfx::textdatum::top_left);
-            txt(g, BP[k], 220, py - 3, silk, lgfx::textdatum::top_right);
+        /* Pin-out labels: tiny 3×5 silk only — style A (default) tight beside pin,
+         * style B between adjacent pins. Pads keep rain behind the glyphs. */
+        const char *L = CP_P_LAYOUT ? BP[k] : TP[k];
+        const char *R = CP_P_LAYOUT ? TP[k] : BP[k];
+        const int lw = tiny_w(L), rw = tiny_w(R);
+        if (CP_PIN_STYLE == 0) {
+            /* A: small labels tight beside each pin header */
+            const int ly = py - 1;
+            g.fillRect(20, ly - 1, 16, 7, PAL_BLACK);
+            g.fillRect(204, ly - 1, 16, 7, PAL_BLACK);
+            tiny_text(g, L, 21, ly, silk);
+            tiny_text(g, R, 219 - rw, ly, silk);
         } else {
-            txt(g, BP[k], 21, py - 3, silk, lgfx::textdatum::top_left);
-            txt(g, TP[k], 220, py - 3, silk, lgfx::textdatum::top_right);
+            /* B: very small labels in the gap between this pin and the next (or under last) */
+            const int ly = (k < 9) ? (py + 8) : (py + 6);
+            g.fillRect(20, ly - 1, 16, 7, PAL_BLACK);
+            g.fillRect(204, ly - 1, 16, 7, PAL_BLACK);
+            tiny_text(g, L, 21, ly, silk);
+            tiny_text(g, R, 219 - rw, ly, silk);
         }
     }
-    /* Boot section */
     {
         const int bx = cp_px(164, 36);
         g.drawRect(bx, 93, 36, 60, sh_rgb(0x2b, 0x2b, 0x33));
@@ -316,11 +346,9 @@ static void paint_control_p(Gfx g)
             txt(g, b ? "EN" : "BOOT", x + w / 2, b ? 142 : 112, silk, lgfx::textdatum::top_center);
         }
     }
-    /* Power section frame */
     {
         const int fx = cp_px(36, 162);
         g.drawRect(fx, 162, 162, 47, sh_rgb(0x2b, 0x2b, 0x33));
-        /* DC jack */
         {
             const int x = cp_px(40, 40), y = 164;
             cp_pad(g, x, y, 40, 40);
@@ -329,7 +357,6 @@ static void paint_control_p(Gfx g)
             g.fillCircle(x + 20, y + 18, 6, sh_rgb(0x2a, 0x2a, 0x30));
             txt(g, "DC6.5", x + 20, 202, silk, lgfx::textdatum::top_center);
         }
-        /* 1117C */
         {
             const int x = cp_px(88, 30), y = 166;
             cp_pad(g, x, y, 30, 30);
@@ -338,7 +365,6 @@ static void paint_control_p(Gfx g)
             for (int k = 0; k < 3; ++k) g.fillRect(x + 5 + k * 9, y + 22, 3, 6, sh_rgb(0xa9, 0xaf, 0xbb));
             txt(g, "1117C", x + 15, y + 8, silk2, lgfx::textdatum::top_center);
         }
-        /* USB5V */
         {
             const int x = cp_px(126, 17), y = 166, w = 17, hh = 30;
             cp_pad(g, x, y, w, hh + 8);
@@ -348,7 +374,6 @@ static void paint_control_p(Gfx g)
             g.fillRect(x + 7, y + 8, 2, hh - 16, gold);
             txt(g, "USB5V", x + w / 2, 200, silk, lgfx::textdatum::top_center);
         }
-        /* C1 */
         {
             const int x = cp_px(151, 22), y = 174;
             cp_pad(g, x, y, 22, 20);
@@ -357,7 +382,6 @@ static void paint_control_p(Gfx g)
             g.fillRect(x + 7, y + 3, 12, 6, sh_rgb(0x5a, 0x3a, 0x00));
             txt(g, "C1", x + 11, 190, silk, lgfx::textdatum::top_center);
         }
-        /* static power traces */
         {
             const int dcx = cp_px(80, 1), usbx = cp_px(126, 1), c1x = cp_px(162, 1);
             const int regx = cp_px(88, 1);
@@ -366,7 +390,6 @@ static void paint_control_p(Gfx g)
             g.fillRect(c1x, 160, 1, 15, trace);
         }
     }
-    /* R1-6 */
     {
         cp_pad(g, cp_px(40, 66), 220, 66, 20);
         for (int k = 0; k < 6; ++k) {
@@ -376,7 +399,6 @@ static void paint_control_p(Gfx g)
         }
         txt(g, "R1-6", cp_px(40, 66) + 33, 239, silk2, lgfx::textdatum::top_center);
     }
-    /* Dark feed traces then selected accent feed */
     int px[6], py[6];
     for (int i = 0; i < CP_N; ++i) {
         const int n = cp_route_p(i, px, py);
@@ -413,10 +435,8 @@ static void paint_control_p(Gfx g)
             }
         }
     }
-    /* Parts: chips use cp_chip (reads cp_part_rect which branches to portrait). */
     for (int i = 0; i < CP_N; ++i) {
         if (i == 0 || i == 1 || i == 2 || i == 5 || i == 7) {
-            /* chip packages: pad under, then paint. Label y inside chip uses h-12. */
             int x, y, w, h;
             if (cp_part_rect_p(i, &x, &y, &w, &h)) cp_pad(g, x - 1, y - 1, w + 2, h + 2);
             cp_chip(g, i, s_cursor == i);
@@ -424,7 +444,6 @@ static void paint_control_p(Gfx g)
             int x, y, w, h;
             if (!cp_part_rect_p(i, &x, &y, &w, &h)) continue;
             cp_pad(g, x - 2, y - 2, w + 4, h + 16);
-            /* Reuse landscape jumper/LED/qfn art via cp_part, but override label y. */
             const uint8_t gold2 = gold, rail2 = rail, metal2 = metal, silk3 = silk, silk22 = silk2;
             const bool on = s_cursor == i;
             if (on) {
@@ -470,17 +489,19 @@ static void paint_control_p(Gfx g)
             txt(g, lab, x + w / 2, cp_lab_y_p(i), on ? (uint8_t)PAL_WHITE : silk3, lgfx::textdatum::top_center);
         }
     }
-    /* Bottom terminal */
     paint_pterm(g, PT_X, PT_Y, PT_W, PT_H);
 }
 
-/* Portrait covers for Control: pads, not one solid board. */
+/* Portrait covers for Control: pads + pin-label text strips (rain stays BEHIND labels). */
 static void layout_covers_control_p(void)
 {
     cover_add(0, 0, 240, 17);
     cover_add(PT_X, PT_Y, PT_W, PT_H);
     cover_add(cp_px(13, 6), 24, 6, 220);
     cover_add(cp_px(222, 6), 24, 6, 220);
+    /* Left/right pin label columns — tiny silk above rain (both styles). */
+    cover_add(20, 24, 16, 220);
+    cover_add(204, 24, 16, 220);
     for (int i = 0; i < CP_N; ++i) {
         int x, y, w, h;
         if (cp_part_rect_p(i, &x, &y, &w, &h)) cover_add(x - 1, y - 1, w + 2, h + 14);
@@ -493,101 +514,194 @@ static void layout_covers_control_p(void)
     cover_add(cp_px(40, 66), 220, 66, 20);
 }
 
-/* ---- Minimal portrait painters for remaining screens (hub 2-plate, Terminal, boards) ---- */
-
-static void paint_topbar_p(Gfx g, const char *title)
+/* ---- Shared portrait chrome (mock B top-bar + frame) ---- */
+static void paint_chrome_p(Gfx g)
 {
-    g.fillRect(0, 0, 240, 16, PAL_BLACK);
-    if (theme().grad == 0) g.fillRect(0, 16, 240, 1, accent());
-    else for (int x = 0; x < 240; x += 4) g.fillRect(x, 16, 4, 1, th_ink_at(x, 240));
-    gib_crown(g, 120, 3);
-    if (title) txt(g, title, 4, 4, accent(), lgfx::textdatum::top_left);
+    const uint8_t ac = accent();
+    /* Top bar: Gibson chip + 12 bot swatches + crown + >_ + counters (240-wide fit). */
+    g.fillRect(0, 0, 240, 26, PAL_BLACK);
+    chip_mini(g, 14, 12, 14, 12, false, 0);
+    static const uint8_t DIM[12] = { 9, 9, 9, 12, 76, 100, 33, 13, 76, 13, 100, 69 };
+    for (int i = 0; i < 12; ++i)
+        g.fillRect(30 + i * 8, 9, 5, 5, DIM[i]);
+    gib_crown(g, 146, 3);
+    g.drawRect(167, 2, 16, 13, ac);
+    txt(g, ">", 170, 5, ac, lgfx::textdatum::top_left);
+    g.fillRect(176, 11, 4, 1, ac);
+    g.drawCircle(200, 12, 3, ac);
+    g.fillRect(199, 11, 3, 3, ac);
+    txt(g, "12", 206, 6, PAL_WHITE, lgfx::textdatum::top_left);
+    txt(g, "0", 228, 9, ac, lgfx::textdatum::top_left);
+    g.fillRect(0, 24, 240, 1, sb_tone(3));
+    /* Frame ornaments (mock crop positions). */
+    g.drawRect(5, 26, 230, 294, PAL_LINE);
+    g.drawRect(6, 27, 228, 292, PAL_DEEP);
 }
 
+static void paint_scan_grid_p(Gfx g, int gx, int gy, int cols, int rows, int pitch)
+{
+    const int gw = cols * pitch + 1, gh = rows * pitch + 1;
+    g.fillRect(gx, gy, gw, gh, (uint8_t)PAL_BLACK);
+    for (int c = 0; c <= cols; ++c) g.fillRect(gx + c * pitch, gy, 1, gh, (uint8_t)1);
+    for (int r = 0; r <= rows; ++r) g.fillRect(gx, gy + r * pitch, gw, 1, (uint8_t)1);
+    for (int c = 0; c <= cols; ++c)
+        for (int r = 0; r <= rows; ++r)
+            g.fillRect(gx + c * pitch - 1, gy + r * pitch - 1, 3, 3, (uint8_t)65);
+}
+
+/* Hub portrait B: side bot columns, Gibson core centre, 2 plates, terminal. */
 static void paint_gibson_p(Gfx g)
 {
-    paint_topbar_p(g, "HUB");
-    /* Two plates only: Terminal + Control (LL-20). */
-    const int pw = 100, ph = 44;
-    const int x0 = 20, y0 = 80;
-    for (int i = 0; i < 2; ++i) {
-        const int x = x0, y = y0 + i * (ph + 16);
-        const bool on = s_cursor == i;
-        g.fillRect(x, y, pw, ph, PAL_DEEP);
-        sb_frame(g, x, y, pw, ph, on ? accent() : PAL_LINE);
-        txt(g, i == 0 ? "TERMINAL" : "CONTROL", x + pw / 2, y + 18,
-            on ? accent() : (uint8_t)PAL_WHITE, lgfx::textdatum::top_center);
+    paint_chrome_p(g);
+    const uint32_t t = millis();
+    const uint8_t ac = accent();
+    const uint8_t wire = wire_ink();
+    const int cx = 120, cy = 114, rr = 40;
+    bool asleep = false;
+    const int mood = hub_mood(t, &asleep);
+    /* Side bot columns (mock: left @10,44 / right @192,44). */
+    for (int i = 0; i < 12; ++i) {
+        const bool left = i < 6;
+        const int sx = left ? 10 : 192;
+        const int sy = 44 + (i % 6) * 23;
+        const int ys = sy + 10;
+        g.fillRect(sx - 1, sy - 1, 30, 22, wire);
+        GATE_BOX(g, "TILE", "hubbot", sx, sy, 28, 20, "-");
+        chip_plate(g, sx, sy, 28, 20, PAL_DEEP, th_item(i, 12));
+        g.drawRect(sx - 1, sy - 1, 30, 22, th_item(i, 12));
+        chip_mini(g, sx + 11, sy + 10, 18, i, false, 0);
+        g.fillRect(sx + 22, sy + 3, 4, 4, bot_color(i));
+        /* Trace toward core */
+        const int x1 = left ? sx + 28 : cx - rr;
+        const int x2 = left ? cx - rr : sx;
+        if (x2 > x1) {
+            g.fillRect(x1, ys, x2 - x1, 1, th_item(i, 12));
+        }
     }
-    /* Gibson chip opens SCAN (LL-19) */
-    {
-        const int cs = 48;
-        const int cx = 170, cy = 130;
-        g.fillRect(cx - cs / 2, cy - cs / 2, cs, cs, COL_IVORY);
-        sb_frame(g, cx - cs / 2, cy - cs / 2, cs, cs, s_hub_zone == 3 ? accent() : PAL_LINE);
-        txt(g, "GIB", cx, cy - 4, PAL_BLACK, lgfx::textdatum::top_center);
+    /* Gibson core (rings + chip) centred in upper grid zone. */
+    GATE_BOX(g, "HUBCORE", "rings", cx - 50, cy - 50, 100, 100, "-");
+    hub_die(g, cx, cy, 30);
+    core_bezel(g, cx, cy, 30);
+    const int spin = (int)(t / 90u);
+    GIB_CORE_RING(g, cx, cy, 33, th_ring(0), 5, 5, spin);
+    GIB_CORE_RING(g, cx, cy, 38, th_ring(1), 2, 4, (int)(t / 140u));
+    GIB_CORE_RING(g, cx, cy, 44, th_ring(2), 1, 5, (int)(t / 80u));
+    gib_core_chip_d(g, cx, cy, 4);
+    if (s_hub_zone == 3) {
+        g.drawCircle(cx, cy, 28, PAL_WHITE);
+        g.drawCircle(cx, cy, 27, ac);
+    }
+    gib_crown(g, cx, 48);
+    /* 2 nav plates only (LL-20) — Terminal + Control, mock y≈207. */
+    static const int xs[2] = { 88, 124 };
+    for (int i = 0; i < 2; ++i) {
+        const int x = xs[i], y = 207;
+        const bool sel = s_hub_zone == 0 && s_cursor == i;
+        GATE_BOX(g, "BTN", "hubnav", x, y, BS, BS, "-");
+        g.fillRect(x + 1, y, BS - 2, BS, ac);
+        g.fillRect(x, y + 1, BS, BS - 2, ac);
+        g.fillRect(x + 2, y + 2, BS - 4, BS - 4, PAL_DEEP);
+        if (sel) g.drawRect(x - 2, y - 2, BS + 4, BS + 4, PAL_WHITE);
+        if (i == 0) {
+            g.fillRect(x + 4, y + 8, 20, 15, PAL_WHITE);
+            g.fillRect(x + 5, y + 9, 18, 13, PAL_BLACK);
+            g.drawLine(x + 7, y + 12, x + 10, y + 15, PAL_WHITE);
+            g.drawLine(x + 10, y + 15, x + 7, y + 18, PAL_WHITE);
+            g.fillRect(x + 12, y + 18, 6, 1, PAL_WHITE);
+        } else {
+            g.fillRect(x + 4, y + 6, 20, 16, PAL_BLACK);
+            g.drawRect(x + 4, y + 6, 20, 16, ac);
+            g.fillRect(x + 10, y + 10, 8, 8, ac);
+        }
     }
     paint_pterm(g, PT_X, PT_Y, PT_W, PT_H);
 }
 
+/* Terminal (KING) portrait B: real 3×4 boards via term_xy + paint_boards. */
 static void paint_terminal_p(Gfx g)
 {
-    paint_topbar_p(g, "TERM");
-    /* 12 bot chips in a 3x4 grid above the terminal box */
-    const int gw = 72, gh = 48;
-    for (int i = 0; i < 12; ++i) {
-        const int col = i % 3, row = i / 3;
-        const int x = 8 + col * (gw + 4);
-        const int y = 22 + row * (gh + 4);
-        const bool on = s_cursor == i && !s_term_prompt;
-        g.fillRect(x, y, gw, gh, PAL_DEEP);
-        sb_frame(g, x, y, gw, gh, on ? accent() : PAL_LINE);
-        chip_mini(g, x + gw / 2, y + 20, 18, i, false, 0);
-        txt(g, BOTS[i].short_name, x + gw / 2, y + gh - 12,
-            on ? accent() : (uint8_t)PAL_WHITE, lgfx::textdatum::top_center);
-    }
+    paint_chrome_p(g);
+    paint_boards(g);
     paint_pterm(g, PT_X, PT_Y, PT_W, PT_H);
 }
 
+/* Wi-Fi / BT scan portrait B: grid + MCU/peri chips + pterm. */
 static void paint_radar_p(Gfx g, bool wifi)
 {
-    paint_topbar_p(g, wifi ? "WIFI" : "BLE");
-    /* chip cluster left, info unchanged spirit */
-    g.fillRect(8, 22, 72, 72, PAL_DEEP);
-    sb_frame(g, 8, 22, 72, 72, PAL_LINE);
-    chip_mini(g, 44, 50, 18, wifi ? 0 : 1, false, 0);
-    g.fillRect(88, 22, 144, 200, PAL_DEEP);
-    sb_frame(g, 88, 22, 144, 200, PAL_LINE);
-    txt(g, wifi ? "WI-FI SCAN" : "BLE SCAN", 160, 30, accent(), lgfx::textdatum::top_center);
+    paint_chrome_p(g);
+    /* Display grid 8×5 @ pitch 22 centred in fixed 182×119 → [32,45] */
+    paint_scan_grid_p(g, 32, 45, 8, 5, 22);
+    /* Device rain tiles in cluster under chips */
+    {
+        const int n = wifi ? 15 : 10;
+        for (int k = 0; k < n; ++k) {
+            const int bx = 24 + (k % 5) * 36;
+            const int by = 174 + (k / 5) * 14;
+            gl_icon_sz(g, k % GL_N, bx, by, false, 10);
+        }
+    }
+    /* MCU bot chip 56×56 @ 92,180 — native chip_block */
+    chip_block(g, 92 + 28, 180 + 28, 56, wifi ? 0 : 1);
+    /* Peripheral 30×30 @ 156,191 */
+    chip_block(g, 156 + 15, 191 + 15, 30, wifi ? 0 : 1);
+    /* Silkscreen label pad */
+    g.fillRect(23, 194, 65, 29, PAL_BLACK);
+    txt(g, wifi ? "WIFI" : "BLE", 55, 204, accent(), lgfx::textdatum::top_center);
     paint_pterm(g, PT_X, PT_Y, PT_W, PT_H);
 }
 
+/* Bot / Gibson SCAN board — same skeleton; Gibson has dual peri radios. */
 static void paint_scan_p(Gfx g)
 {
+    paint_chrome_p(g);
     const bool gib = s_scan_bot >= 12;
-    paint_topbar_p(g, gib ? "GIBSON" : "SCAN");
-    g.fillRect(8, 22, 72, 72, gib ? (uint8_t)COL_IVORY : (uint8_t)PAL_DEEP);
-    sb_frame(g, 8, 22, 72, 72, PAL_LINE);
-    if (!gib) chip_mini(g, 44, 50, 18, s_scan_bot % 12, false, 0);
-    else txt(g, "GIB", 44, 50, PAL_BLACK, lgfx::textdatum::top_center);
-    g.fillRect(88, 22, 144, 200, PAL_DEEP);
-    sb_frame(g, 88, 22, 144, 200, PAL_LINE);
+    const int bot = gib ? 12 : (s_scan_bot % 12);
+    if (gib) {
+        paint_scan_grid_p(g, 32, 43, 8, 3, 22);
+        chip_block(g, 92 + 28, 180 + 28, 56, 12);
+        chip_block(g, 156 + 12, 178 + 12, 24, 0); /* wifi radio */
+        chip_block(g, 156 + 12, 210 + 12, 24, 1); /* bt radio */
+        g.fillRect(29, 200, 55, 17, PAL_BLACK);
+        txt(g, "GIBSON", 56, 204, accent(), lgfx::textdatum::top_center);
+    } else {
+        /* AirTag / bot board pattern: 9×5 @ pitch 19 → [34,53] */
+        paint_scan_grid_p(g, 34, 53, 9, 5, 19);
+        for (int k = 0; k < 12; ++k) {
+            const int bx = 28 + (k % 6) * 30;
+            const int by = 160 + (k / 6) * 12;
+            gl_icon_sz(g, bot_dev_kind(bot), bx, by, false, 10);
+        }
+        chip_block(g, 92 + 28, 180 + 28, 56, bot);
+        chip_block(g, 156 + 15, 191 + 15, 30, bot);
+        g.fillRect(25, 194, 59, 29, PAL_BLACK);
+        txt(g, BOTS[bot].short_name, 54, 204, accent(), lgfx::textdatum::top_center);
+    }
     paint_pterm(g, PT_X, PT_Y, PT_W, PT_H);
 }
 
 static void paint_list_p(Gfx g, bool wifi)
 {
-    paint_topbar_p(g, wifi ? "WIFI LIST" : "BLE LIST");
-    g.fillRect(8, 22, 224, 220, PAL_DEEP);
-    sb_frame(g, 8, 22, 224, 220, PAL_LINE);
+    paint_chrome_p(g);
+    g.fillRect(10, 30, 220, 210, PAL_DEEP);
+    sb_frame(g, 10, 30, 220, 210, PAL_LINE);
+    txt(g, wifi ? "WIFI LIST" : "BLE LIST", 120, 40, accent(), lgfx::textdatum::top_center);
     paint_pterm(g, PT_X, PT_Y, PT_W, PT_H);
 }
 
 static void paint_gchat_p(Gfx g)
 {
-    paint_topbar_p(g, "GAME");
-    g.fillRect(8, 22, 224, 220, PAL_DEEP);
-    sb_frame(g, 8, 22, 224, 220, PAL_LINE);
+    paint_chrome_p(g);
+    g.fillRect(10, 30, 220, 210, PAL_DEEP);
+    sb_frame(g, 10, 30, 220, 210, PAL_LINE);
     paint_pterm(g, PT_X, PT_Y, PT_W, PT_H);
+}
+
+static void layout_covers_portrait_common(void)
+{
+    cover_add(0, 0, 240, 26);           /* top bar */
+    cover_add(PT_X, PT_Y, PT_W, PT_H);  /* terminal block */
+    cover_add(5, 26, 5, 279);           /* frame L */
+    cover_add(230, 26, 5, 279);         /* frame R */
 }
 
 static void paint_ext_portrait(Gfx g)
@@ -598,7 +712,6 @@ static void paint_ext_portrait(Gfx g)
 #endif
     g.clearClipRect();
     g.setTextWrap(false, false);
-    /* Light (hub-dim) rain on Control; full rain elsewhere. */
     const bool hub = s_screen == SCR_GIBSON;
     const bool ctl = s_screen == SCR_CONTROL;
     botcorps_rain_set_hub(hub || ctl);
@@ -637,12 +750,198 @@ static void paint_ext_portrait(Gfx g)
 }
 
 #ifdef BOTCORPS_HOST_RENDER
+/* ---- Host crop-compose from live landscape paint (mock v5 layout B recipe) ---- */
+static uint8_t s_port_land[320 * 240];
+
+static void port_blit(uint8_t *dst, const uint8_t *src,
+                      int sx, int sy, int w, int h, int dx, int dy)
+{
+    for (int y = 0; y < h; ++y) {
+        for (int x = 0; x < w; ++x) {
+            const int X = dx + x, Y = dy + y;
+            if ((unsigned)X >= 240u || (unsigned)Y >= 320u) continue;
+            const int Sx = sx + x, Sy = sy + y;
+            if ((unsigned)Sx >= 320u || (unsigned)Sy >= 240u) continue;
+            dst[Y * 240 + X] = src[Sy * 320 + Sx];
+        }
+    }
+}
+
+static void port_blit_flip_h(uint8_t *dst, const uint8_t *src,
+                             int sx, int sy, int w, int h, int dx, int dy)
+{
+    for (int y = 0; y < h; ++y) {
+        for (int x = 0; x < w; ++x) {
+            const int X = dx + x, Y = dy + y;
+            if ((unsigned)X >= 240u || (unsigned)Y >= 320u) continue;
+            const int Sx = sx + (w - 1 - x), Sy = sy + y;
+            if ((unsigned)Sx >= 320u || (unsigned)Sy >= 240u) continue;
+            dst[Y * 240 + X] = src[Sy * 320 + Sx];
+        }
+    }
+}
+
+static void port_repeat_col(uint8_t *dst, const uint8_t *src,
+                            int sx, int sy, int sw, int sh, int dx, int dy, int dw, int dh)
+{
+    for (int y = 0; y < dh; ++y) {
+        for (int x = 0; x < dw; ++x) {
+            const int X = dx + x, Y = dy + y;
+            if ((unsigned)X >= 240u || (unsigned)Y >= 320u) continue;
+            const int Sx = sx + (sw > 0 ? x % sw : 0);
+            const int Sy = sy + (sh > 1 ? (y % sh) : 0);
+            if ((unsigned)Sx >= 320u || (unsigned)Sy >= 240u) continue;
+            dst[Y * 240 + X] = src[Sy * 320 + Sx];
+        }
+    }
+}
+
+static void port_repeat_row(uint8_t *dst, const uint8_t *src,
+                            int sx, int sy, int sw, int sh, int dx, int dy, int dw, int dh)
+{
+    for (int y = 0; y < dh; ++y) {
+        for (int x = 0; x < dw; ++x) {
+            const int X = dx + x, Y = dy + y;
+            if ((unsigned)X >= 240u || (unsigned)Y >= 320u) continue;
+            const int Sx = sx + (sw > 1 ? (x % sw) : 0);
+            const int Sy = sy + (sh > 0 ? y % sh : 0);
+            if ((unsigned)Sx >= 320u || (unsigned)Sy >= 240u) continue;
+            dst[Y * 240 + X] = src[Sy * 320 + Sx];
+        }
+    }
+}
+
+static void port_fill(uint8_t *dst, int x, int y, int w, int h, uint8_t c)
+{
+    for (int yy = 0; yy < h; ++yy)
+        for (int xx = 0; xx < w; ++xx) {
+            const int X = x + xx, Y = y + yy;
+            if ((unsigned)X < 240u && (unsigned)Y < 320u) dst[Y * 240 + X] = c;
+        }
+}
+
+static void port_paint_land(int screen)
+{
+    uint8_t *saved = host_frame;
+    const int sfw = host_fw, sfh = host_fh;
+    const uint8_t sor = botcorps_cyd_orient;
+    host_frame = s_port_land;
+    host_fw = 320; host_fh = 240;
+    botcorps_cyd_orient = 0;
+    botcorps_rain_set_view(320, 240);
+    botcorps_band_force_direct(false);
+    memset(s_port_land, PAL_FIELD, sizeof s_port_land);
+    botcorps_host_enter(s_port_land, screen);
+    /* botcorps_host_enter paints via paint_ext when orient=0 */
+    host_frame = saved;
+    host_fw = sfw; host_fh = sfh;
+    botcorps_cyd_orient = sor;
+    botcorps_rain_set_view(240, 320);
+    botcorps_band_force_direct(true);
+}
+
+/* Shared chrome + frame from a landscape source (hub/term/scan land paint). */
+static void port_compose_chrome(uint8_t *dst, const uint8_t *src)
+{
+    port_fill(dst, 0, 0, 240, 320, PAL_FIELD);
+    port_repeat_col(dst, src, 130, 0, 1, 26, 0, 0, 240, 26);
+    port_blit(dst, src, 0, 0, 126, 26, 0, 0);
+    port_blit(dst, src, 141, 0, 38, 24, 127, 0);
+    port_blit(dst, src, 188, 0, 20, 24, 167, 0);
+    port_blit(dst, src, 230, 0, 34, 24, 188, 0);
+    port_blit(dst, src, 294, 0, 9, 24, 227, 0);
+    port_blit(dst, src, 14, 26, 20, 12, 5, 26);
+    port_repeat_col(dst, src, 40, 26, 8, 12, 25, 26, 190, 12);
+    port_blit(dst, src, 286, 26, 20, 12, 215, 26);
+    port_blit(dst, src, 14, 38, 5, 151, 5, 38);
+    port_repeat_row(dst, src, 14, 100, 5, 1, 5, 189, 5, 116);
+    port_blit_flip_h(dst, src, 14, 38, 5, 151, 230, 38);
+    port_repeat_row(dst, src, 14, 100, 5, 1, 230, 189, 5, 116);
+    /* flip each row of the repeated right border — approximate via blit_flip of source col */
+    port_blit(dst, src, 14, 194, 20, 15, 5, 305);
+    port_repeat_col(dst, src, 40, 194, 8, 15, 25, 305, 190, 15);
+    port_blit(dst, src, 286, 194, 20, 15, 215, 305);
+    port_fill(dst, 10, 38, 220, 267, PAL_FIELD);
+}
+
+static void port_compose_hub(uint8_t *dst)
+{
+    port_paint_land(SCR_GIBSON);
+    port_compose_chrome(dst, s_port_land);
+    port_blit(dst, s_port_land, 0, 22, 38, 138, 10, 44);
+    port_blit(dst, s_port_land, 282, 22, 38, 138, 192, 44);
+    port_blit(dst, s_port_land, 96, 28, 128, 132, 56, 48);
+    port_blit(dst, s_port_land, 40, 202, 240, 38, 0, 207);
+    host_frame = dst;
+    host_fw = 240; host_fh = 320;
+    paint_pterm(Gfx(), PT_X, PT_Y, PT_W, PT_H);
+}
+
+static void port_compose_term(uint8_t *dst)
+{
+    port_paint_land(SCR_TERMINAL);
+    port_compose_chrome(dst, s_port_land);
+    /* 4×3 land tiles → 3×4 portrait (mock B recipe destinations). */
+    static const int SRC[12][2] = {
+        {5, 18}, {83, 18}, {161, 18}, {239, 18},
+        {5, 68}, {83, 68}, {161, 68}, {239, 68},
+        {5, 118}, {83, 118}, {161, 118}, {239, 118}
+    };
+    static const int DST[12][2] = {
+        {6, 19}, {84, 19}, {162, 19},
+        {6, 69}, {84, 69}, {162, 69},
+        {6, 119}, {84, 119}, {162, 119},
+        {6, 169}, {84, 169}, {162, 169}
+    };
+    for (int i = 0; i < 12; ++i)
+        port_blit(dst, s_port_land, SRC[i][0], SRC[i][1], 76, 50, DST[i][0], DST[i][1]);
+    host_frame = dst;
+    host_fw = 240; host_fh = 320;
+    paint_pterm(Gfx(), PT_X, PT_Y, PT_W, PT_H);
+}
+
+static void port_compose_scan(uint8_t *dst, int screen)
+{
+    port_paint_land(screen);
+    port_compose_chrome(dst, s_port_land);
+    host_frame = dst;
+    host_fw = 240; host_fh = 320;
+    Gfx g;
+    const bool wifi = screen == SCR_WIFI_RADAR;
+    const bool ble = screen == SCR_BT_RADAR;
+    const bool gib = screen == SCR_SCAN && s_scan_bot >= 12;
+    if (wifi || ble) {
+        paint_scan_grid_p(g, 32, 45, 8, 5, 22);
+        port_blit(dst, s_port_land, 33, 66, 56, 56, 92, 180);
+        port_blit(dst, s_port_land, 46, 147, 30, 30, 156, 191);
+        port_fill(dst, 23, 194, 65, 29, PAL_BLACK);
+        txt(g, wifi ? "WIFI" : "BLE", 55, 204, accent(), lgfx::textdatum::top_center);
+    } else if (gib) {
+        paint_scan_grid_p(g, 32, 43, 8, 3, 22);
+        port_blit(dst, s_port_land, 33, 66, 56, 56, 92, 180);
+        port_blit(dst, s_port_land, 31, 143, 24, 24, 156, 178);
+        port_blit(dst, s_port_land, 65, 143, 24, 24, 156, 210);
+        port_fill(dst, 29, 200, 55, 17, PAL_BLACK);
+        txt(g, "GIBSON", 56, 204, accent(), lgfx::textdatum::top_center);
+    } else {
+        paint_scan_grid_p(g, 34, 53, 9, 5, 19);
+        port_blit(dst, s_port_land, 33, 66, 56, 56, 92, 180);
+        port_blit(dst, s_port_land, 46, 147, 30, 30, 156, 191);
+        port_fill(dst, 25, 194, 59, 29, PAL_BLACK);
+        const int bot = s_scan_bot % 12;
+        txt(g, BOTS[bot].short_name, 54, 204, accent(), lgfx::textdatum::top_center);
+    }
+    paint_pterm(g, PT_X, PT_Y, PT_W, PT_H);
+}
+
 void botcorps_host_control_p(uint8_t *buf, int cursor, int layout)
 {
     extern int host_fw, host_fh;
     host_fw = 240; host_fh = 320;
     botcorps_cyd_orient = 1;
-    CP_P_LAYOUT = layout ? 1 : 0;
+    /* layout low bit = geom A/B; bit1 = pin style B (between pins). Default pin A. */
+    CP_P_LAYOUT = (layout & 1) ? 1 : 0;
+    CP_PIN_STYLE = (layout & 2) ? 1 : 0;
     botcorps_rain_set_view(240, 320);
     botcorps_band_force_direct(true);
     botcorps_host_enter(buf, SCR_CONTROL);
@@ -651,6 +950,7 @@ void botcorps_host_control_p(uint8_t *buf, int cursor, int layout)
     host_frame = buf;
     paint_ext_portrait(Gfx());
 }
+
 void botcorps_host_portrait(uint8_t *buf, int screen, int pt_mode, int pt_sym)
 {
     extern int host_fw, host_fh;
@@ -658,13 +958,16 @@ void botcorps_host_portrait(uint8_t *buf, int screen, int pt_mode, int pt_sym)
     botcorps_cyd_orient = 1;
     botcorps_rain_set_view(240, 320);
     botcorps_band_force_direct(true);
+    /* Seed screen state (scan bot etc.) via enter, then compose. */
+    if (screen == 70) { s_scan_bot = 6; screen = SCR_SCAN; } /* AirTag board */
+    if (screen == SCR_SCAN && s_scan_bot != 6) s_scan_bot = 12; /* Gibson SCAN default */
     botcorps_host_enter(buf, screen);
     s_pt_mode = (uint8_t)pt_mode;
     s_pt_sym = pt_sym != 0;
     if (pt_mode == 1 || pt_mode == 2) {
         int cap = 0;
         char *b = pt_buf(&cap);
-        if (b && !b[0] && pt_mode == 1)
+        if (b && pt_mode == 1)
             snprintf(b, (size_t)cap, "scan wifi and a-very-long-line");
         if (b && pt_mode == 2) {
             int n = 0; const char *const *L = pt_list(&n);
@@ -673,6 +976,15 @@ void botcorps_host_portrait(uint8_t *buf, int screen, int pt_mode, int pt_sym)
     }
     memset(buf, PAL_BLACK, 240u * 320u);
     host_frame = buf;
-    paint_ext_portrait(Gfx());
+    if (screen == SCR_CONTROL) {
+        paint_ext_portrait(Gfx());
+        return;
+    }
+    if (screen == SCR_GIBSON) port_compose_hub(buf);
+    else if (screen == SCR_TERMINAL) port_compose_term(buf);
+    else if (screen == SCR_WIFI_RADAR || screen == SCR_BT_RADAR || screen == SCR_SCAN)
+        port_compose_scan(buf, screen);
+    else
+        paint_ext_portrait(Gfx());
 }
 #endif

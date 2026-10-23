@@ -495,6 +495,7 @@ static void cyd_tile_rain(Gfx g, int x, int y);
 static void cyd_cp_rain(Gfx g);
 static int cyd_chip_touch(int tx, int ty);
 static int cyd_top_touch(int tx, int ty);
+static int cyd_audit_touch(int tx, int ty);
 /* 0 = landscape, 1 = portrait. Persisted as NVS "orient". Non-static: display.h begin(). */
 uint8_t botcorps_cyd_orient = 0;
 static void cyd_apply_orient(void);
@@ -958,6 +959,14 @@ static void cover_btn(int x, int y)
 
 static void term_xy(int n, int *x, int *y)
 {
+#ifdef BOTCORPS_CYD
+    if (botcorps_cyd_orient) {
+        /* Mock Terminal (KING) portrait B: 3×4 tile grid @ (6,19) pitch 78×50 */
+        *x = 6 + (n % 3) * 78;
+        *y = 19 + (n / 3) * 50;
+        return;
+    }
+#endif
     *x = 7 + (n % 4) * 78;
     *y = 19 + (n / 4) * 50;
 }
@@ -995,6 +1004,57 @@ static void layout_covers(void)
         botcorps_rain_set_covers(s_box, 0, false);
         return;
     }
+#ifdef BOTCORPS_CYD
+    if (botcorps_cyd_orient) {
+        /* Portrait covers: top bar + terminal + frame; screen-specific pads. */
+        cover_add(0, 0, 240, 26);
+        cover_add(10, 249, 220, 53); /* PT box */
+        cover_add(5, 26, 5, 279);
+        cover_add(230, 26, 5, 279);
+        switch (s_screen) {
+        case SCR_GIBSON:
+            cover_add(10, 44, 38, 138);
+            cover_add(192, 44, 38, 138);
+            cover_add(56, 48, 128, 132);
+            cover_add(88, 207, 64, 32);
+            break;
+        case SCR_TERMINAL:
+            for (int i = 0; i < 12; ++i) {
+                int x, y; term_xy(i, &x, &y);
+                cover_add(x - 1, y - 1, 76, 50);
+            }
+            break;
+        case SCR_WIFI_RADAR:
+        case SCR_BT_RADAR:
+            cover_add(32, 45, 176, 110);
+            cover_add(92, 180, 56, 56);
+            cover_add(156, 191, 30, 30);
+            cover_add(23, 194, 65, 29);
+            break;
+        case SCR_SCAN:
+            if (s_scan_bot >= 12) {
+                cover_add(32, 43, 176, 66);
+                cover_add(92, 180, 56, 56);
+                cover_add(156, 178, 24, 56);
+                cover_add(29, 200, 55, 17);
+            } else {
+                cover_add(34, 53, 171, 95);
+                cover_add(92, 180, 56, 56);
+                cover_add(156, 191, 30, 30);
+                cover_add(25, 194, 59, 29);
+            }
+            break;
+        case SCR_CONTROL:
+            layout_covers_control_p();
+            botcorps_rain_set_covers(s_box, s_box_n, s_box_radar);
+            return;
+        default:
+            break;
+        }
+        botcorps_rain_set_covers(s_box, s_box_n, s_box_radar);
+        return;
+    }
+#endif
     switch (s_screen) {
     case SCR_RAIN:
         cover_add(104, 44, 113, 113);
@@ -7882,7 +7942,7 @@ static void paint_osk(void)
         else if (k.kind == CYD_OSK_ENTER) lab = "ENTER";
         else if (k.kind == CYD_OSK_TAB) lab = "TAB";
         else if (k.kind == CYD_OSK_SYM) lab = s_osk_sym ? "ABC" : "SYM";
-        else if (k.kind == CYD_OSK_HIDE) lab = "HIDE";
+        else if (k.kind == CYD_OSK_HIDE) lab = "BACK"; /* field 9: never HID/HIDE */
         if (!lab || !lab[0]) continue;
         const int tw = (int)strlen(lab) * 6;
         txt(g, lab, k.x + (k.w - tw) / 2, k.y + 3, PAL_INK, lgfx::textdatum::top_left);
@@ -9402,29 +9462,23 @@ static int pt_hit(int tx, int ty, char *typed)
     if (tx < s_pt_bx || tx >= s_pt_bx + s_pt_bw || ty < s_pt_by || ty >= s_pt_by + s_pt_bh)
         return -1;
     const int x = s_pt_bx, y = s_pt_by, w = s_pt_bw, h = s_pt_bh;
-    const int by = y + 2;
     if (s_pt_mode == 0) {
-        /* [abc] */
-        if (tx >= x + w - 44 && tx < x + w - 24 && ty >= by && ty < by + 11) {
+        /* Exactly two buttons: abc @191,273 and glossary @154,273 (mock sizes 34×28). */
+        if (tx >= PT_ABC_X && tx < PT_ABC_X + PT_ABC_W && ty >= PT_ABC_Y && ty < PT_ABC_Y + PT_ABC_H) {
             s_pt_mode = 1; s_dirty = true; return K_NONE;
         }
-        /* list ≡ */
-        if (tx >= x + w - 22 && tx < x + w - 4 && ty >= by && ty < by + 11) {
-            s_pt_mode = 2; s_pt_sel = 0; s_dirty = true; return K_NONE;
+        if (tx >= PT_GL_X && tx < PT_GL_X + PT_GL_W && ty >= PT_GL_Y && ty < PT_GL_Y + PT_GL_H) {
+            s_pt_mode = 2; s_pt_sel = 0; s_pt_top = 0; s_dirty = true; return K_NONE;
         }
         /* tap cmdline -> keys */
-        if (ty >= by && ty < by + 11) {
+        if (ty >= y + 2 && ty < y + 14) {
             s_pt_mode = 1; s_dirty = true; return K_NONE;
         }
         return K_NONE;
     }
-    /* BACK/HIDE */
-    if (tx >= x + w - 28 && tx < x + w - 4 && ty >= by && ty < by + 11) {
-        s_pt_mode = 0; s_dirty = true; return K_NONE;
-    }
-    const int by2 = y + 14, bh2 = h - 16, bw2 = w - 4, bx2 = x + 2;
-    if (ty < by2 || ty >= by2 + bh2 || tx < bx2 || tx >= bx2 + bw2) return K_NONE;
+    const int by2 = y + 15, bh2 = h - 17, bw2 = w - 4, bx2 = x + 2;
     if (s_pt_mode == 1) {
+        if (ty < by2 || ty >= by2 + bh2 || tx < bx2 || tx >= bx2 + bw2) return K_NONE;
         const int kp = (bw2 - 4) / 10;
         const int rp = (bh2 - 2) / 5;
         const int n = (int)(sizeof(CYD_OSK_SPEC) / sizeof(CYD_OSK_SPEC[0]));
@@ -9435,7 +9489,7 @@ static int pt_hit(int tx, int ty, char *typed)
             const int kw = kp * sp.span - 1;
             const int kh = rp - 1;
             if (tx < kx || tx >= kx + kw || ty < ky || ty >= ky + kh) continue;
-            if (sp.kind == CYD_OSK_HIDE) { s_pt_mode = 0; s_dirty = true; return K_NONE; }
+            if (sp.kind == CYD_OSK_HIDE) { s_pt_mode = 0; s_dirty = true; return K_NONE; } /* BACK */
             if (sp.kind == CYD_OSK_SYM) { s_pt_sym = !s_pt_sym; s_dirty = true; return K_NONE; }
             if (sp.kind == CYD_OSK_BKSP) return K_BS;
             if (sp.kind == CYD_OSK_ENTER) return K_OK;
@@ -9449,8 +9503,13 @@ static int pt_hit(int tx, int ty, char *typed)
         }
         return K_NONE;
     }
-    /* list mode */
+    /* list mode — dedicated BACK under the list (no overlap with cmdline cursor). */
     {
+        const int back_h = 12;
+        if (tx >= bx2 + bw2 - 40 && tx < bx2 + bw2 && ty >= by2 + bh2 - back_h && ty < by2 + bh2) {
+            s_pt_mode = 0; s_dirty = true; return K_NONE;
+        }
+        if (ty < by2 || ty >= by2 + bh2 - back_h || tx < bx2 || tx >= bx2 + bw2) return K_NONE;
         int n = 0;
         const char *const *cmds = pt_list(&n);
         const int rh = 9;
@@ -9463,7 +9522,7 @@ static int pt_hit(int tx, int ty, char *typed)
             snprintf(b, (size_t)cap, "%s", cmds[i]);
             s_pt_mode = 0;
             s_dirty = true;
-            return K_OK; /* run filled line */
+            return K_OK; /* ENTER: run filled line */
         }
         s_pt_sel = i;
         if (b) snprintf(b, (size_t)cap, "%s", cmds[i]);
@@ -9476,11 +9535,17 @@ static int pt_hit(int tx, int ty, char *typed)
 static int portrait_touch(int tx, int ty, char *typed)
 {
     if (!botcorps_cyd_orient) return -1;
-    /* top bar: crown back / TERM shortcut already handled early; BACK for non-control */
-    if (ty < 16) {
-        if (tx >= 102 && tx < 138) return K_ESC;
-        if (tx >= 204 && tx < 230) {
+    /* top bar: crown = BACK, >_ = TERM */
+    if (ty < 26) {
+        if (tx >= 127 && tx < 165) return K_ESC;
+        if (tx >= 167 && tx < 187) {
             if (s_screen != SCR_TERMINAL) enter_screen(SCR_TERMINAL, s_screen);
+            return K_NONE;
+        }
+        if (tx < 30 && s_screen == SCR_GIBSON) {
+            /* Gibson status chip in top bar — also opens SCAN (LL-19) */
+            s_scan_bot = 12;
+            enter_screen(SCR_SCAN, SCR_GIBSON);
             return K_NONE;
         }
     }
@@ -9489,12 +9554,12 @@ static int portrait_touch(int tx, int ty, char *typed)
         if (pk >= 0) return pk;
     }
     if (s_screen == SCR_GIBSON) {
-        /* plates */
-        const int pw = 100, ph = 44, x0 = 20, y0 = 80;
+        /* 2 nav plates at mock y≈207 */
+        static const int xs[2] = { 88, 124 };
         for (int i = 0; i < 2; ++i) {
-            const int x = x0, y = y0 + i * (ph + 16);
-            if (tx >= x && tx < x + pw && ty >= y && ty < y + ph) {
-                if (s_cursor == i) {
+            const int x = xs[i], y = 207;
+            if (tx >= x && tx < x + BS && ty >= y && ty < y + BS) {
+                if (s_cursor == i && s_hub_zone == 0) {
                     if (i == 0) enter_screen(SCR_TERMINAL, SCR_GIBSON);
                     else enter_screen(SCR_CONTROL, SCR_GIBSON);
                     return K_NONE;
@@ -9502,10 +9567,21 @@ static int portrait_touch(int tx, int ty, char *typed)
                 s_cursor = i; s_hub_zone = 0; s_dirty = true; return K_NONE;
             }
         }
-        /* GIB -> SCAN */
+        /* Side bot columns */
+        for (int i = 0; i < 12; ++i) {
+            const bool left = i < 6;
+            const int sx = left ? 10 : 192;
+            const int sy = 44 + (i % 6) * 23;
+            if (tx >= sx && tx < sx + 28 && ty >= sy && ty < sy + 20) {
+                s_scan_bot = i;
+                enter_screen(SCR_SCAN, SCR_GIBSON);
+                return K_NONE;
+            }
+        }
+        /* Gibson core chip -> SCAN (LL-19) */
         {
-            const int cs = 48, cx = 170, cy = 130;
-            if (tx >= cx - cs / 2 && tx < cx + cs / 2 && ty >= cy - cs / 2 && ty < cy + cs / 2) {
+            const int cx = 120, cy = 114, rr = 40;
+            if (tx >= cx - rr && tx < cx + rr && ty >= cy - rr && ty < cy + rr) {
                 s_scan_bot = 12;
                 enter_screen(SCR_SCAN, SCR_GIBSON);
                 return K_NONE;
@@ -9514,14 +9590,24 @@ static int portrait_touch(int tx, int ty, char *typed)
         return K_NONE;
     }
     if (s_screen == SCR_TERMINAL) {
-        const int gw = 72, gh = 48;
         for (int i = 0; i < 12; ++i) {
-            const int col = i % 3, row = i / 3;
-            const int x = 8 + col * (gw + 4);
-            const int y = 22 + row * (gh + 4);
-            if (tx < x || tx >= x + gw || ty < y || ty >= y + gh) continue;
+            int x, y;
+            term_xy(i, &x, &y);
+            if (tx < x || tx >= x + 76 || ty < y || ty >= y + 50) continue;
             if (s_cursor == i) return K_OK;
             s_cursor = i; s_term = i; s_dirty = true; return K_NONE;
+        }
+        return K_NONE;
+    }
+    if (s_screen == SCR_WIFI_RADAR || s_screen == SCR_BT_RADAR || s_screen == SCR_SCAN) {
+        /* MCU chip */
+        if (tx >= 92 && tx < 148 && ty >= 180 && ty < 236) return K_OK;
+        /* peri */
+        if (tx >= 156 && tx < 186 && ty >= 178 && ty < 234) return K_OK;
+        /* grid tap — navigate */
+        if (tx >= 32 && tx < 208 && ty >= 43 && ty < 160) {
+            s_dirty = true;
+            return K_NONE;
         }
         return K_NONE;
     }
@@ -9536,8 +9622,8 @@ static int portrait_touch(int tx, int ty, char *typed)
             queue_focus(old, i);
             return K_NONE;
         }
-        /* TERM / BACK on top bar already covered */
         if (ty < 16 && tx >= 206) { s_cursor = CP_N; return K_OK; }
+        if (ty < 16 && tx >= 102 && tx < 138) { s_cursor = CP_N + 1; return K_OK; }
         return K_NONE;
     }
     return -1;
@@ -9818,6 +9904,10 @@ static int read_key(char *typed)
     {   /* cyd-term-fix item 10: top-bar quick buttons at their drawn rects (landscape) */
         const int tk = cyd_top_touch(tx, ty);
         if (tk >= 0) { s_touch_last = now; return tk; }
+    }
+    {   /* cyd-term-fix item 2: audit hits at the drawn rects (botcorps_cyd_term.inc) */
+        const int ak = cyd_audit_touch(tx, ty);
+        if (ak >= 0) return ak;
     }
     if (s_osk_open && ty >= CYD_OSK_CLIP_Y) {
         const int hit = cyd_osk_hit(tx, ty);

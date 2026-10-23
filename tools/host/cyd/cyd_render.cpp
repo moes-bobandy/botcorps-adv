@@ -115,7 +115,8 @@ int cyd_render_main(int argc, char **argv)
         else if (!strcmp(argv[2], "control")) scr = 8;
         else if (!strcmp(argv[2], "wifi")) scr = 3;
         else if (!strcmp(argv[2], "ble")) scr = 5;
-        else if (!strcmp(argv[2], "scan")) scr = 7;
+        else if (!strcmp(argv[2], "scan") || !strcmp(argv[2], "gibson")) scr = 7;
+        else if (!strcmp(argv[2], "airtag")) scr = 70; /* SCR_SCAN + airtag bot */
         else if (!strcmp(argv[2], "gchat")) scr = 10;
         int pt = argc > 4 ? atoi(argv[4]) : 0;
         int sym = argc > 5 ? atoi(argv[5]) : 0;
@@ -129,6 +130,16 @@ int cyd_render_main(int argc, char **argv)
         memset(s_cyd_buf, 0, sizeof s_cyd_buf);
         botcorps_host_portrait(s_cyd_buf, scr, pt, sym);
         write_raw(argv[3], s_cyd_buf, 0);
+        return 0;
+    }
+    /* rend ctlp-pins <outdir> — portrait Control geom A, pin styles A+B @ native; caller upscales */
+    if (argc > 2 && strcmp(argv[1], "ctlp-pins") == 0) {
+        const char *dir = argv[2];
+        char path[512];
+        snprintf(path, sizeof path, "%s/control-pins-A.rgb", dir);
+        render_ctlp(path, 0 /* geomA + pinA */, 0, getenv("NORAIN") ? 1 : 0);
+        snprintf(path, sizeof path, "%s/control-pins-B.rgb", dir);
+        render_ctlp(path, 2 /* geomA + pinB */, 0, getenv("NORAIN") ? 1 : 0);
         return 0;
     }
     return -1;

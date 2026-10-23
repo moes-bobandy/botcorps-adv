@@ -1,10 +1,12 @@
-/* cyd-term-fix items 1/5 (CYD only, included from botcorps_ui.cpp under BOTCORPS_CYD).
+/* cyd-term-fix items 1/5/8/9 (CYD only, included from botcorps_ui.cpp under BOTCORPS_CYD).
  *
  * Every landscape terminal (Terminal, Gibson hub prompt, scan / bot boards, Defend boards) has two
  * command-row buttons: the [abc] keyboard emblem and the command glossary (the ≡ menu art). Each one
  * opens its mode in the one pop-up area (y >= CYD_OSK_CLIP_Y, the keyboard area):
- *   keyboard  = the existing OSK (its HIDE key is the back button),
+ *   keyboard  = the existing OSK (its BACK key closes the mode — never labelled HID/HIDE),
  *   glossary  = a scrolling list of this terminal's commands, with its own BACK.
+ * Field 8: keyboard XOR glossary — never both at once (s_cyd_pl selects which mode owns the pop-up).
+ * Field 9: every mode has a BACK that returns to the normal terminal (OSK BACK / list BACK).
  * The command line of the active terminal stays visible as the top row of the pop-up. Picking a list
  * entry fills that command line WITHOUT running it and switches to the keyboard; ENTER then runs the
  * line through the terminal's own key path, exactly like a hardware Enter.
@@ -512,4 +514,162 @@ static void cyd_cp_rain(Gfx g)
     host_gate_mute = 0;
 #endif
     zr_clip_set(g, cl);
+}
+/* ---- item 2: reachability audit - touch at the DRAWN rect for elements only arrows could reach -----
+ * Each hit maps the tap to the key/state the Adv arrows+Enter already produce for that element, so the
+ * existing handlers run unchanged. Rects are the painters' own (cited per line). -1 = not ours. */
+static const CydRect CYD_RAIN_DISC = { 104, 44, 112, 112 };  /* rain ring disc r56 at (160,100) -> Enter */
+static const CydRect CYD_HUB_CORE = { 106, 46, 108, 108 };   /* paint_hub GATE_BOX HUBCORE cx-54,cy-54 */
+static const CydRect CYD_HUB_GP = { 38, 164, 196, 38 };      /* partial_gp_strip band, left of [abc] */
+static const CydRect CYD_GRID = { SB_X, SB_Y, SB_W, SB_H };  /* scan-box grid (radar cells, Defend field) */
+static const CydRect CYD_TOVL[4] = {                         /* paint_term overlays 1 gloss, 2 attack, 3 help */
+    { 0, 0, 0, 0 }, { 24, 24, 272, 196 }, { 10, 20, 300, 208 }, { 6, 19, 308, 146 }
+};
+static const CydRect CYD_SB_GL = { 108, 43, 15, 10 };     /* scan-box ">" glossary prompt (dx 106, dy 42) */
+static const CydRect CYD_GC_SHEET = { 14, 103, 292, 106 };   /* paint_gc_sheet bx 14, by 214-5-h, h 8*12+10 */
+
+/* Gibson SCAN crew drop-down: walk gib_dropdown's own layout (lanes, open panel tiles, both rails). */
+static int cyd_gd_touch(int tx, int ty)
+{
+#if BOTCORPS_GIB_DROPDOWN
+    if (!(s_screen == SCR_SCAN && s_scan_bot == 12 && !s_gib_hunt) || s_sp_buf[0] || !bh_orbit()) return -1;
+    if (tx < GD_X || tx >= GD_X + GD_W + 12 || ty < GD_LY || ty > GD_BOT) return -1;
+    gd_fix();
+    if (tx >= GD_X + GD_W + 1) {                              /* outer rail: lane up / down (Up/Down) */
+        s_gd_dev = -1;                                        /* the rail walks lanes, not tiles */
+        gd_key(ty < (GD_LY + GD_BOT) / 2 ? 1 : 2);
+        s_dirty = true;
+        return K_NONE;
+    }
+    int y = GD_LY;
+    for (int b = s_gd_top; b < 12; ++b) {
+        const bool open = b == s_gd_lane;
+        const int need = GD_LH + (open ? gd_panel_h(b) : 0);
+        if (y + need > GD_BOT + 1) break;
+        if (ty >= y && ty < y + GD_LH) {                     /* lane header: open it / climb back to it */
+            if (!open) { s_gd_lane = b; s_gd_row0 = 0; }
+            s_gd_dev = -1;
+            gd_fix();
+            s_dirty = true;
+            return K_NONE;
+        }
+        y += GD_LH;
+        if (open) {
+            const int ph = gd_panel_h(b), pr = gd_prows(b), n = gd_cnt(b);
+            if (ty >= y && ty < y + ph) {
+                const int rows = (n + 6) / 7;
+                if (rows > pr && tx >= GD_X + GD_W - 9) {    /* inner rail: page the tile rows */
+                    if (ty < y + ph / 2) { if (s_gd_row0 > 0) --s_gd_row0; }
+                    else if (s_gd_row0 + pr < rows) ++s_gd_row0;
+                    s_dirty = true;
+                    return K_NONE;
+                }
+                const int c = (tx - GD_X) / SG_C, r = (ty - y) / SG_C;
+                const int i = (s_gd_row0 + r) * 7 + c;
+                if (c >= 0 && c < 7 && r < pr && i < n) {     /* a tile: select it (Right/arrows) */
+                    s_gd_dev = i;
+                    const int keep = s_gd_row0;
+                    gd_fix();
+                    s_gd_row0 = keep;
+                    s_dirty = true;
+                }
+                return K_NONE;
+            }
+            y += ph;
+        }
+        y += 1;
+    }
+    return K_NONE;
+#else
+    (void)tx; (void)ty;
+    return -1;
+#endif
+}
+
+/* GCHAT command sheet: the same top/row mapping paint_gc_sheet draws. */
+static int cyd_gc_sheet_touch(int tx, int ty)
+{
+    const CydRect r = CYD_GC_SHEET;
+    const int bn = gc_bn(), sn = bn + GC_N;
+    if (!cyd_in(r, tx, ty, 0)) { s_sheet = false; s_dirty = true; return K_NONE; }   /* outside = Esc */
+    if (tx >= r.x + r.w - 20) {                               /* right strip: Up / Down */
+        s_sheet_i = ty < r.y + r.h / 2 ? (s_sheet_i + sn - 1) % sn : (s_sheet_i + 1) % sn;
+        s_dirty = true;
+        return K_NONE;
+    }
+    const int rh = 12, vis = 8, bh = bn ? bn + 1 : 0, rows = bh + GC_N + 5;
+    int sel = s_sheet_i;
+    if (sel < 0) sel = 0;
+    if (sel >= sn) sel = sn - 1;
+    int sel_row = sel < bn ? 1 + sel : 0;
+    for (int row = 0; sel >= bn && row < GC_N + 5; ++row) {
+        int hdr = -1, cmd = 0;
+        gc_row_at(row, &hdr, &cmd);
+        if (hdr < 0 && cmd == sel - bn) { sel_row = bh + row; break; }
+    }
+    int top = sel_row - 3;
+    if (top < 0) top = 0;
+    if (top > rows - vis) top = rows - vis;
+    const int k = (ty - (r.y + 5)) / rh;
+    if (ty < r.y + 5 || k >= vis) return K_NONE;
+    const int row = top + k;
+    if (row < bh) {
+        if (row == 0) return K_NONE;                          /* BOARD header */
+        s_sheet_i = row - 1;
+    } else {
+        int hdr = -1, cmd = 0;
+        if (row - bh >= GC_N + 5) return K_NONE;
+        gc_row_at(row - bh, &hdr, &cmd);
+        if (hdr >= 0) return K_NONE;                          /* group header */
+        s_sheet_i = cmd + bn;
+    }
+    gc_pick();                                                /* Enter on the row */
+    s_dirty = true;
+    return K_NONE;
+}
+
+static int cyd_audit_touch(int tx, int ty)
+{
+    if (s_osk_open && ty >= CYD_OSK_CLIP_Y) return -1;        /* the keyboard owns its band */
+    if (s_cyd_pl) return -1;                                  /* the list pop-up owns the glass */
+    if (s_screen == SCR_RAIN) return cyd_in(CYD_RAIN_DISC, tx, ty, 0) ? K_OK : -1;
+    if (s_screen == SCR_GIBSON) {
+        if (cyd_in(CYD_HUB_CORE, tx, ty, 0)) { s_hub_zone = 3; s_gp_focus = false; return K_OK; }
+        if (cyd_in(CYD_HUB_GP, tx, ty, 0)) { s_hub_zone = 1; s_gp_focus = true; s_dirty = true; return K_NONE; }
+        if (s_hub_zone != 0) { s_hub_zone = 0; s_gp_focus = false; s_dirty = true; }   /* buttons zone */
+        return -1;
+    }
+    if (s_screen == SCR_TERMINAL) {
+        if (s_sheet || s_term_ovl < 1 || s_term_ovl > 3 || ty >= CYD_ROW_Y) return -1;
+        const CydRect o = CYD_TOVL[s_term_ovl];
+        if (!cyd_in(o, tx, ty, 0)) return K_ESC;              /* outside the panel = Esc */
+        if (s_term_ovl != 3 && ty < o.y + 16) return K_RT;    /* title bar: flip glossary <-> attack */
+        return s_term_ovl == 2 ? K_OK : K_ESC;                /* attack: open the board; viewers: close */
+    }
+    if (s_screen == SCR_GCHAT && zap_sb_on()) {
+        if (ty >= CYD_ROW_Y) return -1;
+        if (s_sheet) return cyd_gc_sheet_touch(tx, ty);
+        if (s_gc_panel) { s_gc_panel = 0; s_dirty = true; return K_NONE; }   /* panel: tap = back */
+        if (dl_live() && !s_gp_buf[0] && cyd_in(CYD_GRID, tx, ty, 0)) {
+            s_dl_rx = tx; s_dl_ry = ty;
+            dl_steer(0);                                      /* clamp exactly as the arrows do */
+            chip_mem()[2] = 0;                                /* the grid takes focus (Adv: the steer arrow) */
+            return K_OK;                                      /* Enter = fire at the reticle */
+        }
+        return -1;
+    }
+    if (s_screen == SCR_SCAN) return cyd_gd_touch(tx, ty);
+    if ((s_screen == SCR_WIFI_RADAR || s_screen == SCR_BT_RADAR) && ty < 172 && !cyd_in(CYD_CHIP, tx, ty, 0)
+        && tx >= SB_X - 8) {
+        chip_mem()[2] = 0;                                    /* the grid takes focus (Adv: an arrow) */
+        /* ">" glossary prompt at its drawn rect (paint dx+2,dy+1 15x10); the old hit sat at SB_Y..+14,
+         * under cell 0's own hit, so it never fired. */
+        if (s_act < 0 && s_info_dev < 0 && s_gloss < 0 && s_hunt_dev < 0 && !s_fa_on
+            && tx >= CYD_SB_GL.x - 2 && tx < CYD_SB_GL.x + CYD_SB_GL.w + 2 && ty >= CYD_SB_GL.y - 2
+            && ty < CYD_SB_GL.y + CYD_SB_GL.h) {
+            s_cursor = LIST_N;
+            return K_OK;                                      /* on_ok -> s_gloss = 0 */
+        }
+    }
+    return -1;
 }

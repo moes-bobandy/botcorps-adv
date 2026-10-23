@@ -14,6 +14,14 @@ uint16_t botcorps_t0_lut565[256];
 static lgfx::LGFX_Sprite *s_sp = nullptr;
 static bool s_live = false;
 static bool s_direct = false;
+#ifdef BOTCORPS_CYD
+/* CYD portrait: the 320-wide band sprite cannot hold a 240x320 frame, so portrait paints direct. */
+static bool s_force = false;
+void botcorps_band_force_direct(bool on) { s_force = on; }
+#define BAND_DIRECT (s_direct || s_force)
+#else
+#define BAND_DIRECT s_direct
+#endif
 static int s_oy = 0;
 static int s_ox = 0;
 static int s_resident = -1;
@@ -93,7 +101,7 @@ void botcorps_frame_diag(void)
 
 bool botcorps_band_direct(void)
 {
-    return s_direct || !s_live;
+    return BAND_DIRECT || !s_live;
 }
 
 bool botcorps_band_live(void)
@@ -547,7 +555,7 @@ static int push_slice(int world_y0, bool refresh_ok)
 
 void botcorps_band_present(void (*draw)(Gfx))
 {
-    if (!draw || !s_live || !s_sp || s_direct) return;
+    if (!draw || !s_live || !s_sp || BAND_DIRECT) return;
     ++s_frame;
     int rows = 0;
     for (int s = 0; s < SLICE_N; ++s) {
@@ -568,7 +576,7 @@ void botcorps_band_present(void (*draw)(Gfx))
 
 static bool recompose_slice(int slice)
 {
-    if (!s_recompose || !s_sp || !s_live || s_direct) return false;
+    if (!s_recompose || !s_sp || !s_live || BAND_DIRECT) return false;
     if (slice < 0 || slice >= SLICE_N) return false;
     const int y0 = slice * SLICE_H;
     botcorps_band_set_oy(y0);
@@ -585,7 +593,7 @@ static bool recompose_slice(int slice)
 
 void botcorps_band_patch(void (*draw)(Gfx), int x, int y, int w, int h)
 {
-    if (!draw || !s_live || !s_sp || s_direct || w <= 0 || h <= 0) return;
+    if (!draw || !s_live || !s_sp || BAND_DIRECT || w <= 0 || h <= 0) return;
     /* BANDS keeps one 120-row slice resident. A patch must not cross y=120. */
     if (SLICE_N > 1 && y < SLICE_H && (y + h) > SLICE_H) {
         Serial.printf("[botcorps] band_patch refused, crosses y=%d (y=%d h=%d)\n",
@@ -621,7 +629,7 @@ void botcorps_band_patch(void (*draw)(Gfx), int x, int y, int w, int h)
  * sprite was not holding get the "unknown" hash so the next full present re-pushes them whole. */
 void botcorps_band_patch_rect(void (*draw)(Gfx), int x, int y, int w, int h)
 {
-    if (!draw || !s_live || !s_sp || s_direct || w <= 0 || h <= 0) return;
+    if (!draw || !s_live || !s_sp || BAND_DIRECT || w <= 0 || h <= 0) return;
     if (x < 0) { w += x; x = 0; }
     if (x + w > 320) w = 320 - x;
     if (w <= 0) return;
@@ -649,6 +657,10 @@ void botcorps_band_patch_rect(void (*draw)(Gfx), int x, int y, int w, int h)
             panel.startWrite();
             for (int r = y - y0; r < y - y0 + h && r < SLICE_H; ++r) {
                 const uint8_t *row = buf + (size_t)r * (size_t)stride;
+#ifdef BOTCORPS_CYD
+                /* cyd-term-fix: a dirty rect never paints over the open pop-up (same clamp as push_slice) */
+                if (y0 + r >= s_push_ymax) { botcorps_t0_row_hash[y0 + r] = 0xffffffffu; continue; }
+#endif
                 for (int i = 0; i < w; ++i) line[i] = ext_push_word(row[x + i]);
                 panel.pushImage(x, y0 + r, w, 1, line);
                 botcorps_t0_row_hash[y0 + r] = held ? row_hash(row, 320) : 0xffffffffu;

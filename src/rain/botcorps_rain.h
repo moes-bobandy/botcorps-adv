@@ -81,6 +81,10 @@ void botcorps_rain_ghost_ex(lgfx::LovyanGFX &dst, int ox, int oy, int rx, int ry
 int botcorps_rain_cell_bytes(void);
 
 void botcorps_rain_set_parked(bool parked);
+#ifdef BOTCORPS_CYD
+/* CYD portrait: view 240x320 re-shapes the cell grid to 30x40; 320x240 restores 40x30. */
+void botcorps_rain_set_view(int w, int h);
+#endif
 bool botcorps_rain_sprite_held(void);
 void botcorps_rain_release_sprite(void);
 void botcorps_rain_log_heap(const char *tag);

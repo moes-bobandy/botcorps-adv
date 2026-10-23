@@ -6,6 +6,8 @@
 #include "lgfx/Fonts/Font8x8C64.h"
 
 uint8_t *host_frame = nullptr;
+/* CYD portrait host: 240x320 frame in the same 76800-byte buffer (stride host_fw). */
+int host_fw = 320, host_fh = 240;
 int host_term_lut = 0;
 int host_fit_calls = 0;
 int host_rgb_ov = 0;
@@ -55,11 +57,11 @@ int host_slice_h = 0;
 static void put_px(int x, int y, uint8_t c)
 {
     if (!host_frame) return;
-    if (x < 0 || y < 0 || x >= 320 || y >= 240) return;
+    if (x < 0 || y < 0 || x >= host_fw || y >= host_fh) return;
     if (host_slice_h && y >= host_slice_h) return;
     if (s_clip && (x < s_clip_x || y < s_clip_y || x >= s_clip_x + s_clip_w || y >= s_clip_y + s_clip_h))
         return;
-    host_frame[y * 320 + x] = c;
+    host_frame[y * host_fw + x] = c;
 }
 
 static void fill_raw(int x, int y, int w, int h, uint8_t c)
@@ -130,7 +132,7 @@ void Gfx::fillRoundRect(int x, int y, int w, int h, int r, uint8_t c)
         fill_raw(x - ox + dx, y - oy + h - 1 - dy, w - 2 * dx, 1, c);
     }
 }
-void Gfx::fillScreen(uint8_t c) { fill_raw(0, 0, 320, 240, c); }
+void Gfx::fillScreen(uint8_t c) { fill_raw(0, 0, host_fw, host_fh, c); }
 void Gfx::setClipRect(int x, int y, int w, int h)
 {
     s_clip = true;
@@ -143,7 +145,7 @@ void Gfx::clearClipRect(void) { s_clip = false; }
 /* v1019x: raw (pre-offset) Gfx clip get/set for nested clips (botcorps_defend_zap.inc ZapClip) */
 bool host_gfx_clip_get(int *x, int *y, int *w, int *h)
 {
-    if (!s_clip) { *x = 0; *y = 0; *w = 320; *h = 240; return false; }
+    if (!s_clip) { *x = 0; *y = 0; *w = host_fw; *h = host_fh; return false; }
     *x = s_clip_x; *y = s_clip_y; *w = s_clip_w; *h = s_clip_h;
     return true;
 }
@@ -386,7 +388,8 @@ static void sim_push_rect(int y0, int r0, int r1, int x0, int x1)
     if (bad > host_sim_worst) host_sim_worst = bad;
     if (bad > 600) ++host_sim_bad;
 }
-static void sim_push(int y0) { sim_push_rect(y0, 0, 120, 0, 320); }
+int host_push_ymax = 240;   /* cyd-term-fix: CYD push clamp; 240 = none (Adv) */
+static void sim_push(int y0) { int r1 = host_push_ymax - y0; if (r1 > 120) r1 = 120; if (r1 > 0) sim_push_rect(y0, 0, r1, 0, 320); }
 void host_sim_reset(void)
 {
     s_sim_res = -1;
@@ -469,7 +472,11 @@ void botcorps_band_patch_rect(void (*draw)(Gfx), int x, int y, int w, int h)
     host_slice_oy = 0;
     host_slice_h = 0;
     host_frame = saved;
-    sim_push_rect(y0, y - y0, (y - y0 + h) < 120 ? (y - y0 + h) : 120, x, x + w);
+    {   /* cyd-term-fix: mirror the device patch_rect clamp at the pop-up (host_push_ymax 240 = Adv, no-op) */
+        int r1 = (y - y0 + h) < 120 ? (y - y0 + h) : 120;
+        if (r1 > host_push_ymax - y0) r1 = host_push_ymax - y0;
+        if (r1 > y - y0) sim_push_rect(y0, y - y0, r1, x, x + w);
+    }
     ++host_sim_rects;
     if (!held) s_sim_res = -1;
 }

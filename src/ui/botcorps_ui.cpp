@@ -482,6 +482,20 @@ static bool s_touch_down = false;
 static uint32_t s_touch_last = 0;
 static bool s_osk_sym = false;
 static bool s_osk_dirty = false;
+static bool s_cyd_pl = false;
+static int s_cyd_pl_top = 0;
+static int s_cyd_pop_scr = -1;
+static bool cyd_pop_paint(void);
+static void cyd_osk_echo(void);
+static void cyd_sb_btns(Gfx g, bool has_menu, uint8_t ac);
+static void cyd_hub_abc(Gfx g);
+static int cyd_pop_touch(int tx, int ty);
+static void cyd_pop_after(int key, int scr0);
+/* 0 = landscape, 1 = portrait. Persisted as NVS "orient". Non-static: display.h begin(). */
+uint8_t botcorps_cyd_orient = 0;
+static void cyd_apply_orient(void);
+static void load_orient(void);
+static void save_orient(void);
 #endif
 static bool s_sheet = false;
 static int s_sheet_i = 0;
@@ -540,13 +554,20 @@ static int s_gc_panel = 0;       /* game-board overlay: 0 none, 1 device glossar
  * 1 = prompt, 2 = command menu, 3 = Gibson (Enter = Gibson game). Up/Down walk the zones. */
 static int s_hub_zone = 0;
 static int s_hub_cmd = -1;
+#ifdef BOTCORPS_CYD
+static const int CP_N = 9; /* + ORIENT jumper */
+#else
 static const int CP_N = 8;
+#endif
 extern uint8_t botcorps_t0_rain_cell[3][1200];
 static_assert(1120 + 60 <= 1200, "tab scratch fits inside the rain cell plane");
 static char *tab_base(void) { return (char *)&botcorps_t0_rain_cell[1][1120]; }
 static char *tab_last(void) { return (char *)&botcorps_t0_rain_cell[2][1120]; }
 static const char *const NVS_NS = "botcorps";
 static const char *const NVS_KEY = "rain_col";
+#ifdef BOTCORPS_CYD
+static const char *const NVS_ORIENT = "orient";
+#endif
 
 static const ui_theme_t &theme(void) { return THEMES[theme_ix(s_color)]; }
 static uint8_t accent(void) { return theme().ac; }
@@ -959,6 +980,10 @@ static int gib_def_chip(void)
      * frozen Gibson game renders (maze / trace / jam) keep 36. Cover follows (layout_covers). */
     return (gib && (!dg_on() || s_dg >= 12)) ? 52 : 36;
 }
+#ifdef BOTCORPS_CYD
+static void layout_covers_control_p(void); /* portrait.inc */
+static int portrait_touch(int tx, int ty, char *typed);
+#endif
 static void layout_covers(void)
 {
     cover_reset(false);
@@ -1021,6 +1046,9 @@ static void layout_covers(void)
         cover_btn(286, 206);
         break;
     case SCR_CONTROL:
+#ifdef BOTCORPS_CYD
+        if (botcorps_cyd_orient) { layout_covers_control_p(); break; }
+#endif
         cover_add(0, 0, 320, 17);          /* top chrome */
         cover_add(8, 20, 304, 216);        /* matte-black board (SB_BX/BY/BW/BH): rain frames it, never paints over it */
         break;
@@ -1156,6 +1184,36 @@ static void save_rain_color(void)
     prefs.putUChar(NVS_KEY, (uint8_t)botcorps_rain_mode());
     prefs.end();
 }
+#ifdef BOTCORPS_CYD
+static void cyd_apply_orient(void)
+{
+#ifdef BOTCORPS_HOST_RENDER
+    extern int host_fw, host_fh;
+    if (botcorps_cyd_orient) { host_fw = 240; host_fh = 320; }
+    else { host_fw = 320; host_fh = 240; }
+#else
+    botcorps_cyd_apply_rotation();
+#endif
+    botcorps_rain_set_view(botcorps_cyd_orient ? 240 : 320,
+                           botcorps_cyd_orient ? 320 : 240);
+    botcorps_band_force_direct(botcorps_cyd_orient != 0);
+}
+static void load_orient(void)
+{
+    Preferences prefs;
+    if (!prefs.begin(NVS_NS, true)) { botcorps_cyd_orient = 0; cyd_apply_orient(); return; }
+    botcorps_cyd_orient = prefs.getUChar(NVS_ORIENT, 0) ? 1 : 0;
+    prefs.end();
+    cyd_apply_orient();
+}
+static void save_orient(void)
+{
+    Preferences prefs;
+    if (!prefs.begin(NVS_NS, false)) return;
+    prefs.putUChar(NVS_ORIENT, botcorps_cyd_orient ? 1 : 0);
+    prefs.end();
+}
+#endif
 
 static char *log_slot(int i)
 {
@@ -5630,6 +5688,9 @@ static void paint_sbox(Gfx g, bool wifi)
     if (nt < strlen(l2)) l2[nt] = 0;
     x = sb_tt(g, l2, x, ty, COL_INK);
     if ((millis() / 530u) % 2u == 0u) sb_rect(g, x + 1, ty, 5, 9, ac);
+#ifdef BOTCORPS_CYD
+    cyd_sb_btns(g, zsb || core, ac);   /* cyd-term-fix: [abc] + glossary on every scan / bot strip */
+#endif
     }
     }
     if (sb_vis(0, 0, 320, 25) || sb_vis(0, 209, 320, 31)) sb_hud(g, band);
@@ -5713,6 +5774,9 @@ static void cp_text(int index, char *value, int n)
     else if (index == 4) snprintf(value, (size_t)n, "%s", RAIN_WORD[botcorps_rain_mode()]);
     else if (index == 5) snprintf(value, (size_t)n, "%s", BGS_N[s_bg % BGS_NUM]);
     else if (index == 6) snprintf(value, (size_t)n, "%s", s_bg_motion ? "ON" : "OFF");
+#ifdef BOTCORPS_CYD
+    else if (index == 8) snprintf(value, (size_t)n, "%s", botcorps_cyd_orient ? "PORT" : "LAND");
+#endif
     else snprintf(value, (size_t)n, "%s", RAIN_WORD[botcorps_rain_mode()]);
 }
 
@@ -5794,8 +5858,14 @@ static uint8_t wash22(uint8_t accent_idx);
 static const int SB_BX = 8, SB_BY = 20, SB_BW = 304, SB_BH = 216; /* mock (3,18,314,220), inset 5 px so rain frames it */
 static const int CP_BAY_CY = 163;   /* switch-bank centre line */
 static const int CP_BAY_LY = 178;   /* switch-bank silk baseline */
+#ifdef BOTCORPS_CYD
+static bool cp_part_rect_p(int index, int *x, int *y, int *w, int *h); /* portrait.inc */
+#endif
 static bool cp_part_rect(int index, int *x, int *y, int *w, int *h)
 {
+#ifdef BOTCORPS_CYD
+    if (botcorps_cyd_orient) return cp_part_rect_p(index, x, y, w, h);
+#endif
     switch (index) {
     case 0: *x = 38;  *y = 44;  *w = 40; *h = 72; return true; /* U1 UI COLOR    */
     case 1: *x = 82;  *y = 44;  *w = 40; *h = 72; return true; /* U2 BG MIX      */
@@ -5805,6 +5875,9 @@ static bool cp_part_rect(int index, int *x, int *y, int *w, int *h)
     case 4: *x = 147; *y = CP_BAY_CY - 11; *w = 22; *h = 22; return true; /* U7 qfn CP = RAIN COLOUR */
     case 3: *x = 180; *y = CP_BAY_CY - 5;  *w = 20; *h = 10; return true; /* J1 jumper = RAIN MODE   */
     case 6: *x = 214; *y = CP_BAY_CY - 4;  *w = 10; *h = 8;  return true; /* PWR LED   = BG MOTION   */
+#ifdef BOTCORPS_CYD
+    case 8: *x = 44;  *y = 141; *w = 20; *h = 10; return true; /* ORIENT jumper (landscape) */
+#endif
     default: return false;
     }
 }
@@ -5825,6 +5898,9 @@ static void cp_short(int index, char *v, int n)
     else if (index == 2) snprintf(v, (size_t)n, "%s", SHPS[s_shape % 5]);
     else if (index == 5) snprintf(v, (size_t)n, "%s", BGSS[s_bg % BGS_NUM]);
     else if (index == 7) { const int i = bgc_ix(); snprintf(v, (size_t)n, "%s", i >= 0 ? BGC_S[i] : RAIN_WORD[botcorps_rain_mode()]); }
+#ifdef BOTCORPS_CYD
+    else if (index == 8) snprintf(v, (size_t)n, "%s", botcorps_cyd_orient ? "PORT" : "LAND");
+#endif
     else cp_text(index, v, n);
 }
 
@@ -6019,14 +6095,31 @@ static void cp_part(Gfx g, int index, bool on)
         const bool pon = s_bg_motion != 0;
         g.fillRect(x, y, w, h, sh_rgb(0xd9, 0xd9, 0xdf));
         g.fillRect(x + 2, y + 1, w - 4, h - 2, pon ? sh_rgb(0xff, 0x22, 0x44) : sh_rgb(0x3a, 0x0a, 0x12));
+#ifdef BOTCORPS_CYD
+    } else if (index == 8) {                       /* ORIENT jumper LAND/PORT */
+        const bool port = botcorps_cyd_orient != 0;
+        g.fillRect(x, y + 2, w, 6, rail);
+        for (int k = 0; k < 3; ++k) g.fillRect(x + 3 + k * 6, y + 4, 2, 2, gold);
+        const int jx = port ? x + 9 : x + 1;
+        g.fillRect(jx, y, 11, 10, sh_rgb(0x00, 0xc8, 0xff));
+        g.fillRect(jx + 2, y + 2, 7, 3, sh_rgb(0x00, 0x7a, 0x9a));
+        lab = "ORIENT";
+        txt(g, lab, 68, 142, on ? (uint8_t)PAL_WHITE : silk, lgfx::textdatum::top_left);
+        return;
+#endif
     }
     /* one silk baseline under the whole switch bank, centred on each part */
     txt(g, lab, x + w / 2, CP_BAY_LY, on ? (uint8_t)PAL_WHITE : silk, lgfx::textdatum::top_center);
 }
 int botcorps_cp_overlap_count(void)
 {
+#ifdef BOTCORPS_CYD
+    int rx[16], ry[16], rw[16], rh[16], n = 0;
+    for (int i = 0; i < CP_N && n < CP_N; ++i) {
+#else
     int rx[8], ry[8], rw[8], rh[8], n = 0;
     for (int i = 0; i < CP_N && n < 8; ++i) {
+#endif
         int x, y, w, h;
         if (cp_part_rect(i, &x, &y, &w, &h)) { rx[n]=x; ry[n]=y; rw[n]=w; rh[n]=h; ++n; }
     }
@@ -6451,6 +6544,9 @@ static void gp_strip(Gfx g, uint32_t t, uint8_t ac)
     g.drawRect(mx, my, 18, 12, cm ? ac : (uint8_t)COL_LINE);
     if (cm) g.drawRect(mx - 1, my - 1, 20, 14, PAL_WHITE);
     for (int k = 0; k < 3; ++k) g.fillRect(mx + 4, my + 3 + k * 3, 10, 1, cm ? (uint8_t)PAL_WHITE : (uint8_t)COL_MUTED);
+#ifdef BOTCORPS_CYD
+    cyd_hub_abc(g);   /* cyd-term-fix: [abc] keyboard emblem left of the hub ≡ */
+#endif
 }
 
 /* chip_plate leaves these four pixels empty. The partial clip would keep them stale. */
@@ -7549,8 +7645,15 @@ static void rain_flags(void)
     }
 }
 
+#ifdef BOTCORPS_CYD
+#include "ui/botcorps_cyd_portrait.inc"
+#endif
 static void paint_ext(Gfx g)
 {
+#ifdef BOTCORPS_CYD
+    if (botcorps_cyd_orient) { paint_ext_portrait(g); return; }
+#endif
+
 #ifdef BOTCORPS_HOST_RENDER
     host_gate_reset();
     layout_covers();   /* device paint_ext_full does this first; host must too or rain lands under covers */
@@ -7731,6 +7834,8 @@ static void cyd_close_osk(void)
     s_osk_open = false;
     s_osk_sym = false;
     s_osk_dirty = false;
+    s_cyd_pl = false;   /* cyd-term-fix: the list mode closes with the pop-up */
+    s_cyd_pop_scr = -1;
     s_dirty = true;
 }
 
@@ -7798,11 +7903,18 @@ static void paint_int_now(void)
  *   lower:    CP qfn 4 x196,150   J1 jumper 3 x268,150   PWR LED 6 x266,194 (SAVER on/off)
  * Left/Right walk one ring through every stop in reading order, so every control is reachable from
  * anywhere; Up/Down go to the visually nearest stop above/below (wrapping top<->bottom). */
+#ifdef BOTCORPS_CYD
+/* RING includes ORIENT (8) between JUMP and PWR. TERM=9 BACK=10. */
+static const int8_t CP_RING[CP_N + 2] = { 10, 9, 0, 1, 2, 5, 7, 4, 3, 8, 6 };
+static const int8_t CP_UP[CP_N + 2]   = { 10, 10, 10, 5, 2, 9, 7, 9, 0, 3, 4 };
+static const int8_t CP_DN[CP_N + 2]   = { 4, 4, 4, 9, 10, 3, 9, 6, 3, 5, 2 };
+#else
 static const int8_t CP_RING[CP_N + 2] = { CP_N + 1, CP_N, 0, 1, 2, 5, 7, 4, 3, 6 };
 /* v1019n-mod (#8): the switch bank moved into the lower bay (CP x158, J1 x190, PWR x219): Up from a bank
  * part = the chip above it, Down = the top bar; Down from a chip = the bank part under it. */
 static const int8_t CP_UP[CP_N + 2]   = { CP_N + 1, CP_N + 1, CP_N + 1, 5, 2, CP_N, 7, CP_N, 3, 4 };
 static const int8_t CP_DN[CP_N + 2]   = { 4, 4, 4, CP_N, CP_N + 1, 3, CP_N, 6, 5, 2 };
+#endif
 static int cp_nav(int cur, int key)
 {
     if (cur < 0 || cur >= CP_N + 2) return 0;
@@ -7846,6 +7958,12 @@ static void nudge_row(int d)
         const int nx = i < 0 ? 0 : (i + d + BGC_N) % BGC_N;
         botcorps_rain_set_mode(BGC_MODE[nx]);
         save_rain_color();
+#ifdef BOTCORPS_CYD
+    } else if (s_cursor == 8) {                /* ORIENT LAND <-> PORT */
+        botcorps_cyd_orient = botcorps_cyd_orient ? 0 : 1;
+        save_orient();
+        cyd_apply_orient();
+#endif
     }
 }
 
@@ -8194,8 +8312,13 @@ static void sb_tick(void)
 static void cyd_overlay(bool painted_ext)
 {
     (void)painted_ext;  /* CYD-on-v1019: no companion badge (v1019 has no empty block) */
+    if (s_osk_open && s_osk_dirty && cyd_pop_paint()) {   /* cyd-term-fix: glossary list mode */
+        s_osk_dirty = false;
+        return;
+    }
     if (s_osk_open && s_osk_dirty) {
         paint_osk();
+        cyd_osk_echo();   /* cyd-term-fix: echo row = this terminal's command line */
         s_osk_dirty = false;
     }
 }
@@ -8263,6 +8386,10 @@ static void partial_cursor(int old_i, int new_i)
 /* Bot change. Recompose the card in strips. Does not fill the panel. */
 static void partial_int(void)
 {
+#ifdef BOTCORPS_CYD
+    /* cyd-term-fix item 4: Adv ID card must not repaint over the CYD glass Terminal. */
+    return;
+#endif
     const botcorps_probe_t *pr = botcorps_probe_get();
     if (pr && strcmp(pr->ext_st, "fail") == 0) return;
     const int bi = card_bot();
@@ -9255,6 +9382,157 @@ static void on_bs(void)
 
 enum { K_NONE = 0, K_UP = 1, K_DN = 2, K_LT = 3, K_RT = 4, K_OK = 5, K_ESC = 6, K_TAB = 7, K_BS = 8, K_CHAR = 9 };
 
+#ifdef BOTCORPS_CYD
+/* Portrait touch: pterm + hub plates + term tiles. Returns key code or -1 to fall through. */
+static int pt_hit(int tx, int ty, char *typed)
+{
+    if (tx < s_pt_bx || tx >= s_pt_bx + s_pt_bw || ty < s_pt_by || ty >= s_pt_by + s_pt_bh)
+        return -1;
+    const int x = s_pt_bx, y = s_pt_by, w = s_pt_bw, h = s_pt_bh;
+    const int by = y + 2;
+    if (s_pt_mode == 0) {
+        /* [abc] */
+        if (tx >= x + w - 44 && tx < x + w - 24 && ty >= by && ty < by + 11) {
+            s_pt_mode = 1; s_dirty = true; return K_NONE;
+        }
+        /* list ≡ */
+        if (tx >= x + w - 22 && tx < x + w - 4 && ty >= by && ty < by + 11) {
+            s_pt_mode = 2; s_pt_sel = 0; s_dirty = true; return K_NONE;
+        }
+        /* tap cmdline -> keys */
+        if (ty >= by && ty < by + 11) {
+            s_pt_mode = 1; s_dirty = true; return K_NONE;
+        }
+        return K_NONE;
+    }
+    /* BACK/HIDE */
+    if (tx >= x + w - 28 && tx < x + w - 4 && ty >= by && ty < by + 11) {
+        s_pt_mode = 0; s_dirty = true; return K_NONE;
+    }
+    const int by2 = y + 14, bh2 = h - 16, bw2 = w - 4, bx2 = x + 2;
+    if (ty < by2 || ty >= by2 + bh2 || tx < bx2 || tx >= bx2 + bw2) return K_NONE;
+    if (s_pt_mode == 1) {
+        const int kp = (bw2 - 4) / 10;
+        const int rp = (bh2 - 2) / 5;
+        const int n = (int)(sizeof(CYD_OSK_SPEC) / sizeof(CYD_OSK_SPEC[0]));
+        for (int i = 0; i < n; ++i) {
+            const CydOskSpec &sp = CYD_OSK_SPEC[i];
+            const int kx = bx2 + 2 + sp.col * kp;
+            const int ky = by2 + 1 + sp.row * rp;
+            const int kw = kp * sp.span - 1;
+            const int kh = rp - 1;
+            if (tx < kx || tx >= kx + kw || ty < ky || ty >= ky + kh) continue;
+            if (sp.kind == CYD_OSK_HIDE) { s_pt_mode = 0; s_dirty = true; return K_NONE; }
+            if (sp.kind == CYD_OSK_SYM) { s_pt_sym = !s_pt_sym; s_dirty = true; return K_NONE; }
+            if (sp.kind == CYD_OSK_BKSP) return K_BS;
+            if (sp.kind == CYD_OSK_ENTER) return K_OK;
+            if (sp.kind == CYD_OSK_TAB) return K_TAB;
+            if (sp.kind == CYD_OSK_SPACE) { if (typed) *typed = ' '; return K_CHAR; }
+            if (sp.kind == CYD_OSK_CHAR) {
+                const char ch = s_pt_sym ? sp.symbol : sp.alpha;
+                if (ch && typed) { *typed = ch; return K_CHAR; }
+            }
+            return K_NONE;
+        }
+        return K_NONE;
+    }
+    /* list mode */
+    {
+        int n = 0;
+        const char *const *cmds = pt_list(&n);
+        const int rh = 9;
+        const int r = (ty - by2) / rh;
+        const int i = s_pt_top + r;
+        if (r < 0 || i < 0 || i >= n) return K_NONE;
+        int cap = 0;
+        char *b = pt_buf(&cap);
+        if (s_pt_sel == i && b) {
+            snprintf(b, (size_t)cap, "%s", cmds[i]);
+            s_pt_mode = 0;
+            s_dirty = true;
+            return K_OK; /* run filled line */
+        }
+        s_pt_sel = i;
+        if (b) snprintf(b, (size_t)cap, "%s", cmds[i]);
+        s_dirty = true;
+        return K_NONE;
+    }
+}
+
+/* Full portrait touch dispatch. -1 = not handled (caller may try landscape path). */
+static int portrait_touch(int tx, int ty, char *typed)
+{
+    if (!botcorps_cyd_orient) return -1;
+    /* top bar: crown back / TERM shortcut already handled early; BACK for non-control */
+    if (ty < 16) {
+        if (tx >= 102 && tx < 138) return K_ESC;
+        if (tx >= 204 && tx < 230) {
+            if (s_screen != SCR_TERMINAL) enter_screen(SCR_TERMINAL, s_screen);
+            return K_NONE;
+        }
+    }
+    {
+        const int pk = pt_hit(tx, ty, typed);
+        if (pk >= 0) return pk;
+    }
+    if (s_screen == SCR_GIBSON) {
+        /* plates */
+        const int pw = 100, ph = 44, x0 = 20, y0 = 80;
+        for (int i = 0; i < 2; ++i) {
+            const int x = x0, y = y0 + i * (ph + 16);
+            if (tx >= x && tx < x + pw && ty >= y && ty < y + ph) {
+                if (s_cursor == i) {
+                    if (i == 0) enter_screen(SCR_TERMINAL, SCR_GIBSON);
+                    else enter_screen(SCR_CONTROL, SCR_GIBSON);
+                    return K_NONE;
+                }
+                s_cursor = i; s_hub_zone = 0; s_dirty = true; return K_NONE;
+            }
+        }
+        /* GIB -> SCAN */
+        {
+            const int cs = 48, cx = 170, cy = 130;
+            if (tx >= cx - cs / 2 && tx < cx + cs / 2 && ty >= cy - cs / 2 && ty < cy + cs / 2) {
+                s_scan_bot = 12;
+                enter_screen(SCR_SCAN, SCR_GIBSON);
+                return K_NONE;
+            }
+        }
+        return K_NONE;
+    }
+    if (s_screen == SCR_TERMINAL) {
+        const int gw = 72, gh = 48;
+        for (int i = 0; i < 12; ++i) {
+            const int col = i % 3, row = i / 3;
+            const int x = 8 + col * (gw + 4);
+            const int y = 22 + row * (gh + 4);
+            if (tx < x || tx >= x + gw || ty < y || ty >= y + gh) continue;
+            if (s_cursor == i) return K_OK;
+            s_cursor = i; s_term = i; s_dirty = true; return K_NONE;
+        }
+        return K_NONE;
+    }
+    if (s_screen == SCR_CONTROL) {
+        for (int i = 0; i < CP_N; ++i) {
+            int x, y, w, h;
+            if (!cp_part_rect_p(i, &x, &y, &w, &h)) continue;
+            if (tx < x || tx >= x + w || ty < y || ty >= y + h + 12) continue;
+            if (s_cursor == i) return K_OK;
+            const int old = s_cursor;
+            s_cursor = i;
+            queue_focus(old, i);
+            return K_NONE;
+        }
+        /* TERM / BACK on top bar already covered */
+        if (ty < 16 && tx >= 206) { s_cursor = CP_N; return K_OK; }
+        return K_NONE;
+    }
+    return -1;
+}
+
+#endif
+
+
 #include "ui/botcorps_defend.inc"
 
 static bool v2_left_on(int bot)
@@ -9478,6 +9756,9 @@ static Point2D_t s_rep_pos;
 static uint32_t s_rep_next = 0;
 static int s_kprev_n = 0;
 #endif
+#ifdef BOTCORPS_CYD
+#include "ui/botcorps_cyd_term.inc"
+#endif
 static int read_key(char *typed)
 {
     *typed = 0;
@@ -9485,6 +9766,15 @@ static int read_key(char *typed)
     int tx = 0;
     int ty = 0;
     bool down = botcorps_disp().getTouch(&tx, &ty);
+    /* Portrait: LovyanGFX getTouch usually follows setRotation. Untested on glass —
+     * BOTCORPS_CYD_TOUCH_MANUAL_REMAP swaps to a naive 240x320 remap if hardware needs it. */
+#ifdef BOTCORPS_CYD_TOUCH_MANUAL_REMAP
+    if (botcorps_cyd_orient && down) {
+        const int nx = ty;
+        const int ny = 239 - tx; /* rot0 vs rot1 naive inverse; verify on device */
+        tx = nx; ty = ny;
+    }
+#endif
     if (s_intro_until && (int32_t)(millis() - s_intro_until) < 0) {
         /* Swallow, but track state so a held finger doesn't fire on hub */
         if (down) { s_touch_down = true; s_touch_last = millis(); }
@@ -9500,6 +9790,16 @@ static int read_key(char *typed)
         s_touch_down = false;
         return K_NONE;
     } else {
+        return K_NONE;
+    }
+    {   /* cyd-term-fix items 1/5: [abc] / glossary buttons and the list pop-up (landscape) */
+        const int pk = cyd_pop_touch(tx, ty);
+        if (pk >= 0) return pk;
+    }
+    /* Portrait: own hit map (pterm / hub plates / term grid / control parts). */
+    if (botcorps_cyd_orient) {
+        const int pk = portrait_touch(tx, ty, typed);
+        if (pk >= 0) return pk;
         return K_NONE;
     }
     if (s_osk_open && ty >= CYD_OSK_CLIP_Y) {
@@ -9812,6 +10112,9 @@ void botcorps_ui_begin(void)
     s_track_name[0] = 0;
     botcorps_t0_term_prompt[0] = 0;
     load_rain_color();
+#ifdef BOTCORPS_CYD
+    load_orient();
+#endif
     botcorps_rain_set_draw(true);
     botcorps_rain_log_heap("boot");
 }
@@ -9965,7 +10268,9 @@ void botcorps_ui_input(void)
 #ifdef BOTCORPS_CYD
     /* CYD: no key matrix to poll for a held key; touch emits one key per tap. */
     if (key == K_NONE) return;
+    const int scr0 = s_screen;   /* cyd-term-fix */
     ui_dispatch(key, typed);
+    cyd_pop_after(key, scr0);    /* cyd-term-fix: echo repaint / close after ENTER */
 #else
     if (key == K_NONE) {
         if (!s_rep_key) return;
@@ -10105,6 +10410,9 @@ void botcorps_ui_draw(void)
         s_intro_until = 0;
         s_dirty = true;
     }
+    /* cyd-term-fix: a pop-up never outlives its terminal (screen changed by a command / timer). */
+    if (s_osk_open && s_cyd_pop_scr >= 0 && s_cyd_pop_scr != s_screen) cyd_close_osk();
+    if (s_osk_open) s_cyd_pop_scr = s_screen;
     /* While the keyboard is open, band pushes stop above it. */
     botcorps_band_set_push_ymax(s_osk_open ? CYD_OSK_CLIP_Y : 240);
 #endif
@@ -11423,6 +11731,9 @@ void botcorps_host_control(uint8_t *buf, int cursor)
     memset(buf, PAL_BLACK, 320u * 240u);
     paint_ext(Gfx());
 }
+#ifdef BOTCORPS_CYD
+/* portrait Control: defined in botcorps_cyd_portrait.inc (included above paint_ext) */
+#endif
 /* gate.sh functional checks */
 int botcorps_host_esc_test(uint8_t *buf, int id, int *expect)
 {

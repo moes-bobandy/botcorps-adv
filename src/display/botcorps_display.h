@@ -66,11 +66,18 @@ void botcorps_cyd_load_touch_cal(void);
 bool botcorps_cyd_run_touch_cal(void);
 bool botcorps_cyd_has_valid_cal(void);
 
+/* Runtime orient: 0 landscape (rot 1, 320x240), 1 portrait (rot 0, 240x320).
+ * Loaded from NVS "orient" by the UI; begin() defaults landscape until UI applies it. */
+extern uint8_t botcorps_cyd_orient;
+inline void botcorps_cyd_apply_rotation(void) {
+    g_cyd.setRotation(botcorps_cyd_orient ? 0 : 1);
+}
 inline bool botcorps_dual_begin(void) {
     botcorps_cyd_load_touch_cal();
     g_cyd.setColorDepth(16);
     if (!g_cyd.begin()) return false;
-    g_cyd.setRotation(1); /* landscape 320x240; panel offset_rotation=0 */
+    botcorps_cyd_orient = 0;
+    g_cyd.setRotation(1); /* landscape 320x240 until UI loads NVS orient */
     g_cyd.setTextWrap(false, false);
     g_cyd.setTextSize(1);
     g_cyd.clearClipRect();

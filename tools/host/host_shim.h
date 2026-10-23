@@ -11,6 +11,7 @@
 #include "probe/botcorps_probe.h"
 #include "probe/botcorps_icons.h"
 
+extern int host_fw, host_fh;   /* host frame dims: 320x240, or 240x320 for CYD portrait */
 namespace lgfx {
 inline namespace v1 {
 namespace textdatum {
@@ -24,8 +25,8 @@ public:
     void endWrite() {}
     void setClipRect(int, int, int, int);
     void clearClipRect();
-    int width() const { return 320; }
-    int height() const { return 240; }
+    int width() const { return host_fw; }
+    int height() const { return host_fh; }
     void fillScreen(uint8_t) {}
     void fillScreen(uint16_t) {}
     void fillRect(int, int, int, int, uint8_t);
@@ -305,6 +306,8 @@ void botcorps_set_surface(int);
 lgfx::v1::LGFX_Device &botcorps_disp(void);
 bool botcorps_cyd_run_touch_cal(void);
 void botcorps_band_set_push_ymax(int y);
+void botcorps_band_force_direct(bool on);
+void botcorps_rain_set_view(int w, int h);
 #endif
 void botcorps_band_set_oy(int);
 void botcorps_band_present(void (*)(Gfx));

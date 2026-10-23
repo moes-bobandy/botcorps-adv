@@ -63,6 +63,7 @@ int botcorps_band_ox(void);
 void botcorps_band_set_oy(int y);
 #ifdef BOTCORPS_CYD
 void botcorps_band_set_push_ymax(int y); /* CYD: clamp pushes above the OSK */
+void botcorps_band_force_direct(bool on); /* CYD portrait: no band sprite */
 #endif
 void botcorps_band_set_ox(int x);
 /* Full-slice redraw used when a patch targets a slice the sprite is not holding. */

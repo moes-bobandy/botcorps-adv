@@ -21,14 +21,15 @@ bool botcorps_rain_step(void);
 extern uint8_t *host_frame;
 
 /* ---- clip + per-panel text state (rain is the only user) ---- */
-static int rb_clipx = 0, rb_clipy = 0, rb_clipw = 320, rb_cliph = 240;
+extern int host_fw, host_fh;
+static int rb_clipx = 0, rb_clipy = 0, rb_clipw = 320, rb_cliph = 320;
 static int rb_cx = 0, rb_cy = 0;
 static uint8_t rb_fg = 255;
 static inline bool rb_in(int x, int y)
 { return x >= rb_clipx && x < rb_clipx + rb_clipw && y >= rb_clipy && y < rb_clipy + rb_cliph; }
 extern int host_slice_h;   /* v1017c S3: 120-row band sprite height while slice-painting */
 static inline void rb_px(int x, int y, uint8_t c)
-{ if (host_frame && (unsigned)x < 320 && (unsigned)y < 240 && (!host_slice_h || y < host_slice_h) && rb_in(x, y)) host_frame[y * 320 + x] = c; }
+{ if (host_frame && x >= 0 && y >= 0 && x < host_fw && y < host_fh && (!host_slice_h || y < host_slice_h) && rb_in(x, y)) host_frame[y * host_fw + x] = c; }
 
 /* v1017c: the device sprite has ONE clip; the rain's per-cell clip also bounds the bot sprites it
  * draws (botcorps_sprite_draw on the same panel). The host sprite draw asks here. */
@@ -47,7 +48,7 @@ static inline void rb_devsel_tap(void)
 void lgfx::v1::LovyanGFX::setClipRect(int x, int y, int w, int h)
 { rb_devsel_tap(); rb_clipx = x; rb_clipy = y; rb_clipw = w; rb_cliph = h; }
 void lgfx::v1::LovyanGFX::clearClipRect(void)
-{ rb_clipx = 0; rb_clipy = 0; rb_clipw = 320; rb_cliph = 240; }
+{ rb_clipx = 0; rb_clipy = 0; rb_clipw = 320; rb_cliph = 320; }
 void lgfx::v1::LovyanGFX::fillRect(int x, int y, int w, int h, uint8_t c)
 { rb_devsel_tap(); for (int j = 0; j < h; ++j) for (int i = 0; i < w; ++i) rb_px(x + i, y + j, c); }
 void lgfx::v1::LovyanGFX::setTextColor(uint8_t c) { rb_fg = c; }

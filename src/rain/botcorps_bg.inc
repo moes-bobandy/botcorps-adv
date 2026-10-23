@@ -23,7 +23,8 @@ static int s_bg = BG_RAIN;
 /* the Terminal / prompt keeps its fixed device-icon rain (item 15): never a background */
 static bool bg_on(void) { return s_bg != BG_RAIN && !s_no_bots; }
 
-static const int BG_W = 320, BG_H = 240;
+#define BG_W RAIN_VW
+#define BG_H RAIN_VH
 static const int FP = 8;                            /* positions in 1/8 px */
 static uint16_t bg565(int r, int g, int b) { return (uint16_t)(((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3)); }
 /* a -> b by num/den, RGB565 */

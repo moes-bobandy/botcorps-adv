@@ -96,8 +96,22 @@ static const uint16_t SOLID_INK[6] = {
 static const int STEP_MS = 90;
 static const int RAIN_COLS = 56;
 static const int CELL = 8;
+#ifdef BOTCORPS_CYD
+/* CYD portrait: the same 1200-cell plane re-shaped 30 cols x 40 rows for the 240x320 view
+ * (botcorps_rain_set_view). Landscape stays 40x30 on a 320x240 view. */
+static const int CELL_COLS_MAX = 40;
+static const int CELL_ROWS_MAX = 40;
+static int s_cell_cols = 40, s_cell_rows = 30, s_view_w = 320, s_view_h = 240;
+#define CELL_COLS s_cell_cols
+#define CELL_ROWS s_cell_rows
+#define RAIN_VW s_view_w
+#define RAIN_VH s_view_h
+#else
 static const int CELL_COLS = 40;
 static const int CELL_ROWS = 30;
+#define RAIN_VW 320
+#define RAIN_VH 240
+#endif
 static const int GAP = CELL;
 
 enum { LEAD_CODE = 0, LEAD_BOT = 1, LEAD_DEV = 2 };
@@ -115,7 +129,7 @@ static bool s_radar = false;
 static botcorps_cover_t s_cover[24];
 static int s_ncover = 0;
 static int s_slice_y0 = 0;
-static int s_slice_y1 = 240;
+static int s_slice_y1 = RAIN_VH;
 /* Planes 1 and 2, bytes 1120..1179, hold the Tab completion scratch. Rain uses plane 0 only. */
 
 static uint32_t rnd_u(void)
@@ -183,9 +197,13 @@ static void spawn(uint8_t *c, int d, bool scatter)
  * A packed drop's length and lead kind are a pure function of (column, drop, generation), so they
  * stay fixed for the drop's whole fall. */
 enum { CYD_DROPS = 4, CYD_HEAD_OFS = 6, CYD_IDLE = 6, CYD_LEN0 = 8, CYD_LENS = 19 };
-static_assert(CELL_COLS * (CYD_DROPS - 2) * 12 <= (RAIN_COLS - CELL_COLS) * 8 * 8, "packed drops fit the spare column records");
-static_assert(CELL_ROWS + CYD_LEN0 + CYD_LENS + CYD_HEAD_OFS <= 63, "packed head fits 6 bits");
-static uint8_t *cyd_x(void) { return &botcorps_t0_rain_col[CELL_COLS][0]; }
+enum { CYD_LENS_P = 9 };   /* portrait (40 rows): packed drops 8..16 long so the head still fits 6 bits */
+static_assert(CELL_COLS_MAX * (CYD_DROPS - 2) * 12 <= (RAIN_COLS - CELL_COLS_MAX) * 8 * 8, "packed drops fit the spare column records");
+static_assert(30 + CYD_LEN0 + CYD_LENS + CYD_HEAD_OFS <= 63, "packed head fits 6 bits (landscape)");
+static_assert(CELL_ROWS_MAX + 1 + CYD_LEN0 + CYD_LENS_P - 1 + CYD_HEAD_OFS <= 63, "packed head fits 6 bits (portrait)");
+static_assert(CELL_COLS_MAX * 30 <= 1200 && 30 * CELL_ROWS_MAX <= 1200, "both grids fit the cell plane");
+static int cyd_lens(void) { return s_cell_rows > 30 ? (int)CYD_LENS_P : (int)CYD_LENS; }
+static uint8_t *cyd_x(void) { return &botcorps_t0_rain_col[CELL_COLS_MAX][0]; }
 static int cyd_get12(int j)
 {
     const uint8_t *b = cyd_x() + (j * 3) / 2;
@@ -227,8 +245,8 @@ static void cyd_drop(int col, int d, int *h, int *L, int *lead)
     const int v = cyd_get12(cyd_slot(col, d));
     const uint32_t hs = cyd_hash(col, d, v >> 6);
     *h = (v & 63) - CYD_HEAD_OFS;
-    *L = CYD_LEN0 + (int)(hs % (uint32_t)CYD_LENS);
-    if (lead) *lead = cyd_lead_of(hs / (uint32_t)CYD_LENS);
+    *L = CYD_LEN0 + (int)(hs % (uint32_t)cyd_lens());
+    if (lead) *lead = cyd_lead_of(hs / (uint32_t)cyd_lens());
 }
 static void cyd_set_head(int col, int d, int h)
 {
@@ -249,7 +267,7 @@ static void cyd_spawn(int col, int d, bool scatter)
     }
     const int j = cyd_slot(col, d);
     const int gen = scatter ? rnd_n(64) : (((cyd_get12(j) >> 6) + 1) & 63);
-    const int len = CYD_LEN0 + (int)(cyd_hash(col, d, gen) % (uint32_t)CYD_LENS);
+    const int len = CYD_LEN0 + (int)(cyd_hash(col, d, gen) % (uint32_t)cyd_lens());
     const int h = scatter ? rnd_n(CELL_ROWS + len + 1) - (CYD_IDLE - 1) : -rnd_n(CYD_IDLE);
     cyd_set12(j, (gen << 6) | ((h + CYD_HEAD_OFS) & 63));
 }
@@ -353,7 +371,7 @@ static bool icon_pixel_ok(int x, int y);
 /* v1019x: optional world-space draw window (botcorps_rain_draw_win). When on, each cell's clip is the
  * cell intersected with the window and cells outside it are skipped, so the rain can live in one rect. */
 static bool s_win_on = false;
-static int s_win_x = 0, s_win_y = 0, s_win_w = 320, s_win_h = 240;
+static int s_win_x = 0, s_win_y = 0, s_win_w = RAIN_VW, s_win_h = RAIN_VH;
 /* v1019x: exclusion rects inside the window (world x, y, w, h); a cell touching one is not drawn at all */
 static int s_win_nex = 0;
 static int16_t s_win_ex[4][4];
@@ -610,7 +628,7 @@ static void paint_all_cells(lgfx::LovyanGFX &panel)
 
 static bool rain_pixel_ok(int x, int y)
 {
-    if (x < 0 || y < 0 || x >= 320 || y >= 240) return false;
+    if (x < 0 || y < 0 || x >= RAIN_VW || y >= RAIN_VH) return false;
     for (int i = 0; i < s_ncover; ++i) {
         const botcorps_cover_t &b = s_cover[i];
         if (x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h) return false;
@@ -660,7 +678,7 @@ bool botcorps_rain_step(void)
     s_last_ms = now;
     if (s_draw && botcorps_dual_ok() && botcorps_band_direct()) {
         s_slice_y0 = 0;
-        s_slice_y1 = 240;
+        s_slice_y1 = RAIN_VH;
         botcorps_pal_hub_set(s_hub_on);
         botcorps_content().startWrite();
         step_columns(&botcorps_content());
@@ -723,7 +741,7 @@ void botcorps_rain_draw_win(lgfx::LovyanGFX &dst, int y0, int y1, int wx, int wy
     s_hub_on = true;
     botcorps_rain_draw(dst, y0, y1);
     s_hub_on = hub;
-    s_win_on = false; s_win_x = 0; s_win_y = 0; s_win_w = 320; s_win_h = 240; s_win_nex = 0;
+    s_win_on = false; s_win_x = 0; s_win_y = 0; s_win_w = RAIN_VW; s_win_h = RAIN_VH; s_win_nex = 0;
 }
 
 void botcorps_rain_draw(lgfx::LovyanGFX &dst, int y0, int y1)
@@ -739,7 +757,7 @@ void botcorps_rain_draw(lgfx::LovyanGFX &dst, int y0, int y1)
     dst.clearClipRect();
     botcorps_pal_hub_set(false);
     s_slice_y0 = 0;
-    s_slice_y1 = 240;
+    s_slice_y1 = RAIN_VH;
 }
 
 /* v1019 (Dirt #5): faint "ghost" bits of the LIVE rain drawn over a chrome rect (the Terminal's
@@ -842,6 +860,19 @@ void botcorps_rain_paint(void)
     paint_all_cells(botcorps_content());
     botcorps_content().endWrite();
 }
+
+#ifdef BOTCORPS_CYD
+void botcorps_rain_set_view(int w, int h)
+{
+    const bool tall = h > w;
+    if (w == s_view_w && h == s_view_h) return;
+    s_view_w = w; s_view_h = h;
+    s_cell_cols = tall ? 30 : 40;
+    s_cell_rows = tall ? 40 : 30;
+    s_win_w = w; s_win_h = h; s_slice_y1 = h;
+    s_built = false;                 /* rebuild the columns on the new grid */
+}
+#endif
 
 void botcorps_rain_set_parked(bool parked)
 {

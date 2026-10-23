@@ -21,6 +21,21 @@ static void (*s_recompose)(Gfx) = nullptr;
 static uint32_t s_largest = 0;
 static uint32_t s_frame = 0;
 static volatile uint32_t s_touch_sink;
+#ifdef BOTCORPS_CYD
+/* CYD: stop band pushes below this world row so the on-screen keyboard (an
+ * overlay painted after the band) is not overwritten. 240 = no clamp (Adv). */
+static int s_push_ymax = 240;
+
+void botcorps_band_set_push_ymax(int y)
+{
+    if (y < 0) y = 0;
+    if (y > 240) y = 240;
+    if (y == s_push_ymax) return;
+    const int from = y < s_push_ymax ? y : s_push_ymax;
+    s_push_ymax = y;
+    for (int i = from; i < 240; ++i) botcorps_t0_row_hash[i] = 0xffffffffu;
+}
+#endif
 
 static const int SLICE_H =
 #if BOTCORPS_FRAME_MODE == FRAME
@@ -511,6 +526,9 @@ static int push_slice(int world_y0, bool refresh_ok)
     panel.startWrite();
     for (int r = 0; r < SLICE_H; ++r) {
         const int world = world_y0 + r;
+#ifdef BOTCORPS_CYD
+        if (world >= s_push_ymax) continue;
+#endif
         const uint8_t *row = buf + (size_t)r * (size_t)stride;
         const uint32_t h = row_hash(row, 320);
         const bool dirty = full || botcorps_t0_row_hash[world] != h;

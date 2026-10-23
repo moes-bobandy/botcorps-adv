@@ -935,28 +935,46 @@ static void paint_chrome_p(Gfx g)
     txt(g, "12", 206, 6, PAL_WHITE, lgfx::textdatum::top_left);
     txt(g, "0", 228, 9, ac, lgfx::textdatum::top_left);
     g.fillRect(0, 24, 240, 1, sb_tone(3));
-    /* Frame ornaments (mock crop positions). */
+    /* Frame ornaments — default PAL_LINE; Wi-Fi/BT overpaint via paint_chrome_bot_p. */
     g.drawRect(5, 26, 230, 294, PAL_LINE);
     g.drawRect(6, 27, 228, 292, PAL_DEEP);
 }
 
-static void paint_scan_grid_p(Gfx g, int gx, int gy, int cols, int rows, int pitch)
+/* Mock B: Wi-Fi/BT outer chrome is bot colour (blue / cyan), not theme grape. */
+static void paint_chrome_bot_p(Gfx g, uint8_t botc)
 {
-    /* Mock B: double accent frame around the device panel. */
-    {
-        const uint8_t ac = accent();
-        const int gw = cols * pitch + 4, gh = rows * pitch + 4;
-        sb_frame(g, gx - 3, gy - 3, gw + 2, gh + 2, ac);
-        sb_frame(g, gx - 2, gy - 2, gw, gh, ac);
-    }
+    paint_chrome_p(g);
+    g.drawRect(5, 26, 230, 294, botc);
+    g.drawRect(6, 27, 228, 292, botc);
+}
 
+static void paint_scan_grid_p(Gfx g, int gx, int gy, int cols, int rows, int pitch, uint8_t frame_col, bool sparse = false)
+{
+    /* Black plate (matches mock charcoal within tol=24) + double frame + green grid.
+     * sparse=true (AirTag/bots): frame + faint vertical guides only — mock B is nearly empty. */
     const int gw = cols * pitch + 1, gh = rows * pitch + 1;
-    g.fillRect(gx, gy, gw, gh, (uint8_t)PAL_BLACK);
-    for (int c = 0; c <= cols; ++c) g.fillRect(gx + c * pitch, gy, 1, gh, (uint8_t)1);
-    for (int r = 0; r <= rows; ++r) g.fillRect(gx, gy + r * pitch, gw, 1, (uint8_t)1);
-    for (int c = 0; c <= cols; ++c)
-        for (int r = 0; r <= rows; ++r)
-            g.fillRect(gx + c * pitch - 1, gy + r * pitch - 1, 3, 3, (uint8_t)65);
+    g.fillRect(gx - 3, gy - 3, gw + 6, gh + 6, PAL_BLACK);
+    sb_frame(g, gx - 3, gy - 3, gw + 6, gh + 6, frame_col);
+    sb_frame(g, gx - 2, gy - 2, gw + 4, gh + 4, frame_col);
+    g.fillRect(gx, gy, gw, gh, PAL_BLACK);
+    if (sparse) {
+        for (int c = 0; c <= cols; ++c)
+            g.fillRect(gx + c * pitch, gy, 1, gh, (uint8_t)8); /* charcoal guides */
+        for (int r = 0; r <= rows; r += 2)
+            g.fillRect(gx, gy + r * pitch, gw, 1, (uint8_t)8);
+    } else {
+        for (int c = 0; c <= cols; ++c) g.fillRect(gx + c * pitch, gy, 1, gh, (uint8_t)1);
+        for (int r = 0; r <= rows; ++r) g.fillRect(gx, gy + r * pitch, gw, 1, (uint8_t)1);
+        for (int c = 0; c <= cols; ++c)
+            for (int r = 0; r <= rows; ++r)
+                g.fillRect(gx + c * pitch - 1, gy + r * pitch - 1, 3, 3, (uint8_t)65);
+    }
+    /* White tooth pads along top/bottom frame (mock B). */
+    for (int c = 0; c < cols; ++c) {
+        const int tx = gx + 4 + c * pitch;
+        g.fillRect(tx, gy - 2, 3, 2, PAL_WHITE);
+        g.fillRect(tx, gy + gh, 3, 2, PAL_WHITE);
+    }
 }
 
 /* Hub portrait B: side bot columns, Gibson core centre, 2 plates, terminal. */
@@ -1058,59 +1076,78 @@ static void port_seed_scan_logs(bool wifi, bool ble, bool gib, int bot)
     }
 }
 
-/* Traces from MCU chip to peri + long runs up to the scan grid (mock B). */
+/* Traces from MCU chip to peri + long runs up to the scan grid (mock B).
+ * Manhattan stubs stay in the gutters — never cross silk / chip faces. */
 static void paint_chip_traces_p(Gfx g, int mcx, int mcy, int ms, int px, int py, int ps, uint8_t col, int n_up)
 {
     const int mx0 = mcx - ms / 2, mx1 = mcx + ms / 2;
     const int my0 = mcy - ms / 2, my1 = mcy + ms / 2;
     const int grid_bot = 168; /* just under the device panel */
-    /* Upward traces: fan from MCU top pins to the grid underside. */
     for (int i = 0; i < n_up; ++i) {
         const int pin = mx0 + 6 + i * ((ms - 12) / (n_up > 1 ? n_up - 1 : 1));
         const int top = grid_bot - (i & 1) * 4;
-        /* vertical to a jog, then up */
         g.fillRect(pin, top, 1, my0 - top, col);
         g.fillRect(pin - 1, top, 3, 2, col);
-        /* via at MCU pin */
         g.fillRect(pin - 1, my0 - 2, 3, 3, col);
         g.fillRect(pin, my0 - 1, 1, 1, PAL_BLACK);
     }
-    /* Side rails from grid down past silk into chip zone. */
+    /* Side rails in the chrome gutters — mock B uses slate, not bot-colour runs. */
     for (int s = 0; s < 2; ++s) {
-        const int rx = s ? 214 : 24;
-        for (int k = 0; k < 5; ++k) {
-            const int yy = 50 + k * 24;
-            g.fillRect(rx, yy, 2, 14, col);
+        const int rx = s ? 226 : 12;
+        for (int k = 0; k < 6; ++k) {
+            const int yy = 40 + k * 20;
+            g.fillRect(rx, yy, 2, 12, (uint8_t)PAL_LINE);
         }
-        g.fillRect(rx, grid_bot, 2, my0 - grid_bot, col);
     }
-    /* Horizontal MCU → peri (3 parallel traces). */
+    /* Horizontal MCU → peri: mock B uses bot-colour runs (4 lanes). */
     const int x0 = mx1, x1 = px - ps / 2;
     if (x1 > x0) {
-        for (int k = -1; k <= 1; ++k) {
-            const int yy = mcy + k * 6;
+        for (int k = -1; k <= 2; ++k) {
+            const int yy = mcy + k * 4;
             g.fillRect(x0, yy, x1 - x0, 1, col);
             g.fillRect(x1 - 2, yy - 1, 3, 3, col);
         }
     }
-    /* Traces to a second peri below (Gibson dual-radio). */
+    /* Left stub teeth — mock Wi-Fi blue cluster reaches ~x60 from MCU. */
+    for (int k = -1; k <= 2; ++k) {
+        const int yy = mcy + k * 4;
+        g.fillRect(mx0 - 18, yy, 18, 1, col);
+        g.fillRect(mx0 - 20, yy - 1, 3, 3, col);
+    }
     if (py > mcy + 10) {
         const int x2 = px - ps / 2;
         g.fillRect(mx1 - 4, my1, 1, py - my1, col);
         g.fillRect(mx1 - 4, py, x2 - (mx1 - 4), 1, col);
     }
-    /* Downward stubs under MCU into the pterm pin header. */
-    for (int i = 0; i < 5; ++i) {
-        const int tx = mx0 + 8 + i * 8;
-        g.fillRect(tx, my1, 1, 12, col);
-        g.fillRect(tx - 1, my1 + 11, 3, 2, col);
+    /* No downward botc stubs — mock B chip sits on black plate. */
+}
+
+
+/* Mock B peri: ~26 px black die + cyan (or bot) geared rim + device glyph. */
+static void paint_peri_p(Gfx g, int cx, int cy, int bot, uint8_t rim)
+{
+    const int T = 24;
+    const int x = cx - T / 2, y = cy - T / 2;
+    g.fillRect(x, y, T, T, PAL_BLACK);
+    g.drawRect(x, y, T, T, rim);
+    g.drawRect(x - 1, y - 1, T + 2, T + 2, rim);
+    for (int k = 0; k < 5; ++k) {
+        const int i = 2 + k * 5;
+        g.fillRect(x - 2, y + i, 2, 3, rim);
+        g.fillRect(x + T, y + i, 2, 3, rim);
+        g.fillRect(x + i, y - 2, 3, 2, rim);
+        g.fillRect(x + i, y + T, 3, 2, rim);
     }
+    gl_icon(g, bot_dev_kind(bot), cx - 6, cy - 6, false);
 }
 
 /* Silkscreen block left of chip cluster (WIFIBOT / ESP32-WROOM-32 / RADIO CORE / U2). */
 static void paint_scan_silk_p(Gfx g, int bot, bool gib, bool wifi, bool ble)
 {
-    const uint8_t silk = gib ? (uint8_t)PAL_IVORY : (wifi || ble) ? accent() : bot_color(bot);
+    /* Mock B: black plate under silk; wifi/ble text botc (cyan wash on glyphs). */
+    const uint8_t silk = gib ? (uint8_t)PAL_IVORY
+                             : (wifi || ble) ? bot_color(wifi ? 0 : 1)
+                             : bot_color(bot);
     char nm[16];
     if (gib) snprintf(nm, sizeof nm, "GIBSON");
     else if (wifi) snprintf(nm, sizeof nm, "WIFIBOT");
@@ -1126,102 +1163,161 @@ static void paint_scan_silk_p(Gfx g, int bot, bool gib, bool wifi, bool ble)
     else if (wifi) snprintf(l4, sizeof l4, "WI-FI AP U2");
     else if (ble) snprintf(l4, sizeof l4, "BLE U2");
     else snprintf(l4, sizeof l4, "%s U2", GL_LABEL[bot_dev_kind(bot)]);
-    g.fillRect(14, 176, 72, 52, PAL_BLACK);
+    g.fillRect(14, 176, 72, 48, PAL_FIELD);
     tiny_text(g, nm, 16, 180, silk);
     tiny_text(g, l2, 16, 188, silk);
     tiny_text(g, l3, 16, 196, silk);
     tiny_text(g, l4, 16, 208, silk);
 }
 
-/* Wi-Fi / BT: device-list panel (icons in grid) + traced chip cluster + logs. */
+/* Landscape recipe: 18×18 rim 149 / face 5; sel = white rim + sb_tone(3) + sb_halo. */
+static void paint_scan_tiles_p(Gfx g, int gx, int gy, int pitch, int n, bool wifi)
+{
+    int hx0 = -1, hy0 = -1;
+    for (int k = 0; k < n; ++k) {
+        const int c = k % 8, r = k / 8;
+        if (r >= 4) break;
+        const int x = gx + 2 + c * pitch, y = gy + 2 + r * pitch;
+        const bool sel = (k == 0);
+        g.fillRect(x, y, 18, 18, sel ? (uint8_t)PAL_WHITE : (uint8_t)149);
+        g.fillRect(x + 1, y + 1, 16, 16, sel ? sb_tone(3) : (uint8_t)5);
+        if (wifi) v2_icon_at(g, k, x + 3, y + 3);
+        else gl_icon(g, (int)LIST_BLE_TY[k % SB_N], x + 3, y + 3, false);
+        if (sel) { hx0 = x; hy0 = y; }
+    }
+    if (hx0 >= 0) sb_halo(g, hx0, hy0, 18);
+}
+
+/* Wi-Fi / BT: bot-colour chrome + landscape tile recipe + traced chips. */
 static void paint_radar_p(Gfx g, bool wifi)
 {
-    paint_chrome_p(g);
-    /* Matte board under the scan chrome so rain frames the plate, not the silk. */
-    g.fillRect(10, 28, 220, 218, PAL_BLACK);
-    const uint8_t ac = accent();
     const int bot = wifi ? 0 : 1;
-    const uint8_t copper = bot_color(bot);
-    const int gx = 32, gy = 45, cols = 8, rows = 5, pitch = 22;
-    paint_scan_grid_p(g, gx, gy, cols, rows, pitch);
-    /* Device list: top two rows (~16 icons) like mock B. */
-    const int n = wifi ? 16 : 12;
-    const uint8_t *ty = wifi ? LIST_WIFI_TY : LIST_BLE_TY;
-    for (int k = 0; k < n && k < cols * 2; ++k) {
-        const int c = k % cols, r = k / cols;
-        const int ix = gx + 5 + c * pitch, iy = gy + 5 + r * pitch;
-        gl_icon(g, (int)ty[k % SB_N], ix, iy, false);
-        if (k == 0) {
-            g.drawRect(ix - 2, iy - 2, 16, 16, PAL_WHITE);
-            g.drawRect(ix - 1, iy - 1, 14, 14, copper);
-        }
+    const uint8_t botc = bot_color(bot);
+    paint_chrome_bot_p(g, botc);
+    g.fillRect(10, 28, 220, 218, PAL_FIELD);
+    /* Mock B top bus + white pin teeth (y≈30/34). */
+    g.fillRect(16, 30, 208, 1, botc);
+    for (int i = 0; i < 24; ++i) {
+        const int tx = 20 + i * 8;
+        g.fillRect(tx, 33, 3, 2, PAL_WHITE);
     }
-    const int mcx = 120, mcy = 208, ms = 56;
-    const int pcx = 171, pcy = 206, ps = 30;
-    paint_chip_traces_p(g, mcx, mcy, ms, pcx, pcy, ps, copper, 5);
+    const int gx = 33, gy = 46, cols = 8, rows = 5, pitch = 22;
+    paint_scan_grid_p(g, gx, gy, cols, rows, pitch, botc);
+    paint_scan_tiles_p(g, gx, gy, pitch, wifi ? 17 : 16, wifi);
+    /* Side rails mid-board (mock B). */
+    for (int i = 0; i < 4; ++i) {
+        g.fillRect(gx - 3, gy + 20 + i * 22, 2, 10, botc);
+        g.fillRect(gx + cols * pitch + 1, gy + 20 + i * 22, 2, 10, botc);
+    }
+    /* Mock B: MCU face ~y192–222; peri cyan die ~24–26 px. */
+    const int mcx = 120, mcy = 207, ms = 48;
+    const int pcx = 172, pcy = 205, ps = 24;
+    paint_chip_traces_p(g, mcx, mcy, ms, pcx, pcy, ps, botc, 0);
     paint_scan_silk_p(g, bot, false, wifi, !wifi);
     chip_block(g, mcx, mcy, ms, bot);
-    chip_block(g, pcx, pcy, ps, bot);
+    paint_peri_p(g, pcx, pcy, bot, (uint8_t)PAL_CYAN);
     port_seed_scan_logs(wifi, !wifi, false, bot);
     paint_pterm(g, PT_X, PT_Y, PT_W, PT_H);
 }
 
-/* Gibson accordion header + WIFI open lane with icons; BT/DEAUTH collapsed. */
+/* Gibson accordion vs mock B: purple frame, teal WIFI open, 3-row tiles, BT/DEAUTH meters. */
 static void paint_gibson_accordion_p(Gfx g)
 {
-    const uint8_t ac = accent();
-    const int x = 18, y = 40, w = 204;
-    g.fillRect(x, y, w, 14, sb_tone(2));
-    sb_frame(g, x, y, w, 14, ac);
-    tiny_text(g, "GIBSON CREW DROP-DOWN", x + 4, y + 4, PAL_WHITE);
-    tiny_text(g, "63 FINDS", x + w - 36, y + 4, ac);
-    /* WIFI expanded */
-    const int y1 = y + 16;
-    g.fillRect(x, y1, w, 12, ac);
-    tiny_text(g, "WIFI", x + 14, y1 + 3, PAL_BLACK);
-    tiny_text(g, "12", x + w - 28, y1 + 3, PAL_BLACK);
-    tiny_text(g, "v", x + w - 12, y1 + 3, PAL_BLACK);
-    gl_icon_sz(g, GL_AP, x + 2, y1, false, 10);
-    paint_scan_grid_p(g, x + 4, y1 + 14, 8, 3, 22);
-    for (int k = 0; k < 16; ++k) {
-        const int c = k % 8, r = k / 8;
-        gl_icon(g, (int)LIST_WIFI_TY[k % SB_N], x + 9 + c * 22, y1 + 19 + r * 22, false);
-        if (k == 0) {
-            g.drawRect(x + 7 + c * 22, y1 + 17 + r * 22, 16, 16, PAL_WHITE);
-            g.drawRect(x + 8 + c * 22, y1 + 18 + r * 22, 14, 14, ac);
-        }
+    const uint8_t ice = bot_color(1);      /* BT cyan */
+    const uint8_t ice_bar = (uint8_t)155;  /* RGB332 light ice top bus */
+    const uint8_t wifi_c = bot_color(0);
+    const uint8_t grape = (uint8_t)69;     /* muted grape ~mock (90,36,99) */
+    const uint8_t chalk = (uint8_t)8;
+    const uint8_t deauth_c = (uint8_t)224; /* red accent */
+    /* Top bus + ice/copper pins. */
+    g.fillRect(16, 30, 208, 1, ice_bar);
+    for (int i = 0; i < 24; ++i) {
+        const int tx = 20 + i * 8;
+        g.fillRect(tx, 33, 3, 2, (uint8_t)217);
+        g.fillRect(tx + 1, 34, 1, 1, PAL_BLACK);
     }
-    /* BLUETOOTH / DEAUTH collapsed rows */
-    const int yb = y1 + 14 + 3 * 22 + 4;
-    g.fillRect(x, yb, w, 12, sb_tone(2));
-    sb_frame(g, x, yb, w, 12, PAL_LINE);
-    gl_icon_sz(g, GL_SPEAKER, x + 2, yb + 1, false, 10);
-    tiny_text(g, "BLUETOOTH", x + 16, yb + 3, PAL_LINE);
-    tiny_text(g, "12", x + w - 28, yb + 3, ac);
-    tiny_text(g, ">", x + w - 12, yb + 3, ac);
-    const int yd = yb + 14;
-    g.fillRect(x, yd, w, 12, sb_tone(2));
-    sb_frame(g, x, yd, w, 12, PAL_LINE);
-    gl_icon_sz(g, GL_DEVBOARD, x + 2, yd + 1, false, 10);
-    tiny_text(g, "DEAUTH", x + 16, yd + 3, PAL_LINE);
-    tiny_text(g, "4", x + w - 28, yd + 3, ac);
-    tiny_text(g, ">", x + w - 12, yd + 3, ac);
+    /* Outer accordion — mock 1px muted-purple rim ~x32–208, y41–160. */
+    const int ax = 32, aw = 176, ay = 41, ah = 120;
+    g.fillRect(ax, ay, aw, ah, chalk);
+    sb_frame(g, ax, ay, aw, ah, grape);
+    /* Crew header. */
+    chip_mini(g, ax + 10, ay + 8, 12, 12, false, 0);
+    tiny_text(g, "GIBSON", ax + 20, ay + 3, PAL_IVORY);
+    tiny_text(g, "CREW DROP-DOWN", ax + 20, ay + 9, COL_MUTED);
+    tiny_text(g, "63 FINDS", ax + aw - 40, ay + 5, PAL_IVORY);
+    /* WIFI open lane — landscape recipe: sb_mix(bc,0,72) body + left accent. */
+    const int y1 = 58, x = ax, w = aw;
+    const uint8_t wifi_body = sb_mix(wifi_c, 0x0000, 72);
+    g.fillRect(x, y1, w, 12, wifi_body);
+    g.fillRect(x, y1, 3, 12, wifi_c);
+    chip_mini(g, x + 10, y1 + 5, 10, 0, false, 0);
+    tiny_text(g, "WIFI", x + 20, y1 + 3, PAL_WHITE);
+    tiny_text(g, "12", x + w - 28, y1 + 3, PAL_IVORY);
+    tiny_text(g, "v", x + w - 12, y1 + 3, PAL_IVORY);
+    /* 3-row tiles (mock y≈70–128): 16 wifi + 1 ble start; rest empty black. */
+    const int gx = 40, gy = 72, pitch = 20;
+    paint_scan_grid_p(g, gx, gy, 8, 3, pitch, (uint8_t)65);
+    paint_scan_tiles_p(g, gx, gy, pitch, 17, true);
+    /* White corner brackets around open panel (mock B). */
+    g.fillRect(gx - 2, gy - 2, 6, 2, PAL_WHITE);
+    g.fillRect(gx - 2, gy - 2, 2, 6, PAL_WHITE);
+    g.fillRect(gx + 8 * pitch - 4, gy - 2, 6, 2, PAL_WHITE);
+    g.fillRect(gx + 8 * pitch, gy - 2, 2, 6, PAL_WHITE);
+    g.fillRect(gx - 2, gy + 3 * pitch - 0, 6, 2, PAL_WHITE);
+    g.fillRect(gx - 2, gy + 3 * pitch - 4, 2, 6, PAL_WHITE);
+    /* Side blue jog traces (mock), not copper teeth. */
+    for (int i = 0; i < 4; ++i) {
+        const int yy = 70 + i * 20;
+        g.fillRect(ax - 5, yy, 4, 1, wifi_c);
+        g.fillRect(ax - 5, yy, 1, 12, wifi_c);
+        g.fillRect(ax + aw + 1, yy, 4, 1, wifi_c);
+        g.fillRect(ax + aw + 4, yy, 1, 12, wifi_c);
+    }
+    /* BT collapsed — charcoal + ice + meter pips (mock y≈136). */
+    const int yb = 136;
+    g.fillRect(x, yb, w, 10, chalk);
+    g.fillRect(x, yb, 3, 10, ice);
+    sb_frame(g, x, yb, w, 10, ice);
+    chip_mini(g, x + 10, yb + 4, 10, 1, false, 0);
+    tiny_text(g, "BLUETOOTH", x + 20, yb + 2, PAL_WHITE);
+    for (int k = 0; k < 6; ++k)
+        g.fillRect(x + 78 + k * 5, yb + 3, 3, 3, ice);
+    tiny_text(g, "12", x + w - 28, yb + 2, PAL_IVORY);
+    tiny_text(g, ">", x + w - 12, yb + 2, ice);
+    /* DEAUTH collapsed — red accent + meter pips (mock y≈148). */
+    const int yd = 148;
+    g.fillRect(x, yd, w, 10, chalk);
+    g.fillRect(x, yd, 3, 10, deauth_c);
+    sb_frame(g, x, yd, w, 10, deauth_c);
+    chip_mini(g, x + 10, yd + 4, 10, 2, false, 0);
+    tiny_text(g, "DEAUTH", x + 20, yd + 2, PAL_WHITE);
+    for (int k = 0; k < 4; ++k)
+        g.fillRect(x + 78 + k * 5, yd + 3, 3, 3, deauth_c);
+    tiny_text(g, "4", x + w - 28, yd + 2, PAL_IVORY);
+    tiny_text(g, ">", x + w - 12, yd + 2, deauth_c);
 }
 
-/* AirTag pattern applied to every bot board: radar targets + traced chips. */
+/* AirTag pattern: PAL_LINE chrome (caller), gold top bus, radar targets + chips. */
 static void paint_bot_board_p(Gfx g, int bot)
 {
-    g.fillRect(10, 28, 220, 218, PAL_BLACK);
-    const uint8_t ac = accent();
     const uint8_t bc = bot_color(bot);
-    const int gx = 34, gy = 53, cols = 9, rows = 5, pitch = 19;
-    paint_scan_grid_p(g, gx, gy, cols, rows, pitch);
-    /* Bot chip-bot icon + circular targets with trail dots (mock B AirTag). */
+    const uint8_t gold = (uint8_t)248; /* RGB332 gold top bus (255,219,0) */
+    g.fillRect(10, 28, 220, 218, PAL_FIELD);
+    g.fillRect(16, 30, 208, 1, gold);
+    /* White pin teeth (mock y=34). */
+    for (int i = 0; i < 24; ++i) {
+        const int tx = 20 + i * 8;
+        g.fillRect(tx, 33, 3, 2, PAL_WHITE);
+    }
+    const int gx = 34, gy = 50, cols = 8, rows = 5, pitch = 21;
+    /* Frame stays PAL_LINE — bot colour only on targets / traces, not outer chrome. */
+    paint_scan_grid_p(g, gx, gy, cols, rows, pitch, (uint8_t)PAL_LINE, true);
     chip_mini(g, gx + 40, gy + 36, 18, bot, false, 0);
     g.fillRect(gx + 34, gy + 30, 12, 12, bc);
     g.drawRect(gx + 33, gy + 29, 14, 14, PAL_WHITE);
-    static const int TX[3] = { 90, 130, 160 };
-    static const int TY[3] = { 30, 55, 40 };
+    /* Targets — mock AirTag cluster around x≈150,y≈75. */
+    static const int TX[3] = { 120, 150, 170 };
+    static const int TY[3] = { 28, 40, 55 };
     for (int t = 0; t < 3; ++t) {
         const int cx = gx + TX[t], cy = gy + TY[t];
         g.drawCircle(cx, cy, 7, bc);
@@ -1234,15 +1330,15 @@ static void paint_bot_board_p(Gfx g, int bot)
         g.fillRect(gx - 3, gy + 16 + i * 18, 2, 10, bc);
         g.fillRect(gx + cols * pitch + 1, gy + 16 + i * 18, 2, 10, bc);
     }
-    const int mcx = 120, mcy = 208, ms = 56;
-    const int pcx = 171, pcy = 206, ps = 30;
-    paint_chip_traces_p(g, mcx, mcy, ms, pcx, pcy, ps, bc, 5);
+    const int mcx = 120, mcy = 207, ms = 48;
+    const int pcx = 172, pcy = 205, ps = 24;
+    paint_chip_traces_p(g, mcx, mcy, ms, pcx, pcy, ps, bc, 0);
     paint_scan_silk_p(g, bot, false, false, false);
     chip_block(g, mcx, mcy, ms, bot);
-    chip_block(g, pcx, pcy, ps, bot);
+    paint_peri_p(g, pcx, pcy, bot, bc);
 }
 
-/* Bot / Gibson SCAN board — Gibson accordion; every bot uses AirTag pattern. */
+/* Bot / Gibson SCAN — Gibson keeps PAL_LINE chrome; bots keep PAL_LINE (not bot chrome). */
 static void paint_scan_p(Gfx g)
 {
     paint_chrome_p(g);
@@ -1250,21 +1346,23 @@ static void paint_scan_p(Gfx g)
     const int bot = gib ? 12 : (s_scan_bot % 12);
     const uint8_t ac = accent();
     if (gib) {
-        g.fillRect(10, 28, 220, 218, PAL_BLACK);
+        g.fillRect(10, 28, 220, 218, PAL_FIELD);
         paint_gibson_accordion_p(g);
-        const int mcx = 120, mcy = 208, ms = 56;
-        paint_chip_traces_p(g, mcx, mcy, ms, 168, 190, 24, ac, 5);
-        paint_chip_traces_p(g, mcx, mcy, ms, 168, 222, 24, ac, 0);
+        const int mcx = 120, mcy = 207, ms = 48;
+        paint_chip_traces_p(g, mcx, mcy, ms, 172, 192, 24, (uint8_t)PAL_IVORY, 0);
+        paint_chip_traces_p(g, mcx, mcy, ms, 172, 220, 24, (uint8_t)PAL_IVORY, 0);
         paint_scan_silk_p(g, 12, true, false, false);
         chip_block(g, mcx, mcy, ms, 12);
-        chip_block(g, 168, 190, 24, 0);
-        chip_block(g, 168, 222, 24, 1);
+        chip_block(g, 172, 192, 24, 0);
+        chip_block(g, 172, 220, 24, 1);
         port_seed_scan_logs(false, false, true, 12);
     } else {
+        /* Outer chrome stays PAL_LINE (mock B); gold bus is inside paint_bot_board_p. */
         paint_bot_board_p(g, bot);
         port_seed_scan_logs(false, false, false, bot);
     }
     paint_pterm(g, PT_X, PT_Y, PT_W, PT_H);
+    (void)ac;
 }
 
 static void paint_list_p(Gfx g, bool wifi)
@@ -1290,6 +1388,12 @@ static void layout_covers_portrait_common(void)
     cover_add(PT_X, PT_Y, PT_W, PT_H);  /* terminal block */
     cover_add(5, 26, 5, 279);           /* frame L */
     cover_add(230, 26, 5, 279);         /* frame R */
+    /* Scan boards: keep rain out of silk/chip/grid gutters (mock matte plate). */
+    if (s_screen == SCR_WIFI_RADAR || s_screen == SCR_BT_RADAR || s_screen == SCR_SCAN) {
+        cover_add(10, 28, 220, 218);
+        cover_add(14, 176, 72, 48);   /* silk plate */
+        cover_add(90, 176, 100, 60);  /* MCU + peri */
+    }
 }
 
 static void paint_ext_portrait(Gfx g)

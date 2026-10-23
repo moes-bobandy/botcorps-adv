@@ -157,5 +157,25 @@ int cyd_render_main(int argc, char **argv)
         render_ctlp(path, 2 /* geomA + pinB */, 0, getenv("NORAIN") ? 1 : 0);
         return 0;
     }
+
+    /* rend ctlp-spread <outdir> — Control spread options 1/2 @ native (layout = spread<<4).
+     * Emits rain + norain + theme t0/t1/t2 (GRAPE/MASHUP/MIX cursors) for each. */
+    if (argc > 2 && strcmp(argv[1], "ctlp-spread") == 0) {
+        const char *dir = argv[2];
+        char path[512];
+        static const int themes[3] = { 0, 1, 2 }; /* GRAPE, MASHUP, MIX part cursors */
+        for (int sp = 1; sp <= 2; ++sp) {
+            const int layout = sp << 4;
+            snprintf(path, sizeof path, "%s/control-spread-%d.rgb", dir, sp);
+            render_ctlp(path, layout, 0, 0);
+            snprintf(path, sizeof path, "%s/control-spread-%d.norain.rgb", dir, sp);
+            render_ctlp(path, layout, 0, 1);
+            for (int t = 0; t < 3; ++t) {
+                snprintf(path, sizeof path, "%s/control-spread-%d-t%d.rgb", dir, sp, t);
+                render_ctlp(path, layout, themes[t], 0);
+            }
+        }
+        return 0;
+    }
     return -1;
 }

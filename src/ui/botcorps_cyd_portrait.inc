@@ -4,15 +4,215 @@
 /* One-line A/B swap: 0 = layout A (default), 1 = mirrored layout B. */
 static int CP_P_LAYOUT = 0;
 static int CP_PIN_STYLE = 0; /* 0=A tiny beside pin (default), 1=B between pins */
+static int CP_SPREAD = 0; /* 0=default+pterm, 1=2-col grid, 2=centered core (host preview) */
 
 static int cp_px(int x, int w)
 {
     return CP_P_LAYOUT ? (240 - x - w) : x;
 }
 
+
+static void cp_pad(Gfx g, int x, int y, int w, int h); /* defined below paint_pterm */
+
+/* ---- Portrait Control SPREAD (host-only; CP_SPREAD=0 keeps default) ----
+ * Pin art: botcorps_id.cpp:gpio_pad 990-1002 + teeth 1038-1042 + copper 1086-1089.
+ * mix_nat/split565/pack565 unused on palette path; indexes 177/217/110 match gold/goldh/steel. */
+
+/* Exact gpio_pad geometry on palette Gfx (file:function botcorps_id.cpp:gpio_pad). */
+static void cp_gpio_pad(Gfx g, int x, int y, int kind, bool on, bool tip)
+{
+    const uint8_t gold = 177, goldh = 217, steel = (uint8_t)PAL_STEEL;
+    const uint8_t red = botcorps_pal_fit(0xE1A6); /* id 3V3 pad 0xE1A6 */
+    uint8_t pad = gold;
+    if (kind == 0) pad = red;
+    else if (kind == 1) pad = steel;
+    else if (on) pad = tip ? (uint8_t)PAL_WHITE : accent();
+    g.fillRect(x, y, 7, 7, pad);
+    g.fillRect(x, y, 7, 1, (on && kind > 1) ? (uint8_t)PAL_WHITE : goldh);
+    g.fillRect(x + 2, y + 2, 3, 3, PAL_BLACK);
+    if (on && kind > 1) g.fillRect(x + 3, y + 3, 1, 1, tip ? accent() : (uint8_t)PAL_WHITE);
+}
+
+/* Module castellated tooth — botcorps_id.cpp:1038-1042 (also chip_edge_pin for die pins). */
+static void cp_mod_tooth(Gfx g, int x, int y, bool left)
+{
+    const uint8_t gold = 177, goldd = 104;
+    g.fillRect(x, y, 4, 3, gold);
+    if (left) g.fillRect(x, y, 1, 3, goldd);
+    else      g.fillRect(x + 3, y, 1, 3, goldd);
+}
+
+static bool cp_part_rect_spread(int index, int *x, int *y, int *w, int *h)
+{
+    int X = 0, Y = 0, W = 0, H = 0;
+    if (CP_SPREAD == 1) {
+        /* Option 1: symmetric 2-column chip grid, power bay mid-low, switches bottom. */
+        switch (index) {
+        case 0: X = 48;  Y = 28;  W = 40; H = 56; break;
+        case 1: X = 140; Y = 28;  W = 40; H = 56; break;
+        case 2: X = 48;  Y = 100; W = 40; H = 56; break;
+        case 5: X = 140; Y = 100; W = 40; H = 56; break;
+        case 7: X = 48;  Y = 172; W = 40; H = 56; break;
+        case 6: X = 178; Y = 254; W = 12; H = 10; break; /* PWR in power bay */
+        case 4: X = 120; Y = 284; W = 22; H = 22; break;
+        case 3: X = 156; Y = 292; W = 22; H = 12; break;
+        case 8: X = 192; Y = 292; W = 22; H = 12; break;
+        default: return false;
+        }
+    } else if (CP_SPREAD == 2) {
+        /* Option 2: theme row top, centered power core, bay parts flanking. */
+        switch (index) {
+        case 0: X = 42;  Y = 26;  W = 40; H = 54; break;
+        case 1: X = 100; Y = 26;  W = 40; H = 54; break;
+        case 2: X = 158; Y = 26;  W = 40; H = 54; break;
+        case 5: X = 42;  Y = 98;  W = 40; H = 54; break;
+        case 7: X = 158; Y = 98;  W = 40; H = 54; break;
+        case 6: X = 168; Y = 196; W = 12; H = 10; break;
+        case 4: X = 72;  Y = 284; W = 22; H = 22; break;
+        case 3: X = 116; Y = 292; W = 22; H = 12; break;
+        case 8: X = 160; Y = 292; W = 22; H = 12; break;
+        default: return false;
+        }
+    } else {
+        return false;
+    }
+    *x = cp_px(X, W); *y = Y; *w = W; *h = H;
+    return true;
+}
+
+static int cp_lab_y_spread(int index)
+{
+    int x, y, w, h;
+    if (!cp_part_rect_spread(index, &x, &y, &w, &h)) return 0;
+    if (index == 0 || index == 1 || index == 2 || index == 5 || index == 7) return -1;
+    return y + h + 2;
+}
+
+static int cp_route_spread(int index, int *px, int *py)
+{
+    int x, y, w, h;
+    if (!cp_part_rect_spread(index, &x, &y, &w, &h)) return 0;
+    const bool chip = index == 0 || index == 1 || index == 2 || index == 5 || index == 7;
+    const int cx = x + w / 2;
+    const int cy = chip ? y + h : y;
+    const int fx = (CP_SPREAD == 2) ? cp_px(114, 1) : cp_px(118, 1);
+    const int fy = (CP_SPREAD == 2) ? 210 : 262;
+    int n = 0;
+    px[n] = fx; py[n++] = fy;
+    px[n] = fx; py[n++] = (cy + fy) / 2;
+    px[n] = cx; py[n++] = (cy + fy) / 2;
+    px[n] = cx; py[n++] = cy;
+    return n;
+}
+
+static void cp_draw_headers_spread(Gfx g)
+{
+    const uint8_t silk = sh_rgb(0xe9, 0xe9, 0xee);
+    const uint8_t strip = botcorps_pal_fit(0x18C3); /* id housing top line idx 68 */
+    static const char *const TP[12] = {
+        "3V", "GND", "D23", "D22", "TX0", "RX0", "D21", "D19", "D18", "D5", "D17", "D16"
+    };
+    static const char *const BP[12] = {
+        "EN", "VP", "VN", "D34", "D35", "D32", "D33", "D25", "D26", "D27", "D14", "D12"
+    };
+    const int n = 12, pitch = 22, y0 = 28;
+    const int lx = 6, rx = 227;
+    /* Black header strip + top highlight (botcorps_id.cpp:1127-1128) */
+    g.fillRect(lx, y0 - 2, 11, n * pitch + 2, PAL_BLACK);
+    g.fillRect(lx, y0 - 2, 11, 1, strip);
+    g.fillRect(rx, y0 - 2, 11, n * pitch + 2, PAL_BLACK);
+    g.fillRect(rx, y0 - 2, 11, 1, strip);
+    for (int k = 0; k < n; ++k) {
+        const int py = y0 + k * pitch;
+        const int kind = (k == 0) ? 0 : (k == 1) ? 1 : 2;
+        cp_gpio_pad(g, lx + 2, py, kind, false, false);
+        cp_gpio_pad(g, rx + 2, py, kind == 0 ? 2 : kind, false, false);
+        cp_mod_tooth(g, lx + 11, py + 2, true);
+        cp_mod_tooth(g, rx - 4, py + 2, false);
+        const char *L = CP_P_LAYOUT ? BP[k] : TP[k];
+        const char *R = CP_P_LAYOUT ? TP[k] : BP[k];
+        const int ly = py + 1;
+        g.fillRect(18, ly - 1, 18, 7, PAL_BLACK);
+        g.fillRect(204, ly - 1, 18, 7, PAL_BLACK);
+        tiny_text(g, L, 19, ly, silk);
+        tiny_text(g, R, 221 - tiny_w(R), ly, silk);
+    }
+    /* Copper GPIO bus drop (botcorps_id.cpp:1086-1089) */
+    const uint8_t trace = sh_rgb(0xb4, 0x6a, 0x28);
+    g.fillRect(lx + 12, y0 + 3, rx - lx - 12, 1, trace);
+}
+
+static void cp_draw_power_bay(Gfx g, int fx, int fy, int fw, int fh)
+{
+    const uint8_t gold = sh_rgb(0xd4, 0xa9, 0x3c), silk = sh_rgb(0xe9, 0xe9, 0xee);
+    const uint8_t silk2 = sh_rgb(0x9a, 0x9a, 0xa6), trace = sh_rgb(0xb4, 0x6a, 0x28);
+    g.drawRect(fx, fy, fw, fh, sh_rgb(0x2b, 0x2b, 0x33));
+    {
+        const int x = fx + 4, y = fy + 4;
+        cp_pad(g, x, y, 36, 36);
+        g.fillRect(x, y, 36, 32, sh_rgb(0x15, 0x15, 0x18));
+        g.fillRect(x + 4, y + 4, 28, 24, sh_rgb(0x05, 0x05, 0x06));
+        g.fillCircle(x + 18, y + 16, 5, sh_rgb(0x2a, 0x2a, 0x30));
+        tiny_text(g, "DC6.5", x + 6, y + 34, silk);
+    }
+    {
+        const int x = fx + 48, y = fy + 8;
+        cp_pad(g, x, y, 30, 28);
+        g.fillRect(x + 4, y, 22, 6, sh_rgb(0xa9, 0xaf, 0xbb));
+        g.fillRect(x, y + 6, 30, 14, sh_rgb(0x1a, 0x1a, 0x1f));
+        for (int k = 0; k < 3; ++k) g.fillRect(x + 5 + k * 9, y + 22, 3, 6, sh_rgb(0xa9, 0xaf, 0xbb));
+        tiny_text(g, "1117C", x + 4, y + 8, silk2);
+    }
+    {
+        const int x = fx + 86, y = fy + 8, w = 16, hh = 28;
+        cp_pad(g, x, y, w, hh + 8);
+        g.fillRect(x, y, w, hh, sh_rgb(0x9a, 0xa1, 0xb2));
+        g.fillRect(x + 1, y + 1, w - 2, hh - 2, sh_rgb(0xd0, 0xd5, 0xdf));
+        g.fillRect(x + 4, y + 4, w - 8, hh - 8, sh_rgb(0x0a, 0x0a, 0x10));
+        g.fillRect(x + 7, y + 8, 2, hh - 16, gold);
+        tiny_text(g, "USB5V", x - 2, y + hh + 2, silk);
+    }
+    {
+        const int x = fx + 112, y = fy + 14;
+        cp_pad(g, x, y, 20, 18);
+        g.fillRect(x, y, 20, 12, sh_rgb(0xe0, 0xa2, 0x1c));
+        g.fillRect(x, y, 5, 12, sh_rgb(0x7a, 0x52, 0x08));
+        g.fillRect(x + 7, y + 3, 10, 6, sh_rgb(0x5a, 0x3a, 0x00));
+        tiny_text(g, "C1", x + 6, y + 14, silk);
+    }
+    g.fillRect(fx + 40, fy + 22, fw - 50, 1, trace);
+}
+
+static void cp_draw_boot_en(Gfx g, int bx, int by)
+{
+    const uint8_t silk = sh_rgb(0xe9, 0xe9, 0xee), metal = sh_rgb(0x8f, 0x95, 0xa3);
+    g.drawRect(bx, by, 40, 56, sh_rgb(0x2b, 0x2b, 0x33));
+    for (int b = 0; b < 2; ++b) {
+        const int x = bx + 10, y = by + (b ? 30 : 6), w = 20, h = 14;
+        cp_pad(g, x - 1, y - 1, w + 2, h + 12);
+        g.fillRect(x, y, w, h, metal);
+        g.fillRect(x + 1, y + 1, w - 2, h - 2, sh_rgb(0xc3, 0xc9, 0xd6));
+        g.fillCircle(x + w / 2, y + h / 2, 4, sh_rgb(0x22, 0x23, 0x2c));
+        tiny_text(g, b ? "EN" : "BOOT", x + (b ? 6 : 2), y + h + 2, silk);
+    }
+}
+
+static void cp_draw_r16(Gfx g, int x, int y)
+{
+    const uint8_t silk2 = sh_rgb(0x9a, 0x9a, 0xa6);
+    cp_pad(g, x, y, 66, 18);
+    for (int k = 0; k < 6; ++k) {
+        g.fillRect(x + k * 11, y + 4, 6, 3, sh_rgb(0xb8, 0xb8, 0xc0));
+        g.fillRect(x + 2 + k * 11, y + 4, 2, 3, sh_rgb(0x20, 0x20, 0x24));
+    }
+    tiny_text(g, "R1-6", x + 20, y + 12, silk2);
+}
+
+
 /* Portrait Control part rects (layout A). Index map matches landscape CP_N. */
 static bool cp_part_rect_p(int index, int *x, int *y, int *w, int *h)
 {
+    if (CP_SPREAD) return cp_part_rect_spread(index, x, y, w, h);
     int X = 0, Y = 0, W = 0, H = 0;
     switch (index) {
     case 0: X = 40;  Y = 24;  W = 40; H = 62; break; /* GRAPE / UI COLOR */
@@ -32,6 +232,7 @@ static bool cp_part_rect_p(int index, int *x, int *y, int *w, int *h)
 
 static int cp_lab_y_p(int index)
 {
+    if (CP_SPREAD) return cp_lab_y_spread(index);
     if (index == 0 || index == 1 || index == 2 || index == 5 || index == 7)
         return -1; /* chip label inside package (cp_chip) */
     if (index == 6) return 188;
@@ -43,6 +244,7 @@ static int cp_lab_y_p(int index)
 /* Portrait power feed from 1117C output (103,166). Max 6 points like landscape. */
 static int cp_route_p(int index, int *px, int *py)
 {
+    if (CP_SPREAD) return cp_route_spread(index, px, py);
     int x, y, w, h;
     if (!cp_part_rect_p(index, &x, &y, &w, &h)) return 0;
     const bool chip = index == 0 || index == 1 || index == 2 || index == 5 || index == 7;
@@ -299,8 +501,113 @@ static void cp_pad(Gfx g, int x, int y, int w, int h)
     g.fillRect(x, y, w, h, PAL_BLACK);
 }
 
+
+static void paint_control_spread_p(Gfx g)
+{
+    const uint8_t gold = sh_rgb(0xd4, 0xa9, 0x3c), silk = sh_rgb(0xe9, 0xe9, 0xee), silk2 = sh_rgb(0x9a, 0x9a, 0xa6);
+    const uint8_t rail = sh_rgb(0x02, 0x02, 0x03), trace = sh_rgb(0x1c, 0x1c, 0x24), metal = sh_rgb(0x8f, 0x95, 0xa3);
+    const uint8_t ac = accent();
+    /* No terminal: clear pterm hit box. */
+    s_pt_bx = 0; s_pt_by = 0; s_pt_bw = 0; s_pt_bh = 0;
+    g.fillRect(0, 0, 240, 16, PAL_BLACK);
+    if (theme().grad == 0) g.fillRect(0, 16, 240, 1, ac);
+    else for (int x = 0; x < 240; x += 4) g.fillRect(x, 16, 4, 1, th_ink_at(x, 240));
+    for (int k = 0; k < CP_N; ++k) g.fillRect(6 + k * 6, 7, 4, 3, k == s_cursor ? ac : sh_rgb(0x2a, 0x2a, 0x34));
+    {
+        const bool bsel = s_cursor == CP_N + 1;
+        gib_crown(g, 120, 3);
+        if (bsel) g.drawRect(102, 0, 36, 16, PAL_WHITE);
+        const bool tsel = s_cursor == CP_N;
+        const uint8_t tc = tsel ? (uint8_t)PAL_WHITE : ac;
+        const int tx = 206;
+        GATE_BOX(g, "BTN", "term", tx - 2, 1, 22, 14, "-");
+        g.drawRect(tx, 3, 18, 11, tc); g.fillRect(tx, 3, 18, 2, tc);
+        g.drawLine(tx + 3, 7, tx + 6, 9, tc); g.drawLine(tx + 6, 9, tx + 3, 11, tc);
+        g.fillRect(tx + 8, 11, 5, 1, tc);
+        if (tsel) g.drawRect(tx - 2, 1, 22, 14, PAL_WHITE);
+    }
+    /* Full-height board — no terminal strip. */
+    sb_frame(g, 2, 18, 236, 300, PAL_LINE);
+    sb_frame(g, 3, 19, 234, 298, PAL_DEEP);
+    GATE_BOX(g, "BOARD", "settings", 10, 20, 220, 296, "-");
+    cp_draw_headers_spread(g);
+
+    if (CP_SPREAD == 1) {
+        cp_draw_boot_en(g, cp_px(140, 40), 172);
+        cp_draw_power_bay(g, cp_px(48, 152), 238, 152, 36);
+        cp_draw_r16(g, cp_px(48, 66), 284);
+    } else {
+        cp_draw_boot_en(g, cp_px(100, 40), 98);
+        cp_draw_power_bay(g, cp_px(44, 152), 168, 152, 52);
+        cp_draw_r16(g, cp_px(48, 66), 284);
+        g.fillRect(cp_px(120, 1), 98, 1, 70, sh_rgb(0xb4, 0x6a, 0x28));
+        g.fillRect(cp_px(48, 1), 160, 144, 1, sh_rgb(0xb4, 0x6a, 0x28));
+    }
+
+    int px[6], py[6];
+    for (int i = 0; i < CP_N; ++i) {
+        const int n = cp_route_p(i, px, py);
+        for (int q = 0; q + 1 < n; ++q) cp_seg(g, px[q], py[q], px[q + 1], py[q + 1], 1, trace, false);
+    }
+    if (s_cursor >= 0 && s_cursor < CP_N) {
+        const int n = cp_route_p(s_cursor, px, py);
+        for (int q = 0; q + 1 < n; ++q) cp_seg(g, px[q], py[q], px[q + 1], py[q + 1], 2, th_wire(), true);
+    }
+    for (int i = 0; i < CP_N; ++i) {
+        if (i == 0 || i == 1 || i == 2 || i == 5 || i == 7) {
+            int x, y, w, h;
+            if (cp_part_rect_p(i, &x, &y, &w, &h)) cp_pad(g, x - 1, y - 1, w + 2, h + 2);
+            cp_chip(g, i, s_cursor == i);
+        } else {
+            int x, y, w, h;
+            if (!cp_part_rect_p(i, &x, &y, &w, &h)) continue;
+            cp_pad(g, x - 2, y - 2, w + 4, h + 14);
+            const bool on = s_cursor == i;
+            if (on) {
+                sel_rect(g, x - 3, y - 3, w + 6, h + 6);
+                GATE_BOX(g, "SEL", "outline", x - 3, y - 3, w + 6, h + 6, "-");
+            }
+            const char *lab = "PWR";
+            if (i == 3) {
+                const bool solid = botcorps_rain_mode() > 0;
+                g.fillRect(x, y + 2, w, 6, rail);
+                for (int k = 0; k < 3; ++k) g.fillRect(x + 4 + k * 7, y + 4, 2, 2, gold);
+                const int jx = solid ? x + 12 : x + 2;
+                g.fillRect(jx, y, 12, 10, sh_rgb(0xff, 0xd4, 0x00));
+                lab = "JUMP";
+            } else if (i == 8) {
+                const bool port = botcorps_cyd_orient != 0;
+                g.fillRect(x, y + 2, w, 6, rail);
+                for (int k = 0; k < 3; ++k) g.fillRect(x + 4 + k * 7, y + 4, 2, 2, gold);
+                const int jx = port ? x + 12 : x + 2;
+                g.fillRect(jx, y, 12, 10, sh_rgb(0x00, 0xc8, 0xff));
+                lab = "ORIENT";
+            } else if (i == 4) {
+                g.fillRect(x, y, w, h, sh_rgb(0x16, 0x16, 0x1b));
+                for (int k = 0; k < 5; ++k) {
+                    g.fillRect(x + 3 + k * 4, y - 2, 2, 2, metal);
+                    g.fillRect(x + 3 + k * 4, y + h, 2, 2, metal);
+                    g.fillRect(x - 2, y + 3 + k * 4, 2, 2, metal);
+                    g.fillRect(x + w, y + 3 + k * 4, 2, 2, metal);
+                }
+                tiny_text(g, "CP", x + w / 2 - 3, y + 4, silk2);
+                const int m = botcorps_rain_mode();
+                g.fillRect(x + 4, y + 14, w - 8, 5, m <= 0 ? botcorps_rain_palette(0) : botcorps_rain_solid());
+                lab = "RAIN";
+            } else if (i == 6) {
+                const bool pon = s_bg_motion != 0;
+                g.fillRect(x, y, w, h, sh_rgb(0xd9, 0xd9, 0xdf));
+                g.fillRect(x + 2, y + 1, w - 4, h - 2, pon ? sh_rgb(0xff, 0x22, 0x44) : sh_rgb(0x3a, 0x0a, 0x12));
+                lab = "PWR";
+            }
+            tiny_text(g, lab, x + (w - tiny_w(lab)) / 2, cp_lab_y_p(i), on ? (uint8_t)PAL_WHITE : silk);
+        }
+    }
+}
+
 static void paint_control_p(Gfx g)
 {
+    if (CP_SPREAD) { paint_control_spread_p(g); return; }
     const uint8_t gold = sh_rgb(0xd4, 0xa9, 0x3c), silk = sh_rgb(0xe9, 0xe9, 0xee), silk2 = sh_rgb(0x9a, 0x9a, 0xa6);
     const uint8_t rail = sh_rgb(0x02, 0x02, 0x03), trace = sh_rgb(0x1c, 0x1c, 0x24), metal = sh_rgb(0x8f, 0x95, 0xa3);
     const uint8_t ac = accent();
@@ -522,6 +829,27 @@ static void paint_control_p(Gfx g)
 /* Portrait covers for Control: pads + pin-label text strips (rain stays BEHIND labels). */
 static void layout_covers_control_p(void)
 {
+    if (CP_SPREAD) {
+        cover_add(0, 0, 240, 17);
+        cover_add(6, 26, 11, 270);
+        cover_add(227, 26, 11, 270);
+        cover_add(18, 26, 18, 270);
+        cover_add(204, 26, 18, 270);
+        for (int i = 0; i < CP_N; ++i) {
+            int x, y, w, h;
+            if (cp_part_rect_p(i, &x, &y, &w, &h)) cover_add(x - 1, y - 1, w + 2, h + 14);
+        }
+        if (CP_SPREAD == 1) {
+            cover_add(cp_px(140, 40), 172, 40, 56);
+            cover_add(cp_px(48, 152), 238, 152, 36);
+            cover_add(cp_px(48, 66), 284, 66, 18);
+        } else {
+            cover_add(cp_px(100, 40), 98, 40, 56);
+            cover_add(cp_px(44, 152), 168, 152, 52);
+            cover_add(cp_px(48, 66), 284, 66, 18);
+        }
+        return;
+    }
     cover_add(0, 0, 240, 17);
     cover_add(PT_X, PT_Y, PT_W, PT_H);
     cover_add(cp_px(13, 6), 24, 6, 220);
@@ -1135,9 +1463,11 @@ void botcorps_host_control_p(uint8_t *buf, int cursor, int layout)
     extern int host_fw, host_fh;
     host_fw = 240; host_fh = 320;
     botcorps_cyd_orient = 1;
-    /* layout low bit = geom A/B; bit1 = pin style B (between pins). Default pin A. */
+    /* layout: bit0=geom A/B, bit1=pin B, bits4..=CP_SPREAD (1/2 = no-terminal spreads). */
     CP_P_LAYOUT = (layout & 1) ? 1 : 0;
     CP_PIN_STYLE = (layout & 2) ? 1 : 0;
+    CP_SPREAD = (layout >> 4) & 7;
+    if (CP_SPREAD > 2) CP_SPREAD = 0;
     botcorps_rain_set_view(240, 320);
     botcorps_band_force_direct(true);
     botcorps_host_enter(buf, SCR_CONTROL);

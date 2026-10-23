@@ -9570,8 +9570,8 @@ static void gp_run(const char *line)
     }
     if (strcmp(cmd, "help") == 0) {
         /* v1019 prompt audit: the hub's own commands (it used to echo the Terminal's SYS help row) */
-        gp_push("hunt scan wifi ble bots");   /* LL-19b: no defend/chat on hub help */
-        gp_push("terminal control go load");
+        gp_push("hunt scan wifi ble");   /* LL-19b: drop defend/chat only */
+        gp_push("terminal control go");
         partial_gp_strip();
         return;
     }
@@ -12225,17 +12225,19 @@ static void gnc(void)
     hub_noscr("go gchat");
     hub_noscr("load chat");
     hub_noscr("load gchat");
-    /* NC18 hub help has no defend or chat */
+    /* NC18 hub help exact strings (f9789b6 minus defend/chat only) */
     {
         enter_screen(SCR_GIBSON, -1);
         s_gp_n = 0; s_gp_buf[0] = 0;
         gp_run("help");
-        bool has = false;
+        bool l1 = false, l2 = false, has = false;
         for (int i = 0; i < s_gp_n; ++i) {
+            if (strcmp(s_gp_log[i], "hunt scan wifi ble") == 0) l1 = true;
+            if (strcmp(s_gp_log[i], "terminal control go") == 0) l2 = true;
             if (strstr(s_gp_log[i], "defend") || strstr(s_gp_log[i], "chat")) has = true;
         }
-        snprintf(d, sizeof d, "gp_n=%d has_defend_or_chat=%d", s_gp_n, (int)has);
-        row("NC", "hub help has no defend or chat", s_gp_n >= 2 && !has && s_screen == SCR_GIBSON, d);
+        snprintf(d, sizeof d, "gp_n=%d l1=%d l2=%d has=%d", s_gp_n, (int)l1, (int)l2, (int)has);
+        row("NC", "hub help has no defend or chat", l1 && l2 && !has && s_screen == SCR_GIBSON, d);
     }
     /* NC19 GP_CMD has no defend or chat (hub-only list) */
     {

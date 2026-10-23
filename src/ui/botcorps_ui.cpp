@@ -8263,6 +8263,13 @@ static void partial_cursor(int old_i, int new_i)
 /* Bot change. Recompose the card in strips. Does not fill the panel. */
 static void partial_int(void)
 {
+#ifdef BOTCORPS_CYD
+    /* cyd-term-fix item 4: botcorps_menu() IS the CYD glass (one panel). The Adv internal ID card
+     * repaint drew a 236x107 card over the Terminal on every bot selection; the band row-hash push
+     * never re-sent those rows, so the card stuck until a full change. paint_int_now already skips
+     * the card on CYD; this partial now does the same. */
+    return;
+#endif
     const botcorps_probe_t *pr = botcorps_probe_get();
     if (pr && strcmp(pr->ext_st, "fail") == 0) return;
     const int bi = card_bot();
@@ -11068,8 +11075,8 @@ void botcorps_host_cyd_sim(const char *dir, FILE *script)
                     if (ref[y * 320 + x] != host_sim_panel[y * 320 + x]) {
                         ++n; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
                     }
-            extern long host_sim_worst, host_sim_bad, host_sim_rows;
-            printf("DIFF %-28s px=%ld bbox=%d,%d-%d,%d worst=%ld bad=%ld rows=%ld\n", a, n, x0, y0, x1, y1, host_sim_worst, host_sim_bad, host_sim_rows);
+            extern long host_sim_worst, host_sim_bad, host_sim_rows, host_id_recompose_n;
+            printf("DIFF %-28s px=%ld bbox=%d,%d-%d,%d worst=%ld bad=%ld rows=%ld idcard=%ld\n", a, n, x0, y0, x1, y1, host_sim_worst, host_sim_bad, host_sim_rows, host_id_recompose_n);
             host_sim_rows = 0;
             if (n) { char path[512]; snprintf(path, sizeof path, "%s/%s-ref.rgb", dir, a); write_raw(path, ref, 0); snprintf(path, sizeof path, "%s/%s.rgb", dir, a); write_raw(path, host_sim_panel, 0); }
         } else if (op == 'S') {

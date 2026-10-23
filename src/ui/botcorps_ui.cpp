@@ -1034,7 +1034,7 @@ static int button_count(void)
 {
     switch (s_screen) {
     case SCR_RAIN: return 1;
-    case SCR_GIBSON: return 3;
+    case SCR_GIBSON: return 2;   /* LL-20: Terminal + Control (hub Scan plate removed) */
     case SCR_WIFI_RADAR:
     case SCR_BT_RADAR: return 0;
     case SCR_SCAN: return 2;
@@ -6642,7 +6642,7 @@ static void paint_gibson(Gfx g)
     g.fillRect(cx - 14, cy + 25, 28, 1, wire);
     gib_core_chip_d(g, cx, cy, 4);   /* Option-E 5dc1c54: four gold pins per side */
     if (s_hub_zone == 3) {
-        /* v1017b: Gibson focused (Enter = Gibson game). */
+        /* v1017b: Gibson focused (LL-19: Enter = Gibson SCAN board, never the game). */
         g.drawCircle(cx, cy, 31, PAL_WHITE);
         g.drawCircle(cx, cy, 30, ac);
     }
@@ -6697,7 +6697,7 @@ static void paint_gibson(Gfx g)
     gp_strip(g, t, ac);
     /* v1016k (SPEC H2): lit nav plates like the mock - dark accent face, bright 2 px accent
      * rim with cut corners, accent glow halo (stronger on the selected plate). */
-    static const int xs[3] = { 110, 146, 182 };
+    static const int xs[2] = { 128, 164 };   /* LL-20: two plates, re-centred (pitch 36, mid x=160) */
     const uint16_t a565 = botcorps_rgb565(ac);
     auto tint = [&](int pct) -> uint8_t {
         const int r = ((a565 >> 11) & 31) * pct / 100, gg = ((a565 >> 5) & 63) * pct / 100, b = (a565 & 31) * pct / 100;
@@ -6705,7 +6705,7 @@ static void paint_gibson(Gfx g)
     };
     const uint8_t face = tint(22), glow1 = tint(55), glow2 = tint(30);
     const uint8_t gold = (uint8_t)PAL_AMBER;
-    for (int i = 0; i < 3; ++i) {
+    for (int i = 0; i < 2; ++i) {
         const int x = xs[i], y = 206;
         const bool sel = s_hub_zone == 0 && s_cursor == i;
         GATE_BOX(g, "BTN", "hubnav", x, y, BS, BS, "-");
@@ -6736,21 +6736,6 @@ static void paint_gibson(Gfx g)
             g.drawLine(x + 7, y + 12, x + 10, y + 15, PAL_WHITE);
             g.drawLine(x + 10, y + 15, x + 7, y + 18, PAL_WHITE);
             g.fillRect(x + 12, y + 18, 6, 1, PAL_WHITE);
-        } else if (i == 1) {     /* scan: square chip with gold pins + accent grid + sweep */
-            for (int k = 0; k < 4; ++k) {
-                const int o = 8 + k * 4;
-                g.fillRect(x + o, y + 3, 2, 2, gold);
-                g.fillRect(x + o, y + 23, 2, 2, gold);
-                g.fillRect(x + 3, y + o, 2, 2, gold);
-                g.fillRect(x + 23, y + o, 2, 2, gold);
-            }
-            g.drawRect(x + 6, y + 6, 16, 16, ac);
-            g.fillRect(x + 7, y + 7, 14, 14, PAL_BLACK);
-            for (int k = 1; k < 3; ++k) {
-                g.fillRect(x + 7 + k * 5, y + 7, 1, 14, ac);
-                g.fillRect(x + 7, y + 7 + k * 5, 14, 1, ac);
-            }
-            g.fillRect(x + 8, y + 14, 12, 1, PAL_WHITE);
         } else {                 /* control: black board, accent chip, gold pin rows, jumper */
             g.fillRect(x + 4, y + 6, 20, 16, PAL_BLACK);
             g.drawRect(x + 4, y + 6, 20, 16, ac);
@@ -7887,18 +7872,15 @@ static void activate(void)
             gp_run(line);
             break;
         }
-        if (s_hub_zone == 3) {           /* Gibson: Enter enters the Gibson game */
-            s_defend_bot = 12;           /* v1019b: Gibson's own game */
-            enter_screen(SCR_GCHAT, SCR_GIBSON);
+        if (s_hub_zone == 3) {           /* LL-19: hub Gibson opens Gibson SCAN, never Defend/game */
+            s_scan_bot = 12;
+            enter_screen(SCR_SCAN, SCR_GIBSON);
             s_dirty = true;
             break;
         }
-        if (s_cursor == 0) {
+        if (s_cursor == 0) {             /* LL-20: plates are Terminal (0) / Control (1) */
             enter_screen(SCR_TERMINAL, SCR_GIBSON);
             boot_log();
-        } else if (s_cursor == 1) {
-            s_scan_bot = 12;
-            enter_screen(SCR_SCAN, SCR_GIBSON);
         } else {
             enter_screen(SCR_CONTROL, SCR_GIBSON);
         }
@@ -7970,12 +7952,12 @@ static void part_end(Gfx g)
 
 static bool cursor_box(int index, int *x, int *y, int *w, int *h)
 {
-    const int xs_g[3] = { 110, 146, 182 };
+    const int xs_g[2] = { 128, 164 };   /* LL-20: hubnav Terminal + Control */
     *w = BS;
     *h = BS;
     switch (s_screen) {
     case SCR_GIBSON:
-        if (index < 0 || index > 2) return false;
+        if (index < 0 || index > 1) return false;
         *x = xs_g[index];
         *y = 206;
         return true;
@@ -9142,11 +9124,7 @@ static void on_esc(void)
 static void on_tab(void)
 {
     if (s_screen == SCR_GIBSON) {
-        s_defend_bot = 12;               /* v1019b: Gibson's own game */
-        enter_screen(SCR_GCHAT, SCR_GIBSON);
-        s_sheet = true;
-        s_sheet_i = 0;
-        s_dirty = true;
+        /* LL-19: Tab on the hub is not a game entry (Terminal is the only Gibson-game entry). No-op. */
         return;
     }
     if (s_screen == SCR_GCHAT) {
@@ -11045,7 +11023,7 @@ void botcorps_host_nav_chain(void *file)
     ui_dispatch(K_OK, 0);
     row("terminal", SCR_TERMINAL, -1);
     ui_dispatch(K_ESC, 0);
-    ui_dispatch(K_RT, 0);
+    ui_dispatch(K_UP, 0);   /* LL-19/20: hub Gibson focus -> Enter = Gibson SCAN (hub Scan plate removed) */
     ui_dispatch(K_OK, 0);
     row("gibson-scan", SCR_SCAN, 12);
     ui_dispatch(K_CHAR, 'w');
@@ -11105,7 +11083,7 @@ void botcorps_host_nav_draw(void *file, int sim, const char *tag)
     ui_dispatch(K_OK, 0);
     snap("terminal", SCR_TERMINAL, -1);
     ui_dispatch(K_ESC, 0);
-    ui_dispatch(K_RT, 0);
+    ui_dispatch(K_UP, 0);   /* LL-19/20: hub Gibson focus -> Enter = Gibson SCAN (hub Scan plate removed) */
     ui_dispatch(K_OK, 0);
     snap("gibson-scan", SCR_SCAN, 12);
     ui_dispatch(K_CHAR, 'w');
@@ -11317,7 +11295,7 @@ void botcorps_host_play(uint8_t *buf, int bot, const char *script)
     botcorps_lut_term(false);
     gc_set_count(0);
     s_dg = -1;
-    enter_screen(SCR_GCHAT, SCR_GIBSON);     /* the idle Defend board, as the hub's Gibson Enter opens it */
+    enter_screen(SCR_GCHAT, SCR_GIBSON);     /* the idle Defend board (LL-19: reached from Terminal, not the hub chip) */
     s_defend_bot = (bot < 0 || bot > 12) ? 12 : bot;
     uint32_t t = millis();
     host_play_state("idle");

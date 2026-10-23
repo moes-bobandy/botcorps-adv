@@ -265,7 +265,7 @@ static int run_gate(const char *dir)
                 { "scan-sbox-hunt", 5, 3, nullptr }, { "scan-sbox-info", 5, 2, nullptr }, { "scan-sbox-gloss", 5, 4, nullptr },
                 /* v1017c #5: control panel navigation (every arrow, Enter edits) on the real draw loop */
                 { "control-nav", 1, 8, "\x04\x04\x04\x02\x01\x03\x04\x04\x04\x04\x02\x02\x01\x01\x03" },
-                { "hub-to-control", 1, 1, "\x04\x04\n\x04\x04\n\x02\n\x01\x01\n" },
+                { "hub-to-control", 1, 1, "\x04\n\x04\x04\n\x02\n\x01\x01\n" },   /* LL-20: 2 hub plates, Right x1 = Control */
                 { "control-to-hub", 1, 8, "\x1b\x04\x04" },
                 /* v1019y: old Defend mini-game sims retired with the games. */
             };
@@ -1282,7 +1282,7 @@ int main(int argc, char **argv)
         struct { const char *name, *keys; } P[] = {
             { "p00-boot", "" },
             { "p01-enter", "\n" },
-            { "p02-hub-scan", "\n\x04\n" },
+            { "p02-hub-scan", "\n\x01\n" },   /* LL-19/20: Up = Gibson focus, Enter = Gibson SCAN */
             { "p03-hub-term", "\n\n" },
             { "p04-term-typed", "\n\nsca" },
             { "p05-term-fn-down", "\n\nsca\x02\x02" },
@@ -1294,7 +1294,7 @@ int main(int argc, char **argv)
             { "p11-gp-scan", "\nscan\n" },
             { "p12-gp-ble", "\nble\n" },
             { "p13-term-esc-clear", "\n\nsca\x1b" },
-            { "p14-term-open-gibson", "\n\n\x1b\x04\n" },
+            { "p14-term-open-gibson", "\n\n\x1b\x01\n" },   /* LL-19/20 */
         };
         for (auto &q : P) {
             botcorps_host_enter(hit, 0);
@@ -1310,7 +1310,7 @@ int main(int argc, char **argv)
         for (int ci = 0; ci < 3; ++ci) {
             botcorps_host_set_color(ci);
             botcorps_host_enter(hit, 0);            /* rain */
-            botcorps_host_seq(hit, "\n\x04\n");  /* hub -> scan */
+            botcorps_host_seq(hit, "\n\x01\n");  /* hub -> scan (LL-19/20: Gibson focus + Enter) */
             char fn[64];
             snprintf(fn, sizeof(fn), "/tmp/acc-scan-%s.rgb", an[ci]);
             write_raw(fn, hit, 0);

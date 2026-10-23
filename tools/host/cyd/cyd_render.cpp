@@ -116,8 +116,23 @@ int cyd_render_main(int argc, char **argv)
         else if (!strcmp(argv[2], "wifi")) scr = 3;
         else if (!strcmp(argv[2], "ble")) scr = 5;
         else if (!strcmp(argv[2], "scan") || !strcmp(argv[2], "gibson")) scr = 7;
-        else if (!strcmp(argv[2], "airtag")) scr = 70; /* SCR_SCAN + airtag bot */
+        else if (!strcmp(argv[2], "airtag")) scr = 76; /* bot 6 */
+        else if (!strcmp(argv[2], "wifi-bot")) scr = 70;
+        else if (!strcmp(argv[2], "bt-bot") || !strcmp(argv[2], "bluetooth")) scr = 71;
+        else if (!strcmp(argv[2], "deauth")) scr = 72;
+        else if (!strcmp(argv[2], "hack")) scr = 73;
+        else if (!strcmp(argv[2], "flock")) scr = 74;
+        else if (!strcmp(argv[2], "drone")) scr = 75;
+        else if (!strcmp(argv[2], "keyfob")) scr = 77;
+        else if (!strcmp(argv[2], "meta")) scr = 78;
+        else if (!strcmp(argv[2], "skimmer")) scr = 79;
+        else if (!strcmp(argv[2], "flipper")) scr = 80;
+        else if (!strcmp(argv[2], "samsung")) scr = 81;
         else if (!strcmp(argv[2], "gchat")) scr = 10;
+        else if (argv[2][0] == 'b' && argv[2][1] >= '0' && argv[2][1] <= '9') {
+            int bi = atoi(argv[2] + 1);
+            if (bi >= 0 && bi <= 11) scr = 70 + bi;
+        }
         int pt = argc > 4 ? atoi(argv[4]) : 0;
         int sym = argc > 5 ? atoi(argv[5]) : 0;
         host_fw = 240; host_fh = 320;

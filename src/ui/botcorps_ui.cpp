@@ -1026,23 +1026,10 @@ static void layout_covers(void)
             break;
         case SCR_WIFI_RADAR:
         case SCR_BT_RADAR:
-            cover_add(32, 45, 176, 110);
-            cover_add(92, 180, 56, 56);
-            cover_add(156, 191, 30, 30);
-            cover_add(23, 194, 65, 29);
+            cover_add(10, 28, 220, 218); /* matte board: grid + silk + chips */
             break;
         case SCR_SCAN:
-            if (s_scan_bot >= 12) {
-                cover_add(32, 43, 176, 66);
-                cover_add(92, 180, 56, 56);
-                cover_add(156, 178, 24, 56);
-                cover_add(29, 200, 55, 17);
-            } else {
-                cover_add(34, 53, 171, 95);
-                cover_add(92, 180, 56, 56);
-                cover_add(156, 191, 30, 30);
-                cover_add(25, 194, 59, 29);
-            }
+            cover_add(10, 28, 220, 218); /* AirTag pattern / Gibson accordion plate */
             break;
         case SCR_CONTROL:
             layout_covers_control_p();

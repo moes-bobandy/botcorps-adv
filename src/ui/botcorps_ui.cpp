@@ -491,6 +491,7 @@ static bool cyd_pop_paint(void);
 static void cyd_osk_echo(void);
 static void cyd_sb_btns(Gfx g, bool has_menu, uint8_t ac);
 static void cyd_hub_abc(Gfx g);
+static void cyd_tile_rain(Gfx g, int x, int y);
 #endif
 #endif
 static bool s_sheet = false;
@@ -1757,6 +1758,9 @@ static void paint_king_tile(Gfx g, bool sel)
     g.fillRect(x + 1, y, w - 2, h, base);
     g.fillRect(x, y + 1, w, h - 2, base);
     g.fillRect(x + 2, y + 36, w - 4, 8, (uint8_t)PAL_BOARD_D);
+#ifdef BOTCORPS_CYD
+    cyd_tile_rain(g, x, y);   /* cyd-term-fix item 6: the live rain behind the board art */
+#endif
     const int longtr[4] = { 1, 3, 5, 6 };
     for (int n = 0; n < 4; ++n) { const int k = longtr[n]; g.fillRect(x + 4, y + 6 + k * 4, 19, 1, tr); g.fillRect(x + 49, y + 6 + k * 4, 19, 1, tr); }
     const int shorttr[4] = { 0, 2, 4, 7 };
@@ -1812,6 +1816,9 @@ static void paint_one_board(Gfx g, int i, bool sel, bool dim)
     g.fillRect(x + 1, y, w - 2, h, base);
     g.fillRect(x, y + 1, w, h - 2, base);
     g.fillRect(x + 2, y + 36, w - 4, 8, (uint8_t)PAL_BOARD_D);
+#ifdef BOTCORPS_CYD
+    cyd_tile_rain(g, x, y);   /* cyd-term-fix item 6: the live rain behind the board art */
+#endif
     const int longtr[4] = { 1, 3, 5, 6 };
     for (int n = 0; n < 4; ++n) {
         const int k = longtr[n];

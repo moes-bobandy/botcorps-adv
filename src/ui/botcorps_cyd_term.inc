@@ -444,3 +444,31 @@ static int cyd_top_touch(int tx, int ty)
     if (s_screen == SCR_DIAG && cyd_in(CYD_CROWN_BTN, tx, ty, 0)) return K_ESC;
     return -1;
 }
+
+/* ---- item 6: bot rain behind the Terminal boards ---------------------------------------------------
+ * The 72x46 board tiles are opaque, so the Terminal's live device rain only showed in the 4 px gaps and
+ * the margins. Each tile now draws the SAME live rain cells (botcorps_rain_ghost: whole icons only, the
+ * icon's own inks dimmed, same cells as the open field) into its bare board areas right after the base
+ * fill, so traces, pins, the chip footprint, the bot face and the label all stay painted on top. The
+ * footprint (x+23..49, y+14..36) and the label strip (y+36..44) are left clear. */
+static const CydRect CYD_TILE_RAIN[3] = {
+    { 1, 1, 22, 35 },     /* left board field  */
+    { 49, 1, 22, 35 },    /* right board field */
+    { 23, 1, 26, 13 },    /* above the footprint (under the IC pin comb) */
+};
+static void cyd_tile_rain(Gfx g, int x, int y)
+{
+    if (s_screen != SCR_TERMINAL || !g.raw()) return;
+    if (!(wants_rain() || rain_static())) return;
+#ifdef BOTCORPS_HOST_RENDER
+    if (host_gate_norain) return;
+    host_gate_mute = 1;
+#endif
+    for (int k = 0; k < 3; ++k) {
+        const CydRect &r = CYD_TILE_RAIN[k];
+        botcorps_rain_ghost(*g.raw(), g.ox, g.oy, x + r.x, y + r.y, r.w, r.h, 0);
+    }
+#ifdef BOTCORPS_HOST_RENDER
+    host_gate_mute = 0;
+#endif
+}

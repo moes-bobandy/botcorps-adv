@@ -326,8 +326,10 @@ void botcorps_id_paint(Gfx, int, int, bool, uint8_t, int, const char *, const ch
     if (host_int_mask & 2) touch_card(touch_native);
     else touch_card(touch_rgb);
 }
+long host_id_recompose_n = 0;   /* cyd-term-fix: count ID-card repaints (on CYD these hit the glass) */
 void botcorps_id_recompose(lgfx::v1::LovyanGFX &, int, int, bool, uint8_t, int, const char *, const char *)
 {
+    ++host_id_recompose_n;
     const int saved = host_int_mask;
     host_int_mask |= 2;
     touch_native(PAL_DEEP);

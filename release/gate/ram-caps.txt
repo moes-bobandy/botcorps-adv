@@ -1,0 +1,8 @@
+# Static RAM caps (.dram0.data + .dram0.bss). That sum is PlatformIO's "RAM: used N bytes".
+# PASS at or under the cap. FAIL above it. Growth has to be paid back with savings.
+# ARCH freeze. These replace the stale 70144 / 70712 comparison.
+# id cap_bytes label
+cardputer-adv 71264 cardputer-adv
+cardputer-adv-dual 71896 cardputer-adv-dual
+cardputer-adv-dual-launcher 71896 cardputer-adv-dual-launcher
+cardputer-adv-dual-livescan 71904 dual LIVE_SCAN=1

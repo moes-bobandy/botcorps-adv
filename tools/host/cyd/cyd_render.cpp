@@ -44,8 +44,90 @@ static void render_ctlp(const char *path, int layout, int cursor, int norain)
     host_gate_norain = 0;
 }
 
+extern void botcorps_host_ctlbot_p(uint8_t *buf, int cursor);
+extern int botcorps_host_ctlbot_tap(int tx, int ty);
+extern int botcorps_host_ctlbot_box(int i, int *x, int *y, int *w, int *h);
+extern void botcorps_host_ctlbot_board(uint8_t *buf, uint8_t fill);
+extern void botcorps_host_cp_text(int i, char *b, int n);
+extern int botcorps_host_screen(void);
+extern int botcorps_host_cursor(void);
+extern int botcorps_host_take_dirty(void);
+extern int botcorps_host_focus_pend(void);
+extern int botcorps_host_flush_focus(void);
+extern void botcorps_host_set_bg(int style, int motion);
+extern int botcorps_rain_mode(void);
+
+/* firmware portrait Control (controlbot), set up like the mock's rend ctlbot */
+static void ctlbot_setup(int cursor)
+{
+    host_fw = 240; host_fh = 320;
+    botcorps_cyd_orient = 1;
+    botcorps_rain_set_view(240, 320);
+    host_rain_init(getenv("RM") ? atoi(getenv("RM")) : 0);
+    if (getenv("RM")) botcorps_rain_set_mode(atoi(getenv("RM")));
+    host_set_millis(getenv("MS") ? (uint32_t)atoi(getenv("MS")) : 9000u);
+    botcorps_host_set_color(getenv("RC") ? atoi(getenv("RC")) : 0);
+    memset(s_cyd_buf, 0, sizeof s_cyd_buf);
+    botcorps_host_ctlbot_p(s_cyd_buf, cursor);
+}
+
 int cyd_render_main(int argc, char **argv)
 {
+    /* rend ctlbot <out.rgb> <cursor>   env RC=theme RM=rain mode MS=millis RAIN_WARM=steps */
+    if (argc > 3 && strcmp(argv[1], "ctlbot") == 0) {
+        ctlbot_setup(atoi(argv[3]));
+        write_raw(argv[2], s_cyd_buf, 0);
+        return 0;
+    }
+    /* rend ctlbot-mask <out.bin> [cursor] : 240x320 bytes, 1 = the board paints this pixel (two fills differ = 0) */
+    if (argc > 2 && strcmp(argv[1], "ctlbot-mask") == 0) {
+        ctlbot_setup(argc > 3 ? atoi(argv[3]) : 0);
+        static uint8_t a[240 * 320], b[240 * 320];
+        botcorps_host_ctlbot_board(a, 0xFE);
+        botcorps_host_ctlbot_board(b, 0xFD);
+        for (int i = 0; i < 240 * 320; ++i) a[i] = a[i] == b[i] ? 1 : 0;
+        FILE *f = fopen(argv[2], "wb"); fwrite(a, 1, sizeof a, f); fclose(f);
+        return 0;
+    }
+    /* rend ctlbot-boxes : every hit box (index x y w h), 0..8 parts, 9 >_, 10 crown, 11 BOOT, 12 EN */
+    if (argc > 1 && strcmp(argv[1], "ctlbot-boxes") == 0) {
+        ctlbot_setup(0);
+        for (int i = 0; i < 13; ++i) {
+            int x, y, w, h;
+            if (botcorps_host_ctlbot_box(i, &x, &y, &w, &h)) printf("BOX %d %d %d %d %d\n", i, x, y, w, h);
+        }
+        return 0;
+    }
+    /* rend ctlbot-tap <box> [n] : fresh Control, then n (default 2) taps at the centre of hit box <box>;
+     * prints the cursor / screen / orient and every Control value before and after. */
+    if (argc > 2 && strcmp(argv[1], "ctlbot-tap") == 0) {
+        ctlbot_setup(getenv("TC") ? atoi(getenv("TC")) : 0);
+        const int bi = atoi(argv[2]), n = argc > 3 ? atoi(argv[3]) : 2;
+        int x, y, w, h;
+        if (!botcorps_host_ctlbot_box(bi, &x, &y, &w, &h)) { printf("no box %d\n", bi); return 1; }
+        const int tx = x + w / 2, ty = y + h / 2;
+        char before[9][24], after[24];
+        for (int i = 0; i < 9; ++i) botcorps_host_cp_text(i, before[i], 24);
+        const int s0 = botcorps_host_screen();
+        printf("TAP box=%d at (%d,%d) start cursor=%d screen=%d orient=%d\n", bi, tx, ty, botcorps_host_cursor(), s0, botcorps_cyd_orient);
+        for (int t = 0; t < n; ++t) {
+            botcorps_host_take_dirty();
+            const int k = botcorps_host_ctlbot_tap(tx, ty);
+            const int fp = botcorps_host_focus_pend();
+            const int d = botcorps_host_take_dirty();
+            printf("  tap%d key=%d cursor=%d screen=%d orient=%d dirty=%d focus_pend=%d", t + 1, k, botcorps_host_cursor(),
+                   botcorps_host_screen(), botcorps_cyd_orient, d, fp);
+            if (fp) printf(" flush->dirty=%d", botcorps_host_flush_focus());
+            printf("\n");
+        }
+        int nch = 0;
+        for (int i = 0; i < 9; ++i) {
+            botcorps_host_cp_text(i, after, 24);
+            if (strcmp(after, before[i])) { printf("  CHANGED row%d: %s -> %s\n", i, before[i], after); ++nch; }
+        }
+        printf("  changed_rows=%d screen %d->%d\n", nch, s0, botcorps_host_screen());
+        return 0;
+    }
     /* rend osk <out.rgb> — Terminal with the [abc] on-screen keyboard open. */
     if (argc > 2 && strcmp(argv[1], "osk") == 0) {
         host_rain_init(0);

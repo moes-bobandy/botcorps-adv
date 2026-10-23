@@ -91,8 +91,15 @@ static const ui_theme_t THEMES[3] = {
 /* v1019n-mod (#5): GRAPE / PINK / DUO / ULTRA unchanged; SYNTH is now a real two-colour fade (hot magenta
  * strokes fading from a sunset orange, was orange-yellow strokes); four DRAFT multi-colour / texture themes
  * follow (Mobandy to keep / rename / cut): VAPOR, AURORA, PRISM, GLITCH. */
+#ifdef BOTCORPS_CYD
+/* CYD controlbot: two extra solid UI colours appended at the END (indices 9, 10) so saved NVS theme
+ * indices 0..8 keep their meaning. Adv (flag-off) keeps the nine. */
+static const int THEME_N = 11;
+static const ui_theme_t THEMES[11] = {
+#else
 static const int THEME_N = 9;
 static const ui_theme_t THEMES[9] = {
+#endif
     /* Neon Grape: electric grape violet, lime-leaf second accent (preview eyes), grape wires */
     { "NEON GRAPE", "GRAPE", 167, 156, 167, 69, 33, 211, 156, { 134, 5, 33, 69, 134 }, 211, 0 },
     /* Hot Pink Circuit: hot pink strokes on deep-pink circuit traces, cyan nodes */
@@ -115,6 +122,12 @@ static const ui_theme_t THEMES[9] = {
     { "PRISM", "PRISM", 47, 252, 47, 9, 37, 151, 252, { 42, 5, 37, 9, 43 }, 151, 4 },
     /* Glitch: RGB-split texture, red strokes with a cyan split */
     { "GLITCH", "GLITCH", 224, 31, 224, 96, 40, 205, 31, { 128, 5, 40, 96, 192 }, 205, 5 },
+#ifdef BOTCORPS_CYD
+    /* Blaze: hot orange strokes (#FF6D00, between GLITCH red and SYNTH amber), cyan second accent */
+    { "BLAZE ORANGE", "BLAZE", 236, 31, 236, 132, 44, 209, 209, { 136, 5, 44, 132, 204 }, 209, 0 },
+    /* Rose: hot rose strokes (#FF0052, redder than HOT PINK), gold second accent */
+    { "HOT ROSE", "ROSE", 225, 248, 225, 96, 44, 206, 206, { 129, 5, 44, 96, 193 }, 206, 0 },
+#endif
 };
 #endif
 static int theme_ix(int c) { return (c < 0 || c >= THEME_N) ? 0 : c; }
@@ -996,6 +1009,8 @@ static int gib_def_chip(void)
 #ifdef BOTCORPS_CYD
 static void layout_covers_control_p(void); /* portrait.inc */
 static int portrait_touch(int tx, int ty, char *typed);
+static bool cp_ctlbot_on(void);            /* portrait.inc: controlbot is the portrait Control painter */
+static void layout_covers_ctlbot(void);    /* botcorps_cyd_ctlbot.inc */
 #endif
 static void layout_covers(void)
 {
@@ -1005,6 +1020,12 @@ static void layout_covers(void)
         return;
     }
 #ifdef BOTCORPS_CYD
+    if (botcorps_cyd_orient && s_screen == SCR_CONTROL && cp_ctlbot_on()) {
+        /* controlbot board: its own 17 px top bar, no PT box / frame; board art covered so rain stays behind. */
+        layout_covers_ctlbot();
+        botcorps_rain_set_covers(s_box, s_box_n, false);
+        return;
+    }
     if (botcorps_cyd_orient) {
         /* Portrait covers: top bar + terminal + frame; screen-specific pads. */
         cover_add(0, 0, 240, 26);
@@ -8202,6 +8223,14 @@ static bool cursor_box(int index, int *x, int *y, int *w, int *h)
 
 static void paint_cursor_item(Gfx g, int index, bool sel)
 {
+#ifdef BOTCORPS_CYD
+    /* controlbot: focus moves the selected trace / lit pins / wash, so the board repaints whole. */
+    if (s_screen == SCR_CONTROL && botcorps_cyd_orient && cp_ctlbot_on()) {
+        s_dirty = true;
+        (void)g; (void)index; (void)sel;
+        return;
+    }
+#endif
     int x, y, w, h;
     if (!cursor_box(index, &x, &y, &w, &h)) return;
     if (s_screen == SCR_CONTROL && index < CP_N) {
@@ -8459,6 +8488,10 @@ static void partial_box(int index, bool sel)
 
 static void partial_cursor(int old_i, int new_i)
 {
+#ifdef BOTCORPS_CYD
+    /* controlbot: no per-part patch (the focus moves trace / pins / wash); repaint the board this frame. */
+    if (s_screen == SCR_CONTROL && botcorps_cyd_orient && cp_ctlbot_on()) { s_dirty = true; return; }
+#endif
     if (old_i == new_i) {
         partial_box(new_i, true);
         return;
@@ -9543,9 +9576,45 @@ static int pt_hit(int tx, int ty, char *typed)
 }
 
 /* Full portrait touch dispatch. -1 = not handled (caller may try landscape path). */
+/* controlbot hit boxes (portrait): index 0..8 = Control rows, CP_N = TERM, CP_N+1 = BACK.
+ * Boxes include each part's silk labels; the switch bank parts are widened to their label. */
+static bool ctlbot_hit_box(int i, int *x, int *y, int *w, int *h)
+{
+    if (i < 0 || i > CP_N + 3) return false;
+    if (i == CP_N) { *x = 200; *y = 0; *w = 30; *h = 17; return true; }       /* >_ glyph */
+    if (i == CP_N + 1) { *x = 100; *y = 0; *w = 40; *h = 17; return true; }   /* crown */
+    if (i == CP_N + 2) { *x = 33; *y = 228; *w = 16; *h = 21; return true; }  /* BOOT tact */
+    if (i == CP_N + 3) { *x = 33; *y = 254; *w = 16; *h = 21; return true; }  /* EN tact */
+    int X, Y, W, H;
+    if (!ctlbot_rect(i, &X, &Y, &W, &H)) return false;
+    if (i == 8) { *x = X - 3; *y = Y - 10; *w = W + 6; *h = H + 20; return true; }
+    if (i == 3 || i == 4 || i == 6) {
+        const int bw = W + 6 < 40 ? 40 : W + 6;
+        *x = X + W / 2 - bw / 2; *y = Y - 3; *w = bw; *h = H + 3 + 4 + 14; return true;
+    }
+    *x = X - 3; *y = Y - 3; *w = W + 6; *h = H + 6; return true;
+}
+static int ctlbot_touch(int tx, int ty)
+{
+    for (int i = 0; i < CP_N + 4; ++i) {
+        int x, y, w, h;
+        if (!ctlbot_hit_box(i, &x, &y, &w, &h)) continue;
+        if (tx < x || tx >= x + w || ty < y || ty >= y + h) continue;
+        /* BOOT = TERM (boot log), EN = reset = BACK; crown / >_ act on the first tap like the top bar. */
+        if (i >= CP_N) { s_cursor = (i == CP_N || i == CP_N + 2) ? CP_N : CP_N + 1; return K_OK; }
+        if (s_cursor == i) return K_OK;   /* second tap on the focused part = its Control function */
+        const int old = s_cursor;
+        s_cursor = i;
+        queue_focus(old, i);
+        return K_NONE;
+    }
+    return K_NONE;
+}
+
 static int portrait_touch(int tx, int ty, char *typed)
 {
     if (!botcorps_cyd_orient) return -1;
+    if (s_screen == SCR_CONTROL && cp_ctlbot_on()) return ctlbot_touch(tx, ty);
     /* top bar: crown = BACK, >_ = TERM */
     if (ty < 26) {
         if (tx >= 127 && tx < 165) return K_ESC;
@@ -12033,6 +12102,31 @@ void botcorps_host_set_bg(int style, int motion) { s_bg = ((style % BGS_NUM) + B
 int botcorps_host_theme_n(void) { return THEME_N; }
 void botcorps_host_key(int key, char c) { s_key_fn = (c == 1); ui_dispatch(key, c == 1 ? 0 : c); }
 void botcorps_host_paint(uint8_t *buf) { host_frame = buf; paint_ext(Gfx()); }
+#ifdef BOTCORPS_CYD
+/* controlbot host checks: a finger tap through the real portrait_touch + ui_dispatch, the hit boxes, the
+ * board-only paint (mask for the rain covers) and the Control value strings. */
+int botcorps_host_ctlbot_tap(int tx, int ty)
+{
+    char t = 0;
+    const int k = portrait_touch(tx, ty, &t);
+    if (k > K_NONE) ui_dispatch(k, t);
+    return k;
+}
+int botcorps_host_ctlbot_box(int i, int *x, int *y, int *w, int *h) { return ctlbot_hit_box(i, x, y, w, h) ? 1 : 0; }
+void botcorps_host_ctlbot_board(uint8_t *buf, uint8_t fill)
+{
+    host_frame = buf;
+    memset(buf, fill, 240u * 320u);
+    paint_ctlbot(Gfx());
+}
+void botcorps_host_cp_text(int i, char *b, int n) { cp_text(i, b, n); }
+int botcorps_host_screen(void) { return s_screen; }
+int botcorps_host_cursor(void) { return s_cursor; }
+int botcorps_host_take_dirty(void) { const int d = s_dirty ? 1 : 0; s_dirty = false; return d; }
+int botcorps_host_focus_pend(void) { return s_focus_pend ? 1 : 0; }
+/* mirrors the draw-loop focus flush (line ~10617): returns 1 if it left the frame dirty (full repaint) */
+int botcorps_host_flush_focus(void) { if (s_focus_pend && !s_dirty) partial_cursor(s_focus_old, s_focus_new); s_focus_pend = false; const int d = s_dirty ? 1 : 0; s_dirty = false; return d; }
+#endif
 /* v1017c S3: the same frame painted the way the device BANDS present does it (two 120-row slices,
  * Gfx oy = 0 / 120, each clipped to the 320x120 sprite) vs one full paint. Returns differing px. */
 int botcorps_host_slice_diff(void)

@@ -5,6 +5,11 @@
 static int CP_P_LAYOUT = 0;
 static int CP_PIN_STYLE = 0; /* 0=A tiny beside pin (default), 1=B between pins */
 static int CP_SPREAD = 0; /* 0=default+pterm, 1=2-col grid, 2=centered core (host preview) */
+/* Portrait Control default = controlbot board (v4 scatter, Mobandy pick). 0 = the legacy pterm / spread
+ * Control (host previews only: botcorps_host_control_p layout bit 0x80 or any spread / A-B / pin bit). */
+static int CP_CTLBOT = 1;
+static bool cp_ctlbot_on(void) { return CP_CTLBOT != 0; }
+#include "ui/botcorps_cyd_ctlbot.inc"
 
 static int cp_px(int x, int w)
 {
@@ -255,6 +260,7 @@ static void cp_draw_r16(Gfx g, int x, int y)
 /* Portrait Control part rects (layout A). Index map matches landscape CP_N. */
 static bool cp_part_rect_p(int index, int *x, int *y, int *w, int *h)
 {
+    if (CP_CTLBOT) return ctlbot_rect(index, x, y, w, h);
     if (CP_SPREAD) return cp_part_rect_spread(index, x, y, w, h);
     int X = 0, Y = 0, W = 0, H = 0;
     switch (index) {
@@ -1752,7 +1758,7 @@ static void paint_ext_portrait(Gfx g)
     case SCR_SCAN: paint_scan_p(g); break;
     case SCR_WIFI_LIST: paint_list_p(g, true); break;
     case SCR_BT_LIST: paint_list_p(g, false); break;
-    case SCR_CONTROL: paint_control_p(g); break;
+    case SCR_CONTROL: if (CP_CTLBOT) paint_ctlbot(g); else paint_control_p(g); break;
     case SCR_DIAG: paint_diag(g); break;
     default: break;
     }
@@ -1932,11 +1938,32 @@ void botcorps_host_control_p(uint8_t *buf, int cursor, int layout)
     extern int host_fw, host_fh;
     host_fw = 240; host_fh = 320;
     botcorps_cyd_orient = 1;
-    /* layout: bit0=geom A/B, bit1=pin B, bits4..=CP_SPREAD (1/2 = no-terminal spreads). */
+    /* layout: bit0=geom A/B, bit1=pin B, bits4..6=CP_SPREAD (1/2 = no-terminal spreads), bit7=legacy pterm.
+     * layout 0 = the firmware default (controlbot); any other bit = the legacy Control painters. */
+    CP_CTLBOT = layout == 0 ? 1 : 0;
     CP_P_LAYOUT = (layout & 1) ? 1 : 0;
     CP_PIN_STYLE = (layout & 2) ? 1 : 0;
     CP_SPREAD = (layout >> 4) & 7;
     if (CP_SPREAD > 2) CP_SPREAD = 0;
+    botcorps_rain_set_view(240, 320);
+    botcorps_band_force_direct(true);
+    botcorps_host_enter(buf, SCR_CONTROL);
+    s_cursor = cursor;
+    memset(buf, PAL_BLACK, 240u * 320u);
+    host_frame = buf;
+    paint_ext_portrait(Gfx());
+    CP_CTLBOT = 1;   /* back to the firmware default for later renders */
+    CP_P_LAYOUT = 0; CP_PIN_STYLE = 0; CP_SPREAD = 0;
+}
+
+/* Firmware portrait Control (controlbot) at a cursor; the caller sets theme / rain like the mock's
+ * rend ctlbot (RC / RM / MS / RAIN_WARM). */
+void botcorps_host_ctlbot_p(uint8_t *buf, int cursor)
+{
+    extern int host_fw, host_fh;
+    host_fw = 240; host_fh = 320;
+    botcorps_cyd_orient = 1;
+    CP_CTLBOT = 1; CP_P_LAYOUT = 0; CP_PIN_STYLE = 0; CP_SPREAD = 0;
     botcorps_rain_set_view(240, 320);
     botcorps_band_force_direct(true);
     botcorps_host_enter(buf, SCR_CONTROL);

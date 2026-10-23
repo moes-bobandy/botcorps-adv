@@ -361,3 +361,39 @@ static bool cyd_pop_paint(void)
     cyd_pl_paint(CYD_POP);
     return true;
 }
+
+/* ---- item 3: chip press on the glass ------------------------------------------------------------
+ * Root cause ("sketchy / doesn't respond"): the touch hit returned K_OK into ui_dispatch, so
+ *  (a) after the first press on a Defend board the FSM sits in CH_PLAY and chip_on_key ignores every
+ *      later press (the "press restarts the round" path never runs again) - dead chip;
+ *  (b) any text left in s_gp_buf / s_sp_buf, or a strip command cursor (s_sp_cmd >= 0), makes
+ *      chip_on_key bail, so the same tap ran the command line instead of pressing the chip.
+ * A tap ON the chip is unambiguous, so the glass presses the FSM directly (same transitions as the
+ * K_OK branch of chip_on_key; CH_PLAY on an open board re-arms, which restarts the round). */
+static const CydRect CYD_CHIP = { 34, 67, 54, 54 };
+static int cyd_chip_press(void)
+{
+    uint8_t *m = chip_mem();
+    int bot = 0, def = 0;
+    if (!chip_now(&bot, &def)) return K_NONE;
+    if (m[5] != (uint8_t)bot || m[13] != (uint8_t)s_screen) {        /* stale owner: re-arm for this board */
+        m[0] = CH_IDLE; m[1] = 0; m[3] = 0; m[4] = 0; m[7] = 0;
+        m[5] = (uint8_t)bot; m[6] = (uint8_t)def; m[13] = (uint8_t)s_screen;
+    }
+    m[2] = 1;                                                        /* the chip holds focus (no arrows) */
+    if (m[0] == CH_PLAY || m[0] == CH_DONE) { m[0] = CH_IDLE; m[1] = 0; }
+    if (m[0] == CH_IDLE) {
+        m[0] = chip_is_game(bot, def) ? (uint8_t)CH_RING : (uint8_t)CH_SCAN;
+        m[1] = 0; m[3] = 0; m[7] = 0;
+        m[4] = (m[0] == CH_SCAN) ? 1 : 0;
+        chip_set_t0(millis());
+    }
+    s_dirty = true;
+    return K_NONE;
+}
+static int cyd_chip_touch(int tx, int ty)
+{
+    int cb = 0, cd = 0;
+    if (s_osk_open || !chip_now(&cb, &cd) || !cyd_in(CYD_CHIP, tx, ty, 0)) return -1;
+    return cyd_chip_press();
+}

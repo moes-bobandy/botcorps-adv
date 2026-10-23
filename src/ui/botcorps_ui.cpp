@@ -9565,6 +9565,10 @@ static int read_key(char *typed)
      * [34,67,54,54]. A tap presses the focused chip (chip_on_key sees K_OK first in
      * ui_dispatch). chip_now() gates to the closed board set (WIFIBOT/BLUETOOTH/AIRTAG/
      * Gibson scan/Gibson game); other boards have no chip and fall through. */
+    {   /* cyd-term-fix item 3: the chip tap presses the chip FSM directly (botcorps_cyd_term.inc) */
+        const int ck = cyd_chip_touch(tx, ty);
+        if (ck >= 0) { s_touch_last = now; return ck; }
+    }
     {
         int cb = 0, cd = 0;
         if (chip_now(&cb, &cd) && tx >= 34 && tx < 34 + 54 && ty >= 67 && ty < 67 + 54) {

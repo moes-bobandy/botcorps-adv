@@ -359,6 +359,7 @@ static int s_sim_res = -1;
 static void (*s_sim_recomp)(Gfx) = nullptr;
 long host_sim_presents = 0, host_sim_pushes = 0, host_sim_recomposes = 0, host_sim_bad = 0, host_sim_worst = 0;
 long host_sim_rects = 0;
+long host_sim_rows = 0;   /* cyd-term-fix: panel rows actually re-sent by pushes (glitch probe) */
 extern void botcorps_host_ref_paint(uint8_t *buf);
 static void sim_ref(void)
 {
@@ -379,6 +380,7 @@ static void sim_push_rect(int y0, int r0, int r1, int x0, int x1)
         const int y = y0 + r;
         const uint8_t *w = s_spr + r * 320, *pn = host_sim_panel + y * 320, *rf = s_sim_ref + y * 320;
         if (!memcmp(w + x0, pn + x0, (size_t)(x1 - x0))) continue;   /* row hash unchanged: not pushed */
+        ++host_sim_rows;
         for (int x = x0; x < x1; ++x) bad += (w[x] != pn[x] && w[x] != rf[x]);
         memcpy(host_sim_panel + y * 320 + x0, w + x0, (size_t)(x1 - x0));
     }
@@ -386,7 +388,8 @@ static void sim_push_rect(int y0, int r0, int r1, int x0, int x1)
     if (bad > host_sim_worst) host_sim_worst = bad;
     if (bad > 600) ++host_sim_bad;
 }
-static void sim_push(int y0) { sim_push_rect(y0, 0, 120, 0, 320); }
+int host_push_ymax = 240;   /* cyd-term-fix: CYD push clamp (botcorps_band.cpp push_slice); 240 = none (Adv) */
+static void sim_push(int y0) { int r1 = host_push_ymax - y0; if (r1 > 120) r1 = 120; if (r1 > 0) sim_push_rect(y0, 0, r1, 0, 320); }
 void host_sim_reset(void)
 {
     s_sim_res = -1;

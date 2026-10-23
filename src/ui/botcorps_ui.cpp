@@ -10986,6 +10986,106 @@ void botcorps_host_cyd_osk(uint8_t *buf)
     paint_ext(Gfx());
     cyd_overlay(true);
 }
+/* cyd-term-fix (host only): glass simulator. Runs the real device loop (botcorps_ui_input ->
+ * read_key touch path -> ui_dispatch, botcorps_ui_draw on the band simulator) with injected taps.
+ * The panel the user sees is host_sim_panel; direct panel writes (the OSK) land there too.
+ * Script ops (one per line): E <screen id> | D <bot> (enter_defend from Terminal) | T x y | W ms |
+ * K <key id> [char] | O text (tap the OSK keys) | S name (write panel to dir/name.rgb + state). */
+void write_raw(const char *path, const uint8_t *idx, int term);
+static const char *aud_ln(void);
+void botcorps_host_ref_paint(uint8_t *buf);
+void botcorps_host_cyd_sim(const char *dir, FILE *script)
+{
+    extern int host_band_sim, host_touch_x, host_touch_y, host_touch_down, host_push_ymax;
+    extern uint8_t host_sim_panel[320 * 240];
+    void host_sim_reset(void);
+    static uint8_t fb[320 * 240];
+    botcorps_host_enter(fb, SCR_GIBSON);
+    s_intro_until = 0;
+    host_band_sim = 1;
+    host_sim_reset();
+    botcorps_band_set_recompose(recompose_ext);
+    memset(host_sim_panel, 0, sizeof host_sim_panel);
+    host_frame = host_sim_panel;
+    host_push_ymax = 240;
+    s_dirty = true;
+    uint32_t t = millis();
+    auto step = [&](int n) {
+        for (int i = 0; i < n; ++i) {
+            t += 33u;
+            host_set_millis(t);
+            host_frame = host_sim_panel;
+            botcorps_ui_input();
+            host_frame = host_sim_panel;
+            botcorps_ui_draw();
+        }
+    };
+    auto tap = [&](int x, int y) {
+        host_touch_x = x; host_touch_y = y; host_touch_down = 1; step(2);
+        host_touch_down = 0; step(4);
+    };
+    char ln[256];
+    step(3);
+    while (fgets(ln, sizeof ln, script)) {
+        char op = ln[0];
+        if (op == '#' || op == '\n' || !op) continue;
+        char *a = ln + 1;
+        while (*a == ' ') ++a;
+        char *nl = strchr(a, '\n'); if (nl) *nl = 0;
+        if (op == 'E') { enter_screen(atoi(a), SCR_GIBSON); s_dirty = true; step(3); }
+        else if (op == 'D') { enter_screen(SCR_TERMINAL, SCR_GIBSON); enter_defend(atoi(a), SCR_TERMINAL); s_dirty = true; step(3); }
+        else if (op == 'T') { int x = 0, y = 0; sscanf(a, "%d %d", &x, &y); tap(x, y); }
+        else if (op == 'W') step(atoi(a) / 33 + 1);
+        else if (op == 'K') { int k = 0; char c = 0; sscanf(a, "%d %c", &k, &c); ui_dispatch(k, c); step(3); }
+        else if (op == 'O') {
+            for (const char *c = a; *c; ++c) {
+                int hit = -1;
+                for (int i = 0; i < CYD_OSK_N; ++i) {
+                    const CydOskKey k = cyd_osk_at(i);
+                    if ((*c == ' ' && k.kind == CYD_OSK_SPACE) || (k.kind == CYD_OSK_CHAR && k.alpha == *c)
+                        || (*c == '\n' && k.kind == CYD_OSK_ENTER) || (*c == '\t' && k.kind == CYD_OSK_TAB)
+                        || (*c == '<' && k.kind == CYD_OSK_BKSP) || (*c == '^' && k.kind == CYD_OSK_HIDE)) { hit = i; break; }
+                }
+                if (hit < 0) continue;
+                const CydOskKey k = cyd_osk_at(hit);
+                tap(k.x + k.w / 2, k.y + k.h / 2);
+            }
+        } else if (op == 'N') {            /* N = literal \n / \t etc. via OSK: N enter | N tab */
+            const char *c = strcmp(a, "tab") == 0 ? "\t" : strcmp(a, "bksp") == 0 ? "<" : strcmp(a, "hide") == 0 ? "^" : "\n";
+            for (int i = 0; i < CYD_OSK_N; ++i) {
+                const CydOskKey k = cyd_osk_at(i);
+                if ((*c == '\n' && k.kind == CYD_OSK_ENTER) || (*c == '\t' && k.kind == CYD_OSK_TAB)
+                    || (*c == '<' && k.kind == CYD_OSK_BKSP) || (*c == '^' && k.kind == CYD_OSK_HIDE)) { tap(k.x + k.w / 2, k.y + k.h / 2); break; }
+            }
+        } else if (op == 'F') {            /* F label: diff the glass against a fresh full paint (glitch probe) */
+            static uint8_t ref[320 * 240];
+            uint8_t *keep = host_frame;
+            botcorps_host_ref_paint(ref);
+            host_frame = keep;
+            long n = 0; int x0 = 320, y0 = 240, x1 = -1, y1 = -1;
+            for (int y = 0; y < (host_push_ymax < 240 ? host_push_ymax : 240); ++y)
+                for (int x = 0; x < 320; ++x)
+                    if (ref[y * 320 + x] != host_sim_panel[y * 320 + x]) {
+                        ++n; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+                    }
+            extern long host_sim_worst, host_sim_bad, host_sim_rows;
+            printf("DIFF %-28s px=%ld bbox=%d,%d-%d,%d worst=%ld bad=%ld rows=%ld\n", a, n, x0, y0, x1, y1, host_sim_worst, host_sim_bad, host_sim_rows);
+            host_sim_rows = 0;
+            if (n) { char path[512]; snprintf(path, sizeof path, "%s/%s-ref.rgb", dir, a); write_raw(path, ref, 0); snprintf(path, sizeof path, "%s/%s.rgb", dir, a); write_raw(path, host_sim_panel, 0); }
+        } else if (op == 'S') {
+            char path[512];
+            snprintf(path, sizeof path, "%s/%s.rgb", dir, a);
+            write_raw(path, host_sim_panel, 0);
+            printf("SHOT %-28s scr=%-9s osk=%d sym=%d tovl=%d gcp=%d sheet=%d sel=%d term=%d tp=%d atk=%d cmd=%d fc=%d dg=%d defbot=%d prompt='%s' gp='%s' chip=%d/%d/%d/%d dl=%d sp='%s' log='%s'\n",
+                   a, screen_name(s_screen), s_osk_open, s_osk_sym, s_term_ovl, s_gc_panel, s_sheet, s_sheet_i, s_term,
+                   s_term_prompt, s_atk_btn, s_cmd_btn, s_focus_cmds, dg_on() ? s_dg : -1, s_defend_bot,
+                   botcorps_t0_term_prompt, s_gp_buf, chip_mem()[0], chip_mem()[1], chip_mem()[2], chip_mem()[5], dl_live() ? 1 : 0, s_sp_buf, s_log_n ? aud_ln() : "-");
+        }
+    }
+    host_touch_down = 0;
+    host_band_sim = 0;
+    host_push_ymax = 240;
+}
 #endif
 int botcorps_host_screen_now(void) { return s_screen; }
 /* Cold boot on RAIN, then the real key path. Each stop must paint the

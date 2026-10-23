@@ -24,5 +24,15 @@ int cyd_render_main(int argc, char **argv)
         write_raw(argv[2], s_cyd_buf, 0);
         return 0;
     }
+    /* rend cydsim <dir> <script> — cyd-term-fix glass simulator (touch taps through read_key). */
+    if (argc > 3 && strcmp(argv[1], "cydsim") == 0) {
+        extern void botcorps_host_cyd_sim(const char *dir, FILE *script);
+        host_rain_init(0);
+        botcorps_host_set_color(0);
+        FILE *f = strcmp(argv[3], "-") == 0 ? stdin : fopen(argv[3], "r");
+        if (!f) return 2;
+        botcorps_host_cyd_sim(argv[2], f);
+        return 0;
+    }
     return -1;
 }

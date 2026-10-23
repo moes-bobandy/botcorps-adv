@@ -11,6 +11,9 @@
 #include "probe/botcorps_probe.h"
 #include "probe/botcorps_icons.h"
 
+#ifdef BOTCORPS_CYD
+extern int host_touch_x, host_touch_y, host_touch_down;   /* cyd-term-fix: host touch injection */
+#endif
 namespace lgfx {
 inline namespace v1 {
 namespace textdatum {
@@ -44,8 +47,9 @@ public:
     void setTextDatum(textdatum_t) {}
     void drawString(const char *, int, int) {}
 #ifdef BOTCORPS_CYD
-    bool getTouch(int *x, int *y) { if (x) *x = 0; if (y) *y = 0; return false; }
-    bool getTouch(uint16_t *x, uint16_t *y) { if (x) *x = 0; if (y) *y = 0; return false; }
+    /* cyd-term-fix: host touch injection (tools/host/cyd/cyd_render.cpp "cydsim"); default = no touch */
+    bool getTouch(int *x, int *y) { if (x) *x = host_touch_x; if (y) *y = host_touch_y; return host_touch_down != 0; }
+    bool getTouch(uint16_t *x, uint16_t *y) { int a = 0, b = 0; const bool d = getTouch(&a, &b); if (x) *x = (uint16_t)a; if (y) *y = (uint16_t)b; return d; }
 #endif
 };
 class LGFX_Device : public LovyanGFX {};

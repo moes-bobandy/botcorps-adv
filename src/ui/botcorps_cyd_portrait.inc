@@ -46,31 +46,31 @@ static bool cp_part_rect_spread(int index, int *x, int *y, int *w, int *h)
 {
     int X = 0, Y = 0, W = 0, H = 0;
     if (CP_SPREAD == 1) {
-        /* Option 1: symmetric 2-column chip grid, power bay mid-low, switches bottom. */
+        /* Option 1: 2-col chip grid; power bay; R1-6 left-bottom; switches right-bottom. */
         switch (index) {
         case 0: X = 48;  Y = 28;  W = 40; H = 56; break;
         case 1: X = 140; Y = 28;  W = 40; H = 56; break;
         case 2: X = 48;  Y = 100; W = 40; H = 56; break;
         case 5: X = 140; Y = 100; W = 40; H = 56; break;
         case 7: X = 48;  Y = 172; W = 40; H = 56; break;
-        case 6: X = 178; Y = 254; W = 12; H = 10; break; /* PWR in power bay */
-        case 4: X = 120; Y = 284; W = 22; H = 22; break;
-        case 3: X = 156; Y = 292; W = 22; H = 12; break;
-        case 8: X = 192; Y = 292; W = 22; H = 12; break;
+        case 6: X = 186; Y = 248; W = 12; H = 10; break; /* PWR right of C1 */
+        case 4: X = 120; Y = 286; W = 22; H = 22; break;
+        case 3: X = 156; Y = 294; W = 22; H = 12; break;
+        case 8: X = 192; Y = 294; W = 22; H = 12; break;
         default: return false;
         }
     } else if (CP_SPREAD == 2) {
-        /* Option 2: theme row top, centered power core, bay parts flanking. */
+        /* Option 2: theme row; BOOT/EN centre; power bay; R1-6 then switches (no overlap). */
         switch (index) {
         case 0: X = 42;  Y = 26;  W = 40; H = 54; break;
         case 1: X = 100; Y = 26;  W = 40; H = 54; break;
         case 2: X = 158; Y = 26;  W = 40; H = 54; break;
         case 5: X = 42;  Y = 98;  W = 40; H = 54; break;
         case 7: X = 158; Y = 98;  W = 40; H = 54; break;
-        case 6: X = 168; Y = 196; W = 12; H = 10; break;
-        case 4: X = 72;  Y = 284; W = 22; H = 22; break;
-        case 3: X = 116; Y = 292; W = 22; H = 12; break;
-        case 8: X = 160; Y = 292; W = 22; H = 12; break;
+        case 6: X = 196; Y = 182; W = 12; H = 10; break; /* PWR right of C1, clear */
+        case 4: X = 120; Y = 286; W = 22; H = 22; break;
+        case 3: X = 156; Y = 294; W = 22; H = 12; break;
+        case 8: X = 192; Y = 294; W = 22; H = 12; break;
         default: return false;
         }
     } else {
@@ -88,20 +88,44 @@ static int cp_lab_y_spread(int index)
     return y + h + 2;
 }
 
+/* Gutter spines — traces stay in aisles; never cross a part/label box. */
+static int cp_spread_gutter_x(int index)
+{
+    /* Left-column chips / left bay → left aisle; else right aisle. */
+    if (CP_SPREAD == 1) {
+        if (index == 0 || index == 2 || index == 7) return cp_px(96, 1);
+        return cp_px(128, 1);
+    }
+    /* spread 2: aisles clear of BOOT (100..140) and theme packages.
+     * Left aisle x=86 (between RAIN/GRAPE and BOOT); right aisle x=148. */
+    if (index == 0 || index == 5 || index == 1) return cp_px(86, 1);
+    if (index == 2 || index == 7) return cp_px(148, 1);
+    return cp_px(148, 1); /* bottom bank: right aisle past bay */
+}
+
 static int cp_route_spread(int index, int *px, int *py)
 {
     int x, y, w, h;
     if (!cp_part_rect_spread(index, &x, &y, &w, &h)) return 0;
     const bool chip = index == 0 || index == 1 || index == 2 || index == 5 || index == 7;
     const int cx = x + w / 2;
-    const int cy = chip ? y + h : y;
-    const int fx = (CP_SPREAD == 2) ? cp_px(114, 1) : cp_px(118, 1);
-    const int fy = (CP_SPREAD == 2) ? 210 : 262;
+    const int gx = cp_spread_gutter_x(index);
+    const int fy = (CP_SPREAD == 2) ? 166 : 236;
     int n = 0;
-    px[n] = fx; py[n++] = fy;
-    px[n] = fx; py[n++] = (cy + fy) / 2;
-    px[n] = cx; py[n++] = (cy + fy) / 2;
-    px[n] = cx; py[n++] = cy;
+    if (chip) {
+        /* Spine in side aisle (never through BOOT 100..140); attach under chip only. */
+        const int bot = y + h + 2;
+        px[n] = gx; py[n++] = fy;
+        px[n] = gx; py[n++] = bot;
+        px[n] = cx; py[n++] = bot;
+        px[n] = cx; py[n++] = y + h + 1;
+    } else {
+        /* Bay / bottom parts: H along feed aisle at fy, then V only at part cx (no bay cross). */
+        const int ax = (CP_SPREAD == 2) ? cx : cp_spread_gutter_x(index);
+        px[n] = ax; py[n++] = fy;
+        px[n] = cx; py[n++] = fy;
+        px[n] = cx; py[n++] = y - 1;
+    }
     return n;
 }
 
@@ -137,9 +161,20 @@ static void cp_draw_headers_spread(Gfx g)
         tiny_text(g, L, 19, ly, silk);
         tiny_text(g, R, 221 - tiny_w(R), ly, silk);
     }
-    /* Copper GPIO bus drop (botcorps_id.cpp:1086-1089) */
+    /* Short copper stubs off each pad toward the board (no full-width bus over parts). */
     const uint8_t trace = sh_rgb(0xb4, 0x6a, 0x28);
-    g.fillRect(lx + 12, y0 + 3, rx - lx - 12, 1, trace);
+    for (int k = 0; k < n; ++k) {
+        const int py = y0 + k * pitch + 3;
+        g.fillRect(lx + 12, py, 4, 1, trace);
+        g.fillRect(rx - 5, py, 4, 1, trace);
+    }
+}
+
+static void cp_lab_back(Gfx g, const char *lab, int x, int y, uint8_t col)
+{
+    const int tw = tiny_w(lab);
+    g.fillRect(x - 1, y - 1, tw + 2, 7, PAL_BLACK);
+    tiny_text(g, lab, x, y, col);
 }
 
 static void cp_draw_power_bay(Gfx g, int fx, int fy, int fw, int fh)
@@ -147,53 +182,60 @@ static void cp_draw_power_bay(Gfx g, int fx, int fy, int fw, int fh)
     const uint8_t gold = sh_rgb(0xd4, 0xa9, 0x3c), silk = sh_rgb(0xe9, 0xe9, 0xee);
     const uint8_t silk2 = sh_rgb(0x9a, 0x9a, 0xa6), trace = sh_rgb(0xb4, 0x6a, 0x28);
     g.drawRect(fx, fy, fw, fh, sh_rgb(0x2b, 0x2b, 0x33));
+    /* DC | 1117C | USB5V | C1 — leave x>=fx+128 clear for PWR LED (part 6). */
     {
-        const int x = fx + 4, y = fy + 4;
-        cp_pad(g, x, y, 36, 36);
-        g.fillRect(x, y, 36, 32, sh_rgb(0x15, 0x15, 0x18));
-        g.fillRect(x + 4, y + 4, 28, 24, sh_rgb(0x05, 0x05, 0x06));
-        g.fillCircle(x + 18, y + 16, 5, sh_rgb(0x2a, 0x2a, 0x30));
-        tiny_text(g, "DC6.5", x + 6, y + 34, silk);
+        const int x = fx + 3, y = fy + 3;
+        cp_pad(g, x, y, 30, 34);
+        g.fillRect(x, y, 30, 26, sh_rgb(0x15, 0x15, 0x18));
+        g.fillRect(x + 3, y + 3, 24, 20, sh_rgb(0x05, 0x05, 0x06));
+        g.fillCircle(x + 15, y + 13, 5, sh_rgb(0x2a, 0x2a, 0x30));
+        cp_lab_back(g, "DC6.5", x + 3, y + 28, silk);
     }
     {
-        const int x = fx + 48, y = fy + 8;
-        cp_pad(g, x, y, 30, 28);
-        g.fillRect(x + 4, y, 22, 6, sh_rgb(0xa9, 0xaf, 0xbb));
-        g.fillRect(x, y + 6, 30, 14, sh_rgb(0x1a, 0x1a, 0x1f));
-        for (int k = 0; k < 3; ++k) g.fillRect(x + 5 + k * 9, y + 22, 3, 6, sh_rgb(0xa9, 0xaf, 0xbb));
-        tiny_text(g, "1117C", x + 4, y + 8, silk2);
+        const int x = fx + 36, y = fy + 6;
+        cp_pad(g, x, y, 28, 26);
+        g.fillRect(x + 3, y, 22, 5, sh_rgb(0xa9, 0xaf, 0xbb));
+        g.fillRect(x, y + 5, 28, 12, sh_rgb(0x1a, 0x1a, 0x1f));
+        for (int k = 0; k < 3; ++k) g.fillRect(x + 4 + k * 9, y + 19, 3, 5, sh_rgb(0xa9, 0xaf, 0xbb));
+        cp_lab_back(g, "1117C", x + 2, y + 8, silk2);
     }
     {
-        const int x = fx + 86, y = fy + 8, w = 16, hh = 28;
+        const int x = fx + 70, y = fy + 6, w = 14, hh = 22;
         cp_pad(g, x, y, w, hh + 8);
         g.fillRect(x, y, w, hh, sh_rgb(0x9a, 0xa1, 0xb2));
         g.fillRect(x + 1, y + 1, w - 2, hh - 2, sh_rgb(0xd0, 0xd5, 0xdf));
-        g.fillRect(x + 4, y + 4, w - 8, hh - 8, sh_rgb(0x0a, 0x0a, 0x10));
-        g.fillRect(x + 7, y + 8, 2, hh - 16, gold);
-        tiny_text(g, "USB5V", x - 2, y + hh + 2, silk);
+        g.fillRect(x + 3, y + 3, w - 6, hh - 6, sh_rgb(0x0a, 0x0a, 0x10));
+        g.fillRect(x + 6, y + 6, 2, hh - 12, gold);
+        cp_lab_back(g, "USB5V", x - 4, y + hh + 2, silk);
     }
     {
-        const int x = fx + 112, y = fy + 14;
-        cp_pad(g, x, y, 20, 18);
-        g.fillRect(x, y, 20, 12, sh_rgb(0xe0, 0xa2, 0x1c));
+        /* C1 fully left of PWR (PWR at fx+148); label has black back, full "C1". */
+        const int x = fx + 92, y = fy + 10;
+        cp_pad(g, x, y, 24, 20);
+        g.fillRect(x, y, 24, 12, sh_rgb(0xe0, 0xa2, 0x1c));
         g.fillRect(x, y, 5, 12, sh_rgb(0x7a, 0x52, 0x08));
-        g.fillRect(x + 7, y + 3, 10, 6, sh_rgb(0x5a, 0x3a, 0x00));
-        tiny_text(g, "C1", x + 6, y + 14, silk);
+        g.fillRect(x + 8, y + 3, 12, 6, sh_rgb(0x5a, 0x3a, 0x00));
+        cp_lab_back(g, "C1", x + 8, y + 14, silk);
     }
-    g.fillRect(fx + 40, fy + 22, fw - 50, 1, trace);
+    /* Copper in the bottom aisle only — never through part bodies or labels. */
+    g.fillRect(fx + 4, fy + fh - 5, 120, 1, trace);
 }
 
 static void cp_draw_boot_en(Gfx g, int bx, int by)
 {
     const uint8_t silk = sh_rgb(0xe9, 0xe9, 0xee), metal = sh_rgb(0x8f, 0x95, 0xa3);
-    g.drawRect(bx, by, 40, 56, sh_rgb(0x2b, 0x2b, 0x33));
+    /* 40×70: caps stacked; labels centered under each with black back, 4px pad to frame. */
+    g.drawRect(bx, by, 40, 70, sh_rgb(0x2b, 0x2b, 0x33));
     for (int b = 0; b < 2; ++b) {
-        const int x = bx + 10, y = by + (b ? 30 : 6), w = 20, h = 14;
-        cp_pad(g, x - 1, y - 1, w + 2, h + 12);
+        const int x = bx + 10, y = by + (b ? 38 : 5), w = 20, h = 11;
+        /* Pad only around the cap — do not extend into the label strip below. */
+        cp_pad(g, x - 1, y - 1, w + 2, h + 1);
         g.fillRect(x, y, w, h, metal);
         g.fillRect(x + 1, y + 1, w - 2, h - 2, sh_rgb(0xc3, 0xc9, 0xd6));
-        g.fillCircle(x + w / 2, y + h / 2, 4, sh_rgb(0x22, 0x23, 0x2c));
-        tiny_text(g, b ? "EN" : "BOOT", x + (b ? 6 : 2), y + h + 2, silk);
+        g.fillCircle(x + w / 2, y + h / 2, 3, sh_rgb(0x22, 0x23, 0x2c));
+        const char *lab = b ? "EN" : "BOOT";
+        const int ly = y + h + 4; /* clear gap under cap; EN ends ~by+53, frame by+70 */
+        cp_lab_back(g, lab, x + (w - tiny_w(lab)) / 2, ly, silk);
     }
 }
 
@@ -201,11 +243,12 @@ static void cp_draw_r16(Gfx g, int x, int y)
 {
     const uint8_t silk2 = sh_rgb(0x9a, 0x9a, 0xa6);
     cp_pad(g, x, y, 66, 18);
+    g.fillRect(x, y, 66, 18, PAL_BLACK);
     for (int k = 0; k < 6; ++k) {
-        g.fillRect(x + k * 11, y + 4, 6, 3, sh_rgb(0xb8, 0xb8, 0xc0));
-        g.fillRect(x + 2 + k * 11, y + 4, 2, 3, sh_rgb(0x20, 0x20, 0x24));
+        g.fillRect(x + k * 11, y + 3, 6, 3, sh_rgb(0xb8, 0xb8, 0xc0));
+        g.fillRect(x + 2 + k * 11, y + 3, 2, 3, sh_rgb(0x20, 0x20, 0x24));
     }
-    tiny_text(g, "R1-6", x + 20, y + 12, silk2);
+    cp_lab_back(g, "R1-6", x + 20, y + 10, silk2);
 }
 
 
@@ -533,15 +576,13 @@ static void paint_control_spread_p(Gfx g)
     cp_draw_headers_spread(g);
 
     if (CP_SPREAD == 1) {
-        cp_draw_boot_en(g, cp_px(140, 40), 172);
-        cp_draw_power_bay(g, cp_px(48, 152), 238, 152, 36);
-        cp_draw_r16(g, cp_px(48, 66), 284);
+        cp_draw_boot_en(g, cp_px(140, 40), 170);
+        cp_draw_power_bay(g, cp_px(48, 160), 236, 160, 40);
+        cp_draw_r16(g, cp_px(48, 66), 286);
     } else {
-        cp_draw_boot_en(g, cp_px(100, 40), 98);
-        cp_draw_power_bay(g, cp_px(44, 152), 168, 152, 52);
-        cp_draw_r16(g, cp_px(48, 66), 284);
-        g.fillRect(cp_px(120, 1), 98, 1, 70, sh_rgb(0xb4, 0x6a, 0x28));
-        g.fillRect(cp_px(48, 1), 160, 144, 1, sh_rgb(0xb4, 0x6a, 0x28));
+        cp_draw_boot_en(g, cp_px(100, 40), 90);
+        cp_draw_power_bay(g, cp_px(40, 160), 168, 160, 44);
+        cp_draw_r16(g, cp_px(48, 66), 258);
     }
 
     int px[6], py[6];
@@ -558,6 +599,12 @@ static void paint_control_spread_p(Gfx g)
             int x, y, w, h;
             if (cp_part_rect_p(i, &x, &y, &w, &h)) cp_pad(g, x - 1, y - 1, w + 2, h + 2);
             cp_chip(g, i, s_cursor == i);
+            /* Solid black backing under theme labels — rain never touches text. */
+            char up[16];
+            cp_short(i, up, (int)sizeof(up));
+            const int ly = y + h - 9;
+            g.fillRect(x, y + h - 13, w, 13, PAL_BLACK);
+            cp_lab_back(g, up, x + (w - tiny_w(up)) / 2, ly, s_cursor == i ? (uint8_t)PAL_WHITE : silk2);
         } else {
             int x, y, w, h;
             if (!cp_part_rect_p(i, &x, &y, &w, &h)) continue;
@@ -590,7 +637,7 @@ static void paint_control_spread_p(Gfx g)
                     g.fillRect(x - 2, y + 3 + k * 4, 2, 2, metal);
                     g.fillRect(x + w, y + 3 + k * 4, 2, 2, metal);
                 }
-                tiny_text(g, "CP", x + w / 2 - 3, y + 4, silk2);
+                cp_lab_back(g, "CP", x + w / 2 - 3, y + 4, silk2);
                 const int m = botcorps_rain_mode();
                 g.fillRect(x + 4, y + 14, w - 8, 5, m <= 0 ? botcorps_rain_palette(0) : botcorps_rain_solid());
                 lab = "RAIN";
@@ -600,7 +647,7 @@ static void paint_control_spread_p(Gfx g)
                 g.fillRect(x + 2, y + 1, w - 4, h - 2, pon ? sh_rgb(0xff, 0x22, 0x44) : sh_rgb(0x3a, 0x0a, 0x12));
                 lab = "PWR";
             }
-            tiny_text(g, lab, x + (w - tiny_w(lab)) / 2, cp_lab_y_p(i), on ? (uint8_t)PAL_WHITE : silk);
+            cp_lab_back(g, lab, x + (w - tiny_w(lab)) / 2, cp_lab_y_p(i), on ? (uint8_t)PAL_WHITE : silk);
         }
     }
 }
@@ -840,13 +887,13 @@ static void layout_covers_control_p(void)
             if (cp_part_rect_p(i, &x, &y, &w, &h)) cover_add(x - 1, y - 1, w + 2, h + 14);
         }
         if (CP_SPREAD == 1) {
-            cover_add(cp_px(140, 40), 172, 40, 56);
-            cover_add(cp_px(48, 152), 238, 152, 36);
-            cover_add(cp_px(48, 66), 284, 66, 18);
+            cover_add(cp_px(140, 40), 170, 40, 70);
+            cover_add(cp_px(48, 160), 236, 160, 40);
+            cover_add(cp_px(48, 66), 286, 66, 18);
         } else {
-            cover_add(cp_px(100, 40), 98, 40, 56);
-            cover_add(cp_px(44, 152), 168, 152, 52);
-            cover_add(cp_px(48, 66), 284, 66, 18);
+            cover_add(cp_px(100, 40), 90, 40, 70);
+            cover_add(cp_px(40, 160), 168, 160, 44);
+            cover_add(cp_px(48, 66), 258, 66, 18);
         }
         return;
     }

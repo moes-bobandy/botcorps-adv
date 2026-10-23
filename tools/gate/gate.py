@@ -352,7 +352,12 @@ for scr in screens:
     if scr in ('game-board', 'game-jackin'):
         grid = {'x': 108, 'y': 44, 'w': 172, 'h': 96}
         ing = [c for c in boxes if c['k'] in ('TCHIP', 'CHIP', 'DGBOT') and inside(c, grid)]
-        rep(scr, 'DG2 no chip inside the scan grid', not ing, f'grid chips={[(c["k"], c["n"], c["x"], c["y"]) for c in ing][:3]}')
+        if scr == 'game-board':
+            rep(scr, 'DG2 no chip inside the scan grid', not ing, f'grid chips={[(c["k"], c["n"], c["x"], c["y"]) for c in ing][:3]}')
+        else:   # P0 v003 / GIBSON O2: game-jackin is a live round (B1) -> no chip on the bot sprite
+            bots = [c for c in boxes if c['k'] == 'DGBOT']
+            hit = [(c['k'], c['n'], c['x'], c['y']) for c in boxes if c['k'] in ('TCHIP', 'CHIP') and any(inter(c, d) for d in bots)]
+            rep(scr, 'DG2 no chip on the bot sprite (live round)', not hit, f'DGBOT boxes={len(bots)} hits={hit[:3]}')
     if scr.startswith('scanboard-') or scr.startswith('sbox') or scr.startswith('scan-') or scr.startswith('settings'):
         bd = [b for b in boxes if b['k'] == 'BOARD']
         if bd:
@@ -664,6 +669,256 @@ if os.path.exists(LOCK):
         got = hashlib.sha256(open(pth, 'rb').read()).hexdigest() if os.path.exists(pth) else 'missing'
         grp = 'control-panel' if name.startswith('settings') else 'locked'
         rep(grp, f'L1 {name} byte-identical to 675c87d', got == h, '' if got == h else f'sha {got[:12]} != {h[:12]}')
+
+# ---------------------------------------------------------------------------------------------
+# P0 v003 (ARCH-GAME-P0-CHIP-PROMPT-v003.md sha256 39e76347...0bf4) gates G1-G21 + GIBSON rulings
+# R1/R2 (1:16 PM ET). Additive. References (all from e7ba692 or the A5-off tip render) live in
+# release/gate/p0-v003/ (README.txt has the provenance).
+P0REF = os.path.join(os.path.dirname(FROZEN or '.'), 'p0-v003')
+if os.path.isdir(P0REF):
+    def _b(p): return open(p, 'rb').read() if os.path.exists(p) else None
+    def _sha(p): return hashlib.sha256(open(p, 'rb').read()).hexdigest() if os.path.exists(p) else 'missing'
+    def _man(p): return dict((l.split()[1], l.split()[0]) for l in open(p) if l.strip())
+    def _png(name): return Image.open(os.path.join(P0REF, 'png', name)).convert('RGB').tobytes()
+    def _px(buf, x, y): i = (y * W + x) * 3; return buf[i:i + 3]
+    def _diff(a, b):
+        return [((i // 3) % W, (i // 3) // W) for i in range(0, len(a), 3) if a[i:i + 3] != b[i:i + 3]]
+    def _bb(pts):
+        return (min(p[0] for p in pts), min(p[1] for p in pts), max(p[0] for p in pts), max(p[1] for p in pts)) if pts else None
+    def _boxes(p):
+        out = []
+        if os.path.exists(p):
+            for ln in open(p, errors='replace'):
+                f = ln.rstrip('\n').split('\t')
+                if f[0] == 'BOX' and len(f) >= 8: out.append((f[1], f[2], int(f[3]), int(f[4]), int(f[5]), int(f[6])))
+        return out
+    def _txts(p):
+        out = []
+        if os.path.exists(p):
+            for ln in open(p, errors='replace'):
+                f = ln.rstrip('\n').split('\t')
+                if f[0] == 'TXT' and len(f) >= 10: out.append((int(f[1]), int(f[2]), f[9]))
+        return out
+    P0D = os.path.join(D, 'p0')
+    SB = ['deauth', 'hack', 'flock', 'drone', 'keyfob', 'meta', 'skimmer', 'flipper', 'samsungtag']
+    SBBOT = dict(deauth=2, hack=3, flock=4, drone=5, keyfob=7, meta=8, skimmer=9, flipper=10, samsungtag=11)
+    NSCR = ['scanboard-' + n for n in SB] + ['game-jackin', 'game-menu', 'terminal-atkmenu', 'terminal-cmdmenu']
+    NFR = sorted(s + v + '.rgb' for s in NSCR for v in ('', '.norain'))
+    base = _man(os.path.join(P0REF, 'e7ba692-render.sha256'))
+    bman = ''.join(f'{base[k]}  render/{k}\n' for k in sorted(base))
+    rep('p0-v003', 'G1 e7ba692 reference manifest is 69052dcf', hashlib.sha256(bman.encode()).hexdigest().startswith('69052dcf'),
+        hashlib.sha256(bman.encode()).hexdigest()[:12])
+    got = {k: _sha(os.path.join(D, k)) for k in base}
+    rep('p0-v003', 'GIBSON-R1 N = 26 frames (13 screens x rgb/norain, terminal-cmdmenu x2 added)', len(NFR) == 26 and all(k in base for k in NFR), f'{len(NFR)}')
+    moved = sorted(k for k in base if got[k] != base[k])
+    rep('p0-v003', 'G1 only the 26 N frames differ from e7ba692 (HOLD if any other moves)', set(moved) <= set(NFR), f'moved={len(moved)} outside N={sorted(set(moved) - set(NFR))[:4]}')
+    same = [k for k in base if k not in NFR and got[k] == base[k]]
+    rep('p0-v003', 'G1 the other 70 frames byte-identical to e7ba692', len(same) == 70, f'{len(same)}/70')
+    srcref = _man(os.path.join(P0REF, 'e7ba692-src.sha256'))
+    root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    for rel, h in sorted(srcref.items()):
+        g2 = _sha(os.path.join(root, rel))
+        rep('p0-v003', f'G1 {rel} empty diff vs e7ba692', g2 == h, '' if g2 == h else f'{g2[:12]} != {h[:12]}')
+    rain_now = sorted(os.listdir(os.path.join(root, 'src/rain'))) if os.path.isdir(os.path.join(root, 'src/rain')) else []
+    rep('p0-v003', 'G1 src/rain has no added files', ['src/rain/' + f for f in rain_now] == sorted(k for k in srcref if k.startswith('src/rain/')), f'{rain_now}')
+
+    # G2 (SCAN) per bot: (a) outside the panel rect 0-px vs e7ba692 (drone: + ring, hunt, R2 holes);
+    # (b) inside vs AirTag one consistent colour map; (c) GATE_BOX list inside the rect equals AirTag's.
+    def in_panel(x, y): return 20 <= x < 102 and 40 <= y < 194
+    BHX, BHY, BHW, BHH = 108, 44, 171, 95     # ui.cpp BH_X/BH_Y + BH_W = 9*19, BH_H = 5*19 (ui.cpp:4803-4804)
+    def in_ring(x, y): return (x in (18, 301) and 30 <= y <= 204) or (y in (30, 204) and 18 <= x <= 301)
+    def in_hunt(x, y): return BHX <= x < BHX + BHW and BHY - 12 <= y < BHY + BHH
+    def in_hole(x, y): return (22 <= x <= 30 or 290 <= x <= 298) and (34 <= y <= 42 or 193 <= y <= 201)  # GIBSON R2
+    def g2_mask(x, y):  # glyph (55,155) 12x12 + gl_icon's real (55,156) cell (to y167), label y181-188, silk y124-130
+        return (55 <= x < 67 and 155 <= y < 168) or 181 <= y <= 188 or 124 <= y <= 130
+    def cmap_bad(ref, t):
+        cm = {}; bad = 0
+        for y in range(40, 194):
+            for x in range(20, 102):
+                if g2_mask(x, y): continue
+                a, c = _px(ref, x, y), _px(t, x, y)
+                if cm.setdefault(a, c) != c: bad += 1
+        return bad, len(cm)
+    def boxsig(bx):
+        out = []
+        for k, n, x, y, w, h in bx:
+            if not (20 <= x and 40 <= y and x + w <= 102 and y + h <= 194): continue
+            out.append((k, x * 2 + w, y, h) if k == 'SILK' else (k, x, y, w, h))   # SILK: name-agnostic, centre x
+        return sorted(out)
+    air = _b(os.path.join(D, 'scanboard-airtag.norain.rgb'))
+    airsig = boxsig(_boxes(os.path.join(D, 'scanboard-airtag.log')))
+    for n in SB:
+        t = _b(os.path.join(D, f'scanboard-{n}.norain.rgb'))
+        if t is None or air is None:
+            rep('p0-v003', f'G2 scanboard-{n} rendered', False, 'missing'); continue
+        r = _png(f'e7ba692-scanboard-{n}.norain.png')
+        out = [p for p in _diff(t, r) if not in_panel(*p) and not (n == 'drone' and (in_ring(*p) or in_hunt(*p) or in_hole(*p)))]
+        rep('p0-v003', f'G2(a) scanboard-{n} 0-px outside (20,40)-(102,194) vs e7ba692' + (' (+A5 ring/hunt/R2 holes)' if n == 'drone' else ''),
+            not out, f'{len(out)}px {_bb(out)}')
+        bad, nc = cmap_bad(air, t)
+        rep('p0-v003', f'G2(b) scanboard-{n} panel = AirTag under one colour map', bad == 0, f'bad={bad} colours={nc}')
+        s2 = boxsig(_boxes(os.path.join(D, f'scanboard-{n}.log')))
+        rep('p0-v003', f'G2(c) scanboard-{n} GATE_BOX list in rect = AirTag', s2 == airsig, f'{len(s2)} boxes')
+        # G3 rgb-vs-norain inside the panel rect confined to the rain window. v003 text says (20,44) 76x148, but
+        # e7ba692's own AirTag/Gibson rain (v2_rain, RAIN_WIN = zr_clip_push(g, 20, 43, 82, 149), CHIP-G-RAIN)
+        # spans (20,43)-(101,191); the row checks RAIN_WIN and logs the count outside the literal v003 rect.
+        tr = _b(os.path.join(D, f'scanboard-{n}.rgb'))
+        rp = [p for p in _diff(tr, t) if in_panel(*p)]
+        rd = [p for p in rp if not (20 <= p[0] < 102 and 43 <= p[1] < 192)]
+        lit = [p for p in rp if not (20 <= p[0] < 96 and 44 <= p[1] < 192)]
+        rep('p0-v003', f'G3 scanboard-{n} rain diff inside panel confined to RAIN_WIN (20,43) 82x149', not rd,
+            f'{len(rp)}px {_bb(rp)}; outside RAIN_WIN {len(rd)}; outside v003-literal (20,44) 76x148 {len(lit)}')
+
+    # G2g (GCHAT Defend via botcorps_host_defend(b)) vs AirTag's GCHAT frame from the same tip; AirTag gc-6 0-px vs e7ba692
+    p0ref = _man(os.path.join(P0REF, 'e7ba692-p0.sha256'))
+    for k in ('gc-6.rgb', 'gc-6.norain.rgb'):
+        g6 = _sha(os.path.join(P0D, k))
+        rep('p0-v003', f'G2g AirTag GCHAT {k} byte-identical to e7ba692', g6 == p0ref.get(k), g6[:12])
+    gair = _b(os.path.join(P0D, 'gc-6.norain.rgb'))
+    gairsig = boxsig(_boxes(os.path.join(P0D, 'gc-6.log')))
+    for b in (2, 3, 4, 5, 7, 8, 9, 10, 11):
+        t = _b(os.path.join(P0D, f'gc-{b}.norain.rgb'))
+        if t is None or gair is None:
+            rep('p0-v003', f'G2g gc-{b} rendered', False, 'missing'); continue
+        r = _png(f'e7ba692-gc-{b}.norain.png')
+        mini = [bx for bx in _boxes(os.path.join(P0D, f'gc-{b}.log')) if bx[0] == 'MINI']
+        out = [p for p in _diff(t, r) if not in_panel(*p)]
+        if b == 5:   # A5 X5/X7: Defend board 5 now spawns/rains GL_DRONE; bounded to the MINI defend screen
+            m = mini[0] if mini else ('MINI', '', 0, 0, 0, 0)
+            o2 = [p for p in out if not (m[2] <= p[0] < m[2] + m[4] and m[3] <= p[1] < m[3] + m[5])]
+            rep('p0-v003', 'G2g(a) gc-5 outside panel: diff only inside the MINI defend screen (A5 X5/X7)', bool(mini) and not o2,
+                f'{len(out)}px {_bb(out)} in MINI {m[2:]}; outside MINI {len(o2)}px')
+        else:
+            rep('p0-v003', f'G2g(a) gc-{b} 0-px outside (20,40)-(102,194) vs e7ba692', not out, f'{len(out)}px {_bb(out)}')
+        bad, nc = cmap_bad(gair, t)
+        rep('p0-v003', f'G2g(b) gc-{b} panel = AirTag GCHAT under one colour map', bad == 0, f'bad={bad} colours={nc}')
+        s2 = boxsig(_boxes(os.path.join(P0D, f'gc-{b}.log')))
+        rep('p0-v003', f'G2g(c) gc-{b} GATE_BOX list in rect = AirTag GCHAT', s2 == gairsig, f'{len(s2)} boxes')
+
+    # G3..G20 behaviour rows from the host harness (rend gate -> p0/p0.txt)
+    pp = os.path.join(P0D, 'p0.txt')
+    cnt = {}
+    if os.path.exists(pp):
+        for ln in open(pp):
+            f = ln.rstrip('\n').split('\t')
+            if f[0] == 'P0' and len(f) >= 5:
+                cnt[f[1]] = cnt.get(f[1], 0) + 1
+                rep('p0-v003', f'{f[1]} {f[2]}', f[3] == '1', f[4][:110])
+    need = dict(G3=9, G4=11, G5=11, G6=3, G7=15, G8=12, G9=11, G10=10, G11=11, G12=2, G13=1, G14=11, G15=13, G18=1, G20=7)
+    short = {g: (cnt.get(g, 0), n) for g, n in need.items() if cnt.get(g, 0) < n}
+    rep('p0-v003', 'P0 harness ran every G3-G20 row', not short, f'{sum(cnt.values())} rows' + (f' short={short}' if short else ''))
+    # G6: CHIPFSM rows (0/1/Gibson SCAN) unchanged is the existing CHIP-G-FSM block above.
+
+    # G8 overlay strings (§4.3) through the text log: Terminal slots (KING + tiles) and GCHAT
+    NM = {2: 'deauth wi-fi ap', 3: 'hack laptop', 4: 'flock camera', 5: 'drone', 6: 'airtag tracker', 7: 'keyfob car',
+          8: 'meta watch', 9: 'skimmer unknown', 10: 'flipper tv', 11: 'samsung tracker'}
+    SIGV = {12: 'overload', 6: 'ghost', 11: 'echo', 2: 'kick', 3: 'trace', 4: 'blind', 5: 'ground', 8: 'blur', 9: 'void', 10: 'null', 7: 'roll'}
+    SUBV = {12: 'core root', 6: 'mute unpair', 11: 'ring unlink', 2: 'flood twin', 3: 'rst burn', 4: 'plate mask', 5: 'spoof land',
+            8: 'cover glitch', 9: 'spot flag', 10: 'replay clone', 7: 'relay seal'}
+    SILKN = {0: 'WIFIBOT', 1: 'BLUETOOTHBOT', 2: 'DEAUTHBOT', 3: 'HACKBOT', 4: 'FLOCKBOT', 5: 'DRONEBOT', 6: 'AIRTAGBOT', 7: 'KEYFOBBOT',
+             8: 'METABOT', 9: 'SKIMMERBOT', 10: 'FLIPPERBOT', 11: 'SAMSUNGTAGBOT', 12: 'GIBSON'}
+    def atk_rows(b):
+        if b in (0, 1): return [('core', 'scan'), ('ok', 'scan')]
+        if b == 12:
+            return [('names', 'wifi bluetooth deauth hack flock drone'), ('', 'airtag keyfob meta skimmer flipper'),
+                    ('', 'samsung wi-fi ap phone laptop tv'), ('', 'speaker tracker watch camera car'), ('', 'unknown printer'),
+                    ('core', 'scan lock zap purge restart'), ('sig', 'overload'), ('subs', 'core root'), ('ok', 'start defend')]
+        return [('names', NM[b]), ('core', 'scan lock zap purge restart'), ('sig', SIGV[b]), ('subs', SUBV[b]), ('ok', 'start defend')]
+    def atk_check(fn, b):
+        tx = _txts(os.path.join(P0D, fn + '.log'))
+        i = next((k for k, t in enumerate(tx) if t[2] == 'ATTACK PROMPTS'), -1)
+        if i < 0: return False, 'no overlay'
+        bx, by = tx[i][0] - 8, tx[i][1] - 4
+        seen = []
+        for x, y, s in tx[i + 1:]:
+            if (x, y, s) not in seen: seen.append((x, y, s))
+        want = [(None, by + 4, SILKN[b])]
+        for k, (lab, val) in enumerate(atk_rows(b)):
+            if lab: want.append((bx + 8, by + 18 + k * 12, lab))
+            want.append((bx + 56, by + 18 + k * 12, val))
+        gotl = [(x, y, s) for x, y, s in seen if y >= by + 4]
+        ok = len(gotl) == len(want) and all((w[0] is None or w[0] == g[0]) and w[1] == g[1] and w[2] == g[2] for w, g in zip(want, gotl))
+        return ok, f'{len(gotl)} strings, {len(want)} expected'
+    KSLOT = [12, 0, 1, 2, 3, 4, 5, 6, 8, 9, 10, 11]
+    for s, b in enumerate(KSLOT):
+        ok, det = atk_check(f'atk-{s}', b)
+        rep('p0-v003', f'G8 Terminal slot {s} (bot {b}) overlay rows = §4.3 strings', ok, det)
+    for b in range(13):
+        ok, det = atk_check(f'gcatk-{b}', b)
+        rep('p0-v003', f'G8 GCHAT bot {b} overlay rows = §4.3 strings', ok, det)
+
+    # G15: WiFi/BT sheet byte-identical to e7ba692 (BOARD rows: harness G15 rows above)
+    for k in ('sheet-0.rgb', 'sheet-0.norain.rgb', 'sheet-1.rgb', 'sheet-1.norain.rgb'):
+        g5 = _sha(os.path.join(P0D, k))
+        rep('p0-v003', f'G15 WiFi/BT {k} byte-identical to e7ba692', g5 == p0ref.get(k), g5[:12])
+    sp0 = os.path.join(P0D, 'slice.txt')
+    if os.path.exists(sp0):
+        bads = [ln.split('\t')[1] for ln in open(sp0) if ln.startswith('SLICE') and int(ln.rstrip().split('\t')[2]) != 0]
+        rep('p0-v003', 'S3 p0 frames: BANDS slice paint == full frame', not bads, f'bad={bads[:4]}')
+
+    # G16: re-lock is exactly the 22 rows of N; frozen masks per §6 G16
+    lk = [l.split()[1] for l in open(LOCK)] if os.path.exists(LOCK) else []
+    relock = sorted(k for k in lk if k in NFR)
+    want22 = sorted(f'{s}{v}.rgb' for s in ['scanboard-' + n for n in SB] + ['game-jackin', 'game-menu'] for v in ('', '.norain'))
+    rep('p0-v003', 'G16 locked rows inside N are exactly the 22 re-locked rows', relock == want22, f'{len(relock)}')
+    lkd = dict((l.split()[1], l.split()[0]) for l in open(LOCK)) if os.path.exists(LOCK) else {}
+    keep48 = [k for k in lk if k not in NFR and lkd[k] == base.get(k)]
+    rep('p0-v003', 'G16 the 48 other locked rows still equal e7ba692', len(keep48) == 48 and len(lk) == 70, f'{len(keep48)}/48 of {len(lk)}')
+    fz = {}
+    for l in open(FROZEN):
+        l = l.split('#')[0].split()
+        if l: fz[l[0]] = [m[5:] for m in l[1:] if m.startswith('mask=')]
+    fm = all(fz.get('scanboard-' + n) == ['20,40,102,194'] for n in SB if n != 'drone') and fz.get('scanboard-drone') == ['18,30,302,205']
+    rep('p0-v003', 'G16 frozen masks: 8 scanboards 20,40,102,194; drone 18,30,302,205', fm, '')
+    # G17: caps unchanged (ram-caps.txt sha in e7ba692-src.sha256 above); RAM/flash rows are tools/gate/ram.py.
+    # G18: sizeof(s_gp_buf) is gone
+    hits = ui_src.count('sizeof(s_gp_buf)')
+    rep('p0-v003', 'G18 sizeof(s_gp_buf) has zero hits', hits == 0, f'{hits} hits')
+    # G19: no new arrow binding (key-handler compares identical to e7ba692), field stays cyan, LIVE_SCAN=0 (CHIP-G-LIVE0)
+    def _body(fn):
+        i = ui_src.find(fn); return ui_src[i:ui_src.find('\n}\n', i)] if i >= 0 else ''
+    arr = _body('static void on_arrows(int key)')
+    kc = tuple(arr.count(f'key == {k}') for k in (1, 2, 3, 4))
+    dk = sorted(re.findall(r'key == K_\w+', _body('static void ui_dispatch(int key, char typed)')))
+    rep('p0-v003', 'G19 key handlers: on_arrows key compares = e7ba692 (15,17,14,15); ui_dispatch K_ set unchanged',
+        kc == (15, 17, 14, 15) and dk == ['key == K_DN', 'key == K_LT', 'key == K_NONE', 'key == K_RT', 'key == K_UP']
+        and 'key ==' not in _body('static void on_tab(void)'), f'{kc}')
+    fi = ui_src.find('    const int py = 216;\n    txt(g, "gibson", 10, py, ac,')
+    fj = ui_src.find('    if (s_sheet) paint_gc_sheet(g);', fi)
+    fsha = hashlib.sha256(ui_src[fi:fj].encode()).hexdigest() if fi >= 0 and fj > fi else ''
+    rep('p0-v003', 'G19 GCHAT prompt field block byte-identical to e7ba692 (accent colour)', fsha == '12f4f9672f3e459d7533146ce0875531189efb12501c0354781366f74f35d1af', fsha[:12])
+    rep('p0-v003', 'G19 LIVE_SCAN=0 in the launcher env', 'build_src_flags = -DBOTCORPS_LIVE_SCAN=0' in ini_src, '')
+
+    # G21 (A5): tip vs tip-with-only-the-BH_DEV-drone-row-reverted (a5off-render.sha256, a5off PNGs + log)
+    a5 = _man(os.path.join(P0REF, 'a5off-render.sha256'))
+    a5mv = sorted(k for k in a5 if got.get(k) != a5[k])
+    rep('p0-v003', 'G21(a) A5 on vs off: only scanboard-drone.rgb/.norain.rgb differ', a5mv == ['scanboard-drone.norain.rgb', 'scanboard-drone.rgb'], f'{a5mv[:4]}')
+    for v in ('', '.norain'):
+        t = _b(os.path.join(D, f'scanboard-drone{v}.rgb')); r = _png(f'a5off-scanboard-drone{v}.png')
+        dd = _diff(t, r)
+        zc = {}
+        for p in dd:
+            z = 'panel' if in_panel(*p) else 'ring' if in_ring(*p) else 'hole' if in_hole(*p) else 'hunt' if in_hunt(*p) else 'OUT'
+            zc[z] = zc.get(z, 0) + 1
+        rep('p0-v003', f'G21(b)+GIBSON-R2 scanboard-drone{v or ".rgb"} A5 diff inside panel+ring+hunt+4 corner holes', 'OUT' not in zc,
+            f'{len(dd)}px {zc}')
+    xy = lambda bx: sorted((k, x, y) for k, n, x, y, w, h in bx)
+    rep('p0-v003', 'G21(c) scanboard-drone GATE_BOX x/y identical A5 on vs off (drop positions)',
+        xy(_boxes(os.path.join(D, 'scanboard-drone.log'))) == xy(_boxes(os.path.join(P0REF, 'a5off-scanboard-drone.log'))), '')
+
+    # GIBSON R1: terminal-cmdmenu diff inside (16,24)-(304,219); new cmdmenu vs new atkmenu = 922 px (rgb)
+    for v in ('', '.norain'):
+        c = _b(os.path.join(D, f'terminal-cmdmenu{v}.rgb')); r = _png(f'e7ba692-terminal-cmdmenu{v}.png')
+        dd = _diff(c, r); bb = _bb(dd)
+        rep('p0-v003', f'GIBSON-R1 terminal-cmdmenu{v or ".rgb"} diff vs e7ba692 inside (16,24)-(304,219)',
+            bool(dd) and bb[0] >= 16 and bb[1] >= 24 and bb[2] <= 304 and bb[3] <= 219, f'{len(dd)}px bbox {bb}')
+        am = _diff(c, _b(os.path.join(D, f'terminal-atkmenu{v}.rgb')))
+        if v == '':
+            rep('p0-v003', 'GIBSON-R1 new terminal-cmdmenu vs new terminal-atkmenu (rgb) = 922 px', len(am) == 922, f'{len(am)}px')
+        else:
+            rep('p0-v003', 'GIBSON-R1 new terminal-cmdmenu vs new terminal-atkmenu (norain) logged', True, f'{len(am)}px (e7ba692: 0px)')
+else:
+    rep('p0-v003', 'P0 v003 reference dir release/gate/p0-v003 present', False, 'missing')
 
 fails = 0; cur = None
 for scr, item, ok, det in results:

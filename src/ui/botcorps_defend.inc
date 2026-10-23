@@ -36,7 +36,6 @@ static void dg_scores_bot(int) {}
 static void dg_loadout(int) {}
 static void dg_rank(void) {}
 static bool dg_play_n(int) { return false; }
-static bool zap_try_cmd(const char *) { return false; }
 static void paint_dg_board(Gfx) {}
 static void paint_dg_demo(Gfx, int) {}
 static void paint_dg_demo_hint(Gfx, int) {}
@@ -66,10 +65,8 @@ static const int DL_TIER_HI[5] = { 0, 500, 1500, 4000, 10000 };
 enum { DL_MAX = 6, DL_CHG = 300, DL_TIME0 = 45000 };
 struct DlDev { float p; int kind, hp, acq, live; };
 /* Device: the existing tier-0 bot_ui scratch (boot-touched, otherwise unused). Host: a tiny local. */
-#ifdef BOTCORPS_HOST_RENDER
-alignas(8) static uint8_t dl_scratch[256];
-#else
-extern uint8_t botcorps_t0_bot_ui[2560];
+/* Host: dl_scratch is declared with the prompt alias (ui.cpp, P0 R2). */
+#ifndef BOTCORPS_HOST_RENDER
 #define dl_scratch botcorps_t0_bot_ui
 #endif
 struct DlMem {
@@ -84,6 +81,9 @@ static DlMem &dl_mem()
     return *reinterpret_cast<DlMem *>(static_cast<void *>(dl_scratch));
 }
 static_assert(sizeof(DlMem) <= 256, "deauth state fits the bot_ui scratch");
+static_assert(sizeof(DlMem) <= GP_BUF_OFF, "the prompt alias sits past DlMem");
+static_assert(sizeof(DlMem) + GP_BUF_N <= 256, "DlMem + prompt fit below livescan (+256)");
+static_assert(GP_BUF_OFF + GP_BUF_N <= 256, "prompt alias below livescan (+256)");
 #define s_dl_on (dl_mem().on)
 #define s_dl_hi (dl_mem().hi)
 #define s_dl_aw (dl_mem().aw)
@@ -281,6 +281,225 @@ static void dl_fire(void)
     s_dl_score += dmg * 5;
     if (s_dl_d[i].hp <= 0) dl_kill(i, 0);
     else dl_note_hi();
+}
+
+/* P0 Defend prompt (LOCK-DEFEND-CMDS 12:13): typed verb + device name [+ sub] on the open board.
+ * Core verbs on every board; one signature verb and two subs per board; a bare name = zap. */
+static const char *const ZP_CORE[5] = { "scan", "lock", "zap", "purge", "restart" };
+static const char *const ZP_SIG[13] = {
+    0, 0, "kick", "trace", "blind", "ground", "ghost", "roll", "blur", "void", "null", "echo", "overload"
+};
+static const char *const ZP_SUB[13][2] = {
+    { 0, 0 }, { 0, 0 }, { "flood", "twin" }, { "rst", "burn" }, { "plate", "mask" }, { "spoof", "land" },
+    { "mute", "unpair" }, { "relay", "seal" }, { "cover", "glitch" }, { "spot", "flag" }, { "replay", "clone" },
+    { "ring", "unlink" }, { "core", "root" }
+};
+/* The 23-name universe: 12 bot names, then the DL_KINDS labels minus the duplicate "drone". */
+enum { ZP_NAMES = 23 };
+static void zp_name(int n, char *out, size_t cap)
+{
+    if (n < 12) { snprintf(out, cap, "%s", BOTS[n].short_name); return; }
+    int k = 0;
+    for (int i = 0; i < 12; ++i) {
+        if (DL_KINDS[i] == GL_DRONE) continue;
+        if (k++ == n - 12) {
+            snprintf(out, cap, "%s", GL_LABEL[DL_KINDS[i]]);
+            for (char *c = out; *c; ++c) if (*c >= 'A' && *c <= 'Z') *c = (char)(*c - 'A' + 'a');
+            return;
+        }
+    }
+    out[0] = 0;
+}
+static int zp_kind(int n)
+{
+    if (n < 12) return n == 5 ? GL_DRONE : bot_dev_kind(n);
+    int k = 0;
+    for (int i = 0; i < 12; ++i) {
+        if (DL_KINDS[i] == GL_DRONE) continue;
+        if (k++ == n - 12) return DL_KINDS[i];
+    }
+    return -1;
+}
+static bool zp_own(int bot, int n)
+{
+    if (bot >= 12) return true;
+    if (n == bot) return true;
+    return n >= 12 && zp_kind(n) == bot_dev_kind(bot);
+}
+/* Longest name at s that ends at a token boundary; returns its length (0 = none). */
+static int zp_match(const char *s, int *name)
+{
+    int best = 0;
+    char nm[16];
+    for (int n = 0; n < ZP_NAMES; ++n) {
+        zp_name(n, nm, sizeof nm);
+        const int l = (int)strlen(nm);
+        if (l > best && strncmp(s, nm, (size_t)l) == 0 && (s[l] == 0 || s[l] == ' ')) { best = l; *name = n; }
+    }
+    return best;
+}
+static void zp_upper(const char *in, char *out, size_t cap)
+{
+    snprintf(out, cap, "%s", in);
+    for (char *c = out; *c; ++c) if (*c >= 'a' && *c <= 'z') *c = (char)(*c - 'a' + 'A');
+}
+static bool zp_is_sig(const char *w)
+{
+    for (int b = 2; b <= 12; ++b) if (strcmp(w, ZP_SIG[b]) == 0) return true;
+    return false;
+}
+static void zp_out(const char *row) { gc_push(dl_bot(), row); }
+static void zp_miss(const char *line)
+{
+    char row[44];
+    snprintf(row, sizeof row, "[ ?? ] %s", line);
+    zp_out(row);
+}
+static bool zap_try_cmd(const char *in)
+{
+    if (s_screen != SCR_GCHAT) return false;
+    const int bot = dl_bot();
+    if (bot < 2 || bot > 12) return false;
+    char line[GP_BUF_N];
+    {   /* lowercase, single spaces, trimmed */
+        size_t o = 0;
+        bool sp = false;
+        for (const char *c = in ? in : ""; *c && o + 1 < sizeof line; ++c) {
+            char ch = *c;
+            if (ch >= 'A' && ch <= 'Z') ch = (char)(ch - 'A' + 'a');
+            if (ch == ' ') { sp = o > 0; continue; }
+            if (sp) { line[o++] = ' '; sp = false; if (o + 1 >= sizeof line) break; }
+            line[o++] = ch;
+        }
+        line[o] = 0;
+    }
+    if (!line[0]) return false;
+    /* first token */
+    char verb[12];
+    const size_t vw = strcspn(line, " ");
+    snprintf(verb, sizeof verb, "%.*s", (int)(vw < sizeof verb ? vw : sizeof verb - 1), line);
+    const char *rest = line[vw] ? line + vw + 1 : line + vw;
+    const bool core = vw < sizeof verb && (strcmp(verb, "scan") == 0 || strcmp(verb, "lock") == 0
+                      || strcmp(verb, "zap") == 0 || strcmp(verb, "purge") == 0 || strcmp(verb, "restart") == 0);
+    const bool sig = vw < sizeof verb && zp_is_sig(verb);
+    int name = -1;
+    const char *after = 0;
+    if (strcmp(line, "restart") == 0) {
+        char echo[48];
+        snprintf(echo, sizeof echo, "gibson> %s", line);
+        log_add(echo);
+        dl_begin(bot);
+        zp_out("[ OK ] ROUND RESTART");
+        return true;
+    }
+    if (core || sig) {
+        if (!rest[0]) {
+            if (strcmp(verb, "scan") == 0) return false;                  /* bare scan stays gc_run's */
+        } else {
+            const int l = zp_match(rest, &name);
+            if (l) after = rest[l] ? rest + l + 1 : rest + l;
+        }
+    } else {
+        const int l = zp_match(line, &name);
+        if (!l) return false;                                              /* not a Defend line */
+        snprintf(verb, sizeof verb, "zap");
+        after = line[l] ? line + l + 1 : line + l;
+    }
+    char echo[48];
+    snprintf(echo, sizeof echo, "gibson> %s", line);
+    log_add(echo);
+    /* validity (P4) */
+    const bool overload = strcmp(verb, "overload") == 0;
+    bool ok = true;
+    if (sig && strcmp(verb, ZP_SIG[bot]) != 0) ok = false;                 /* another board's signature */
+    if (strcmp(verb, "restart") == 0) ok = false;                          /* restart takes nothing */
+    const char *subw = 0;
+    if (ok) {
+        if (name < 0) {
+            if (rest[0] && !overload) ok = false;                          /* not a known name */
+            else if (!rest[0] && !overload) ok = false;                    /* verb with no name */
+            else if (rest[0] && overload) { subw = rest; }                 /* overload <sub> */
+        } else {
+            if (!zp_own(bot, name)) ok = false;                            /* foreign name */
+            if (after && after[0]) subw = after;
+        }
+    }
+    int sub = -1;
+    if (ok && subw) {
+        for (int k = 0; k < 2; ++k) if (strcmp(subw, ZP_SUB[bot][k]) == 0) sub = k;
+        if (sub < 0) ok = false;                                           /* foreign sub or extra tokens */
+    }
+    if (!ok) { zp_miss(line); return true; }
+    if (!dl_live()) { zp_out("[ -- ] ROUND OVER: RESTART"); return true; }
+    char row[48], nmu[16], vu[12], su[10];
+    zp_upper(verb, vu, sizeof vu);
+    su[0] = 0;
+    if (sub >= 0) zp_upper(ZP_SUB[bot][sub], su, sizeof su);
+    if (overload) {
+        int n = 0;
+        for (int i = 0; i < DL_MAX; ++i) {
+            if (!s_dl_d[i].live) continue;
+            const int dmg = 1 + (s_dl_d[i].acq ? 1 : 0);
+            s_dl_d[i].hp -= dmg;
+            s_dl_score += dmg * 5;
+            if (s_dl_d[i].hp <= 0) dl_kill(i, 0);
+            else dl_note_hi();
+            ++n;
+        }
+        if (su[0]) snprintf(row, sizeof row, "[ !! ] OVERLOAD %d HIT %s", n, su);
+        else snprintf(row, sizeof row, "[ !! ] OVERLOAD %d HIT", n);
+        zp_out(row);
+        return true;
+    }
+    {
+        char nm[16];
+        zp_name(name, nm, sizeof nm);
+        zp_upper(nm, nmu, sizeof nmu);
+    }
+    const int kind = zp_kind(name);
+    if (strcmp(verb, "scan") == 0) {
+        int n = 0;
+        for (int i = 0; i < DL_MAX; ++i) if (s_dl_d[i].live && s_dl_d[i].kind == kind) ++n;
+        snprintf(row, sizeof row, "[ .. ] SCAN %s %d LIVE", nmu, n);
+        zp_out(row);
+        return true;
+    }
+    int ti = -1;
+    for (int i = 0; i < DL_MAX; ++i) {
+        if (!s_dl_d[i].live || s_dl_d[i].kind != kind) continue;
+        if (ti < 0 || s_dl_d[i].p > s_dl_d[ti].p) ti = i;
+    }
+    if (ti < 0) { snprintf(row, sizeof row, "[ -- ] NO %s ON GRID", nmu); zp_out(row); return true; }
+    if (strcmp(verb, "lock") == 0) {
+        s_dl_d[ti].acq = 1;
+        int x = 0, y = 0;
+        dl_xy(ti, &x, &y);
+        s_dl_rx = x; s_dl_ry = y;
+        snprintf(row, sizeof row, "[ >> ] LOCK %s", nmu);
+        zp_out(row);
+        return true;
+    }
+    if (strcmp(verb, "purge") == 0) {
+        if (!s_dl_d[ti].acq) { zp_miss(line); return true; }
+        s_dl_d[ti].hp = 0;
+        dl_kill(ti, 0);
+        snprintf(row, sizeof row, "[ !! ] PURGE %s NULL", nmu);
+        zp_out(row);
+        return true;
+    }
+    const int dmg = (strcmp(verb, "zap") == 0 ? 1 : 2) + (s_dl_d[ti].acq ? 1 : 0);
+    s_dl_d[ti].hp -= dmg;
+    s_dl_score += dmg * 5;
+    const bool nulled = s_dl_d[ti].hp <= 0;
+    if (nulled) dl_kill(ti, 0);
+    else dl_note_hi();
+    char tail[8];
+    if (nulled) snprintf(tail, sizeof tail, "NULL");
+    else snprintf(tail, sizeof tail, "-%d", dmg);
+    if (su[0]) snprintf(row, sizeof row, "[ !! ] %s %s %s %s", vu, nmu, su, tail);
+    else snprintf(row, sizeof row, "[ !! ] %s %s %s", vu, nmu, tail);
+    zp_out(row);
+    return true;
 }
 static void dl_step(uint32_t t)
 {

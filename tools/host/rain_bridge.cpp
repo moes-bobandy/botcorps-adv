@@ -33,12 +33,23 @@ static inline void rb_px(int x, int y, uint8_t c)
 /* v1017c: the device sprite has ONE clip; the rain's per-cell clip also bounds the bot sprites it
  * draws (botcorps_sprite_draw on the same panel). The host sprite draw asks here. */
 bool host_rb_clip_ok(int x, int y) { return rb_in(x, y); }
+/* P0 v003 G3: the devsel bytes the rain actually draws with. Captured whenever the rain clips while the
+ * v2_rain mock strand is on (rain_ctl()[6], set only for the panel window); rain_flags() resets them after. */
+extern uint8_t botcorps_t0_rain_cell[3][1200];
+int host_rain_devsel_seen = 0;
+uint8_t host_rain_devsel[3] = { 0, 0, 0 };
+static inline void rb_devsel_tap(void)
+{
+    if (!botcorps_t0_rain_cell[1][6]) return;
+    host_rain_devsel_seen = 1;
+    memcpy(host_rain_devsel, &botcorps_t0_rain_cell[1][2], 3);
+}
 void lgfx::v1::LovyanGFX::setClipRect(int x, int y, int w, int h)
-{ rb_clipx = x; rb_clipy = y; rb_clipw = w; rb_cliph = h; }
+{ rb_devsel_tap(); rb_clipx = x; rb_clipy = y; rb_clipw = w; rb_cliph = h; }
 void lgfx::v1::LovyanGFX::clearClipRect(void)
 { rb_clipx = 0; rb_clipy = 0; rb_clipw = 320; rb_cliph = 240; }
 void lgfx::v1::LovyanGFX::fillRect(int x, int y, int w, int h, uint8_t c)
-{ for (int j = 0; j < h; ++j) for (int i = 0; i < w; ++i) rb_px(x + i, y + j, c); }
+{ rb_devsel_tap(); for (int j = 0; j < h; ++j) for (int i = 0; i < w; ++i) rb_px(x + i, y + j, c); }
 void lgfx::v1::LovyanGFX::setTextColor(uint8_t c) { rb_fg = c; }
 void lgfx::v1::LovyanGFX::setCursor(int x, int y) { rb_cx = x; rb_cy = y; }
 void lgfx::v1::LovyanGFX::print(const char *s)

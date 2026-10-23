@@ -1,3 +1,4 @@
+#include <sys/stat.h>
 #include <string>
 #include <stdlib.h>
 #include "host_shim.h"
@@ -323,6 +324,31 @@ static int run_gate(const char *dir)
         if (f) botcorps_host_chip_rows(f);
         if (f) fprintf(f, "PARTIALS\tempty\n");
         if (f) fclose(f);
+    }
+    /* P0 v003 (gate.py G2g/G8/G15 frames + G3-G20 rows): rendered after every locked frame and the
+     * functional block, into <dir>/p0/, so the 96 screens and functional.txt keep their order and bytes. */
+    {
+        extern void botcorps_host_p0(void *file);
+        extern void botcorps_host_p0_sheet(uint8_t *buf, int bot);
+        extern void botcorps_host_p0_atk(uint8_t *buf, int slot);
+        extern void botcorps_host_p0_sheet_at(uint8_t *buf, int bot, int sel);
+        char p0[256], nm2[64], p[300];
+        snprintf(p0, sizeof p0, "%s/p0", dir);
+        mkdir(p0, 0755);
+        struct P0F {
+            static void atk(void *v) { botcorps_host_set_color(0); botcorps_host_p0_atk(g_buf, ((GArg *)v)->a); }
+            static void gcatk(void *v) { botcorps_host_set_color(0); botcorps_host_gc_attack(g_buf, ((GArg *)v)->a); }
+            static void sheet(void *v) { botcorps_host_set_color(0); botcorps_host_p0_sheet(g_buf, ((GArg *)v)->a); }
+            static void gibnames(void *) { botcorps_host_set_color(0); botcorps_host_p0_sheet_at(g_buf, 12, 11); }
+        };
+        for (int s = 0; s < 12; ++s) { a = { s, 0, 0, nullptr }; snprintf(nm2, sizeof nm2, "atk-%d", s); gate_one(p0, nm2, 0, P0F::atk, &a); }
+        for (int b = 0; b <= 12; ++b) { a = { b, 0, 0, nullptr }; snprintf(nm2, sizeof nm2, "gcatk-%d", b); gate_one(p0, nm2, 0, P0F::gcatk, &a); }
+        for (int b = 0; b <= 12; ++b) { a = { b, 0, 0, nullptr }; snprintf(nm2, sizeof nm2, "sheet-%d", b); gate_one(p0, nm2, 0, P0F::sheet, &a); }
+        gate_one(p0, "sheet-12-names", 0, P0F::gibnames, nullptr);
+        for (int b = 0; b <= 12; ++b) { a = { b, 0, 0, nullptr }; snprintf(nm2, sizeof nm2, "gc-%d", b); gate_one(p0, nm2, 0, f_defend, &a); }
+        snprintf(p, sizeof p, "%s/p0.txt", p0);
+        FILE *f = fopen(p, "w");
+        if (f) { host_set_millis(9000u); botcorps_host_p0(f); fclose(f); }
     }
     return 0;
 }

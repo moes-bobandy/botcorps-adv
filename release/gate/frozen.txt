@@ -12,14 +12,14 @@ sbox-hunt         mask=20,40,102,194
 sbox-glossary     mask=20,40,102,194
 terminal          mask=6,18,80,69 mask=84,18,158,69 mask=162,18,236,69 mask=240,18,314,69 mask=6,68,80,119 mask=84,68,158,119 mask=162,68,236,119 mask=240,68,314,119 mask=6,118,80,169 mask=84,118,158,169 mask=162,118,236,169 mask=240,118,314,169
 terminal-tab      mask=4,167,316,240 mask=6,18,80,69 mask=84,18,158,69 mask=162,18,236,69 mask=240,18,314,69 mask=6,68,80,119 mask=84,68,158,119 mask=162,68,236,119 mask=240,68,314,119 mask=6,118,80,169 mask=84,118,158,169 mask=162,118,236,169 mask=240,118,314,169
-scanboard-deauth  mask=97,86,102,130
-scanboard-hack    mask=97,86,102,130
-scanboard-flock   mask=97,86,102,130
-scanboard-drone   mask=97,86,102,130
+scanboard-deauth  mask=20,40,102,194   # P0 v003 G16: panel = AirTag (v2_panel)
+scanboard-hack    mask=20,40,102,194   # P0 v003 G16: panel = AirTag (v2_panel)
+scanboard-flock   mask=20,40,102,194   # P0 v003 G16: panel = AirTag (v2_panel)
+scanboard-drone   mask=18,30,302,205   # P0 v003 G16 / A5: whole drone board (panel + edge ring + hunt); G21 is the tight check
 scanboard-airtag  mask=20,40,102,194
-scanboard-keyfob  mask=97,86,102,130
-scanboard-meta    mask=97,86,102,130
-scanboard-skimmer mask=97,86,102,130
-scanboard-flipper mask=97,86,102,130
-scanboard-samsungtag mask=97,86,102,130
+scanboard-keyfob  mask=20,40,102,194   # P0 v003 G16: panel = AirTag (v2_panel)
+scanboard-meta    mask=20,40,102,194   # P0 v003 G16: panel = AirTag (v2_panel)
+scanboard-skimmer mask=20,40,102,194   # P0 v003 G16: panel = AirTag (v2_panel)
+scanboard-flipper mask=20,40,102,194   # P0 v003 G16: panel = AirTag (v2_panel)
+scanboard-samsungtag mask=20,40,102,194   # P0 v003 G16: panel = AirTag (v2_panel)
 # v1019y: the 13 old Defend mini-game screens are retired (one-game collapse).

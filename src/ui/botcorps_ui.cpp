@@ -388,6 +388,7 @@ static bool zap_try_cmd(const char *line);
 static bool zap_sb_on(void);           /* v1019x: Gibson Defend = restored scan shell + zap in the grid */
 static void zap_paint_grid(Gfx g);
 static bool dl_live(void);
+static int dl_bot(void);
 static void dl_begin(int bot);
 static void dl_end(void);
 static void dl_steer(int key);
@@ -490,7 +491,16 @@ static int s_mood = MOOD_NEUTRAL;
 static uint32_t s_mood_until = 0;
 static uint32_t s_last_key = 0;
 static char s_bub[8];
-static char s_gp_buf[20];
+/* P0 R1/R2: the Defend prompt holds GP_BUF_N chars, aliased into the free tail of the DlMem window
+ * (bot_ui bytes 192..223; DlMem is 0..191, livescan starts at +256). No new static RAM. */
+enum { GP_BUF_N = 32, GP_BUF_OFF = 192 };
+#ifdef BOTCORPS_HOST_RENDER
+alignas(8) static uint8_t dl_scratch[256];
+#define s_gp_buf (reinterpret_cast<char *>(dl_scratch + GP_BUF_OFF))
+#else
+extern uint8_t botcorps_t0_bot_ui[2560];
+#define s_gp_buf (reinterpret_cast<char *>(botcorps_t0_bot_ui + GP_BUF_OFF))
+#endif
 static int s_gc_caret = -1, s_gc_hist_i = -1;   /* MOD item 2: Defend prompt caret (-1 = end) + history walk */
 static char s_gp_log[2][28];
 static int s_gp_n = 0;
@@ -1228,6 +1238,7 @@ static void lut_for_term(void)
 
 static void enter_defend(int bot, int ret);
 static int gc_bot_of(const char *arg);
+static void open_bot(int index);
 static void dg_lobby(void);
 static void dg_scores(void);
 static bool dg_play_n(int n);
@@ -1553,7 +1564,9 @@ static void run_cmd(const char *line)
         log_add(row);
     } else if (strcmp(cmd, "train") == 0) {
         /* v1019q (#9c): the GAME group does what it lists (was "sealed" for all eight) */
-        enter_defend(term_slot_bot(s_term), SCR_TERMINAL);      /* slot 0 is Gibson's game */
+        const int b = term_slot_bot(s_term);
+        if (b == 0 || b == 1) { open_bot(b); return; }   /* P0 B4: WiFi/BT have no Defend */
+        enter_defend(b, SCR_TERMINAL);      /* slot 0 is Gibson's game */
         return;
     } else if (strcmp(cmd, "hunt-run") == 0) {
         s_scan_bot = 12;                         /* Gibson's hunt game (his scan board, hunt mode on) */
@@ -1564,10 +1577,12 @@ static void run_cmd(const char *line)
     } else if (strcmp(cmd, "play") == 0) {
         const int b = gc_bot_of(arg && *arg ? arg : nullptr);
         if (b == -2) { log_add("no such bot"); }
+        else if (b == 0 || b == 1) { open_bot(b); return; }   /* P0 B4 */
         else { enter_defend(b < 0 ? 12 : b, SCR_TERMINAL); return; }
     } else if (strcmp(cmd, "defend") == 0) {
         /* v1019 (Dirt #6/#7): CMDP says defend is the typing game; it enters it (was "sealed"). */
         const int b = gc_bot_of(arg && *arg ? arg : nullptr);
+        if (b == 0 || b == 1) { open_bot(b); return; }   /* P0 B4: WiFi/BT have no Defend */
         enter_defend(b < 0 ? 12 : b, SCR_TERMINAL);
         return;
     } else {
@@ -3166,17 +3181,16 @@ static uint32_t chip_t0(void)
 static void chip_set_t0(uint32_t t) { memcpy(chip_mem() + 8, &t, 4); }
 static bool chip_is_game(int bot, int defend)
 {
-    if (bot == 6) return true;
-    return defend && bot >= 12;
+    return (bot >= 2 && bot <= 11) || (defend && bot >= 12);
 }
 static bool chip_now(int *bot, int *defend)
 {
     if (s_screen == SCR_WIFI_RADAR) { *bot = 0; *defend = 0; return true; }
     if (s_screen == SCR_BT_RADAR) { *bot = 1; *defend = 0; return true; }
-    if (s_screen == SCR_SCAN && (s_scan_bot == 0 || s_scan_bot == 1 || s_scan_bot == 6 || s_scan_bot >= 12)) {
+    if (s_screen == SCR_SCAN && s_scan_bot >= 0 && s_scan_bot <= 12) {
         *bot = s_scan_bot; *defend = 0; return true;
     }
-    if (s_screen == SCR_GCHAT && (s_defend_bot == 6 || s_defend_bot >= 12)) {
+    if (s_screen == SCR_GCHAT && s_defend_bot >= 2 && s_defend_bot <= 12) {
         *bot = s_defend_bot; *defend = 1; return true;
     }
     return false;
@@ -3208,9 +3222,11 @@ static void chip_to_next(uint8_t *m)
 {
     if (chip_is_game(m[5], m[6])) {
         m[0] = CH_PLAY;
-        if (m[5] == 6 && s_screen != SCR_GCHAT) {
+        if (s_screen != SCR_GCHAT) {
             m[12] = 1;
-            enter_defend(6, s_screen);
+            enter_defend(m[5], s_screen);
+        } else {
+            dl_begin(m[5]);   /* P0 C3: a press on an open Defend board restarts the round */
         }
     } else {
         m[0] = CH_IDLE; m[1] = 0; m[2] = 1;
@@ -4398,7 +4414,7 @@ static const int8_t BH_DEV[13][2] = {
     { GL_AP, -1 },      /* 2 deauth */
     { GL_LAPTOP, -1 },  /* 3 hack */
     { GL_CAMERA, -1 },  /* 4 flock */
-    { GL_UNKNOWN, -1 }, /* 5 drone */
+    { GL_DRONE, -1 },   /* 5 drone */
     { GL_TRACKER, -1 }, /* 6 airtag */
     { GL_CAR, -1 },     /* 7 keyfob */
     { GL_WATCH, -1 },   /* 8 meta */
@@ -6814,6 +6830,14 @@ static int gc_bot_of(const char *arg)
     return -2;
 }
 
+static void gc_d13(const char *typed)
+{
+    /* P0 D13: WiFi/BT have no Defend game. One line, no state change. */
+    char row[44];
+    snprintf(row, sizeof(row), "[ ?? ] %s", typed);
+    gc_push(dl_bot(), row);
+}
+
 static void gc_run(const char *line)
 {
     char buf[40];
@@ -6822,6 +6846,9 @@ static void gc_run(const char *line)
     while (*cmd == ' ') ++cmd;
     if (!cmd[0]) return;
     hist_push(cmd);
+    char typed[40];
+    snprintf(typed, sizeof(typed), "%s", cmd);
+    for (int k = (int)strlen(typed) - 1; k >= 0 && typed[k] == ' '; --k) typed[k] = 0;
     char *sp = strchr(cmd, ' ');
     char *arg = 0;
     if (sp) {
@@ -6836,7 +6863,13 @@ static void gc_run(const char *line)
     if (strcmp(cmd, "attack") == 0 || strcmp(cmd, "prompts") == 0) { s_gc_panel = 2; gc_push(12, "attack prompts"); return; }
     if (strcmp(cmd, "defend") == 0 && arg && arg[0]) {
         const int b = gc_bot_of(arg);
-        if (b >= -1) { s_defend_bot = b < 0 ? 12 : b; s_gc_panel = 0; gc_push(12, "defend set"); return; }
+        if (b == 0 || b == 1) { gc_d13(typed); return; }   /* P0 B3 */
+        if (b >= -1) {                                      /* P0 B2: the live round starts on that board */
+            s_defend_bot = b < 0 ? 12 : b; s_gc_panel = 0;
+            dl_begin(s_defend_bot);
+            gc_push(12, "defend set");
+            return;
+        }
     }
     bool start_def = false;
     if (strcmp(cmd, "load") == 0 && arg && strcmp(arg, "game") == 0) start_def = true;   /* v1019: CMD hint "screen|game" */
@@ -6848,6 +6881,8 @@ static void gc_run(const char *line)
         }
         start_def = true;
     }
+    if (strcmp(cmd, "jackin") == 0) start_def = true;
+    if (start_def && (dl_bot() == 0 || dl_bot() == 1)) { gc_d13(typed); return; }   /* P0 B3 (D13) */
     s_gc_panel = 0;
     char echo[40];
     snprintf(echo, sizeof(echo), "gibson> %.16s%s%.10s", cmd, (arg && arg[0]) ? " " : "", arg ? arg : "");
@@ -6864,6 +6899,7 @@ static void gc_run(const char *line)
         return;
     }
     if (strcmp(cmd, "jackin") == 0 || start_def) {
+        if (dl_bot() >= 2 && dl_bot() <= 12) dl_begin(dl_bot());   /* P0 B1: typed start plays */
         gc_push(12, "jacking you in");
         gc_push(3, "shields up");
         gc_push(5, "eyes on the lanes");
@@ -6972,17 +7008,79 @@ static void gc_run(const char *line)
     gc_push(12, "no such command");
 }
 
+/* P0 §4.2: the BOARD group of the Defend Tab sheet (game boards 2..12 only; WiFi/BT keep the old sheet). */
+static const char *const GB_SIG[13] = {
+    0, 0, "kick", "trace", "blind", "ground", "ghost", "roll", "blur", "void", "null", "echo", "overload"
+};
+static const char *const GB_SUBS[13] = {
+    0, 0, "flood twin", "rst burn", "plate mask", "spoof land", "mute unpair", "relay seal", "cover glitch",
+    "spot flag", "replay clone", "ring unlink", "core root"
+};
+static const char *const GB_GIB_NAMES[5] = {
+    "wifi bluetooth deauth hack flock", "drone airtag keyfob meta skimmer", "flipper samsung wi-fi ap phone",
+    "laptop tv speaker tracker watch", "camera car unknown printer"
+};
+static int gc_bn(void)
+{
+    const int b = dl_bot();
+    if (b < 2 || b > 12) return 0;
+    return b == 12 ? 12 : 7;
+}
+static void gc_board_names(int b, char *out, size_t cap)
+{
+    char lb[16];
+    snprintf(lb, sizeof lb, "%s", GL_LABEL[bot_dev_kind(b)]);
+    for (char *c = lb; *c; ++c) if (*c >= 'A' && *c <= 'Z') *c = (char)(*c - 'A' + 'a');
+    if (strcmp(lb, BOTS[b].short_name) == 0) snprintf(out, cap, "%s", BOTS[b].short_name);
+    else snprintf(out, cap, "%s %s", BOTS[b].short_name, lb);
+}
+/* Row r of the BOARD group: name col and prompt col. Returns 1 = verb row, 2 = restart, 0 = info row. */
+static int gc_board_row(int r, const char **nm, char *pp, size_t cap)
+{
+    const int b = dl_bot();
+    static const char *const VERB[4] = { "scan", "lock", "zap", "purge" };
+    *nm = "";
+    pp[0] = 0;
+    if (r < 4) {
+        *nm = VERB[r];
+        if (b == 12) snprintf(pp, cap, "any name"); else gc_board_names(b, pp, cap);
+        return 1;
+    }
+    if (r == 4) { *nm = "restart"; snprintf(pp, cap, "round"); return 2; }
+    if (r == 5) {
+        *nm = GB_SIG[b];
+        if (b == 12) snprintf(pp, cap, "all live"); else gc_board_names(b, pp, cap);
+        return 1;
+    }
+    if (r == 6) { *nm = "subs"; snprintf(pp, cap, "%s", GB_SUBS[b]); return 0; }
+    if (b == 12 && r >= 7 && r < 12) {
+        *nm = r == 7 ? "names" : "";
+        snprintf(pp, cap, "%s", GB_GIB_NAMES[r - 7]);
+    }
+    return 0;
+}
+
 static void gc_pick(void)
 {
+    const int bn = gc_bn();
     if (s_sheet_i < 0) s_sheet_i = 0;
-    if (s_sheet_i >= GC_N) s_sheet_i = GC_N - 1;
+    if (s_sheet_i >= bn + GC_N) s_sheet_i = bn + GC_N - 1;
     s_sheet = false;
-    if (GC_ARG[s_sheet_i]) {
-        snprintf(s_gp_buf, sizeof(s_gp_buf), "%s ", GC_NM[s_sheet_i]);
+    if (s_sheet_i < bn) {
+        const char *nm = "";
+        char pp[40];
+        const int k = gc_board_row(s_sheet_i, &nm, pp, sizeof pp);
+        if (k == 1) snprintf(s_gp_buf, GP_BUF_N, "%s ", nm);
+        else if (k == 2) zap_try_cmd("restart");
+        return;
+    }
+    const int ci = s_sheet_i - bn;
+    if (GC_ARG[ci]) {
+        snprintf(s_gp_buf, GP_BUF_N, "%s ", GC_NM[ci]);
         return;
     }
     s_gp_buf[0] = 0;
-    gc_run(GC_NM[s_sheet_i]);
+    gc_run(GC_NM[ci]);
 }
 
 static void gc_row_at(int row, int *hdr, int *cmd)
@@ -7013,18 +7111,20 @@ static void paint_gc_sheet(Gfx g)
     const uint8_t ac = PAL_CYAN;
     const int rh = 12;
     const int vis = 8;
-    const int rows = GC_N + 5;
+    const int bn = gc_bn();
+    const int bh = bn ? bn + 1 : 0;      /* P0 §4.2: BOARD header + its rows lead the sheet */
+    const int rows = bh + GC_N + 5;
     int sel = s_sheet_i;
     if (sel < 0) sel = 0;
-    if (sel >= GC_N) sel = GC_N - 1;
-    int sel_row = 0;
+    if (sel >= bn + GC_N) sel = bn + GC_N - 1;
+    int sel_row = sel < bn ? 1 + sel : 0;
     int seen = 0;
-    for (int row = 0; row < rows; ++row) {
+    for (int row = 0; sel >= bn && row < GC_N + 5; ++row) {
         int hdr = -1;
         int cmd = 0;
         gc_row_at(row, &hdr, &cmd);
-        if (hdr < 0 && cmd == sel) {
-            sel_row = row;
+        if (hdr < 0 && cmd == sel - bn) {
+            sel_row = bh + row;
             break;
         }
         if (hdr < 0) ++seen;
@@ -7045,14 +7145,33 @@ static void paint_gc_sheet(Gfx g)
     for (int k = 0; k < vis; ++k) {
         int hdr = -1;
         int cmd = 0;
-        gc_row_at(top + k, &hdr, &cmd);
         const int y = by + 5 + k * rh;
+        const int row = top + k;
+        if (row < bh) {
+            if (row == 0) {
+                txt(g, "BOARD", bx + 8, y, ac, lgfx::textdatum::top_left);
+                g.fillRect(bx + 48, y + 4, 220, 1, PAL_WIRE_C);
+                continue;
+            }
+            const char *nm = "";
+            char pp[40];
+            gc_board_row(row - 1, &nm, pp, sizeof pp);
+            const bool on = row - 1 == sel;
+            const uint8_t bg = on ? ac : (uint8_t)PAL_BLACK;
+            const uint8_t fg = on ? (uint8_t)PAL_BLACK : (uint8_t)COL_INK;
+            if (on) g.fillRect(bx + 2, y - 1, 288, rh - 1, ac);
+            if (nm[0]) txt_bg(g, nm, bx + 18, y, fg, bg, lgfx::textdatum::top_left);
+            txt_bg(g, pp, bx + 84, y, on ? (uint8_t)PAL_BLACK : (uint8_t)COL_MUTED,
+                   bg, lgfx::textdatum::top_left);
+            continue;
+        }
+        gc_row_at(row - bh, &hdr, &cmd);
         if (hdr >= 0) {
             txt(g, GC_GN[hdr], bx + 8, y, ac, lgfx::textdatum::top_left);
             g.fillRect(bx + 48, y + 4, 220, 1, PAL_WIRE_C);
             continue;
         }
-        const bool on = cmd == sel;
+        const bool on = cmd + bn == sel;
         const uint8_t bg = on ? ac : (uint8_t)PAL_BLACK;
         const uint8_t fg = on ? (uint8_t)PAL_BLACK : (uint8_t)COL_INK;
         if (on) g.fillRect(bx + 2, y - 1, 288, rh - 1, ac);
@@ -7180,18 +7299,48 @@ static void paint_gc_attack(Gfx g)
     g.fillRect(bx + 2, by + 2, bw - 4, 12, PAL_DEEP);
     const int keep = s_px; s_px = 6;
     txt(g, "ATTACK PROMPTS", bx + 8, by + 4, ac, lgfx::textdatum::top_left);
-    txt(g, "mock-first", bx + bw - 64, by + 4, PAL_MUTED, lgfx::textdatum::top_left);
-    for (int i = 0; i < 12; ++i) {
-        const int col = i / 6, row = i % 6;
-        const int cx = bx + 6 + col * 148, cy = by + 18 + row * 31;
-        g.fillRect(cx, cy + 2, 10, 10, bot_color(i));
-        char nm[16]; snprintf(nm, sizeof(nm), "%s", BOTS[i].id);
-        if (nm[0] >= 'a' && nm[0] <= 'z') nm[0] = (char)(nm[0] - 'a' + 'A');
-        txt(g, nm, cx + 16, cy, PAL_IVORY, lgfx::textdatum::top_left);
-        char tg[18]; snprintf(tg, sizeof(tg), "%s", BOTS[i].target);
-        txt(g, tg, cx + 16, cy + 10, PAL_MUTED, lgfx::textdatum::top_left);
-        txt(g, ATK_CAT_NM[ATK_CAT[i]], cx + 16, cy + 20, ac, lgfx::textdatum::top_left);
+    /* P0 §4.3: the board's own names + verbs. Board = the Terminal slot, or the open Defend board. */
+    const int b = s_screen == SCR_TERMINAL ? term_slot_bot(s_term) : dl_bot();
+    char silk[16];
+    snprintf(silk, sizeof silk, "%s", (b >= 0 && b < 12) ? BOTS[b].id : "gibson");
+    for (char *c = silk; *c; ++c) if (*c >= 'a' && *c <= 'z') *c = (char)(*c - 'a' + 'A');
+    txt(g, silk, bx + bw - 8, by + 4, PAL_MUTED, lgfx::textdatum::top_right);
+    static const char *const GIB_NM[5] = {
+        "wifi bluetooth deauth hack flock drone", "airtag keyfob meta skimmer flipper",
+        "samsung wi-fi ap phone laptop tv", "speaker tracker watch camera car", "unknown printer"
+    };
+    const char *lab[9] = { 0 };
+    const char *val[9] = { 0 };
+    char nmv[40], sgv[16], sbv[16];
+    int nrow = 0;
+    if (b == 0 || b == 1) {
+        lab[0] = "core"; val[0] = "scan";
+        lab[1] = "ok"; val[1] = "scan";
+        nrow = 2;
+    } else if (b >= 2 && b <= 11) {
+        gc_board_names(b, nmv, sizeof nmv);
+        snprintf(sgv, sizeof sgv, "%s", GB_SIG[b]);
+        snprintf(sbv, sizeof sbv, "%s", GB_SUBS[b]);
+        lab[0] = "names"; val[0] = nmv;
+        lab[1] = "core"; val[1] = "scan lock zap purge restart";
+        lab[2] = "sig"; val[2] = sgv;
+        lab[3] = "subs"; val[3] = sbv;
+        lab[4] = "ok"; val[4] = "start defend";
+        nrow = 5;
+    } else {
+        for (int k = 0; k < 5; ++k) { lab[k] = k == 0 ? "names" : 0; val[k] = GIB_NM[k]; }
+        lab[5] = "core"; val[5] = "scan lock zap purge restart";
+        lab[6] = "sig"; val[6] = "overload";
+        lab[7] = "subs"; val[7] = "core root";
+        lab[8] = "ok"; val[8] = "start defend";
+        nrow = 9;
     }
+    for (int k = 0; k < nrow; ++k) {
+        const int y = by + 18 + k * 12;
+        if (lab[k]) txt(g, lab[k], bx + 8, y, ac, lgfx::textdatum::top_left);
+        txt(g, val[k], bx + 56, y, PAL_IVORY, lgfx::textdatum::top_left);
+    }
+    (void)ATK_CAT; (void)ATK_CAT_NM;
     s_px = keep;
 }
 
@@ -7617,7 +7766,7 @@ static void activate(void)
             const int n = (int)(sizeof(GP_CMD) / sizeof(GP_CMD[0]));
             if (!s_gp_buf[0]) {          /* nothing picked yet: Enter picks the first / next one */
                 s_hub_cmd = (s_hub_cmd + 1) % n;
-                snprintf(s_gp_buf, sizeof(s_gp_buf), "%s", GP_CMD[s_hub_cmd]);
+                snprintf(s_gp_buf, GP_BUF_N, "%s", GP_CMD[s_hub_cmd]);
                 partial_gp_strip();
                 break;
             }
@@ -8367,8 +8516,9 @@ static void on_arrows(int key)
         if (dl_live() && !s_key_fn && !s_sheet) { dl_steer(key); s_dirty = true; return; }
         /* v1019y: arrows are button navigators. Sheet when open; otherwise the menu chip. Never the prompt. */
         if (s_sheet) {
-            if (key == 1 || key == 3) s_sheet_i = (s_sheet_i + GC_N - 1) % GC_N;
-            if (key == 2 || key == 4) s_sheet_i = (s_sheet_i + 1) % GC_N;
+            const int sn = gc_bn() + GC_N;   /* P0 §4.2 */
+            if (key == 1 || key == 3) s_sheet_i = (s_sheet_i + sn - 1) % sn;
+            if (key == 2 || key == 4) s_sheet_i = (s_sheet_i + 1) % sn;
             s_dirty = true;
             return;
         }
@@ -8384,7 +8534,7 @@ static void on_arrows(int key)
             /* v1019 (Dirt #6): Left/Right cycle the command menu into the prompt; Enter runs it */
             const int n = (int)(sizeof(GP_CMD) / sizeof(GP_CMD[0]));
             s_hub_cmd = s_hub_cmd < 0 ? (key == 4 ? 0 : n - 1) : (s_hub_cmd + (key == 4 ? 1 : n - 1)) % n;
-            snprintf(s_gp_buf, sizeof(s_gp_buf), "%s", GP_CMD[s_hub_cmd]);
+            snprintf(s_gp_buf, GP_BUF_N, "%s", GP_CMD[s_hub_cmd]);
             partial_gp_strip();
             return;
         }
@@ -8684,7 +8834,14 @@ static void on_ok(void)
             return;
         }
         if (s_term_prompt) return;   /* v1017c: Enter on an empty prompt does nothing (hub: same) */
-        if (s_term_ovl) return;      /* #10: the attack/glossary overlay is a viewer; Esc closes it */
+        if (s_term_ovl == 2) {       /* P0 §4.3: Enter on the attack prompts opens that board */
+            const int b = term_slot_bot(s_term);
+            s_term_ovl = 0;
+            if (b >= 2 && b <= 12) enter_defend(b, SCR_TERMINAL);
+            else open_bot(b);
+            return;
+        }
+        if (s_term_ovl) return;      /* #10: the glossary overlay is a viewer; Esc closes it */
         if (s_atk_btn) {
             /* #10: Enter on the attack-prompt button pulls up the per-bot/device attack prompts. */
             s_atk_btn = false;
@@ -8867,7 +9024,7 @@ static void on_tab(void)
     if (s_screen == SCR_GCHAT) {
         /* MOD item 2: Tab opens the command sheet and then steps it (arrows no longer do); Esc closes */
         if (!s_sheet) { s_sheet = true; s_sheet_i = 0; }
-        else s_sheet_i = (s_sheet_i + 1) % GC_N;
+        else s_sheet_i = (s_sheet_i + 1) % (gc_bn() + GC_N);   /* P0 §4.2 */
         s_dirty = true;
         return;
     }
@@ -8904,7 +9061,7 @@ static void on_char(char c)
     if (s_screen == SCR_GCHAT) {
         if (c >= 'A' && c <= 'Z') c = (char)(c - 'A' + 'a');
         const size_t n = strlen(s_gp_buf);
-        if (n + 1 < sizeof(s_gp_buf) && c >= 32 && c < 127) {
+        if (n + 1 < GP_BUF_N && c >= 32 && c < 127) {
             const size_t at = (s_gc_caret < 0 || (size_t)s_gc_caret > n) ? n : (size_t)s_gc_caret;
             memmove(s_gp_buf + at + 1, s_gp_buf + at, n - at + 1);   /* MOD item 2: insert at the caret */
             s_gp_buf[at] = c;
@@ -8919,7 +9076,7 @@ static void on_char(char c)
         if (s_hub_zone != 1) { s_hub_zone = 1; s_dirty = true; }
         if (c >= 'A' && c <= 'Z') c = (char)(c - 'A' + 'a');
         const size_t n = strlen(s_gp_buf);
-        if (n + 1 < sizeof(s_gp_buf) && c >= 32 && c < 127) {
+        if (n + 1 < GP_BUF_N && c >= 32 && c < 127) {
             s_gp_buf[n] = c;
             s_gp_buf[n + 1] = 0;
         }
@@ -8996,7 +9153,7 @@ enum { K_NONE = 0, K_UP = 1, K_DN = 2, K_LT = 3, K_RT = 4, K_OK = 5, K_ESC = 6, 
 
 static bool v2_left_on(int bot)
 {
-    return bot == 0 || bot == 1 || bot == 6 || bot >= 12;
+    return bot >= 0 && bot <= 12;
 }
 static const int V2_BX = 34, V2_BY = 67, V2_S = 54;
 static void v2_ticker(Gfx g)
@@ -9385,7 +9542,7 @@ static void gp_run(const char *line)
     }
     if (strcmp(cmd, "go") == 0 || strcmp(cmd, "load") == 0) {
         if (!arg || !arg[0]) {
-            snprintf(s_gp_buf, sizeof(s_gp_buf), "%s ", cmd);
+            snprintf(s_gp_buf, GP_BUF_N, "%s ", cmd);
             gp_push("need a screen");
             partial_gp_strip();
             return;
@@ -9548,10 +9705,11 @@ static void ui_dispatch(int key, char typed)
             return;
         }
         if (s_gp_buf[0]) {
-            char line[28];
+            char line[GP_BUF_N];
             snprintf(line, sizeof(line), "%s", s_gp_buf);
             s_gp_buf[0] = 0;
             s_gc_caret = -1; s_gc_hist_i = -1;
+            if (zap_try_cmd(line)) { hist_push(line); s_dirty = true; return; }   /* P0 P1 */
             gc_run(line);
             s_dirty = true;
             return;
@@ -10115,6 +10273,7 @@ void botcorps_host_jackin(uint8_t *buf)
     gc_set_count(0);
     gc_run("jackin");
     paint_ext(Gfx());
+    s_dl_on = 0;   /* P0 B1: jackin now starts a live round; the hook leaves none behind (as e7ba692's idle shell) */
 }
 
 /* v1019j: Defend game host hooks. The game is entered through the real Defend path (enter_defend)
@@ -11151,6 +11310,679 @@ void botcorps_host_chip_rows(void *file)
         if (f) fprintf(f, "GD3\t%d\t%d\t%d\n", n, rows, rows);
     }
     if (f) fprintf(f, "RAINWIN\t0\t0\n");
+}
+/* P0 v003 gate frames (host only, rendered into <dir>/p0/ after every locked screen; gate.py G2g/G8/G15). */
+void botcorps_host_p0_sheet(uint8_t *buf, int bot)
+{
+    botcorps_host_gchat(buf);
+    s_fa_on = false;
+    s_defend_bot = bot;
+    s_sheet = true;
+    s_sheet_i = 0;
+    paint_ext(Gfx());
+    s_sheet = false;
+    s_defend_bot = 12;
+}
+void botcorps_host_p0_sheet_at(uint8_t *buf, int bot, int sel)
+{
+    botcorps_host_gchat(buf);
+    s_fa_on = false;
+    s_defend_bot = bot;
+    s_sheet = true;
+    s_sheet_i = sel;
+    paint_ext(Gfx());
+    s_sheet = false;
+    s_sheet_i = 0;
+    s_defend_bot = 12;
+}
+void botcorps_host_p0_atk(uint8_t *buf, int slot)
+{
+    botcorps_host_enter(buf, SCR_TERMINAL);
+    s_term = slot;
+    s_term_ovl = 2;
+    memset(buf, PAL_BLACK, 320u * 240u);
+    paint_ext(Gfx());
+    s_term_ovl = 0;
+    s_term = 0;
+}
+/* P0 v003 functional rows (host only). One row per gate per board: "P0\t<gate>\t<item>\t<ok>\t<detail>".
+ * Expected names / verbs / subs / strings are typed from ARCH-GAME-P0-CHIP-PROMPT-v003 §4-§5, not read
+ * from the def.inc tables they test. Each case runs on a fresh round at a fixed clock; awards and the
+ * high score are pinned (hi huge, every award bit set) so NVS carry-over cannot make two rounds differ. */
+extern int host_rain_devsel_seen;          /* tools/host/rain_bridge.cpp: devsel the rain drew with (G3) */
+extern uint8_t host_rain_devsel[3];
+namespace p0t {
+static FILE *s_f = nullptr;
+static const char *const OWN[13][2] = {
+    { 0, 0 }, { 0, 0 }, { "deauth", "wi-fi ap" }, { "hack", "laptop" }, { "flock", "camera" }, { "drone", 0 },
+    { "airtag", "tracker" }, { "keyfob", "car" }, { "meta", "watch" }, { "skimmer", "unknown" }, { "flipper", "tv" },
+    { "samsung", "tracker" }, { 0, 0 }
+};
+static const char *const SIG[13] = { 0, 0, "kick", "trace", "blind", "ground", "ghost", "roll", "blur", "void", "null", "echo", "overload" };
+static const char *const SUB[13][2] = {
+    { 0, 0 }, { 0, 0 }, { "flood", "twin" }, { "rst", "burn" }, { "plate", "mask" }, { "spoof", "land" }, { "mute", "unpair" },
+    { "relay", "seal" }, { "cover", "glitch" }, { "spot", "flag" }, { "replay", "clone" }, { "ring", "unlink" }, { "core", "root" }
+};
+static const char *const UNI[23] = {
+    "wifi", "bluetooth", "deauth", "hack", "flock", "drone", "airtag", "keyfob", "meta", "skimmer", "flipper", "samsung",
+    "wi-fi ap", "phone", "laptop", "tv", "speaker", "tracker", "watch", "camera", "car", "unknown", "printer"
+};
+static int UNI_K[23] = {
+    -1, -1, GL_AP, GL_LAPTOP, GL_CAMERA, GL_DRONE, GL_TRACKER, GL_CAR, GL_WATCH, GL_UNKNOWN, GL_TV, GL_TRACKER,
+    GL_AP, GL_PHONE, GL_LAPTOP, GL_TV, GL_SPEAKER, GL_TRACKER, GL_WATCH, GL_CAMERA, GL_CAR, GL_UNKNOWN, GL_PRINTER
+};
+static uint32_t s_t = 20000u;
+static void row(const char *gate, const char *item, bool ok, const char *detail)
+{
+    if (s_f) fprintf(s_f, "P0\t%s\t%s\t%d\t%s\n", gate, item, ok ? 1 : 0, detail && detail[0] ? detail : "-");
+}
+static void up(const char *in, char *out, size_t cap)
+{
+    snprintf(out, cap, "%s", in);
+    for (char *c = out; *c; ++c) if (*c >= 'a' && *c <= 'z') *c = (char)(*c - 'a' + 'A');
+}
+static bool own(int b, const char *n)
+{
+    if (b >= 12) return true;
+    return (OWN[b][0] && strcmp(OWN[b][0], n) == 0) || (OWN[b][1] && strcmp(OWN[b][1], n) == 0);
+}
+static int nown(int b) { return OWN[b][1] ? 2 : 1; }
+static bool is_sub(int b, const char *s) { return strcmp(SUB[b][0], s) == 0 || strcmp(SUB[b][1], s) == 0; }
+/* Fresh live round on board b at a fixed clock. */
+static void board(int b)
+{
+    host_set_millis(s_t);
+    s_sheet = false; s_gc_panel = 0; s_fa_on = false; s_act = -1;
+    s_gp_buf[0] = 0; s_gc_caret = -1; s_gc_hist_i = -1;
+    gc_set_count(0);
+    enter_defend(b, SCR_GIBSON);
+    s_dl_hi = 1 << 30; s_dl_aw = 0x3FF; s_dl_pop_until = 0; s_dl_pop = -1;
+}
+struct Snap { uint8_t m[sizeof(DlMem)]; int defend, screen; };
+static void snap(Snap &s) { memcpy(s.m, &dl_mem(), sizeof(DlMem)); s.defend = s_defend_bot; s.screen = s_screen; }
+static bool same(const Snap &s) { return memcmp(s.m, &dl_mem(), sizeof(DlMem)) == 0 && s.defend == s_defend_bot && s.screen == s_screen; }
+static int s_n0, s_next0;
+static void mark(void) { s_n0 = s_log_n; s_next0 = s_log_next; }
+static int added(void)
+{
+    int a = (s_log_next - s_next0 + LOG_ROWS) % LOG_ROWS;
+    if (a == 0 && s_log_n != s_n0) a = s_log_n - s_n0;
+    return a;
+}
+static const char *line_at(int k)
+{
+    const char *l = log_slot((s_next0 + k) % LOG_ROWS);
+    return l[0] == '\x01' ? l + 2 : l;                    /* gc_push rows carry a 2-byte bot colour tag */
+}
+/* Type a line through the real key path (K_CHAR ... K_OK) on the open screen. */
+static void type(const char *t)
+{
+    mark();
+    for (const char *c = t; *c; ++c) ui_dispatch(K_CHAR, *c);
+    ui_dispatch(K_OK, 0);
+}
+/* The new log lines must be exactly a[0..n). */
+static bool lines(const char *const *a, int n, char *why, size_t cap)
+{
+    const int got = added();
+    if (got != n) { snprintf(why, cap, "lines %d != %d (%s)", got, n, got ? line_at(got - 1) : ""); return false; }
+    for (int k = 0; k < n; ++k)
+        if (strcmp(line_at(k), a[k]) != 0) { snprintf(why, cap, "line%d '%s' != '%s'", k, line_at(k), a[k]); return false; }
+    return true;
+}
+/* Model of the §3.3 P6 target rule: the live device of that kind with the largest p. */
+static int target(const DlMem &m, int kind)
+{
+    int ti = -1;
+    for (int i = 0; i < DL_MAX; ++i) {
+        if (!m.d[i].live || m.d[i].kind != kind) continue;
+        if (ti < 0 || m.d[i].p > m.d[ti].p) ti = i;
+    }
+    return ti;
+}
+static int kind_of(int b, const char *n)
+{
+    for (int k = 0; k < 23; ++k) if (strcmp(UNI[k], n) == 0) return UNI_K[k];
+    (void)b;
+    return -1;
+}
+/* One valid verb line on a fresh round: exact log lines and the P7 effect. */
+static bool valid_case(int b, const char *verb, const char *name, const char *sub, int pre_acq, int pre_hp, char *why, size_t cap)
+{
+    board(b);
+    const int kind = kind_of(b, name);
+    int ti = target(dl_mem(), kind);
+    if (ti >= 0 && pre_acq) s_dl_d[ti].acq = 1;
+    if (ti >= 0 && pre_hp) s_dl_d[ti].hp = pre_hp;
+    const DlMem m0 = dl_mem();
+    char ln[48], echo[64], res[64], nu[16], vu[12], su[10];
+    if (sub) snprintf(ln, sizeof ln, "%s %s %s", verb, name, sub); else snprintf(ln, sizeof ln, "%s %s", verb, name);
+    snprintf(echo, sizeof echo, "gibson> %s", ln);
+    up(name, nu, sizeof nu); up(verb, vu, sizeof vu); su[0] = 0; if (sub) up(sub, su, sizeof su);
+    type(ln);
+    const DlMem &m = dl_mem();
+    bool ok = true;
+    if (ti < 0 && strcmp(verb, "scan") != 0) {
+        snprintf(res, sizeof res, "[ -- ] NO %s ON GRID", nu);
+        const char *e[2] = { echo, res };
+        ok = lines(e, 2, why, cap) && memcmp(&m0, &m, sizeof m) == 0;
+        if (ok == false && !why[0]) snprintf(why, cap, "state moved");
+        return ok;
+    }
+    if (strcmp(verb, "scan") == 0) {
+        int n = 0;
+        for (int i = 0; i < DL_MAX; ++i) if (m0.d[i].live && m0.d[i].kind == kind) ++n;
+        snprintf(res, sizeof res, "[ .. ] SCAN %s %d LIVE", nu, n);
+        const char *e[2] = { echo, res };
+        if (!lines(e, 2, why, cap)) return false;
+        if (memcmp(&m0, &m, sizeof m) != 0) { snprintf(why, cap, "scan moved state"); return false; }
+        return true;
+    }
+    if (strcmp(verb, "lock") == 0) {
+        snprintf(res, sizeof res, "[ >> ] LOCK %s", nu);
+        const char *e[2] = { echo, res };
+        if (!lines(e, 2, why, cap)) return false;
+        int x, y; DlMem w = m0; w.d[ti].acq = 1;
+        dl_xy(ti, &x, &y);                                   /* p is unchanged by lock */
+        w.rx = x; w.ry = y;
+        if (memcmp(&w, &m, sizeof m) != 0) { snprintf(why, cap, "lock effect"); return false; }
+        return true;
+    }
+    if (strcmp(verb, "purge") == 0) {
+        if (!m0.d[ti].acq) {
+            snprintf(res, sizeof res, "[ ?? ] %s", ln);
+            const char *e[2] = { echo, res };
+            if (!lines(e, 2, why, cap)) return false;
+            if (memcmp(&m0, &m, sizeof m) != 0) { snprintf(why, cap, "unlocked purge moved state"); return false; }
+            return true;
+        }
+        snprintf(res, sizeof res, "[ !! ] PURGE %s NULL", nu);
+        const char *e[2] = { echo, res };
+        if (!lines(e, 2, why, cap)) return false;
+        if (m.nulls != m0.nulls + 1 || m.score != m0.score + 40 + m0.combo * 10 || m.d[ti].hp != 3 || m.d[ti].acq) {
+            snprintf(why, cap, "purge effect"); return false;
+        }
+        return true;
+    }
+    /* zap / signature */
+    const int dmg = (strcmp(verb, "zap") == 0 ? 1 : 2) + (m0.d[ti].acq ? 1 : 0);
+    const bool nul = m0.d[ti].hp - dmg <= 0;
+    if (sub) snprintf(res, sizeof res, "[ !! ] %s %s %s %s", vu, nu, su, nul ? "NULL" : "");
+    else snprintf(res, sizeof res, "[ !! ] %s %s %s", vu, nu, nul ? "NULL" : "");
+    if (!nul) { char t[8]; snprintf(t, sizeof t, "-%d", dmg); strncat(res, t, sizeof res - strlen(res) - 1); }
+    const char *e[2] = { echo, res };
+    if (!lines(e, 2, why, cap)) return false;
+    if (nul) {
+        if (m.nulls != m0.nulls + 1 || m.score != m0.score + dmg * 5 + 40 + m0.combo * 10) { snprintf(why, cap, "null effect"); return false; }
+    } else {
+        DlMem w = m0; w.d[ti].hp -= dmg; w.score += dmg * 5;
+        if (memcmp(&w, &m, sizeof m) != 0) { snprintf(why, cap, "hit effect"); return false; }
+    }
+    return true;
+}
+/* A miss: exactly echo + "[ ?? ] <line>", DlMem / defend bot / screen unchanged. */
+static bool miss_case(int b, const char *ln, char *why, size_t cap)
+{
+    board(b);
+    Snap s; snap(s);
+    char echo[64], res[64];
+    snprintf(echo, sizeof echo, "gibson> %s", ln);
+    snprintf(res, sizeof res, "[ ?? ] %s", ln);
+    type(ln);
+    const char *e[2] = { echo, res };
+    if (!lines(e, 2, why, cap)) return false;
+    if (!same(s)) { snprintf(why, cap, "state moved"); return false; }
+    return true;
+}
+static void ring(void)
+{
+    s_t += 3000u;
+    host_set_millis(s_t);
+    chip_on_key(K_OK);
+    s_t += 2848u;
+    host_set_millis(s_t);
+    chip_tick(); chip_tick(); chip_tick();
+    s_t += 1000u;
+}
+static void g4(void)
+{
+    uint8_t *m = chip_mem();
+    for (int b = 2; b <= 11; ++b) {
+        dl_end();
+        s_scan_bot = b;
+        host_set_millis(s_t);
+        enter_screen(SCR_SCAN, SCR_TERMINAL);
+        const bool armed = m[2] == 1;
+        ring();
+        char it[32], d[96];
+        snprintf(it, sizeof it, "chip start bot %d", b);
+        snprintf(d, sizeof d, "armed=%d screen=%d dl_bot=%d live=%d", (int)armed, s_screen, dl_bot(), (int)dl_live());
+        row("G4", it, armed && s_screen == SCR_GCHAT && dl_bot() == b && dl_live(), d);
+    }
+    /* Gibson via KING slot 0: the Terminal train entry for slot 0 (T10) */
+    dl_end();
+    host_set_millis(s_t);
+    enter_screen(SCR_TERMINAL, -1);
+    s_term = 0;
+    run_cmd("train");
+    char d[96];
+    snprintf(d, sizeof d, "screen=%d dl_bot=%d live=%d", s_screen, dl_bot(), (int)dl_live());
+    row("G4", "Gibson via KING slot 0", s_screen == SCR_GCHAT && dl_bot() == 12 && dl_live(), d);
+}
+static void g5(void)
+{
+    uint8_t *m = chip_mem();
+    for (int b = 2; b <= 12; ++b) {
+        board(b);
+        const bool armed = m[2] == 1 && m[0] == CH_IDLE;
+        const uint32_t t0 = s_dl_t0;
+        s_dl_score = 77;
+        ring();
+        char it[32], d[96];
+        snprintf(it, sizeof it, "chip restart bot %d", b);
+        snprintf(d, sizeof d, "armed=%d live=%d score=%d t0 %u->%u", (int)armed, (int)dl_live(), s_dl_score, (unsigned)t0, (unsigned)s_dl_t0);
+        row("G5", it, armed && dl_live() && s_dl_score == 0 && s_dl_t0 != t0 && dl_bot() == b, d);
+    }
+}
+static void g6(void)
+{
+    uint8_t *m = chip_mem();
+    static const int bots[3] = { 0, 1, 12 };
+    for (int k = 0; k < 3; ++k) {
+        const int b = bots[k];
+        board(6);
+        dl_end();
+        s_scan_bot = b;
+        host_set_millis(s_t);
+        enter_screen(SCR_SCAN, SCR_TERMINAL);
+        Snap s; snap(s);
+        const bool armed = m[2] == 1;
+        ring();
+        const bool rearm = m[0] == CH_IDLE && m[2] == 1;   /* non-game branch: results commit, chip re-arms */
+        char it[32], d[96];
+        snprintf(it, sizeof it, "scan chip bot %d", b);
+        snprintf(d, sizeof d, "armed=%d rearmed=%d screen=%d dl/defend/screen unchanged=%d", (int)armed, (int)rearm, s_screen, (int)same(s));
+        row("G6", it, armed && rearm && s_screen != SCR_GCHAT && same(s), d);
+    }
+}
+static void g7(void)
+{
+    static const char *const st[4] = { "jackin", "jack in", "defend", "load game" };
+    for (int b = 2; b <= 12; ++b) {
+        bool ok = true;
+        char d[96] = "";
+        for (int i = 0; i < 4 && ok; ++i) {
+            board(b); dl_end();
+            type(st[i]);
+            if (!(dl_live() && dl_bot() == b)) { ok = false; snprintf(d, sizeof d, "'%s' live=%d bot=%d", st[i], (int)dl_live(), dl_bot()); }
+        }
+        if (ok) {
+            char ln[32];
+            board(12); dl_end();
+            if (b == 12) snprintf(ln, sizeof ln, "defend gibson"); else snprintf(ln, sizeof ln, "defend %s", OWN[b][0]);
+            type(ln);
+            if (!(dl_live() && dl_bot() == b)) { ok = false; snprintf(d, sizeof d, "'%s' live=%d bot=%d", ln, (int)dl_live(), dl_bot()); }
+        }
+        char it[32];
+        snprintf(it, sizeof it, "typed start bot %d", b);
+        row("G7", it, ok, d);
+    }
+    /* D13: defend bot 0/1 (the start lines), and defend wifi / bluetooth on a 0/1, game and Gibson board. */
+    static const int hosts[4] = { 0, 1, 6, 12 };
+    for (int h = 0; h < 4; ++h) {
+        bool ok = true;
+        char d[96] = "";
+        static const char *const dl[6] = { "jackin", "jack in", "defend", "load game", "defend wifi", "defend bluetooth" };
+        for (int i = (hosts[h] >= 2 ? 4 : 0); i < 6 && ok; ++i) {
+            host_set_millis(s_t);
+            s_sheet = false; s_gc_panel = 0; s_gp_buf[0] = 0; gc_set_count(0);
+            enter_defend(hosts[h], SCR_GIBSON);
+            Snap s; snap(s);
+            char res[48];
+            snprintf(res, sizeof res, "[ ?? ] %s", dl[i]);
+            type(dl[i]);
+            const char *e[1] = { res };
+            char why[96] = "";
+            if (!lines(e, 1, why, sizeof why) || !same(s)) { ok = false; snprintf(d, sizeof d, "'%s' %s same=%d", dl[i], why, (int)same(s)); }
+        }
+        char it[32];
+        snprintf(it, sizeof it, "D13 on bot %d", hosts[h]);
+        row("G7", it, ok, d);
+    }
+}
+static void g8_g20(void)
+{
+    /* Terminal 0/1 state reference: the tile Enter (open_bot) */
+    for (int slot = 0; slot < 12; ++slot) {
+        const int b = term_slot_bot(slot);
+        host_set_millis(s_t);
+        board(6); dl_end();
+        enter_screen(SCR_TERMINAL, -1);
+        botcorps_t0_term_prompt[0] = 0;
+        s_term = slot;
+        s_atk_btn = true;
+        ui_dispatch(K_OK, 0);
+        const bool ovl = s_term_ovl == 2;
+        Snap s; snap(s);
+        ui_dispatch(K_OK, 0);
+        char it[40], d[96];
+        snprintf(it, sizeof it, "overlay Enter slot %d (bot %d)", slot, b);
+        bool ok;
+        if (b >= 2) {
+            ok = ovl && s_screen == SCR_GCHAT && dl_live() && dl_bot() == b;
+        } else {
+            const int scr = s_screen, sb = s_scan_bot;
+            const bool st = same(s) || (memcmp(s.m, &dl_mem(), sizeof(DlMem)) == 0 && s.defend == s_defend_bot);
+            /* tile Enter from the same slot */
+            enter_screen(SCR_TERMINAL, -1);
+            s_term = slot;
+            ui_dispatch(K_OK, 0);
+            ok = ovl && st && sb == b && scr == s_screen && s_scan_bot == b && scr != SCR_GCHAT && scr != SCR_TERMINAL;
+        }
+        snprintf(d, sizeof d, "ovl=%d screen=%d scan_bot=%d dl_bot=%d live=%d", (int)ovl, s_screen, s_scan_bot, dl_bot(), (int)dl_live());
+        row("G8", it, ok, d);
+    }
+    /* G20: Terminal entries for 0/1 open that bot's scan screen; same state as the tile Enter. */
+    for (int b = 0; b <= 1; ++b) {
+        enter_screen(SCR_TERMINAL, -1);
+        s_term = term_bot_slot(b);
+        ui_dispatch(K_OK, 0);
+        const int ref_scr = s_screen, ref_sb = s_scan_bot;
+        const char *const nm = b == 0 ? "wifi" : "bluetooth";
+        char cmds[3][32];
+        snprintf(cmds[0], 32, "defend %s", nm);
+        snprintf(cmds[1], 32, "play %s", nm);
+        snprintf(cmds[2], 32, "train");
+        for (int c = 0; c < 3; ++c) {
+            board(6); dl_end();
+            enter_screen(SCR_TERMINAL, -1);
+            s_term = term_bot_slot(b);
+            Snap s; snap(s);
+            run_cmd(cmds[c]);
+            const bool st = memcmp(s.m, &dl_mem(), sizeof(DlMem)) == 0 && s.defend == s_defend_bot;
+            char it[40], d[96];
+            snprintf(it, sizeof it, "'%s'%s", cmds[c], c == 2 ? (b ? " on BT slot" : " on WiFi slot") : "");
+            snprintf(d, sizeof d, "screen=%d(ref %d) scan_bot=%d dl/defend unchanged=%d", s_screen, ref_scr, s_scan_bot, (int)st);
+            row("G20", it, st && s_screen == ref_scr && s_scan_bot == b && ref_sb == b && s_screen != SCR_GCHAT, d);
+        }
+    }
+    /* defend <b> 2..12 and bare defend still enter Defend from the Terminal */
+    bool ok = true;
+    char d[96] = "";
+    for (int b = 2; b <= 12 && ok; ++b) {
+        board(6); dl_end();
+        enter_screen(SCR_TERMINAL, -1);
+        char ln[32];
+        if (b == 12) snprintf(ln, sizeof ln, "defend"); else snprintf(ln, sizeof ln, "defend %s", OWN[b][0]);
+        run_cmd(ln);
+        if (!(s_screen == SCR_GCHAT && dl_live() && dl_bot() == b)) { ok = false; snprintf(d, sizeof d, "'%s' screen=%d bot=%d", ln, s_screen, dl_bot()); }
+    }
+    row("G20", "Terminal defend <b> 2..12 and bare defend enter Defend", ok, d);
+}
+static void g9_g10_g11(void)
+{
+    static const char *const CORE[4] = { "scan", "lock", "zap", "purge" };
+    for (int b = 2; b <= 12; ++b) {
+        int n = 0, fail = 0;
+        char first[128] = "";
+        auto note = [&](bool ok, const char *why, const char *what) {
+            ++n;
+            if (!ok && !fail++) snprintf(first, sizeof first, "%s: %s", what, why);
+        };
+        const int names = b == 12 ? 23 : nown(b);
+        for (int k = 0; k < names; ++k) {
+            const char *nm = b == 12 ? UNI[k] : OWN[b][k];
+            const char *subs[3] = { 0, SUB[b][0], SUB[b][1] };
+            for (int s = 0; s < 3; ++s) {
+                for (int v = 0; v < 4; ++v) {
+                    char why[128] = "";
+                    note(valid_case(b, CORE[v], nm, subs[s], 0, 0, why, sizeof why), why, CORE[v]);
+                }
+                char why[128] = "";
+                if (b < 12) note(valid_case(b, SIG[b], nm, subs[s], 0, 0, why, sizeof why), why, SIG[b]);
+                why[0] = 0; note(valid_case(b, "purge", nm, subs[s], 1, 0, why, sizeof why), why, "purge locked");
+                why[0] = 0; note(valid_case(b, "zap", nm, subs[s], 1, 0, why, sizeof why), why, "zap locked");
+                why[0] = 0; note(valid_case(b, "zap", nm, subs[s], 0, 1, why, sizeof why), why, "zap null");
+            }
+        }
+        /* restart */
+        {
+            board(b);
+            s_dl_score = 55;
+            s_t += 500u; host_set_millis(s_t);
+            type("restart");
+            const char *e[2] = { "gibson> restart", "[ OK ] ROUND RESTART" };
+            char why[128] = "";
+            const bool ok = lines(e, 2, why, sizeof why) && dl_live() && s_dl_score == 0 && s_dl_t0 == s_t && dl_bot() == b;
+            note(ok, why[0] ? why : "restart state", "restart");
+        }
+        /* bare own names (G9 + G11) */
+        int n11 = 0, f11 = 0;
+        char first11[96] = "";
+        for (int k = 0; k < names; ++k) {
+            const char *nm = b == 12 ? UNI[k] : OWN[b][k];
+            board(b);
+            type(nm);
+            uint8_t a[sizeof(DlMem)];
+            memcpy(a, &dl_mem(), sizeof a);
+            char got1[48];
+            snprintf(got1, sizeof got1, "%s", added() >= 2 ? line_at(1) : "");
+            char ln[32];
+            snprintf(ln, sizeof ln, "zap %s", nm);
+            board(b);
+            type(ln);
+            ++n11;
+            if (memcmp(a, &dl_mem(), sizeof a) != 0 || strcmp(got1, added() >= 2 ? line_at(1) : "#") != 0) {
+                if (!f11++) snprintf(first11, sizeof first11, "'%s' vs '%s'", nm, ln);
+            }
+        }
+        char it[48], d[160];
+        snprintf(it, sizeof it, "table parse bot %d", b);
+        snprintf(d, sizeof d, "%d cases, %d fail %s", n, fail, first);
+        row("G9", it, fail == 0 && n > 0, d);
+        snprintf(it, sizeof it, "bare name = zap bot %d", b);
+        snprintf(d, sizeof d, "%d names, %d fail %s", n11, f11, first11);
+        row("G11", it, f11 == 0 && n11 > 0, d);
+        if (b == 12) continue;
+        /* G10 cross-board */
+        int n10 = 0, f10 = 0;
+        char first10[96] = "";
+        auto m10 = [&](const char *ln) {
+            char why[128] = "";
+            ++n10;
+            if (!miss_case(b, ln, why, sizeof why) && !f10++) snprintf(first10, sizeof first10, "'%s' %s", ln, why);
+        };
+        for (int k = 0; k < 23; ++k) {
+            if (own(b, UNI[k])) continue;
+            char ln[40];
+            snprintf(ln, sizeof ln, "zap %s", UNI[k]); m10(ln);
+            m10(UNI[k]);
+        }
+        for (int o = 2; o <= 12; ++o) {
+            if (o == b) continue;
+            char ln[40];
+            snprintf(ln, sizeof ln, "%s %s", SIG[o], OWN[b][0]); m10(ln);
+            for (int s = 0; s < 2; ++s) {
+                if (is_sub(b, SUB[o][s])) continue;
+                snprintf(ln, sizeof ln, "zap %s %s", OWN[b][0], SUB[o][s]); m10(ln);
+            }
+        }
+        snprintf(it, sizeof it, "cross-board bot %d", b);
+        snprintf(d, sizeof d, "%d lines, %d fail %s", n10, f10, first10);
+        row("G10", it, f10 == 0 && n10 > 0, d);
+    }
+}
+static void g12_g13(void)
+{
+    board(12);
+    s_dl_d[0].acq = 1;
+    s_dl_d[3].live = 0;
+    DlMem m0 = dl_mem();
+    int k = 0;
+    for (int i = 0; i < DL_MAX; ++i) if (m0.d[i].live) ++k;
+    type("overload");
+    char res[48], why[128] = "";
+    snprintf(res, sizeof res, "[ !! ] OVERLOAD %d HIT", k);
+    const char *e[2] = { "gibson> overload", res };
+    bool ok = lines(e, 2, why, sizeof why);
+    DlMem w = m0;
+    for (int i = 0; i < DL_MAX; ++i) if (w.d[i].live) { const int dm = 1 + (w.d[i].acq ? 1 : 0); w.d[i].hp -= dm; w.score += dm * 5; }
+    if (ok && memcmp(&w, &dl_mem(), sizeof w) != 0) { ok = false; snprintf(why, sizeof why, "overload effect"); }
+    char d[160];
+    snprintf(d, sizeof d, "k=%d %s", k, why);
+    row("G12", "Gibson overload, 1 locked, 1 dead", ok, d);
+    board(12);
+    type("overload root");
+    snprintf(res, sizeof res, "[ !! ] OVERLOAD 6 HIT ROOT");
+    const char *e2[2] = { "gibson> overload root", res };
+    why[0] = 0;
+    row("G12", "Gibson overload root", lines(e2, 2, why, sizeof why), why);
+    int hits = 0, none = 0, bad = 0;
+    char first[96] = "";
+    for (int n = 0; n < 23; ++n) {
+        board(12);
+        const int ti = target(dl_mem(), UNI_K[n]);
+        char ln[32], nu[16], ex[48];
+        snprintf(ln, sizeof ln, "zap %s", UNI[n]);
+        up(UNI[n], nu, sizeof nu);
+        if (ti >= 0) snprintf(ex, sizeof ex, "[ !! ] ZAP %s -1", nu); else snprintf(ex, sizeof ex, "[ -- ] NO %s ON GRID", nu);
+        type(ln);
+        const char *got = added() >= 2 ? line_at(1) : "";
+        if (strcmp(got, ex) != 0 || strncmp(got, "[ ?? ]", 6) == 0) { if (!bad++) snprintf(first, sizeof first, "'%s' -> '%s'", ln, got); }
+        else if (ti >= 0) ++hits; else ++none;
+    }
+    snprintf(d, sizeof d, "23 names: %d hit, %d none live, %d bad %s", hits, none, bad, first);
+    row("G13", "Gibson accepts all 23 names", bad == 0 && hits + none == 23, d);
+}
+static void g14(void)
+{
+    for (int b = 2; b <= 12; ++b) {
+        char d[128] = "", why[128] = "";
+        bool ok = true;
+        board(b);
+        s_t += DL_TIME0 + 1000u; host_set_millis(s_t);
+        dl_step(s_t);                      /* time out -> dl_end */
+        const bool ended = !s_dl_on;
+        type("restart");
+        if (!(ended && dl_live())) { ok = false; snprintf(d, sizeof d, "restart: ended=%d live=%d", (int)ended, (int)dl_live()); }
+        board(b); dl_end();
+        mark();
+        ui_dispatch(K_OK, 0);              /* empty Enter: chip armed+idle takes it (ring), else gc_run("jackin") */
+        const bool direct = dl_live();
+        if (!direct) { s_t += 2848u; host_set_millis(s_t); chip_tick(); chip_tick(); chip_tick(); s_t += 1000u; }
+        if (ok && !dl_live()) { ok = false; snprintf(d, sizeof d, "empty Enter not live (chip m0=%d m2=%d)", chip_mem()[0], chip_mem()[2]); }
+        else if (ok) snprintf(d, sizeof d, "empty Enter live via %s", direct ? "gc_run jackin" : "chip ring");
+        board(b); dl_end();
+        Snap s; snap(s);
+        char ln[32];
+        snprintf(ln, sizeof ln, "zap %s", b == 12 ? "phone" : OWN[b][0]);
+        char echo[48];
+        snprintf(echo, sizeof echo, "gibson> %s", ln);
+        type(ln);
+        const char *e[2] = { echo, "[ -- ] ROUND OVER: RESTART" };
+        if (ok && (!lines(e, 2, why, sizeof why) || !same(s))) { ok = false; snprintf(d, sizeof d, "not live: %s same=%d", why, (int)same(s)); }
+        char it[32];
+        snprintf(it, sizeof it, "restart after end bot %d", b);
+        row("G14", it, ok, d);
+    }
+}
+static void g18(void)
+{
+    board(12);
+    const char *t = "overload bluetooth root";
+    for (const char *c = t; *c; ++c) ui_dispatch(K_CHAR, *c);
+    const bool kept = strcmp(s_gp_buf, t) == 0 && strlen(s_gp_buf) == 23;
+    mark();
+    ui_dispatch(K_OK, 0);
+    const char *got = added() >= 2 ? line_at(1) : "";
+    char d[128];
+    snprintf(d, sizeof d, "prompt kept %d chars; result '%s'", (int)strlen(t), got);
+    row("G18", "23-char overload bluetooth root kept and run", kept && strcmp(got, "[ !! ] OVERLOAD 6 HIT ROOT") == 0, d);
+}
+static void g3(void)
+{
+    for (int b = 2; b <= 11; ++b) {
+        if (b == 6) continue;
+        static uint8_t fb[320 * 240];
+        host_gate_norain = 0;
+        host_rain_init(0);
+        host_set_millis(9000u);
+        host_rain_devsel_seen = 0;
+        botcorps_host_scan_n(fb, b);
+        const uint8_t c[5] = { 0, 0, host_rain_devsel[0], host_rain_devsel[1], host_rain_devsel[2] };
+        const int n = BH_DEV[b][1] >= 0 ? 2 : 1;
+        const bool ok = host_rain_devsel_seen && c[2] == n && c[3] == (uint8_t)BH_DEV[b][0] && (n == 1 || c[4] == (uint8_t)BH_DEV[b][1]);
+        char it[32], d[64];
+        snprintf(it, sizeof it, "rain devsel bot %d", b);
+        snprintf(d, sizeof d, "drawn devsel n=%d k0=%d k1=%d (seen %d) BH_DEV=%d,%d", c[2], c[3], c[4], host_rain_devsel_seen, BH_DEV[b][0], BH_DEV[b][1]);
+        row("G3", it, ok, d);
+    }
+}
+/* G15: the BOARD group rows (name col, prompt col) equal the §4.2 strings, typed here from the spec. */
+static void g15()
+{
+    static const char *const NM[13] = { 0, 0, "deauth wi-fi ap", "hack laptop", "flock camera", "drone", "airtag tracker",
+        "keyfob car", "meta watch", "skimmer unknown", "flipper tv", "samsung tracker", 0 };
+    static const char *const GIB[12][2] = {
+        { "scan", "any name" }, { "lock", "any name" }, { "zap", "any name" }, { "purge", "any name" },
+        { "restart", "round" }, { "overload", "all live" }, { "subs", "core root" },
+        { "names", "wifi bluetooth deauth hack flock" }, { "", "drone airtag keyfob meta skimmer" },
+        { "", "flipper samsung wi-fi ap phone" }, { "", "laptop tv speaker tracker watch" }, { "", "camera car unknown printer" }
+    };
+    for (int b = 0; b <= 12; ++b) {
+        const int keep = s_defend_bot;
+        s_defend_bot = b;
+        /* host g++ 14 -O1 hoisted a direct gc_bn() call out of this loop (one value for all b); call through a volatile pointer */
+        int (*volatile bn_fn)(void) = gc_bn;
+        int (*volatile row_fn)(int, const char **, char *, size_t) = gc_board_row;
+        const int bn = bn_fn();
+        char item[48], det[200];
+        snprintf(item, sizeof item, "BOARD rows bot %d", b);
+        int bad = 0;
+        det[0] = 0;
+        const int want_bn = b < 2 ? 0 : (b == 12 ? 12 : 7);
+        if (bn != want_bn) { ++bad; snprintf(det, sizeof det, "bn=%d want %d ", bn, want_bn); }
+        for (int r = 0; r < want_bn && r < bn; ++r) {
+            char wn[24], wp[48], sb[40];
+            if (b == 12) { snprintf(wn, sizeof wn, "%s", GIB[r][0]); snprintf(wp, sizeof wp, "%s", GIB[r][1]); }
+            else {
+                static const char *const V[5] = { "scan", "lock", "zap", "purge", "restart" };
+                snprintf(sb, sizeof sb, "%s %s", SUB[b][0], SUB[b][1]);
+                snprintf(wn, sizeof wn, "%s", r < 5 ? V[r] : (r == 5 ? SIG[b] : "subs"));
+                snprintf(wp, sizeof wp, "%s", r == 4 ? "round" : (r == 6 ? sb : NM[b]));
+            }
+            const char *nm = "";
+            char pp[48];
+            row_fn(r, &nm, pp, sizeof pp);
+            if (strcmp(nm, wn) != 0 || strcmp(pp, wp) != 0) {
+                ++bad;
+                size_t l = strlen(det);
+                snprintf(det + l, sizeof det - l, "r%d '%s|%s' want '%s|%s' ", r, nm, pp, wn, wp);
+            }
+        }
+        if (!bad) snprintf(det, sizeof det, "%d rows match §4.2", want_bn);
+        s_defend_bot = keep;
+        row("G15", item, bad == 0, det);
+    }
+}
+}   /* namespace p0t */
+void botcorps_host_p0(void *file)
+{
+    p0t::s_f = static_cast<FILE *>(file);
+    p0t::UNI_K[0] = bot_dev_kind(0);                         /* wifi / bluetooth: bot name -> bot_dev_kind (§5.2) */
+    p0t::UNI_K[1] = bot_dev_kind(1);
+    p0t::g3();
+    p0t::g4();
+    p0t::g5();
+    p0t::g6();
+    p0t::g7();
+    p0t::g8_g20();
+    p0t::g9_g10_g11();
+    p0t::g12_g13();
+    p0t::g14();
+    p0t::g18();
+    p0t::g15();
+    p0t::s_f = nullptr;
 }
 #endif
 #include "ui/botcorps_livescan.inc"

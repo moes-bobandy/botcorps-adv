@@ -427,7 +427,9 @@ int main(int argc, char **argv)
             "prompt-gibson-scan","prompt-airtag-scan","prompt-deauth-scan",
             "hub-after","hub-zone3-scan","term-defend-howto","term-defend-live",
             "ll19-hub-defend","ll19-hub-play","ll19-hub-chat",
-            "ll19-hub-tab-before","ll19-hub-tab-after","ll19-term-defend", nullptr
+            "ll19-hub-tab-before","ll19-hub-tab-after","ll19-term-defend",
+            "ll19b-hub-go-chat","ll19b-hub-go-gchat","ll19b-hub-load-chat","ll19b-hub-load-gchat",
+            "ll19b-hub-help","ll19b-gib-scan-defend","ll19b-bot10-scan-defend", nullptr
         };
         for (int i = 0; names[i]; ++i) {
             char ip[256], op[256];

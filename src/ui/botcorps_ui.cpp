@@ -6344,10 +6344,11 @@ static const char *pip_glyph(int mood)
 }
 
 /* v1019q (#9): the hub prompt's command list - Gibson's own bot commands first, then screen routing and
- * the shared ones; two-word forms only where clearer ("scan wifi" / "scan ble"); "chat" (wired, never
- * listed) is now listed. */
+ * the shared ones; two-word forms only where clearer ("scan wifi" / "scan ble").
+ * LL-19b: defend/chat not listed (hub is not a game entry). */
 static const char *const GP_CMD[] = {
-    "hunt", "defend", "scan", "scan wifi", "scan ble", "wifi", "ble", "bots", "chat",
+    /* LL-19b: hub-only list; defend/chat removed (game opens only from Terminal). */
+    "hunt", "scan", "scan wifi", "scan ble", "wifi", "ble", "bots",
     "ping", "info", "track", "sniff", "filter", "rain",
     "terminal", "control", "go", "load", "help", "clear"
 };
@@ -8432,7 +8433,16 @@ static void sp_run(const char *line)
         return;
     }
     if (strcmp(cmd, "terminal") == 0 || strcmp(cmd, "term") == 0) { enter_screen(SCR_TERMINAL, SCR_GIBSON); boot_log(); return; }
-    if (strcmp(cmd, "defend") == 0) { enter_defend(core ? (gib ? 12 : s_scan_bot) : 12, s_screen); return; }
+    if (strcmp(cmd, "defend") == 0) {
+        /* LL-19b (GIBSON 3:52 ET): Gibson's game opens only from Terminal.
+         * Scan-board bots 2..11 keep chip-start defend (LL-02). Gibson scan (gib)
+         * and non-core sbox screens (wifi/ble radar+list :12 branch) unhook to unknown.
+         * Do not fall into CMDN→run_cmd("defend") — that would still enter bot 12. */
+        if (core && !gib) { enter_defend(s_scan_bot, s_screen); return; }
+        sp_say(echo, "not found - type help");
+        sp_strip();
+        return;
+    }
     if (strcmp(cmd, "wifi") == 0 || (strcmp(cmd, "scan") == 0 && arg && strcmp(arg, "wifi") == 0)) {
         if (s_screen != SCR_WIFI_RADAR) { enter_screen(SCR_WIFI_RADAR, SCR_GIBSON); return; }
     }
@@ -9503,7 +9513,7 @@ static int gp_screen(const char *name)
     if (strcmp(name, "bots") == 0 || strcmp(name, "bot") == 0) return SCR_TERMINAL;
     if (strcmp(name, "wifi") == 0) return SCR_WIFI_RADAR;
     if (strcmp(name, "ble") == 0 || strcmp(name, "bluetooth") == 0) return SCR_BT_RADAR;
-    if (strcmp(name, "chat") == 0 || strcmp(name, "gchat") == 0) return SCR_GCHAT;
+    /* LL-19b (GIBSON 3:52 ET): chat/gchat unhooked — go/load fall to "no such screen". */
     if (strcmp(name, "scan") == 0 || strcmp(name, "radar") == 0) { s_scan_bot = 12; return SCR_SCAN; }
     if (strcmp(name, "wifiradar") == 0) return SCR_WIFI_RADAR;
     if (strcmp(name, "bleradar") == 0) return SCR_BT_RADAR;
@@ -9560,8 +9570,8 @@ static void gp_run(const char *line)
     }
     if (strcmp(cmd, "help") == 0) {
         /* v1019 prompt audit: the hub's own commands (it used to echo the Terminal's SYS help row) */
-        gp_push("hunt defend scan wifi ble");   /* v1019q (#9a): bot commands first */
-        gp_push("chat terminal control go");
+        gp_push("hunt scan wifi ble bots");   /* LL-19b: no defend/chat on hub help */
+        gp_push("terminal control go load");
         partial_gp_strip();
         return;
     }
@@ -12199,6 +12209,86 @@ static void gnc(void)
     snprintf(d, sizeof d, "screen=%d bot=%d st=%d", s_screen, dl_bot(), dl_st());
     row("NC", "Terminal 'defend' still enters Gibson game", s_screen == SCR_GCHAT && dl_bot() == 12 && (dl_st() == DL_HOWTO || dl_live()), d);
     dl_end(); dl_set_st(DL_OFF);
+    /* NC14-17 LL-19b: hub go/load chat|gchat → no such screen, stay on hub */
+    auto hub_noscr = [&](const char *cmd) {
+        enter_screen(SCR_GIBSON, -1);
+        s_gp_n = 0; s_gp_buf[0] = 0; dl_end(); dl_set_st(DL_OFF);
+        gp_run(cmd);
+        const char *last = s_gp_n ? s_gp_log[s_gp_n - 1] : "";
+        const bool nos = last && strcmp(last, "no such screen") == 0;
+        const bool stay = s_screen == SCR_GIBSON && !dg_on() && dl_st() == DL_OFF;
+        char it[72]; snprintf(it, sizeof it, "hub '%s' no such screen, stays on hub", cmd);
+        snprintf(d, sizeof d, "cmd='%s' screen=%d last='%s'", cmd, s_screen, last);
+        row("NC", it, nos && stay, d);
+    };
+    hub_noscr("go chat");
+    hub_noscr("go gchat");
+    hub_noscr("load chat");
+    hub_noscr("load gchat");
+    /* NC18 hub help has no defend or chat */
+    {
+        enter_screen(SCR_GIBSON, -1);
+        s_gp_n = 0; s_gp_buf[0] = 0;
+        gp_run("help");
+        bool has = false;
+        for (int i = 0; i < s_gp_n; ++i) {
+            if (strstr(s_gp_log[i], "defend") || strstr(s_gp_log[i], "chat")) has = true;
+        }
+        snprintf(d, sizeof d, "gp_n=%d has_defend_or_chat=%d", s_gp_n, (int)has);
+        row("NC", "hub help has no defend or chat", s_gp_n >= 2 && !has && s_screen == SCR_GIBSON, d);
+    }
+    /* NC19 GP_CMD has no defend or chat (hub-only list) */
+    {
+        bool has = false;
+        for (int i = 0; i < (int)(sizeof(GP_CMD) / sizeof(GP_CMD[0])); ++i) {
+            if (strcmp(GP_CMD[i], "defend") == 0 || strcmp(GP_CMD[i], "chat") == 0) has = true;
+        }
+        snprintf(d, sizeof d, "GP_CMD_N=%d has_defend_or_chat=%d", (int)(sizeof(GP_CMD) / sizeof(GP_CMD[0])), (int)has);
+        row("NC", "GP_CMD has no defend or chat", !has, d);
+    }
+    /* NC20 Gibson scan-board defend → unknown, stay on SCR_SCAN */
+    {
+        dl_end(); dl_set_st(DL_OFF);
+        s_scan_bot = 12; s_gib_hunt = false;
+        enter_screen(SCR_SCAN, SCR_GIBSON);
+        s_sp_has = false; s_sp_buf[0] = 0;
+        sp_run("defend");
+        const bool unk = s_sp_has && strcmp(s_sp_l2, "not found - type help") == 0;
+        const bool stay = s_screen == SCR_SCAN && s_scan_bot == 12 && !dg_on() && dl_st() == DL_OFF;
+        snprintf(d, sizeof d, "screen=%d bot=%d st=%d l2='%s'", s_screen, s_scan_bot, dl_st(), s_sp_has ? s_sp_l2 : "-");
+        row("NC", "Gibson scan-board defend unknown, stays on SCR_SCAN", unk && stay, d);
+    }
+    /* NC21 scan-board bots 2..11 still enter Defend (sample 2, 6, 10) */
+    {
+        bool ok_all = true;
+        char bits[80]; bits[0] = 0;
+        static const int bots[] = { 2, 6, 10 };
+        for (int i = 0; i < 3; ++i) {
+            const int b = bots[i];
+            dl_end(); dl_set_st(DL_OFF);
+            s_scan_bot = b; s_gib_hunt = false;
+            enter_screen(SCR_SCAN, SCR_GIBSON);
+            s_sp_buf[0] = 0;
+            sp_run("defend");
+            const bool ok = s_screen == SCR_GCHAT && dl_bot() == b && (dl_st() == DL_HOWTO || dl_live());
+            if (!ok) ok_all = false;
+            char one[24]; snprintf(one, sizeof one, "%s%d:%d/%d", i ? " " : "", b, s_screen, dl_bot());
+            strncat(bits, one, sizeof(bits) - strlen(bits) - 1);
+            dl_end(); dl_set_st(DL_OFF);
+        }
+        snprintf(d, sizeof d, "bots %s", bits);
+        row("NC", "scan-board bots 2..11 still enter Defend", ok_all, d);
+    }
+    /* NC22 Terminal defend → SCR_GCHAT bot 12 DL_HOWTO (explicit how-to; pairs with NC13) */
+    {
+        enter_screen(SCR_TERMINAL, SCR_GIBSON);
+        s_gp_buf[0] = 0; botcorps_t0_term_prompt[0] = 0;
+        dl_end(); dl_set_st(DL_OFF);
+        run_cmd("defend");
+        snprintf(d, sizeof d, "screen=%d bot=%d st=%d", s_screen, dl_bot(), dl_st());
+        row("NC", "Terminal defend SCR_GCHAT bot 12 DL_HOWTO", s_screen == SCR_GCHAT && dl_bot() == 12 && dl_st() == DL_HOWTO, d);
+        dl_end(); dl_set_st(DL_OFF);
+    }
     host_frame = keep;
 }
 }   /* namespace p0t */
@@ -12295,7 +12385,25 @@ void botcorps_host_newcut_proof(const char *dir)
     enter_screen(SCR_GIBSON, -1); s_sheet = false; paint(); dump("ll19-hub-tab-before");
     ui_dispatch(K_TAB, 0); paint(); dump("ll19-hub-tab-after");
     enter_screen(SCR_TERMINAL, SCR_GIBSON); s_gp_buf[0] = 0; run_cmd("defend"); paint(); dump("ll19-term-defend");
-    dl_end(); dl_set_st(DL_OFF);
+    /* LL-19b proofs: go/load chat unknown; hub help; Gibson scan defend unknown; bot10 scan defend enters */
+    hub_cmd("go chat", "ll19b-hub-go-chat");
+    hub_cmd("go gchat", "ll19b-hub-go-gchat");
+    hub_cmd("load chat", "ll19b-hub-load-chat");
+    hub_cmd("load gchat", "ll19b-hub-load-gchat");
+    hub_cmd("help", "ll19b-hub-help");
+    {
+        dl_end(); dl_set_st(DL_OFF);
+        s_scan_bot = 12; s_gib_hunt = false;
+        enter_screen(SCR_SCAN, SCR_GIBSON); s_sp_buf[0] = 0;
+        sp_run("defend"); paint(); dump("ll19b-gib-scan-defend");
+    }
+    {
+        dl_end(); dl_set_st(DL_OFF);
+        s_scan_bot = 10; s_gib_hunt = false;
+        enter_screen(SCR_SCAN, SCR_GIBSON); s_sp_buf[0] = 0;
+        sp_run("defend"); paint(); dump("ll19b-bot10-scan-defend");
+        dl_end(); dl_set_st(DL_OFF);
+    }
     host_frame = keep;
 }
 #endif

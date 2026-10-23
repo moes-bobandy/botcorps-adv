@@ -175,6 +175,96 @@ static void spawn(uint8_t *c, int d, bool scatter)
     c[6 + d] = new_lead();
 }
 
+#ifdef BOTCORPS_CYD
+/* CYD rain enhance (density + definition). Same 40x30 grid, CELL 8, same Tier 0 buffers, no new
+ * static RAM. Four drops per column: drops 0/1 keep the column record fields; drops 2/3 live in
+ * the column records past CELL_COLS (records 40..55 of botcorps_t0_rain_col[56][8], unused by the
+ * 40-column grid) packed at 12 bits per drop: 6-bit head (row + 6) and a 6-bit spawn generation.
+ * A packed drop's length and lead kind are a pure function of (column, drop, generation), so they
+ * stay fixed for the drop's whole fall. */
+enum { CYD_DROPS = 4, CYD_HEAD_OFS = 6, CYD_IDLE = 6, CYD_LEN0 = 8, CYD_LENS = 19 };
+static_assert(CELL_COLS * (CYD_DROPS - 2) * 12 <= (RAIN_COLS - CELL_COLS) * 8 * 8, "packed drops fit the spare column records");
+static_assert(CELL_ROWS + CYD_LEN0 + CYD_LENS + CYD_HEAD_OFS <= 63, "packed head fits 6 bits");
+static uint8_t *cyd_x(void) { return &botcorps_t0_rain_col[CELL_COLS][0]; }
+static int cyd_get12(int j)
+{
+    const uint8_t *b = cyd_x() + (j * 3) / 2;
+    return (j & 1) ? ((b[0] >> 4) | (b[1] << 4)) : (b[0] | ((b[1] & 0x0F) << 8));
+}
+static void cyd_set12(int j, int v)
+{
+    uint8_t *b = cyd_x() + (j * 3) / 2;
+    if (j & 1) { b[0] = (uint8_t)((b[0] & 0x0F) | ((v & 0x0F) << 4)); b[1] = (uint8_t)(v >> 4); }
+    else { b[0] = (uint8_t)v; b[1] = (uint8_t)((b[1] & 0xF0) | ((v >> 8) & 0x0F)); }
+}
+static uint32_t cyd_hash(int col, int d, int gen)
+{
+    uint32_t h = (uint32_t)(col * 4 + d) * 2654435761u ^ (uint32_t)gen * 40503u;
+    h ^= h >> 15; h *= 2246822519u; h ^= h >> 13;
+    return h;
+}
+/* lead kinds in the new_lead() proportions for the current BG MIX, from a hash instead of the rng */
+static uint8_t cyd_lead_of(uint32_t h)
+{
+    const int r = (int)(h % 100u);
+    const uint32_t q = h / 100u;
+    int bot = 20, dev = 12;
+    if (s_mix == BOTCORPS_RAIN_MIX_BOTS) { bot = 22; dev = 0; }
+    else if (s_mix == BOTCORPS_RAIN_MIX_DEV) { bot = 0; dev = 18; }
+    if (r < bot) return (uint8_t)(LEAD_BOT | ((q % 12u) << 2));
+    if (r < bot + dev) return (uint8_t)(LEAD_DEV | ((q % DEV_N) << 2));
+    return LEAD_CODE;
+}
+static int cyd_slot(int col, int d) { return col * (CYD_DROPS - 2) + (d - 2); }
+static void cyd_drop(int col, int d, int *h, int *L, int *lead)
+{
+    if (d < 2) {
+        const uint8_t *c = col_at(col);
+        *h = (int8_t)c[d * 2]; *L = c[d * 2 + 1];
+        if (lead) *lead = c[6 + d];
+        return;
+    }
+    const int v = cyd_get12(cyd_slot(col, d));
+    const uint32_t hs = cyd_hash(col, d, v >> 6);
+    *h = (v & 63) - CYD_HEAD_OFS;
+    *L = CYD_LEN0 + (int)(hs % (uint32_t)CYD_LENS);
+    if (lead) *lead = cyd_lead_of(hs / (uint32_t)CYD_LENS);
+}
+static void cyd_set_head(int col, int d, int h)
+{
+    if (d < 2) { col_at(col)[d * 2] = (uint8_t)(int8_t)h; return; }
+    const int j = cyd_slot(col, d);
+    cyd_set12(j, (cyd_get12(j) & ~63) | ((h + CYD_HEAD_OFS) & 63));
+}
+/* longer trails (8..26) and a short idle gap (0..5 rows) before a drop re-enters */
+static void cyd_spawn(int col, int d, bool scatter)
+{
+    if (d < 2) {
+        uint8_t *c = col_at(col);
+        const int len = CYD_LEN0 + rnd_n(CYD_LENS);
+        c[d * 2 + 1] = (uint8_t)len;
+        c[d * 2] = (uint8_t)(int8_t)(scatter ? rnd_n(CELL_ROWS + len) - len / 2 : -rnd_n(CYD_IDLE));
+        c[6 + d] = new_lead();
+        return;
+    }
+    const int j = cyd_slot(col, d);
+    const int gen = scatter ? rnd_n(64) : (((cyd_get12(j) >> 6) + 1) & 63);
+    const int len = CYD_LEN0 + (int)(cyd_hash(col, d, gen) % (uint32_t)CYD_LENS);
+    const int h = scatter ? rnd_n(CELL_ROWS + len + 1) - (CYD_IDLE - 1) : -rnd_n(CYD_IDLE);
+    cyd_set12(j, (gen << 6) | ((h + CYD_HEAD_OFS) & 63));
+}
+/* crisper fade: the lv3 / lv4 bands run further down the trail (60% / 86% of L vs 50% / 78%) */
+static const int CYD_LV3_PCT = 60;
+static const int CYD_LV4_PCT = 86;
+/* blend toward white by num/den (existing palette via botcorps_pal_fit at the call site) */
+static uint16_t cyd_whiten(uint16_t c, int num, int den)
+{
+    const int r5 = (c >> 11) & 31, g6 = (c >> 5) & 63, b5 = c & 31;
+    return (uint16_t)(((r5 + (31 - r5) * num / den) << 11) | ((g6 + (63 - g6) * num / den) << 5)
+                      | (b5 + (31 - b5) * num / den));
+}
+#endif
+
 static void build_columns(void)
 {
     s_ncols = CELL_COLS;
@@ -183,16 +273,26 @@ static void build_columns(void)
         for (int c = 0; c < CELL_COLS; ++c) *glyph_at(c, r) = new_glyph();
     for (int i = 0; i < s_ncols; ++i) {
         uint8_t *c = col_at(i);
+#ifdef BOTCORPS_CYD
+        /* four drops: 0/1 staggered like the classic pair, 2/3 scattered over the column */
+        for (int d = 0; d < CYD_DROPS; ++d) cyd_spawn(i, d, true);
+        c[2] = (uint8_t)(int8_t)(drop_head(c, 0) - 15 - rnd_n(10));
+#else
         spawn(c, 0, true);
         spawn(c, 1, true);
         c[2] = (uint8_t)(int8_t)(drop_head(c, 0) - 15 - rnd_n(10));
+#endif
         c[4] = (uint8_t)(1 + (rnd_n(10) < 3 ? 1 : 0) + (rnd_n(10) < 1 ? 1 : 0));
         c[5] = (uint8_t)rnd_n(3);
     }
     s_built = true;
     if (!s_logged) {
         s_logged = true;
+#ifdef BOTCORPS_CYD
+        Serial.printf("[botcorps] rain path=classic %dx%d drops=%d step=%d\n", CELL_COLS, CELL_ROWS, (int)CYD_DROPS, STEP_MS);
+#else
         Serial.printf("[botcorps] rain path=classic %dx%d drops=2 step=%d\n", CELL_COLS, CELL_ROWS, STEP_MS);
+#endif
     }
 }
 
@@ -206,6 +306,26 @@ static uint16_t code_native(void)
 /* 0 none, 1 lead, 2..5 trail steps. Brightest of the two drops wins. */
 static int cell_level(int col, int row, int *lead_of)
 {
+#ifdef BOTCORPS_CYD
+    int best = 0;
+    for (int d = 0; d < CYD_DROPS; ++d) {
+        int h, L, ld;
+        cyd_drop(col, d, &h, &L, lead_of ? &ld : nullptr);
+        const int k = h - row;
+        if (k < 0 || k >= L) continue;
+        int lv;
+        if (k == 0) lv = 1;
+        else if (k <= 2) lv = 2;
+        else if (k * 100 < L * CYD_LV3_PCT) lv = 3;
+        else if (k * 100 < L * CYD_LV4_PCT) lv = 4;
+        else lv = 5;
+        if (best == 0 || lv < best) {
+            best = lv;
+            if (lead_of) *lead_of = (lv == 1) ? ld : 0;
+        }
+    }
+    return best;
+#else
     const uint8_t *c = col_at(col);
     int best = 0;
     for (int d = 0; d < 2; ++d) {
@@ -224,6 +344,7 @@ static int cell_level(int col, int row, int *lead_of)
         }
     }
     return best;
+#endif
 }
 
 static bool rain_pixel_ok(int x, int y);
@@ -289,6 +410,11 @@ static void dev_inks(int d, int lv, uint8_t ink3[3])
         pc = sc;
     }
     for (int k = 0; k < 3; ++k) ink3[k] = fit_dev(lv <= 3 ? pc[k] : scale_native(pc[k], lv == 4 ? 2 : 1, 3));
+#ifdef BOTCORPS_CYD
+    /* highlight ink a notch stronger (1/3 toward white; the lead's highlight goes white) */
+    if (lv <= 3) ink3[2] = fit_dev(lv == 1 ? 0xFFFF : cyd_whiten(pc[2], 1, 3));
+    else if (lv == 4) ink3[2] = fit_dev(pc[2]);
+#endif
 }
 static void dev_art(lgfx::LovyanGFX &panel, int x, int ly, int d, const uint8_t ink3[3])
 {
@@ -369,7 +495,11 @@ static void draw_cell(lgfx::LovyanGFX &panel, int col, int row)
         /* v1019n (#7/#19): the BOT-RAIN colour toggle: MULTI = each bot's own colour, SOLID = that ink;
          * GIBSONbot keeps its fixed ivory */
         const uint16_t c = s_gibson ? GIB_IVORY_N : (s_mode > 0 ? SOLID_INK[s_mode - 1] : BOTCORPS_BOT_COLOR[b]);
+#ifdef BOTCORPS_CYD
+        const uint8_t body = botcorps_pal_fit(lv == 1 ? cyd_whiten(c, 1, 3) : lv <= 3 ? c : scale_native(c, lv == 4 ? 2 : 1, 3));
+#else
         const uint8_t body = botcorps_pal_fit(lv <= 3 ? c : scale_native(c, lv == 4 ? 2 : 1, 3));
+#endif
         if (s_gibson)
             botcorps_sprite_draw_inks(panel, x + 4, ly + 4, BOTCORPS_SHAPE_ROUND, 1, body, PAL_BLACK, false);
         else
@@ -392,6 +522,10 @@ static void draw_cell(lgfx::LovyanGFX &panel, int col, int row)
     if (gl >= 0x80) ch = (gl & 1) ? '1' : '0';       /* icon codes never print as raw glyphs */
     if (lv == 1) {
         ink = PAL_WHITE;                    /* bright lead glyph */
+#ifdef BOTCORPS_CYD
+    } else if (lv == 2) {                   /* CYD: the two cells under the lead glow near-white */
+        ink = botcorps_pal_fit(cyd_whiten(code_native(), 2, 3));
+#endif
     } else {
         static const int AGE[4] = { 0, 5, 9, 13 };
         const int age = AGE[lv - 2];
@@ -417,6 +551,26 @@ static void step_columns(lgfx::LovyanGFX *panel)
         c[5] = (uint8_t)(c[5] + 1);
         if (c[5] < c[4]) continue;
         c[5] = 0;
+#ifdef BOTCORPS_CYD
+        for (int d = 0; d < CYD_DROPS; ++d) {
+            int h, L;
+            cyd_drop(i, d, &h, &L, nullptr);
+            ++h;
+            if (h - L > CELL_ROWS) {
+                cyd_spawn(i, d, false);
+                cyd_drop(i, d, &h, &L, nullptr);
+            }
+            cyd_set_head(i, d, h);
+            if (h >= 0 && h < CELL_ROWS) *glyph_at(i, h) = new_glyph();
+            if (panel) {
+                const int ks[6] = { 0, 1, 3, (L * CYD_LV3_PCT + 99) / 100, (L * CYD_LV4_PCT + 99) / 100, L };
+                for (int q = 0; q < 6; ++q) {
+                    const int r = h - ks[q];
+                    if (r >= 0 && r < CELL_ROWS) draw_cell(*panel, i, r);
+                }
+            }
+        }
+#else
         for (int d = 0; d < 2; ++d) {
             int h = drop_head(c, d) + 1;
             const int L = c[d * 2 + 1];
@@ -434,6 +588,7 @@ static void step_columns(lgfx::LovyanGFX *panel)
                 }
             }
         }
+#endif
         /* the odd bit flips inside a visible trail */
         if (rnd_n(4) == 0) {
             const int r = rnd_n(CELL_ROWS);

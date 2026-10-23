@@ -472,3 +472,44 @@ static void cyd_tile_rain(Gfx g, int x, int y)
     host_gate_mute = 0;
 #endif
 }
+
+/* ---- item 7: light live rain preview on CYD Control --------------------------------------------------
+ * The Control board (SB_BX/BY/BW/BH) is an opaque matte plate, so the theme chips (GRAPE / MASHUP / MIX
+ * / RAIN / MULTI) and the RAIN / JUMP jumpers changed a rain you could only see in the 8 px frame. The
+ * plate now draws the live rain (the existing engine: botcorps_rain_draw_win = same cells, glyphs,
+ * palette, mode, mix and shape, hub-dimmed inks) right after its fill, before any board art, so every
+ * part, label and trace stays on top and a theme change shows on the next frame. */
+static const int CYD_CP_RAIN_EVERY = 3;
+static void cyd_cp_rain(Gfx g)
+{
+    if (s_screen != SCR_CONTROL || !g.raw() || g.ox != 0) return;
+    if (!wants_rain()) return;
+#ifdef BOTCORPS_HOST_RENDER
+    if (host_gate_norain) return;
+#endif
+    const ZrClip cl = zr_clip_push(g, SB_BX + 2, SB_BY + 2, SB_BW - 4, SB_BH - 4);
+    const ZrClip n = zr_clip_get(g);
+#ifdef BOTCORPS_HOST_RENDER
+    host_gate_mute = 1;
+#endif
+    botcorps_rain_set_covers(nullptr, 0, false);         /* the plate cover keeps the FIELD rain off it */
+    if (botcorps_rain_bg() != 0) {
+        /* a BACKGROUND style (saver) is sparse by itself: preview it whole */
+        botcorps_rain_draw_win(*g.raw(), g.oy, g.oy + g.raw()->height(), (int)n.x + g.ox, (int)n.y + g.oy,
+                               (int)n.w, (int)n.h, nullptr, 0);
+    } else {
+        /* light: one rain column in CYD_CP_RAIN_EVERY, the cells/glyphs/inks are the live ones */
+        for (int cx = 0; cx < 320; cx += 8 * CYD_CP_RAIN_EVERY) {
+            const int x0 = cx > (int)n.x ? cx : (int)n.x;
+            const int x1 = (cx + 8) < (int)(n.x + n.w) ? (cx + 8) : (int)(n.x + n.w);
+            if (x1 <= x0) continue;
+            botcorps_rain_draw_win(*g.raw(), g.oy, g.oy + g.raw()->height(), x0 + g.ox, (int)n.y + g.oy,
+                                   x1 - x0, (int)n.h, nullptr, 0);
+        }
+    }
+    botcorps_rain_set_covers(s_box, s_box_n, s_box_radar);  /* restored exactly */
+#ifdef BOTCORPS_HOST_RENDER
+    host_gate_mute = 0;
+#endif
+    zr_clip_set(g, cl);
+}

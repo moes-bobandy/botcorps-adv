@@ -492,6 +492,7 @@ static void cyd_osk_echo(void);
 static void cyd_sb_btns(Gfx g, bool has_menu, uint8_t ac);
 static void cyd_hub_abc(Gfx g);
 static void cyd_tile_rain(Gfx g, int x, int y);
+static void cyd_cp_rain(Gfx g);
 #endif
 #endif
 static bool s_sheet = false;
@@ -6108,6 +6109,9 @@ static void paint_control(Gfx g)
     /* matte-black PCB (fixed), silk mounting holes */
     GATE_BOX(g, "BOARD", "settings", SB_BX, SB_BY, SB_BW, SB_BH, "-");
     g.fillRect(SB_BX, SB_BY, SB_BW, SB_BH, sh_rgb(0x0a, 0x0a, 0x0c));
+#ifdef BOTCORPS_CYD
+    cyd_cp_rain(g);   /* cyd-term-fix item 7: light live rain preview behind the board art */
+#endif
     const int hx[4] = { 14, 306, 14, 306 }, hy[4] = { 26, 26, 230, 230 };
     for (int k = 0; k < 4; ++k) { g.fillCircle(hx[k], hy[k], 4, silk); g.fillCircle(hx[k], hy[k], 2, PAL_BLACK); }
     /* header rails top + bottom, labels upright: top labels sit UNDER the top rail, ABOVE the chips */

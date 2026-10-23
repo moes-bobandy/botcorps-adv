@@ -9539,6 +9539,10 @@ static int read_key(char *typed)
         const int pk = cyd_pop_touch(tx, ty);
         if (pk >= 0) return pk;
     }
+    {   /* cyd-term-fix item 10: top-bar quick buttons at their drawn rects */
+        const int tk = cyd_top_touch(tx, ty);
+        if (tk >= 0) { s_touch_last = now; return tk; }
+    }
     if (s_osk_open && ty >= CYD_OSK_CLIP_Y) {
         const int hit = cyd_osk_hit(tx, ty);
         if (hit < 0) return K_NONE;

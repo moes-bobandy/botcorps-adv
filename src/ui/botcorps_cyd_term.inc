@@ -397,3 +397,50 @@ static int cyd_chip_touch(int tx, int ty)
     if (s_osk_open || !chip_now(&cb, &cd) || !cyd_in(CYD_CHIP, tx, ty, 0)) return -1;
     return cyd_chip_press();
 }
+
+/* ---- item 10: top-bar quick buttons ---------------------------------------------------------------
+ * Root cause: the glass had no hit for any top-bar button at its DRAWN rect. The Terminal crown hit sat
+ * at x 140..180 (the old centre crown) while paint_term_icons draws it at 203..227; the scan-shell
+ * bar (sb_top: crown "back" 143..177, >_ 190..206), the Control bar (crown x160, TERM 194..216) and
+ * the Diag crown_btn (140..180) had none - only the top-left corner mapped to Esc. Each rect below is
+ * the painter's own rect, mapped to the Adv key / action it stands for. */
+static const CydRect CYD_SB_CROWN = { 143, 0, 34, 17 };      /* sb_top GATE_BOX CROWN "back"   -> Esc */
+static const CydRect CYD_SB_TERM = { 190, 2, 16, 13 };       /* sb_top >_ quick terminal chip -> terminal */
+static const CydRect CYD_TERM_CROWN = { 203, 0, 24, 16 };    /* paint_term_icons CROWN "back" -> hub */
+static const CydRect CYD_CP_CROWN = { 142, 0, 36, 16 };      /* paint_control crown (cursor CP_N+1) */
+static const CydRect CYD_CP_TERM = { 194, 1, 22, 14 };       /* paint_control BTN "term" (cursor CP_N) */
+static const CydRect CYD_CROWN_BTN = { 140, 0, 40, 20 };     /* crown_btn (Diag) -> Esc */
+
+static int cyd_top_touch(int tx, int ty)
+{
+    if (ty >= 24) return -1;
+    if (s_screen == SCR_TERMINAL) {
+        if (s_sheet || !cyd_in(CYD_TERM_CROWN, tx, ty, 2)) return -1;
+        if (s_osk_open) cyd_close_osk();
+        enter_screen(SCR_GIBSON, SCR_TERMINAL);              /* the Terminal crown's existing action */
+        return K_NONE;
+    }
+    if (s_screen == SCR_CONTROL) {
+        if (cyd_in(CYD_CP_CROWN, tx, ty, 2)) { s_cursor = CP_N + 1; return K_OK; }   /* Adv: focus + Enter */
+        if (cyd_in(CYD_CP_TERM, tx, ty, 2)) { s_cursor = CP_N; return K_OK; }
+        return -1;
+    }
+    if (sbox_on() || zap_sb_on()) {
+        if (cyd_in(CYD_SB_CROWN, tx, ty, 2)) {
+            if (s_osk_open) cyd_close_osk();
+            return K_ESC;                                   /* Adv Esc: steps back one layer, then leaves */
+        }
+        if (cyd_in(CYD_SB_TERM, tx, ty, 2)) {
+            if (s_osk_open) cyd_close_osk();
+            const int from = s_screen;
+            if (from == SCR_GCHAT && dl_live()) dl_end();
+            enter_screen(SCR_TERMINAL, from);               /* as the "terminal" command */
+            boot_log();
+            s_dirty = true;
+            return K_NONE;
+        }
+        return -1;
+    }
+    if (s_screen == SCR_DIAG && cyd_in(CYD_CROWN_BTN, tx, ty, 0)) return K_ESC;
+    return -1;
+}

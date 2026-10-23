@@ -614,7 +614,7 @@ chip_ok = (cb >= 0 and cb2 < 0 and 'PAL_GOLD_PIN' not in cb_body and 'PAL_SOFT' 
            and 'chip_button(g, bot)' in ui_src
            and all(s in ui_src for s in ('WIFIBOT', 'BLUETOOTHBOT', 'Gibson SCAN', 'AIRTAG', 'Gibson game')))
 rep('functional', 'CHIP-G-CHIPONE one chip_button, pins from chip_shell', chip_ok, '')
-deauth_ok = 'return bot == 0 || bot == 1 || bot == 6 || bot >= 12;' in ui_src
+deauth_ok = 'return bot >= 0 && bot <= 12;' in ui_src  # v003 A1 (GIBSON 2:05 PM ET)
 rep('functional', 'CHIP-G-DEAUTH chip panel is the closed set', deauth_ok, '')
 rain_ok = 'zr_clip_push(g, 20, 43, 82, 149)' in ui_src
 rep('functional', 'CHIP-G-RAIN window is RAIN_WIN', rain_ok, '')

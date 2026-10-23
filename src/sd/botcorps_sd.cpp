@@ -4,6 +4,13 @@
  */
 #include "sd/botcorps_sd.h"
 
+#ifdef BOTCORPS_CYD
+
+/* CYD has no Cardputer SD ribbon; the mount stays a stub there. */
+bool botcorps_sd_mounted(void) { return false; }
+bool botcorps_sd_mount(void) { return false; }
+
+#else
 #include "display/botcorps_display.h"
 
 #include <SD.h>
@@ -80,3 +87,4 @@ bool botcorps_sd_mount(void)
     }
     return false;
 }
+#endif /* BOTCORPS_CYD */

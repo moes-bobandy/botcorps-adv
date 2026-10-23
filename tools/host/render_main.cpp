@@ -49,7 +49,7 @@ static void rgb_of(uint8_t idx, int term, uint8_t *r, uint8_t *g, uint8_t *b)
     if (!term && idx == 255) { *r = *g = *b = 255; }
 }
 
-static void write_raw(const char *path, const uint8_t *idx, int term)
+void write_raw(const char *path, const uint8_t *idx, int term)
 {
     FILE *f = fopen(path, "wb");
     if (!f) return;
@@ -63,6 +63,11 @@ static void write_raw(const char *path, const uint8_t *idx, int term)
     fclose(f);
 }
 
+#ifdef BOTCORPS_CYD
+/* CYD host modes (tools/host/cyd/cyd_render.cpp) reuse the exact same colour path. */
+void cyd_host_rgb_of(uint8_t idx, int term, uint8_t *r, uint8_t *g, uint8_t *b) { rgb_of(idx, term, r, g, b); }
+void cyd_host_write_raw(const char *path, const uint8_t *idx, int term) { write_raw(path, idx, term); }
+#endif
 static void hist_term(const uint8_t *idx)
 {
     int hit[17];
@@ -298,12 +303,14 @@ static int run_gate(const char *dir)
             int r1 = 0, r2 = 0, r3 = 0, r4 = 0, r5 = 0;
             botcorps_host_cmd_btn(g_buf, &r1, &r2, &r3, &r4, &r5);
             if (f) fprintf(f, "CMDBTN\t%d\t%d\t%d\t%d\t%d\n", r1, r2, r3, r4, r5);
+#ifndef BOTCORPS_CYD  /* keyboard-matrix sim is Adv-only (CYD is touch) */
             /* v1017c K1: real read_key on a scripted key matrix (rollover typing + Fn chord) */
             extern int botcorps_host_k1(uint8_t *, char *, int, int *);
             char kp[64] = {0};
             int kf = 0;
             const int kok = botcorps_host_k1(g_buf, kp, sizeof kp, &kf);
             if (f) fprintf(f, "K1\t%d\t%d\t%s\n", kok, kf, kp);
+#endif
             extern int botcorps_host_cp_start(void);
             if (f) fprintf(f, "CPSTART\t%d\n", botcorps_host_cp_start());
         }
@@ -384,6 +391,10 @@ int main(int argc, char **argv)
 {
     if (argc > 2 && strcmp(argv[1], "modc") == 0) return run_mod(argv[2]);   /* Pass C review set (was "mod": clashed with Pass B mod scr/ctl) */
     if (argc > 2 && strcmp(argv[1], "gate") == 0) return run_gate(argv[2]);
+#ifdef BOTCORPS_CYD
+    /* CYD-only modes live in tools/host/cyd/cyd_render.cpp. */
+    { extern int cyd_render_main(int, char **); const int rc = cyd_render_main(argc, argv); if (rc >= 0) return rc; }
+#endif
     /* v1019x review (not a gate item): rend zaprain <dir> <frames> - Gibson Defend mid-game still, then the
      * rain stepped once per frame (game held); writes f<k>.rgb and f<k>.norain.rgb at the same millis. */
     if (argc > 3 && strcmp(argv[1], "zaprain") == 0) {

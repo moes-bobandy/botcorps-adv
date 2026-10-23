@@ -29,6 +29,57 @@
  * and Hydra-on-G5 cannot coexist with the external panel.
  */
 
+#ifdef BOTCORPS_CYD
+
+#include <LovyanGFX.hpp>
+#include "display/lgfx_cyd.h"
+
+extern Botcorps_LGFX_CYD g_cyd;
+
+enum botcorps_surface_t {
+    BOTCORPS_SURFACE_MENU = 0,
+    BOTCORPS_SURFACE_CONTENT = 1,
+};
+inline void botcorps_set_surface(botcorps_surface_t) {}
+inline botcorps_surface_t botcorps_surface(void) { return BOTCORPS_SURFACE_CONTENT; }
+
+inline lgfx::LGFX_Device &botcorps_disp(void) { return g_cyd; }
+inline lgfx::LGFX_Device &botcorps_content(void) { return g_cyd; }
+inline lgfx::LGFX_Device &botcorps_menu(void) { return g_cyd; }
+#define BotcorpsDisplay botcorps_disp()
+#define SCR_W 320
+#define SCR_H 240
+
+inline bool botcorps_dual_ok(void) { return true; }
+inline void botcorps_lcd_quiesce(void) {}
+inline void botcorps_lcd_resume_after_bus(void) {}
+inline void botcorps_while_content(void (*fn)(void)) { if (fn) fn(); }
+inline int botcorps_view_w(void) { return 320; }
+inline int botcorps_view_h(void) { return 240; }
+#define BOTCORPS_VIEW_MAX_W 320
+#define BOTCORPS_VIEW_MAX_H 240
+
+/* Read NVS namespace "botcorps" before the panel begins.
+ * Keys (all optional): tcal=1, c0..c7 (8-point), tx0, tx1, ty0, ty1, trot.
+ * Missing keys keep the 300..3900 placeholders and offset_rotation 0. */
+void botcorps_cyd_load_touch_cal(void);
+bool botcorps_cyd_run_touch_cal(void);
+bool botcorps_cyd_has_valid_cal(void);
+
+inline bool botcorps_dual_begin(void) {
+    botcorps_cyd_load_touch_cal();
+    g_cyd.setColorDepth(16);
+    if (!g_cyd.begin()) return false;
+    g_cyd.setRotation(1); /* landscape 320x240; panel offset_rotation=0 */
+    g_cyd.setTextWrap(false, false);
+    g_cyd.setTextSize(1);
+    g_cyd.clearClipRect();
+    g_cyd.fillScreen(0x0000);
+    g_cyd.setBrightness(255);
+    return (g_cyd.width() == 320 && g_cyd.height() == 240);
+}
+
+#else
 #include <M5Cardputer.h>
 #include "display/botcorps_pins.h"
 
@@ -93,3 +144,4 @@ inline int botcorps_view_h(void) { return 135; }
 #define BOTCORPS_VIEW_MAX_H 135
 
 #endif /* BOTCORPS_DUAL_SCREEN */
+#endif /* BOTCORPS_CYD */

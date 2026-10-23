@@ -25,6 +25,9 @@
 #include <stdio.h>
 #include <string.h>
 #endif
+#ifdef BOTCORPS_CYD
+#include "ui/botcorps_cyd_osk.h"
+#endif
 
 extern char botcorps_t0_term_prompt[80];
 extern char botcorps_t0_term_hist[20][26];
@@ -401,6 +404,9 @@ static bool v2_left_on(int bot);
 static void v2_panel(Gfx g, int bot, bool framed, bool zsb, uint8_t botc);
 static void zap_tick_patch(void);
 static void dg_paint_hud(Gfx g, int width, bool full);
+#ifdef BOTCORPS_CYD
+static uint32_t s_intro_until = 0;
+#endif
 static int s_cursor = 0;
 static int s_bot = 2;
 static int s_term = 2;
@@ -469,6 +475,13 @@ static int s_term_ovl = 0;
 /* v1017c (#3): the prompt line is a cursor stop too, like the hub: Up/Down walk
  * boards -> prompt -> commands (≡) button; Left/Right go back to the boards. */
 static bool s_term_prompt = false;
+#ifdef BOTCORPS_CYD
+static bool s_osk_open = false;
+static bool s_touch_down = false;
+static uint32_t s_touch_last = 0;
+static bool s_osk_sym = false;
+static bool s_osk_dirty = false;
+#endif
 static bool s_sheet = false;
 static int s_sheet_i = 0;
 static int s_cmd_sel = 0;
@@ -647,6 +660,9 @@ static bool rain_static(void);
  * their panels; on the band path the chrome is opaque over the rain. */
 static bool wants_rain(void)
 {
+#ifdef BOTCORPS_CYD
+    if (s_intro_until && (int32_t)(millis() - s_intro_until) < 0) return false;
+#endif
     return !sbox_on()
         && s_screen != SCR_DIAG
         && !dg_on()                   /* v1019j: Defend game = static rain around the opaque board */
@@ -1262,6 +1278,17 @@ static void run_cmd(const char *line)
      * The term lut is not touched here. The full repaint installs it. */
     scan_all_set(false);
 
+#ifdef BOTCORPS_CYD
+    if (strcmp(cmd, "cal") == 0) {
+        log_add("touch cal");
+        if (botcorps_cyd_run_touch_cal())
+            log_add("cal done");
+        else
+            log_add("cal timeout");
+        s_dirty = true;
+        return;
+    }
+#endif
     if (strcmp(cmd, "help") == 0) {
         /* v1019r (#7): the four group rows (CORE / COMMS / GAME / SYS) ran up to 68 chars into a 50-char
          * log and clipped at the right edge. They now open as a wrapped, colour-coded commands panel over
@@ -1922,6 +1949,12 @@ static void menu_row(int row, int *hdr, int *cmd)
 
 static const int PROMPT_Y = 227;
 static const int TERM_CMD_X = 292, TERM_ATK_X = 268, TERM_BTN_Y = 223;   /* v1019 prompt-row buttons */
+#ifdef BOTCORPS_CYD
+/* CYD command row: [abc] art x242..263, then the Adv attack (268) and pull-down (292) buttons.
+ * Finger hit boxes split x236..320 into three 28 px columns, y204..239 (36 px tall). */
+static const int TERM_ABC_X = 242;
+static const int CYD_ROW_Y = 204, CYD_HIT_ABC_X = 236, CYD_HIT_ATK_X = 264, CYD_HIT_CMD_X = 292;
+#endif
 /* v1017a: the prompt-line patch rect (inside the plate side borders, row 226..234) */
 static const int PL_X = 5, PL_Y = PROMPT_Y - 1, PL_W = 310, PL_H = 9;
 static void draw_prompt_line_part(Gfx g);
@@ -2606,9 +2639,16 @@ static void paint_prompt(Gfx g)
      * it) and a steady caret while there is text, as on the hub prompt strip. */
     const bool pf = s_term_prompt && !s_sheet && !s_focus_cmds && !s_cmd_btn;
     if (pf) {
+#ifdef BOTCORPS_CYD
+        /* CYD: the [abc] button takes x242..263 of the prompt row, so the focus frame ends at x238. */
+        g.fillRect(6, 224, 233, 1, accent());
+        g.fillRect(6, 224, 1, 11, accent());
+        g.fillRect(238, 224, 1, 11, accent());
+#else
         g.fillRect(6, 224, 242, 1, accent());
         g.fillRect(6, 224, 1, 11, accent());
         g.fillRect(247, 224, 1, 11, accent());
+#endif
     }
     const bool caret = pf && botcorps_t0_term_prompt[0] ? true : (millis() / 530u) % 2u == 0;
     if (caret) g.fillRect(cx, y, 6, 8, accent());
@@ -2634,6 +2674,20 @@ static void paint_prompt(Gfx g)
         g.fillRect(ax + 13, ay + 6, 3, 1, ic);
         g.fillRect(ax + 10, ay + 6, 1, 1, ao ? (uint8_t)PAL_WHITE : ic);
     }
+#ifdef BOTCORPS_CYD
+    {   /* CYD-only: [abc] opens the 14 px on-screen keyboard. Same plate/edge/focus art as the
+         * two Adv prompt-row buttons; firmware Font0 5x7 label. Touch hit is CYD_HIT_ABC. */
+        const bool ko = s_osk_open && !s_sheet;
+        const int kx = TERM_ABC_X, ky = TERM_BTN_Y;
+        plate(g, kx, ky, 22, 12, ko ? COL_SEL : COL_DEEP, ko ? accent() : COL_LINE);
+        if (ko) g.drawRect(kx - 1, ky - 1, 24, 14, PAL_WHITE);
+        g.setFont(&fonts::Font0);
+        g.setTextSize(1);
+        g.setTextColor(ko ? (uint8_t)PAL_WHITE : (uint8_t)COL_MUTED);
+        g.setCursor(kx + 3, ky + 3);
+        g.print("abc");
+    }
+#endif
     if (scan_all_on() && !s_sheet) {
         /* TERM override codes, inside x14..306, y167..222 only. Prompt is y=227.
          * No lut call here. The full repaint already installed the table. */
@@ -7536,8 +7590,64 @@ static void paint_ext_full(void)
     ext.clearClipRect();
 }
 
+#ifdef BOTCORPS_CYD
+static void cyd_close_osk(void)
+{
+    if (!s_osk_open && !s_osk_sym) return;
+    s_osk_open = false;
+    s_osk_sym = false;
+    s_osk_dirty = false;
+    s_dirty = true;
+}
+
+static void paint_osk(void)
+{
+    if (!s_osk_open) return;
+    Gfx g(botcorps_disp());
+    g.startWrite();
+    g.setClipRect(0, CYD_OSK_CLIP_Y, 320, 240 - CYD_OSK_CLIP_Y);
+    g.fillRect(0, CYD_OSK_CLIP_Y, 320, 240 - CYD_OSK_CLIP_Y, PAL_DEEP);
+    g.fillRect(0, CYD_OSK_CLIP_Y, 320, 1, PAL_LINE);
+    const int keep = s_px;
+    s_px = 6;
+    /* Same pink plate as the terminal prompt (index 194). */
+    txt(g, "user@botcorps:~$", 6, CYD_OSK_CLIP_Y + 3, (uint8_t)194,
+        lgfx::textdatum::top_left);
+    txt(g, botcorps_t0_term_prompt, 6 + 18 * 6, CYD_OSK_CLIP_Y + 3, COL_WHITE,
+        lgfx::textdatum::top_left);
+    for (int i = 0; i < CYD_OSK_N; ++i) {
+        const CydOskKey k = cyd_osk_at(i);
+        const bool hot = k.kind == CYD_OSK_SYM && s_osk_sym;
+        g.fillRect(k.x, k.y, k.w, k.h, hot ? (uint8_t)PAL_SEL : (uint8_t)PAL_PLATE);
+        g.drawRect(k.x, k.y, k.w, k.h, hot ? accent() : (uint8_t)PAL_LINE);
+        const char *lab = 0;
+        char one[2] = { 0, 0 };
+        if (k.kind == CYD_OSK_CHAR) {
+            one[0] = cyd_osk_char(k, s_osk_sym);
+            lab = one;
+        } else if (k.kind == CYD_OSK_SPACE) lab = "SPACE";
+        else if (k.kind == CYD_OSK_BKSP) lab = "BKSP";
+        else if (k.kind == CYD_OSK_ENTER) lab = "ENTER";
+        else if (k.kind == CYD_OSK_TAB) lab = "TAB";
+        else if (k.kind == CYD_OSK_SYM) lab = s_osk_sym ? "ABC" : "SYM";
+        else if (k.kind == CYD_OSK_HIDE) lab = "HIDE";
+        if (!lab || !lab[0]) continue;
+        const int tw = (int)strlen(lab) * 6;
+        txt(g, lab, k.x + (k.w - tw) / 2, k.y + 3, PAL_INK, lgfx::textdatum::top_left);
+    }
+    s_px = keep;
+    g.clearClipRect();
+    g.endWrite();
+}
+
+#endif
 static void paint_int_now(void)
 {
+#ifdef BOTCORPS_CYD
+    /* The 240x135 ID card is the Adv internal panel. On CYD that panel is
+     * the same glass as EXT, so the card is not drawn (v1019 has no badge). */
+    return;
+#else
     Serial.println("[int] paint_int_now");
     botcorps_set_surface(BOTCORPS_SURFACE_MENU);
     auto &menu = botcorps_menu();
@@ -7545,6 +7655,7 @@ static void paint_int_now(void)
     paint_int(menu);
     menu.endWrite();
     menu.clearClipRect();
+#endif
 }
 
 /* v1017a control-panel focus map over the EXISTING layout (no re-layout):
@@ -7948,6 +8059,16 @@ static void sb_tick(void)
         k_scout = sk;
     }
 }
+#ifdef BOTCORPS_CYD
+static void cyd_overlay(bool painted_ext)
+{
+    (void)painted_ext;  /* CYD-on-v1019: no companion badge (v1019 has no empty block) */
+    if (s_osk_open && s_osk_dirty) {
+        paint_osk();
+        s_osk_dirty = false;
+    }
+}
+#endif
 
 static int cursor_icon(int index)
 {
@@ -8782,6 +8903,13 @@ static void fa_run(int which)
 
 static void on_esc(void)
 {
+#ifdef BOTCORPS_CYD
+    /* ESC removes the keyboard. It does not navigate while the OSK is up. */
+    if (s_osk_open || s_osk_sym) {
+        cyd_close_osk();
+        return;
+    }
+#endif
     if (fa_live()) {
         fa_run(3);
         return;
@@ -9206,6 +9334,7 @@ static void v2_panel(Gfx g, int bot, bool framed, bool zsb, uint8_t botc)
  * Now: edge-detect presses against the previous keyList (the TCA8418 reader keeps press order), act
  * only on the newest newly pressed non-modifier key, and map it from the keymap with the live
  * Shift / Ctrl / caps state. Releases never produce a key. */
+#ifndef BOTCORPS_CYD
 static Point2D_t s_kprev[16];
 /* v1019r (#6 keyboard play): held-arrow auto-repeat while a Defend movement game is live (input only:
  * 260 ms first repeat, then every 130 ms, the same key path as a press). */
@@ -9213,9 +9342,241 @@ static int s_rep_key = 0;
 static Point2D_t s_rep_pos;
 static uint32_t s_rep_next = 0;
 static int s_kprev_n = 0;
+#endif
 static int read_key(char *typed)
 {
     *typed = 0;
+#ifdef BOTCORPS_CYD
+    int tx = 0;
+    int ty = 0;
+    bool down = botcorps_disp().getTouch(&tx, &ty);
+    if (s_intro_until && (int32_t)(millis() - s_intro_until) < 0) {
+        /* Swallow, but track state so a held finger doesn't fire on hub */
+        if (down) { s_touch_down = true; s_touch_last = millis(); }
+        else s_touch_down = false;
+        return K_NONE;
+    }
+    uint32_t now = millis();
+    /* One event per press. ~50 ms separates taps. Holds do not repeat. */
+    if (down && !s_touch_down && (now - s_touch_last) > 50) {
+        s_touch_down = true;
+        s_touch_last = now;
+    } else if (!down) {
+        s_touch_down = false;
+        return K_NONE;
+    } else {
+        return K_NONE;
+    }
+    if (s_osk_open && ty >= CYD_OSK_CLIP_Y) {
+        const int hit = cyd_osk_hit(tx, ty);
+        if (hit < 0) return K_NONE;
+        const CydOskKey k = cyd_osk_at(hit);
+        if (k.kind == CYD_OSK_HIDE) {
+            cyd_close_osk();
+            return K_NONE;
+        }
+        if (k.kind == CYD_OSK_SYM) {
+            s_osk_sym = !s_osk_sym;
+            s_osk_dirty = true;
+            return K_NONE;
+        }
+        if (k.kind == CYD_OSK_BKSP) return K_BS;
+        if (k.kind == CYD_OSK_ENTER) return K_OK;
+        if (k.kind == CYD_OSK_TAB) return K_TAB;
+        const char ch = cyd_osk_char(k, s_osk_sym);
+        if (!ch) return K_NONE;
+        *typed = ch;
+        return K_CHAR;
+    }
+    /* Chip button (ARCH-SCAN-CHIP-BUTTON-v004 §3.1/§3.5): the one-shot scan/defend
+     * chip is the ONLY new touch target on every chip board. Finger box = the chip
+     * [34,67,54,54]. A tap presses the focused chip (chip_on_key sees K_OK first in
+     * ui_dispatch). chip_now() gates to the closed board set (WIFIBOT/BLUETOOTH/AIRTAG/
+     * Gibson scan/Gibson game); other boards have no chip and fall through. */
+    {
+        int cb = 0, cd = 0;
+        if (chip_now(&cb, &cd) && tx >= 34 && tx < 34 + 54 && ty >= 67 && ty < 67 + 54) {
+            chip_mem()[2] = 1;   /* the chip holds focus on a touch device (no arrows) */
+            s_touch_last = now;
+            return K_OK;
+        }
+    }
+    if (s_screen == SCR_TERMINAL && ty < 20 && tx >= 140 && tx < 180) {
+        /* v1019: the crown (top centre) is the only back control -> Gibson hub. */
+        if (s_osk_open) { cyd_close_osk(); return K_NONE; }
+        enter_screen(SCR_GIBSON, SCR_TERMINAL);
+        return K_NONE;
+    }
+    if (s_screen == SCR_TERMINAL && s_sheet) {
+        int by = 0;
+        int h = 0;
+        int top = 0;
+        int nshow = 0;
+        sheet_box(&by, &h, &top, &nshow);
+        const int bx = 14;
+        const int bw = 292;
+        const int x1 = bx + bw;
+        const int rh = 12;
+        if (tx >= x1 - 20 && tx < x1 + 8 && ty >= by && ty < by + h) {
+            if (ty < by + h / 2) {
+                if (s_sheet_i > 0) --s_sheet_i;
+            } else if (s_sheet_i + 1 < CMD_N) {
+                ++s_sheet_i;
+            }
+            s_dirty = true;
+            return K_NONE;
+        }
+        if (tx >= bx && tx < x1 && ty >= by && ty < by + h) {
+            const int r = (ty - (by + 5)) / rh;
+            if (r >= 0 && r < nshow) {
+                int hdr = -1;
+                int cmd = 0;
+                menu_row(top + r, &hdr, &cmd);
+                if (hdr >= 0) {
+                    s_sheet_i = G_AT[hdr];
+                    if (s_sheet_i < 0) s_sheet_i = 0;
+                    if (s_sheet_i >= CMD_N) s_sheet_i = CMD_N - 1;
+                    s_dirty = true;
+                    return K_NONE;
+                }
+                if (cmd >= 0 && cmd < CMD_N) {
+                    s_sheet_i = cmd;
+                    s_sheet = false;
+                    botcorps_lut_term(false);
+                    if (CMD_ARG[cmd]) {
+                        snprintf(botcorps_t0_term_prompt, 60, "%s ", CMDN[cmd]);
+                        s_osk_open = true;
+                        s_osk_dirty = true;
+                    } else {
+                        run_cmd(CMDN[cmd]);
+                    }
+                    s_dirty = true;
+                    return K_NONE;
+                }
+            }
+        }
+        return K_ESC;
+    }
+    if (s_screen == SCR_TERMINAL) {
+        /* Board tiles (4x3 via term_xy). Tap focuses; tapping the focused board opens it. */
+        for (int n = 0; n < 12; ++n) {
+            int x, y;
+            term_xy(n, &x, &y);
+            if (tx < x || tx >= x + 76 || ty < y || ty >= y + 48) continue;
+            s_focus_cmds = false; s_cmd_btn = false; s_atk_btn = false; s_term_prompt = false;
+            if (s_term == n) return K_OK;              /* on_ok -> open_bot(s_term) */
+            const int old = s_term;
+            s_term = n;
+            partial_tile(old);
+            partial_tile(n);
+            partial_int();
+            return K_NONE;
+        }
+        if (s_osk_open) return K_NONE;
+        /* Commands pull-down (hamburger) at the far right of the prompt row (TERM_CMD_X=292, 20x12 art,
+         * 28x36 finger hit). */
+        if (!s_sheet && tx >= CYD_HIT_CMD_X && ty >= CYD_ROW_Y) {
+            s_cmd_btn = true; s_atk_btn = false; s_focus_cmds = false; s_term_prompt = false;
+            return K_OK;                               /* on_ok -> opens the chip palette */
+        }
+        /* Attack-prompt button, just left of the pull-down (TERM_ATK_X=268, 20x12 art, 28x36 hit). */
+        if (!s_sheet && tx >= CYD_HIT_ATK_X && tx < CYD_HIT_CMD_X && ty >= CYD_ROW_Y) {
+            s_atk_btn = true; s_cmd_btn = false; s_focus_cmds = false; s_term_prompt = false;
+            return K_OK;                               /* on_ok -> opens the attack overlay */
+        }
+        /* [abc] (CYD-only): focuses the prompt and raises the 14 px keyboard. 28x36 hit. */
+        if (!s_sheet && tx >= CYD_HIT_ABC_X && tx < CYD_HIT_ATK_X && ty >= CYD_ROW_Y) {
+            s_term_prompt = true; s_focus_cmds = false; s_cmd_btn = false; s_atk_btn = false;
+            s_osk_open = true;
+            s_osk_dirty = true;
+            s_dirty = true;
+            return K_NONE;
+        }
+        /* Command palette chips, when the palette is open (6x2 over the scrollback). */
+        if (s_focus_cmds && !s_sheet) {
+            for (int n = 0; n < 12; ++n) {
+                const int x = 8 + (n % 6) * 44;
+                const int y = 171 + (n / 6) * 18;
+                if (tx < x || tx >= x + 41 || ty < y || ty >= y + 15) continue;
+                s_cmd_sel = n;
+                return K_OK;
+            }
+        }
+        /* Prompt row (left of the buttons) focuses the prompt. The keyboard opens from [abc] only. */
+        if (!s_sheet && ty >= 214 && tx < CYD_HIT_ABC_X) {
+            s_term_prompt = true; s_focus_cmds = false; s_cmd_btn = false; s_atk_btn = false;
+            s_dirty = true;
+            return K_NONE;
+        }
+        return K_NONE;
+    }
+    /* Scan boxes (WiFi/BLE lists + core/bot scan): device grid + action menu.
+     * Geometry mirrors sb_cell (SG_X/Y/C) and sb_panel (SB_X/Y/W/H, rows at
+     * SB_Y+22+j*14). All CYD-only; see PLAN hit-rect table. */
+    if (s_screen == SCR_WIFI_RADAR || s_screen == SCR_BT_RADAR || s_screen == SCR_SCAN) {
+        /* A sub-view (hunt graph, info card, glossary) is a viewer: any tap steps back. */
+        if (s_hunt_dev >= 0 || s_info_dev >= 0 || s_gloss >= 0) return K_ESC;
+        if (s_fa_on) {
+            /* found-alert menu: 4 stacked actions, same panel column as sb_panel. */
+            for (int j = 0; j < FA_N; ++j) {
+                const int yy = SB_Y + 22 + j * 14;
+                if (tx < SB_X + 2 || tx >= SB_X + SB_W - 2 || ty < yy || ty >= yy + 13) continue;
+                s_fa_sel = j;
+                return K_OK;
+            }
+            if (tx < 36 && ty < 20) return K_ESC;
+            return K_NONE;
+        }
+        if (s_act >= 0) {
+            /* per-device action menu (hunt/info/tag/ignore/back) over the grid. */
+            for (int j = 0; j < ACT_N; ++j) {
+                const int yy = SB_Y + 22 + j * 14;
+                if (tx < SB_X + 2 || tx >= SB_X + SB_W - 2 || ty < yy || ty >= yy + 13) continue;
+                s_act = j;
+                return K_OK;                 /* on_ok -> act_pick(); 'back' = last row closes */
+            }
+            if (tx < 36 && ty < 20) return K_ESC;
+            return K_NONE;
+        }
+        if (s_screen != SCR_SCAN) {
+            /* device cells: 7-wide grid, 22 px pitch, centred by sb_cell. */
+            const int band = list_band();
+            for (int d = 0; d < LIST_N; ++d) {
+                int cx = 0, cy = 0;
+                sb_cell(band, d, &cx, &cy);
+                if (tx < cx - 11 || tx >= cx + 11 || ty < cy - 11 || ty >= cy + 11) continue;
+                if (s_dev_ign[band][d]) return K_NONE;
+                s_cursor = d;
+                return K_OK;                 /* on_ok -> opens s_act for this device */
+            }
+            /* ">" glossary prompt sits top-left of the grid column. */
+            if (tx >= SG_X - 4 && tx < SG_X + 14 && ty >= SB_Y && ty < SB_Y + 14) {
+                s_cursor = LIST_N;
+                return K_OK;                 /* on_ok -> s_gloss = 0 */
+            }
+        }
+        if (tx < 36 && ty < 20) return K_ESC;   /* top-left back to the hub */
+        return K_NONE;
+    }
+    {
+        const int nbtn = button_count();
+        for (int i = 0; i < nbtn; ++i) {
+            int x, y, w, h;
+            if (!cursor_box(i, &x, &y, &w, &h)) continue;
+            const int hh = (h == BS) ? BS + 10 : h;
+            if (tx < x || tx >= x + w || ty < y || ty >= y + hh) continue;
+            if (s_cursor == i) return K_OK;
+            const int old = s_cursor;
+            s_cursor = i;
+            queue_focus(old, i);
+            return K_NONE;
+        }
+    }
+    /* Top-left back on Terminal (to Gibson) and on other screens. Rain has none. */
+    if (s_screen != SCR_RAIN && tx < 36 && ty < 18)
+        return K_ESC;
+    return K_NONE;
+#else
     const auto &kl = M5Cardputer.Keyboard.keyList();
     int fresh = -1;
     bool fn = false, shift = false, ctrl = false;
@@ -9269,6 +9630,7 @@ static int read_key(char *typed)
         return K_CHAR;
     }
     return K_NONE;
+#endif
 }
 #ifdef BOTCORPS_HOST_RENDER
 /* gate K1: drive the real read_key + dispatcher with a scripted key matrix (host keyboard shim). */
@@ -9301,7 +9663,13 @@ void botcorps_ui_begin(void)
     s_boot_ms = millis();
     s_last_key = s_boot_ms;
     s_bub[0] = 0;
+#ifdef BOTCORPS_CYD
+    s_screen = SCR_RAIN; /* v1019m: boot = live rain + boot_log, then hub (no ID board) */
+    s_act = 4;
+    s_intro_until = millis() + 2500; /* show Adv-style intro, then hub */
+#else
     s_screen = SCR_RAIN;
+#endif
     s_cursor = 0;
     s_dirty = true;
     s_int_dirty = true;
@@ -9459,6 +9827,11 @@ void botcorps_ui_input(void)
 {
     char typed = 0;
     const int key = read_key(&typed);
+#ifdef BOTCORPS_CYD
+    /* CYD: no key matrix to poll for a held key; touch emits one key per tap. */
+    if (key == K_NONE) return;
+    ui_dispatch(key, typed);
+#else
     if (key == K_NONE) {
         if (!s_rep_key) return;
         bool held = false;
@@ -9471,6 +9844,7 @@ void botcorps_ui_input(void)
     }
     if (key == K_UP || key == K_DN || key == K_LT || key == K_RT) { s_rep_key = key; s_rep_next = millis() + 260u; }
     ui_dispatch(key, typed);
+#endif
 }
 
 /* v1019q (item 8) root cause: while a Defend game is live, ui_dispatch handed EVERY key to dg_key (the
@@ -9587,6 +9961,17 @@ static void ui_dispatch(int key, char typed)
 void botcorps_ui_draw(void)
 {
     chip_tick();
+#ifdef BOTCORPS_CYD
+    /* Force the intro→hub switch even in band-direct mode (no rain step). */
+    if (s_intro_until && (int32_t)(millis() - s_intro_until) >= 0) {
+        s_screen = SCR_GIBSON;
+        s_act = -1; /* match enter_screen */
+        s_intro_until = 0;
+        s_dirty = true;
+    }
+    /* While the keyboard is open, band pushes stop above it. */
+    botcorps_band_set_push_ymax(s_osk_open ? CYD_OSK_CLIP_Y : 240);
+#endif
     ls_pump();
     sp_auto_poll();
     botcorps_rain_set_hub(s_screen == SCR_GIBSON);
@@ -9632,6 +10017,7 @@ void botcorps_ui_draw(void)
             s_int_dirty = false;
             paint_int_now();
         } else {
+#ifndef BOTCORPS_CYD
             fmt_times();
             static char drawn_b[8];
             if (strcmp(drawn_b, s_up) != 0) {
@@ -9648,7 +10034,12 @@ void botcorps_ui_draw(void)
                                      gib ? 0 : bi, gib, gib ? COL_IVORY : bot_color(bi));
                 }
             }
+#endif
         }
+#ifdef BOTCORPS_CYD
+        cyd_overlay(dirty);
+        (void)pulse;
+#endif
         return;
     }
     if (dirty) {
@@ -9660,8 +10051,17 @@ void botcorps_ui_draw(void)
     if (int_dirty) {
         s_int_dirty = false;
         paint_int_now();
+#ifdef BOTCORPS_CYD
+        cyd_overlay(dirty);
+#endif
         return;
     }
+#ifdef BOTCORPS_CYD
+    if (dirty) {
+        cyd_overlay(true);
+        return;
+    }
+#endif
     if (dirty) return;
     if (dg_on()) dg_tick();
     else if (zap_sb_on()) zap_tick_patch();   /* v1019x */
@@ -9671,6 +10071,7 @@ void botcorps_ui_draw(void)
         botcorps_content().endWrite();
         botcorps_content().clearClipRect();
     }
+#ifndef BOTCORPS_CYD
     fmt_times();
     static char drawn[8];
     if (strcmp(drawn, s_up) != 0) {
@@ -9687,6 +10088,10 @@ void botcorps_ui_draw(void)
                              gib ? 0 : bi, gib, gib ? COL_IVORY : bot_color(bi));
         }
     }
+#else
+    cyd_overlay(false);
+    (void)pulse;
+#endif
 }
 
 #ifdef BOTCORPS_HOST_RENDER
@@ -10313,6 +10718,35 @@ void botcorps_host_hub(uint8_t *buf)
     s_mood_until = 0;
     paint_ext(Gfx());
 }
+#ifdef BOTCORPS_CYD
+
+/* Types every letter plus the symbol-layer characters on Terminal.
+ * Returns 0 when the screen stays Terminal and the prompt holds the text. */
+int botcorps_host_type_letters(void)
+{
+    const int saved = s_screen;
+    s_screen = SCR_TERMINAL;
+    s_sheet = false;
+    s_focus_cmds = false;
+    botcorps_t0_term_prompt[0] = 0;
+    const char *letters = "abcdefghijklmnopqrstuvwxyz ,.-|<>@";
+    for (const char *p = letters; *p; ++p) on_char(*p);
+    const int ok = s_screen == SCR_TERMINAL
+        && strcmp(botcorps_t0_term_prompt, letters) == 0;
+    botcorps_t0_term_prompt[0] = 0;
+    s_screen = saved;
+    return ok ? 0 : 1;
+}
+
+/* Bot reply ink. 0 means the slot collapsed to ivory or the index is Gibson. */
+int botcorps_host_reply_ink(int bot)
+{
+    if (bot < 0 || bot > 11) return 0;
+    const uint8_t ink = bot_color(bot);
+    if (ink == (uint8_t)PAL_IVORY || ink == (uint8_t)COL_INK) return 0;
+    return (int)ink;
+}
+#endif
 #endif
 
 #ifdef BOTCORPS_HOST_RENDER
@@ -10402,6 +10836,20 @@ void botcorps_host_enter(uint8_t *buf, int id)
     enter_screen(id, -1);
     paint_ext(Gfx());
 }
+#ifdef BOTCORPS_CYD
+/* v1019m-host: CYD-only overlay states the host renders over a base screen.
+ * The on-screen keyboard: enter the Terminal, open the OSK, paint it. */
+void botcorps_host_cyd_osk(uint8_t *buf)
+{
+    botcorps_host_enter(buf, SCR_TERMINAL);
+    s_osk_open = true;
+    s_osk_sym = false;
+    s_osk_dirty = true;
+    host_frame = buf;
+    paint_ext(Gfx());
+    cyd_overlay(true);
+}
+#endif
 int botcorps_host_screen_now(void) { return s_screen; }
 /* Cold boot on RAIN, then the real key path. Each stop must paint the
  * 320x240 EXT buffer: a sentinel byte left behind means the paint
@@ -10933,6 +11381,7 @@ int botcorps_host_cmd_btn(uint8_t *buf, int *reach, int *opened, int *esc_back, 
     *menu_runs = s_log_next != n0;
     return s_screen;
 }
+#ifndef BOTCORPS_CYD  /* v1019m-host: keyboard matrix sim is Adv-only; CYD uses touch */
 /* v1017c gate K1 (#2/#3): real read_key on a scripted key matrix. Rollover typing (each key pressed
  * before the previous is released), a press + release landing in one scan, Backspace, and an Fn
  * arrow chord released Fn-first. The prompt must read exactly what was typed, and each arrow chord
@@ -10992,6 +11441,7 @@ int botcorps_host_k1(uint8_t *buf, char *out, int n, int *focus_ok)
     paint_ext(Gfx());
     return strcmp(botcorps_t0_term_prompt, "scan wifi") == 0 && *focus_ok;
 }
+#endif /* keyboard-sim: Adv host only */
 int botcorps_host_cp_start(void) { uint8_t b[1]; (void)b; static uint8_t buf[320 * 240]; botcorps_host_enter(buf, SCR_CONTROL); return s_cursor; }
 /* v1017a gate: arrows only move. From a stop, press dir; returns the new cursor and whether any
  * setting text changed (must be 0). */

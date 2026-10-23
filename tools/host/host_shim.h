@@ -43,6 +43,10 @@ public:
     void print(const char *);
     void setTextDatum(textdatum_t) {}
     void drawString(const char *, int, int) {}
+#ifdef BOTCORPS_CYD
+    bool getTouch(int *x, int *y) { if (x) *x = 0; if (y) *y = 0; return false; }
+    bool getTouch(uint16_t *x, uint16_t *y) { if (x) *x = 0; if (y) *y = 0; return false; }
+#endif
 };
 class LGFX_Device : public LovyanGFX {};
 }
@@ -294,6 +298,14 @@ uint32_t botcorps_band_largest(void);
 lgfx::v1::LovyanGFX &botcorps_content(void);
 bool botcorps_dual_ok(void);
 void botcorps_set_surface(int);
+#ifdef BOTCORPS_CYD
+/* v1019m-host: single-panel CYD accessors the device pulls from display.h /
+ * band.h. The host build includes only host_shim.h, so declare them here;
+ * tools/host/cyd/cyd_glue.cpp defines them. */
+lgfx::v1::LGFX_Device &botcorps_disp(void);
+bool botcorps_cyd_run_touch_cal(void);
+void botcorps_band_set_push_ymax(int y);
+#endif
 void botcorps_band_set_oy(int);
 void botcorps_band_present(void (*)(Gfx));
 bool botcorps_band_direct(void);

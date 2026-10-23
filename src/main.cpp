@@ -26,68 +26,7 @@
 #define BOTCORPS_VERSION "0.0.0-s0s1"
 #endif
 
-#ifdef BOTCORPS_CYD
-
-void setup(void)
-{
-    Serial.begin(115200);
-    delay(100);
-    Serial.printf("\n[botcorps] %s CYD\n", BOTCORPS_VERSION);
-
-    const bool ok = botcorps_dual_begin();
-    Serial.printf("[botcorps] display_ok=%d\n", ok ? 1 : 0);
-    if (!ok) {
-        Serial.println("[botcorps] display fail");
-        while (1) delay(1000);
-    }
-
-    botcorps_band_touch();
-    botcorps_frame_diag();
-    botcorps_band_release();
-    /* d177300 P0 order: band rebuilt first, probe after band. */
-    botcorps_band_rebuild();
-    botcorps_probe_run();
-    /* No INT ID-card strip. The compact badge is painted with the terminal. */
-    botcorps_ui_mark_dirty();
-
-    /* Auto-cal on first boot (or when no cv=2 8-point exists).
-     * Hold-at-boot remains as a forced re-cal if finger is already down. */
-    if (!botcorps_cyd_has_valid_cal()) {
-        Serial.println("[botcorps] no valid cv=2 cal — auto-entering cal");
-        botcorps_cyd_run_touch_cal();
-    } else {
-        int x, y;
-        if (g_cyd.get_touch_raw(&x, &y)) {
-            int hold = 1;
-            uint32_t t0 = millis();
-            while (millis() - t0 < 2500) {
-                if (g_cyd.get_touch_raw(&x, &y)) {
-                    if (++hold >= 100) {
-                        Serial.println("[botcorps] hold-at-boot cal");
-                        botcorps_cyd_run_touch_cal();
-                        break;
-                    }
-                    delay(10);
-                } else {
-                    break; /* lifted — abort window */
-                }
-            }
-        }
-    }
-
-    botcorps_ui_begin();
-    botcorps_probe_screen("-", "rain");
-    botcorps_ui_draw();
-}
-
-void loop(void)
-{
-    botcorps_ui_input();
-    botcorps_ui_draw();
-    delay(10);
-}
-
-#else
+#ifndef BOTCORPS_CYD
 static void park_ir_led(void)
 {
     /* Cardputer IR LED on GPIO44. HIGH keeps it off. */
@@ -188,4 +127,65 @@ void loop(void)
     botcorps_ui_draw();
     delay(10);
 }
+#else
+
+void setup(void)
+{
+    Serial.begin(115200);
+    delay(100);
+    Serial.printf("\n[botcorps] %s CYD\n", BOTCORPS_VERSION);
+
+    const bool ok = botcorps_dual_begin();
+    Serial.printf("[botcorps] display_ok=%d\n", ok ? 1 : 0);
+    if (!ok) {
+        Serial.println("[botcorps] display fail");
+        while (1) delay(1000);
+    }
+
+    botcorps_band_touch();
+    botcorps_frame_diag();
+    botcorps_band_release();
+    /* d177300 P0 order: band rebuilt first, probe after band. */
+    botcorps_band_rebuild();
+    botcorps_probe_run();
+    /* No INT ID-card strip. The compact badge is painted with the terminal. */
+    botcorps_ui_mark_dirty();
+
+    /* Auto-cal on first boot (or when no cv=2 8-point exists).
+     * Hold-at-boot remains as a forced re-cal if finger is already down. */
+    if (!botcorps_cyd_has_valid_cal()) {
+        Serial.println("[botcorps] no valid cv=2 cal — auto-entering cal");
+        botcorps_cyd_run_touch_cal();
+    } else {
+        int x, y;
+        if (g_cyd.get_touch_raw(&x, &y)) {
+            int hold = 1;
+            uint32_t t0 = millis();
+            while (millis() - t0 < 2500) {
+                if (g_cyd.get_touch_raw(&x, &y)) {
+                    if (++hold >= 100) {
+                        Serial.println("[botcorps] hold-at-boot cal");
+                        botcorps_cyd_run_touch_cal();
+                        break;
+                    }
+                    delay(10);
+                } else {
+                    break; /* lifted — abort window */
+                }
+            }
+        }
+    }
+
+    botcorps_ui_begin();
+    botcorps_probe_screen("-", "rain");
+    botcorps_ui_draw();
+}
+
+void loop(void)
+{
+    botcorps_ui_input();
+    botcorps_ui_draw();
+    delay(10);
+}
+
 #endif /* BOTCORPS_CYD */

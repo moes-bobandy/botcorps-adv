@@ -482,6 +482,16 @@ static bool s_touch_down = false;
 static uint32_t s_touch_last = 0;
 static bool s_osk_sym = false;
 static bool s_osk_dirty = false;
+#ifdef BOTCORPS_CYD
+/* cyd-term-fix items 1/5: pop-up list mode state (botcorps_cyd_term.inc). */
+static bool s_cyd_pl = false;      /* pop-up shows the glossary list (s_osk_open stays true: one clamp) */
+static int s_cyd_pl_top = 0;       /* first list entry shown */
+static int s_cyd_pop_scr = -1;     /* screen the open pop-up belongs to (-1 = none yet) */
+static bool cyd_pop_paint(void);
+static void cyd_osk_echo(void);
+static void cyd_sb_btns(Gfx g, bool has_menu, uint8_t ac);
+static void cyd_hub_abc(Gfx g);
+#endif
 #endif
 static bool s_sheet = false;
 static int s_sheet_i = 0;
@@ -5631,6 +5641,9 @@ static void paint_sbox(Gfx g, bool wifi)
     x = sb_tt(g, l2, x, ty, COL_INK);
     if ((millis() / 530u) % 2u == 0u) sb_rect(g, x + 1, ty, 5, 9, ac);
     }
+#ifdef BOTCORPS_CYD
+    cyd_sb_btns(g, zsb || core, ac);   /* cyd-term-fix: [abc] + glossary on every scan / bot strip */
+#endif
     }
     if (sb_vis(0, 0, 320, 25) || sb_vis(0, 209, 320, 31)) sb_hud(g, band);
 }
@@ -6451,6 +6464,9 @@ static void gp_strip(Gfx g, uint32_t t, uint8_t ac)
     g.drawRect(mx, my, 18, 12, cm ? ac : (uint8_t)COL_LINE);
     if (cm) g.drawRect(mx - 1, my - 1, 20, 14, PAL_WHITE);
     for (int k = 0; k < 3; ++k) g.fillRect(mx + 4, my + 3 + k * 3, 10, 1, cm ? (uint8_t)PAL_WHITE : (uint8_t)COL_MUTED);
+#ifdef BOTCORPS_CYD
+    cyd_hub_abc(g);   /* cyd-term-fix: [abc] keyboard emblem left of the hub ≡ */
+#endif
 }
 
 /* chip_plate leaves these four pixels empty. The partial clip would keep them stale. */
@@ -7731,6 +7747,8 @@ static void cyd_close_osk(void)
     s_osk_open = false;
     s_osk_sym = false;
     s_osk_dirty = false;
+    s_cyd_pl = false;   /* cyd-term-fix: the list mode closes with the pop-up */
+    s_cyd_pop_scr = -1;
     s_dirty = true;
 }
 
@@ -8194,8 +8212,13 @@ static void sb_tick(void)
 static void cyd_overlay(bool painted_ext)
 {
     (void)painted_ext;  /* CYD-on-v1019: no companion badge (v1019 has no empty block) */
+    if (s_osk_open && s_osk_dirty && cyd_pop_paint()) {   /* cyd-term-fix: glossary list mode */
+        s_osk_dirty = false;
+        return;
+    }
     if (s_osk_open && s_osk_dirty) {
         paint_osk();
+        cyd_osk_echo();   /* cyd-term-fix: echo row = this terminal's command line */
         s_osk_dirty = false;
     }
 }
@@ -9485,6 +9508,9 @@ static Point2D_t s_rep_pos;
 static uint32_t s_rep_next = 0;
 static int s_kprev_n = 0;
 #endif
+#ifdef BOTCORPS_CYD
+#include "ui/botcorps_cyd_term.inc"
+#endif
 static int read_key(char *typed)
 {
     *typed = 0;
@@ -9508,6 +9534,10 @@ static int read_key(char *typed)
         return K_NONE;
     } else {
         return K_NONE;
+    }
+    {   /* cyd-term-fix items 1/5: [abc] / glossary buttons and the list pop-up */
+        const int pk = cyd_pop_touch(tx, ty);
+        if (pk >= 0) return pk;
     }
     if (s_osk_open && ty >= CYD_OSK_CLIP_Y) {
         const int hit = cyd_osk_hit(tx, ty);
@@ -9972,7 +10002,9 @@ void botcorps_ui_input(void)
 #ifdef BOTCORPS_CYD
     /* CYD: no key matrix to poll for a held key; touch emits one key per tap. */
     if (key == K_NONE) return;
+    const int scr0 = s_screen;   /* cyd-term-fix */
     ui_dispatch(key, typed);
+    cyd_pop_after(key, scr0);    /* cyd-term-fix: echo repaint / close after ENTER */
 #else
     if (key == K_NONE) {
         if (!s_rep_key) return;
@@ -10112,6 +10144,9 @@ void botcorps_ui_draw(void)
         s_intro_until = 0;
         s_dirty = true;
     }
+    /* cyd-term-fix: a pop-up never outlives its terminal (screen changed by a command / timer). */
+    if (s_osk_open && s_cyd_pop_scr >= 0 && s_cyd_pop_scr != s_screen) cyd_close_osk();
+    if (s_osk_open) s_cyd_pop_scr = s_screen;
     /* While the keyboard is open, band pushes stop above it. */
     botcorps_band_set_push_ymax(s_osk_open ? CYD_OSK_CLIP_Y : 240);
 #endif

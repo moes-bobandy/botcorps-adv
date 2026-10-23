@@ -474,7 +474,11 @@ void botcorps_band_patch_rect(void (*draw)(Gfx), int x, int y, int w, int h)
     host_slice_oy = 0;
     host_slice_h = 0;
     host_frame = saved;
-    sim_push_rect(y0, y - y0, (y - y0 + h) < 120 ? (y - y0 + h) : 120, x, x + w);
+    {   /* cyd-term-fix: mirror the device patch_rect clamp at the pop-up (host_push_ymax 240 = Adv, no-op) */
+        int r1 = (y - y0 + h) < 120 ? (y - y0 + h) : 120;
+        if (r1 > host_push_ymax - y0) r1 = host_push_ymax - y0;
+        if (r1 > y - y0) sim_push_rect(y0, y - y0, r1, x, x + w);
+    }
     ++host_sim_rects;
     if (!held) s_sim_res = -1;
 }

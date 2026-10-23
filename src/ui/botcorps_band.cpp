@@ -649,6 +649,10 @@ void botcorps_band_patch_rect(void (*draw)(Gfx), int x, int y, int w, int h)
             panel.startWrite();
             for (int r = y - y0; r < y - y0 + h && r < SLICE_H; ++r) {
                 const uint8_t *row = buf + (size_t)r * (size_t)stride;
+#ifdef BOTCORPS_CYD
+                /* cyd-term-fix: a dirty rect never paints over the open pop-up (same clamp as push_slice) */
+                if (y0 + r >= s_push_ymax) { botcorps_t0_row_hash[y0 + r] = 0xffffffffu; continue; }
+#endif
                 for (int i = 0; i < w; ++i) line[i] = ext_push_word(row[x + i]);
                 panel.pushImage(x, y0 + r, w, 1, line);
                 botcorps_t0_row_hash[y0 + r] = held ? row_hash(row, 320) : 0xffffffffu;

@@ -361,3 +361,155 @@ static bool cyd_pop_paint(void)
     cyd_pl_paint(CYD_POP);
     return true;
 }
+
+/* ---- item 3: chip press on the glass ------------------------------------------------------------
+ * Root cause ("sketchy / doesn't respond"): the touch hit returned K_OK into ui_dispatch, so
+ *  (a) after the first press on a Defend board the FSM sits in CH_PLAY and chip_on_key ignores every
+ *      later press (the "press restarts the round" path never runs again) - dead chip;
+ *  (b) any text left in s_gp_buf / s_sp_buf, or a strip command cursor (s_sp_cmd >= 0), makes
+ *      chip_on_key bail, so the same tap ran the command line instead of pressing the chip.
+ * A tap ON the chip is unambiguous, so the glass presses the FSM directly (same transitions as the
+ * K_OK branch of chip_on_key; CH_PLAY on an open board re-arms, which restarts the round). */
+static const CydRect CYD_CHIP = { 34, 67, 54, 54 };
+static int cyd_chip_press(void)
+{
+    uint8_t *m = chip_mem();
+    int bot = 0, def = 0;
+    if (!chip_now(&bot, &def)) return K_NONE;
+    if (m[5] != (uint8_t)bot || m[13] != (uint8_t)s_screen) {        /* stale owner: re-arm for this board */
+        m[0] = CH_IDLE; m[1] = 0; m[3] = 0; m[4] = 0; m[7] = 0;
+        m[5] = (uint8_t)bot; m[6] = (uint8_t)def; m[13] = (uint8_t)s_screen;
+    }
+    m[2] = 1;                                                        /* the chip holds focus (no arrows) */
+    if (m[0] == CH_PLAY || m[0] == CH_DONE) { m[0] = CH_IDLE; m[1] = 0; }
+    if (m[0] == CH_IDLE) {
+        m[0] = chip_is_game(bot, def) ? (uint8_t)CH_RING : (uint8_t)CH_SCAN;
+        m[1] = 0; m[3] = 0; m[7] = 0;
+        m[4] = (m[0] == CH_SCAN) ? 1 : 0;
+        chip_set_t0(millis());
+    }
+    s_dirty = true;
+    return K_NONE;
+}
+static int cyd_chip_touch(int tx, int ty)
+{
+    int cb = 0, cd = 0;
+    if (s_osk_open || !chip_now(&cb, &cd) || !cyd_in(CYD_CHIP, tx, ty, 0)) return -1;
+    return cyd_chip_press();
+}
+
+/* ---- item 10: top-bar quick buttons ---------------------------------------------------------------
+ * Root cause: the glass had no hit for any top-bar button at its DRAWN rect. The Terminal crown hit sat
+ * at x 140..180 (the old centre crown) while paint_term_icons draws it at 203..227; the scan-shell
+ * bar (sb_top: crown "back" 143..177, >_ 190..206), the Control bar (crown x160, TERM 194..216) and
+ * the Diag crown_btn (140..180) had none - only the top-left corner mapped to Esc. Each rect below is
+ * the painter's own rect, mapped to the Adv key / action it stands for. */
+static const CydRect CYD_SB_CROWN = { 143, 0, 34, 17 };      /* sb_top GATE_BOX CROWN "back"   -> Esc */
+static const CydRect CYD_SB_TERM = { 190, 2, 16, 13 };       /* sb_top >_ quick terminal chip -> terminal */
+static const CydRect CYD_TERM_CROWN = { 203, 0, 24, 16 };    /* paint_term_icons CROWN "back" -> hub */
+static const CydRect CYD_CP_CROWN = { 142, 0, 36, 16 };      /* paint_control crown (cursor CP_N+1) */
+static const CydRect CYD_CP_TERM = { 194, 1, 22, 14 };       /* paint_control BTN "term" (cursor CP_N) */
+static const CydRect CYD_CROWN_BTN = { 140, 0, 40, 20 };     /* crown_btn (Diag) -> Esc */
+
+static int cyd_top_touch(int tx, int ty)
+{
+    if (ty >= 24) return -1;
+    if (s_screen == SCR_TERMINAL) {
+        if (s_sheet || !cyd_in(CYD_TERM_CROWN, tx, ty, 2)) return -1;
+        if (s_osk_open) cyd_close_osk();
+        enter_screen(SCR_GIBSON, SCR_TERMINAL);              /* the Terminal crown's existing action */
+        return K_NONE;
+    }
+    if (s_screen == SCR_CONTROL) {
+        if (cyd_in(CYD_CP_CROWN, tx, ty, 2)) { s_cursor = CP_N + 1; return K_OK; }   /* Adv: focus + Enter */
+        if (cyd_in(CYD_CP_TERM, tx, ty, 2)) { s_cursor = CP_N; return K_OK; }
+        return -1;
+    }
+    if (sbox_on() || zap_sb_on()) {
+        if (cyd_in(CYD_SB_CROWN, tx, ty, 2)) {
+            if (s_osk_open) cyd_close_osk();
+            return K_ESC;                                   /* Adv Esc: steps back one layer, then leaves */
+        }
+        if (cyd_in(CYD_SB_TERM, tx, ty, 2)) {
+            if (s_osk_open) cyd_close_osk();
+            const int from = s_screen;
+            if (from == SCR_GCHAT && dl_live()) dl_end();
+            enter_screen(SCR_TERMINAL, from);               /* as the "terminal" command */
+            boot_log();
+            s_dirty = true;
+            return K_NONE;
+        }
+        return -1;
+    }
+    if (s_screen == SCR_DIAG && cyd_in(CYD_CROWN_BTN, tx, ty, 0)) return K_ESC;
+    return -1;
+}
+
+/* ---- item 6: bot rain behind the Terminal boards ---------------------------------------------------
+ * The 72x46 board tiles are opaque, so the Terminal's live device rain only showed in the 4 px gaps and
+ * the margins. Each tile now draws the SAME live rain cells (botcorps_rain_ghost: whole icons only, the
+ * icon's own inks dimmed, same cells as the open field) into its bare board areas right after the base
+ * fill, so traces, pins, the chip footprint, the bot face and the label all stay painted on top. The
+ * footprint (x+23..49, y+14..36) and the label strip (y+36..44) are left clear. */
+static const CydRect CYD_TILE_RAIN[3] = {
+    { 1, 1, 22, 35 },     /* left board field  */
+    { 49, 1, 22, 35 },    /* right board field */
+    { 23, 1, 26, 13 },    /* above the footprint (under the IC pin comb) */
+};
+static void cyd_tile_rain(Gfx g, int x, int y)
+{
+    if (s_screen != SCR_TERMINAL || !g.raw()) return;
+    if (!(wants_rain() || rain_static())) return;
+#ifdef BOTCORPS_HOST_RENDER
+    if (host_gate_norain) return;
+    host_gate_mute = 1;
+#endif
+    for (int k = 0; k < 3; ++k) {
+        const CydRect &r = CYD_TILE_RAIN[k];
+        botcorps_rain_ghost(*g.raw(), g.ox, g.oy, x + r.x, y + r.y, r.w, r.h, 0);
+    }
+#ifdef BOTCORPS_HOST_RENDER
+    host_gate_mute = 0;
+#endif
+}
+
+/* ---- item 7: light live rain preview on CYD Control --------------------------------------------------
+ * The Control board (SB_BX/BY/BW/BH) is an opaque matte plate, so the theme chips (GRAPE / MASHUP / MIX
+ * / RAIN / MULTI) and the RAIN / JUMP jumpers changed a rain you could only see in the 8 px frame. The
+ * plate now draws the live rain (the existing engine: botcorps_rain_draw_win = same cells, glyphs,
+ * palette, mode, mix and shape, hub-dimmed inks) right after its fill, before any board art, so every
+ * part, label and trace stays on top and a theme change shows on the next frame. */
+static const int CYD_CP_RAIN_EVERY = 3;
+static void cyd_cp_rain(Gfx g)
+{
+    if (s_screen != SCR_CONTROL || !g.raw() || g.ox != 0) return;
+    if (!wants_rain()) return;
+#ifdef BOTCORPS_HOST_RENDER
+    if (host_gate_norain) return;
+#endif
+    const ZrClip cl = zr_clip_push(g, SB_BX + 2, SB_BY + 2, SB_BW - 4, SB_BH - 4);
+    const ZrClip n = zr_clip_get(g);
+#ifdef BOTCORPS_HOST_RENDER
+    host_gate_mute = 1;
+#endif
+    botcorps_rain_set_covers(nullptr, 0, false);         /* the plate cover keeps the FIELD rain off it */
+    if (botcorps_rain_bg() != 0) {
+        /* a BACKGROUND style (saver) is sparse by itself: preview it whole */
+        botcorps_rain_draw_win(*g.raw(), g.oy, g.oy + g.raw()->height(), (int)n.x + g.ox, (int)n.y + g.oy,
+                               (int)n.w, (int)n.h, nullptr, 0);
+    } else {
+        /* light: one rain column in CYD_CP_RAIN_EVERY, the cells/glyphs/inks are the live ones */
+        for (int cx = 0; cx < 320; cx += 8 * CYD_CP_RAIN_EVERY) {
+            const int x0 = cx > (int)n.x ? cx : (int)n.x;
+            const int x1 = (cx + 8) < (int)(n.x + n.w) ? (cx + 8) : (int)(n.x + n.w);
+            if (x1 <= x0) continue;
+            botcorps_rain_draw_win(*g.raw(), g.oy, g.oy + g.raw()->height(), x0 + g.ox, (int)n.y + g.oy,
+                                   x1 - x0, (int)n.h, nullptr, 0);
+        }
+    }
+    botcorps_rain_set_covers(s_box, s_box_n, s_box_radar);  /* restored exactly */
+#ifdef BOTCORPS_HOST_RENDER
+    host_gate_mute = 0;
+#endif
+    zr_clip_set(g, cl);
+}

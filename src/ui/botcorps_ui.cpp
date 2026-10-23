@@ -491,6 +491,10 @@ static void cyd_sb_btns(Gfx g, bool has_menu, uint8_t ac);
 static void cyd_hub_abc(Gfx g);
 static int cyd_pop_touch(int tx, int ty);
 static void cyd_pop_after(int key, int scr0);
+static void cyd_tile_rain(Gfx g, int x, int y);
+static void cyd_cp_rain(Gfx g);
+static int cyd_chip_touch(int tx, int ty);
+static int cyd_top_touch(int tx, int ty);
 /* 0 = landscape, 1 = portrait. Persisted as NVS "orient". Non-static: display.h begin(). */
 uint8_t botcorps_cyd_orient = 0;
 static void cyd_apply_orient(void);
@@ -1805,6 +1809,9 @@ static void paint_king_tile(Gfx g, bool sel)
     g.fillRect(x + 1, y, w - 2, h, base);
     g.fillRect(x, y + 1, w, h - 2, base);
     g.fillRect(x + 2, y + 36, w - 4, 8, (uint8_t)PAL_BOARD_D);
+#ifdef BOTCORPS_CYD
+    cyd_tile_rain(g, x, y);   /* cyd-term-fix item 6: the live rain behind the board art */
+#endif
     const int longtr[4] = { 1, 3, 5, 6 };
     for (int n = 0; n < 4; ++n) { const int k = longtr[n]; g.fillRect(x + 4, y + 6 + k * 4, 19, 1, tr); g.fillRect(x + 49, y + 6 + k * 4, 19, 1, tr); }
     const int shorttr[4] = { 0, 2, 4, 7 };
@@ -1860,6 +1867,9 @@ static void paint_one_board(Gfx g, int i, bool sel, bool dim)
     g.fillRect(x + 1, y, w - 2, h, base);
     g.fillRect(x, y + 1, w, h - 2, base);
     g.fillRect(x + 2, y + 36, w - 4, 8, (uint8_t)PAL_BOARD_D);
+#ifdef BOTCORPS_CYD
+    cyd_tile_rain(g, x, y);   /* cyd-term-fix item 6: the live rain behind the board art */
+#endif
     const int longtr[4] = { 1, 3, 5, 6 };
     for (int n = 0; n < 4; ++n) {
         const int k = longtr[n];
@@ -6181,6 +6191,9 @@ static void paint_control(Gfx g)
     /* matte-black PCB (fixed), silk mounting holes */
     GATE_BOX(g, "BOARD", "settings", SB_BX, SB_BY, SB_BW, SB_BH, "-");
     g.fillRect(SB_BX, SB_BY, SB_BW, SB_BH, sh_rgb(0x0a, 0x0a, 0x0c));
+#ifdef BOTCORPS_CYD
+    cyd_cp_rain(g);   /* cyd-term-fix item 7: light live rain preview behind the board art */
+#endif
     const int hx[4] = { 14, 306, 14, 306 }, hy[4] = { 26, 26, 230, 230 };
     for (int k = 0; k < 4; ++k) { g.fillCircle(hx[k], hy[k], 4, silk); g.fillCircle(hx[k], hy[k], 2, PAL_BLACK); }
     /* header rails top + bottom, labels upright: top labels sit UNDER the top rail, ABOVE the chips */
@@ -9802,6 +9815,10 @@ static int read_key(char *typed)
         if (pk >= 0) return pk;
         return K_NONE;
     }
+    {   /* cyd-term-fix item 10: top-bar quick buttons at their drawn rects (landscape) */
+        const int tk = cyd_top_touch(tx, ty);
+        if (tk >= 0) { s_touch_last = now; return tk; }
+    }
     if (s_osk_open && ty >= CYD_OSK_CLIP_Y) {
         const int hit = cyd_osk_hit(tx, ty);
         if (hit < 0) return K_NONE;
@@ -9830,6 +9847,9 @@ static int read_key(char *typed)
      * Gibson scan/Gibson game); other boards have no chip and fall through. */
     {
         int cb = 0, cd = 0;
+        /* cyd-term-fix item 3: chip tap presses FSM directly */
+        const int ck = cyd_chip_touch(tx, ty);
+        if (ck >= 0) { s_touch_last = now; return ck; }
         if (chip_now(&cb, &cd) && tx >= 34 && tx < 34 + 54 && ty >= 67 && ty < 67 + 54) {
             chip_mem()[2] = 1;   /* the chip holds focus on a touch device (no arrows) */
             s_touch_last = now;

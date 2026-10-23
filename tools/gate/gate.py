@@ -868,7 +868,7 @@ if os.path.isdir(P0REF):
             if f[0] == 'P0' and len(f) >= 5:
                 cnt[f[1]] = cnt.get(f[1], 0) + 1
                 rep('p0-v003', f'{f[1]} {f[2]}', f[3] == '1', f[4][:110])
-    need = dict(G3=9, G4=11, G5=11, G6=3, G7=15, G8=12, G9=11, G10=10, G11=11, G12=2, G13=1, G14=11, G15=13, G18=1, G20=7, NC=14)
+    need = dict(G3=9, G4=11, G5=11, G6=3, G7=15, G8=12, G9=11, G10=10, G11=11, G12=2, G13=1, G14=11, G15=13, G18=1, G20=7, NC=19)
     short = {g: (cnt.get(g, 0), n) for g, n in need.items() if cnt.get(g, 0) < n}
     rep('p0-v003', 'P0 harness ran every G3-G20 row', not short, f'{sum(cnt.values())} rows' + (f' short={short}' if short else ''))
     # G6: CHIPFSM rows (0/1/Gibson SCAN) unchanged is the existing CHIP-G-FSM block above.

@@ -425,7 +425,9 @@ int main(int argc, char **argv)
             "rain-deauth-t0","rain-deauth-t2s","rain-gibson-t0","rain-gibson-t2s",
             "looka-howto","looka-rail","looka-death","looka-death-enter","looka-death-esc","looka-tier",
             "prompt-gibson-scan","prompt-airtag-scan","prompt-deauth-scan",
-            "hub-after","hub-zone3-scan","term-defend-howto","term-defend-live", nullptr
+            "hub-after","hub-zone3-scan","term-defend-howto","term-defend-live",
+            "ll19-hub-defend","ll19-hub-play","ll19-hub-chat",
+            "ll19-hub-tab-before","ll19-hub-tab-after","ll19-term-defend", nullptr
         };
         for (int i = 0; names[i]; ++i) {
             char ip[256], op[256];

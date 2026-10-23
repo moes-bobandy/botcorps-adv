@@ -9043,14 +9043,9 @@ static void on_esc(void)
 
 static void on_tab(void)
 {
-    if (s_screen == SCR_GIBSON) {
-        s_defend_bot = 12;               /* v1019b: Gibson's own game */
-        enter_screen(SCR_GCHAT, SCR_GIBSON);
-        s_sheet = true;
-        s_sheet_i = 0;
-        s_dirty = true;
-        return;
-    }
+    /* LL-19 (GIBSON 3:27): Tab must not enter GCHAT from a non-game screen.
+     * Hub (SCR_GIBSON) and scan already share the neutral path below (no-op unless TERMINAL / GCHAT).
+     * Sheet open/step stays GCHAT-only. */
     if (s_screen == SCR_GCHAT) {
         /* MOD item 2: Tab opens the command sheet and then steps it (arrows no longer do); Esc closes */
         if (!s_sheet) { s_sheet = true; s_sheet_i = 0; }
@@ -9592,10 +9587,7 @@ static void gp_run(const char *line)
         sp_auto_arm();
         return;
     }
-    if (strcmp(cmd, "chat") == 0) {
-        gp_open(SCR_GCHAT);
-        return;
-    }
+    /* LL-19 (GIBSON 3:27): hub prompt never opens the game — chat/defend/play unhooked (unknown). */
     if (strcmp(cmd, "hunt") == 0 && (!arg || !arg[0])) {
         /* #5 mock gibHuntStart: keyboard path to Gibson's hunt game (his scan board, hunt mode on) */
         s_scan_bot = 12;
@@ -9604,12 +9596,7 @@ static void gp_run(const char *line)
         gp_open(SCR_SCAN);
         return;
     }
-    if (strcmp(cmd, "defend") == 0 || strcmp(cmd, "play") == 0) {
-        const int b = gc_bot_of(arg);
-        if (b == -2) { gp_push("no such bot"); partial_gp_strip(); return; }
-        enter_defend(b < 0 ? 12 : b, SCR_GIBSON);
-        return;
-    }
+    /* LL-19: defend/play unhooked on hub (fall through to "no such command"). Terminal run_cmd path unchanged. */
     if (strcmp(cmd, "scan") == 0 && (!arg || !arg[0] || strcmp(arg, "radar") == 0)) {
         s_scan_bot = 12;
         gp_open(SCR_SCAN);
@@ -12183,6 +12170,35 @@ static void gnc(void)
     snprintf(d, sizeof d, "hub Enter->%d 'defend'->screen %d bot %d howto->key->live=%d", ts, s_screen, dl_bot(), (int)hl);
     row("NC", "Terminal -> Gibson game still works", ts == SCR_TERMINAL && s_screen == SCR_GCHAT && dl_bot() == 12 && hl, d);
     dl_end(); dl_set_st(DL_OFF);
+    /* NC11 hub gp_run defend/play/chat: unknown-command, stay on hub, no GCHAT / no round (LL-19) */
+    auto hub_unk = [&](const char *cmd) {
+        enter_screen(SCR_GIBSON, -1);
+        s_gp_n = 0; s_gp_buf[0] = 0; dl_end(); dl_set_st(DL_OFF);
+        gp_run(cmd);
+        const char *last = s_gp_n ? s_gp_log[s_gp_n - 1] : "";
+        const bool unk = last && strcmp(last, "no such command") == 0;
+        const bool stay = s_screen == SCR_GIBSON && !dg_on() && dl_st() == DL_OFF;
+        char it[64]; snprintf(it, sizeof it, "hub '%s' unknown, stays on hub (no game)", cmd);
+        snprintf(d, sizeof d, "cmd='%s' screen=%d dg=%d st=%d last='%s'", cmd, s_screen, dg_on() ? s_dg : -1, dl_st(), last);
+        row("NC", it, unk && stay, d);
+    };
+    hub_unk("defend");
+    hub_unk("play");
+    hub_unk("chat");
+    /* NC12 hub Tab: does not enter GCHAT (neutral no-op on hub) */
+    enter_screen(SCR_GIBSON, -1);
+    s_sheet = false; s_gp_buf[0] = 0; dl_end(); dl_set_st(DL_OFF);
+    const int tab_scr0 = s_screen;
+    ui_dispatch(K_TAB, 0);
+    snprintf(d, sizeof d, "before=%d after=%d sheet=%d st=%d", tab_scr0, s_screen, (int)s_sheet, dl_st());
+    row("NC", "hub Tab stays on hub (no GCHAT, no sheet)", tab_scr0 == SCR_GIBSON && s_screen == SCR_GIBSON && !s_sheet && dl_st() == DL_OFF, d);
+    /* NC13 Terminal defend still enters the game (regression; pairs with NC10) */
+    enter_screen(SCR_TERMINAL, SCR_GIBSON);
+    s_gp_buf[0] = 0; botcorps_t0_term_prompt[0] = 0;
+    run_cmd("defend");
+    snprintf(d, sizeof d, "screen=%d bot=%d st=%d", s_screen, dl_bot(), dl_st());
+    row("NC", "Terminal 'defend' still enters Gibson game", s_screen == SCR_GCHAT && dl_bot() == 12 && (dl_st() == DL_HOWTO || dl_live()), d);
+    dl_end(); dl_set_st(DL_OFF);
     host_frame = keep;
 }
 }   /* namespace p0t */
@@ -12268,6 +12284,17 @@ void botcorps_host_newcut_proof(const char *dir)
     enter_screen(SCR_GIBSON, -1);
     ui_dispatch(K_OK, 0); s_gp_buf[0] = 0; run_cmd("defend"); paint(); dump("term-defend-howto");
     ui_dispatch(K_CHAR, 'x'); paint(); dump("term-defend-live");
+    /* LL-19 proofs: hub defend/play/chat unknown; hub Tab no-op; Terminal defend still enters */
+    auto hub_cmd = [&](const char *cmd, const char *tag) {
+        enter_screen(SCR_GIBSON, -1); s_gp_n = 0; s_gp_buf[0] = 0; dl_end(); dl_set_st(DL_OFF);
+        gp_run(cmd); paint(); dump(tag);
+    };
+    hub_cmd("defend", "ll19-hub-defend");
+    hub_cmd("play", "ll19-hub-play");
+    hub_cmd("chat", "ll19-hub-chat");
+    enter_screen(SCR_GIBSON, -1); s_sheet = false; paint(); dump("ll19-hub-tab-before");
+    ui_dispatch(K_TAB, 0); paint(); dump("ll19-hub-tab-after");
+    enter_screen(SCR_TERMINAL, SCR_GIBSON); s_gp_buf[0] = 0; run_cmd("defend"); paint(); dump("ll19-term-defend");
     dl_end(); dl_set_st(DL_OFF);
     host_frame = keep;
 }

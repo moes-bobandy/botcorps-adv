@@ -9554,6 +9554,10 @@ static int read_key(char *typed)
         const int tk = cyd_top_touch(tx, ty);
         if (tk >= 0) { s_touch_last = now; return tk; }
     }
+    {   /* cyd-term-fix item 2: audit hits at the drawn rects (botcorps_cyd_term.inc) */
+        const int ak = cyd_audit_touch(tx, ty);
+        if (ak >= 0) return ak;
+    }
     if (s_osk_open && ty >= CYD_OSK_CLIP_Y) {
         const int hit = cyd_osk_hit(tx, ty);
         if (hit < 0) return K_NONE;

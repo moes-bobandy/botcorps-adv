@@ -3,7 +3,7 @@
  * Every landscape terminal (Terminal, Gibson hub prompt, scan / bot boards, Defend boards) has two
  * command-row buttons: the [abc] keyboard emblem and the command glossary (the ≡ menu art). Each one
  * opens its mode in the one pop-up area (y >= CYD_OSK_CLIP_Y, the keyboard area):
- *   keyboard  = the existing OSK (its HIDE key is the back button),
+ *   keyboard  = the existing OSK (its BACK key (was HIDE) returns to the terminal),
  *   glossary  = a scrolling list of this terminal's commands, with its own BACK.
  * The command line of the active terminal stays visible as the top row of the pop-up. Picking a list
  * entry fills that command line WITHOUT running it and switches to the keyboard; ENTER then runs the

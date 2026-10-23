@@ -7793,7 +7793,7 @@ static void paint_osk(void)
         else if (k.kind == CYD_OSK_ENTER) lab = "ENTER";
         else if (k.kind == CYD_OSK_TAB) lab = "TAB";
         else if (k.kind == CYD_OSK_SYM) lab = s_osk_sym ? "ABC" : "SYM";
-        else if (k.kind == CYD_OSK_HIDE) lab = "HIDE";
+        else if (k.kind == CYD_OSK_HIDE) lab = "BACK";   /* Mobandy 4:40: each terminal mode has its own BACK */
         if (!lab || !lab[0]) continue;
         const int tw = (int)strlen(lab) * 6;
         txt(g, lab, k.x + (k.w - tw) / 2, k.y + 3, PAL_INK, lgfx::textdatum::top_left);

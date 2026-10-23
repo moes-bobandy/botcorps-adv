@@ -3275,6 +3275,58 @@ static void chip_ring_trace(Gfx g, int step)
     for (int y = y1; y > y0 && n > 0; --y, --n) g.fillRect(x0, y, 1, 1, c);
 }
 /* One chip button. Pins come from chip_shell. WIFIBOT, BLUETOOTHBOT, Gibson SCAN, AIRTAG, Gibson game. */
+#ifdef BOTCORPS_HOST_RENDER
+/* FINAL-v2 render_v2.py chip(): steel idle bevel, 1 px face drop, clockwise rim on pal 41. */
+static void chip_lock_overlay(int bot, int st, int step)
+{
+    extern uint8_t *host_frame;
+    extern int host_slice_oy, host_slice_h;
+    if (!host_frame || s_screen == SCR_GCHAT) return;
+    const int oy = host_slice_oy;
+    const int lh = host_slice_h > 0 ? host_slice_h : 240;
+    const int bx = 34, by = 67, s = 54;
+    const int x0 = bx + 2, y0 = by + 2, x1 = bx + s - 3, y1 = by + s - 3;
+    if (y1 < oy || y0 >= oy + lh) return;
+    auto at = [&](int x, int y) -> uint8_t * {
+        const int ly = y - oy;
+        if (x < 0 || x >= 320 || ly < 0 || ly >= lh) return nullptr;
+        return &host_frame[ly * 320 + x];
+    };
+    auto put = [&](int x, int y, uint8_t c) { if (uint8_t *p = at(x, y)) *p = c; };
+    auto is41 = [&](int x, int y) { uint8_t *p = at(x, y); return p && *p == 41; };
+    if (st == CH_IDLE || st == CH_PRESSED) {
+        for (int x = x0; x <= x1; ++x) if (is41(x, y0)) put(x, y0, 110);
+        for (int y = y0; y <= y1; ++y) if (is41(x0, y)) put(x0, y, 110);
+        return;
+    }
+    if (st == CH_SCAN || st == CH_RING) {
+        const int sx = 43, sy = 76, ss = 36;
+        for (int y = sy + ss - 1; y >= sy; --y)
+            for (int x = sx; x < sx + ss; ++x)
+                if (uint8_t *src = at(x, y)) if (uint8_t *dst = at(x, y + 1)) *dst = *src;
+        for (int x = sx; x < sx + ss; ++x) put(x, sy, 0);
+    }
+    int lit = (int)bot_color(bot), head = 255;
+    if (bot == 0) { lit = 87; head = 151; }
+    else if (bot == 1) { lit = 59; head = 155; }
+    else if (bot == 6) { lit = 245; head = 250; }
+    else if (bot >= 12) { lit = 217; head = 255; }
+    int pts[400], np = 0;
+    auto push = [&](int x, int y) { if (is41(x, y) && np < 400) pts[np++] = (y - oy) * 320 + x; };
+    const int mid = (x0 + x1) / 2;
+    for (int x = mid; x <= x1; ++x) push(x, y0);
+    for (int y = y0 + 1; y <= y1; ++y) push(x1, y);
+    for (int x = x1 - 1; x >= x0; --x) push(x, y1);
+    for (int y = y1 - 1; y >= y0; --y) push(x0, y);
+    for (int x = x0 + 1; x < mid; ++x) push(x, y0);
+    const bool done = st == CH_DONE || st == CH_PLAY;
+    int n = done ? np : (int)lround((double)np * step / 16.0);
+    if (n < 0) n = 0;
+    if (n > np) n = np;
+    for (int i = 0; i < n; ++i)
+        host_frame[pts[i]] = (!done && i >= n - 3) ? (uint8_t)head : (uint8_t)lit;
+}
+#endif
 static void chip_button(Gfx g, int bot)
 {
     uint8_t *m = chip_mem();
@@ -3282,8 +3334,12 @@ static void chip_button(Gfx g, int bot)
     if (m[5] == (uint8_t)bot && m[13] == (uint8_t)s_screen) { st = m[0]; step = m[1]; }
     const int S = 54;
     const int cx = 34 + S / 2;
-    const int cy = 67 + S / 2 + (st == CH_PRESSED ? 1 : 0);
+    const int cy = 67 + S / 2;
     chip_block_ex(g, cx, cy, S, bot, 5);
+#ifdef BOTCORPS_HOST_RENDER
+    if (s_screen != SCR_GCHAT) chip_lock_overlay(bot, st, step);
+    else
+#endif
     if (st == CH_SCAN || st == CH_RING || st == CH_DONE || st == CH_PLAY)
         chip_ring_trace(g, (st == CH_DONE || st == CH_PLAY) ? CHIP_STEPS : step);
 }
@@ -4217,31 +4273,21 @@ static bool radar_plain(void)
     return (s_screen == SCR_WIFI_RADAR || s_screen == SCR_BT_RADAR)
         && s_act < 0 && s_info_dev < 0 && s_gloss < 0 && s_hunt_dev < 0 && !ls_model_on();
 }
+/* Stock reveal: 1 + floor(u * 1.6 * 12), capped at 17. At entry (elapsed 0) that is 1, not 17. */
+static int radar_reveal(void)
+{
+    const uint32_t e = millis() - s_bus_t0;
+    const float u = e > 3400u * 4u ? 4.f : (float)e / 3400.f;
+    int n = 1 + (int)(u * 1.6f * 12.f);
+    if (n > 17) n = 17;
+    if (n < 1) n = 1;
+    return n;
+}
 static void sb_grid(Gfx g, int band, bool tiles)
 {
-    if (radar_plain()) {
-        const int nall = 17;
-        const int rows = 3;
-        for (int c = 0; c <= 7; ++c) sb_rect(g, SG_X + c * SG_C, SG_Y, 1, rows * SG_C + 1, 1);
-        for (int r = 0; r <= rows; ++r) sb_rect(g, SG_X, SG_Y + r * SG_C, 7 * SG_C + 1, 1, 1);
-        for (int c = 0; c <= 7; ++c)
-            for (int r = 0; r <= rows; ++r) sb_rect(g, SG_X + c * SG_C - 1, SG_Y + r * SG_C - 1, 3, 3, 65);
-        if (!tiles) return;
-        for (int d = 0; d < nall; ++d) {
-            const int cx = SG_X + 11 + (d % 7) * SG_C;
-            const int cy = SG_Y + 11 + (d / 7) * SG_C;
-            const int x = cx - 9, y = cy - 9;
-            const bool sel = d == s_cursor && s_act < 0;
-            GATE_BOX(g, "TILE", "dev", x, y, 18, 18, "MINI");
-            sb_rect(g, x, y, 18, 18, sel ? (uint8_t)PAL_WHITE : (uint8_t)149);
-            sb_rect(g, x + 1, y + 1, 16, 16, sel ? sb_tone(3) : (uint8_t)5);
-            v2_icon_at(g, d, x + 3, y + 3);
-            if (sel) sb_halo(g, x, y, 18);
-        }
-        return;
-    }
     const uint8_t ac = accent();
-    const int nall = LIST_N;
+    const bool plain = radar_plain();
+    const int nall = plain ? 17 : LIST_N;
     sb_scroll_fix(nall);
     const int rows = sb_rows(nall);
     for (int c = 0; c <= 7; ++c) sb_rect(g, SG_X + c * SG_C, SG_Y, 1, 4 * SG_C + 1, 1);
@@ -4267,7 +4313,7 @@ static void sb_grid(Gfx g, int band, bool tiles)
         if (up) for (int x = SG_X + 2; x < SG_X + 7 * SG_C; x += 4) sb_rect(g, x, SG_Y, 2, 1, ac);
     }
     if (!tiles) return;
-    const int n = sb_shown(), k0 = n - 1;
+    const int n = plain ? radar_reveal() : sb_shown(), k0 = n - 1;
     const uint32_t t = millis();
     int hx0 = -1, hy0 = -1;
     for (int d = 0; d < n; ++d) {
@@ -4281,7 +4327,8 @@ static void sb_grid(Gfx g, int band, bool tiles)
         sb_rect(g, x + 1, y + 1, 16, 16, sel ? sb_tone(3) : (uint8_t)5);
         const bool fresh = d == k0 && n < nall && (t / 110u) % 2u;
         s_gl_mono = fresh;
-        gl_icon(g, sb_ty(band, d), x + 3, y + 3, false);
+        if (plain) v2_icon_at(g, d, x + 3, y + 3);
+        else gl_icon(g, sb_ty(band, d), x + 3, y + 3, false);
         s_gl_mono = false;
         if (sb_tagv(band, d) > 0) sb_rect(g, x + 13, y + 1, 4, 4, TAG_COL[sb_tagv(band, d) - 1]);
         if (sel) { hx0 = x; hy0 = y; }
@@ -4893,15 +4940,29 @@ static void bh_orbit_paint(Gfx g, uint32_t t)
 #endif
 static int s_gd_lane = 0, s_gd_dev = -1, s_gd_top = 0, s_gd_row0 = 0;
 static const int GD_X = 108, GD_Y = 44, GD_W = 154, GD_LH = 12, GD_LY = 57, GD_BOT = 142, GD_PR = 3;
-static const uint8_t GD_CNT[12] = { 17, 17, 4, 3, 6, 2, 5, 3, 2, 1, 9, 4 };
-static int gd_cnt(int b) { return (b >= 0 && b < 12) ? GD_CNT[b] : 0; }
+static const uint8_t GD_CNT[12] = { 12, 12, 4, 3, 6, 2, 5, 3, 2, 1, 9, 4 };
+/* The 17-icon lane is the done still (elapsed >= 3000 ms), not the idle frame. */
+static int gd_lane17(int b)
+{
+    return b == 0 && s_screen == SCR_SCAN && s_scan_bot >= 12 && (millis() - s_bus_t0) >= 3000u;
+}
+static int gd_cnt(int b)
+{
+    if (gd_lane17(b)) return 17;
+    return (b >= 0 && b < 12) ? GD_CNT[b] : 0;
+}
 static int gd_kind(int b, int i)
 {
     if (b < 2) return sb_ty(b, i % 12);
     const int8_t a = BH_DEV[b][0], c = BH_DEV[b][1];
     return (c >= 0 && (i & 1)) ? c : (a >= 0 ? a : GL_UNKNOWN);
 }
-static int gd_prows(int b) { const int r = (gd_cnt(b) + 6) / 7; return r < 1 ? 1 : (r > GD_PR ? GD_PR : r); }
+static int gd_prows(int b)
+{
+    const int pmax = gd_lane17(b) ? 3 : GD_PR;
+    const int r = (gd_cnt(b) + 6) / 7;
+    return r < 1 ? 1 : (r > pmax ? pmax : r);
+}
 static int gd_panel_h(int b) { return gd_prows(b) * SG_C + 3; }
 static void gd_fix(void)
 {
@@ -5019,7 +5080,7 @@ static void gib_dropdown(Gfx g)
                 GATE_BOX(g, "TILE", "dev", tx, ty, 18, 18, "MINI");
                 sb_rect(g, tx, ty, 18, 18, sel ? (uint8_t)PAL_WHITE : sb_mix(bc, 0x0000, 35));
                 sb_rect(g, tx + 1, ty + 1, 16, 16, sel ? sb_tone(3) : (uint8_t)5);
-                if (b < 2) v2_icon_at(g, i % 17, tx + 3, ty + 3);
+                if (gd_lane17(b)) v2_icon_at(g, i, tx + 3, ty + 3);
                 else gl_icon(g, gd_kind(b, i), tx + 3, ty + 3, false);
                 if (sel) { hx = tx; hy = ty; }
             }
@@ -5335,13 +5396,18 @@ static void sb_hud(Gfx g, int band)
     const uint8_t ac = accent();
     int tally[GL_N];
     for (int i = 0; i < GL_N; ++i) tally[i] = 0;
-    for (int d = 0; d < LIST_N; ++d)
-        if (!sb_ignored(band, d)) tally[sb_ty(band, d)]++;
+    if (radar_plain()) {
+        for (int d = 0; d < 17; ++d)
+            if (d < GL_N) tally[d]++;
+    } else {
+        for (int d = 0; d < LIST_N; ++d)
+            if (!sb_ignored(band, d)) tally[sb_ty(band, d)]++;
+    }
     const int cur = (s_cursor >= 0 && s_cursor < LIST_N) ? s_cursor : 0;
     /* LS24: empty live model paints no current-device icon or bars (no cur=0 stand-in). */
     if (!(ls_model_on() && LIST_N <= 0)) {
     /* v1019y: device row ~15% (12 -> 14). A non-zero count is white so the lit icon reads. */
-    gl_icon_sz(g, sb_ty(band, cur), 8, 216, false, 14);
+    gl_icon_sz(g, radar_plain() ? (cur < GL_N ? cur : 0) : sb_ty(band, cur), 8, 216, false, 14);
     const int lit = sb_lit(sb_db(band, cur));
     for (int k = 0; k < 4; ++k) {
         const int bh = ((k + 1) * 3 * 115) / 100;
@@ -5482,7 +5548,7 @@ static void paint_sbox(Gfx g, bool wifi)
         snprintf(l2, sizeof(l2), "%s %d/%d rows %d-%d/%d", wifi ? "wifi" : "ble", sb_shown(), LIST_N,
                  s_sb_row0 + 1, s_sb_row0 + SG_VROWS, sb_rows(LIST_N));
     else
-        if (radar_plain()) snprintf(l2, sizeof(l2), "%s sweep 17/17", bn);
+        if (radar_plain()) snprintf(l2, sizeof(l2), "%s sweep %d/17", bn, radar_reveal());
         else snprintf(l2, sizeof(l2), "%s sweep %d/%d", bn, sb_shown(), LIST_N);
     sb_tt(g, l2, x, th + 12, sb_tone(3));
     sb_tt(g, l2, x, th + 11, sb_ink());
@@ -10321,6 +10387,10 @@ void botcorps_host_found_alert_b(uint8_t *buf, int band, int dev)
 
 #ifdef BOTCORPS_HOST_RENDER
 /* v1016f: render a screen through the real device entry (enter_screen + key handlers). */
+void botcorps_host_term_slot(int slot)
+{
+    if (slot >= 0 && slot < 12) s_term = slot;
+}
 void botcorps_host_enter(uint8_t *buf, int id)
 {
     s_term = 0; botcorps_t0_term_prompt[0] = 0; s_gp_buf[0] = 0;
@@ -11071,7 +11141,15 @@ void botcorps_host_chip_fsm(void *file)
 void botcorps_host_chip_rows(void *file)
 {
     FILE *f = static_cast<FILE *>(file);
-    if (f) fprintf(f, "GD3\t%d\t%d\t%d\n", gd_cnt(0), GD_PR, (gd_cnt(0) + 6) / 7);
+    s_screen = SCR_SCAN;
+    s_scan_bot = 12;
+    s_bus_t0 = 0;
+    host_set_millis(3400u);
+    {
+        const int n = gd_cnt(0);
+        const int rows = (n + 6) / 7;
+        if (f) fprintf(f, "GD3\t%d\t%d\t%d\n", n, rows, rows);
+    }
     if (f) fprintf(f, "RAINWIN\t0\t0\n");
 }
 #endif

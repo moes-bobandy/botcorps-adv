@@ -483,6 +483,38 @@ int main(int argc, char **argv)
         write_raw(argv[3], g_buf, 0);
         return 0;
     }
+    /* rend hold <scan|hunt|defend|enter> <id> <dt_ms> <out.rgb>
+     * FINAL-v2 hostv2 clock: rain warmed by RAIN_WARM, enter at 9000, optional repaint at 9000+dt.
+     * NORAIN must stay unset. */
+    if (argc > 5 && strcmp(argv[1], "hold") == 0) {
+        extern void botcorps_host_scan_n(uint8_t *, int);
+        extern void botcorps_host_scan_gibhunt(uint8_t *);
+        extern void botcorps_host_defend(uint8_t *, int, int);
+        extern void botcorps_host_paint(uint8_t *);
+        host_gate_norain = getenv("NORAIN") ? 1 : 0;
+        host_rain_init(0);
+        host_set_millis(9000u);
+        botcorps_host_set_color(0);
+        const int id = atoi(argv[3]);
+        const int dt = atoi(argv[4]);
+        if (strcmp(argv[2], "scan") == 0) botcorps_host_scan_n(g_buf, id);
+        else if (strcmp(argv[2], "hunt") == 0) botcorps_host_scan_gibhunt(g_buf);
+        else if (strcmp(argv[2], "defend") == 0) botcorps_host_defend(g_buf, id, 0);
+        else botcorps_host_enter(g_buf, id);
+        if (dt > 0) {
+            host_set_millis(9000u + (uint32_t)dt);
+            memset(g_buf, 0, sizeof g_buf);
+            botcorps_host_paint(g_buf);
+        }
+        if (strcmp(argv[2], "enter") == 0 && argc > 6 && argv[6][0] == 'W') {
+            extern void botcorps_host_term_slot(int);
+            botcorps_host_term_slot(1);
+            memset(g_buf, 0, sizeof g_buf);
+            botcorps_host_paint(g_buf);
+        }
+        write_raw(argv[5], g_buf, 0);
+        return 0;
+    }
     /* rend chip <bot> <out.rgb> — SCR_SCAN for that bot. CHIP_STEP selects the ring. */
     if (argc > 3 && strcmp(argv[1], "chip") == 0) {
         extern void botcorps_host_scan_n(uint8_t *, int);

@@ -164,7 +164,7 @@ This is the current EXT chip-button lock. It is implemented on `9cc4c191b4ca085e
 | LOCK.md (FINAL-v2 look lock) | `bfe9ff935ea17693c06aeb6dcf135a8fe005e6327b3b08c5543f84ff071687a3` |
 | ARCH-SCAN-CHIP-BUTTON-v004 (behaviour, gates, holds) | `b4d6925ceaf2dfe30846eb30d47ddcfa237a586728ade714b60ca794e8448704` |
 
-Where an older paragraph in this file disagrees, this section wins. Superseded: the Terminal "12 ESP32 chip tiles" wording in N1 (the grid is 12 slots, KING then the bots, no KEYFOB tile); N2 Select indexes those slots (slot 0 enters Gibson's game); the dual-device chip centres at y=108; the grey strip in `paint_sbox`. HOLD-A1 (L1 `scanboard-gibson` lines 39–40 of `release/gate/locked-675c87d.sha256`) is not re-locked. HOLD-DIFF (0 px against the 17 shipped FINAL-v2 1× PNGs) stays held: the cut may land, merge stays red until that diff is 0.
+Where an older paragraph in this file disagrees, this section wins. Superseded: the Terminal "12 ESP32 chip tiles" wording in N1 (the grid is 12 slots, KING then the bots, no KEYFOB tile); N2 Select indexes those slots (slot 0 enters Gibson's game); the dual-device chip centres at y=108; the grey strip in `paint_sbox`. GIBSON cleared HOLD-DIFF on `8f7695b`. The 46 allow-listed L1 rows, including lines 39–40 (`scanboard-gibson` and its norain twin, which were in that FAIL list), are re-locked to the `8f7695b` host renders. Settings, hub, hub-amber, and boot stay on the previous hashes. G7 has an exception for the scan-chip states only (`release/gate/frozen.txt`). Merge and flash stay red until a field PASS.
 
 | id | rule |
 |---|---|

@@ -4,6 +4,8 @@
 intro             # v1019m: the LIVE intro (boot rain + Gibson chip in square rings; was the dead ID board, removed)
 found-alert
 # scan-chip v004: scan-wifi / scan-ble may rebaseline freely (17-icon grid). Dropped from this list.
+# GIBSON G7 exception (close-out, 8f7695b): scan-chip states only. Masks below are that exception.
+# Settings, hub, hub-amber, and boot are not in this file and stay byte-identical.
 sbox-selected     mask=20,40,102,194   # scan-chip: left panel + grey strip, inside EDIT U ZR
 sbox-info         mask=20,40,102,194
 sbox-hunt         mask=20,40,102,194

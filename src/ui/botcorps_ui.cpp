@@ -9627,6 +9627,9 @@ static int ctlbot_touch(int tx, int ty)
 static int portrait_touch(int tx, int ty, char *typed)
 {
     if (!botcorps_cyd_orient) return -1;
+    /* v3 hub audit: the crown on the hub goes to the rain disc (default_back), and portrait had no hit there,
+     * so the rain disc was a dead end. A tap is Enter there (mock: rain + Enter = enterHub). Not during the boot intro. */
+    if (s_screen == SCR_RAIN && !s_intro_until) return K_OK;
     if (s_screen == SCR_CONTROL && cp_ctlbot_on()) return ctlbot_touch(tx, ty);
     /* top bar: crown = BACK, >_ = TERM */
     if (ty < 26) {
@@ -9639,6 +9642,15 @@ static int portrait_touch(int tx, int ty, char *typed)
                 s_focus_cmds = false;
                 s_term_ovl = 0;
             }
+            /* v3 hub audit: same one-tap BACK on Defend (the live round is not drawn in portrait, so
+             * Esc's "end the round first" step ate the tap) and on the scan screens' typed line. */
+            if (s_screen == SCR_GCHAT) {
+                if (dl_live()) dl_end();
+                s_gc_panel = 0;
+                s_sheet = false;
+                s_gp_buf[0] = 0;
+            }
+            if (sbox_on()) { s_sp_buf[0] = 0; s_sp_cmd = -1; }
             return K_ESC;
         }
         if (tx >= 167 && tx < 187) {

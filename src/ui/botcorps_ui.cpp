@@ -6666,6 +6666,9 @@ static void gp_strip_corners(Gfx g)
 static void partial_gp_strip(void)
 {
     if (s_screen != SCR_GIBSON || !botcorps_dual_ok()) return;
+#ifdef BOTCORPS_CYD
+    if (botcorps_cyd_orient) { s_dirty = true; return; }   /* v3-fix bug 2: landscape strip 38,164 244x38 */
+#endif
     if (!botcorps_band_direct()) {
         botcorps_band_patch([](Gfx g) {
             gp_strip(g, millis(), accent());
@@ -7819,6 +7822,11 @@ static void tick_gibson(Gfx g)
 
 static void tick_ext(Gfx g)
 {
+#ifdef BOTCORPS_CYD
+    /* v3-fix bugs 1/2: tick_ext paints landscape geometry (scan list 320x240, PL_* prompt line).
+     * Portrait paints its own list / pterm caret on full paints, so nothing ticks here. */
+    if (botcorps_cyd_orient) return;
+#endif
     if (s_screen == SCR_GIBSON) tick_gibson(g);
     else if (sbox_on() && botcorps_band_direct()) {
         const bool wifi = list_band() == 0;
@@ -8287,6 +8295,11 @@ static void draw_scan_part(Gfx g)
 static void patch_world(void (*fn)(Gfx), int x, int y, int w, int h)
 {
     if (!fn || w <= 0 || h <= 0 || !botcorps_dual_ok()) return;
+#ifdef BOTCORPS_CYD
+    /* v3-fix bug 2: every patch_world part is a landscape rect (term lower 0,120 320x120, prompt line,
+     * sheet, tiles, scan parts). In portrait they land on the wrong pixels; repaint the portrait frame. */
+    if (botcorps_cyd_orient) { s_dirty = true; return; }
+#endif
     if (!botcorps_band_direct() && botcorps_band_live()) {
         if (y < 120 && y + h > 120) {
             botcorps_band_patch(fn, x, y, w, 120 - y);
@@ -9617,7 +9630,17 @@ static int portrait_touch(int tx, int ty, char *typed)
     if (s_screen == SCR_CONTROL && cp_ctlbot_on()) return ctlbot_touch(tx, ty);
     /* top bar: crown = BACK, >_ = TERM */
     if (ty < 26) {
-        if (tx >= 127 && tx < 165) return K_ESC;
+        if (tx >= 127 && tx < 165) {
+            if (s_screen == SCR_TERMINAL) {
+                /* v3-fix bug 4: the crown is BACK. Esc's landscape steps (clear the typed line, close the
+                 * sheet / menu / overlay first) would eat this tap; drop them so one tap leaves. */
+                botcorps_t0_term_prompt[0] = 0;
+                s_sheet = false;
+                s_focus_cmds = false;
+                s_term_ovl = 0;
+            }
+            return K_ESC;
+        }
         if (tx >= 167 && tx < 187) {
             if (s_screen != SCR_TERMINAL) enter_screen(SCR_TERMINAL, s_screen);
             return K_NONE;
@@ -10603,6 +10626,14 @@ void botcorps_ui_draw(void)
     /* cyd-term-fix: a pop-up never outlives its terminal (screen changed by a command / timer). */
     if (s_osk_open && s_cyd_pop_scr >= 0 && s_cyd_pop_scr != s_screen) cyd_close_osk();
     if (s_osk_open) s_cyd_pop_scr = s_screen;
+    {   /* v3-fix bug 3: the portrait keys / list panel never outlives its screen either. */
+        static int s_pt_scr = -1;
+        if (botcorps_cyd_orient && s_pt_mode != 0 && s_pt_scr >= 0 && s_pt_scr != s_screen) {
+            s_pt_mode = 0;
+            s_dirty = true;
+        }
+        s_pt_scr = s_screen;
+    }
     /* While the keyboard is open, band pushes stop above it. */
     botcorps_band_set_push_ymax(s_osk_open ? CYD_OSK_CLIP_Y : 240);
 #endif

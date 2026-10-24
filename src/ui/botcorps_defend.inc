@@ -712,6 +712,10 @@ static void zap_tick_patch(void)
 {
     static uint32_t k_top = ~0u, k_rule = ~0u, k_sr = ~0u, k_mod = ~0u, k_led = ~0u, k_caret = ~0u;
     const uint32_t t = millis();
+#ifdef BOTCORPS_CYD
+    /* v3-fix bug 3: these are the landscape Defend shell rects (0..319). Portrait paints paint_gchat_p. */
+    if (botcorps_cyd_orient) { dl_step(t); return; }
+#endif
     uint32_t top, rule, sr;
     sb_bus_keys(t, &top, &rule, &sr);
     if (top != k_top) { if (k_top != ~0u) zap_sb_patch(0, 0, 320, 24); k_top = top; }

@@ -293,33 +293,156 @@ static void cyd_adv_sheet_box(int *by, int *h, int *top_out, int *nshow_out)
 
 static void cyd_adv_paint_sheet(Gfx g)
 {
+    /* Exact port of Adv paint_sheet onto the CYD plate (bx/bw from plate).
+     * icon + name + right-aligned purpose, group headers, CORE glow, single
+     * magenta rim. Portrait truncates purposes that would collide with names. */
     if (!s_sheet) return;
-    int by, h, top, nshow;
+    const int keep = s_px;
+    s_px = 6;
+    const int rh = 12;
+    int by = 0, h = 0, top = 0, nshow = 0;
     cyd_adv_sheet_box(&by, &h, &top, &nshow);
     const int bx = s_adv_sx + 2;
-    int bw = s_adv_sw - 4;
-    if (bw > 292) bw = 292;
-    if (bw < 80) bw = s_adv_sw - 4;
-    GATE_BOX(g, "SHEET", "cyd", bx, by, bw, h, "-");
-    g.fillRect(bx, by, bw, h, PAL_BLACK);
-    sheet_ramp_top(g, bx, by, bw - 1, h - 1);
-    g.fillRect(bx + 6, by + h - 1, bw - 12, 1, PAL_TERM_M);
-    const int keep = s_px; s_px = 6;
-    for (int k = 0; k < nshow; ++k) {
-        int hdr = -1, cmd = -1;
-        menu_row(top + k, &hdr, &cmd);
-        const int ly = by + 5 + k * 12;
-        if (hdr >= 0) {
-            txt(g, G_NAME[hdr], bx + 8, ly, accent(), lgfx::textdatum::top_left);
-        } else if (cmd >= 0) {
-            const bool on = cmd == s_sheet_i;
-            if (on) g.fillRect(bx + 4, ly - 1, bw - 8, 11, COL_SEL);
-            txt(g, CMDN[cmd], bx + 10, ly, on ? COL_WHITE : COL_INK, lgfx::textdatum::top_left);
-            if (CMD_ARG[cmd])
-                txt(g, "…", bx + 10 + (int)strlen(CMDN[cmd]) * 6 + 6, ly,
-                    on ? (uint8_t)PAL_MUTED : (uint8_t)PAL_LINE, lgfx::textdatum::top_left);
+    int w = s_adv_sw - 4;
+    if (w > 292) w = 292;
+    if (w < 80) w = 80;
+    const int rows = menu_rows();
+    int sel = s_sheet_i;
+    if (sel < 0) sel = 0;
+    if (sel >= CMD_N) sel = CMD_N - 1;
+
+    GATE_BOX(g, "OCCLUDE", "sheet", bx, by, w + 1, h + 1, "-");
+    g.fillRect(bx + 1, by + 1, w - 1, h - 1, PAL_BG);
+    for (int r = 0; r < nshow; ++r) {
+        int hdr = -1, cmd = 0;
+        menu_row(top + r, &hdr, &cmd);
+        if (hdr >= 0) continue;
+        const int y = by + 5 + r * rh;
+        g.fillRect(bx + 4, y, w - 8, rh - 1, PAL_BG);
+    }
+    const int x1 = bx + w;
+    const int y1 = by + h;
+    sheet_ramp_top(g, bx, by, w, h);
+
+    /* CORE glow / group headers */
+    for (int r = 0; r < nshow; ++r) {
+        int hdr = -1, cmd = 0;
+        menu_row(top + r, &hdr, &cmd);
+        if (hdr < 0) continue;
+        const int y = by + 5 + r * rh;
+        if (hdr == 0) {
+            const uint8_t ringc[5] = {
+                PAL_TERM_M35, PAL_TERM_M22, PAL_TERM_M18, PAL_TERM_M10, PAL_TERM_M10
+            };
+            const int gx = bx + 8, gy = y + 1;
+            const int keepf = s_px; s_px = 6;
+            for (int d = 5; d >= 1; --d) {
+                const uint8_t c = ringc[d - 1];
+                for (int dy = -d; dy <= d; ++dy) {
+                    for (int dx = -d; dx <= d; ++dx) {
+                        const int ax = dx < 0 ? -dx : dx;
+                        const int ay = dy < 0 ? -dy : dy;
+                        if ((ax > ay ? ax : ay) != d) continue;
+                        txt(g, G_NAME[hdr], gx + dx, gy + dy, c, lgfx::textdatum::top_left);
+                    }
+                }
+            }
+            txt(g, G_NAME[hdr], gx, gy, PAL_TERM_M, lgfx::textdatum::top_left);
+            s_px = keepf;
+            sheet_corner(g, bx, by, 1, 1);
+        } else {
+            glow_txt(g, G_NAME[hdr], bx + 8, y + 1, PAL_BG, 6);
         }
     }
+    for (int r = 0; r < nshow; ++r) {
+        int hdr = -1, cmd = 0;
+        menu_row(top + r, &hdr, &cmd);
+        if (hdr < 0) continue;
+        const int y = by + 5 + r * rh;
+        if (hdr == 0) g.fillRect(bx + 48, y + 5, w - 60, 1, PAL_TERM_M22);
+        else glow_hline(g, bx + 48, y + 5, w - 60, STEP_RULE);
+    }
+    /* single magenta bottom ramp (Adv) — no second orange stroke */
+    g.fillRect(bx + 6, y1 - 4, w - 12, 1, PAL_TERM_M28);
+    g.fillRect(bx + 1, y1, w - 1, 1, PAL_TERM_M);
+    g.fillRect(bx + 3, y1 - 1, w - 5, 1, PAL_TERM_M35);
+    g.fillRect(bx + 3, y1 - 2, w - 5, 1, PAL_TERM_M22);
+    g.fillRect(bx + 3, y1 - 3, w - 5, 1, PAL_TERM_M18);
+    g.fillRect(x1 - 6, y1 - 4, 1, 1, PAL_TERM_M10);
+    g.fillRect(bx + 5, y1 - 5, w - 9, 1, PAL_TERM_M10);
+    {
+        int hdr0 = -1, cmd0 = 0;
+        menu_row(top, &hdr0, &cmd0);
+        if (hdr0 >= 0) {
+            g.fillRect(bx + 40, by + 6, w - 70, 1, PAL_TERM_M22);
+            g.fillRect(bx + 40, by + 7, w - 70, 1, PAL_TERM_M18);
+            g.fillRect(bx + 40, by + 8, w - 70, 1, PAL_TERM_M10);
+        }
+        for (int r = 0; r < nshow; ++r) {
+            int hdr = -1, cmd = 0;
+            menu_row(top + r, &hdr, &cmd);
+            if (hdr >= 0) continue;
+            const int y = by + 5 + r * rh;
+            int ys = y, hs = rh - 1;
+            if (ys < by + 6) { const int cut = (by + 6) - ys; ys += cut; hs -= cut; }
+            if (hs <= 0) continue;
+            g.fillRect(bx + 6, ys, 1, hs, PAL_TERM_M22);
+            g.fillRect(bx + 7, ys, 1, hs, PAL_TERM_M18);
+            g.fillRect(bx + 8, ys, 1, hs, PAL_TERM_M10);
+            g.fillRect(x1 - 7, ys, 1, hs, PAL_TERM_M18);
+            g.fillRect(x1 - 6, ys, 1, hs, PAL_TERM_M22);
+        }
+        g.fillRect(bx + 8, y1 - 8, w - 28, 1, PAL_TERM_M10);
+        g.fillRect(bx + 8, y1 - 7, w - 28, 1, PAL_TERM_M18);
+        g.fillRect(bx + 8, y1 - 6, w - 16, 1, PAL_TERM_M22);
+    }
+    for (int r = 0; r < nshow; ++r) {
+        int hdr = -1, cmd = 0;
+        menu_row(top + r, &hdr, &cmd);
+        if (hdr >= 0 || cmd != sel) continue;
+        const int y = by + 5 + r * rh;
+        g.fillRect(bx + 3, y - 1, w - 6, rh - 1, PAL_TERM_M18);
+        g.fillRect(bx + 3, y - 1, 2, rh - 1, PAL_TERM_M);
+    }
+    /* text: icon + name + purpose (truncate on narrow plate) */
+    for (int r = 0; r < nshow; ++r) {
+        int hdr = -1, cmd = 0;
+        menu_row(top + r, &hdr, &cmd);
+        if (hdr >= 0) continue;
+        const int y = by + 5 + r * rh;
+        const bool on = cmd == sel;
+        const uint8_t bg = on ? (uint8_t)PAL_TERM_M18 : (uint8_t)PAL_BG;
+        blit_ico(g, CMD_ICO[cmd], bx + 10, y + 1, on ? (uint8_t)PAL_TERM_M : accent());
+        const uint8_t name_c = on ? (uint8_t)127 : (uint8_t)PAL_TERM_INK;
+        if (on) {
+            txt(g, CMDN[cmd], bx + 25, y + 2, PAL_TERM_C, lgfx::textdatum::top_left);
+            txt(g, CMDN[cmd], bx + 23, y, PAL_CYAN, lgfx::textdatum::top_left);
+        }
+        txt_bg(g, CMDN[cmd], bx + 24, y + 1, name_c, bg, lgfx::textdatum::top_left);
+        /* purpose: Adv draw_purpose; on narrow P truncate so it clears the name */
+        const char *pur = CMDP[cmd];
+        char pbuf[48];
+        int plen = 0;
+        while (pur[plen] && plen < 47) { pbuf[plen] = pur[plen]; ++plen; }
+        pbuf[plen] = 0;
+        int name_w = 0;
+        for (const char *p = CMDN[cmd]; *p; ++p) name_w += 6;
+        const int name_end = bx + 24 + name_w + 6;
+        const int pur_right = bx + w - 8;
+        int max_pw = pur_right - name_end;
+        if (max_pw < 0) max_pw = 0;
+        /* purpose_px ≈ 6 per glyph (4 for \x7f); trim until it fits */
+        while (plen > 0 && purpose_px(pbuf) > max_pw) {
+            --plen; pbuf[plen] = 0;
+        }
+        if (plen > 0) {
+            const uint8_t pc = on ? (uint8_t)127 : theme().pur;
+            draw_purpose(g, pbuf, pur_right, y + 1, pc, bg);
+        }
+    }
+    const int ax = x1 - 13;
+    if (top > 0) blit_ico(g, ARROW_UP, ax, by + 6, COL_MUTED);
+    if (top + nshow < rows) blit_ico(g, ARROW_DN, ax, y1 - 14, COL_MUTED);
     s_px = keep;
 }
 
@@ -358,17 +481,22 @@ static void cyd_adv_osk_layout(void)
     int rp = 28;
     s_adv_osk_rp = rp;
     s_adv_osk_h = rp * 5 + 4;
-    int bot = s_adv_py - 2;
-    if (bot < s_adv_osk_h + 4) bot = s_adv_osk_h + 4;
-    s_adv_osk_y = bot - s_adv_osk_h;
+    /* Outer frame is painted at (osk_y-2) with height osk_h+4, so its bottom
+     * pixel is osk_y+osk_h+1. Buttons sit at s_adv_btn_y (= py-4); prompt at py.
+     * Keep the outer rim fully above the button row so cmdline + ≡/◎ stay visible. */
+    /* Outer rim bottom must clear button tops (btn_y) AND the prompt focus
+     * hairline at py-3. Use 5 px air above btn_y so glyphs/icons stay whole. */
+    int outer_bot = s_adv_btn_y - 5;
+    if (outer_bot < s_adv_osk_h + 28) outer_bot = s_adv_osk_h + 28;
+    s_adv_osk_y = outer_bot - 1 - s_adv_osk_h;
     if (s_adv_osk_y < 26) {
-        /* keep under the top bar */
         s_adv_osk_y = 26;
-        s_adv_osk_h = bot - s_adv_osk_y;
-        s_adv_osk_rp = (s_adv_osk_h - 4) / 5;
+        /* Prefer shrinking row pitch over covering the cmdline; never below 24. */
+        int max_h = outer_bot - 1 - s_adv_osk_y;
+        s_adv_osk_rp = (max_h - 4) / 5;
         if (s_adv_osk_rp < 24) s_adv_osk_rp = 24;
         s_adv_osk_h = s_adv_osk_rp * 5 + 4;
-        s_adv_osk_y = bot - s_adv_osk_h;
+        s_adv_osk_y = outer_bot - 1 - s_adv_osk_h;
         if (s_adv_osk_y < 26) s_adv_osk_y = 26;
     }
 }
@@ -443,14 +571,43 @@ static void cyd_adv_paint_plate(Gfx g, int sx, int sy, int sw, int sh)
     /* attack / gloss overlays: reuse Adv painters shifted into plate when they fit;
      * otherwise a compact attack list inside the plate. */
     if (s_term_ovl == 2 && !s_sheet) {
-        /* compact attack prompts inside plate log area */
-        const int keep = s_px; s_px = 6;
-        g.fillRect(sx + 2, sy + 2, sw - 4, s_adv_py - sy - 6, PAL_BLACK);
-        txt(g, "attack prompts", sx + 6, sy + 4, accent(), lgfx::textdatum::top_left);
-        static const char *const AP[] = { "wifi jam", "ble spam", "deauth", "scan all", "hunt", "back" };
-        for (int i = 0; i < 6; ++i)
-            txt(g, AP[i], sx + 8, sy + 16 + i * 10, COL_INK, lgfx::textdatum::top_left);
-        s_px = keep;
+        /* Adv paint_gc_attack layout, fitted to the plate */
+        const uint8_t ac = PAL_CYAN;
+        const int bx = sx + 2, by = sy + 2;
+        const int bw = sw - 4, bh = s_adv_py - sy - 6;
+        if (bh >= 40) {
+            GATE_BOX(g, "OCCLUDE", "gcattack", bx, by, bw, bh, "-");
+            g.fillRect(bx, by, bw, bh, PAL_BLACK);
+            g.drawRect(bx, by, bw, bh, ac);
+            g.fillRect(bx + 2, by + 2, bw - 4, 12, PAL_DEEP);
+            const int keep = s_px; s_px = 6;
+            txt(g, "ATTACK PROMPTS", bx + 8, by + 4, ac, lgfx::textdatum::top_left);
+            txt(g, "GIBSON", bx + bw - 8, by + 4, PAL_MUTED, lgfx::textdatum::top_right);
+            static const char *const lab[] = { "names", "core", "sig", "subs", "ok" };
+            static const char *const val[] = {
+                "wifi bluetooth deauth hack flock",
+                "scan lock zap purge restart",
+                "overload", "core root", "start defend"
+            };
+            const int max_rows = (bh - 20) / 12;
+            const int show = 5 < max_rows ? 5 : max_rows;
+            for (int k = 0; k < show; ++k) {
+                const int y = by + 18 + k * 12;
+                txt(g, lab[k], bx + 8, y, ac, lgfx::textdatum::top_left);
+                char vbuf[40];
+                int n = 0;
+                while (val[k][n] && n < 39) { vbuf[n] = val[k][n]; ++n; }
+                vbuf[n] = 0;
+                const int max_ch = (bw - 56 - 8) / 5;
+                if (max_ch > 0 && max_ch < n) {
+                    if (max_ch <= 1) vbuf[0] = 0;
+                    else { vbuf[max_ch - 1] = '.'; vbuf[max_ch] = 0; }
+                }
+                if (vbuf[0])
+                    txt(g, vbuf, bx + 56, y, PAL_IVORY, lgfx::textdatum::top_left);
+            }
+            s_px = keep;
+        }
     }
 }
 

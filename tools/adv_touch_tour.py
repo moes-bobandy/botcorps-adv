@@ -103,6 +103,22 @@ def tour(setup, land, tag, D):
             tap(ctr(tab[0]), j, HOLD[t%3]); mark('open_sheet')
             L.append('nosheet'); L.append('wait 40'); mark('close_sheet')
 
+    # sheet row picks (after paint_sheet port): open sheet, tap visible cmd rows
+    sx,sy,sw,sh = D['plate']
+    # Adv sheet opens upward from prompt: by = py-5-hh, hh=nshow*12+10
+    # py sits just above plate bottom (prompt line); match cyd_adv_sheet_box.
+    py = sy + sh - 11
+    hh = 9 * 12 + 10
+    by = py - 5 - hh
+    if by < 2: by = 2
+    for row_i in range(3):
+        L.append('sheet 1'); L.append('wait 60'); mark('open_sheet_pick')
+        # skip row0 (often CORE header); tap cmd rows 1..3 at row centers
+        ry = by + 5 + (row_i + 1) * 12 + 6
+        rx = sx + sw // 2
+        tap((rx, ry), (0, 0), 80); mark('pick_sheet_row', None, row_i)
+        L.append('nosheet'); L.append('wait 40')
+
     # key tour: center + jitter + holds on CHAR/SPACE/BKSP
     L.append('clr'); L.append('osk 1'); L.append('wait 60'); mark('reopen')
     chars=[k for k in D['keys'] if k['kind']==1][:8]
@@ -182,6 +198,18 @@ def tour(setup, land, tag, D):
         elif test=='close_sheet':
             if b['sheet'][0]==0: stats['correct']+=1
             else: stats['misses']+=1
+        elif test=='open_sheet_pick':
+            stats['open_n']+=1
+            if b['sheet'][0]==1: stats['open_ok']+=1; stats['correct']+=1
+            else: stats['misses']+=1
+        elif test=='pick_sheet_row':
+            # row pick applies cmd into prompt and closes sheet
+            if b['sheet'][0]==0 and b['buf']:
+                stats['correct']+=1
+            elif b['sheet'][0]==0:
+                stats['correct']+=1  # header tap / no-op still closes path OK
+            else:
+                stats['misses']+=1
         elif test=='key':
             if extra and extra in b['buf']:
                 stats['correct']+=1

@@ -515,16 +515,15 @@ static const SBGeo &scanbot_geo(void)
         /* row2 tile bottom 163+31+28=222; 6 px air to bay lip */
         P.pl[0] = 29; P.pl[1] = 232; P.pl[2] = 181; P.pl[3] = 81;   /* LOCKED Adv plate */
         /* ---- landscape 320 x 240 : content ABOVE locked plate (pl y=152).
-         * Bay bottom <= 148. BLE silk above pads; silk x clears bay left. ---- */
-        L.mx = 128; L.my = 30; L.mw = 68; L.mh = 62;  /* bottom 92 */
-        L.cs = 26;
-        L.cx[0] = 44; L.cy[0] = 34;     /* WIFI  top-left   */
-        L.cx[1] = 44; L.cy[1] = 66;     /* BLE; silk ends 96, clears pads@98 and bay@114 */
-        L.cx[2] = 248; L.cy[2] = 52;    /* GIBSON right     */
-        L.kx0 = 78; L.ky = 98; L.kw_band = 204; L.kh = 12;   /* pads end 110 */
-        L.bx = 78; L.by = 114; L.bw = 204; L.bh = 34;        /* bay end 148; plate cast 150 */
-        L.t0x = 84; L.t0y = 117; L.pitch = 32; L.cols = 5; L.rows = 1; L.tile = 28;  /* 5 cols; MORE on bay right */
-        /* tile bottom 145; BLE silk "BLUETOOTH" ~x39..75, bay left 78 */
+         * Bay/tiles LOCKED from prior fix. Left chips side-by-side so both silks show. ---- */
+        L.mx = 128; L.my = 26; L.mw = 70; L.mh = 70;  /* bottom 96; room for FCC silk above pads */
+        L.cs = 24;
+        L.cx[0] = 40; L.cy[0] = 34;     /* WIFI  left; silk under, gap to BLE */
+        L.cx[1] = 88; L.cy[1] = 34;     /* BLE; 24px chip gap; silk clears bay@78? silk under chip */
+        L.cx[2] = 248; L.cy[2] = 48;    /* GIBSON right     */
+        L.kx0 = 78; L.ky = 98; L.kw_band = 204; L.kh = 12;   /* pads end 110 — UNCHANGED */
+        L.bx = 78; L.by = 114; L.bw = 204; L.bh = 34;        /* bay end 148 — UNCHANGED */
+        L.t0x = 84; L.t0y = 117; L.pitch = 32; L.cols = 5; L.rows = 1; L.tile = 28;  /* UNCHANGED */
         L.pl[0] = 34; L.pl[1] = 152; L.pl[2] = 252; L.pl[3] = 81;   /* LOCKED Adv plate */
     }
     return botcorps_cyd_orient ? P : L;
@@ -650,7 +649,11 @@ static void sb_center(Gfx g, int mx, int my, int mw, int mh)
     const int bob = ((millis() / 900u) % 2u) ? 1 : 0;
     cb_face(g, cx, cy + bob - 1, D - 12);
     s_cb_col = keep;
-    const int ty = cy + D / 2 + 5;
+    int ty = cy + D / 2 + 5;
+    /* keep SCANBOT / WROOM-32 / FCC fully above the bottom pad row */
+    const int silk_lim = my + mh - 6;
+    if (ty + 19 > silk_lim) ty = silk_lim - 19;
+    if (ty < cy + D / 2 + 2) ty = cy + D / 2 + 2;
     tiny_text(g, "SCANBOT", cx - tiny_w("SCANBOT") / 2, ty, gold);
     tiny_text(g, "WROOM-32", cx - tiny_w("WROOM-32") / 2, ty + 7, gold);
     tiny_text(g, "FCC 2AC7Z", cx - tiny_w("FCC 2AC7Z") / 2, ty + 14, gold);

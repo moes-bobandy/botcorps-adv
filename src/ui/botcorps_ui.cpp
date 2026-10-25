@@ -1007,68 +1007,36 @@ static int gib_def_chip(void)
     return (gib && (!dg_on() || s_dg >= 12)) ? 52 : 36;
 }
 #ifdef BOTCORPS_CYD
-static void layout_covers_control_p(void); /* portrait.inc */
+static void e_covers(void);               /* botcorps_cyd_edge screens: live-rain covers */
 static int portrait_touch(int tx, int ty, char *typed);
 static bool cp_ctlbot_on(void);            /* portrait.inc: controlbot is the portrait Control painter */
 static void layout_covers_ctlbot(void);    /* botcorps_cyd_ctlbot.inc */
 static void hb_covers(void);              /* botcorps_cyd_hubbot.inc: Gibson Hub v4 rain covers */
+static void intro_covers(void);           /* botcorps_cyd_intro.inc: BOOTbot intro rain covers */
+static uint32_t intro_key(void);          /* botcorps_cyd_intro.inc: repaint key (step + caret) */
+static bool intro_hub_phase(void);        /* botcorps_cyd_intro.inc: staged hub / hand-off steps */
 #endif
 static void layout_covers(void)
 {
     cover_reset(false);
+#ifdef BOTCORPS_CYD
+    if (s_intro_until) {           /* BOOTbot intro (PICK.md): its own covers, both orientations */
+        intro_covers();
+        botcorps_rain_set_covers(s_box, s_box_n, false);
+        return;
+    }
+#endif
     if (rain_static()) {           /* v1016k: static rain under opaque panels, never stepped */
         botcorps_rain_set_covers(s_box, 0, false);
         return;
     }
 #ifdef BOTCORPS_CYD
-    if (botcorps_cyd_orient && s_screen == SCR_CONTROL && cp_ctlbot_on()) {
-        /* controlbot board: its own 17 px top bar, no PT box / frame; board art covered so rain stays behind. */
-        layout_covers_ctlbot();
-        botcorps_rain_set_covers(s_box, s_box_n, false);
-        return;
-    }
-    if (botcorps_cyd_orient && s_screen == SCR_GIBSON) {
-        /* Gibson Hub v4 board: its own covers (top bar, side headers, parts, TERMINALBOT plate). */
-        hb_covers();
-        botcorps_rain_set_covers(s_box, s_box_n, false);
-        return;
-    }
-    if (botcorps_cyd_orient) {
-        /* Portrait covers: top bar + terminal + frame; screen-specific pads. */
-        cover_add(0, 0, 240, 26);
-        cover_add(10, 249, 220, 53); /* PT box */
-        cover_add(5, 26, 5, 279);
-        cover_add(230, 26, 5, 279);
-        switch (s_screen) {
-        case SCR_GIBSON:
-            cover_add(10, 44, 38, 138);
-            cover_add(192, 44, 38, 138);
-            cover_add(56, 48, 128, 132);
-            cover_add(88, 207, 64, 32);
-            break;
-        case SCR_TERMINAL:
-            for (int i = 0; i < 12; ++i) {
-                int x, y; term_xy(i, &x, &y);
-                cover_add(x - 1, y - 1, 76, 50);
-            }
-            break;
-        case SCR_WIFI_RADAR:
-        case SCR_BT_RADAR:
-            cover_add(10, 28, 220, 218); /* matte board: grid + silk + chips */
-            break;
-        case SCR_SCAN:
-            cover_add(10, 28, 220, 218); /* AirTag pattern / Gibson accordion plate */
-            break;
-        case SCR_CONTROL:
-            layout_covers_control_p();
-            botcorps_rain_set_covers(s_box, s_box_n, s_box_radar);
-            return;
-        default:
-            break;
-        }
-        botcorps_rain_set_covers(s_box, s_box_n, s_box_radar);
-        return;
-    }
+    /* every CYD screen sits on the edge board (both orientations): its covers come from the painters' geometry */
+    if (s_screen == SCR_CONTROL) layout_covers_ctlbot();
+    else if (s_screen == SCR_GIBSON) hb_covers();
+    else e_covers();
+    botcorps_rain_set_covers(s_box, s_box_n, false);
+    return;
 #endif
     switch (s_screen) {
     case SCR_RAIN:
@@ -1125,9 +1093,6 @@ static void layout_covers(void)
         cover_btn(286, 206);
         break;
     case SCR_CONTROL:
-#ifdef BOTCORPS_CYD
-        if (botcorps_cyd_orient) { layout_covers_control_p(); break; }
-#endif
         cover_add(0, 0, 320, 17);          /* top chrome */
         cover_add(8, 20, 304, 216);        /* matte-black board (SB_BX/BY/BW/BH): rain frames it, never paints over it */
         break;
@@ -1185,9 +1150,16 @@ static void ls_ign_add(int band, const uint8_t *mac);
 static void ls_tag_set(int band, int d, int v);
 static void ls_mac_of(int band, int d, uint8_t *mac);
 
+#ifdef BOTCORPS_CYD
+static bool s_cyd_term_plate = false;
+#endif
 static void enter_screen(int id, int ret)
 {
     if (id < 0) return;
+#ifdef BOTCORPS_CYD
+    /* Rule 4: no SCR_TERMINAL route on the CYD. TERMINAL = the hub TERMINALBOT plate. */
+    if (id == SCR_TERMINAL) { id = SCR_GIBSON; ret = SCR_RAIN; s_cyd_term_plate = true; }
+#endif
     /* v1016: the Wi-Fi / BLE lists live inside the scan box. No full-screen switch. */
     if (id == SCR_WIFI_LIST) id = SCR_WIFI_RADAR;
     if (id == SCR_BT_LIST) id = SCR_BT_RADAR;
@@ -1275,7 +1247,7 @@ static void cyd_apply_orient(void)
 #endif
     botcorps_rain_set_view(botcorps_cyd_orient ? 240 : 320,
                            botcorps_cyd_orient ? 320 : 240);
-    botcorps_band_force_direct(botcorps_cyd_orient != 0);
+    botcorps_band_force_direct(true);   /* CYD edge board: direct path in both orientations */
 }
 static void load_orient(void)
 {
@@ -5973,7 +5945,7 @@ static bool cp_part_rect_p(int index, int *x, int *y, int *w, int *h); /* portra
 static bool cp_part_rect(int index, int *x, int *y, int *w, int *h)
 {
 #ifdef BOTCORPS_CYD
-    if (botcorps_cyd_orient) return cp_part_rect_p(index, x, y, w, h);
+    return cp_part_rect_p(index, x, y, w, h);   /* CYD: CONTROLbot layout in both orientations */
 #endif
     switch (index) {
     case 0: *x = 38;  *y = 44;  *w = 40; *h = 72; return true; /* U1 UI COLOR    */
@@ -6674,7 +6646,7 @@ static void partial_gp_strip(void)
 {
     if (s_screen != SCR_GIBSON || !botcorps_dual_ok()) return;
 #ifdef BOTCORPS_CYD
-    if (botcorps_cyd_orient) { s_dirty = true; return; }   /* v3-fix bug 2: landscape strip 38,164 244x38 */
+    s_dirty = true; return;   /* CYD: the hub is the edge board in both orientations */
 #endif
     if (!botcorps_band_direct()) {
         botcorps_band_patch([](Gfx g) {
@@ -7766,7 +7738,7 @@ static void rain_flags(void)
 static void paint_ext(Gfx g)
 {
 #ifdef BOTCORPS_CYD
-    if (botcorps_cyd_orient) { paint_ext_portrait(g); return; }
+    paint_ext_portrait(g); return;   /* CYD: every screen, both orientations, is the edge board */
 #endif
 
 #ifdef BOTCORPS_HOST_RENDER
@@ -7832,7 +7804,7 @@ static void tick_ext(Gfx g)
 #ifdef BOTCORPS_CYD
     /* v3-fix bugs 1/2: tick_ext paints landscape geometry (scan list 320x240, PL_* prompt line).
      * Portrait paints its own list / pterm caret on full paints, so nothing ticks here. */
-    if (botcorps_cyd_orient) return;
+    return;   /* CYD edge board: full paints only */
 #endif
     if (s_screen == SCR_GIBSON) tick_gibson(g);
     else if (sbox_on() && botcorps_band_direct()) {
@@ -8240,7 +8212,7 @@ static void paint_cursor_item(Gfx g, int index, bool sel)
 {
 #ifdef BOTCORPS_CYD
     /* controlbot: focus moves the selected trace / lit pins / wash, so the board repaints whole. */
-    if (s_screen == SCR_CONTROL && botcorps_cyd_orient && cp_ctlbot_on()) {
+    if (true) {   /* CYD: every focus change repaints the edge board */
         s_dirty = true;
         (void)g; (void)index; (void)sel;
         return;
@@ -8305,7 +8277,7 @@ static void patch_world(void (*fn)(Gfx), int x, int y, int w, int h)
 #ifdef BOTCORPS_CYD
     /* v3-fix bug 2: every patch_world part is a landscape rect (term lower 0,120 320x120, prompt line,
      * sheet, tiles, scan parts). In portrait they land on the wrong pixels; repaint the portrait frame. */
-    if (botcorps_cyd_orient) { s_dirty = true; return; }
+    s_dirty = true; return;   /* CYD: patches are landscape-legacy rects; repaint the edge board */
 #endif
     if (!botcorps_band_direct() && botcorps_band_live()) {
         if (y < 120 && y + h > 120) {
@@ -8510,7 +8482,7 @@ static void partial_cursor(int old_i, int new_i)
 {
 #ifdef BOTCORPS_CYD
     /* controlbot: no per-part patch (the focus moves trace / pins / wash); repaint the board this frame. */
-    if (s_screen == SCR_CONTROL && botcorps_cyd_orient && cp_ctlbot_on()) { s_dirty = true; return; }
+    s_dirty = true; return;   /* CYD: repaint the edge board */
 #endif
     if (old_i == new_i) {
         partial_box(new_i, true);
@@ -9526,21 +9498,7 @@ static int pt_hit(int tx, int ty, char *typed)
     if (tx < s_pt_bx || tx >= s_pt_bx + s_pt_bw || ty < s_pt_by || ty >= s_pt_by + s_pt_bh)
         return -1;
     const int x = s_pt_bx, y = s_pt_by, w = s_pt_bw, h = s_pt_bh;
-    if (s_pt_mode == 0 && s_screen == SCR_GIBSON) return hb_pt_hit0(tx, ty);   /* Gibson Hub v4 plate */
-    if (s_pt_mode == 0) {
-        /* Exactly two buttons: abc @191,273 and glossary @154,273 (mock sizes 34×28). */
-        if (tx >= PT_ABC_X && tx < PT_ABC_X + PT_ABC_W && ty >= PT_ABC_Y && ty < PT_ABC_Y + PT_ABC_H) {
-            s_pt_mode = 1; s_dirty = true; return K_NONE;
-        }
-        if (tx >= PT_GL_X && tx < PT_GL_X + PT_GL_W && ty >= PT_GL_Y && ty < PT_GL_Y + PT_GL_H) {
-            s_pt_mode = 2; s_pt_sel = 0; s_pt_top = 0; s_dirty = true; return K_NONE;
-        }
-        /* tap cmdline -> keys */
-        if (ty >= y + 2 && ty < y + 14) {
-            s_pt_mode = 1; s_dirty = true; return K_NONE;
-        }
-        return K_NONE;
-    }
+    if (s_pt_mode == 0) return hb_pt_hit0(tx, ty);   /* every edge-board plate: same cmdline / keys / list buttons */
     const int by2 = y + 15, bh2 = h - 17, bw2 = w - 4, bx2 = x + 2;
     if (s_pt_mode == 1) {
         if (ty < by2 || ty >= by2 + bh2 || tx < bx2 || tx >= bx2 + bw2) return K_NONE;
@@ -9602,10 +9560,13 @@ static int pt_hit(int tx, int ty, char *typed)
 static bool ctlbot_hit_box(int i, int *x, int *y, int *w, int *h)
 {
     if (i < 0 || i > CP_N + 3) return false;
-    if (i == CP_N) { *x = 200; *y = 0; *w = 30; *h = 17; return true; }       /* >_ glyph */
-    if (i == CP_N + 1) { *x = 100; *y = 0; *w = 40; *h = 17; return true; }   /* crown */
-    if (i == CP_N + 2) { *x = 33; *y = 228; *w = 16; *h = 21; return true; }  /* BOOT tact */
-    if (i == CP_N + 3) { *x = 33; *y = 254; *w = 16; *h = 21; return true; }  /* EN tact */
+    if (i == CP_N) return false;                                               /* no >_ glyph: no Terminal screen on the CYD */
+    if (i == CP_N + 1) { *x = e_crown_x() - 19; *y = 0; *w = 38; *h = 26; return true; }   /* crown = BACK */
+    {
+        const int (*T)[2] = botcorps_cyd_orient ? CB_P_TACT : CB_L_TACT;
+        if (i == CP_N + 2) { *x = T[0][0] - 2; *y = T[0][1] - 2; *w = 16; *h = 21; return true; }  /* BOOT tact */
+        if (i == CP_N + 3) { *x = T[1][0] - 2; *y = T[1][1] - 2; *w = 16; *h = 21; return true; }  /* EN tact */
+    }
     int X, Y, W, H;
     if (!ctlbot_rect(i, &X, &Y, &W, &H)) return false;
     if (i == 8) { *x = X - 3; *y = Y - 10; *w = W + 6; *h = H + 20; return true; }
@@ -9632,26 +9593,16 @@ static int ctlbot_touch(int tx, int ty)
     return K_NONE;
 }
 
+/* CYD touch dispatch, both orientations: every screen is the edge board (botcorps_cyd_edge.inc).
+ * Top bar crown = BACK (no >_: the hub TERMINALBOT plate is the terminal), plates, then per-screen parts. */
 static int portrait_touch(int tx, int ty, char *typed)
 {
-    if (!botcorps_cyd_orient) return -1;
-    /* v3 hub audit: the crown on the hub goes to the rain disc (default_back), and portrait had no hit there,
-     * so the rain disc was a dead end. A tap is Enter there (mock: rain + Enter = enterHub). Not during the boot intro. */
-    if (s_screen == SCR_RAIN && !s_intro_until) return K_OK;
-    if (s_screen == SCR_CONTROL && cp_ctlbot_on()) return ctlbot_touch(tx, ty);
-    /* top bar: crown = BACK, >_ = TERM */
+    if (s_intro_until) return K_NONE;                       /* BOOTbot intro: touches are swallowed */
+    if (s_screen == SCR_RAIN) return K_OK;                  /* the rain disc: a tap jacks in */
     if (ty < 26) {
-        if (tx >= 127 && tx < 165) {
-            if (s_screen == SCR_TERMINAL) {
-                /* v3-fix bug 4: the crown is BACK. Esc's landscape steps (clear the typed line, close the
-                 * sheet / menu / overlay first) would eat this tap; drop them so one tap leaves. */
-                botcorps_t0_term_prompt[0] = 0;
-                s_sheet = false;
-                s_focus_cmds = false;
-                s_term_ovl = 0;
-            }
-            /* v3 hub audit: same one-tap BACK on Defend (the live round is not drawn in portrait, so
-             * Esc's "end the round first" step ate the tap) and on the scan screens' typed line. */
+        const int cx = e_crown_x();
+        if (tx >= cx - 19 && tx < cx + 19) {
+            /* one-tap BACK: drop typed lines / overlays that Esc would otherwise close first */
             if (s_screen == SCR_GCHAT) {
                 if (dl_live()) dl_end();
                 s_gc_panel = 0;
@@ -9659,85 +9610,56 @@ static int portrait_touch(int tx, int ty, char *typed)
                 s_gp_buf[0] = 0;
             }
             if (sbox_on()) { s_sp_buf[0] = 0; s_sp_cmd = -1; }
+            s_pt_mode = 0;
+            if (s_screen == SCR_CONTROL) { s_cursor = CP_N + 1; return K_OK; }
             return K_ESC;
         }
-        if (tx >= 167 && tx < 187) {
-            if (s_screen != SCR_TERMINAL) enter_screen(SCR_TERMINAL, s_screen);
-            return K_NONE;
-        }
-        if (tx < 30 && s_screen == SCR_GIBSON) {
-            /* Gibson status chip in top bar — also opens SCAN (LL-19) */
+        if (tx < 30 && s_screen == SCR_GIBSON) {            /* Gibson status chip: SCAN (LL-19) */
             s_scan_bot = 12;
             enter_screen(SCR_SCAN, SCR_GIBSON);
             return K_NONE;
         }
+        return K_NONE;
     }
     {
         const int pk = pt_hit(tx, ty, typed);
         if (pk >= 0) return pk;
     }
+    if (s_screen == SCR_CONTROL) return ctlbot_touch(tx, ty);
     if (s_screen == SCR_GIBSON) {
-        /* Gibson Hub v4 board (botcorps_cyd_hubbot.inc): same actions as the old hub at the new spots. */
         const int c = hb_hit(tx, ty);
-        if (c >= 0 && c < 12) {                   /* bot chip: its bot / game screen (was the side bot tile) */
+        if (c >= 0 && c < 12) {                   /* bot chip: its SCAN board */
             s_scan_bot = c;
             enter_screen(SCR_SCAN, SCR_GIBSON);
             return K_NONE;
         }
-        if (c == 12 || c == 13) {                 /* TERMINAL/BOT, CONTROL/BOT nav chips (were the 2 plates) */
+        if (c == 12 || c == 13) {                 /* TERMINALBOT / CONTROLBOT nav chips */
             const int i = c - 12;
             if (s_cursor == i && s_hub_zone == 0) {
-                if (i == 0) enter_screen(SCR_TERMINAL, SCR_GIBSON);
+                if (i == 0) { s_pt_mode = 1; s_dirty = true; }   /* the terminal IS the hub plate: open its keys */
                 else enter_screen(SCR_CONTROL, SCR_GIBSON);
                 return K_NONE;
             }
             s_cursor = i; s_hub_zone = 0; s_dirty = true; return K_NONE;
         }
-        if (c == 15) {                            /* GIBSONBOT module -> SCAN (LL-19, was the core chip) */
+        if (c == 15) {                            /* GIBSONbot module -> SCAN */
             s_scan_bot = 12;
             enter_screen(SCR_SCAN, SCR_GIBSON);
             return K_NONE;
         }
-        return K_NONE;                            /* BOOTBOT (14) is decorative */
-    }
-    if (s_screen == SCR_TERMINAL) {
-        for (int i = 0; i < 12; ++i) {
-            int x, y;
-            term_xy(i, &x, &y);
-            if (tx < x || tx >= x + 76 || ty < y || ty >= y + 50) continue;
-            if (s_cursor == i) return K_OK;
-            s_cursor = i; s_term = i; s_dirty = true; return K_NONE;
-        }
         return K_NONE;
     }
     if (s_screen == SCR_WIFI_RADAR || s_screen == SCR_BT_RADAR || s_screen == SCR_SCAN) {
-        /* MCU chip */
-        if (tx >= 92 && tx < 148 && ty >= 180 && ty < 236) return K_OK;
-        /* peri */
-        if (tx >= 156 && tx < 186 && ty >= 178 && ty < 234) return K_OK;
-        /* grid tap — navigate */
-        if (tx >= 32 && tx < 208 && ty >= 43 && ty < 160) {
-            s_dirty = true;
-            return K_NONE;
-        }
+        const EScanGeo &G = e_scan_geo();
+        const int cx = 92 + G.cdx, cy = 180 + G.cdy;
+        if (tx >= cx && tx < cx + 56 && ty >= cy && ty < cy + 56) return K_OK;           /* MCU */
+        const int px = 156 + G.fdx, py = 191 + G.fdy;
+        if (tx >= px && tx < px + 30 && ty >= py && ty < py + 30) return K_OK;           /* device die */
+        if (tx >= 30 && tx < 209 && ty >= 31 + G.pdy + 11 && ty < 148) { s_dirty = true; return K_NONE; }
         return K_NONE;
     }
-    if (s_screen == SCR_CONTROL) {
-        for (int i = 0; i < CP_N; ++i) {
-            int x, y, w, h;
-            if (!cp_part_rect_p(i, &x, &y, &w, &h)) continue;
-            if (tx < x || tx >= x + w || ty < y || ty >= y + h + 12) continue;
-            if (s_cursor == i) return K_OK;
-            const int old = s_cursor;
-            s_cursor = i;
-            queue_focus(old, i);
-            return K_NONE;
-        }
-        if (ty < 16 && tx >= 206) { s_cursor = CP_N; return K_OK; }
-        if (ty < 16 && tx >= 102 && tx < 138) { s_cursor = CP_N + 1; return K_OK; }
-        return K_NONE;
-    }
-    return -1;
+    if (s_screen == SCR_DIAG) return K_ESC;
+    return K_NONE;
 }
 
 #endif
@@ -10002,12 +9924,9 @@ static int read_key(char *typed)
     } else {
         return K_NONE;
     }
-    {   /* cyd-term-fix items 1/5: [abc] / glossary buttons and the list pop-up (landscape) */
-        const int pk = cyd_pop_touch(tx, ty);
-        if (pk >= 0) return pk;
-    }
-    /* Portrait: own hit map (pterm / hub plates / term grid / control parts). */
-    if (botcorps_cyd_orient) {
+    /* CYD edge board, both orientations: own hit map (plates / hub / Control / scan parts).
+     * The legacy landscape pop-up / OSK / top-bar paths below are never reached. */
+    {
         const int pk = portrait_touch(tx, ty, typed);
         if (pk >= 0) return pk;
         return K_NONE;
@@ -10322,7 +10241,7 @@ void botcorps_ui_begin(void)
 #ifdef BOTCORPS_CYD
     s_screen = SCR_RAIN; /* v1019m: boot = live rain + boot_log, then hub (no ID board) */
     s_act = 4;
-    s_intro_until = millis() + 2500; /* show Adv-style intro, then hub */
+    s_intro_until = millis() + 6300; /* BOOTbot intro (PICK.md, 47 steps / 6300 ms), then the hub */
 #else
     s_screen = SCR_RAIN;
 #endif
@@ -10630,18 +10549,34 @@ void botcorps_ui_draw(void)
         s_act = -1; /* match enter_screen */
         s_intro_until = 0;
         s_dirty = true;
+        layout_covers();
+    } else if (s_intro_until) {   /* BOOTbot intro: repaint on each step / caret blink */
+        static uint32_t s_ik = 0xFFFFFFFFu;
+        const uint32_t k = intro_key();
+        if (k != s_ik) { s_ik = k; layout_covers(); s_dirty = true; }
+        /* from hub arrival on, the intro paints the hub: hold the hub's own state so the hand-off
+         * frame is pixel-for-pixel the steady hub (same prompt, same selection) */
+        if (intro_hub_phase() && s_screen != SCR_GIBSON) { s_screen = SCR_GIBSON; s_act = -1; }
     }
     /* cyd-term-fix: a pop-up never outlives its terminal (screen changed by a command / timer). */
     if (s_osk_open && s_cyd_pop_scr >= 0 && s_cyd_pop_scr != s_screen) cyd_close_osk();
     if (s_osk_open) s_cyd_pop_scr = s_screen;
     {   /* v3-fix bug 3: the portrait keys / list panel never outlives its screen either. */
         static int s_pt_scr = -1;
-        if (botcorps_cyd_orient && s_pt_mode != 0 && s_pt_scr >= 0 && s_pt_scr != s_screen) {
+        if (s_pt_mode != 0 && s_pt_scr >= 0 && s_pt_scr != s_screen) {
             s_pt_mode = 0;
             s_dirty = true;
         }
         s_pt_scr = s_screen;
     }
+    /* Rule 4: there is no Terminal screen. Anything that asked for it lands on the hub with the
+     * TERMINALBOT plate open (keys). */
+    if (s_screen == SCR_TERMINAL) { s_screen = SCR_GIBSON; s_cyd_term_plate = true; }
+    if (s_cyd_term_plate) {
+        s_cyd_term_plate = false;
+        if (s_screen == SCR_GIBSON) { s_pt_mode = 1; s_dirty = true; }
+    }
+    if (s_osk_open) cyd_close_osk();   /* the legacy landscape OSK never shows on the edge board */
     /* While the keyboard is open, band pushes stop above it. */
     botcorps_band_set_push_ymax(s_osk_open ? CYD_OSK_CLIP_Y : 240);
 #endif

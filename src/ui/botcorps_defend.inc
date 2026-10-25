@@ -714,7 +714,7 @@ static void zap_tick_patch(void)
     const uint32_t t = millis();
 #ifdef BOTCORPS_CYD
     /* v3-fix bug 3: these are the landscape Defend shell rects (0..319). Portrait paints paint_gchat_p. */
-    if (botcorps_cyd_orient) { dl_step(t); return; }
+    dl_step(t); return;   /* CYD: the edge GCHAT board repaints whole; never patch landscape rects */
 #endif
     uint32_t top, rule, sr;
     sb_bus_keys(t, &top, &rule, &sr);

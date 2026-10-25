@@ -13,11 +13,11 @@ struct CbR { int x, y, w, h; };
 /* v4 "scatter" layout: every coordinate comes from harness/layout.py, which checks overlaps,
  * trace clearance, 45-degree routing and staggered chip columns before emitting this table */
 #include "ui/botcorps_cyd_ctlbot_layout.inc"
-/* index -> rect, portrait 240x320 */
+/* index -> rect, per orientation (CB_P portrait 240x320, CB_L landscape 320x240) */
 static bool ctlbot_rect(int index, int *x, int *y, int *w, int *h)
 {
     if (index < 0 || index > 8) return false;
-    const CbR &r = CB_P_RECT[index];
+    const CbR &r = botcorps_cyd_orient ? CB_P_RECT[index] : CB_L_RECT[index];
     *x = r.x; *y = r.y; *w = r.w; *h = r.h;
     return true;
 }
@@ -329,8 +329,9 @@ static void cb_via(Gfx g, int x, int y, uint8_t c)
 static int cb_route(int i, int *px, int *py)
 {
     if (i < 0 || i > 8) return 0;
-    const int n = CB_P_RN[i];
-    for (int q = 0; q < n; ++q) { px[q] = CB_P_RT[i][q][0]; py[q] = CB_P_RT[i][q][1]; }
+    const bool P = botcorps_cyd_orient != 0;
+    const int n = P ? CB_P_RN[i] : CB_L_RN[i];
+    for (int q = 0; q < n; ++q) { px[q] = P ? CB_P_RT[i][q][0] : CB_L_RT[i][q][0]; py[q] = P ? CB_P_RT[i][q][1] : CB_L_RT[i][q][1]; }
     return n;
 }
 static void cb_poly(Gfx g, const int *px, const int *py, int n, uint8_t c, uint8_t via)
@@ -342,30 +343,12 @@ static void cb_copper(Gfx g, uint8_t trace, uint8_t via)
 {
     int px[6], py[6];
     for (int i = 0; i < 9; ++i) { const int n = cb_route(i, px, py); cb_poly(g, px, py, n, trace, via); }
-    for (int d = 0; d < CB_P_DN; ++d) {
-        const int n = CB_P_DL[d];
-        for (int q = 0; q < n; ++q) { px[q] = CB_P_DT[d][q][0]; py[q] = CB_P_DT[d][q][1]; }
+    const bool P = botcorps_cyd_orient != 0;
+    for (int d = 0; d < (P ? CB_P_DN : CB_L_DN); ++d) {
+        const int n = P ? CB_P_DL[d] : CB_L_DL[d];
+        for (int q = 0; q < n; ++q) { px[q] = P ? CB_P_DT[d][q][0] : CB_L_DT[d][q][0]; py[q] = P ? CB_P_DT[d][q][1] : CB_L_DT[d][q][1]; }
         cb_poly(g, px, py, n, trace, via);
     }
-}
-
-static void cb_topbar(Gfx g, int W)
-{
-    const uint8_t ac = accent();
-    cbf(g, 0, 0, W, 16, PAL_BLACK);
-    if (theme().grad == 0) cbf(g, 0, 16, W, 1, ac);
-    else for (int x = 0; x < W; x += 4) cbf(g, x, 16, 4, 1, th_ink_at(x, W));
-    for (int k = 0; k < CP_N; ++k) cbf(g, 6 + k * 6, 7, 4, 3, k == s_cursor ? ac : sh_rgb(0x2a, 0x2a, 0x34));
-    const bool bsel = s_cursor == CP_N + 1;
-    gib_crown(g, W / 2, 3);
-    if (bsel) g.drawRect(W / 2 - 18, 0, 36, 16, PAL_WHITE);
-    const bool tsel = s_cursor == CP_N;
-    const uint8_t tc = tsel ? (uint8_t)PAL_WHITE : ac;
-    const int tx = W - 34;
-    g.drawRect(tx, 3, 18, 11, tc); cbf(g, tx, 3, 18, 2, tc);
-    g.drawLine(tx + 3, 7, tx + 6, 9, tc); g.drawLine(tx + 6, 9, tx + 3, 11, tc);
-    cbf(g, tx + 8, 11, 5, 1, tc);
-    if (tsel) g.drawRect(tx - 2, 1, 22, 14, PAL_WHITE);
 }
 
 static void cb_serial(Gfx g, int x, int y)
@@ -433,64 +416,5 @@ static void cb_power(Gfx g, const int (*PW)[3], const int (*T)[2], const int *SE
     cb_serial(g, SER[0], SER[1]);
 }
 
-static void paint_ctlbot(Gfx g)
-{
-    const bool P = true;   /* portrait only (landscape Control keeps paint_control) */
-    const int W = 240, H = 320;
-    s_cb_col = accent();   /* controlbot IS the UI COLOR: face, body, meters, lit pins follow the theme accent */
-    const uint16_t body = botcorps_rgb565(s_cb_col);
-    const uint8_t gold = 177, trace = cb_trace(), rule = cbmix(0x0841, body, 40), silkc = cb_silk();
-    cb_topbar(g, W);
-    /* board outline only (rain shows through the PCB), bot-colour silk rule, corner rings */
-    g.drawRect(2, 18, W - 4, H - 19, gold);
-    g.drawRect(4, 20, W - 8, H - 23, rule);
-    cb_ring(g, 9, 25); cb_ring(g, W - 10, 25); cb_ring(g, 9, H - 9); cb_ring(g, W - 10, H - 9);
-    const int tip = cb_tip();
-    const uint8_t via = cbmix(botcorps_rgb565(trace), 0xFFFF, 35);
-    cb_copper(g, trace, via);   /* scattered parts: one organic 45-degree trace per part, vias at every bend */
-    cb_hilite(g);
-    if (P) {
-        /* ---- headers: black strips + gpio_pad, labels 3x5 tight to each pad ---- */
-        cbf(g, 4, 34, 11, 12 * 23 - 12, PAL_BLACK); cbf(g, 4, 34, 11, 1, 68);
-        cbf(g, 225, 34, 11, 12 * 23 - 12, PAL_BLACK); cbf(g, 225, 34, 11, 1, 68);
-        for (int k = 0; k < 12; ++k) {
-            const int y = 36 + k * 23;
-            const bool lr = cb_lit_r(k);
-            cb_pad(g, 6, y, k == 0 ? 0 : k == 1 ? 1 : 2, false, false);
-            cb_pad(g, 227, y, 2, lr, lr && (k == tip || k + 6 == tip));
-            const int lw = tiny_w(CB_LP[k]), rw = tiny_w(CB_RP[k]);
-            cbf(g, 15, y, lw + 3, 7, PAL_BLACK);
-            tiny_text(g, CB_LP[k], 17, y + 1, silkc);
-            cbf(g, 222 - rw - 1, y, rw + 3, 7, PAL_BLACK);
-            tiny_text(g, CB_RP[k], 223 - rw, y + 1, lr ? cbmix(body, 0xFFFF, 30) : silkc);
-        }
-        /* ---- name row ---- */
-        cbf(g, 31, 21, 62, 9, PAL_BLACK);
-        txt(g, "controlbot", 32, 22, cbmix(body, 0xFFFF, 35), lgfx::textdatum::top_left);
-        cbf(g, 208 - tiny_w("ESP32 DEV BOARD") - 1, 23, tiny_w("ESP32 DEV BOARD") + 2, 7, PAL_BLACK);
-        tiny_text(g, "ESP32 DEV BOARD", 208 - tiny_w("ESP32 DEV BOARD"), 24, silkc);
-        /* ---- dead-centre bot, meters tucked top-left, ORIENT + BOOT/EN + power scattered ---- */
-        cb_module(g, CB_P_MOD[0], CB_P_MOD[1], CB_P_MOD[2], CB_P_MOD[3]);
-        cb_meters(g, CB_P_MET);
-        cb_orient(g);
-        cb_power(g, CB_P_PWR, CB_P_TACT, CB_P_SER);
-    }
-    /* function parts on top: five live chips + switch bank */
-    static const int CH[5] = { 0, 1, 2, 5, 7 };
-    for (int k = 0; k < 5; ++k) {
-        int x, y, w, h;
-        ctlbot_rect(CH[k], &x, &y, &w, &h);
-        (void)x; (void)y; (void)w; (void)h;
-        cb_chip(g, CH[k], s_cursor == CH[k]);
-    }
-    cb_part(g, 3); cb_part(g, 4); cb_part(g, 6);
-}
-
-
-/* Rain covers: the 17 px top bar plus the board art (generated: CB_P_COVER, every rain cell that the board
- * paints into, merged into <= 23 boxes), so stepped rain on the direct portrait path never overdraws it. */
-static void layout_covers_ctlbot(void)
-{
-    cover_add(0, 0, 240, 17);
-    for (int i = 0; i < CB_P_COVER_N; ++i) cover_add(CB_P_COVER[i][0], CB_P_COVER[i][1], CB_P_COVER[i][2], CB_P_COVER[i][3]);
-}
+/* paint_ctlbot is defined in botcorps_cyd_edge.inc: it paints on the shared edge board
+ * (board outline + full-length 20-pad headers + top bar), in both orientations. */

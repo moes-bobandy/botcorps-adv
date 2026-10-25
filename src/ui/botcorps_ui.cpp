@@ -9686,30 +9686,25 @@ static int portrait_touch(int tx, int ty, char *typed)
          * Uses the same category/device model as the painter so taps always match what is drawn. */
         const SBGeo &G = scanbot_geo();
         const int act = scanbot_active();
-        if (ty >= G.cy && ty < G.cy + G.ch) {                      /* selector scanbots -> switch bot */
-            for (int i = 0; i < 3; ++i) {
-                if (tx < G.cx[i] || tx >= G.cx[i] + G.cw) continue;
-                if (i != act) { s_scan_cat = 0; s_cursor = 0; s_scan_selband = (i == 1) ? 1 : 0; }
-                s_gib_hunt = false;
-                if (i == 0) { log_add("scanbot> wifibot"); enter_screen(SCR_WIFI_RADAR, SCR_GIBSON); }
-                else if (i == 1) { log_add("scanbot> bluetooth"); enter_screen(SCR_BT_RADAR, SCR_GIBSON); }
-                else { log_add("scanbot> gibson"); s_scan_bot = 12; enter_screen(SCR_SCAN, SCR_GIBSON); }
-                s_dirty = true;
-                return K_NONE;
-            }
+        for (int i = 0; i < 3; ++i) {                              /* scattered scan chips -> switch bot */
+            if (tx < G.cx[i] - 3 || tx >= G.cx[i] + G.cs + 3) continue;
+            if (ty < G.cy[i] - 3 || ty >= G.cy[i] + G.cs + 11) continue;   /* chip + its silk label */
+            if (i != act) { s_scan_cat = 0; s_cursor = 0; s_scan_selband = (i == 1) ? 1 : 0; }
+            s_gib_hunt = false;
+            if (i == 0) { log_add("scanbot> wifibot"); enter_screen(SCR_WIFI_RADAR, SCR_GIBSON); }
+            else if (i == 1) { log_add("scanbot> bluetooth"); enter_screen(SCR_BT_RADAR, SCR_GIBSON); }
+            else { log_add("scanbot> gibson"); s_scan_bot = 12; enter_screen(SCR_SCAN, SCR_GIBSON); }
+            s_dirty = true;
             return K_NONE;
         }
         SBCat cat[5];
         const int ntab = scanbot_cats_e(act, cat);
-        if (ty >= G.ty && ty < G.ty + G.th && tx >= G.tx0 && tx < G.tx0 + G.bw) {   /* category tabs (even widths) */
-            int i = 0;
+        if (ty >= G.ky && ty < G.ky + G.kh) {                      /* category pads (chips with gaps) */
+            const int gap = 6, pw = (G.kw_band - gap * (ntab - 1)) / ntab;
             for (int k = 0; k < ntab; ++k) {
-                const int kx = G.tx0 + (G.bw * k) / ntab;
-                const int kw = G.tx0 + (G.bw * (k + 1)) / ntab - kx;
-                if (tx >= kx && tx < kx + kw) { i = k; break; }
+                const int px = G.kx0 + k * (pw + gap);
+                if (tx >= px && tx < px + pw) { s_scan_cat = k; s_dirty = true; return K_NONE; }
             }
-            s_scan_cat = i;
-            s_dirty = true;
             return K_NONE;
         }
         if (tx >= G.t0x && ty >= G.t0y) {                          /* tiles -> select + echo/run info */

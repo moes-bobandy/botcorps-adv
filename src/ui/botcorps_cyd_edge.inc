@@ -129,14 +129,14 @@ static void e_trace(Gfx g, const Pt *p, int n)
 /* shell only: substrate, gold edge + rule, castellations x = bx+3+12k top and bottom, silk legend, pads, black screen.
  * Returns the screen rect. Pads: RX TX IO0 EN at sx+52+26k when the plate is wide enough, else RX TX at the right. */
 static void e_plate_shell(Gfx g, int bx, int by, int bw, int bh, const char *silk, bool pads_on,
-                          int *osx, int *osy, int *osw, int *osh)
+                          int *osx, int *osy, int *osw, int *osh, int pad = 6)
 {
     const uint8_t ac = accent(), silkc = cb_silk();
     cbf(g, bx, by, bw, bh, cbp(0x18E3));
     g.drawRect(bx, by, bw, bh, GOLD);
     g.drawRect(bx + 1, by + 1, bw - 2, bh - 2, e_rule());
     for (int x = bx + 3; x < bx + bw - 6; x += 12) { cbf(g, x, by - 2, 3, 3, GOLD); cbf(g, x, by + bh - 1, 3, 3, GOLD); }
-    const int sx = bx + 6, sw = bw - 12, sy = by + 10, sh = bh - 13;
+    const int sx = bx + pad, sw = bw - 2 * pad, sy = by + 10, sh = bh - 13;
     tiny_text(g, silk, sx + 1, by + 3, cbmix(botcorps_rgb565(ac), 0xFFFF, 35));
     const int tip = (int)((millis() / 400u) % 4u);
     if (sw >= 52 + 26 * 3 + 20 && tiny_w(silk) < 48) {
@@ -204,7 +204,8 @@ static void pt_paint_old0(Gfx g, int x, int y, int w, int h)
 static bool pt_overlay_rect(int *x, int *y, int *w, int *h)
 {
     const int W = EW(), H = EH();
-    *x = 34; *w = W - 68;
+    /* portrait: span the terminal plates (x 29..209, between the pin columns) so no plate edge peeks out */
+    if (botcorps_cyd_orient) { *x = 29; *w = W - 59; } else { *x = 34; *w = W - 68; }
     *h = botcorps_cyd_orient ? 184 : 162;     /* keys field h-17: portrait rows 33 px, landscape 29 px */
     *y = H - 5 - *h;
     return s_pt_mode != 0;
@@ -226,7 +227,9 @@ static void pt_paint_old12(Gfx g)
 static void e_plate(Gfx g, int bx, int by, int bw, int bh, const char *silk, bool sel, bool dark = false)
 {
     int sx, sy, sw, sh;
-    e_plate_shell(g, bx, by, bw, bh, silk, true, &sx, &sy, &sw, &sh);
+    /* terminal plates: side padding trimmed to the 2 px gold+rule frame so the old box (and its full
+     * "user@botcorps:~$ " cmdline) gets every pixel between the pin columns */
+    e_plate_shell(g, bx, by, bw, bh, silk, true, &sx, &sy, &sw, &sh, 2);
     if (sel) g.drawRect(bx - 2, by - 2, bw + 4, bh + 4, PAL_WHITE);   /* under the keys overlay, never over it */
     if (!dark) {
         if (s_pt_mode == 0) pt_paint_old0(g, sx, sy, sw, sh);

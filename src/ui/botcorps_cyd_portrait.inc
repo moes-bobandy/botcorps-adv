@@ -147,11 +147,52 @@ static void pt_key_rect(int i, int x, int y, int w, int h, int *kx, int *ky, int
     const int kp = (w - 4) / 10;
     const int rp = (h - 2) / 5;
     const CydOskSpec &sp = CYD_OSK_SPEC[i];
-    *kx = x + 2 + sp.col * kp;
+    /* Narrow (portrait) field: a 1-col key is kp-1 px, too narrow for the 18 px "TAB"/"SYM" label of the
+     * key art. In a row holding TAB/SYM that key gets a 24 px cell (23 px key: label + 2 px air each side)
+     * and the row's other keys share the rest of the field; other rows spread the field's leftover px
+     * (to SPC, else 1 px to the row's last keys). Every row stays tiled edge to edge and the cells (= hit
+     * boxes) follow the drawn keys. Landscape (kp >= 23) is unchanged. */
+    const int field = w - 4, extra = field - 10 * kp;
+    int off = sp.col * kp, cwid = kp * sp.span;
+    if (kp < 23) {
+        const int LBL = 24;
+        int recv = -1, lab = -1;
+        for (int j = 0; j < pt_key_n(); ++j) {
+            const CydOskSpec &q = CYD_OSK_SPEC[j];
+            if (q.row != sp.row) continue;
+            if (q.kind == CYD_OSK_TAB || q.kind == CYD_OSK_SYM) lab = j;
+            if (q.kind == CYD_OSK_SPACE) recv = j;
+        }
+        off = 0;
+        if (lab >= 0) {
+            const int units = 10 - CYD_OSK_SPEC[lab].span, rest = field - LBL;
+            int u = 0;
+            for (int j = 0; j < pt_key_n(); ++j) {
+                const CydOskSpec &q = CYD_OSK_SPEC[j];
+                if (q.row != sp.row) continue;
+                int qw;
+                if (j == lab) qw = LBL;
+                else { qw = (u + q.span) * rest / units - u * rest / units; u += q.span; }
+                if (j == i) { cwid = qw; break; }
+                off += qw;
+            }
+        } else {
+            for (int j = 0; j < pt_key_n(); ++j) {
+                const CydOskSpec &q = CYD_OSK_SPEC[j];
+                if (q.row != sp.row) continue;
+                int qw = kp * q.span;
+                if (recv >= 0) { if (j == recv) qw += extra; }
+                else if (q.col >= 10 - extra) qw += 1;
+                if (j == i) { cwid = qw; break; }
+                off += qw;
+            }
+        }
+    }
+    *kx = x + 2 + off;
     *ky = y + 1 + sp.row * rp;
-    *kw = kp * sp.span - 1;
+    *kw = cwid - 1;
     *kh = rp - 1;
-    *cx = *kx; *cy = *ky; *cw = kp * sp.span; *ch = rp;
+    *cx = *kx; *cy = *ky; *cw = cwid; *ch = rp;
 }
 /* touch -> key: the key whose cell holds the point; a point in no cell (field margin) goes to the
  * cell with the nearest edge (0 inside), so every touch in the field lands on exactly one key. */
@@ -647,7 +688,7 @@ static const SBGeo &scanbot_geo(void)
         P.kx0 = 34; P.ky = 148; P.kw_band = 172; P.kh = 14;
         P.bx = 34; P.by = 166; P.bw = 172; P.bh = 75;
         P.t0x = 44; P.t0y = 177; P.pitch = 31; P.cols = 5; P.rows = 2; P.tile = 28;
-        P.pl[0] = 34; P.pl[1] = 248; P.pl[2] = 172; P.pl[3] = 66;   /* old-terminal box 160 x 53 */
+        P.pl[0] = 29; P.pl[1] = 248; P.pl[2] = 181; P.pl[3] = 66;   /* old-terminal box 160 x 53 */
         /* ---- landscape 320 x 240 : boss centre, chips left(x2)+right, wide bay + plate ---- */
         L.mx = 126; L.my = 36; L.mw = 72; L.mh = 72;
         L.cs = 28;
@@ -933,8 +974,8 @@ static void paint_rain_e(Gfx g)
 /* Defend chat: the defending bot's MCU + silk title, chat output in the plate */
 static void e_gchat_geo(int *pl, int *cdx, int *cdy)
 {
-    if (botcorps_cyd_orient) { pl[0] = 36; pl[1] = 124; pl[2] = 168; pl[3] = 186; *cdx = 0; *cdy = -140; }
-    else { pl[0] = 108; pl[1] = 34; pl[2] = 180; pl[3] = 198; *cdx = -50; *cdy = -148; }
+    if (botcorps_cyd_orient) { pl[0] = 29; pl[1] = 124; pl[2] = 181; pl[3] = 186; *cdx = 0; *cdy = -140; }
+    else { pl[0] = 92; pl[1] = 34; pl[2] = 194; pl[3] = 198; *cdx = -58; *cdy = -148; }
 }
 static void paint_gchat_e(Gfx g)
 {
@@ -951,13 +992,13 @@ static void paint_gchat_e(Gfx g)
     char nm[16];
     if (b >= 12) snprintf(nm, sizeof nm, "GIBSON");
     else sb_upper(nm, 16, BOTS[b].short_name, 12);
-    const int scx = P ? 60 : 70, sy = P ? 52 : 96;
+    const int scx = P ? 60 : 62, sy = P ? 52 : 96;
     e_silk_c(g, nm, scx, sy, cb_silk());
     e_silk_c(g, "DEFEND", scx, sy + 7, cb_silk());
     e_silk_c(g, "CHAT U1", scx, sy + 14, cb_silk());
     e_plate(g, PL[0], PL[1], PL[2], PL[3], "DEFEND CHAT", false);
     if (P) { g.fillRect(101, 96, 1, 26, tr); g.fillRect(125, 96, 1, 26, tr); }
-    else { g.fillRect(98, 49, 10, 1, tr); g.fillRect(98, 65, 10, 1, tr); }
+    else { g.fillRect(90, 49, 2, 1, tr); g.fillRect(90, 65, 2, 1, tr); }
     e_finish(g);
 }
 
@@ -1056,8 +1097,8 @@ static void e_covers(void)
         cover_add(cx - 57, cy - 57, 114, 114);
         cover_add(cx - 32, cy + 60, 64, 17);
     } else if (s_screen == SCR_GCHAT) {
-        if (P) { cover_add(28, 34, 184, 64); cover_add(96, 96, 36, 28); cover_add(34, 120, 172, 193); }
-        else { cover_add(28, 28, 82, 84); cover_add(96, 40, 14, 30); cover_add(106, 30, 184, 206); }
+        if (P) { cover_add(28, 34, 184, 64); cover_add(96, 96, 36, 28); cover_add(27, 120, 185, 193); }
+        else { cover_add(28, 28, 64, 84); cover_add(88, 40, 4, 30); cover_add(90, 30, 198, 206); }
     } else if (s_screen == SCR_DIAG) {
         int PL[4]; e_diag_geo(PL);
         cover_add(PL[0] - 2, PL[1] - 2, PL[2] + 4, PL[3] + 4);

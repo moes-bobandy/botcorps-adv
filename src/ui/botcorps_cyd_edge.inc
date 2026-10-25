@@ -177,23 +177,42 @@ static void e_log_line(Gfx g, const char *ln, int lx, int ly, int w)
 }
 /* the live terminal plate: mode 0 = command line + nlog newest log lines + keyboard emblem + "=" list button,
  * mode 1 keys, mode 2 command list (s_pt_mode). mode_dark: shell + black screen only (intro staging). */
-static void e_plate(Gfx g, int bx, int by, int bw, int bh, const char *silk, int nlog, bool sel, bool dark = false)
+static void e_plate(Gfx g, int bx, int by, int bw, int bh, const char *silk, int nlog, bool sel, bool dark = false, bool btnright = false)
 {
     int sx, sy, sw, sh;
     e_plate_shell(g, bx, by, bw, bh, silk, true, &sx, &sy, &sw, &sh);
     if (!dark) {
         if (s_pt_mode == 0) {
-            pt_draw_cmdline(g, sx + 2, sy + 2, sw - 4);
-            const int bwid = 34, bht = 16, byb = sy + sh - bht - 2;
-            for (int i = 0; i < nlog; ++i) {
-                const int idx = s_log_n - nlog + i;
-                if (idx < 0) continue;
-                const int ly = sy + 16 + i * 9;
-                const bool under = ly + 8 > byb;                  /* rows beside the buttons stop short of them */
-                e_log_line(g, log_line(idx), sx + 3, ly, under ? sw - bwid * 2 - 12 : sw - 6);
+            const int bwid = 34, bht = 16;
+            if (btnright) {
+                /* fix 3 (SCANbot plate): keyboard + "=" stacked in a right-hand column, and the
+                 * command line and every log line capped to the width left of them, so the log text
+                 * can never run under the icons. */
+                const int bx2 = sx + sw - bwid - 2;
+                const int tw = sw - bwid - 8;
+                hb_kbd_emblem(g, bx2, sy + 2, bwid, bht, false);
+                pt_draw_btn(g, bx2, sy + bht + 4, bwid, bht, "=", false);
+                pt_draw_cmdline(g, sx + 2, sy + 2, tw);
+                for (int i = 0; i < nlog; ++i) {
+                    const int idx = s_log_n - nlog + i;
+                    if (idx < 0) continue;
+                    const int ly = sy + 16 + i * 9;
+                    if (ly + 8 > sy + sh) break;                   /* never spill past the screen floor */
+                    e_log_line(g, log_line(idx), sx + 3, ly, tw);
+                }
+            } else {
+                pt_draw_cmdline(g, sx + 2, sy + 2, sw - 4);
+                const int byb = sy + sh - bht - 2;
+                for (int i = 0; i < nlog; ++i) {
+                    const int idx = s_log_n - nlog + i;
+                    if (idx < 0) continue;
+                    const int ly = sy + 16 + i * 9;
+                    const bool under = ly + 8 > byb;              /* rows beside the buttons stop short of them */
+                    e_log_line(g, log_line(idx), sx + 3, ly, under ? sw - bwid * 2 - 12 : sw - 6);
+                }
+                hb_kbd_emblem(g, sx + sw - bwid * 2 - 6, byb, bwid, bht, false);
+                pt_draw_btn(g, sx + sw - bwid - 2, byb, bwid, bht, "=", false);
             }
-            hb_kbd_emblem(g, sx + sw - bwid * 2 - 6, byb, bwid, bht, false);
-            pt_draw_btn(g, sx + sw - bwid - 2, byb, bwid, bht, "=", false);
             s_pt_bx = sx; s_pt_by = sy; s_pt_bw = sw; s_pt_bh = sh;
         } else {
             /* field fix 2026-10-25: keys / list open as a tall overlay inside x 34..W-34 so the

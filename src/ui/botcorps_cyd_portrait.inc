@@ -30,7 +30,11 @@ static char *pt_buf(int *cap)
 
 static const char *pt_pfx(void)
 {
-    return s_screen == SCR_GIBSON ? "gibson> " : "user@botcorps:~$ ";
+    if (s_screen == SCR_GIBSON) return "gibson> ";
+    /* SCANbot boards use the short, non-clipping scanbot prompt (cp1 fix 2: the long
+     * user@botcorps prompt + a typed command overran the small plate and clipped on the left). */
+    if (s_screen == SCR_WIFI_RADAR || s_screen == SCR_BT_RADAR || s_screen == SCR_SCAN) return "scanbot> ";
+    return "user@botcorps:~$ ";
 }
 
 static const char *const *pt_list(int *n)
@@ -599,38 +603,131 @@ static const SBGeo &scanbot_geo(void)
     return botcorps_cyd_orient ? P : L;
 }
 
-/* category tabs for a band: {ALL} + up to 4 most-common real device types (sb_ty).
- * returns the count; types[0] = -1 means ALL, the rest are GL_* type ids. */
-static int scanbot_cats(int band, int *types)
+/* GIBSON face (ivory + dark Agent Smith glasses) lives in hubbot.inc, included later. */
+static void hb_gib_face(Gfx g, int cx, int cy, int s);
+
+/* ---- SCANbot category + device model (cp1 fixes, 2026-10-25, Dirt) ----------
+ * Cap at 4 tabs so they stay even and uncrowded (fix 5). WIFI/BLE bots tab by real
+ * device TYPE (sb_ty). GIBSON is the combined all-radio view -- matching the old
+ * b98559e Gibson accordion whose lanes were WIFI / BLUETOOTH / DEAUTH -- so it tabs
+ * by BAND + the real DEAUTH detect class and its tiles span BOTH bands (fix 4).
+ * Category match + device enumeration are shared by the painter and the touch
+ * handler so the two never drift. */
+enum { SBC_ALL = 0, SBC_TYPE, SBC_BAND, SBC_DEAUTH };
+struct SBCat { uint8_t kind; int16_t arg; const char *lab; };
+
+/* real detect class per device (DEV_*), from the static DT tables */
+static int sb_dt(int band, int d) { return (band ? LIST_BLE_DT : LIST_WIFI_DT)[d]; }
+
+/* short, centre-able tab label for a GL device type */
+static const char *sb_type_lab(int t)
 {
+    switch (t) {
+    case GL_AP: return "AP";
+    case GL_PHONE: return "PHONE";
+    case GL_LAPTOP: return "LAPTOP";
+    case GL_TV: return "TV";
+    case GL_SPEAKER: return "SPKR";
+    case GL_TRACKER: return "TAG";
+    case GL_WATCH: return "WATCH";
+    case GL_CAMERA: return "CAM";
+    case GL_CAR: return "CAR";
+    case GL_DRONE: return "DRONE";
+    case GL_DEVBOARD: return "DEV";
+    case GL_PRINTER: return "PRINT";
+    default: return "UNK";
+    }
+}
+
+/* virtual device space for the active bot: gibson spans both bands, others one */
+static int sbv_total(int act) { return act == SB_GIB ? SB_N * 2 : SB_N; }
+static void sbv_resolve(int act, int v, int *band, int *d)
+{
+    if (act == SB_GIB) { if (v < SB_N) { *band = 0; *d = v; } else { *band = 1; *d = v - SB_N; } }
+    else { *band = act == SB_BLE ? 1 : 0; *d = v; }
+}
+
+/* does device (band,d) fall under category c? */
+static bool sb_cat_hit(const SBCat &c, int band, int d)
+{
+    switch (c.kind) {
+    case SBC_TYPE: return sb_ty(band, d) == c.arg;
+    case SBC_BAND: return band == c.arg;
+    case SBC_DEAUTH: return sb_dt(band, d) == DEV_DEAUTH;
+    default: return true;   /* SBC_ALL */
+    }
+}
+
+/* fill cat[] (<= 4) for the active bot, return the tab count */
+static int scanbot_cats_e(int act, SBCat *cat)
+{
+    cat[0].kind = SBC_ALL; cat[0].arg = 0; cat[0].lab = "ALL";
+    if (act == SB_GIB) {
+        cat[1].kind = SBC_BAND;   cat[1].arg = 0; cat[1].lab = "WIFI";
+        cat[2].kind = SBC_BAND;   cat[2].arg = 1; cat[2].lab = "BT";
+        cat[3].kind = SBC_DEAUTH; cat[3].arg = 0; cat[3].lab = "DEAUTH";
+        return 4;
+    }
+    const int band = act == SB_BLE ? 1 : 0;
     int cnt[GL_N];
     for (int t = 0; t < GL_N; ++t) cnt[t] = 0;
     for (int i = 0; i < SB_N; ++i) { const int t = sb_ty(band, i); if (t >= 0 && t < GL_N) cnt[t]++; }
-    types[0] = -1;
     int n = 1;
-    for (int pick = 0; pick < 4; ++pick) {
+    for (int pick = 0; pick < 3; ++pick) {
         int best = -1, bc = 0;
         for (int t = 0; t < GL_N; ++t) {
             if (cnt[t] <= 0) continue;
             bool used = false;
-            for (int k = 1; k < n; ++k) if (types[k] == t) used = true;
+            for (int k = 1; k < n; ++k) if (cat[k].arg == t) used = true;
             if (used) continue;
             if (cnt[t] > bc) { bc = cnt[t]; best = t; }
         }
         if (best < 0) break;
-        types[n++] = best;
+        cat[n].kind = SBC_TYPE; cat[n].arg = (int16_t)best; cat[n].lab = sb_type_lab(best);
+        ++n;
     }
     return n;
 }
 
-/* one selector chip: a little bot MCU, lit (active) or dimmed */
-static void sb_chip(Gfx g, int x, int y, int w, int h, const char *lab, uint8_t col, bool lit)
+/* one selector SCANBOT (cp1 fix 1): a little bot MCU chip -- body, castellation
+ * teeth, side pins and a face -- with its full silk name UNDER it. Lit + powered
+ * when active (bright rail, gold pins, white rim), dimmed otherwise.
+ * kind 0 = WIFIbot, 1 = BLUETOOTHbot (themed faces); 2 = GIBSON (ivory, dark glasses,
+ * never theme-coloured). */
+static void sb_chip(Gfx g, int x, int y, int w, int h, int kind, const char *silk, uint8_t col, bool lit)
 {
-    cbf(g, x, y, w, h, lit ? col : (uint8_t)PAL_DEEP);
-    g.drawRect(x, y, w, h, lit ? (uint8_t)PAL_WHITE : (uint8_t)PAL_LINE);
-    for (int px = x + 4; px < x + w - 3; px += 8) { cbf(g, px, y - 2, 2, 2, (uint8_t)177); cbf(g, px, y + h, 2, 2, (uint8_t)177); }
-    const int tw = tiny_w(lab);
-    tiny_text(g, lab, x + (w - tw) / 2, y + (h - 5) / 2, lit ? (uint8_t)PAL_BLACK : (uint8_t)PAL_WHITE, w - 4);
+    (void)h;
+    const uint8_t edge = lit ? (uint8_t)PAL_WHITE : (uint8_t)PAL_LINE;
+    const uint8_t pin  = lit ? (uint8_t)177 : (uint8_t)COL_MUTED;   /* gold when powered, muted when dim */
+    const int bw_ = w >= 70 ? 32 : 26;
+    const int bh_ = 18;
+    const int bx_ = x + (w - bw_) / 2;
+    const int by_ = y;
+    cbf(g, bx_, by_, bw_, bh_, (uint8_t)PAL_BLACK);
+    g.drawRect(bx_, by_, bw_, bh_, edge);
+    if (lit) cbf(g, bx_ + 1, by_ + 1, bw_ - 2, 1, col);            /* lit top rail = powered */
+    for (int px = bx_ + 3; px + 3 <= bx_ + bw_ - 2; px += 6) { cbf(g, px, by_ - 2, 3, 2, pin); cbf(g, px, by_ + bh_, 3, 2, pin); }
+    for (int py = by_ + 3; py + 2 <= by_ + bh_ - 2; py += 5) { cbf(g, bx_ - 2, py, 2, 2, pin); cbf(g, bx_ + bw_, py, 2, 2, pin); }
+    const int fs = bh_ - 4;
+    const int fcx = bx_ + bw_ / 2, fcy = by_ + bh_ / 2;
+    if (kind == 2) {
+        hb_gib_face(g, fcx, fcy, fs);                             /* always ivory + dark glasses */
+    } else {
+        const int fx = fcx - fs / 2, fy = fcy - fs / 2;
+        cbf(g, fx, fy, fs, fs, lit ? col : (uint8_t)PAL_DEEP);
+        g.drawRect(fx, fy, fs, fs, lit ? (uint8_t)PAL_WHITE : (uint8_t)PAL_STEEL);
+        const int ew_ = fs / 4 > 2 ? fs / 4 : 2;
+        const int ey = fy + fs / 3;
+        const uint8_t eye = lit ? (uint8_t)PAL_BLACK : (uint8_t)PAL_WHITE;
+        cbf(g, fx + fs / 4 - ew_ / 2, ey, ew_, ew_, eye);
+        cbf(g, fx + 3 * fs / 4 - ew_ / 2, ey, ew_, ew_, eye);
+        cbf(g, fx + fs / 4, fy + 2 * fs / 3, fs / 2, 1, eye);     /* mouth */
+    }
+    char nm[16];
+    snprintf(nm, sizeof nm, "%.15s", silk);
+    const int tw = tiny_w(nm);
+    const int sx = (w - tw) / 2 > 0 ? x + (w - tw) / 2 : x;
+    tiny_text(g, nm, sx, by_ + bh_ + 3, lit ? (uint8_t)PAL_WHITE : cb_silk(), w - 2);
 }
 
 /* one category tab */
@@ -647,35 +744,30 @@ static void sb_tab(Gfx g, int x, int y, int w, int h, const char *lab, uint8_t c
 /* Unified SCANbot board: every scan enum renders this, active bot from s_screen. */
 static void paint_scan_e(Gfx g)
 {
-    const bool P = botcorps_cyd_orient != 0;
     const SBGeo &G = scanbot_geo();
-    const int act = scanbot_active();          /* 0 wifi, 1 ble, 2 gibson */
-    const int band = scanbot_band();           /* 0 wifi, 1 ble (gibson -> 0) */
-    const uint8_t COL[3] = { (uint8_t)87, (uint8_t)59, (uint8_t)251 };
-    const char *const CHIP[3] = { "WIFIbot", "BLUEbot", "GIBSON" };
+    const int act = scanbot_active();          /* SB_WIFI / SB_BLE / SB_GIB */
+    const uint8_t COL[3] = { (uint8_t)87, (uint8_t)59, (uint8_t)251 };   /* wifi / ble / gibson accents */
     const char *const NAME[3] = { "WIFIBOT", "BLUETOOTHBOT", "GIBSON" };
-    const uint8_t tr = (uint8_t)167;
 
     e_board(g);
-    cbf(g, 34, 27, EW() - 68, EH() - 32, (uint8_t)PAL_FIELD);   /* clean board under chips/tabs */
+    cbf(g, 34, 27, EW() - 68, EH() - 32, (uint8_t)PAL_FIELD);   /* clean board under scanbots/tabs */
 
-    /* ---- selector chips, wired by a trace from the lit chip into the box ---- */
-    for (int i = 0; i < 3; ++i) sb_chip(g, G.cx[i], G.cy, G.cw, G.ch, CHIP[i], COL[i], i == act);
+    /* ---- selector SCANBOTS, wired by a trace from the powered one into the box (fix 1) ---- */
+    for (int i = 0; i < 3; ++i) sb_chip(g, G.cx[i], G.cy, G.cw, G.ch, i, NAME[i], COL[i], i == act);
     {
         const int ax = G.cx[act] + G.cw / 2;
         const Pt tp[3] = { { ax, G.cy + G.ch }, { ax, G.by - 6 }, { G.bx + G.bw / 2, G.by - 2 } };
         e_trace(g, tp, 3);
     }
 
-    /* ---- category tabs (real sb_ty) ---- */
-    int types[5];
-    const int ntab = scanbot_cats(band, types);
+    /* ---- category tabs: even widths, centred short labels (fix 5) ---- */
+    SBCat cat[5];
+    const int ntab = scanbot_cats_e(act, cat);
     if (s_scan_cat < 0 || s_scan_cat >= ntab) s_scan_cat = 0;
-    const int tabw = G.bw / ntab;
     for (int i = 0; i < ntab; ++i) {
-        const char *lab = types[i] < 0 ? "ALL" : GL_LABEL[types[i]];
-        const int w = i == ntab - 1 ? G.bw - (ntab - 1) * tabw : tabw;
-        sb_tab(g, G.tx0 + i * tabw, G.ty, w, G.th, lab, COL[act], i == s_scan_cat);
+        const int tx = G.tx0 + (G.bw * i) / ntab;
+        const int tw = G.tx0 + (G.bw * (i + 1)) / ntab - tx;
+        sb_tab(g, tx, G.ty, tw, G.th, cat[i].lab, COL[act], i == s_scan_cat);
     }
 
     /* ---- shared scan box ---- */
@@ -683,29 +775,31 @@ static void paint_scan_e(Gfx g)
     g.drawRect(G.bx, G.by, G.bw, G.bh, COL[act]);
     g.drawRect(G.bx + 1, G.by + 1, G.bw - 2, G.bh - 2, (uint8_t)PAL_LINE);
 
-    /* tiles: active-band devices filtered by the selected category */
-    const int filt = types[s_scan_cat];       /* -1 = ALL */
-    const int cap = G.cols * G.rows;
+    /* tiles: the active bot's devices (gibson = BOTH bands) filtered by the selected category (fix 4) */
+    const SBCat &fc = cat[s_scan_cat];
+    const int total = sbv_total(act), cap = G.cols * G.rows;
     int slot = 0;
-    for (int d = 0; d < SB_N && slot < cap; ++d) {
-        const int ty = sb_ty(band, d);
-        if (filt >= 0 && ty != filt) continue;
+    for (int v = 0; v < total && slot < cap; ++v) {
+        int band, d;
+        sbv_resolve(act, v, &band, &d);
+        if (!sb_cat_hit(fc, band, d)) continue;
         const int cxi = slot % G.cols, ryi = slot / G.cols;
         const int tx = G.t0x + cxi * G.pitch, tyy = G.t0y + ryi * G.pitch;
-        const bool seld = (d == s_cursor);
+        const bool seld = (d == s_cursor && band == s_scan_selband);
         cbf(g, tx, tyy, G.tile, G.tile, seld ? (uint8_t)PAL_SEL : (uint8_t)PAL_DEEP);
         g.drawRect(tx, tyy, G.tile, G.tile, seld ? (uint8_t)PAL_WHITE : COL[act]);
-        gl_icon_sz(g, ty, tx + (G.tile - 18) / 2, tyy + 2, false, 18);
+        gl_icon_sz(g, sb_ty(band, d), tx + (G.tile - 18) / 2, tyy + 2, false, 18);
         char db[8];
         snprintf(db, sizeof db, "%d", sb_db(band, d));
         tiny_text(g, db, tx + 2, tyy + G.tile - 7, (uint8_t)PAL_WHITE, G.tile - 4);
         ++slot;
     }
 
-    /* ---- SCANBOT silk terminal plate, small, at the foot inside the board ---- */
+    /* ---- SCANBOT silk terminal plate at the foot; buttons on the plate's right edge,
+     * log/cmdline width capped so text never runs under them (fix 3) ---- */
     {
         const int *PL = G.pl;
-        e_plate(g, PL[0], PL[1], PL[2], PL[3], "SCANBOT", P ? 3 : 2, false);
+        e_plate(g, PL[0], PL[1], PL[2], PL[3], "SCANBOT", 2, false, false, true);  /* 2 log lines: room in the small plate */
         const int mx = G.bx + G.bw / 2;
         const Pt fp[2] = { { mx, G.by + G.bh }, { mx, PL[1] } };
         e_trace(g, fp, 2);

@@ -691,6 +691,7 @@ static bool s_gib_hunt = false;      /* #5 mock bus.gHunt: Gibson's board plays 
 static bool s_gib_hunt_keep = false; /* #5 mock nav.scanKeep: hunt mode survives only the entry that started it */
 #ifdef BOTCORPS_CYD
 static int s_scan_cat = 0;           /* SCANbot (cp1 2026-10-25): selected category tab, 0 = ALL */
+static int s_scan_selband = 0;       /* SCANbot (cp1 fixes): band of the selected tile (gibson combined view) */
 #endif
 /* v1016f: Terminal focus on the crown (Up from the top board row); Fn chord flag from read_key. */
 static bool s_term_crown = false;
@@ -9681,29 +9682,32 @@ static int portrait_touch(int tx, int ty, char *typed)
         return K_NONE;
     }
     if (s_screen == SCR_WIFI_RADAR || s_screen == SCR_BT_RADAR || s_screen == SCR_SCAN) {
-        /* SCANbot (cp1): selector chips, category tabs, and tile taps over the unified board. */
+        /* SCANbot (cp1 fixes): selector scanbots, category tabs, and tile taps over the unified board.
+         * Uses the same category/device model as the painter so taps always match what is drawn. */
         const SBGeo &G = scanbot_geo();
         const int act = scanbot_active();
-        const int band = scanbot_band();
-        if (ty >= G.cy && ty < G.cy + G.ch) {                      /* selector chips -> switch bot */
+        if (ty >= G.cy && ty < G.cy + G.ch) {                      /* selector scanbots -> switch bot */
             for (int i = 0; i < 3; ++i) {
                 if (tx < G.cx[i] || tx >= G.cx[i] + G.cw) continue;
-                if (i != act) { s_scan_cat = 0; s_cursor = 0; }
+                if (i != act) { s_scan_cat = 0; s_cursor = 0; s_scan_selband = (i == 1) ? 1 : 0; }
                 s_gib_hunt = false;
                 if (i == 0) { log_add("scanbot> wifibot"); enter_screen(SCR_WIFI_RADAR, SCR_GIBSON); }
-                else if (i == 1) { log_add("scanbot> bluetoothbot"); enter_screen(SCR_BT_RADAR, SCR_GIBSON); }
+                else if (i == 1) { log_add("scanbot> bluetooth"); enter_screen(SCR_BT_RADAR, SCR_GIBSON); }
                 else { log_add("scanbot> gibson"); s_scan_bot = 12; enter_screen(SCR_SCAN, SCR_GIBSON); }
                 s_dirty = true;
                 return K_NONE;
             }
             return K_NONE;
         }
-        int types[5];
-        const int ntab = scanbot_cats(band, types);
-        if (ty >= G.ty && ty < G.ty + G.th && tx >= G.tx0 && tx < G.tx0 + G.bw) {   /* category tabs */
-            const int tabw = G.bw / ntab;
-            int i = (tx - G.tx0) / tabw;
-            if (i >= ntab) i = ntab - 1;
+        SBCat cat[5];
+        const int ntab = scanbot_cats_e(act, cat);
+        if (ty >= G.ty && ty < G.ty + G.th && tx >= G.tx0 && tx < G.tx0 + G.bw) {   /* category tabs (even widths) */
+            int i = 0;
+            for (int k = 0; k < ntab; ++k) {
+                const int kx = G.tx0 + (G.bw * k) / ntab;
+                const int kw = G.tx0 + (G.bw * (k + 1)) / ntab - kx;
+                if (tx >= kx && tx < kx + kw) { i = k; break; }
+            }
             s_scan_cat = i;
             s_dirty = true;
             return K_NONE;
@@ -9713,22 +9717,25 @@ static int portrait_touch(int tx, int ty, char *typed)
             const int ix = (tx - G.t0x) % G.pitch, iy = (ty - G.t0y) % G.pitch;
             if (col >= 0 && col < G.cols && row >= 0 && row < G.rows && ix < G.tile && iy < G.tile) {
                 const int target = row * G.cols + col;
-                const int filt = types[s_scan_cat >= 0 && s_scan_cat < ntab ? s_scan_cat : 0];
-                int slot = 0, hit = -1;
-                for (int d = 0; d < SB_N; ++d) {
-                    if (filt >= 0 && sb_ty(band, d) != filt) continue;
-                    if (slot == target) { hit = d; break; }
+                if (s_scan_cat < 0 || s_scan_cat >= ntab) s_scan_cat = 0;
+                const SBCat &fc = cat[s_scan_cat];
+                const int total = sbv_total(act);
+                int slot = 0, hb = -1, hd = -1;
+                for (int v = 0; v < total; ++v) {
+                    int band, d;
+                    sbv_resolve(act, v, &band, &d);
+                    if (!sb_cat_hit(fc, band, d)) continue;
+                    if (slot == target) { hb = band; hd = d; break; }
                     ++slot;
                 }
-                if (hit >= 0) {
-                    s_cursor = hit;
+                if (hd >= 0) {
+                    s_cursor = hd;
+                    s_scan_selband = hb;
                     char ln[40];
-                    snprintf(ln, sizeof ln, "scanbot> info %.12s", sb_name(band, hit));
+                    snprintf(ln, sizeof ln, "scanbot> info %.12s", sb_name(hb, hd));
                     log_add(ln);
-                    char cmd[8];
-                    snprintf(cmd, sizeof cmd, "info");
                     s_sp_buf[0] = 0;
-                    sp_run(cmd);
+                    sp_run("info");
                     s_dirty = true;
                 }
                 return K_NONE;

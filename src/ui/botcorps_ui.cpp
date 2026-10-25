@@ -9297,6 +9297,9 @@ static void fa_run(int which)
 static void on_esc(void)
 {
 #ifdef BOTCORPS_CYD
+    if (s_pt_bw > 0 && cyd_adv_on_esc()) return;
+#endif
+#ifdef BOTCORPS_CYD
     /* ESC removes the keyboard. It does not navigate while the OSK is up. */
     if (s_osk_open || s_osk_sym) {
         cyd_close_osk();
@@ -9377,6 +9380,9 @@ static void on_esc(void)
 
 static void on_tab(void)
 {
+#ifdef BOTCORPS_CYD
+    if (s_pt_bw > 0 && cyd_adv_on_tab()) return;
+#endif
     if (s_screen == SCR_GIBSON) {
         /* LL-19: Tab on the hub is not a game entry (Terminal is the only Gibson-game entry). No-op. */
         return;
@@ -9418,6 +9424,9 @@ static void on_tab(void)
 
 static void on_char(char c)
 {
+#ifdef BOTCORPS_CYD
+    if (cyd_adv_on_char(c)) return;
+#endif
     if (s_screen == SCR_GCHAT) {
         if (c >= 'A' && c <= 'Z') c = (char)(c - 'A' + 'a');
         const size_t n = strlen(s_gp_buf);
@@ -9484,6 +9493,9 @@ static void on_char(char c)
 
 static void on_bs(void)
 {
+#ifdef BOTCORPS_CYD
+    if (cyd_adv_on_bs()) return;
+#endif
     if (s_screen == SCR_GCHAT && s_gp_buf[0]) {
         const size_t n = strlen(s_gp_buf);
         const size_t at = (s_gc_caret < 0 || (size_t)s_gc_caret > n) ? n : (size_t)s_gc_caret;
@@ -9537,60 +9549,24 @@ enum { K_NONE = 0, K_UP = 1, K_DN = 2, K_LT = 3, K_RT = 4, K_OK = 5, K_ESC = 6, 
 /* Portrait touch: pterm + hub plates + term tiles. Returns key code or -1 to fall through. */
 static int pt_hit(int tx, int ty, char *typed)
 {
+    /* Adv OSK (opens upward — may sit above the plate rect) */
+    if (s_pt_mode == 1 && s_pt_bw > 0) {
+        const int k = cyd_adv_hit_osk(tx, ty, typed);
+        if (k >= 0) return k;
+        /* also allow idle chrome (≡ / reticle / cmdline) while OSK is open */
+        const int i = cyd_adv_hit_idle(tx, ty);
+        if (i >= 0) return i;
+        return K_NONE;
+    }
+    if (s_pt_bw <= 0) return -1;
+    /* sheet / palette / attack may extend above the plate */
+    if (s_sheet || s_focus_cmds || s_term_ovl) {
+        const int i = cyd_adv_hit_idle(tx, ty);
+        if (i >= 0) return i;
+    }
     if (tx < s_pt_bx || tx >= s_pt_bx + s_pt_bw || ty < s_pt_by || ty >= s_pt_by + s_pt_bh)
         return -1;
-    const int x = s_pt_bx, y = s_pt_by, w = s_pt_bw, h = s_pt_bh;
-    if (s_pt_mode == 0) return hb_pt_hit0(tx, ty);   /* every edge-board plate: same cmdline / keys / list buttons */
-    /* old paint_pterm modes 1 / 2: cmdline strip y..y+15, keys / list field x+2, y+15, w-4, h-17 */
-    const int by2 = y + 15, bh2 = h - 17, bw2 = w - 4, bx2 = x + 2;
-    if (s_pt_mode == 1) {
-        if (ty < by2 - 2) return K_NONE;                     /* the command line row is not a key */
-        /* every touch in the field lands on exactly one key: its full cell, else the nearest cell */
-        const int i = pt_key_at(tx, ty, bx2, by2, bw2, bh2);
-        if (i < 0) return K_NONE;
-        const CydOskSpec &sp = CYD_OSK_SPEC[i];
-        if (sp.kind == CYD_OSK_HIDE) { s_pt_mode = 0; s_dirty = true; return K_NONE; } /* BACK */
-        if (sp.kind == CYD_OSK_SYM) { s_pt_sym = !s_pt_sym; s_dirty = true; return K_NONE; }
-        if (sp.kind == CYD_OSK_BKSP) return K_BS;
-        if (sp.kind == CYD_OSK_ENTER) return K_OK;
-        if (sp.kind == CYD_OSK_TAB) return K_TAB;
-        if (sp.kind == CYD_OSK_SPACE) { if (typed) *typed = ' '; return K_CHAR; }
-        if (sp.kind == CYD_OSK_CHAR) {
-            const char ch = s_pt_sym ? sp.symbol : sp.alpha;
-            if (ch && typed) { *typed = ch; return K_CHAR; }
-        }
-        return K_NONE;
-    }
-    /* list mode — UP / DOWN / BACK button row under the list; a tap selects, a second tap runs. */
-    {
-        int n = 0;
-        const char *const *cmds = pt_list(&n);
-        const int back_h = bh2 > 90 ? 26 : 12;
-        if (ty >= by2 + bh2 - back_h && ty < by2 + bh2 && tx >= bx2 && tx < bx2 + bw2) {
-            const int third = bw2 / 3;
-            const int col = (tx - bx2) / (third > 0 ? third : 1);
-            if (col == 0) { if (s_pt_sel > 0) s_pt_sel--; s_dirty = true; return K_NONE; }       /* UP */
-            if (col == 1) { if (s_pt_sel < n - 1) s_pt_sel++; s_dirty = true; return K_NONE; }    /* DOWN */
-            s_pt_mode = 0; s_dirty = true; return K_NONE;                                          /* BACK */
-        }
-        if (ty < by2 || ty >= by2 + bh2 - back_h || tx < bx2 || tx >= bx2 + bw2) return K_NONE;
-        const int rh = pt_list_rh(bh2);
-        const int r = (ty - by2) / rh;
-        const int i = s_pt_top + r;
-        if (r < 0 || i < 0 || i >= n) return K_NONE;
-        int cap = 0;
-        char *b = pt_buf(&cap);
-        if (s_pt_sel == i && b) {
-            snprintf(b, (size_t)cap, "%s", cmds[i]);
-            s_pt_mode = 0;
-            s_dirty = true;
-            return K_OK; /* second tap on the selected row: fill + run */
-        }
-        s_pt_sel = i;
-        if (b) snprintf(b, (size_t)cap, "%s", cmds[i]);
-        s_dirty = true;
-        return K_NONE;
-    }
+    return hb_pt_hit0(tx, ty);
 }
 
 /* Full portrait touch dispatch. -1 = not handled (caller may try landscape path). */
@@ -10601,6 +10577,17 @@ static void ui_dispatch(int key, char typed)
 {
     s_last_key = millis();
 #ifdef BOTCORPS_CYD
+    /* Adv plate owns typing / Enter / Tab / Esc peel on every prompt screen. */
+    if (s_pt_bw > 0 && (s_cyd_adv_focus || s_pt_mode == 1 || s_sheet || s_focus_cmds || s_term_ovl || s_term_prompt)) {
+        if (key == K_ESC && cyd_adv_on_esc()) return;
+        if (key == K_OK) {
+            if (cyd_route_line()) return;
+            if (cyd_adv_on_ok()) return;
+        }
+        if (key == K_TAB && cyd_adv_on_tab()) return;
+        if (key == K_BS && cyd_adv_on_bs()) return;
+        if (key == K_CHAR && cyd_adv_on_char(typed)) return;
+    }
     if (key == K_OK && cyd_route_line()) return;   /* home / hub / scanbot / scan / control, from any plate */
 #endif
     if (s_sp_auto_t) {                             /* v1019r (#4): a key during the pre-typed scan */
@@ -10697,9 +10684,11 @@ void botcorps_ui_draw(void)
     if (s_screen == SCR_TERMINAL) { s_screen = SCR_GIBSON; s_cyd_term_plate = true; }
     if (s_cyd_term_plate) {
         s_cyd_term_plate = false;
-        if (s_screen == SCR_GIBSON) { s_pt_mode = 1; s_dirty = true; }
+        if (s_screen == SCR_GIBSON) {
+            s_pt_mode = 1; s_cyd_adv_focus = true; s_term_prompt = true; s_dirty = true;
+        }
     }
-    if (s_osk_open) cyd_close_osk();   /* the legacy landscape OSK never shows on the edge board */
+    if (s_osk_open) cyd_close_osk();   /* legacy landscape OSK never shows on the edge board */
     /* While the keyboard is open, band pushes stop above it. */
     botcorps_band_set_push_ymax(s_osk_open ? CYD_OSK_CLIP_Y : 240);
 #endif

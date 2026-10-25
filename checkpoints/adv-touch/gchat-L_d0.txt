@@ -1,0 +1,5 @@
+until 7600
+poke screen 10
+wait 400
+state
+keys

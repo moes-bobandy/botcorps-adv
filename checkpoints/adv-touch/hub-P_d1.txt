@@ -1,0 +1,7 @@
+until 7600
+poke screen 1
+wait 400
+osk 1
+wait 80
+keys
+state

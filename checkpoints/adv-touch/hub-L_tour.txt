@@ -1,0 +1,356 @@
+until 7600
+poke screen 1
+wait 400
+echo M 0
+buf
+tap 76 223 30
+wait 50
+echo M 1
+buf
+tap 60 201 80
+wait 50
+echo M 2
+buf
+tap 82 223 80
+wait 50
+echo M 3
+buf
+tap 60 201 80
+wait 50
+echo M 4
+buf
+tap 70 223 150
+wait 50
+echo M 5
+buf
+tap 60 201 80
+wait 50
+echo M 6
+buf
+tap 76 229 30
+wait 50
+echo M 7
+buf
+tap 60 201 80
+wait 50
+echo M 8
+buf
+tap 76 217 80
+wait 50
+echo M 9
+buf
+tap 60 201 80
+wait 50
+echo M 10
+buf
+tap 82 229 150
+wait 50
+echo M 11
+buf
+tap 60 201 80
+wait 50
+echo M 12
+buf
+tap 70 217 30
+wait 50
+echo M 13
+buf
+tap 60 201 80
+wait 50
+echo M 14
+buf
+tap 82 217 80
+wait 50
+echo M 15
+buf
+tap 60 201 80
+wait 50
+echo M 16
+buf
+tap 70 229 150
+wait 50
+echo M 17
+buf
+tap 60 201 80
+wait 50
+echo M 18
+buf
+tap 270 219 30
+wait 50
+echo M 19
+buf
+palette 0
+wait 40
+echo M 20
+buf
+tap 276 219 80
+wait 50
+echo M 21
+buf
+palette 0
+wait 40
+echo M 22
+buf
+tap 264 219 150
+wait 50
+echo M 23
+buf
+palette 0
+wait 40
+echo M 24
+buf
+tap 270 225 30
+wait 50
+echo M 25
+buf
+palette 0
+wait 40
+echo M 26
+buf
+tap 270 213 80
+wait 50
+echo M 27
+buf
+palette 0
+wait 40
+echo M 28
+buf
+tap 246 219 30
+wait 50
+echo M 29
+buf
+attack 0
+wait 40
+echo M 30
+buf
+tap 252 219 80
+wait 50
+echo M 31
+buf
+attack 0
+wait 40
+echo M 32
+buf
+tap 240 219 150
+wait 50
+echo M 33
+buf
+attack 0
+wait 40
+echo M 34
+buf
+tap 246 225 30
+wait 50
+echo M 35
+buf
+attack 0
+wait 40
+echo M 36
+buf
+tap 246 213 80
+wait 50
+echo M 37
+buf
+attack 0
+wait 40
+echo M 38
+buf
+osk 1
+wait 60
+osk 1
+wait 40
+tap 272 145 30
+wait 50
+echo M 39
+buf
+nosheet
+wait 40
+echo M 40
+buf
+osk 1
+wait 40
+tap 278 145 80
+wait 50
+echo M 41
+buf
+nosheet
+wait 40
+echo M 42
+buf
+osk 1
+wait 40
+tap 266 145 150
+wait 50
+echo M 43
+buf
+nosheet
+wait 40
+echo M 44
+buf
+osk 1
+wait 40
+tap 272 151 30
+wait 50
+echo M 45
+buf
+nosheet
+wait 40
+echo M 46
+buf
+osk 1
+wait 40
+tap 272 139 80
+wait 50
+echo M 47
+buf
+nosheet
+wait 40
+echo M 48
+buf
+clr
+osk 1
+wait 60
+echo M 49
+buf
+tap 47 89 30
+wait 50
+echo M 50
+buf
+tap 53 89 80
+wait 50
+echo M 51
+buf
+tap 41 89 150
+wait 50
+echo M 52
+buf
+tap 72 89 30
+wait 50
+echo M 53
+buf
+tap 78 89 80
+wait 50
+echo M 54
+buf
+tap 66 89 150
+wait 50
+echo M 55
+buf
+tap 97 89 30
+wait 50
+echo M 56
+buf
+tap 103 89 80
+wait 50
+echo M 57
+buf
+tap 91 89 150
+wait 50
+echo M 58
+buf
+tap 122 89 30
+wait 50
+echo M 59
+buf
+tap 128 89 80
+wait 50
+echo M 60
+buf
+tap 116 89 150
+wait 50
+echo M 61
+buf
+tap 147 89 30
+wait 50
+echo M 62
+buf
+tap 153 89 80
+wait 50
+echo M 63
+buf
+tap 141 89 150
+wait 50
+echo M 64
+buf
+tap 172 89 30
+wait 50
+echo M 65
+buf
+tap 178 89 80
+wait 50
+echo M 66
+buf
+tap 166 89 150
+wait 50
+echo M 67
+buf
+tap 197 89 30
+wait 50
+echo M 68
+buf
+tap 203 89 80
+wait 50
+echo M 69
+buf
+tap 191 89 150
+wait 50
+echo M 70
+buf
+tap 222 89 30
+wait 50
+echo M 71
+buf
+tap 228 89 80
+wait 50
+echo M 72
+buf
+tap 216 89 150
+wait 50
+echo M 73
+buf
+clr
+osk 1
+wait 60
+tap 72 145 80
+wait 50
+echo M 74
+buf
+tap 122 173 80
+wait 50
+echo M 75
+buf
+tap 47 145 80
+wait 50
+echo M 76
+buf
+tap 197 173 80
+wait 50
+echo M 77
+buf
+tap 160 201 80
+wait 50
+echo M 78
+buf
+tap 72 117 80
+wait 50
+echo M 79
+buf
+tap 222 117 80
+wait 50
+echo M 80
+buf
+tap 122 145 80
+wait 50
+echo M 81
+buf
+tap 222 117 80
+wait 50
+echo M 82
+buf
+tap 260 201 100
+wait 50
+wait 400
+echo M 83
+buf
+shot hub-L-done
+quit

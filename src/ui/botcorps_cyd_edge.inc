@@ -90,10 +90,15 @@ static void e_board(Gfx g)
     g.fillRect(0, H - 4, W, 4, bg);
     e_headers_hub(g);
 }
+#include "ui/botcorps_cyd_adv_plate.inc"
+
 static void e_finish(Gfx g)
 {
     e_bar(g);
     e_frame(g);
+    /* Adv OSK opens upward from the plate cmdline; paint after the frame so keys sit on top. */
+    cyd_adv_paint_osk_overlay(g);
+    if (s_sheet && s_pt_bw > 0) cyd_adv_paint_sheet(g);
 }
 
 /* 2 px power copper + animated head (intro) */
@@ -163,81 +168,39 @@ static void e_log_line(Gfx g, const char *ln, int lx, int ly, int w)
     b[n] = 0;
     pt_draw_log_line(g, b, lx, ly);
 }
-/* ---- old Terminal screen, ported as is (b98559e botcorps_cyd_portrait.inc paint_pterm, the box
- * paint_terminal_p drew at PT_X/PT_Y 220 x 53; Dirt [pt336u] 2026-10-25 "needs to be the original
- * looking prompt from the old terminal screen"). Same calls, same colours, same 34 x 28 "=" + "abc"
- * buttons, same 3 px gap / 5 px right margin / 1 px floor (old PT_GL_X / PT_ABC_X were x+144 / x+181
- * at y+24 in the 53-tall box), same cmdline (old width PT_GL_X - x - 4 = w - 80, at button y + 8),
- * same log rows (9 px pitch from x+3). The only generalisation: the buttons anchor to the box's
- * right / bottom edge and the log rows stack up from the cmdline, so a box of another size keeps
- * the old bottom 53 px exactly (a 53-tall box gives the old 2 rows at y+3 / y+12). */
-static void pt_old_btns(int x, int y, int w, int h, int *gx, int *ax, int *by)
-{
-    *ax = x + w - 39;      /* abc: old PT_ABC_X = PT_X + 181, w 220 */
-    *gx = x + w - 76;      /* "=": old PT_GL_X  = PT_X + 144 */
-    *by = y + h - 29;      /* old PT_ABC_Y = PT_Y + 24, h 53 */
-}
-static void pt_paint_old0(Gfx g, int x, int y, int w, int h)
-{
-    s_pt_bx = x; s_pt_by = y; s_pt_bw = w; s_pt_bh = h;
-    g.fillRect(x, y, w, h, PAL_BLACK);
-    sb_frame(g, x, y, w, h, PAL_LINE);
-    sb_frame(g, x + 1, y + 1, w - 2, h - 2, PAL_DEEP);
-    int gx, ax, by;
-    pt_old_btns(x, y, w, h, &gx, &ax, &by);
-    pt_draw_btn(g, ax, by, 34, 28, "abc", false);
-    pt_draw_btn(g, gx, by, 34, 28, "=", false);
-    const int cmd_y = by + 8;
-    const int rh = 9;
-    int rows = (cmd_y - 14 - y) / rh;          /* old box: (y+32 - 14 - y) / 9 = 2 */
-    if (rows < 0) rows = 0;
-    const int log_top = cmd_y - 11 - rows * rh; /* old box: y + 3 */
-    for (int i = 0; i < rows && i < s_log_n; ++i) {
-        const int idx = s_log_n - rows + i;
-        if (idx < 0) continue;
-        e_log_line(g, log_line(idx), x + 3, log_top + i * rh, w - 6);
-    }
-    pt_draw_cmdline(g, x + 2, cmd_y, gx - x - 4);
-}
-/* old paint_pterm modes 1 / 2 as is (cmdline on top at y+2, keys / list from y+15, h-17), in the
- * field-fix overlay rect (x 34..W-34, tall) so the keys are finger-sized. */
+/* ---- Adv f1c08aa terminal plate (replaces b98559e old0/old12/abc keyboard) ---- */
 static bool pt_overlay_rect(int *x, int *y, int *w, int *h)
 {
-    const int W = EW(), H = EH();
-    /* portrait: span the terminal plates (x 29..209, between the pin columns) so no plate edge peeks out */
-    if (botcorps_cyd_orient) { *x = 29; *w = W - 59; } else { *x = 34; *w = W - 68; }
-    *h = botcorps_cyd_orient ? 184 : 162;     /* keys field h-17: portrait rows 33 px, landscape 29 px */
-    *y = H - 5 - *h;
-    return s_pt_mode != 0;
+    /* rain cover while Adv OSK / sheet / palette / attack is open */
+    if (s_pt_mode == 1 && s_pt_bw > 0) {
+        cyd_adv_osk_layout();
+        *x = s_adv_osk_x - 2; *y = s_adv_osk_y - 2;
+        *w = s_adv_osk_w + 4; *h = s_adv_osk_h + 4;
+        return true;
+    }
+    if (s_sheet && s_pt_bw > 0) {
+        int by, hh, top, nshow;
+        cyd_adv_sheet_box(&by, &hh, &top, &nshow);
+        *x = s_adv_sx + 2; *y = by; *w = s_adv_sw - 4; *h = hh;
+        return true;
+    }
+    if ((s_focus_cmds || s_term_ovl) && s_pt_bw > 0) {
+        *x = s_adv_sx; *y = s_adv_sy; *w = s_adv_sw; *h = s_adv_sh;
+        return true;
+    }
+    return false;
 }
-static void pt_paint_old12(Gfx g)
-{
-    int x, y, w, h;
-    pt_overlay_rect(&x, &y, &w, &h);
-    s_pt_bx = x; s_pt_by = y; s_pt_bw = w; s_pt_bh = h;
-    g.fillRect(x, y, w, h, PAL_BLACK);
-    sb_frame(g, x, y, w, h, PAL_LINE);
-    sb_frame(g, x + 1, y + 1, w - 2, h - 2, PAL_DEEP);
-    pt_draw_cmdline(g, x + 2, y + 2, w - 4);
-    if (s_pt_mode == 1) pt_draw_keys(g, x + 2, y + 15, w - 4, h - 17);
-    else pt_draw_list(g, x + 2, y + 15, w - 4, h - 17);
-}
-/* the live terminal plate: silk shell + the old Terminal box in the plate screen (mode 0); keys /
- * list (s_pt_mode 1 / 2) open the old box modes in the overlay. dark: shell + black screen only (intro staging). */
+/* live terminal plate: silk shell + Adv prompt plate in the screen rect.
+ * dark: shell + black screen only (intro staging). */
 static void e_plate(Gfx g, int bx, int by, int bw, int bh, const char *silk, bool sel, bool dark = false)
 {
     int sx, sy, sw, sh;
-    /* terminal plates: side padding trimmed to the 2 px gold+rule frame so the old box (and its full
-     * "user@botcorps:~$ " cmdline) gets every pixel between the pin columns */
     e_plate_shell(g, bx, by, bw, bh, silk, true, &sx, &sy, &sw, &sh, 2);
-    if (sel) g.drawRect(bx - 2, by - 2, bw + 4, bh + 4, PAL_WHITE);   /* under the keys overlay, never over it */
-    if (!dark) {
-        if (s_pt_mode == 0) pt_paint_old0(g, sx, sy, sw, sh);
-        else pt_paint_old12(g);
-    }
+    if (sel) g.drawRect(bx - 2, by - 2, bw + 4, bh + 4, PAL_WHITE);
+    if (!dark) cyd_adv_paint_plate(g, sx, sy, sw, sh);
 }
-/* plate rows per screen: portrait plates are 80 tall at the board foot, landscape plates 72 */
-static int e_plate_h(void) { return botcorps_cyd_orient ? 80 : 72; }
+/* Adv plate content wants ~68 px screen height (outer ≈ 81). Portrait hub already 80. */
+static int e_plate_h(void) { return botcorps_cyd_orient ? 81 : 81; }
 
 /* draw in a shifted frame: everything painted through .h lands (dx, dy) away (Gfx fill ops use the
  * global band x origin + the member y origin, raw blits use .ox/.oy) */

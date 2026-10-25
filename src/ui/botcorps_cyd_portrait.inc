@@ -8,7 +8,7 @@ static bool cp_part_rect_p(int index, int *x, int *y, int *w, int *h) { return c
 static bool cp_ctlbot_on(void) { return true; }
 
 /* terminal plate state (the plate rect is set by e_plate each paint; 0 width = no plate on screen) */
-static uint8_t s_pt_mode = 0; /* 0 log, 1 keys, 2 list */
+static uint8_t s_pt_mode = 0; /* 0 Adv plate idle, 1 Adv OSK upward (list mode removed) */
 static bool s_pt_sym = false;
 static int s_pt_top = 0;
 static int s_pt_sel = 0;
@@ -16,16 +16,9 @@ static int s_pt_bx = 0, s_pt_by = 0, s_pt_bw = 0, s_pt_bh = 0;
 
 static char *pt_buf(int *cap)
 {
-    if (s_screen == SCR_TERMINAL) {
-        if (cap) *cap = 60;
-        return botcorps_t0_term_prompt;
-    }
-    if (sbox_on()) {
-        if (cap) *cap = 14;
-        return s_sp_buf;
-    }
-    if (cap) *cap = GP_BUF_N;
-    return s_gp_buf;
+    /* Adv terminal plate: every CYD plate types into the Adv term prompt + CMDN list. */
+    if (cap) *cap = 60;
+    return botcorps_t0_term_prompt;
 }
 
 /* old-terminal port (b98559e paint_terminal_p / pt_pfx, Dirt [pt336u] 2026-10-25): every plate carries
@@ -84,182 +77,8 @@ static bool cyd_route_line(void)
     return true;
 }
 
-static void pt_draw_cmdline(Gfx g, int x, int y, int w)
-{
-    int cap = 0;
-    char *buf = pt_buf(&cap);
-    const char *pfx = pt_pfx();
-    char line[96];
-    snprintf(line, sizeof(line), "%s%s", pfx, buf ? buf : "");
-    /* Keep prompt + caret readable: scroll the typed tail, never clip the caret off. */
-    const int maxc = (w - 8) / 6;
-    const char *show = line;
-    int len = (int)strlen(line);
-    if (len > maxc) show = line + (len - maxc);
-    g.fillRect(x, y, w, 12, PAL_BLACK);
-    g.drawRect(x, y, w, 12, PAL_LINE);
-    txt(g, show, x + 2, y + 2, PAL_WHITE, lgfx::textdatum::top_left);
-    if (((millis() / 400u) & 1u) == 0) {
-        const int cx = x + 2 + (int)strlen(show) * 6;
-        if (cx + 4 <= x + w - 2) g.fillRect(cx, y + 2, 4, 8, accent());
-    }
-}
-
-/* Field fix 2026-10-25 (Dirt: keys must be responsive): a typed / erased character while the keys
- * are open repaints ONLY the overlay command line (12 px row, old pt_draw_cmdline at the overlay's
- * x+2, y+2), not the whole board, so the loop is back reading the panel within a few ms and the next
- * tap is not lost behind a full-frame repaint. Anything else (or a frame already dirty) repaints. */
-static void cyd_pt_line_part(Gfx g) { pt_draw_cmdline(g, s_pt_bx + 2, s_pt_by + 2, s_pt_bw - 4); }
-static void cyd_pt_typed(void)
-{
-    if (s_pt_mode != 1 || s_pt_bw <= 4 || s_dirty || !botcorps_dual_ok()) { s_dirty = true; return; }
-    const int x = s_pt_bx + 2, y = s_pt_by + 2, w = s_pt_bw - 4, h = 12;
-    if (!botcorps_band_direct()) { botcorps_band_patch(cyd_pt_line_part, x, y, w, h); return; }
-    botcorps_set_surface(BOTCORPS_SURFACE_CONTENT);
-    auto &p = botcorps_content();
-    p.startWrite();
-    p.setClipRect(x, y, w, h);
-    cyd_pt_line_part(Gfx(p));
-    p.endWrite();
-    p.clearClipRect();
-}
-
-static void pt_draw_btn(Gfx g, int x, int y, int w, int h, const char *lab, bool lit)
-{
-    const uint8_t ac = accent();
-    g.fillRect(x, y, w, h, lit ? (uint8_t)PAL_SEL : (uint8_t)PAL_DEEP);
-    g.drawRect(x, y, w, h, lit ? ac : (uint8_t)PAL_LINE);
-    if (lab && lab[0] == '=' && lab[1] == 0) {
-        for (int k = 0; k < 3; ++k)
-            g.fillRect(x + 8, y + 7 + k * 5, w - 16, 2, lit ? ac : (uint8_t)COL_MUTED);
-    } else {
-        txt(g, lab, x + w / 2, y + h / 2 - 4, lit ? ac : (uint8_t)PAL_WHITE, lgfx::textdatum::top_center);
-    }
-}
-
-static int pt_key_n(void) { return (int)(sizeof(CYD_OSK_SPEC) / sizeof(CYD_OSK_SPEC[0])); }
-/* key i inside the keys field (x, y, w, h): the drawn key rect (k*) and its full touch cell (c*) --
- * the cell is the key plus the 1 px gap after it, so the cells tile the field with no dead pixels.
- * pt_draw_keys and pt_hit both use this, so art and hit boxes can never drift. */
-static void pt_key_rect(int i, int x, int y, int w, int h, int *kx, int *ky, int *kw, int *kh,
-                        int *cx, int *cy, int *cw, int *ch)
-{
-    const int kp = (w - 4) / 10;
-    const int rp = (h - 2) / 5;
-    const CydOskSpec &sp = CYD_OSK_SPEC[i];
-    /* Narrow (portrait) field: a 1-col key is kp-1 px, too narrow for the 18 px "TAB"/"SYM" label of the
-     * key art. In a row holding TAB/SYM that key gets a 24 px cell (23 px key: label + 2 px air each side)
-     * and the row's other keys share the rest of the field; other rows spread the field's leftover px
-     * (to SPC, else 1 px to the row's last keys). Every row stays tiled edge to edge and the cells (= hit
-     * boxes) follow the drawn keys. Landscape (kp >= 23) is unchanged. */
-    const int field = w - 4, extra = field - 10 * kp;
-    int off = sp.col * kp, cwid = kp * sp.span;
-    if (kp < 23) {
-        const int LBL = 24;
-        int recv = -1, lab = -1;
-        for (int j = 0; j < pt_key_n(); ++j) {
-            const CydOskSpec &q = CYD_OSK_SPEC[j];
-            if (q.row != sp.row) continue;
-            if (q.kind == CYD_OSK_TAB || q.kind == CYD_OSK_SYM) lab = j;
-            if (q.kind == CYD_OSK_SPACE) recv = j;
-        }
-        off = 0;
-        if (lab >= 0) {
-            const int units = 10 - CYD_OSK_SPEC[lab].span, rest = field - LBL;
-            int u = 0;
-            for (int j = 0; j < pt_key_n(); ++j) {
-                const CydOskSpec &q = CYD_OSK_SPEC[j];
-                if (q.row != sp.row) continue;
-                int qw;
-                if (j == lab) qw = LBL;
-                else { qw = (u + q.span) * rest / units - u * rest / units; u += q.span; }
-                if (j == i) { cwid = qw; break; }
-                off += qw;
-            }
-        } else {
-            for (int j = 0; j < pt_key_n(); ++j) {
-                const CydOskSpec &q = CYD_OSK_SPEC[j];
-                if (q.row != sp.row) continue;
-                int qw = kp * q.span;
-                if (recv >= 0) { if (j == recv) qw += extra; }
-                else if (q.col >= 10 - extra) qw += 1;
-                if (j == i) { cwid = qw; break; }
-                off += qw;
-            }
-        }
-    }
-    *kx = x + 2 + off;
-    *ky = y + 1 + sp.row * rp;
-    *kw = cwid - 1;
-    *kh = rp - 1;
-    *cx = *kx; *cy = *ky; *cw = cwid; *ch = rp;
-}
-/* touch -> key: the key whose cell holds the point; a point in no cell (field margin) goes to the
- * cell with the nearest edge (0 inside), so every touch in the field lands on exactly one key. */
-static int pt_key_at(int tx, int ty, int x, int y, int w, int h)
-{
-    int best = -1, bd = 1 << 30;
-    for (int i = 0; i < pt_key_n(); ++i) {
-        int kx, ky, kw, kh, cx, cy, cw, ch;
-        pt_key_rect(i, x, y, w, h, &kx, &ky, &kw, &kh, &cx, &cy, &cw, &ch);
-        const int dx = tx < cx ? cx - tx : (tx >= cx + cw ? tx - (cx + cw - 1) : 0);
-        const int dy = ty < cy ? cy - ty : (ty >= cy + ch ? ty - (cy + ch - 1) : 0);
-        const int d = dx * dx + dy * dy;
-        if (d < bd) { bd = d; best = i; }
-        if (d == 0) break;
-    }
-    return best;
-}
-static void pt_draw_keys(Gfx g, int x, int y, int w, int h)
-{
-    const int n = pt_key_n();
-    for (int i = 0; i < n; ++i) {
-        const CydOskSpec &sp = CYD_OSK_SPEC[i];
-        int kx, ky, kw, kh, cx, cy, cw, ch;
-        pt_key_rect(i, x, y, w, h, &kx, &ky, &kw, &kh, &cx, &cy, &cw, &ch);
-        g.fillRect(kx, ky, kw, kh, PAL_DEEP);
-        g.drawRect(kx, ky, kw, kh, PAL_LINE);
-        char lab[8] = {0};
-        if (sp.kind == CYD_OSK_CHAR) {
-            lab[0] = s_pt_sym ? sp.symbol : sp.alpha;
-        } else if (sp.kind == CYD_OSK_SPACE) snprintf(lab, sizeof(lab), "SPC");
-        else if (sp.kind == CYD_OSK_BKSP) snprintf(lab, sizeof(lab), "<");
-        else if (sp.kind == CYD_OSK_ENTER) snprintf(lab, sizeof(lab), "OK");
-        else if (sp.kind == CYD_OSK_TAB) snprintf(lab, sizeof(lab), "TAB");
-        else if (sp.kind == CYD_OSK_SYM) snprintf(lab, sizeof(lab), s_pt_sym ? "abc" : "SYM");
-        else if (sp.kind == CYD_OSK_HIDE) snprintf(lab, sizeof(lab), "BACK"); /* never HID */
-        txt(g, lab, kx + kw / 2, ky + kh / 2 - 4, PAL_WHITE, lgfx::textdatum::top_center);
-    }
-}
-
-/* field fix: list row pitch grows with the panel so rows are ~28 px in the expanded overlay */
-static int pt_list_rh(int h) { const int r = (h - 26) / 6; return r < 9 ? 9 : r > 30 ? 30 : r; }
-static void pt_draw_list(Gfx g, int x, int y, int w, int h)
-{
-    int n = 0;
-    const char *const *cmds = pt_list(&n);
-    const int back_h = h > 90 ? 26 : 12;
-    const int rh = pt_list_rh(h);
-    const int rows = (h - back_h) / rh;
-    if (s_pt_sel < s_pt_top) s_pt_top = s_pt_sel;
-    if (s_pt_sel >= s_pt_top + rows) s_pt_top = s_pt_sel - rows + 1;
-    if (s_pt_top < 0) s_pt_top = 0;
-    for (int r = 0; r < rows; ++r) {
-        const int i = s_pt_top + r;
-        if (i >= n) break;
-        const bool on = i == s_pt_sel;
-        const int ry = y + r * rh;
-        g.fillRect(x, ry, w, rh - 1, on ? accent() : (uint8_t)PAL_DEEP);
-        g.drawRect(x, ry, w, rh - 1, on ? (uint8_t)PAL_WHITE : (uint8_t)PAL_LINE);
-        txt(g, cmds[i], x + 4, ry + (rh - 1) / 2 - 4, on ? (uint8_t)PAL_BLACK : (uint8_t)PAL_WHITE,
-            lgfx::textdatum::top_left);
-    }
-    /* Dedicated UP / DOWN / BACK under the list (big targets in the expanded overlay). */
-    const int bw3 = w / 3 - 2;
-    pt_draw_btn(g, x, y + h - back_h, bw3, back_h - 1, "UP", false);
-    pt_draw_btn(g, x + w / 3 + 1, y + h - back_h, bw3, back_h - 1, "DOWN", false);
-    pt_draw_btn(g, x + 2 * (w / 3) + 2, y + h - back_h, w - 2 * (w / 3) - 2, back_h - 1, "BACK", false);
-}
+/* Adv OSK / plate: typing dirties the frame (partial overlay cmdline removed with b98559e). */
+static void cyd_pt_typed(void) { s_dirty = true; }
 
 static void pt_draw_log_line(Gfx g, const char *ln, int lx, int ly)
 {
@@ -688,7 +507,7 @@ static const SBGeo &scanbot_geo(void)
         P.kx0 = 34; P.ky = 148; P.kw_band = 172; P.kh = 14;
         P.bx = 34; P.by = 166; P.bw = 172; P.bh = 75;
         P.t0x = 44; P.t0y = 177; P.pitch = 31; P.cols = 5; P.rows = 2; P.tile = 28;
-        P.pl[0] = 29; P.pl[1] = 248; P.pl[2] = 181; P.pl[3] = 66;   /* old-terminal box 160 x 53 */
+        P.pl[0] = 29; P.pl[1] = 232; P.pl[2] = 181; P.pl[3] = 81;   /* Adv plate ~68px screen */
         /* ---- landscape 320 x 240 : boss centre, chips left(x2)+right, wide bay + plate ---- */
         L.mx = 126; L.my = 36; L.mw = 72; L.mh = 72;
         L.cs = 28;
@@ -698,7 +517,7 @@ static const SBGeo &scanbot_geo(void)
         L.kx0 = 74; L.ky = 113; L.kw_band = 212; L.kh = 12;
         L.bx = 74; L.by = 129; L.bw = 212; L.bh = 35;
         L.t0x = 80; L.t0y = 132; L.pitch = 34; L.cols = 6; L.rows = 1; L.tile = 28;
-        L.pl[0] = 34; L.pl[1] = 168; L.pl[2] = 252; L.pl[3] = 66;   /* old-terminal box 240 x 53 */
+        L.pl[0] = 34; L.pl[1] = 152; L.pl[2] = 252; L.pl[3] = 81;   /* Adv plate ~68px screen */
     }
     return botcorps_cyd_orient ? P : L;
 }
@@ -953,7 +772,7 @@ static void paint_scan_e(Gfx g)
           ++slot;
       } }
 
-    /* ---- SCANBOT terminal plate: the old Terminal box (pt_paint_old0), bay shrunk to make room ---- */
+    /* ---- SCANBOT terminal plate: Adv f1c08aa plate (e_plate), bay shrunk to make room ---- */
     { const int *PL = G.pl; e_plate(g, PL[0], PL[1], PL[2], PL[3], "SCANBOT", false); }
 
     e_finish(g);

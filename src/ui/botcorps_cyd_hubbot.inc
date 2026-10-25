@@ -205,8 +205,7 @@ static void paint_hubbot(Gfx g)
     gib_crown(g, HB_CROWN[0], HB_CROWN[1]);
     for (int i = 0; i < 14; ++i) hb_chip(g, i);
     hb_terminalbot(g);
-    e_bar(g);
-    e_frame(g);
+    e_finish(g);   /* top bar + edge + Adv OSK/sheet overlays */
 }
 
 /* ---- Touch. Hit boxes follow the drawn art: chip body + its silk. Returns 0..11 bot chip,
@@ -232,32 +231,9 @@ static int hb_hit(int tx, int ty)
     return -1;
 }
 
-/* every plate, log mode (s_pt_mode 0): the old Terminal box (pt_paint_old0) -- "abc" -> keys,
- * "=" -> prompt list, the command line -> keys. Hit boxes = the drawn 34 x 28 buttons (pt_old_btns,
- * the same rects the painter uses) grown to fill the 3 px gap between them and the box frame, and
- * the cmdline row grown to 28 px tall; the log rows above are not a target. */
-/* returns 0 (K_NONE; the key enum is declared later in botcorps_ui.cpp) */
-static void hb_pt_open_list(void)
-{
-    /* prompt list opens on row 0 with it already on the command line (locked frame hub-*-list);
-     * tap another row to pick it, tap the picked row again (or OK) to run. */
-    s_pt_mode = 2; s_pt_sel = 0; s_pt_top = 0;
-    int n = 0, cap = 0;
-    const char *const *cmds = pt_list(&n);
-    char *b = pt_buf(&cap);
-    if (b && cmds && n > 0) snprintf(b, (size_t)cap, "%s", cmds[0]);
-    s_dirty = true;
-}
+/* Adv plate idle hits: cmdline -> OSK, ≡ -> palette, reticle -> attack, sheet/cands. */
 static int hb_pt_hit0(int tx, int ty)
 {
-    const int x = s_pt_bx, y = s_pt_by, w = s_pt_bw, h = s_pt_bh;
-    int gx, ax, by;
-    pt_old_btns(x, y, w, h, &gx, &ax, &by);
-    const int top = by - 2, bot = y + h;                       /* 28 px button + frame band */
-    if (ty >= top && ty < bot) {
-        if (tx >= ax - 1 && tx < x + w) { s_pt_mode = 1; s_dirty = true; return 0; }      /* abc */
-        if (tx >= gx - 2 && tx < ax - 1) { hb_pt_open_list(); return 0; }                 /* = */
-        if (tx >= x && tx < gx - 2) { s_pt_mode = 1; s_dirty = true; return 0; }          /* cmdline */
-    }
-    return 0;
+    const int r = cyd_adv_hit_idle(tx, ty);
+    return r < 0 ? 0 : r;
 }

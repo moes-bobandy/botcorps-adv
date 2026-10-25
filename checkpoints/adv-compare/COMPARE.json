@@ -1,0 +1,36 @@
+{
+  "L_idle_blanked_left_align_diff": 916,
+  "L_idle_blanked_right_align_diff": 740,
+  "L_idle_blanked_total": 16864,
+  "L_idle_button_region_diff": 352,
+  "L_idle_button_region_total": 672,
+  "compares": [
+    "2x-L-idle.png",
+    "2x-L-typing.png",
+    "2x-L-sheet.png",
+    "2x-L-palette.png",
+    "2x-L-attack.png",
+    "2x-L-osk.png",
+    "2x-P-idle.png",
+    "2x-P-typing.png",
+    "2x-P-sheet.png",
+    "2x-P-palette.png",
+    "2x-P-attack.png",
+    "2x-P-osk.png",
+    "2x-L-scan-idle.png",
+    "2x-P-scan-idle.png",
+    "2x-L-gchat-idle.png",
+    "2x-P-gchat-idle.png"
+  ],
+  "math": {
+    "portrait_plate_outer": "HB_TBOT_P={31,229,177,81}",
+    "portrait_plate_screen": "33,239 173x68",
+    "portrait_prompt_px": "pfx=96px; typed_max\u22483 before scroll (atk=158)",
+    "portrait_osk": "kp=24 rp=28 full-W (pin gap 174 < 240 for 10\u00d724)",
+    "landscape_plate_screen": "36,162 248x68",
+    "landscape_osk": "kp=25 rp=28 between pins (28\u00d710=280 > avail 254)",
+    "adv_plate": "4,167 312x68",
+    "width_gap_L": "Adv 312 vs CYD 248 (pins)",
+    "height_match": "screen h=68 both"
+  }
+}

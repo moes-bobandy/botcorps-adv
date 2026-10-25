@@ -190,7 +190,7 @@ static void hb_copper(Gfx g)
 
 static void hb_terminalbot(Gfx g)
 {
-    e_plate(g, HB_TBOT[0], HB_TBOT[1], HB_TBOT[2], HB_TBOT[3], HB_TBOT_SILK, 1, s_hb_sel == 15);
+    e_plate(g, HB_TBOT[0], HB_TBOT[1], HB_TBOT[2], HB_TBOT[3], HB_TBOT_SILK, s_hb_sel == 15);
 }
 
 /* PICK.md paint_hub_target order: headers, copper, module, crown, chips, plate, top bar, edge */
@@ -232,49 +232,32 @@ static int hb_hit(int tx, int ty)
     return -1;
 }
 
-/* TERMINALBOT plate, log mode (s_pt_mode 0): command line -> keys, keyboard emblem -> keys,
- * "=" glossary -> prompt list. Same rects hb_terminalbot draws. Keys / list modes use the
- * shared pt_hit math on s_pt_bx/by/bw/bh, which hb_terminalbot sets to the plate screen. */
+/* every plate, log mode (s_pt_mode 0): the old Terminal box (pt_paint_old0) -- "abc" -> keys,
+ * "=" -> prompt list, the command line -> keys. Hit boxes = the drawn 34 x 28 buttons (pt_old_btns,
+ * the same rects the painter uses) grown to fill the 3 px gap between them and the box frame, and
+ * the cmdline row grown to 28 px tall; the log rows above are not a target. */
 /* returns 0 (K_NONE; the key enum is declared later in botcorps_ui.cpp) */
+static void hb_pt_open_list(void)
+{
+    /* prompt list opens on row 0 with it already on the command line (locked frame hub-*-list);
+     * tap another row to pick it, tap the picked row again (or OK) to run. */
+    s_pt_mode = 2; s_pt_sel = 0; s_pt_top = 0;
+    int n = 0, cap = 0;
+    const char *const *cmds = pt_list(&n);
+    char *b = pt_buf(&cap);
+    if (b && cmds && n > 0) snprintf(b, (size_t)cap, "%s", cmds[0]);
+    s_dirty = true;
+}
 static int hb_pt_hit0(int tx, int ty)
 {
-    const int sx = s_pt_bx, sy = s_pt_by, sw = s_pt_bw, sh = s_pt_bh;
-    const int bwid = 34, bht = 16;
-    if (s_screen == SCR_WIFI_RADAR || s_screen == SCR_BT_RADAR || s_screen == SCR_SCAN) {
-        /* SCANbot plate: buttons stacked in a right-hand column (fix 3), cmdline capped left of them. */
-        const int bx2 = sx + sw - bwid - 2;
-        if (tx >= bx2 && tx < bx2 + bwid) {
-            if (ty >= sy + 2 && ty < sy + 2 + bht) { s_pt_mode = 1; s_dirty = true; return 0; }
-            if (ty >= sy + bht + 4 && ty < sy + bht + 4 + bht) {
-                s_pt_mode = 2; s_pt_sel = 0; s_pt_top = 0;
-                int n = 0, cap = 0;
-                const char *const *cmds = pt_list(&n);
-                char *b = pt_buf(&cap);
-                if (b && cmds && n > 0) snprintf(b, (size_t)cap, "%s", cmds[0]);
-                s_dirty = true;
-                return 0;
-            }
-            return 0;
-        }
-        if (ty >= sy + 2 && ty < sy + 14 && tx < bx2 - 4) { s_pt_mode = 1; s_dirty = true; return 0; }
-        return 0;
+    const int x = s_pt_bx, y = s_pt_by, w = s_pt_bw, h = s_pt_bh;
+    int gx, ax, by;
+    pt_old_btns(x, y, w, h, &gx, &ax, &by);
+    const int top = by - 2, bot = y + h;                       /* 28 px button + frame band */
+    if (ty >= top && ty < bot) {
+        if (tx >= ax - 1 && tx < x + w) { s_pt_mode = 1; s_dirty = true; return 0; }      /* abc */
+        if (tx >= gx - 2 && tx < ax - 1) { hb_pt_open_list(); return 0; }                 /* = */
+        if (tx >= x && tx < gx - 2) { s_pt_mode = 1; s_dirty = true; return 0; }          /* cmdline */
     }
-    const int byb = sy + sh - bht - 2;
-    if (ty >= byb && ty < byb + bht) {
-        const int kx = sx + sw - bwid * 2 - 6, gx = sx + sw - bwid - 2;
-        if (tx >= kx && tx < kx + bwid) { s_pt_mode = 1; s_dirty = true; return 0; }
-        if (tx >= gx && tx < gx + bwid) {
-            /* prompt list opens on row 0 with it already on the command line (locked frame
-             * hub-*-list); tap another row to pick it, tap the picked row again (or OK) to run. */
-            s_pt_mode = 2; s_pt_sel = 0; s_pt_top = 0;
-            int n = 0, cap = 0;
-            const char *const *cmds = pt_list(&n);
-            char *b = pt_buf(&cap);
-            if (b && cmds && n > 0) snprintf(b, (size_t)cap, "%s", cmds[0]);
-            s_dirty = true;
-            return 0;
-        }
-    }
-    if (ty >= sy + 2 && ty < sy + 14) { s_pt_mode = 1; s_dirty = true; return 0; }
     return 0;
 }

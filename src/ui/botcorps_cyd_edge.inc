@@ -125,18 +125,6 @@ static void e_trace(Gfx g, const Pt *p, int n)
     for (int q = 1; q + 1 < n; ++q) cb_via(g, p[q].x, p[q].y, via);
 }
 
-static void hb_kbd_emblem(Gfx g, int x, int y, int w, int h, bool lit)
-{
-    const uint8_t ac = accent();
-    g.fillRect(x, y, w, h, lit ? (uint8_t)PAL_SEL : (uint8_t)PAL_DEEP);
-    g.drawRect(x, y, w, h, lit ? ac : (uint8_t)PAL_LINE);
-    const uint8_t ink = lit ? ac : (uint8_t)PAL_WHITE;
-    for (int r = 0; r < 2; ++r)
-        for (int c = 0; c < 4; ++c)
-            g.fillRect(x + 5 + c * 5, y + 6 + r * 5, 3, 3, ink);
-    g.fillRect(x + 7, y + h - 6, w - 14, 3, ink);
-}
-
 /* ---- plates: the terminal language of the board (hb_terminalbot geometry per PICK.md §9) ---- */
 /* shell only: substrate, gold edge + rule, castellations x = bx+3+12k top and bottom, silk legend, pads, black screen.
  * Returns the screen rect. Pads: RX TX IO0 EN at sx+52+26k when the plate is wide enough, else RX TX at the right. */
@@ -175,63 +163,75 @@ static void e_log_line(Gfx g, const char *ln, int lx, int ly, int w)
     b[n] = 0;
     pt_draw_log_line(g, b, lx, ly);
 }
-/* the live terminal plate: mode 0 = command line + nlog newest log lines + keyboard emblem + "=" list button,
- * mode 1 keys, mode 2 command list (s_pt_mode). mode_dark: shell + black screen only (intro staging). */
-static void e_plate(Gfx g, int bx, int by, int bw, int bh, const char *silk, int nlog, bool sel, bool dark = false, bool btnright = false)
+/* ---- old Terminal screen, ported as is (b98559e botcorps_cyd_portrait.inc paint_pterm, the box
+ * paint_terminal_p drew at PT_X/PT_Y 220 x 53; Dirt [pt336u] 2026-10-25 "needs to be the original
+ * looking prompt from the old terminal screen"). Same calls, same colours, same 34 x 28 "=" + "abc"
+ * buttons, same 3 px gap / 5 px right margin / 1 px floor (old PT_GL_X / PT_ABC_X were x+144 / x+181
+ * at y+24 in the 53-tall box), same cmdline (old width PT_GL_X - x - 4 = w - 80, at button y + 8),
+ * same log rows (9 px pitch from x+3). The only generalisation: the buttons anchor to the box's
+ * right / bottom edge and the log rows stack up from the cmdline, so a box of another size keeps
+ * the old bottom 53 px exactly (a 53-tall box gives the old 2 rows at y+3 / y+12). */
+static void pt_old_btns(int x, int y, int w, int h, int *gx, int *ax, int *by)
+{
+    *ax = x + w - 39;      /* abc: old PT_ABC_X = PT_X + 181, w 220 */
+    *gx = x + w - 76;      /* "=": old PT_GL_X  = PT_X + 144 */
+    *by = y + h - 29;      /* old PT_ABC_Y = PT_Y + 24, h 53 */
+}
+static void pt_paint_old0(Gfx g, int x, int y, int w, int h)
+{
+    s_pt_bx = x; s_pt_by = y; s_pt_bw = w; s_pt_bh = h;
+    g.fillRect(x, y, w, h, PAL_BLACK);
+    sb_frame(g, x, y, w, h, PAL_LINE);
+    sb_frame(g, x + 1, y + 1, w - 2, h - 2, PAL_DEEP);
+    int gx, ax, by;
+    pt_old_btns(x, y, w, h, &gx, &ax, &by);
+    pt_draw_btn(g, ax, by, 34, 28, "abc", false);
+    pt_draw_btn(g, gx, by, 34, 28, "=", false);
+    const int cmd_y = by + 8;
+    const int rh = 9;
+    int rows = (cmd_y - 14 - y) / rh;          /* old box: (y+32 - 14 - y) / 9 = 2 */
+    if (rows < 0) rows = 0;
+    const int log_top = cmd_y - 11 - rows * rh; /* old box: y + 3 */
+    for (int i = 0; i < rows && i < s_log_n; ++i) {
+        const int idx = s_log_n - rows + i;
+        if (idx < 0) continue;
+        e_log_line(g, log_line(idx), x + 3, log_top + i * rh, w - 6);
+    }
+    pt_draw_cmdline(g, x + 2, cmd_y, gx - x - 4);
+}
+/* old paint_pterm modes 1 / 2 as is (cmdline on top at y+2, keys / list from y+15, h-17), in the
+ * field-fix overlay rect (x 34..W-34, tall) so the keys are finger-sized. */
+static bool pt_overlay_rect(int *x, int *y, int *w, int *h)
+{
+    const int W = EW(), H = EH();
+    *x = 34; *w = W - 68;
+    *h = botcorps_cyd_orient ? 184 : 162;     /* keys field h-17: portrait rows 33 px, landscape 29 px */
+    *y = H - 5 - *h;
+    return s_pt_mode != 0;
+}
+static void pt_paint_old12(Gfx g)
+{
+    int x, y, w, h;
+    pt_overlay_rect(&x, &y, &w, &h);
+    s_pt_bx = x; s_pt_by = y; s_pt_bw = w; s_pt_bh = h;
+    g.fillRect(x, y, w, h, PAL_BLACK);
+    sb_frame(g, x, y, w, h, PAL_LINE);
+    sb_frame(g, x + 1, y + 1, w - 2, h - 2, PAL_DEEP);
+    pt_draw_cmdline(g, x + 2, y + 2, w - 4);
+    if (s_pt_mode == 1) pt_draw_keys(g, x + 2, y + 15, w - 4, h - 17);
+    else pt_draw_list(g, x + 2, y + 15, w - 4, h - 17);
+}
+/* the live terminal plate: silk shell + the old Terminal box in the plate screen (mode 0); keys /
+ * list (s_pt_mode 1 / 2) open the old box modes in the overlay. dark: shell + black screen only (intro staging). */
+static void e_plate(Gfx g, int bx, int by, int bw, int bh, const char *silk, bool sel, bool dark = false)
 {
     int sx, sy, sw, sh;
     e_plate_shell(g, bx, by, bw, bh, silk, true, &sx, &sy, &sw, &sh);
+    if (sel) g.drawRect(bx - 2, by - 2, bw + 4, bh + 4, PAL_WHITE);   /* under the keys overlay, never over it */
     if (!dark) {
-        if (s_pt_mode == 0) {
-            const int bwid = 34, bht = 16;
-            if (btnright) {
-                /* fix 3 (SCANbot plate): keyboard + "=" stacked in a right-hand column, and the
-                 * command line and every log line capped to the width left of them, so the log text
-                 * can never run under the icons. */
-                const int bx2 = sx + sw - bwid - 2;
-                const int tw = sw - bwid - 8;
-                hb_kbd_emblem(g, bx2, sy + 2, bwid, bht, false);
-                pt_draw_btn(g, bx2, sy + bht + 4, bwid, bht, "=", false);
-                pt_draw_cmdline(g, sx + 2, sy + 2, tw);
-                for (int i = 0; i < nlog; ++i) {
-                    const int idx = s_log_n - nlog + i;
-                    if (idx < 0) continue;
-                    const int ly = sy + 16 + i * 9;
-                    if (ly + 8 > sy + sh) break;                   /* never spill past the screen floor */
-                    e_log_line(g, log_line(idx), sx + 3, ly, tw);
-                }
-            } else {
-                pt_draw_cmdline(g, sx + 2, sy + 2, sw - 4);
-                const int byb = sy + sh - bht - 2;
-                for (int i = 0; i < nlog; ++i) {
-                    const int idx = s_log_n - nlog + i;
-                    if (idx < 0) continue;
-                    const int ly = sy + 16 + i * 9;
-                    const bool under = ly + 8 > byb;              /* rows beside the buttons stop short of them */
-                    e_log_line(g, log_line(idx), sx + 3, ly, under ? sw - bwid * 2 - 12 : sw - 6);
-                }
-                hb_kbd_emblem(g, sx + sw - bwid * 2 - 6, byb, bwid, bht, false);
-                pt_draw_btn(g, sx + sw - bwid - 2, byb, bwid, bht, "=", false);
-            }
-            s_pt_bx = sx; s_pt_by = sy; s_pt_bw = sw; s_pt_bh = sh;
-        } else {
-            /* field fix 2026-10-25: keys / list open as a tall overlay inside x 34..W-34 so the
-             * targets are ~28 px, not the ~9 px plate rows. Drawn here, last before the frame. */
-            const int W = EW(), H = EH();
-            const int ox = 34, ow = W - 68;
-            const int oh = botcorps_cyd_orient ? 184 : 150;
-            const int oy = H - 5 - oh;
-            chip_plate(g, ox, oy, ow, oh, PAL_DEEP, accent());
-            g.drawRect(ox + 1, oy + 1, ow - 2, oh - 2, PAL_LINE);
-            txt(g, s_pt_mode == 1 ? "KEYS" : "PICK", ox + 4, oy + 3, accent(), lgfx::textdatum::top_left);
-            pt_draw_cmdline(g, ox + 2, oy + 12, ow - 4);
-            const int by2 = oy + 26, bh2 = oh - 28;
-            if (s_pt_mode == 1) pt_draw_keys(g, ox + 2, by2, ow - 4, bh2);
-            else pt_draw_list(g, ox + 2, by2, ow - 4, bh2);
-            s_pt_bx = ox; s_pt_by = oy; s_pt_bw = ow; s_pt_bh = oh;
-        }
+        if (s_pt_mode == 0) pt_paint_old0(g, sx, sy, sw, sh);
+        else pt_paint_old12(g);
     }
-    if (sel) g.drawRect(bx - 2, by - 2, bw + 4, bh + 4, PAL_WHITE);
 }
 /* plate rows per screen: portrait plates are 80 tall at the board foot, landscape plates 72 */
 static int e_plate_h(void) { return botcorps_cyd_orient ? 80 : 72; }

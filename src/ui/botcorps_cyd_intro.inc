@@ -385,7 +385,7 @@ static void paint_intro_hub(Gfx g, const IntroSt &s)
         if (on) { s_hb_sel = s.halo == i ? i : -1; hb_chip(g, i); s_hb_sel = -1; }
         else { hb_castle(g, HB_CHIP[i][0], HB_CHIP[i][1] + 9, 18); hb_silk(g, i, HB_CHIP[i][0], HB_CHIP[i][1] + 20, cb_silk(), PAL_BLACK); }
     }
-    e_plate(g, HB_TBOT[0], HB_TBOT[1], HB_TBOT[2], HB_TBOT[3], HB_TBOT_SILK, 1, s.hin != 0, s.plate != 2);
+    e_plate(g, HB_TBOT[0], HB_TBOT[1], HB_TBOT[2], HB_TBOT[3], HB_TBOT_SILK, s.hin != 0, s.plate != 2);
     if (s.hin) {
         const uint8_t hot = cbmix(botcorps_rgb565(accent()), 0xFFFF, 55);
         const int bx = HB_TBOT[0] + HB_TBOT[2] / 2 + 1, by = HB_TBOT[1] + HB_TBOT[3] + 2;

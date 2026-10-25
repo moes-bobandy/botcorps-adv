@@ -1015,6 +1015,7 @@ static void e_covers(void);               /* botcorps_cyd_edge screens: live-rai
 static int portrait_touch(int tx, int ty, char *typed);
 static bool cp_ctlbot_on(void);            /* portrait.inc: controlbot is the portrait Control painter */
 static void layout_covers_ctlbot(void);    /* botcorps_cyd_ctlbot.inc */
+static bool pt_overlay_rect(int *x, int *y, int *w, int *h);   /* botcorps_cyd_edge.inc: false when closed */
 static void hb_covers(void);              /* botcorps_cyd_hubbot.inc: Gibson Hub v4 rain covers */
 static void intro_covers(void);           /* botcorps_cyd_intro.inc: BOOTbot intro rain covers */
 static uint32_t intro_key(void);          /* botcorps_cyd_intro.inc: repaint key (step + caret) */
@@ -1039,6 +1040,10 @@ static void layout_covers(void)
     if (s_screen == SCR_CONTROL) layout_covers_ctlbot();
     else if (s_screen == SCR_GIBSON) hb_covers();
     else e_covers();
+    if (s_screen != SCR_CONTROL) {   /* keys / list overlay open: no rain through the keys */
+        int ox, oy, ow, oh;
+        if (pt_overlay_rect(&ox, &oy, &ow, &oh)) cover_add(ox, oy, ow, oh);
+    }
     botcorps_rain_set_covers(s_box, s_box_n, false);
     return;
 #endif
@@ -9423,7 +9428,11 @@ static void on_char(char c)
             if (s_gc_caret >= 0) ++s_gc_caret;
         }
         s_gc_hist_i = -1;
+#ifdef BOTCORPS_CYD
+        cyd_pt_typed();
+#else
         s_dirty = true;
+#endif
         return;
     }
     if (s_screen == SCR_GIBSON) {
@@ -9435,7 +9444,11 @@ static void on_char(char c)
             s_gp_buf[n] = c;
             s_gp_buf[n + 1] = 0;
         }
+#ifdef BOTCORPS_CYD
+        cyd_pt_typed();
+#else
         partial_gp_strip();
+#endif
         return;
     }
     if (sbox_on()) {                         /* v1019 (Dirt #6): typing on the scan / sub-scan terminals */
@@ -9446,7 +9459,11 @@ static void on_char(char c)
             s_sp_buf[n + 1] = 0;
         }
         s_sp_cmd = -1;
+#ifdef BOTCORPS_CYD
+        cyd_pt_typed();
+#else
         sp_strip();
+#endif
         return;
     }
     if (s_screen != SCR_TERMINAL) return;
@@ -9474,7 +9491,11 @@ static void on_bs(void)
             memmove(s_gp_buf + at - 1, s_gp_buf + at, n - at + 1);
             if (s_gc_caret > 0) --s_gc_caret;
         }
+#ifdef BOTCORPS_CYD
+        cyd_pt_typed();
+#else
         s_dirty = true;
+#endif
         return;
     }
     if (s_screen == SCR_GIBSON && s_gp_buf[0]) {
@@ -9482,13 +9503,21 @@ static void on_bs(void)
         if (s_hub_zone != 1) { s_hub_zone = 1; s_dirty = true; }
         const size_t n = strlen(s_gp_buf);
         s_gp_buf[n - 1] = 0;
+#ifdef BOTCORPS_CYD
+        cyd_pt_typed();
+#else
         partial_gp_strip();
+#endif
         return;
     }
     if (sbox_on() && s_sp_buf[0]) {
         s_sp_buf[strlen(s_sp_buf) - 1] = 0;
         s_sp_cmd = -1;
+#ifdef BOTCORPS_CYD
+        cyd_pt_typed();
+#else
         sp_strip();
+#endif
         return;
     }
     if (s_screen != SCR_TERMINAL) {
@@ -9512,31 +9541,23 @@ static int pt_hit(int tx, int ty, char *typed)
         return -1;
     const int x = s_pt_bx, y = s_pt_by, w = s_pt_bw, h = s_pt_bh;
     if (s_pt_mode == 0) return hb_pt_hit0(tx, ty);   /* every edge-board plate: same cmdline / keys / list buttons */
-    /* field fix: the overlay cmdline strip is 26 px (title 12 + line 14); keys/list fill the rest */
-    const int by2 = y + 26, bh2 = h - 28, bw2 = w - 4, bx2 = x + 2;
+    /* old paint_pterm modes 1 / 2: cmdline strip y..y+15, keys / list field x+2, y+15, w-4, h-17 */
+    const int by2 = y + 15, bh2 = h - 17, bw2 = w - 4, bx2 = x + 2;
     if (s_pt_mode == 1) {
-        if (ty < by2 || ty >= by2 + bh2 || tx < bx2 || tx >= bx2 + bw2) return K_NONE;
-        const int kp = (bw2 - 4) / 10;
-        const int rp = (bh2 - 2) / 5;
-        const int n = (int)(sizeof(CYD_OSK_SPEC) / sizeof(CYD_OSK_SPEC[0]));
-        for (int i = 0; i < n; ++i) {
-            const CydOskSpec &sp = CYD_OSK_SPEC[i];
-            const int kx = bx2 + 2 + sp.col * kp;
-            const int ky = by2 + 1 + sp.row * rp;
-            const int kw = kp * sp.span - 1;
-            const int kh = rp - 1;
-            if (tx < kx || tx >= kx + kw || ty < ky || ty >= ky + kh) continue;
-            if (sp.kind == CYD_OSK_HIDE) { s_pt_mode = 0; s_dirty = true; return K_NONE; } /* BACK */
-            if (sp.kind == CYD_OSK_SYM) { s_pt_sym = !s_pt_sym; s_dirty = true; return K_NONE; }
-            if (sp.kind == CYD_OSK_BKSP) return K_BS;
-            if (sp.kind == CYD_OSK_ENTER) return K_OK;
-            if (sp.kind == CYD_OSK_TAB) return K_TAB;
-            if (sp.kind == CYD_OSK_SPACE) { if (typed) *typed = ' '; return K_CHAR; }
-            if (sp.kind == CYD_OSK_CHAR) {
-                const char ch = s_pt_sym ? sp.symbol : sp.alpha;
-                if (ch && typed) { *typed = ch; return K_CHAR; }
-            }
-            return K_NONE;
+        if (ty < by2 - 2) return K_NONE;                     /* the command line row is not a key */
+        /* every touch in the field lands on exactly one key: its full cell, else the nearest cell */
+        const int i = pt_key_at(tx, ty, bx2, by2, bw2, bh2);
+        if (i < 0) return K_NONE;
+        const CydOskSpec &sp = CYD_OSK_SPEC[i];
+        if (sp.kind == CYD_OSK_HIDE) { s_pt_mode = 0; s_dirty = true; return K_NONE; } /* BACK */
+        if (sp.kind == CYD_OSK_SYM) { s_pt_sym = !s_pt_sym; s_dirty = true; return K_NONE; }
+        if (sp.kind == CYD_OSK_BKSP) return K_BS;
+        if (sp.kind == CYD_OSK_ENTER) return K_OK;
+        if (sp.kind == CYD_OSK_TAB) return K_TAB;
+        if (sp.kind == CYD_OSK_SPACE) { if (typed) *typed = ' '; return K_CHAR; }
+        if (sp.kind == CYD_OSK_CHAR) {
+            const char ch = s_pt_sym ? sp.symbol : sp.alpha;
+            if (ch && typed) { *typed = ch; return K_CHAR; }
         }
         return K_NONE;
     }
@@ -9987,23 +10008,42 @@ static int read_key(char *typed)
         tx = nx; ty = ny;
     }
 #endif
+    static int s_tp_n = 0, s_tp_up = 0;
+    static bool s_tp_dead = false;                  /* press began during the intro: never fires */
+    static int s_tp_x[2] = { 0, 0 }, s_tp_y[2] = { 0, 0 };
+    static uint32_t s_tp_upt = 0;                   /* millis() of the first up sample of a release */
     if (s_intro_until && (int32_t)(millis() - s_intro_until) < 0) {
         /* Swallow, but track state so a held finger doesn't fire on hub */
-        if (down) { s_touch_down = true; s_touch_last = millis(); }
-        else s_touch_down = false;
+        if (down) { s_touch_down = true; s_touch_last = millis(); s_tp_dead = true; s_tp_up = 0; }
+        else { s_touch_down = false; s_tp_dead = false; }
         return K_NONE;
     }
     uint32_t now = millis();
-    /* One event per press. ~50 ms separates taps. Holds do not repeat. */
-    if (down && !s_touch_down && (now - s_touch_last) > 50) {
-        s_touch_down = true;
-        s_touch_last = now;
-    } else if (!down) {
-        s_touch_down = false;
-        return K_NONE;
-    } else {
+    /* Field fix 2026-10-25 (Dirt: "cant fight to select a letter"): one tap = one event, fired on
+     * RELEASE at the finger's settled position. A press starts on the first down sample; every
+     * further down sample moves the position; the release is confirmed only after 2+ up samples in
+     * a row spanning >= 45 ms, so a resistive XPT2046 drop-out mid-press (a few missed samples)
+     * cannot split one tap into two (no double entry). The point used is the second-newest down sample when there are
+     * 3+, because the very last one is read while the finger is lifting (pressure falling) and is
+     * the noisiest; a tap shorter than that uses its last sample. Holds never repeat. */
+    if (down) {
+        if (!s_touch_down) { s_touch_down = true; s_tp_n = 0; s_tp_dead = false; }
+        s_tp_x[0] = s_tp_x[1]; s_tp_y[0] = s_tp_y[1];
+        s_tp_x[1] = tx; s_tp_y[1] = ty;
+        ++s_tp_n;
+        s_tp_up = 0;
         return K_NONE;
     }
+    if (!s_touch_down) return K_NONE;
+    if (++s_tp_up == 1) s_tp_upt = now;
+    if (s_tp_up < 2 || (int32_t)(now - s_tp_upt) < 45) return K_NONE;   /* drop-out guard: up >= 2 samples AND 45 ms */
+    s_touch_down = false;
+    s_tp_up = 0;
+    s_touch_last = now;
+    if (s_tp_dead) { s_tp_dead = false; s_tp_n = 0; return K_NONE; }
+    const int use = s_tp_n >= 3 ? 0 : 1;
+    tx = s_tp_x[use]; ty = s_tp_y[use];
+    s_tp_n = 0;
     /* CYD edge board, both orientations: own hit map (plates / hub / Control / scan parts).
      * The legacy landscape pop-up / OSK / top-bar paths below are never reached. */
     {

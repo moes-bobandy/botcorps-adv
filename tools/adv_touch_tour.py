@@ -103,18 +103,86 @@ def tour(setup, land, tag, D):
             tap(ctr(tab[0]), j, HOLD[t%3]); mark('open_sheet')
             L.append('nosheet'); L.append('wait 40'); mark('close_sheet')
 
-    # sheet row picks (after paint_sheet port): open sheet, tap visible cmd rows
+    # sheet row picks: open sheet, tap visible cmd rows (variable pitch on P)
+    # Heights mirror cyd_adv_sheet_row_h / cyd_adv_sheet_box (purpose wrap on P).
     sx,sy,sw,sh = D['plate']
-    # Adv sheet opens upward from prompt: by = py-5-hh, hh=nshow*12+10
-    # py sits just above plate bottom (prompt line); match cyd_adv_sheet_box.
-    py = sy + sh - 11
-    hh = 9 * 12 + 10
+    geo = D.get('plate_geo') or (sx,sy,sw,sh,sy+sh-11)
+    py = geo[4] if len(geo) > 4 else sy + sh - 11
+    sheet_w = sw - 4
+    if sheet_w > 292: sheet_w = 292
+    if sheet_w < 80: sheet_w = 80
+    CMDN = ["scan","hunt","help","bots","rain","filter","ping","info","track","sniff",
+            "defend","scan all","sweep","roster","pulse","dig",
+            "hail","say","ask","rollcall","whisper","broadcast","link","mute",
+            "play","train","hunt-run","hunt run",
+            "go","load","clear","history","theme","about","cmds","version","uptime"]
+    CMDP = ["sweep \x7f wifi|ble|all","drone|flock|skimmer|deauth","list the commands","board status",
+            "rain \x7f <colour>|mixed","wifi|ble|threats|strong|off","ping a found device","device details",
+            "pin a device \x7f off","list heard (filtered)",
+            "defend shell \x7f <bot>","crew sweep, 12 boards","alias \x7f scan","alias \x7f bots","alias \x7f ping","alias \x7f info",
+            "greet a bot","send a line to a bot","query bot status","crew check-in",
+            "quiet line to a bot","speak to the crew","open a bot channel","hush a bot",
+            "open the defend shell","open this bot's defend shell","gibson hunt game","gibson hunt game",
+            "jump to a screen","load a screen",
+            "wipe the log","recent lines","next ui colour","build blurb","this menu","term build","session clock"]
+    G_AT = [0,16,24,28,37]
+    def purpose_px(s):
+        return sum(4 if ch=='\x7f' else 6 for ch in s)
+    def row_h(hdr, cmd):
+        if hdr >= 0: return 12
+        if land: return 12
+        name_w = len(CMDN[cmd])*6
+        name_end = 24 + name_w + 6
+        max_pw = max(0, sheet_w - 8 - name_end)
+        return 12 if purpose_px(CMDP[cmd]) <= max_pw else 22
+    def menu_row(row):
+        acc=0
+        for g in range(4):
+            if row==acc: return (g,-1)
+            acc+=1
+            n=G_AT[g+1]-G_AT[g]
+            if row < acc+n: return (-1, G_AT[g]+(row-acc))
+            acc+=n
+        return (-1,0)
+    def menu_sel_row(cmd):
+        row=0
+        for g in range(4):
+            row+=1
+            if cmd < G_AT[g+1]: return row+(cmd-G_AT[g])
+            row += G_AT[g+1]-G_AT[g]
+        return 0
+    rows_n = 37+4
+    sel_row = menu_sel_row(0)  # sheet opens at i=0
+    max_h = (py - 5) - 2
+    budget = max(24, max_h - 10)
+    top = sel_row; nshow=1
+    hdr,cmd = menu_row(sel_row)
+    used = row_h(hdr,cmd)
+    while True:
+        grew=False
+        if top>0:
+            hdr,cmd=menu_row(top-1); rh=row_h(hdr,cmd)
+            if used+rh<=budget:
+                top-=1; used+=rh; nshow+=1; grew=True
+        if top+nshow < rows_n:
+            hdr,cmd=menu_row(top+nshow); rh=row_h(hdr,cmd)
+            if used+rh<=budget:
+                used+=rh; nshow+=1; grew=True
+        if not grew: break
+    hh = used + 10
     by = py - 5 - hh
     if by < 2: by = 2
-    for row_i in range(3):
+    # first three cmd rows in the visible window
+    cmd_vis=[]
+    y = by + 5
+    for k in range(nshow):
+        hdr,cmd=menu_row(top+k); rh=row_h(hdr,cmd)
+        if hdr<0 and cmd>=0:
+            cmd_vis.append((y, rh, cmd))
+        y += rh
+    for row_i, (y, rh, cmd) in enumerate(cmd_vis[:3]):
         L.append('sheet 1'); L.append('wait 60'); mark('open_sheet_pick')
-        # skip row0 (often CORE header); tap cmd rows 1..3 at row centers
-        ry = by + 5 + (row_i + 1) * 12 + 6
+        ry = y + rh // 2
         rx = sx + sw // 2
         tap((rx, ry), (0, 0), 80); mark('pick_sheet_row', None, row_i)
         L.append('nosheet'); L.append('wait 40')

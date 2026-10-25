@@ -297,8 +297,14 @@ template <class Draw>
 static void with_idx(lgfx::LovyanGFX *p, uint8_t idx, Draw draw)
 {
     if (to_band(p)) draw(lgfx::rgb332_t(idx));
+#ifdef BOTCORPS_CYD
+    /* CYD: menu and content are the same panel. Honor term_ov so sheet /
+     * palette / attack TERM_* slots are Adv magenta washes, not pack332 orange. */
+    else if (on_ext_panel(p) || on_menu(p)) draw(ext_draw_word(idx));
+#else
     else if (on_menu(p)) draw(botcorps_rgb565(idx));
     else if (on_ext_panel(p)) draw(ext_draw_word(idx));
+#endif
     else draw(botcorps_pal_native(idx));
 }
 
@@ -319,8 +325,12 @@ void botcorps_pal_text(lgfx::LovyanGFX &dst, uint8_t idx)
     idx = hub_map(idx);
     /* uint8_t on the band round-trips through RGB888 back to the same index byte. */
     if (to_band(&dst)) dst.setTextColor(idx);
+#ifdef BOTCORPS_CYD
+    else if (on_ext_panel(&dst) || on_menu(&dst)) dst.setTextColor(ext_draw_word(idx));
+#else
     else if (on_menu(&dst)) dst.setTextColor(botcorps_rgb565(idx));
     else if (on_ext_panel(&dst)) dst.setTextColor(ext_draw_word(idx));
+#endif
     else dst.setTextColor(botcorps_pal_native(idx));
 }
 
@@ -481,8 +491,12 @@ void Gfx::setTextSize(float sx, float sy) { p->setTextSize(sx, sy); }
 void Gfx::setTextColor(uint8_t c)
 {
     if (to_band(p)) p->setTextColor(c);
+#ifdef BOTCORPS_CYD
+    else if (on_ext_panel(p) || on_menu(p)) p->setTextColor(ext_draw_word(c));
+#else
     else if (on_menu(p)) p->setTextColor(botcorps_rgb565(c));
     else if (on_ext_panel(p)) p->setTextColor(ext_draw_word(c));
+#endif
     else p->setTextColor(botcorps_pal_native(c));
 }
 void Gfx::setTextColor(uint16_t c)
@@ -492,8 +506,13 @@ void Gfx::setTextColor(uint16_t c)
 void Gfx::setTextColor(uint8_t fg, uint8_t bg)
 {
     if (to_band(p)) p->setTextColor(fg, bg);
+#ifdef BOTCORPS_CYD
+    else if (on_ext_panel(p) || on_menu(p))
+        p->setTextColor(ext_draw_word(fg), ext_draw_word(bg));
+#else
     else if (on_menu(p)) p->setTextColor(botcorps_rgb565(fg), botcorps_rgb565(bg));
     else if (on_ext_panel(p)) p->setTextColor(ext_draw_word(fg), ext_draw_word(bg));
+#endif
     else p->setTextColor(botcorps_pal_native(fg), botcorps_pal_native(bg));
 }
 void Gfx::setTextDatum(int dat) { p->setTextDatum((lgfx::textdatum_t)dat); }

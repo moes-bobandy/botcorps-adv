@@ -267,39 +267,96 @@ static void cyd_adv_paint_palette(Gfx g)
 }
 
 /* ---- glossary sheet opens upward from prompt (paint_sheet geometry) ---- */
+/* Portrait: cmd rows get a second line for purpose when name+purpose do not
+ * fit (dim, indented). Landscape keeps Adv one-line right-aligned purposes.
+ * Row pitch is variable; hit tests walk cumulative Y. */
+static int cyd_adv_sheet_row_h(int hdr, int cmd, int sheet_w)
+{
+    if (hdr >= 0) return 12;
+    if (botcorps_cyd_orient == 0) return 12; /* landscape: Adv one-line */
+    /* portrait: wrap purpose under the name when it would collide */
+    int name_w = 0;
+    for (const char *p = CMDN[cmd]; *p; ++p) name_w += 6;
+    const int name_end = 24 + name_w + 6; /* relative to bx */
+    const int pur_right = sheet_w - 8;
+    int max_pw = pur_right - name_end;
+    if (max_pw < 0) max_pw = 0;
+    if (purpose_px(CMDP[cmd]) <= max_pw) return 12;
+    return 22; /* name line + purpose line */
+}
+
 static void cyd_adv_sheet_box(int *by, int *h, int *top_out, int *nshow_out)
 {
-    const int vis = 9;
     const int rows = menu_rows();
     int sel = s_sheet_i;
     if (sel < 0) sel = 0;
     if (sel >= CMD_N) sel = CMD_N - 1;
     const int sel_row = menu_sel_row(sel);
-    int top = sel_row - 3;
-    if (top < 0) top = 0;
-    if (top > rows - vis) top = rows - vis;
-    if (top < 0) top = 0;
-    int nshow = rows - top;
-    if (nshow > vis) nshow = vis;
-    const int hh = nshow * 12 + 10;
+    const int sheet_w = (s_adv_sw - 4 > 292) ? 292 : (s_adv_sw - 4 < 80 ? 80 : s_adv_sw - 4);
+    const int max_h = (s_adv_py - 5) - 2; /* y min 2 .. above prompt */
+    int budget = max_h - 10;
+    if (budget < 24) budget = 24;
+
+    /* Prefer centering the selection; grow nshow until height budget fills. */
+    int top = sel_row;
+    int nshow = 0;
+    int used = 0;
+    /* seed with the selected row */
+    {
+        int hdr = -1, cmd = 0;
+        menu_row(sel_row, &hdr, &cmd);
+        used = cyd_adv_sheet_row_h(hdr, cmd, sheet_w);
+        nshow = 1;
+        top = sel_row;
+    }
+    while (true) {
+        bool grew = false;
+        if (top > 0) {
+            int hdr = -1, cmd = 0;
+            menu_row(top - 1, &hdr, &cmd);
+            const int rh = cyd_adv_sheet_row_h(hdr, cmd, sheet_w);
+            if (used + rh <= budget) {
+                top -= 1; used += rh; nshow += 1; grew = true;
+            }
+        }
+        if (top + nshow < rows) {
+            int hdr = -1, cmd = 0;
+            menu_row(top + nshow, &hdr, &cmd);
+            const int rh = cyd_adv_sheet_row_h(hdr, cmd, sheet_w);
+            if (used + rh <= budget) {
+                used += rh; nshow += 1; grew = true;
+            }
+        }
+        if (!grew) break;
+    }
+    const int hh = used + 10;
     int y = s_adv_py - 5 - hh;
     if (y < 2) y = 2;
-    /* keep sheet above the plate bottom; may extend above plate into board */
     *by = y;
     *h = hh;
     *top_out = top;
     *nshow_out = nshow;
 }
 
+/* Cumulative Y of visible row r (0..nshow-1) relative to by+5. */
+static int cyd_adv_sheet_row_y(int top, int r, int sheet_w)
+{
+    int y = 0;
+    for (int i = 0; i < r; ++i) {
+        int hdr = -1, cmd = 0;
+        menu_row(top + i, &hdr, &cmd);
+        y += cyd_adv_sheet_row_h(hdr, cmd, sheet_w);
+    }
+    return y;
+}
+
 static void cyd_adv_paint_sheet(Gfx g)
 {
-    /* Exact port of Adv paint_sheet onto the CYD plate (bx/bw from plate).
-     * icon + name + right-aligned purpose, group headers, CORE glow, single
-     * magenta rim. Portrait truncates purposes that would collide with names. */
+    /* Adv paint_sheet onto the CYD plate: icons, CORE glow, single magenta
+     * rim (term_ov). Portrait wraps purposes on a second line — no mid-word cuts. */
     if (!s_sheet) return;
     const int keep = s_px;
     s_px = 6;
-    const int rh = 12;
     int by = 0, h = 0, top = 0, nshow = 0;
     cyd_adv_sheet_box(&by, &h, &top, &nshow);
     const int bx = s_adv_sx + 2;
@@ -310,6 +367,7 @@ static void cyd_adv_paint_sheet(Gfx g)
     int sel = s_sheet_i;
     if (sel < 0) sel = 0;
     if (sel >= CMD_N) sel = CMD_N - 1;
+    const bool port = botcorps_cyd_orient != 0;
 
     GATE_BOX(g, "OCCLUDE", "sheet", bx, by, w + 1, h + 1, "-");
     g.fillRect(bx + 1, by + 1, w - 1, h - 1, PAL_BG);
@@ -317,7 +375,8 @@ static void cyd_adv_paint_sheet(Gfx g)
         int hdr = -1, cmd = 0;
         menu_row(top + r, &hdr, &cmd);
         if (hdr >= 0) continue;
-        const int y = by + 5 + r * rh;
+        const int y = by + 5 + cyd_adv_sheet_row_y(top, r, w);
+        const int rh = cyd_adv_sheet_row_h(hdr, cmd, w);
         g.fillRect(bx + 4, y, w - 8, rh - 1, PAL_BG);
     }
     const int x1 = bx + w;
@@ -329,7 +388,7 @@ static void cyd_adv_paint_sheet(Gfx g)
         int hdr = -1, cmd = 0;
         menu_row(top + r, &hdr, &cmd);
         if (hdr < 0) continue;
-        const int y = by + 5 + r * rh;
+        const int y = by + 5 + cyd_adv_sheet_row_y(top, r, w);
         if (hdr == 0) {
             const uint8_t ringc[5] = {
                 PAL_TERM_M35, PAL_TERM_M22, PAL_TERM_M18, PAL_TERM_M10, PAL_TERM_M10
@@ -358,11 +417,11 @@ static void cyd_adv_paint_sheet(Gfx g)
         int hdr = -1, cmd = 0;
         menu_row(top + r, &hdr, &cmd);
         if (hdr < 0) continue;
-        const int y = by + 5 + r * rh;
+        const int y = by + 5 + cyd_adv_sheet_row_y(top, r, w);
         if (hdr == 0) g.fillRect(bx + 48, y + 5, w - 60, 1, PAL_TERM_M22);
         else glow_hline(g, bx + 48, y + 5, w - 60, STEP_RULE);
     }
-    /* single magenta bottom ramp (Adv) — no second orange stroke */
+    /* single magenta bottom ramp (Adv) */
     g.fillRect(bx + 6, y1 - 4, w - 12, 1, PAL_TERM_M28);
     g.fillRect(bx + 1, y1, w - 1, 1, PAL_TERM_M);
     g.fillRect(bx + 3, y1 - 1, w - 5, 1, PAL_TERM_M35);
@@ -382,7 +441,8 @@ static void cyd_adv_paint_sheet(Gfx g)
             int hdr = -1, cmd = 0;
             menu_row(top + r, &hdr, &cmd);
             if (hdr >= 0) continue;
-            const int y = by + 5 + r * rh;
+            const int y = by + 5 + cyd_adv_sheet_row_y(top, r, w);
+            const int rh = cyd_adv_sheet_row_h(hdr, cmd, w);
             int ys = y, hs = rh - 1;
             if (ys < by + 6) { const int cut = (by + 6) - ys; ys += cut; hs -= cut; }
             if (hs <= 0) continue;
@@ -396,20 +456,23 @@ static void cyd_adv_paint_sheet(Gfx g)
         g.fillRect(bx + 8, y1 - 7, w - 28, 1, PAL_TERM_M18);
         g.fillRect(bx + 8, y1 - 6, w - 16, 1, PAL_TERM_M22);
     }
+    /* selected highlight covers the whole (possibly two-line) row */
     for (int r = 0; r < nshow; ++r) {
         int hdr = -1, cmd = 0;
         menu_row(top + r, &hdr, &cmd);
         if (hdr >= 0 || cmd != sel) continue;
-        const int y = by + 5 + r * rh;
+        const int y = by + 5 + cyd_adv_sheet_row_y(top, r, w);
+        const int rh = cyd_adv_sheet_row_h(hdr, cmd, w);
         g.fillRect(bx + 3, y - 1, w - 6, rh - 1, PAL_TERM_M18);
         g.fillRect(bx + 3, y - 1, 2, rh - 1, PAL_TERM_M);
     }
-    /* text: icon + name + purpose (truncate on narrow plate) */
+    /* text: icon + name + purpose */
     for (int r = 0; r < nshow; ++r) {
         int hdr = -1, cmd = 0;
         menu_row(top + r, &hdr, &cmd);
         if (hdr >= 0) continue;
-        const int y = by + 5 + r * rh;
+        const int y = by + 5 + cyd_adv_sheet_row_y(top, r, w);
+        const int rh = cyd_adv_sheet_row_h(hdr, cmd, w);
         const bool on = cmd == sel;
         const uint8_t bg = on ? (uint8_t)PAL_TERM_M18 : (uint8_t)PAL_BG;
         blit_ico(g, CMD_ICO[cmd], bx + 10, y + 1, on ? (uint8_t)PAL_TERM_M : accent());
@@ -419,25 +482,47 @@ static void cyd_adv_paint_sheet(Gfx g)
             txt(g, CMDN[cmd], bx + 23, y, PAL_CYAN, lgfx::textdatum::top_left);
         }
         txt_bg(g, CMDN[cmd], bx + 24, y + 1, name_c, bg, lgfx::textdatum::top_left);
-        /* purpose: Adv draw_purpose; on narrow P truncate so it clears the name */
-        const char *pur = CMDP[cmd];
-        char pbuf[48];
-        int plen = 0;
-        while (pur[plen] && plen < 47) { pbuf[plen] = pur[plen]; ++plen; }
-        pbuf[plen] = 0;
-        int name_w = 0;
-        for (const char *p = CMDN[cmd]; *p; ++p) name_w += 6;
-        const int name_end = bx + 24 + name_w + 6;
-        const int pur_right = bx + w - 8;
-        int max_pw = pur_right - name_end;
-        if (max_pw < 0) max_pw = 0;
-        /* purpose_px ≈ 6 per glyph (4 for \x7f); trim until it fits */
-        while (plen > 0 && purpose_px(pbuf) > max_pw) {
-            --plen; pbuf[plen] = 0;
-        }
-        if (plen > 0) {
-            const uint8_t pc = on ? (uint8_t)127 : theme().pur;
-            draw_purpose(g, pbuf, pur_right, y + 1, pc, bg);
+        const uint8_t pc = on ? (uint8_t)127 : theme().pur;
+        {
+            /* Cut purpose only at '|' or word boundary — never mid-word.
+             * Portrait two-line: purpose under the name, dim/indented.
+             * One-line (L or short P): right-aligned beside the name. */
+            const char *pur = CMDP[cmd];
+            char pbuf[48];
+            const int pur_right = bx + w - 8;
+            const int pur_left = (rh > 12 && port) ? (bx + 24) : 0;
+            int name_w = 0;
+            for (const char *p = CMDN[cmd]; *p; ++p) name_w += 6;
+            const int name_end = bx + 24 + name_w + 6;
+            int max_pw = (rh > 12 && port) ? (pur_right - pur_left) : (pur_right - name_end);
+            if (max_pw < 0) max_pw = 0;
+            int best = 0;
+            for (int i = 0; pur[i] && i < 47; ++i) {
+                pbuf[i] = pur[i];
+                pbuf[i + 1] = 0;
+                if (purpose_px(pbuf) > max_pw) break;
+                if (pur[i + 1] == 0 || pur[i] == '|' || pur[i] == ' ') best = i + 1;
+            }
+            while (best > 0 && (pur[best - 1] == '|' || pur[best - 1] == ' ')) --best;
+            if (best <= 0) continue;
+            for (int i = 0; i < best; ++i) pbuf[i] = pur[i];
+            pbuf[best] = 0;
+            if (rh > 12 && port) {
+                int px = pur_left;
+                char one[2] = { 0, 0 };
+                for (const char *p = pbuf; *p; ++p) {
+                    if (*p == '\x7f') {
+                        g.fillRect(px + 1, y + 11 + 3, 1, 1, pc);
+                        px += 4;
+                        continue;
+                    }
+                    one[0] = *p;
+                    txt_bg(g, one, px, y + 11, pc, bg, lgfx::textdatum::top_left);
+                    px += 6;
+                }
+            } else {
+                draw_purpose(g, pbuf, pur_right, y + 1, pc, bg);
+            }
         }
     }
     const int ax = x1 - 13;
@@ -645,25 +730,32 @@ static int cyd_adv_hit_idle(int tx, int ty)
             s_focus_cmds = false; s_dirty = true; return 0;
         }
     }
-    /* sheet rows */
+    /* sheet rows (variable pitch: portrait purpose wrap) */
     if (s_sheet) {
         int by, h, top, nshow;
         cyd_adv_sheet_box(&by, &h, &top, &nshow);
         const int bx = s_adv_sx + 2;
         int bw = s_adv_sw - 4;
+        if (bw > 292) bw = 292;
+        if (bw < 80) bw = 80;
         if (tx >= bx && tx < bx + bw && ty >= by && ty < by + h) {
-            const int k = (ty - (by + 5)) / 12;
-            if (k >= 0 && k < nshow) {
+            int y = by + 5;
+            for (int k = 0; k < nshow; ++k) {
                 int hdr = -1, cmd = -1;
                 menu_row(top + k, &hdr, &cmd);
-                if (cmd >= 0) {
-                    snprintf(botcorps_t0_term_prompt, 60, "%s%s", CMDN[cmd],
-                             CMD_ARG[cmd] ? " " : "");
-                    s_sheet = false;
-                    s_cyd_adv_focus = true;
-                    s_dirty = true;
+                const int rh = cyd_adv_sheet_row_h(hdr, cmd, bw);
+                if (ty >= y && ty < y + rh) {
+                    if (cmd >= 0) {
+                        snprintf(botcorps_t0_term_prompt, 60, "%s%s", CMDN[cmd],
+                                 CMD_ARG[cmd] ? " " : "");
+                        s_sheet = false;
+                        s_cyd_adv_focus = true;
+                        s_dirty = true;
+                        return 0;
+                    }
                     return 0;
                 }
+                y += rh;
             }
             return 0;
         }

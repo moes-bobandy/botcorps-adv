@@ -1367,7 +1367,16 @@ static void scan_all_set(bool on)
 /* Sheet colours, or the scan-all frame. Not called from inside a paint. */
 static void lut_for_term(void)
 {
+#ifdef BOTCORPS_CYD
+    /* CYD Mobandy plate lives on CONTROL/GCHAT/SCAN — not SCR_TERMINAL.
+     * Enable term_ov whenever the Adv sheet / palette / attack chrome is up.
+     * (s_pt_bw lives in portrait.inc below; screen+overlay flags are enough.) */
+    const bool cyd_ov = (s_sheet || s_focus_cmds || s_term_ovl);
+    botcorps_lut_term(cyd_ov ||
+                      (s_screen == SCR_TERMINAL && (s_sheet || scan_all_on())));
+#else
     botcorps_lut_term(s_screen == SCR_TERMINAL && (s_sheet || scan_all_on()));
+#endif
 }
 
 static void enter_defend(int bot, int ret);

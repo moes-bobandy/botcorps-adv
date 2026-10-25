@@ -3,8 +3,8 @@ static const int HB_MOD_P[4] = { 92, 96, 56, 84 };
 static const int HB_CROWN_P[2] = { 120, 78 };
 static const int HB_TBOT_P[4] = { 36, 230, 168, 80 };   /* PICK.md §9: plate inside the board */
 static const int HB_SILK_PITCH = 6;
-static const char *const HB_SILK1[15] = { "WI-FI", "BLE", "DEAUTH", "HACK", "FLOCK", "DRONE", "AIR TAG", "KEYFOB", "META", "SKIMMER", "FLIPPER", "SAMSUNG", "TERMINAL", "CONTROL", "BOOT" };
-static const char *const HB_SILK2[15] = { "", "", "", "", "", "", "", "", "", "", "", "", "BOT", "BOT", "BOT" };
+static const char *const HB_SILK1[15] = { "DEFEND", "HUNT", "DEAUTH", "HACK", "FLOCK", "DRONE", "AIR TAG", "KEYFOB", "META", "SKIMMER", "FLIPPER", "SAMSUNG", "SCAN", "CONTROL", "BOOT" };
+static const char *const HB_SILK2[15] = { "GAME", "GAME", "", "", "", "", "", "", "", "", "", "", "BOT", "BOT", "BOT" };
 static const char *const HB_MOD_SILK[3] = { "GIBSONBOT", "WROOM-32", "HUB-LL19" };
 static const char *const HB_TBOT_SILK = "TERMINALBOT";
 static const int16_t HB_CHIP_P[15][2] = { { 104, 34 }, { 50, 34 }, { 62, 72 }, { 56, 127 }, { 64, 163 }, { 52, 197 }, { 136, 42 }, { 184, 34 }, { 180, 72 }, { 190, 127 }, { 178, 163 }, { 186, 197 }, { 101, 193 }, { 143, 194 }, { 42, 159 } };
@@ -23,13 +23,13 @@ static const int16_t HB_RT_L[16][6][2] = { { { 116, 39 }, { 124, 39 }, { 128, 43
 static const botcorps_cover_t HB_COVER_P[22] = {
     { 0, 0, 240, 26 }, { 0, 26, 46, 294 }, { 194, 26, 46, 294 }, { 0, 312, 240, 8 },
     { 88, 94, 64, 90 }, { 101, 74, 38, 20 }, { 33, 225, 174, 90 }, { 96, 180, 56, 32 },
-    { 88, 30, 32, 32 }, { 34, 30, 32, 32 }, { 46, 68, 32, 32 }, { 40, 123, 32, 32 }, { 48, 159, 32, 32 }, { 36, 193, 32, 32 },
+    { 88, 30, 32, 38 }, { 34, 30, 32, 38 }, { 46, 68, 32, 32 }, { 40, 123, 32, 32 }, { 48, 159, 32, 32 }, { 36, 193, 32, 32 },
     { 120, 38, 32, 32 }, { 168, 30, 32, 32 }, { 164, 68, 32, 32 }, { 174, 123, 32, 32 }, { 162, 159, 32, 32 }, { 170, 193, 32, 32 },
     { 85, 189, 32, 38 }, { 127, 190, 32, 38 } };
 static const botcorps_cover_t HB_COVER_L[21] = {
     { 0, 0, 320, 26 }, { 0, 26, 36, 214 }, { 284, 26, 36, 214 }, { 0, 230, 320, 10 },
     { 128, 46, 64, 92 }, { 141, 28, 38, 20 }, { 67, 155, 186, 80 },
-    { 88, 26, 32, 32 }, { 36, 26, 32, 32 }, { 36, 68, 32, 32 }, { 88, 68, 32, 32 }, { 36, 110, 32, 32 }, { 88, 110, 32, 32 }, { 200, 26, 32, 32 }, { 252, 26, 32, 32 }, { 252, 68, 32, 32 }, { 200, 68, 32, 32 }, { 252, 110, 32, 32 }, { 200, 110, 32, 32 },
+    { 88, 26, 32, 38 }, { 36, 26, 32, 38 }, { 36, 68, 32, 32 }, { 88, 68, 32, 32 }, { 36, 110, 32, 32 }, { 88, 110, 32, 32 }, { 200, 26, 32, 32 }, { 252, 26, 32, 32 }, { 252, 68, 32, 32 }, { 200, 68, 32, 32 }, { 252, 110, 32, 32 }, { 200, 110, 32, 32 },
     { 32, 164, 36, 38 }, { 252, 164, 36, 38 } };
 
 /* the current orientation's tables (hb_layout_sync() picks them before every paint / hit test) */

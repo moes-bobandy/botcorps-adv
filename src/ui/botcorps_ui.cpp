@@ -6591,6 +6591,15 @@ static void gp_push(const char *s)
     }
     snprintf(s_gp_log[s_gp_n], sizeof(s_gp_log[0]), "%s", s ? s : "");
     ++s_gp_n;
+#ifdef BOTCORPS_CYD
+    /* field fix: the hub's TERMINALBOT plate shows the shared log, so every hub echo / reply lands there */
+    if (s && s[0]) {
+        char row[48];
+        if (s[0] == '>' && s[1] == ' ') snprintf(row, sizeof row, "gibson> %s", s + 2);
+        else snprintf(row, sizeof row, "%s", s);
+        log_add(row);
+    }
+#endif
 }
 
 static void gp_strip(Gfx g, uint32_t t, uint8_t ac)
@@ -9499,7 +9508,8 @@ static int pt_hit(int tx, int ty, char *typed)
         return -1;
     const int x = s_pt_bx, y = s_pt_by, w = s_pt_bw, h = s_pt_bh;
     if (s_pt_mode == 0) return hb_pt_hit0(tx, ty);   /* every edge-board plate: same cmdline / keys / list buttons */
-    const int by2 = y + 15, bh2 = h - 17, bw2 = w - 4, bx2 = x + 2;
+    /* field fix: the overlay cmdline strip is 26 px (title 12 + line 14); keys/list fill the rest */
+    const int by2 = y + 26, bh2 = h - 28, bw2 = w - 4, bx2 = x + 2;
     if (s_pt_mode == 1) {
         if (ty < by2 || ty >= by2 + bh2 || tx < bx2 || tx >= bx2 + bw2) return K_NONE;
         const int kp = (bw2 - 4) / 10;
@@ -9526,16 +9536,20 @@ static int pt_hit(int tx, int ty, char *typed)
         }
         return K_NONE;
     }
-    /* list mode — dedicated BACK under the list (no overlap with cmdline cursor). */
+    /* list mode — UP / DOWN / BACK button row under the list; a tap selects, a second tap runs. */
     {
-        const int back_h = 12;
-        if (tx >= bx2 + bw2 - 40 && tx < bx2 + bw2 && ty >= by2 + bh2 - back_h && ty < by2 + bh2) {
-            s_pt_mode = 0; s_dirty = true; return K_NONE;
-        }
-        if (ty < by2 || ty >= by2 + bh2 - back_h || tx < bx2 || tx >= bx2 + bw2) return K_NONE;
         int n = 0;
         const char *const *cmds = pt_list(&n);
-        const int rh = 9;
+        const int back_h = bh2 > 90 ? 26 : 12;
+        if (ty >= by2 + bh2 - back_h && ty < by2 + bh2 && tx >= bx2 && tx < bx2 + bw2) {
+            const int third = bw2 / 3;
+            const int col = (tx - bx2) / (third > 0 ? third : 1);
+            if (col == 0) { if (s_pt_sel > 0) s_pt_sel--; s_dirty = true; return K_NONE; }       /* UP */
+            if (col == 1) { if (s_pt_sel < n - 1) s_pt_sel++; s_dirty = true; return K_NONE; }    /* DOWN */
+            s_pt_mode = 0; s_dirty = true; return K_NONE;                                          /* BACK */
+        }
+        if (ty < by2 || ty >= by2 + bh2 - back_h || tx < bx2 || tx >= bx2 + bw2) return K_NONE;
+        const int rh = pt_list_rh(bh2);
         const int r = (ty - by2) / rh;
         const int i = s_pt_top + r;
         if (r < 0 || i < 0 || i >= n) return K_NONE;
@@ -9545,7 +9559,7 @@ static int pt_hit(int tx, int ty, char *typed)
             snprintf(b, (size_t)cap, "%s", cmds[i]);
             s_pt_mode = 0;
             s_dirty = true;
-            return K_OK; /* ENTER: run filled line */
+            return K_OK; /* second tap on the selected row: fill + run */
         }
         s_pt_sel = i;
         if (b) snprintf(b, (size_t)cap, "%s", cmds[i]);
@@ -9611,8 +9625,10 @@ static int portrait_touch(int tx, int ty, char *typed)
             }
             if (sbox_on()) { s_sp_buf[0] = 0; s_sp_cmd = -1; }
             s_pt_mode = 0;
-            if (s_screen == SCR_CONTROL) { s_cursor = CP_N + 1; return K_OK; }
-            return K_ESC;
+            /* field fix: the crown is HOME on every screen -> TERMINALbot (the hub), in one tap */
+            if (s_screen != SCR_GIBSON) { s_gib_hunt = false; enter_screen(SCR_GIBSON, SCR_GIBSON); }
+            s_dirty = true;
+            return K_NONE;
         }
         if (tx < 30 && s_screen == SCR_GIBSON) {            /* Gibson status chip: SCAN (LL-19) */
             s_scan_bot = 12;
@@ -9628,19 +9644,31 @@ static int portrait_touch(int tx, int ty, char *typed)
     if (s_screen == SCR_CONTROL) return ctlbot_touch(tx, ty);
     if (s_screen == SCR_GIBSON) {
         const int c = hb_hit(tx, ty);
-        if (c >= 0 && c < 12) {                   /* bot chip: its SCAN board */
+        if (c == 0) {                             /* DEFEND game chip (old WI-FI seat) */
+            log_add("gibson> defend");
+            enter_defend(12, SCR_GIBSON);
+            return K_NONE;
+        }
+        if (c == 1) {                             /* HUNT game chip (old BLE seat) */
+            log_add("gibson> hunt");
+            s_scan_bot = 12; s_gib_hunt = true; s_gib_hunt_keep = true;
+            enter_screen(SCR_SCAN, SCR_GIBSON);
+            return K_NONE;
+        }
+        if (c >= 2 && c < 12) {                   /* bot chip: its SCAN board */
             s_scan_bot = c;
             enter_screen(SCR_SCAN, SCR_GIBSON);
             return K_NONE;
         }
-        if (c == 12 || c == 13) {                 /* TERMINALBOT / CONTROLBOT nav chips */
-            const int i = c - 12;
-            if (s_cursor == i && s_hub_zone == 0) {
-                if (i == 0) { s_pt_mode = 1; s_dirty = true; }   /* the terminal IS the hub plate: open its keys */
-                else enter_screen(SCR_CONTROL, SCR_GIBSON);
-                return K_NONE;
-            }
-            s_cursor = i; s_hub_zone = 0; s_dirty = true; return K_NONE;
+        if (c == 12) {                            /* SCANBOT link chip -> Gibson scan (GIBSON preselected) */
+            log_add("gibson> scanbot");
+            s_scan_bot = 12; s_gib_hunt = false;
+            enter_screen(SCR_SCAN, SCR_GIBSON);
+            return K_NONE;
+        }
+        if (c == 13) {                            /* CONTROLBOT link chip */
+            enter_screen(SCR_CONTROL, SCR_GIBSON);
+            return K_NONE;
         }
         if (c == 15) {                            /* GIBSONbot module -> SCAN */
             s_scan_bot = 12;
@@ -9658,7 +9686,7 @@ static int portrait_touch(int tx, int ty, char *typed)
         if (tx >= 30 && tx < 209 && ty >= 31 + G.pdy + 11 && ty < 148) { s_dirty = true; return K_NONE; }
         return K_NONE;
     }
-    if (s_screen == SCR_DIAG) return K_ESC;
+    if (s_screen == SCR_DIAG) { enter_screen(SCR_GIBSON, SCR_GIBSON); s_dirty = true; return K_NONE; }   /* any tap = HOME */
     return K_NONE;
 }
 
@@ -10480,6 +10508,9 @@ static bool dg_prompt_key(int key, char typed)
 static void ui_dispatch(int key, char typed)
 {
     s_last_key = millis();
+#ifdef BOTCORPS_CYD
+    if (key == K_OK && cyd_route_line()) return;   /* home / hub / scanbot / scan / control, from any plate */
+#endif
     if (s_sp_auto_t) {                             /* v1019r (#4): a key during the pre-typed scan */
         s_sp_auto_t = 0;
         if (key == K_ESC) { s_sp_buf[0] = 0; s_sp_cmd = -1; }   /* cancel; this Esc still goes back */

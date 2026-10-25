@@ -194,13 +194,23 @@ static void e_plate(Gfx g, int bx, int by, int bw, int bh, const char *silk, int
             }
             hb_kbd_emblem(g, sx + sw - bwid * 2 - 6, byb, bwid, bht, false);
             pt_draw_btn(g, sx + sw - bwid - 2, byb, bwid, bht, "=", false);
+            s_pt_bx = sx; s_pt_by = sy; s_pt_bw = sw; s_pt_bh = sh;
         } else {
-            pt_draw_cmdline(g, sx + 2, sy + 2, sw - 4);
-            const int by2 = sy + 15, bh2 = sh - 17;
-            if (s_pt_mode == 1) pt_draw_keys(g, sx + 2, by2, sw - 4, bh2);
-            else pt_draw_list(g, sx + 2, by2, sw - 4, bh2);
+            /* field fix 2026-10-25: keys / list open as a tall overlay inside x 34..W-34 so the
+             * targets are ~28 px, not the ~9 px plate rows. Drawn here, last before the frame. */
+            const int W = EW(), H = EH();
+            const int ox = 34, ow = W - 68;
+            const int oh = botcorps_cyd_orient ? 184 : 150;
+            const int oy = H - 5 - oh;
+            chip_plate(g, ox, oy, ow, oh, PAL_DEEP, accent());
+            g.drawRect(ox + 1, oy + 1, ow - 2, oh - 2, PAL_LINE);
+            txt(g, s_pt_mode == 1 ? "KEYS" : "PICK", ox + 4, oy + 3, accent(), lgfx::textdatum::top_left);
+            pt_draw_cmdline(g, ox + 2, oy + 12, ow - 4);
+            const int by2 = oy + 26, bh2 = oh - 28;
+            if (s_pt_mode == 1) pt_draw_keys(g, ox + 2, by2, ow - 4, bh2);
+            else pt_draw_list(g, ox + 2, by2, ow - 4, bh2);
+            s_pt_bx = ox; s_pt_by = oy; s_pt_bw = ow; s_pt_bh = oh;
         }
-        s_pt_bx = sx; s_pt_by = sy; s_pt_bw = sw; s_pt_bh = sh;
     }
     if (sel) g.drawRect(bx - 2, by - 2, bw + 4, bh + 4, PAL_WHITE);
 }

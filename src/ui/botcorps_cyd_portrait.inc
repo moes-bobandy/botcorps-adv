@@ -52,6 +52,36 @@ static const char *const *pt_list(int *n)
     return GP_CMD;
 }
 
+/* TERMINALbot home routes, typed or picked on any plate (field fix 2026-10-25):
+ * home / hub -> TERMINALbot (the hub), scanbot / scan -> SCANbot (Gibson scan), control -> CONTROLbot.
+ * On SCANbot itself a bare "scan" stays its own re-scan. The line is echoed into the plate log. */
+static bool cyd_route_line(void)
+{
+    int cap = 0;
+    char *b = pt_buf(&cap);
+    if (!b || !b[0]) return false;
+    char w[16];
+    int o = 0;
+    for (const char *c = b; *c && o < 15; ++c) { if (*c == ' ' && o == 0) continue; w[o++] = (*c >= 'A' && *c <= 'Z') ? (char)(*c + 32) : *c; }
+    while (o > 0 && w[o - 1] == ' ') --o;
+    w[o] = 0;
+    int to = -1;
+    if (!strcmp(w, "home") || !strcmp(w, "hub") || !strcmp(w, "go hub") || !strcmp(w, "go home") || !strcmp(w, "terminalbot")) to = SCR_GIBSON;
+    else if (!strcmp(w, "scanbot") || (!strcmp(w, "scan") && s_screen != SCR_SCAN)) to = SCR_SCAN;
+    else if (!strcmp(w, "control") || !strcmp(w, "controlbot")) to = SCR_CONTROL;
+    if (to < 0) return false;
+    char row[40];
+    snprintf(row, sizeof row, "gibson> %s", w);
+    log_add(row);
+    b[0] = 0;
+    s_pt_mode = 0;
+    if (to == SCR_SCAN) { s_scan_bot = 12; s_gib_hunt = false; }
+    if (s_screen == SCR_GCHAT && dl_live()) dl_end();
+    if (to != s_screen || to == SCR_SCAN) enter_screen(to, SCR_GIBSON);
+    s_dirty = true;
+    return true;
+}
+
 static void pt_draw_cmdline(Gfx g, int x, int y, int w)
 {
     int cap = 0;
@@ -108,16 +138,18 @@ static void pt_draw_keys(Gfx g, int x, int y, int w, int h)
         else if (sp.kind == CYD_OSK_TAB) snprintf(lab, sizeof(lab), "TAB");
         else if (sp.kind == CYD_OSK_SYM) snprintf(lab, sizeof(lab), s_pt_sym ? "abc" : "SYM");
         else if (sp.kind == CYD_OSK_HIDE) snprintf(lab, sizeof(lab), "BACK"); /* never HID */
-        txt(g, lab, kx + kw / 2, ky + (kh > 8 ? 2 : 1), PAL_WHITE, lgfx::textdatum::top_center);
+        txt(g, lab, kx + kw / 2, ky + kh / 2 - 4, PAL_WHITE, lgfx::textdatum::top_center);
     }
 }
 
+/* field fix: list row pitch grows with the panel so rows are ~28 px in the expanded overlay */
+static int pt_list_rh(int h) { const int r = (h - 26) / 6; return r < 9 ? 9 : r > 30 ? 30 : r; }
 static void pt_draw_list(Gfx g, int x, int y, int w, int h)
 {
     int n = 0;
     const char *const *cmds = pt_list(&n);
-    const int back_h = 12;
-    const int rh = 9;
+    const int back_h = h > 90 ? 26 : 12;
+    const int rh = pt_list_rh(h);
     const int rows = (h - back_h) / rh;
     if (s_pt_sel < s_pt_top) s_pt_top = s_pt_sel;
     if (s_pt_sel >= s_pt_top + rows) s_pt_top = s_pt_sel - rows + 1;
@@ -128,11 +160,15 @@ static void pt_draw_list(Gfx g, int x, int y, int w, int h)
         const bool on = i == s_pt_sel;
         const int ry = y + r * rh;
         g.fillRect(x, ry, w, rh - 1, on ? accent() : (uint8_t)PAL_DEEP);
-        txt(g, cmds[i], x + 2, ry + 1, on ? (uint8_t)PAL_BLACK : (uint8_t)PAL_WHITE,
+        g.drawRect(x, ry, w, rh - 1, on ? (uint8_t)PAL_WHITE : (uint8_t)PAL_LINE);
+        txt(g, cmds[i], x + 4, ry + (rh - 1) / 2 - 4, on ? (uint8_t)PAL_BLACK : (uint8_t)PAL_WHITE,
             lgfx::textdatum::top_left);
     }
-    /* Dedicated BACK under the list — never on the cmdline (no overlap with cursor). */
-    pt_draw_btn(g, x + w - 40, y + h - back_h, 38, back_h - 1, "BACK", false);
+    /* Dedicated UP / DOWN / BACK under the list (big targets in the expanded overlay). */
+    const int bw3 = w / 3 - 2;
+    pt_draw_btn(g, x, y + h - back_h, bw3, back_h - 1, "UP", false);
+    pt_draw_btn(g, x + w / 3 + 1, y + h - back_h, bw3, back_h - 1, "DOWN", false);
+    pt_draw_btn(g, x + 2 * (w / 3) + 2, y + h - back_h, w - 2 * (w / 3) - 2, back_h - 1, "BACK", false);
 }
 
 static void pt_draw_log_line(Gfx g, const char *ln, int lx, int ly)

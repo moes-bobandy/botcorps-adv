@@ -1,5 +1,6 @@
 /* ============================================================================
- * GIBSON HUB v4 — CYD portrait hub (SCR_GIBSON) drawn as a Control-bot v4 board:
+ * TERMINALBOT home (SCR_GIBSON; was the Gibson Hub v4) drawn as a Control-bot v4 board. Chips 0/1 are the
+ * DEFEND / HUNT game chips (old WI-FI / BLE seats), chip 12 is the SCANBOT link, chip 13 CONTROLBOT:
  * GIBSONbot module (ivory face, dark Agent Smith glasses, never theme-coloured),
  * 12 bot chips + TERMINAL/BOT + CONTROL/BOT nav chips, copper traces, full-length side headers,
  * TERMINALBOT plate. PICK.md (out/cyd-bootbot-intro-mock) paint_hub_target: edge-to-edge board,
@@ -65,14 +66,25 @@ static void hb_chip(Gfx g, int i)
     const uint8_t ac = accent();
     const bool on = s_hb_sel == i;
     if (on) sel_rect(g, cx - T / 2 - 2, top - 2, T + 4, T + 4);
-    if (i < 12) {
+    if (i == 0) {                                  /* DEFEND game chip (old WI-FI seat): crosshair */
+        hb_castle(g, cx, cy, T);
+        g.drawCircle(cx, cy, 5, ac);
+        g.fillRect(cx - 7, cy, 4, 1, ac); g.fillRect(cx + 4, cy, 4, 1, ac);
+        g.fillRect(cx, cy - 7, 1, 4, ac); g.fillRect(cx, cy + 4, 1, 4, ac);
+        g.fillRect(cx, cy, 1, 1, PAL_WHITE);
+    } else if (i == 1) {                           /* HUNT game chip (old BLE seat): signal bars */
+        hb_castle(g, cx, cy, T);
+        for (int k = 0; k < 4; ++k) g.fillRect(cx - 6 + k * 3, cy + 4 - k * 3, 2, 2 + k * 3, k == 3 ? (uint8_t)PAL_WHITE : ac);
+    } else if (i < 12) {
         chip_mini(g, cx, cy, T, i, false, 0);
         g.fillRect(cx + T / 2 - 4, top - 1, 4, 4, bot_color(i));
     } else {
         hb_castle(g, cx, cy, T);
-        if (i == 12) {
-            txt(g, ">", cx - 5, cy - 4, ac, lgfx::textdatum::top_left);
-            g.fillRect(cx, cy + 4, 5, 1, ac);
+        if (i == 12) {                             /* SCANBOT link chip: radar sweep */
+            g.drawCircle(cx, cy, 6, ac);
+            g.drawCircle(cx, cy, 3, ac);
+            g.fillRect(cx, cy - 6, 1, 7, PAL_WHITE);
+            g.fillRect(cx + 3, cy - 3, 2, 2, PAL_WHITE);
         } else {
             g.drawRect(cx - 5, cy - 5, 10, 10, ac);
             g.fillRect(cx - 2, cy - 2, 4, 4, ac);
@@ -202,12 +214,18 @@ static void paint_hubbot(Gfx g)
 static int hb_hit(int tx, int ty)
 {
     hb_layout_sync();
+    int best = -1, bd = 1 << 30;
     for (int i = 0; i < 14; ++i) {
         const int T = 18;
-        const int x = HB_CHIP[i][0] - T / 2, y = HB_CHIP[i][1];
+        const int cx = HB_CHIP[i][0], y = HB_CHIP[i][1];
         const int sh = HB_SILK2[i][0] ? 7 + HB_SILK_PITCH : 7;
-        if (tx >= x - 1 && tx < x + T + 1 && ty >= y - 2 && ty < y + T + 2 + sh) return i;
+        /* field fix: finger box = chip + silk + 5 px slop, at least 30 px wide; overlaps go to the nearest chip */
+        if (tx >= cx - 15 && tx < cx + 15 && ty >= y - 5 && ty < y + T + 2 + sh + 4) {
+            const int dx = tx - cx, dy = ty - (y + 12), d = dx * dx + dy * dy;
+            if (d < bd) { bd = d; best = i; }
+        }
     }
+    if (best >= 0) return best;
     if (tx >= HB_MOD[0] - 2 && tx < HB_MOD[0] + HB_MOD[2] + 2 && ty >= HB_MOD[1] && ty < HB_MOD[1] + HB_MOD[3] + 2)
         return 15;
     if (tx >= HB_CROWN[0] - 19 && tx < HB_CROWN[0] + 19 && ty >= HB_CROWN[1] - 4 && ty < HB_MOD[1]) return 15;

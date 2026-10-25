@@ -345,7 +345,7 @@ static void ib_title(Gfx g, int mode)
 {
     const int W = EW();
     g.fillRect(0, 0, W, 26, PAL_BLACK); g.fillRect(0, 24, W, 1, sb_tone(3));
-    char b[16]; snprintf(b, sizeof b, "%s", "THE GIBSON HUB");
+    char b[16]; snprintf(b, sizeof b, "%s", "TERMINALBOT");
     if (mode == 1) {
         static const char SCR[] = "#%&0101@$?*<>";
         for (int i = 0; b[i]; ++i) if (b[i] != ' ' && (i % 3) != 1) b[i] = SCR[(i * 7 + 3) % 13];

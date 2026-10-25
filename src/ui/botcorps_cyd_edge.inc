@@ -173,9 +173,9 @@ static bool pt_overlay_rect(int *x, int *y, int *w, int *h)
 {
     /* rain cover while Adv OSK / sheet / palette / attack is open */
     if (s_pt_mode == 1 && s_pt_bw > 0) {
-        cyd_adv_osk_layout();
-        *x = s_adv_osk_x - 2; *y = s_adv_osk_y - 2;
-        *w = s_adv_osk_w + 4; *h = s_adv_osk_h + 4;
+        cyd_adv_osk_layout();   /* full-width input row + bottom-anchored OSK frame */
+        *x = 0; *y = s_adv_row_y;
+        *w = EW(); *h = (s_adv_osk_y + s_adv_osk_h + 2) - s_adv_row_y;
         return true;
     }
     if (s_sheet && s_pt_bw > 0) {
@@ -189,6 +189,16 @@ static bool pt_overlay_rect(int *x, int *y, int *w, int *h)
         return true;
     }
     return false;
+}
+/* second rain cover: the completion list above the OSK input row */
+static bool pt_overlay_rect2(int *x, int *y, int *w, int *h)
+{
+    if (s_pt_mode != 1 || s_pt_bw <= 0) return false;
+    cyd_adv_osk_layout();
+    CydAdvCands c;
+    if (!cyd_adv_cands_calc(&c)) return false;
+    *x = c.bx; *y = c.by; *w = c.w; *h = c.h;
+    return true;
 }
 /* live terminal plate: silk shell + Adv prompt plate in the screen rect.
  * dark: shell + black screen only (intro staging). */

@@ -41,6 +41,7 @@ def discover(setup, land, tag):
     out = run(head(setup)+['osk 1','wait 80','keys','state'], land, tag+'_d1')
     keys=[]
     osk=plate=None
+    pads={}; chips={}; ext={}
     for l in out:
         m=re.search(r'\[sim\] key (\d+) (-?\d+) (-?\d+) (\d+) (\d+) kind=(\d+) a=(\d+) s=(\d+).*cell=(\d+),(\d+),(\d+),(\d+)', l)
         if m:
@@ -51,15 +52,31 @@ def discover(setup, land, tag):
         if m: osk=tuple(map(int,m.groups()))
         m=re.search(r'\[sim\] plate (\d+) (\d+) (\d+) (\d+) py=(\d+) cmd=(\d+) atk=(\d+)', l)
         if m: plate=tuple(map(int,m.groups()))
+        m=re.search(r'eqy=(\d+) rety=(\d+) row=(-?\d+) rowh=(\d+) sheetw=(\d+)', l)
+        if m: ext=dict(zip(('eqy','rety','row','rowh','sheetw'), map(int,m.groups())))
+        m=re.search(r'\[sim\] pad (eq|ret) (\d+) (\d+) (\d+) (\d+)', l)
+        if m: pads[m[1]]=tuple(map(int,m.groups()[1:]))
+        m=re.search(r'\[sim\] chip (\d+) (\S+) (\d+) (\d+) (\d+) (\d+)', l)
+        if m: chips[m[2]]=tuple(map(int,m.groups()[2:]))
     if not plate:
         plate=(x,y,w,h,y+h-11,x+w-24,x+w-48)
     sx,sy,sw,sh,py,cmdx,atkx = plate[:7]
     line = (sx + 40, py + 4)
-    eq = (cmdx + 10, py)      # ≡ art center
-    ret = (atkx + 10, py)     # reticle
+    # stacked top-right buttons: tap the centre of each hit pad reported by the sim
+    pe, pr = pads['eq'], pads['ret']
+    eq = (pe[0] + pe[2]//2, pe[1] + pe[3]//2)
+    ret = (pr[0] + pr[2]//2, pr[1] + pr[3]//2)
+    # pad checks: >= 28x28, no overlap with each other, right of the log column
+    col_x = sx + sw - 28
+    padchk = dict(eq=pe, ret=pr,
+                  size_ok=all(p_[2] >= 28 and p_[3] >= 28 for p_ in (pe, pr)),
+                  no_overlap=(pe[1] + pe[3] <= pr[1]) or (pr[1] + pr[3] <= pe[1]),
+                  right_of_log=min(pe[0], pr[0]) >= col_x,
+                  above_cmdline=max(pe[1]+pe[3], pr[1]+pr[3]) <= py - 1,
+                  top_right=pe[0] + pe[2] <= sx + sw and pe[1] == sy)
     return dict(scr=int(re.search(r'screen=(\d+)', st).group(1)),
                 plate=(x,y,w,h), keys=keys, osk=osk, plate_geo=plate,
-                line=line, eq=eq, ret=ret)
+                line=line, eq=eq, ret=ret, padchk=padchk, chips=chips, ext=ext)
 
 def ctr(k):
     return (k['cx']+k['cw']//2, k['cy']+k['ch']//2)
@@ -89,10 +106,36 @@ def tour(setup, land, tag, D):
         tap(D['eq'], j, HOLD[t%3]); mark('open_palette')
         L.append('palette 0'); L.append('wait 40'); mark('close_palette')
 
+    # ≡ toggles: re-tap ≡ closes the palette
+    for t,j in enumerate(JIT[5:9]):
+        tap(D['eq'], j, HOLD[t%3]); mark('open_palette')
+        tap(D['eq'], (0,0), 80); mark('close_palette')
+
     # reticle attack
     for t,j in enumerate(JIT[:5]):
         tap(D['ret'], j, HOLD[t%3]); mark('open_attack')
         L.append('attack 0'); L.append('wait 40'); mark('close_attack')
+    # reticle toggles: re-tap reticle closes the attack overlay
+    for t,j in enumerate(JIT[5:9]):
+        tap(D['ret'], j, HOLD[t%3]); mark('open_attack')
+        tap(D['ret'], (0,0), 80); mark('close_attack')
+
+    # sheet from ≡: ≡ -> 'cmds' chip opens the glossary sheet (upward)
+    if 'cmds' in D['chips']:
+        cx_,cy_,cw_,ch_ = D['chips']['cmds']
+        for t in range(3):
+            tap(D['eq'], JIT[t], HOLD[t%3]); mark('open_palette')
+            tap((cx_+cw_//2, cy_+ch_//2), (0,0), 80); mark('open_sheet')
+            L.append('nosheet'); L.append('wait 40'); mark('close_sheet')
+
+    # OSK input row: tapping the full-width row keeps the OSK open and the text
+    if D['ext'].get('row', -1) >= 0:
+        ry = D['ext']['row'] + D['ext']['rowh']//2
+        W = 240 if not land else 320
+        L.append('clr'); L.append('osk 1'); L.append('put scan'); L.append('wait 40')
+        for t,xx in enumerate((20, W//2, W-20)):
+            tap((xx, ry), (0, JIT[t][1]//3), HOLD[t%3]); mark('row_keep', None, 'scan')
+        L.append('clr'); L.append('osk 0'); L.append('wait 40')
 
     # sheet via TAB key on OSK
     L.append('osk 1'); L.append('wait 60')
@@ -108,9 +151,7 @@ def tour(setup, land, tag, D):
     sx,sy,sw,sh = D['plate']
     geo = D.get('plate_geo') or (sx,sy,sw,sh,sy+sh-11)
     py = geo[4] if len(geo) > 4 else sy + sh - 11
-    sheet_w = sw - 4
-    if sheet_w > 292: sheet_w = 292
-    if sheet_w < 80: sheet_w = 80
+    sheet_w = D['ext'].get('sheetw') or max(80, min(292, sw - 4))
     CMDN = ["scan","hunt","help","bots","rain","filter","ping","info","track","sniff",
             "defend","scan all","sweep","roster","pulse","dig",
             "hail","say","ask","rollcall","whisper","broadcast","link","mute",
@@ -293,6 +334,9 @@ def tour(setup, land, tag, D):
                 stats['correct']+=1 if b['buf'] else stats['misses'] or 0
                 if not b['buf']: stats['misses']+=1
                 else: stats['correct']+=1
+        elif test=='row_keep':
+            if b['mode']==1 and b['buf']==extra: stats['correct']+=1
+            else: stats['misses']+=1
         elif test=='run_scan_wifi':
             ok = ('sweep' in b['log']) or ('wifi' in b['log'].lower()) or (b['buf']=='')
             if ok: stats['correct']+=1
@@ -318,6 +362,8 @@ for name,setup in SCREENS:
         stats['keys']=len(D['keys'])
         stats['kp']=D['osk'][4] if D['osk'] else None
         stats['rp']=D['osk'][5] if D['osk'] else None
+        stats['padchk']=D['padchk']
+        print('  pads', D['padchk'], flush=True)
         TABLE.append(stats)
         print(' ', {k:stats[k] for k in stats if k not in ('scan_log',)}, flush=True)
 
@@ -331,3 +377,4 @@ tot=dict(taps=0,correct=0,misses=0,wrong=0,doubles=0,open_ok=0,open_n=0)
 for s in TABLE:
     for k in tot: tot[k]+=s.get(k,0)
 print('TOTAL', tot, 'rate', tot['correct']/max(1,tot['taps']))
+print('PADS', 'all ok' if all(all(v for k,v in s['padchk'].items() if k not in ('eq','ret')) for s in TABLE) else 'FAIL')

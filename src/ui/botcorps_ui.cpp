@@ -1016,6 +1016,7 @@ static int portrait_touch(int tx, int ty, char *typed);
 static bool cp_ctlbot_on(void);            /* portrait.inc: controlbot is the portrait Control painter */
 static void layout_covers_ctlbot(void);    /* botcorps_cyd_ctlbot.inc */
 static bool pt_overlay_rect(int *x, int *y, int *w, int *h);   /* botcorps_cyd_edge.inc: false when closed */
+static bool pt_overlay_rect2(int *x, int *y, int *w, int *h);  /* botcorps_cyd_edge.inc: OSK completions */
 static void hb_covers(void);              /* botcorps_cyd_hubbot.inc: Gibson Hub v4 rain covers */
 static void intro_covers(void);           /* botcorps_cyd_intro.inc: BOOTbot intro rain covers */
 static uint32_t intro_key(void);          /* botcorps_cyd_intro.inc: repaint key (step + caret) */
@@ -1043,6 +1044,7 @@ static void layout_covers(void)
     if (s_screen != SCR_CONTROL) {   /* keys / list overlay open: no rain through the keys */
         int ox, oy, ow, oh;
         if (pt_overlay_rect(&ox, &oy, &ow, &oh)) cover_add(ox, oy, ow, oh);
+        if (pt_overlay_rect2(&ox, &oy, &ow, &oh)) cover_add(ox, oy, ow, oh);
     }
     botcorps_rain_set_covers(s_box, s_box_n, false);
     return;

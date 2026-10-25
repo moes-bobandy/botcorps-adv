@@ -1,0 +1,212 @@
+[
+  {
+    "taps": 118,
+    "correct": 118,
+    "misses": 0,
+    "wrong": 0,
+    "doubles": 0,
+    "open_ok": 41,
+    "open_n": 41,
+    "scan_log": "[ok] sweep done",
+    "scan_buf": "",
+    "scan_screen": 1,
+    "tag": "hub-P",
+    "keys": 42,
+    "kp": 24,
+    "rp": 28,
+    "padchk": {
+      "eq": [
+        178,
+        239,
+        28,
+        28
+      ],
+      "ret": [
+        178,
+        267,
+        28,
+        28
+      ],
+      "size_ok": true,
+      "no_overlap": true,
+      "right_of_log": true,
+      "above_cmdline": true,
+      "top_right": true
+    }
+  },
+  {
+    "taps": 118,
+    "correct": 118,
+    "misses": 0,
+    "wrong": 0,
+    "doubles": 0,
+    "open_ok": 41,
+    "open_n": 41,
+    "scan_log": "[ok] sweep done",
+    "scan_buf": "",
+    "scan_screen": 1,
+    "tag": "hub-L",
+    "keys": 42,
+    "kp": 25,
+    "rp": 28,
+    "padchk": {
+      "eq": [
+        256,
+        162,
+        28,
+        28
+      ],
+      "ret": [
+        256,
+        190,
+        28,
+        28
+      ],
+      "size_ok": true,
+      "no_overlap": true,
+      "right_of_log": true,
+      "above_cmdline": true,
+      "top_right": true
+    }
+  },
+  {
+    "taps": 118,
+    "correct": 118,
+    "misses": 0,
+    "wrong": 0,
+    "doubles": 0,
+    "open_ok": 41,
+    "open_n": 41,
+    "scan_log": "[ok] sweep done",
+    "scan_buf": "",
+    "scan_screen": 7,
+    "tag": "scan-P",
+    "keys": 42,
+    "kp": 24,
+    "rp": 28,
+    "padchk": {
+      "eq": [
+        180,
+        242,
+        28,
+        28
+      ],
+      "ret": [
+        180,
+        270,
+        28,
+        28
+      ],
+      "size_ok": true,
+      "no_overlap": true,
+      "right_of_log": true,
+      "above_cmdline": true,
+      "top_right": true
+    }
+  },
+  {
+    "taps": 118,
+    "correct": 118,
+    "misses": 0,
+    "wrong": 0,
+    "doubles": 0,
+    "open_ok": 41,
+    "open_n": 41,
+    "scan_log": "[ok] sweep done",
+    "scan_buf": "",
+    "scan_screen": 7,
+    "tag": "scan-L",
+    "keys": 42,
+    "kp": 25,
+    "rp": 28,
+    "padchk": {
+      "eq": [
+        256,
+        162,
+        28,
+        28
+      ],
+      "ret": [
+        256,
+        190,
+        28,
+        28
+      ],
+      "size_ok": true,
+      "no_overlap": true,
+      "right_of_log": true,
+      "above_cmdline": true,
+      "top_right": true
+    }
+  },
+  {
+    "taps": 118,
+    "correct": 118,
+    "misses": 0,
+    "wrong": 0,
+    "doubles": 0,
+    "open_ok": 41,
+    "open_n": 41,
+    "scan_log": "[ok] sweep done",
+    "scan_buf": "",
+    "scan_screen": 10,
+    "tag": "gchat-P",
+    "keys": 42,
+    "kp": 24,
+    "rp": 28,
+    "padchk": {
+      "eq": [
+        180,
+        134,
+        28,
+        28
+      ],
+      "ret": [
+        180,
+        162,
+        28,
+        28
+      ],
+      "size_ok": true,
+      "no_overlap": true,
+      "right_of_log": true,
+      "above_cmdline": true,
+      "top_right": true
+    }
+  },
+  {
+    "taps": 118,
+    "correct": 118,
+    "misses": 0,
+    "wrong": 0,
+    "doubles": 0,
+    "open_ok": 41,
+    "open_n": 41,
+    "scan_log": "[ok] sweep done",
+    "scan_buf": "",
+    "scan_screen": 10,
+    "tag": "gchat-L",
+    "keys": 42,
+    "kp": 25,
+    "rp": 28,
+    "padchk": {
+      "eq": [
+        256,
+        44,
+        28,
+        28
+      ],
+      "ret": [
+        256,
+        72,
+        28,
+        28
+      ],
+      "size_ok": true,
+      "no_overlap": true,
+      "right_of_log": true,
+      "above_cmdline": true,
+      "top_right": true
+    }
+  }
+]

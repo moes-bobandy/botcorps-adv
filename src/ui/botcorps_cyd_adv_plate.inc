@@ -414,13 +414,13 @@ static void cyd_adv_paint_osk(Gfx g)
     g.fillRect(x, y + h - 1, w, 1, term_rim(1));
     g.fillRect(x, y, 1, h, term_rim(0));
     g.fillRect(x + w - 1, y, 1, h, term_rim(1));
-    g.drawRect(x + 1, y + 1, w - 2, h - 2, PAL_TERM_M35);
+    g.drawRect(x + 1, y + 1, w - 2, h - 2, PAL_TERM_M);
     for (int i = 0; i < CYD_OSK_N; ++i) {
         const CydOskSpec &sp = CYD_OSK_SPEC[i];
         int kx, ky, kw, kh, cx, cy, cw, ch;
         cyd_adv_osk_key_rect(i, &kx, &ky, &kw, &kh, &cx, &cy, &cw, &ch);
         g.fillRect(kx, ky, kw, kh, PAL_DEEP);
-        g.drawRect(kx, ky, kw, kh, PAL_TERM_M22);
+        g.drawRect(kx, ky, kw, kh, PAL_TERM_M);   /* Adv term magenta, not dim M22 (reads orange) */
         char lab[8] = {0};
         if (sp.kind == CYD_OSK_CHAR) lab[0] = s_pt_sym ? sp.symbol : sp.alpha;
         else if (sp.kind == CYD_OSK_SPACE) snprintf(lab, sizeof lab, "SPC");

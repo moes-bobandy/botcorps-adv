@@ -492,32 +492,40 @@ struct SBGeo {
     int t0x, t0y, pitch, cols, rows, tile;   /* tile grid inside the bay */
     int pl[4];                      /* SCANBOT plate: x y w h */
 };
+/* Tile scroll offset (slot index) when finds exceed the visible grid. */
+static int s_scan_tile0 = 0;
+
 static const SBGeo &scanbot_geo(void)
 {
     static SBGeo P, L;
     static bool init = false;
     if (!init) {
         init = true;
-        /* ---- portrait 240 x 320 : boss centre, chips left(x2)+right, bay+plate below ---- */
-        P.mx = 82; P.my = 46; P.mw = 76; P.mh = 98;
-        P.cs = 30;
-        P.cx[0] = 38; P.cy[0] = 50;     /* WIFI  top-left   */
-        P.cx[1] = 38; P.cy[1] = 108;    /* BLE   mid-left   */
-        P.cx[2] = 172; P.cy[2] = 76;    /* GIBSON right     */
-        P.kx0 = 34; P.ky = 148; P.kw_band = 172; P.kh = 14;
-        P.bx = 34; P.by = 166; P.bw = 172; P.bh = 75;
-        P.t0x = 44; P.t0y = 177; P.pitch = 31; P.cols = 5; P.rows = 2; P.tile = 28;
-        P.pl[0] = 29; P.pl[1] = 232; P.pl[2] = 181; P.pl[3] = 81;   /* Adv plate ~68px screen */
-        /* ---- landscape 320 x 240 : boss centre, chips left(x2)+right, wide bay + plate ---- */
-        L.mx = 126; L.my = 36; L.mw = 72; L.mh = 72;
-        L.cs = 28;
-        L.cx[0] = 42; L.cy[0] = 46;     /* WIFI  top-left   */
-        L.cx[1] = 42; L.cy[1] = 104;    /* BLE   mid-left   */
-        L.cx[2] = 250; L.cy[2] = 72;    /* GIBSON right     */
-        L.kx0 = 74; L.ky = 113; L.kw_band = 212; L.kh = 12;
-        L.bx = 74; L.by = 129; L.bw = 212; L.bh = 35;
-        L.t0x = 80; L.t0y = 132; L.pitch = 34; L.cols = 6; L.rows = 1; L.tile = 28;
-        L.pl[0] = 34; L.pl[1] = 152; L.pl[2] = 252; L.pl[3] = 81;   /* Adv plate ~68px screen */
+        /* ---- portrait 240 x 320 : content ABOVE locked plate (pl y=232).
+         * Plate castellations sit at by-2, so bay bottom <= 228 (2 px clear of cast).
+         * Two full 28 px rows fit; scroll affordance when finds > cols*rows. ---- */
+        P.mx = 84; P.my = 40; P.mw = 72; P.mh = 86;   /* bottom 126 */
+        P.cs = 28;
+        P.cx[0] = 38; P.cy[0] = 44;     /* WIFI  top-left   */
+        P.cx[1] = 38; P.cy[1] = 94;     /* BLE   mid-left; silk ends ~126 */
+        P.cx[2] = 174; P.cy[2] = 68;    /* GIBSON right     */
+        P.kx0 = 34; P.ky = 132; P.kw_band = 172; P.kh = 14;  /* pads end 146 */
+        P.bx = 34; P.by = 152; P.bw = 172; P.bh = 76;        /* bay end 228; plate cast 230 */
+        P.t0x = 42; P.t0y = 163; P.pitch = 34; P.cols = 4; P.rows = 2; P.tile = 28;  /* 4 cols; MORE chip on bay right */
+        /* row2 tile bottom 163+31+28=222; 6 px air to bay lip */
+        P.pl[0] = 29; P.pl[1] = 232; P.pl[2] = 181; P.pl[3] = 81;   /* LOCKED Adv plate */
+        /* ---- landscape 320 x 240 : content ABOVE locked plate (pl y=152).
+         * Bay bottom <= 148. BLE silk above pads; silk x clears bay left. ---- */
+        L.mx = 128; L.my = 30; L.mw = 68; L.mh = 62;  /* bottom 92 */
+        L.cs = 26;
+        L.cx[0] = 44; L.cy[0] = 34;     /* WIFI  top-left   */
+        L.cx[1] = 44; L.cy[1] = 66;     /* BLE; silk ends 96, clears pads@98 and bay@114 */
+        L.cx[2] = 248; L.cy[2] = 52;    /* GIBSON right     */
+        L.kx0 = 78; L.ky = 98; L.kw_band = 204; L.kh = 12;   /* pads end 110 */
+        L.bx = 78; L.by = 114; L.bw = 204; L.bh = 34;        /* bay end 148; plate cast 150 */
+        L.t0x = 84; L.t0y = 117; L.pitch = 32; L.cols = 5; L.rows = 1; L.tile = 28;  /* 5 cols; MORE on bay right */
+        /* tile bottom 145; BLE silk "BLUETOOTH" ~x39..75, bay left 78 */
+        L.pl[0] = 34; L.pl[1] = 152; L.pl[2] = 252; L.pl[3] = 81;   /* LOCKED Adv plate */
     }
     return botcorps_cyd_orient ? P : L;
 }
@@ -756,11 +764,14 @@ static void paint_scan_e(Gfx g)
     const int total = sbv_total(act);
     int finds = 0;
     for (int v = 0; v < total; ++v) { int b, d; sbv_resolve(act, v, &b, &d); if (sb_cat_hit(fc, b, d)) ++finds; }
+    if (s_scan_tile0 < 0) s_scan_tile0 = 0;
+    if (s_scan_tile0 && s_scan_tile0 >= finds) s_scan_tile0 = 0;
     sb_bay(g, G.bx, G.by, G.bw, G.bh, finds);
-    { const int cap = G.cols * G.rows; int slot = 0;
+    { const int cap = G.cols * G.rows; int seen = 0, slot = 0;
       for (int v = 0; v < total && slot < cap; ++v) {
           int band, d; sbv_resolve(act, v, &band, &d);
           if (!sb_cat_hit(fc, band, d)) continue;
+          if (seen++ < s_scan_tile0) continue;
           const int cxi = slot % G.cols, ryi = slot / G.cols;
           const int tx = G.t0x + cxi * G.pitch, tyy = G.t0y + ryi * G.pitch;
           const bool seld = (d == s_cursor && band == s_scan_selband);
@@ -770,7 +781,18 @@ static void paint_scan_e(Gfx g)
           char db[8]; snprintf(db, sizeof db, "%d", sb_db(band, d));
           tiny_text(g, db, tx + 2, tyy + G.tile - 7, (uint8_t)PAL_WHITE, G.tile - 4);
           ++slot;
-      } }
+      }
+      /* scroll chip on bay right (≥28×28 hit); cycles the tile window */
+      if (finds > cap) {
+          const int aw = 28, ah = 28;
+          const int ax = G.bx + G.bw - aw - 2;
+          const int ay = G.by + (G.bh - ah) / 2;
+          cbf(g, ax, ay, aw, ah, accent());
+          g.drawRect(ax, ay, aw, ah, PAL_WHITE);
+          tiny_text(g, "MORE", ax + (aw - tiny_w("MORE")) / 2, ay + 8, (uint8_t)PAL_BLACK);
+          tiny_text(g, "v", ax + (aw - tiny_w("v")) / 2, ay + 16, (uint8_t)PAL_BLACK);
+      }
+    }
 
     /* ---- SCANBOT terminal plate: Adv f1c08aa plate (e_plate), bay shrunk to make room ---- */
     { const int *PL = G.pl; e_plate(g, PL[0], PL[1], PL[2], PL[3], "SCANBOT", false); }

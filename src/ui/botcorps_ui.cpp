@@ -9686,7 +9686,7 @@ static int portrait_touch(int tx, int ty, char *typed)
         for (int i = 0; i < 3; ++i) {                              /* scattered scan chips -> switch bot */
             if (tx < G.cx[i] - 3 || tx >= G.cx[i] + G.cs + 3) continue;
             if (ty < G.cy[i] - 3 || ty >= G.cy[i] + G.cs + 11) continue;   /* chip + its silk label */
-            if (i != act) { s_scan_cat = 0; s_cursor = 0; s_scan_selband = (i == 1) ? 1 : 0; }
+            if (i != act) { s_scan_cat = 0; s_scan_tile0 = 0; s_cursor = 0; s_scan_selband = (i == 1) ? 1 : 0; }
             s_gib_hunt = false;
             if (i == 0) { log_add("scanbot> wifibot"); enter_screen(SCR_WIFI_RADAR, SCR_GIBSON); }
             else if (i == 1) { log_add("scanbot> bluetooth"); enter_screen(SCR_BT_RADAR, SCR_GIBSON); }
@@ -9700,15 +9700,38 @@ static int portrait_touch(int tx, int ty, char *typed)
             const int gap = 6, pw = (G.kw_band - gap * (ntab - 1)) / ntab;
             for (int k = 0; k < ntab; ++k) {
                 const int px = G.kx0 + k * (pw + gap);
-                if (tx >= px && tx < px + pw) { s_scan_cat = k; s_dirty = true; return K_NONE; }
+                if (tx >= px && tx < px + pw) { s_scan_cat = k; s_scan_tile0 = 0; s_dirty = true; return K_NONE; }
             }
             return K_NONE;
+        }
+        /* bay scroll chip 28×28 on bay right — advance tile window */
+        {
+            const int aw = 28, ah = 28;
+            const int ax = G.bx + G.bw - aw - 2, ay = G.by + (G.bh - ah) / 2;
+            if (tx >= ax && tx < ax + aw && ty >= ay && ty < ay + ah) {
+                SBCat cat0[5];
+                const int n0 = scanbot_cats_e(act, cat0);
+                if (s_scan_cat < 0 || s_scan_cat >= n0) s_scan_cat = 0;
+                const SBCat &fc0 = cat0[s_scan_cat];
+                int finds0 = 0;
+                for (int v = 0; v < sbv_total(act); ++v) {
+                    int b, d; sbv_resolve(act, v, &b, &d);
+                    if (sb_cat_hit(fc0, b, d)) ++finds0;
+                }
+                const int cap0 = G.cols * G.rows;
+                if (finds0 > cap0) {
+                    s_scan_tile0 += cap0;
+                    if (s_scan_tile0 >= finds0) s_scan_tile0 = 0;
+                    s_dirty = true;
+                }
+                return K_NONE;
+            }
         }
         if (tx >= G.t0x && ty >= G.t0y) {                          /* tiles -> select + echo/run info */
             const int col = (tx - G.t0x) / G.pitch, row = (ty - G.t0y) / G.pitch;
             const int ix = (tx - G.t0x) % G.pitch, iy = (ty - G.t0y) % G.pitch;
             if (col >= 0 && col < G.cols && row >= 0 && row < G.rows && ix < G.tile && iy < G.tile) {
-                const int target = row * G.cols + col;
+                const int target = s_scan_tile0 + row * G.cols + col;
                 if (s_scan_cat < 0 || s_scan_cat >= ntab) s_scan_cat = 0;
                 const SBCat &fc = cat[s_scan_cat];
                 const int total = sbv_total(act);

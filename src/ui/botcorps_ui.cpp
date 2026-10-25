@@ -689,6 +689,9 @@ static int default_back(int id)
 static int s_scan_bot = 12;
 static bool s_gib_hunt = false;      /* #5 mock bus.gHunt: Gibson's board plays the hunt (else orbit-leader) */
 static bool s_gib_hunt_keep = false; /* #5 mock nav.scanKeep: hunt mode survives only the entry that started it */
+#ifdef BOTCORPS_CYD
+static int s_scan_cat = 0;           /* SCANbot (cp1 2026-10-25): selected category tab, 0 = ALL */
+#endif
 /* v1016f: Terminal focus on the crown (Up from the top board row); Fn chord flag from read_key. */
 static bool s_term_crown = false;
 static bool s_key_fn = false;
@@ -9678,12 +9681,59 @@ static int portrait_touch(int tx, int ty, char *typed)
         return K_NONE;
     }
     if (s_screen == SCR_WIFI_RADAR || s_screen == SCR_BT_RADAR || s_screen == SCR_SCAN) {
-        const EScanGeo &G = e_scan_geo();
-        const int cx = 92 + G.cdx, cy = 180 + G.cdy;
-        if (tx >= cx && tx < cx + 56 && ty >= cy && ty < cy + 56) return K_OK;           /* MCU */
-        const int px = 156 + G.fdx, py = 191 + G.fdy;
-        if (tx >= px && tx < px + 30 && ty >= py && ty < py + 30) return K_OK;           /* device die */
-        if (tx >= 30 && tx < 209 && ty >= 31 + G.pdy + 11 && ty < 148) { s_dirty = true; return K_NONE; }
+        /* SCANbot (cp1): selector chips, category tabs, and tile taps over the unified board. */
+        const SBGeo &G = scanbot_geo();
+        const int act = scanbot_active();
+        const int band = scanbot_band();
+        if (ty >= G.cy && ty < G.cy + G.ch) {                      /* selector chips -> switch bot */
+            for (int i = 0; i < 3; ++i) {
+                if (tx < G.cx[i] || tx >= G.cx[i] + G.cw) continue;
+                if (i != act) { s_scan_cat = 0; s_cursor = 0; }
+                s_gib_hunt = false;
+                if (i == 0) { log_add("scanbot> wifibot"); enter_screen(SCR_WIFI_RADAR, SCR_GIBSON); }
+                else if (i == 1) { log_add("scanbot> bluetoothbot"); enter_screen(SCR_BT_RADAR, SCR_GIBSON); }
+                else { log_add("scanbot> gibson"); s_scan_bot = 12; enter_screen(SCR_SCAN, SCR_GIBSON); }
+                s_dirty = true;
+                return K_NONE;
+            }
+            return K_NONE;
+        }
+        int types[5];
+        const int ntab = scanbot_cats(band, types);
+        if (ty >= G.ty && ty < G.ty + G.th && tx >= G.tx0 && tx < G.tx0 + G.bw) {   /* category tabs */
+            const int tabw = G.bw / ntab;
+            int i = (tx - G.tx0) / tabw;
+            if (i >= ntab) i = ntab - 1;
+            s_scan_cat = i;
+            s_dirty = true;
+            return K_NONE;
+        }
+        if (tx >= G.t0x && ty >= G.t0y) {                          /* tiles -> select + echo/run info */
+            const int col = (tx - G.t0x) / G.pitch, row = (ty - G.t0y) / G.pitch;
+            const int ix = (tx - G.t0x) % G.pitch, iy = (ty - G.t0y) % G.pitch;
+            if (col >= 0 && col < G.cols && row >= 0 && row < G.rows && ix < G.tile && iy < G.tile) {
+                const int target = row * G.cols + col;
+                const int filt = types[s_scan_cat >= 0 && s_scan_cat < ntab ? s_scan_cat : 0];
+                int slot = 0, hit = -1;
+                for (int d = 0; d < SB_N; ++d) {
+                    if (filt >= 0 && sb_ty(band, d) != filt) continue;
+                    if (slot == target) { hit = d; break; }
+                    ++slot;
+                }
+                if (hit >= 0) {
+                    s_cursor = hit;
+                    char ln[40];
+                    snprintf(ln, sizeof ln, "scanbot> info %.12s", sb_name(band, hit));
+                    log_add(ln);
+                    char cmd[8];
+                    snprintf(cmd, sizeof cmd, "info");
+                    s_sp_buf[0] = 0;
+                    sp_run(cmd);
+                    s_dirty = true;
+                }
+                return K_NONE;
+            }
+        }
         return K_NONE;
     }
     if (s_screen == SCR_DIAG) { enter_screen(SCR_GIBSON, SCR_GIBSON); s_dirty = true; return K_NONE; }   /* any tap = HOME */

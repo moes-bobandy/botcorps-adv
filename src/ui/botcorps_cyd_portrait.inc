@@ -549,83 +549,169 @@ static void e_bot_panel(Gfx g, int bot, uint8_t ink)
     scanb_ring_p(g, 153, 82, ink);
 }
 
-/* Wi-Fi / BT radar and bot / Gibson SCAN on the edge board */
+/* ============================================================================
+ * SCANbot (checkpoint 1, 2026-10-25, Dirt): ONE unified scan board for every scan
+ * enum (SCR_WIFI_RADAR / SCR_BT_RADAR / SCR_SCAN), portrait AND landscape.
+ * Three selector chips (WIFIbot / BLUETOOTHbot / GIBSON) wired by traces, the active
+ * one lit and the others dimmed; one shared tile box with >= 28 px hit cells and
+ * readable device icons; Gibson-style category tabs fed ONLY by the real device
+ * fields (sb_ty -> LIST_*_TY); a small silk 'SCANBOT' terminal plate at the foot
+ * inside the board. Edge-to-edge board, full-length pins (e_board), rain stays off the
+ * interior (e_covers). BOTCORPS_CYD only.
+ * HONEST NOTE (per brief "band/security ... otherwise say so"): the firmware carries
+ * NO per-device Wi-Fi security or radio-band field for the 35-entry scan list -- only
+ * name, dBm, device type and a detect class. So the category tabs are driven by device
+ * TYPE (sb_ty) for BOTH bands. There is no security/band field to tab on.
+ * ==========================================================================*/
+enum { SB_WIFI = 0, SB_BLE = 1, SB_GIB = 2 };
+static int scanbot_active(void)
+{
+    return s_screen == SCR_WIFI_RADAR ? SB_WIFI : s_screen == SCR_BT_RADAR ? SB_BLE : SB_GIB;
+}
+static int scanbot_band(void) { return scanbot_active() == SB_BLE ? 1 : 0; }  /* gibson leads Wi-Fi band 0 */
+
+struct SBGeo {
+    int cx[3], cy, cw, ch;          /* selector chips */
+    int tx0, ty, th;                /* category tab row (width = bw, split by ntab) */
+    int bx, by, bw, bh;             /* shared scan box */
+    int t0x, t0y, pitch, cols, rows, tile;   /* tile grid */
+    int pl[4];                      /* SCANBOT plate: x y w h */
+};
+static const SBGeo &scanbot_geo(void)
+{
+    static SBGeo P, L;
+    static bool init = false;
+    if (!init) {
+        init = true;
+        /* portrait 240 x 320 */
+        P.cx[0] = 34; P.cx[1] = 93; P.cx[2] = 152; P.cy = 30; P.cw = 54; P.ch = 28;
+        P.tx0 = 34; P.ty = 62; P.th = 18;
+        P.bx = 34; P.by = 84; P.bw = 172; P.bh = 172;
+        P.t0x = 37; P.t0y = 88; P.pitch = 34; P.cols = 5; P.rows = 5; P.tile = 28;
+        P.pl[0] = 34; P.pl[1] = 260; P.pl[2] = 172; P.pl[3] = 54;
+        /* landscape 320 x 240 */
+        L.cx[0] = 34; L.cx[1] = 120; L.cx[2] = 206; L.cy = 30; L.cw = 80; L.ch = 26;
+        L.tx0 = 34; L.ty = 58; L.th = 18;
+        L.bx = 34; L.by = 80; L.bw = 252; L.bh = 102;
+        L.t0x = 37; L.t0y = 84; L.pitch = 31; L.cols = 8; L.rows = 3; L.tile = 28;
+        L.pl[0] = 34; L.pl[1] = 186; L.pl[2] = 252; L.pl[3] = 46;
+    }
+    return botcorps_cyd_orient ? P : L;
+}
+
+/* category tabs for a band: {ALL} + up to 4 most-common real device types (sb_ty).
+ * returns the count; types[0] = -1 means ALL, the rest are GL_* type ids. */
+static int scanbot_cats(int band, int *types)
+{
+    int cnt[GL_N];
+    for (int t = 0; t < GL_N; ++t) cnt[t] = 0;
+    for (int i = 0; i < SB_N; ++i) { const int t = sb_ty(band, i); if (t >= 0 && t < GL_N) cnt[t]++; }
+    types[0] = -1;
+    int n = 1;
+    for (int pick = 0; pick < 4; ++pick) {
+        int best = -1, bc = 0;
+        for (int t = 0; t < GL_N; ++t) {
+            if (cnt[t] <= 0) continue;
+            bool used = false;
+            for (int k = 1; k < n; ++k) if (types[k] == t) used = true;
+            if (used) continue;
+            if (cnt[t] > bc) { bc = cnt[t]; best = t; }
+        }
+        if (best < 0) break;
+        types[n++] = best;
+    }
+    return n;
+}
+
+/* one selector chip: a little bot MCU, lit (active) or dimmed */
+static void sb_chip(Gfx g, int x, int y, int w, int h, const char *lab, uint8_t col, bool lit)
+{
+    cbf(g, x, y, w, h, lit ? col : (uint8_t)PAL_DEEP);
+    g.drawRect(x, y, w, h, lit ? (uint8_t)PAL_WHITE : (uint8_t)PAL_LINE);
+    for (int px = x + 4; px < x + w - 3; px += 8) { cbf(g, px, y - 2, 2, 2, (uint8_t)177); cbf(g, px, y + h, 2, 2, (uint8_t)177); }
+    const int tw = tiny_w(lab);
+    tiny_text(g, lab, x + (w - tw) / 2, y + (h - 5) / 2, lit ? (uint8_t)PAL_BLACK : (uint8_t)PAL_WHITE, w - 4);
+}
+
+/* one category tab */
+static void sb_tab(Gfx g, int x, int y, int w, int h, const char *lab, uint8_t col, bool sel)
+{
+    cbf(g, x, y, w, h, sel ? col : (uint8_t)PAL_DEEP);
+    g.drawRect(x, y, w, h, sel ? (uint8_t)PAL_WHITE : (uint8_t)PAL_LINE);
+    char b[10];
+    snprintf(b, sizeof b, "%.8s", lab);
+    const int tw = tiny_w(b), tx = (w - tw) / 2 > 1 ? x + (w - tw) / 2 : x + 1;
+    tiny_text(g, b, tx, y + (h - 5) / 2, sel ? (uint8_t)PAL_BLACK : (uint8_t)PAL_WHITE, w - 2);
+}
+
+/* Unified SCANbot board: every scan enum renders this, active bot from s_screen. */
 static void paint_scan_e(Gfx g)
 {
     const bool P = botcorps_cyd_orient != 0;
-    const EScanGeo &G = e_scan_geo();
-    const bool radar = s_screen == SCR_WIFI_RADAR || s_screen == SCR_BT_RADAR;
-    const bool wifi = s_screen == SCR_WIFI_RADAR;
-    const bool gib = !radar && s_scan_bot >= 12;
-    const int bot = radar ? (wifi ? 0 : 1) : gib ? 12 : (s_scan_bot % 12);
-    const int kind = gib ? 0 : bot_dev_kind(bot);
-    const uint8_t ink = gib ? (uint8_t)PAL_WHITE : GL_INK[kind][0];
-    const uint8_t fc = radar ? (wifi ? (uint8_t)87 : (uint8_t)59) : gib ? (uint8_t)251 : bot_color(bot);
-    const uint8_t tr = radar ? (uint8_t)167 : gib ? (uint8_t)10 : (uint8_t)177;
+    const SBGeo &G = scanbot_geo();
+    const int act = scanbot_active();          /* 0 wifi, 1 ble, 2 gibson */
+    const int band = scanbot_band();           /* 0 wifi, 1 ble (gibson -> 0) */
+    const uint8_t COL[3] = { (uint8_t)87, (uint8_t)59, (uint8_t)251 };
+    const char *const CHIP[3] = { "WIFIbot", "BLUEbot", "GIBSON" };
+    const char *const NAME[3] = { "WIFIBOT", "BLUETOOTHBOT", "GIBSON" };
+    const uint8_t tr = (uint8_t)167;
+
     e_board(g);
-    /* upper panel */
+    cbf(g, 34, 27, EW() - 68, EH() - 32, (uint8_t)PAL_FIELD);   /* clean board under chips/tabs */
+
+    /* ---- selector chips, wired by a trace from the lit chip into the box ---- */
+    for (int i = 0; i < 3; ++i) sb_chip(g, G.cx[i], G.cy, G.cw, G.ch, CHIP[i], COL[i], i == act);
     {
-        EShift s(g, G.pdx, G.pdy);
-        if (radar) {
-            s.h.fillRect(30, 42, 179, 117, PAL_BLACK);
-            paint_scanb_panel_p(s.h, true);
-            paint_scanb_tiles_at_p(s.h, 48, wifi ? 17 : 16, wifi);
-        } else if (gib) {
-            paint_gibson_accordion_p(s.h);
-        } else {
-            e_bot_panel(s.h, bot, ink);
-        }
+        const int ax = G.cx[act] + G.cw / 2;
+        const Pt tp[3] = { { ax, G.cy + G.ch }, { ax, G.by - 6 }, { G.bx + G.bw / 2, G.by - 2 } };
+        e_trace(g, tp, 3);
     }
-    /* panel -> MCU copper */
-    const uint8_t gold = (uint8_t)177;
-    if (P) {
-        static const int DX[5] = { 102, 110, 117, 125, 133 };
-        for (int i = 0; i < 5; ++i) { g.fillRect(DX[i], 149, 1, 20, tr); g.fillRect(DX[i] - 1, 147, 2, 2, gold); }
+
+    /* ---- category tabs (real sb_ty) ---- */
+    int types[5];
+    const int ntab = scanbot_cats(band, types);
+    if (s_scan_cat < 0 || s_scan_cat >= ntab) s_scan_cat = 0;
+    const int tabw = G.bw / ntab;
+    for (int i = 0; i < ntab; ++i) {
+        const char *lab = types[i] < 0 ? "ALL" : GL_LABEL[types[i]];
+        const int w = i == ntab - 1 ? G.bw - (ntab - 1) * tabw : tabw;
+        sb_tab(g, G.tx0 + i * tabw, G.ty, w, G.th, lab, COL[act], i == s_scan_cat);
     }
-    /* MCU (+ Gibson extras) */
+
+    /* ---- shared scan box ---- */
+    cbf(g, G.bx, G.by, G.bw, G.bh, (uint8_t)PAL_BLACK);
+    g.drawRect(G.bx, G.by, G.bw, G.bh, COL[act]);
+    g.drawRect(G.bx + 1, G.by + 1, G.bw - 2, G.bh - 2, (uint8_t)PAL_LINE);
+
+    /* tiles: active-band devices filtered by the selected category */
+    const int filt = types[s_scan_cat];       /* -1 = ALL */
+    const int cap = G.cols * G.rows;
+    int slot = 0;
+    for (int d = 0; d < SB_N && slot < cap; ++d) {
+        const int ty = sb_ty(band, d);
+        if (filt >= 0 && ty != filt) continue;
+        const int cxi = slot % G.cols, ryi = slot / G.cols;
+        const int tx = G.t0x + cxi * G.pitch, tyy = G.t0y + ryi * G.pitch;
+        const bool seld = (d == s_cursor);
+        cbf(g, tx, tyy, G.tile, G.tile, seld ? (uint8_t)PAL_SEL : (uint8_t)PAL_DEEP);
+        g.drawRect(tx, tyy, G.tile, G.tile, seld ? (uint8_t)PAL_WHITE : COL[act]);
+        gl_icon_sz(g, ty, tx + (G.tile - 18) / 2, tyy + 2, false, 18);
+        char db[8];
+        snprintf(db, sizeof db, "%d", sb_db(band, d));
+        tiny_text(g, db, tx + 2, tyy + G.tile - 7, (uint8_t)PAL_WHITE, G.tile - 4);
+        ++slot;
+    }
+
+    /* ---- SCANBOT silk terminal plate, small, at the foot inside the board ---- */
     {
-        EShift s(g, G.cdx, G.cdy);
-        if (radar) paint_scanb_chip_p(s.h, fc, wifi ? (uint8_t)151 : (uint8_t)155, wifi ? (uint8_t)10 : (uint8_t)14, tr, true);
-        else if (gib) { paint_scanb_chip_p(s.h, (uint8_t)251, (uint8_t)255, (uint8_t)214, tr, false); e_gib_chip_extras(s.h, tr, P); }
-        else paint_scanb_chip_p(s.h, fc, (uint8_t)250, (uint8_t)140, tr, true);
-        if (G.fan && !gib) e_peri_fan(s.h, tr);
+        const int *PL = G.pl;
+        e_plate(g, PL[0], PL[1], PL[2], PL[3], "SCANBOT", P ? 3 : 2, false);
+        const int mx = G.bx + G.bw / 2;
+        const Pt fp[2] = { { mx, G.by + G.bh }, { mx, PL[1] } };
+        e_trace(g, fp, 2);
     }
-    /* device die */
-    if (!gib) {
-        EShift s(g, G.fdx, G.fdy);
-        paint_scanb_peri_p(s.h, kind, ink, fc, tr);
-        if (!radar && kind == GL_TRACKER) { s.h.fillRect(159, 194, 24, 24, PAL_BLACK); scanb_ring_p(s.h, 166, 201, ink); }
-    } else if (!P) {
-        scanb_crew_die_p(g, 226, 98, false);
-        scanb_crew_die_p(g, 256, 98, true);
-    }
-    /* silk */
-    char nm[16], lab[24];
-    if (radar) { snprintf(nm, sizeof nm, "%s", wifi ? "WIFIBOT" : "BLUETOOTHBOT"); snprintf(lab, sizeof lab, "%s", wifi ? "WI-FI AP U2" : "SPEAKER U2"); }
-    else if (gib) { snprintf(nm, sizeof nm, "GIBSON"); lab[0] = 0; }
-    else { sb_upper(nm, 16, BOTS[bot].short_name, 12); if (strlen(nm) <= 9) strcat(nm, "BOT"); snprintf(lab, sizeof lab, "%s U2", GL_LABEL[kind]); }
-    e_scan_silk(g, nm, gib ? "CORE PRIME" : "RADIO CORE", lab, ink);
-    /* terminal plate + its feeds */
-    port_seed_scan_logs(wifi && radar, radar && !wifi, gib, bot);
-    const int *PL = G.plate;
-    const char *silk = radar ? (wifi ? "WIFI SCAN" : "BT SCAN") : gib ? "GIBSON SCAN" : "BOT SCAN";
-    e_plate(g, PL[0], PL[1], PL[2], PL[3], silk, P ? 5 : 4, false);
-    const uint8_t via = cbmix(botcorps_rgb565(tr), 0xFFFF, 35);
-    if (P) {
-        g.fillRect(101, 225, 1, 3, tr);
-        g.fillRect(125, 225, 1, 3, tr);
-        g.fillRect(160, 210, 1, 18, tr);
-        if (gib) g.fillRect(160, 223, 1, 5, tr);
-    } else {
-        g.fillRect(106, 149, 1, 9, tr); g.fillRect(105, 147, 2, 2, gold);
-        g.fillRect(118, 149, 1, 9, tr); g.fillRect(117, 147, 2, 2, gold);
-        if (gib) { g.fillRect(234, 86, 1, 12, tr); g.fillRect(266, 86, 1, 12, tr); }
-        else { g.fillRect(242, 86, 1, 12, tr); g.fillRect(257, 86, 1, 12, tr); g.fillRect(265, 86, 1, 12, tr); }
-        g.fillRect(218, 63, 6, 1, tr);
-        g.fillRect(218, 63, 1, 128, tr);
-        g.fillRect(214, 190, 5, 1, tr);
-        cb_via(g, 218, 63, via); cb_via(g, 218, 190, via);
-    }
+    e_silk(g, NAME[act], G.bx + 4, G.by + G.bh - 8);
+
     e_finish(g);
 }
 

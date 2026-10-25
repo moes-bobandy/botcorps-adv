@@ -983,73 +983,7 @@ static void paint_scan_grid_p(Gfx g, int gx, int gy, int cols, int rows, int pit
     }
 }
 
-/* Hub portrait B: side bot columns, Gibson core centre, 2 plates, terminal. */
-static void paint_gibson_p(Gfx g)
-{
-    paint_chrome_p(g);
-    const uint32_t t = millis();
-    const uint8_t ac = accent();
-    const uint8_t wire = wire_ink();
-    const int cx = 120, cy = 114, rr = 40;
-    bool asleep = false;
-    const int mood = hub_mood(t, &asleep);
-    /* Side bot columns (mock: left @10,44 / right @192,44). */
-    for (int i = 0; i < 12; ++i) {
-        const bool left = i < 6;
-        const int sx = left ? 10 : 192;
-        const int sy = 44 + (i % 6) * 23;
-        const int ys = sy + 10;
-        g.fillRect(sx - 1, sy - 1, 30, 22, wire);
-        GATE_BOX(g, "TILE", "hubbot", sx, sy, 28, 20, "-");
-        chip_plate(g, sx, sy, 28, 20, PAL_DEEP, th_item(i, 12));
-        g.drawRect(sx - 1, sy - 1, 30, 22, th_item(i, 12));
-        chip_mini(g, sx + 11, sy + 10, 18, i, false, 0);
-        g.fillRect(sx + 22, sy + 3, 4, 4, bot_color(i));
-        /* Trace toward core */
-        const int x1 = left ? sx + 28 : cx - rr;
-        const int x2 = left ? cx - rr : sx;
-        if (x2 > x1) {
-            g.fillRect(x1, ys, x2 - x1, 1, th_item(i, 12));
-        }
-    }
-    /* Gibson core (rings + chip) centred in upper grid zone. */
-    GATE_BOX(g, "HUBCORE", "rings", cx - 50, cy - 50, 100, 100, "-");
-    hub_die(g, cx, cy, 30);
-    core_bezel(g, cx, cy, 30);
-    const int spin = (int)(t / 90u);
-    GIB_CORE_RING(g, cx, cy, 33, th_ring(0), 5, 5, spin);
-    GIB_CORE_RING(g, cx, cy, 38, th_ring(1), 2, 4, (int)(t / 140u));
-    GIB_CORE_RING(g, cx, cy, 44, th_ring(2), 1, 5, (int)(t / 80u));
-    gib_core_chip_d(g, cx, cy, 4);
-    if (s_hub_zone == 3) {
-        g.drawCircle(cx, cy, 28, PAL_WHITE);
-        g.drawCircle(cx, cy, 27, ac);
-    }
-    gib_crown(g, cx, 48);
-    /* 2 nav plates only (LL-20) — Terminal + Control, mock y≈207. */
-    static const int xs[2] = { 88, 124 };
-    for (int i = 0; i < 2; ++i) {
-        const int x = xs[i], y = 207;
-        const bool sel = s_hub_zone == 0 && s_cursor == i;
-        GATE_BOX(g, "BTN", "hubnav", x, y, BS, BS, "-");
-        g.fillRect(x + 1, y, BS - 2, BS, ac);
-        g.fillRect(x, y + 1, BS, BS - 2, ac);
-        g.fillRect(x + 2, y + 2, BS - 4, BS - 4, PAL_DEEP);
-        if (sel) g.drawRect(x - 2, y - 2, BS + 4, BS + 4, PAL_WHITE);
-        if (i == 0) {
-            g.fillRect(x + 4, y + 8, 20, 15, PAL_WHITE);
-            g.fillRect(x + 5, y + 9, 18, 13, PAL_BLACK);
-            g.drawLine(x + 7, y + 12, x + 10, y + 15, PAL_WHITE);
-            g.drawLine(x + 10, y + 15, x + 7, y + 18, PAL_WHITE);
-            g.fillRect(x + 12, y + 18, 6, 1, PAL_WHITE);
-        } else {
-            g.fillRect(x + 4, y + 6, 20, 16, PAL_BLACK);
-            g.drawRect(x + 4, y + 6, 20, 16, ac);
-            g.fillRect(x + 10, y + 10, 8, 8, ac);
-        }
-    }
-    paint_pterm(g, PT_X, PT_Y, PT_W, PT_H);
-}
+/* (Hub portrait B painter replaced by Gibson Hub v4: botcorps_cyd_hubbot.inc paint_hubbot.) */
 
 /* Terminal (KING) portrait B: real 3×4 boards via term_xy + paint_boards. */
 static void paint_terminal_p(Gfx g)
@@ -1720,6 +1654,8 @@ static void layout_covers_portrait_common(void)
     }
 }
 
+#include "ui/botcorps_cyd_hubbot.inc"   /* Gibson Hub v4: the portrait SCR_GIBSON painter */
+
 static void paint_ext_portrait(Gfx g)
 {
 #ifdef BOTCORPS_HOST_RENDER
@@ -1750,7 +1686,7 @@ static void paint_ext_portrait(Gfx g)
     }
     switch (s_screen) {
     case SCR_RAIN: paint_rain_btn(g); break;
-    case SCR_GIBSON: paint_gibson_p(g); break;
+    case SCR_GIBSON: paint_hubbot(g); break;   /* Gibson Hub v4 (locked); was paint_gibson_p */
     case SCR_GCHAT: paint_gchat_p(g); break;
     case SCR_TERMINAL: paint_terminal_p(g); break;
     case SCR_WIFI_RADAR:

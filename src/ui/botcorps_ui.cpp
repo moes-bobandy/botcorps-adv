@@ -1011,6 +1011,7 @@ static void layout_covers_control_p(void); /* portrait.inc */
 static int portrait_touch(int tx, int ty, char *typed);
 static bool cp_ctlbot_on(void);            /* portrait.inc: controlbot is the portrait Control painter */
 static void layout_covers_ctlbot(void);    /* botcorps_cyd_ctlbot.inc */
+static void hb_covers(void);              /* botcorps_cyd_hubbot.inc: Gibson Hub v4 rain covers */
 #endif
 static void layout_covers(void)
 {
@@ -1023,6 +1024,12 @@ static void layout_covers(void)
     if (botcorps_cyd_orient && s_screen == SCR_CONTROL && cp_ctlbot_on()) {
         /* controlbot board: its own 17 px top bar, no PT box / frame; board art covered so rain stays behind. */
         layout_covers_ctlbot();
+        botcorps_rain_set_covers(s_box, s_box_n, false);
+        return;
+    }
+    if (botcorps_cyd_orient && s_screen == SCR_GIBSON) {
+        /* Gibson Hub v4 board: its own covers (top bar, side headers, parts, TERMINALBOT plate). */
+        hb_covers();
         botcorps_rain_set_covers(s_box, s_box_n, false);
         return;
     }
@@ -9519,6 +9526,7 @@ static int pt_hit(int tx, int ty, char *typed)
     if (tx < s_pt_bx || tx >= s_pt_bx + s_pt_bw || ty < s_pt_by || ty >= s_pt_by + s_pt_bh)
         return -1;
     const int x = s_pt_bx, y = s_pt_by, w = s_pt_bw, h = s_pt_bh;
+    if (s_pt_mode == 0 && s_screen == SCR_GIBSON) return hb_pt_hit0(tx, ty);   /* Gibson Hub v4 plate */
     if (s_pt_mode == 0) {
         /* Exactly two buttons: abc @191,273 and glossary @154,273 (mock sizes 34×28). */
         if (tx >= PT_ABC_X && tx < PT_ABC_X + PT_ABC_W && ty >= PT_ABC_Y && ty < PT_ABC_Y + PT_ABC_H) {
@@ -9669,40 +9677,28 @@ static int portrait_touch(int tx, int ty, char *typed)
         if (pk >= 0) return pk;
     }
     if (s_screen == SCR_GIBSON) {
-        /* 2 nav plates at mock y≈207 */
-        static const int xs[2] = { 88, 124 };
-        for (int i = 0; i < 2; ++i) {
-            const int x = xs[i], y = 207;
-            if (tx >= x && tx < x + BS && ty >= y && ty < y + BS) {
-                if (s_cursor == i && s_hub_zone == 0) {
-                    if (i == 0) enter_screen(SCR_TERMINAL, SCR_GIBSON);
-                    else enter_screen(SCR_CONTROL, SCR_GIBSON);
-                    return K_NONE;
-                }
-                s_cursor = i; s_hub_zone = 0; s_dirty = true; return K_NONE;
-            }
+        /* Gibson Hub v4 board (botcorps_cyd_hubbot.inc): same actions as the old hub at the new spots. */
+        const int c = hb_hit(tx, ty);
+        if (c >= 0 && c < 12) {                   /* bot chip: its bot / game screen (was the side bot tile) */
+            s_scan_bot = c;
+            enter_screen(SCR_SCAN, SCR_GIBSON);
+            return K_NONE;
         }
-        /* Side bot columns */
-        for (int i = 0; i < 12; ++i) {
-            const bool left = i < 6;
-            const int sx = left ? 10 : 192;
-            const int sy = 44 + (i % 6) * 23;
-            if (tx >= sx && tx < sx + 28 && ty >= sy && ty < sy + 20) {
-                s_scan_bot = i;
-                enter_screen(SCR_SCAN, SCR_GIBSON);
+        if (c == 12 || c == 13) {                 /* TERMINAL/BOT, CONTROL/BOT nav chips (were the 2 plates) */
+            const int i = c - 12;
+            if (s_cursor == i && s_hub_zone == 0) {
+                if (i == 0) enter_screen(SCR_TERMINAL, SCR_GIBSON);
+                else enter_screen(SCR_CONTROL, SCR_GIBSON);
                 return K_NONE;
             }
+            s_cursor = i; s_hub_zone = 0; s_dirty = true; return K_NONE;
         }
-        /* Gibson core chip -> SCAN (LL-19) */
-        {
-            const int cx = 120, cy = 114, rr = 40;
-            if (tx >= cx - rr && tx < cx + rr && ty >= cy - rr && ty < cy + rr) {
-                s_scan_bot = 12;
-                enter_screen(SCR_SCAN, SCR_GIBSON);
-                return K_NONE;
-            }
+        if (c == 15) {                            /* GIBSONBOT module -> SCAN (LL-19, was the core chip) */
+            s_scan_bot = 12;
+            enter_screen(SCR_SCAN, SCR_GIBSON);
+            return K_NONE;
         }
-        return K_NONE;
+        return K_NONE;                            /* BOOTBOT (14) is decorative */
     }
     if (s_screen == SCR_TERMINAL) {
         for (int i = 0; i < 12; ++i) {

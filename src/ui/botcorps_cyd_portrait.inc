@@ -804,8 +804,7 @@ static void paint_scan_e(Gfx g)
         const Pt fp[2] = { { mx, G.by + G.bh }, { mx, PL[1] } };
         e_trace(g, fp, 2);
     }
-    e_silk(g, NAME[act], G.bx + 4, G.by + G.bh - 8);
-
+    /* (no bot-name silk inside the grid: silk lives only under the chips + plate title) */
     e_finish(g);
 }
 

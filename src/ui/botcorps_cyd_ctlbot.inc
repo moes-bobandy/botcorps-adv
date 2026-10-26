@@ -86,35 +86,103 @@ static int mb_h(bool P, int k16 = 16) { return mb_S(P ? MB_H_P : MB_H_L, k16); }
 static void e_metal_face(Gfx g, int cx, int cy, int s, bool gold);   /* edge.inc */
 static void hb_gib_face(Gfx g, int cx, int cy, int s);               /* hubbot.inc */
 static void hb_term_face(Gfx g, int cx, int cy, int s);              /* hubbot.inc */
-/* die geometry relative to the chip origin: centre, die side D, label top (label = Font0 name
- * [+ info line]); k16 = 16 reproduces the hub6 geometry exactly */
-static void mb_geo(bool P, int *dcx, int *dcy, int *D, int *ty, int k16 = 16, bool info = true)
-{
-    const int mw = mb_w(P, k16), mh = mb_h(P, k16), sw = mw - 2 * mb_S(3, k16);
-    const int lh = info ? 18 : 9;
-    int d = sw - mb_S(18, k16);
-    { const int dmax = mh - mb_S(18, k16) - mb_S(6, k16) - lh; if (d > dmax) d = dmax; }
-    if (d < 12) d = 12;
-    *dcx = mb_S(3, k16) + sw / 2; *dcy = mb_S(18, k16) + d / 2 + mb_S(3, k16); *D = d;
-    int t = *dcy + d / 2 + mb_S(5, k16);
-    if (t + lh > mh - mb_S(4, k16)) t = mh - mb_S(4, k16) - lh;
-    *ty = t;
-}
-/* face rect (die window incl. its pin ticks) and label rect, chip-relative — the only areas that differ */
-static void mb_face_rect(bool P, int *x, int *y, int *w, int *h)
-{ int cx, cy, D, ty; mb_geo(P, &cx, &cy, &D, &ty); *x = cx - D / 2 - 2; *y = cy - D / 2 - 2; *w = D + 4; *h = D + 4; }
-static void mb_label_rect(bool P, int *x, int *y, int *w, int *h)
-{ int cx, cy, D, ty; mb_geo(P, &cx, &cy, &D, &ty); *x = 3; *y = ty - 1; *w = mb_w(P) - 6; *h = 19; }
-/* longest name that fits the face window at Font0 (6 px/char) */
-static const char *mb_name(int bot, int avail = 999)
+/* hub10 (Mobandy 7:29 PM ET): label padding / spacing. Pad from the body frame is >=3 px at
+ * k16 and scales with k; name↔info gap >=2 px; face↔name has a clear gap; text never touches
+ * or overflows the body. Drop the info line first, then shorten the name / use tiny font. */
+static int mb_pad(int k16) { const int p = mb_S(3, k16); return p < 2 ? 2 : p; }
+static int mb_gap(int k16) { const int g = mb_S(2, k16); return g < 2 ? 2 : g; }
+/* longest name that fits avail px at char width cw (no "-1": never touch the frame) */
+static const char *mb_name(int bot, int avail = 999, int cw = 6)
 {
     static const char *const N[MB_N][3] = {
         { "GIBSONBOT", "GIBSON", "GIB" }, { "TERMINALBOT", "TERMBOT", "TERM" }, { "SCANBOT", "SCAN", "SCAN" },
         { "CONTROLBOT", "CTRLBOT", "CTRL" }, { "BOOTBOT", "BOOT", "BOOT" }, { "WIFIBOT", "WIFI", "WIFI" },
         { "BLUETOOTH", "BLE", "BLE" } };
     const int b = (bot < 0 || bot >= MB_N) ? MB_CTRL : bot;
-    for (int i = 0; i < 3; ++i) if ((int)strlen(N[b][i]) * 6 - 1 <= avail) return N[b][i];
+    if (cw < 1) cw = 1;
+    for (int i = 0; i < 3; ++i) if ((int)strlen(N[b][i]) * cw <= avail) return N[b][i];
     return N[b][2];
+}
+/* Decide label band: returns name, whether to draw info, font (6=Font0 / 4=tiny), name/info heights, ty. */
+struct MbLab { const char *nm; bool info; int cw, nh, ih, gap, ty, pad; };
+static MbLab mb_lab_plan(bool P, int bot, int k16, const char *info)
+{
+    MbLab L = {};
+    const int mw = mb_w(P, k16), mh = mb_h(P, k16);
+    const int pad = mb_pad(k16), gap = mb_gap(k16);
+    const int sw = mw - 2 * mb_S(3, k16);
+    const int avail = sw - 2 * pad;
+    const bool want = info && info[0];
+    L.pad = pad; L.gap = gap;
+    /* Prefer Font0 (6x8); fall back to tiny (4x5) if the shortest name still won't fit. */
+    auto pick = [&](int cw, int nh) -> bool {
+        const char *nm = mb_name(bot, avail, cw);
+        if ((int)strlen(nm) * cw > avail) return false;
+        L.nm = nm; L.cw = cw; L.nh = nh; return true;
+    };
+    if (!pick(6, 8)) {
+        if (!pick(4, 5)) {
+            /* Shortest name still wider than avail (tiny k): keep shortest, squeeze via maxw. */
+            L.nm = mb_name(bot, 0, 4);  /* force shortest: avail 0 → fall through to N[b][2] */
+            L.cw = 4; L.nh = 5;
+        }
+    }
+    L.info = false; L.ih = 0;
+    if (want) {
+        const int iw = (int)strlen(info) * L.cw;
+        if (iw <= avail) { L.info = true; L.ih = L.nh; }
+    }
+    /* Vertical: labels live in the silk window (sy=MS(18) .. silk_bot=mh-MS(4)).
+     * Keep pad from the silk bottom; face↔name gap clears the die. */
+    int block = L.nh + (L.info ? L.gap + L.ih : 0);
+    const int silk_top = mb_S(18, k16);
+    const int silk_bot = mh - mb_S(4, k16);
+    const int facegap = gap;
+    auto fits = [&](int block_h) {
+        const int dmin = k16 >= 12 ? 12 : (k16 >= 8 ? 8 : 6);
+        /* silk_top + (header inside silk) approx MS(3) + die + gap + block + pad <= silk_bot */
+        return silk_top + mb_S(3, k16) + dmin + facegap + block_h + pad <= silk_bot;
+    };
+    if (!fits(block) && L.info) { L.info = false; L.ih = 0; block = L.nh; }
+    if (!fits(block) && L.cw == 6) {
+        if (pick(4, 5)) {
+            L.info = false; L.ih = 0;
+            if (want && (int)strlen(info) * 4 <= avail && fits(L.nh + L.gap + L.nh)) {
+                L.info = true; L.ih = L.nh; block = L.nh + L.gap + L.ih;
+            } else block = L.nh;
+        }
+    }
+    if (!fits(block)) { L.info = false; L.ih = 0; block = L.nh; }
+    L.ty = silk_bot - pad - block;
+    if (L.ty < silk_top + facegap) L.ty = silk_top + facegap;
+    return L;
+}
+/* die geometry: centre, die side D; label top from mb_lab_plan */
+static void mb_geo(bool P, int *dcx, int *dcy, int *D, int *ty, int k16 = 16, bool info = true)
+{
+    const int mw = mb_w(P, k16), mh = mb_h(P, k16), sw = mw - 2 * mb_S(3, k16);
+    const int pad = mb_pad(k16), gap = mb_gap(k16);
+    const int nh = 8, ih = info ? 8 : 0;
+    const int block = nh + (info ? gap + ih : 0);
+    const int silk_top = mb_S(18, k16), silk_bot = mh - mb_S(4, k16);
+    int d = sw - mb_S(18, k16);
+    { const int dmax = silk_bot - pad - block - gap - (silk_top + mb_S(3, k16)); if (d > dmax) d = dmax; }
+    if (d < 6) d = 6;
+    *dcx = mb_S(3, k16) + sw / 2; *dcy = silk_top + d / 2 + mb_S(3, k16); *D = d;
+    int t = silk_bot - pad - block;
+    if (t < *dcy + d / 2 + gap) { /* keep face↔name gap; shrink D */
+        const int face_bot = t - gap;
+        const int d2 = face_bot - (silk_top + mb_S(3, k16));
+        if (d2 >= 6 && d2 < d) { d = d2; *D = d; *dcy = silk_top + d / 2 + mb_S(3, k16); }
+    }
+    *ty = t;
+}
+static void mb_face_rect(bool P, int *x, int *y, int *w, int *h)
+{ int cx, cy, D, ty; mb_geo(P, &cx, &cy, &D, &ty); *x = cx - D / 2 - 2; *y = cy - D / 2 - 2; *w = D + 4; *h = D + 4; }
+static void mb_label_rect(bool P, int *x, int *y, int *w, int *h)
+{
+    MbLab L = mb_lab_plan(P, MB_CTRL, 16, "X");
+    *x = mb_pad(16); *y = L.ty - 1; *w = mb_w(P) - 2 * mb_pad(16); *h = L.nh + (L.info ? L.gap + L.ih : 0) + 2;
 }
 static void drawBotChipK(Gfx g, int mx, int my, bool P, int bot, int k16, const char *info, bool lit = false);
 static void drawMainBotChip(Gfx g, int mx, int my, bool P, int bot, const char *info = nullptr)
@@ -160,8 +228,13 @@ static void drawBotChipK(Gfx g, int mx, int my, bool P, int bot, int k16, const 
     }
     cbf(g, sx, sy, sw, 1, 186);
     cbf(g, sx, sy, 1, sh, 186);
-    const bool hasInfo = info && info[0];
-    int dcx, dcy, D, rty; mb_geo(P, &dcx, &dcy, &D, &rty, k16, k16 >= 16 || hasInfo);
+    const MbLab lab = mb_lab_plan(P, bot, k16, info);
+    int dcx, dcy, D, rty; mb_geo(P, &dcx, &dcy, &D, &rty, k16, lab.info);
+    /* Prefer planned label top; clamp into silk with pad; never into the face. */
+    { const int face_bot = dcy + D / 2; const int min_ty = face_bot + mb_gap(k16);
+      const int silk_bot = mh - MS(4); const int block = lab.nh + (lab.info ? lab.gap + lab.ih : 0);
+      const int max_ty = silk_bot - lab.pad - block;
+      rty = lab.ty; if (rty < min_ty) rty = min_ty; if (rty > max_ty) rty = max_ty; }
     const int cx = mx + dcx, cy = my + dcy;
     const uint8_t pin = PAL_SOFT;
     const int tk = MS(2);
@@ -184,16 +257,29 @@ static void drawBotChipK(Gfx g, int mx, int my, bool P, int bot, int k16, const 
         s_cb_col = keep;
     }
     else cb_face(g, cx, fy, fs);                                 /* live theme */
-    const char *nm = k16 >= 16 ? mb_name(bot) : mb_name(bot, sw);
+    const char *nm = lab.nm;
     const int ty = my + rty;
+    const int pad = lab.pad;
     {
-        const int keep = s_px; use_px(g, 6);
-        /* hub7: names in near-black ink on the light face window (the old grey 41 washed out on
-         * small chips); the faint accent info line is now a deep accent with the same contrast */
-        const uint8_t ink = sh_rgb(0x10, 0x12, 0x18), inf = cbmix(botcorps_rgb565(accent()), 0x0000, 40);
-        txt(g, nm, cx, ty, inv ? mb_iv(ink) : ink, lgfx::textdatum::top_center);
-        if (hasInfo) txt(g, info, cx, ty + 9, inv ? mb_iv(inf) : inf, lgfx::textdatum::top_center);
-        s_px = keep;
+        const uint8_t ink = sh_rgb(0x10, 0x12, 0x18), infc = cbmix(botcorps_rgb565(accent()), 0x0000, 40);
+        if (lab.cw >= 6) {
+            const int keep = s_px; use_px(g, 6);
+            txt(g, nm, cx, ty, inv ? mb_iv(ink) : ink, lgfx::textdatum::top_center);
+            if (lab.info) txt(g, info, cx, ty + lab.nh + lab.gap, inv ? mb_iv(infc) : infc, lgfx::textdatum::top_center);
+            s_px = keep;
+        } else {
+            const int avail = sw - 2 * pad;
+            const int nw0 = tiny_w(nm); const int nw = nw0 > avail ? avail : nw0;
+            tiny_text(g, nm, cx - nw / 2, ty, inv ? mb_iv(ink) : ink, avail);
+            if (lab.info) {
+                const int iw0 = tiny_w(info); const int iw = iw0 > avail ? avail : iw0;
+                tiny_text(g, info, cx - iw / 2, ty + lab.nh + lab.gap, inv ? mb_iv(infc) : infc, avail);
+            }
+        }
+        /* BODY = silk window; LABEL = text block. Sim chiplabel check uses these. */
+        OVL_BOX("BODY", nm, mx + MS(3), my + MS(18), mw - 2 * MS(3), mh - MS(22));
+        const int lh = lab.nh + (lab.info ? lab.gap + lab.ih : 0);
+        OVL_BOX("LABEL", nm, mx + pad, ty, mw - 2 * pad, lh);
     }
     if (lit) {                                                   /* selection ring: 2 px, outside the pins */
         const int o = k16 >= 16 ? 4 : 3;

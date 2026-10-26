@@ -1,0 +1,194 @@
+[
+  {
+    "taps": 76,
+    "correct": 76,
+    "misses": 0,
+    "wrong": 0,
+    "doubles": 0,
+    "dropped": 0,
+    "open_ok": 19,
+    "open_n": 19,
+    "scan_log": "[ok] sweep done",
+    "scan_buf": "",
+    "tag": "hub-P",
+    "padchk": {
+      "eq_ok": true,
+      "ret_ok": true,
+      "eq": [
+        178,
+        289,
+        28,
+        28
+      ],
+      "ret": [
+        178,
+        261,
+        28,
+        28
+      ],
+      "btn_ok": true,
+      "row_ok": true
+    },
+    "n_btns": 5
+  },
+  {
+    "taps": 76,
+    "correct": 76,
+    "misses": 0,
+    "wrong": 0,
+    "doubles": 0,
+    "dropped": 0,
+    "open_ok": 19,
+    "open_n": 19,
+    "scan_log": "[ok] sweep done",
+    "scan_buf": "",
+    "tag": "hub-L",
+    "padchk": {
+      "eq_ok": true,
+      "ret_ok": true,
+      "eq": [
+        256,
+        212,
+        28,
+        28
+      ],
+      "ret": [
+        256,
+        184,
+        28,
+        28
+      ],
+      "btn_ok": true,
+      "row_ok": true
+    },
+    "n_btns": 5
+  },
+  {
+    "taps": 76,
+    "correct": 76,
+    "misses": 0,
+    "wrong": 0,
+    "doubles": 0,
+    "dropped": 0,
+    "open_ok": 19,
+    "open_n": 19,
+    "scan_log": "[ok] sweep done",
+    "scan_buf": "",
+    "tag": "scan-P",
+    "padchk": {
+      "eq_ok": true,
+      "ret_ok": true,
+      "eq": [
+        180,
+        292,
+        28,
+        28
+      ],
+      "ret": [
+        180,
+        264,
+        28,
+        28
+      ],
+      "btn_ok": true,
+      "row_ok": true
+    },
+    "n_btns": 5
+  },
+  {
+    "taps": 76,
+    "correct": 76,
+    "misses": 0,
+    "wrong": 0,
+    "doubles": 0,
+    "dropped": 0,
+    "open_ok": 19,
+    "open_n": 19,
+    "scan_log": "[ok] sweep done",
+    "scan_buf": "",
+    "tag": "scan-L",
+    "padchk": {
+      "eq_ok": true,
+      "ret_ok": true,
+      "eq": [
+        256,
+        212,
+        28,
+        28
+      ],
+      "ret": [
+        256,
+        184,
+        28,
+        28
+      ],
+      "btn_ok": true,
+      "row_ok": true
+    },
+    "n_btns": 5
+  },
+  {
+    "taps": 76,
+    "correct": 76,
+    "misses": 0,
+    "wrong": 0,
+    "doubles": 0,
+    "dropped": 0,
+    "open_ok": 19,
+    "open_n": 19,
+    "scan_log": "[ok] sweep done",
+    "scan_buf": "",
+    "tag": "gchat-P",
+    "padchk": {
+      "eq_ok": true,
+      "ret_ok": true,
+      "eq": [
+        180,
+        289,
+        28,
+        28
+      ],
+      "ret": [
+        180,
+        261,
+        28,
+        28
+      ],
+      "btn_ok": true,
+      "row_ok": true
+    },
+    "n_btns": 5
+  },
+  {
+    "taps": 76,
+    "correct": 76,
+    "misses": 0,
+    "wrong": 0,
+    "doubles": 0,
+    "dropped": 0,
+    "open_ok": 19,
+    "open_n": 19,
+    "scan_log": "[ok] sweep done",
+    "scan_buf": "",
+    "tag": "gchat-L",
+    "padchk": {
+      "eq_ok": true,
+      "ret_ok": true,
+      "eq": [
+        256,
+        211,
+        28,
+        28
+      ],
+      "ret": [
+        256,
+        183,
+        28,
+        28
+      ],
+      "btn_ok": true,
+      "row_ok": true
+    },
+    "n_btns": 5
+  }
+]

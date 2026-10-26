@@ -1016,7 +1016,6 @@ static int portrait_touch(int tx, int ty, char *typed);
 static bool cp_ctlbot_on(void);            /* portrait.inc: controlbot is the portrait Control painter */
 static void layout_covers_ctlbot(void);    /* botcorps_cyd_ctlbot.inc */
 static bool pt_overlay_rect(int *x, int *y, int *w, int *h);   /* botcorps_cyd_edge.inc: false when closed */
-static bool pt_overlay_rect2(int *x, int *y, int *w, int *h);  /* botcorps_cyd_edge.inc: OSK completions */
 static void hb_covers(void);              /* botcorps_cyd_hubbot.inc: Gibson Hub v4 rain covers */
 static void intro_covers(void);           /* botcorps_cyd_intro.inc: BOOTbot intro rain covers */
 static uint32_t intro_key(void);          /* botcorps_cyd_intro.inc: repaint key (step + caret) */
@@ -1044,7 +1043,6 @@ static void layout_covers(void)
     if (s_screen != SCR_CONTROL) {   /* keys / list overlay open: no rain through the keys */
         int ox, oy, ow, oh;
         if (pt_overlay_rect(&ox, &oy, &ow, &oh)) cover_add(ox, oy, ow, oh);
-        if (pt_overlay_rect2(&ox, &oy, &ow, &oh)) cover_add(ox, oy, ow, oh);
     }
     botcorps_rain_set_covers(s_box, s_box_n, false);
     return;
@@ -1366,6 +1364,9 @@ static void scan_all_set(bool on)
     else s_filter &= ~0x100;
 }
 
+#ifdef BOTCORPS_CYD
+static bool cyd_cl_on(void);   /* botcorps_cyd_adv_plate.inc: pt346u command list open */
+#endif
 /* Sheet colours, or the scan-all frame. Not called from inside a paint. */
 static void lut_for_term(void)
 {
@@ -1373,7 +1374,7 @@ static void lut_for_term(void)
     /* CYD Mobandy plate lives on CONTROL/GCHAT/SCAN — not SCR_TERMINAL.
      * Enable term_ov whenever the Adv sheet / palette / attack chrome is up.
      * (s_pt_bw lives in portrait.inc below; screen+overlay flags are enough.) */
-    const bool cyd_ov = (s_sheet || s_focus_cmds || s_term_ovl);
+    const bool cyd_ov = (s_sheet || s_focus_cmds || s_term_ovl || cyd_cl_on());   /* + pt346u list */
     botcorps_lut_term(cyd_ov ||
                       (s_screen == SCR_TERMINAL && (s_sheet || scan_all_on())));
 #else
@@ -9560,16 +9561,11 @@ enum { K_NONE = 0, K_UP = 1, K_DN = 2, K_LT = 3, K_RT = 4, K_OK = 5, K_ESC = 6, 
 /* Portrait touch: pterm + hub plates + term tiles. Returns key code or -1 to fall through. */
 static int pt_hit(int tx, int ty, char *typed)
 {
-    /* Adv OSK (opens upward — may sit above the plate rect) */
-    if (s_pt_mode == 1 && s_pt_bw > 0) {
-        const int k = cyd_adv_hit_osk(tx, ty, typed);
-        if (k >= 0) return k;
-        /* also allow idle chrome (≡ / reticle / cmdline) while OSK is open */
-        const int i = cyd_adv_hit_idle(tx, ty);
-        if (i >= 0) return i;
-        return K_NONE;
-    }
+    (void)typed;   /* no letter OSK on the CYD (owner 8:15 AM ET Oct 26 "remove the keyboard") */
     if (s_pt_bw <= 0) return -1;
+    if (cyd_cl_on()) return cyd_cl_hit(tx, ty);   /* pt346u command list: modal, opens upward */
+    /* reticle / ≡ pads may stick out of the 3-line plate rect */
+    if (cyd_adv_in_pads(tx, ty)) return hb_pt_hit0(tx, ty);
     /* sheet / palette / attack may extend above the plate */
     if (s_sheet || s_focus_cmds || s_term_ovl) {
         const int i = cyd_adv_hit_idle(tx, ty);
@@ -10054,6 +10050,9 @@ static int read_key(char *typed)
     const int use = s_tp_n >= 3 ? 0 : 1;
     tx = s_tp_x[use]; ty = s_tp_y[use];
     s_tp_n = 0;
+#ifdef BOTCORPS_CYD
+    ++s_cyd_tap_fires;                            /* one per guarded release (sim double-fire check) */
+#endif
     /* CYD edge board, both orientations: own hit map (plates / hub / Control / scan parts).
      * The legacy landscape pop-up / OSK / top-bar paths below are never reached. */
     {
@@ -10150,8 +10149,7 @@ static int read_key(char *typed)
                     botcorps_lut_term(false);
                     if (CMD_ARG[cmd]) {
                         snprintf(botcorps_t0_term_prompt, 60, "%s ", CMDN[cmd]);
-                        s_osk_open = true;
-                        s_osk_dirty = true;
+                        cyd_cl_open();   /* no letter keyboard on the CYD */
                     } else {
                         run_cmd(CMDN[cmd]);
                     }
@@ -10192,9 +10190,7 @@ static int read_key(char *typed)
         /* [abc] (CYD-only): focuses the prompt and raises the 14 px keyboard. 28x36 hit. */
         if (!s_sheet && tx >= CYD_HIT_ABC_X && tx < CYD_HIT_ATK_X && ty >= CYD_ROW_Y) {
             s_term_prompt = true; s_focus_cmds = false; s_cmd_btn = false; s_atk_btn = false;
-            s_osk_open = true;
-            s_osk_dirty = true;
-            s_dirty = true;
+            cyd_cl_open();   /* no letter keyboard on the CYD */
             return K_NONE;
         }
         /* Command palette chips, when the palette is open (6x2 over the scrollback). */
@@ -10719,7 +10715,7 @@ void botcorps_ui_draw(void)
     if (s_cyd_term_plate) {
         s_cyd_term_plate = false;
         if (s_screen == SCR_GIBSON) {
-            s_pt_mode = 1; s_cyd_adv_focus = true; s_term_prompt = true; s_dirty = true;
+            cyd_cl_open();   /* "remove the keyboard": the command list, never the letter OSK */
         }
     }
     if (s_osk_open) cyd_close_osk();   /* legacy landscape OSK never shows on the edge board */

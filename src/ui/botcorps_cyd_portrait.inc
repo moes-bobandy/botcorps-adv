@@ -504,27 +504,28 @@ static const SBGeo &scanbot_geo(void)
         /* ---- portrait 240 x 320 : content ABOVE locked plate (pl y=232).
          * Plate castellations sit at by-2, so bay bottom <= 228 (2 px clear of cast).
          * Two full 28 px rows fit; scroll affordance when finds > cols*rows. ---- */
-        P.mx = 84; P.my = 40; P.mw = 72; P.mh = 86;   /* bottom 126 */
+        /* Owner 8:16 / 8:18 AM ET Oct 26: 3-line plate (outer 49, bottom kept at 313) and the
+         * SCANbot board alone re-spaced into the freed 32 px: chips spread, taller bay with a
+         * third tile row. Plate castellations at 262, so bay bottom <= 260. */
+        P.mx = 84; P.my = 36; P.mw = 72; P.mh = 88;   /* bottom 124 */
         P.cs = 28;
-        P.cx[0] = 38; P.cy[0] = 44;     /* WIFI  top-left   */
-        P.cx[1] = 38; P.cy[1] = 94;     /* BLE   mid-left; silk ends ~126 */
-        P.cx[2] = 174; P.cy[2] = 68;    /* GIBSON right     */
-        P.kx0 = 34; P.ky = 132; P.kw_band = 172; P.kh = 14;  /* pads end 146 */
-        P.bx = 34; P.by = 152; P.bw = 172; P.bh = 76;        /* bay end 228; plate cast 230 */
-        P.t0x = 42; P.t0y = 163; P.pitch = 34; P.cols = 4; P.rows = 2; P.tile = 28;  /* 4 cols; MORE chip on bay right */
-        /* row2 tile bottom 163+31+28=222; 6 px air to bay lip */
-        P.pl[0] = 29; P.pl[1] = 232; P.pl[2] = 181; P.pl[3] = 81;   /* LOCKED Adv plate */
-        /* ---- landscape 320 x 240 : content ABOVE locked plate (pl y=152).
-         * Bay/tiles LOCKED from prior fix. Left chips side-by-side so both silks show. ---- */
-        L.mx = 128; L.my = 26; L.mw = 70; L.mh = 70;  /* bottom 96; room for FCC silk above pads */
+        P.cx[0] = 38; P.cy[0] = 38;     /* WIFI  top-left   */
+        P.cx[1] = 38; P.cy[1] = 90;     /* BLE   mid-left; silk ends ~127 */
+        P.cx[2] = 174; P.cy[2] = 64;    /* GIBSON right     */
+        P.kx0 = 34; P.ky = 133; P.kw_band = 172; P.kh = 14;  /* pads end 147 */
+        P.bx = 34; P.by = 152; P.bw = 172; P.bh = 107;       /* bay end 259; plate cast 262 */
+        P.t0x = 42; P.t0y = 163; P.pitch = 31; P.cols = 4; P.rows = 3; P.tile = 28;  /* 3 rows: 163/194/225 -> 253 */
+        P.pl[0] = 29; P.pl[1] = 264; P.pl[2] = 181; P.pl[3] = 49;   /* 3-line plate */
+        /* ---- landscape 320 x 240 : 3-line plate y=184 (bottom kept at 233), cast at 182 ---- */
+        L.mx = 128; L.my = 26; L.mw = 70; L.mh = 66;  /* bottom 92 */
         L.cs = 24;
-        L.cx[0] = 40; L.cy[0] = 34;     /* WIFI  left; silk under, gap to BLE */
-        L.cx[1] = 88; L.cy[1] = 34;     /* BLE; 24px chip gap; silk clears bay@78? silk under chip */
-        L.cx[2] = 248; L.cy[2] = 48;    /* GIBSON right     */
-        L.kx0 = 78; L.ky = 98; L.kw_band = 204; L.kh = 12;   /* pads end 110 — UNCHANGED */
-        L.bx = 78; L.by = 114; L.bw = 204; L.bh = 34;        /* bay end 148 — UNCHANGED */
-        L.t0x = 84; L.t0y = 117; L.pitch = 32; L.cols = 5; L.rows = 1; L.tile = 28;  /* UNCHANGED */
-        L.pl[0] = 34; L.pl[1] = 152; L.pl[2] = 252; L.pl[3] = 81;   /* LOCKED Adv plate */
+        L.cx[0] = 40; L.cy[0] = 32;     /* WIFI  left */
+        L.cx[1] = 88; L.cy[1] = 32;     /* BLE */
+        L.cx[2] = 250; L.cy[2] = 44;    /* GIBSON right */
+        L.kx0 = 78; L.ky = 95; L.kw_band = 204; L.kh = 12;   /* pads end 107 */
+        L.bx = 78; L.by = 110; L.bw = 204; L.bh = 70;        /* bay end 180; plate cast 182 */
+        L.t0x = 84; L.t0y = 120; L.pitch = 29; L.cols = 5; L.rows = 2; L.tile = 28;  /* 2 rows: 120/149 -> 177 */
+        L.pl[0] = 34; L.pl[1] = 184; L.pl[2] = 252; L.pl[3] = 49;   /* 3-line plate */
     }
     return botcorps_cyd_orient ? P : L;
 }
@@ -818,8 +819,8 @@ static void paint_rain_e(Gfx g)
 /* Defend chat: the defending bot's MCU + silk title, chat output in the plate */
 static void e_gchat_geo(int *pl, int *cdx, int *cdy)
 {
-    if (botcorps_cyd_orient) { pl[0] = 29; pl[1] = 124; pl[2] = 181; pl[3] = 186; *cdx = 0; *cdy = -140; }
-    else { pl[0] = 92; pl[1] = 34; pl[2] = 194; pl[3] = 198; *cdx = -58; *cdy = -148; }
+    if (botcorps_cyd_orient) { pl[0] = 29; pl[1] = 261; pl[2] = 181; pl[3] = 49; *cdx = 0; *cdy = -140; }
+    else { pl[0] = 92; pl[1] = 183; pl[2] = 194; pl[3] = 49; *cdx = -58; *cdy = -148; }
 }
 static void paint_gchat_e(Gfx g)
 {
@@ -841,7 +842,7 @@ static void paint_gchat_e(Gfx g)
     e_silk_c(g, "DEFEND", scx, sy + 7, cb_silk());
     e_silk_c(g, "CHAT U1", scx, sy + 14, cb_silk());
     e_plate(g, PL[0], PL[1], PL[2], PL[3], "DEFEND CHAT", false);
-    if (P) { g.fillRect(101, 96, 1, 26, tr); g.fillRect(125, 96, 1, 26, tr); }
+    if (P) { g.fillRect(101, 96, 1, PL[1] - 98, tr); g.fillRect(125, 96, 1, PL[1] - 98, tr); }   /* traces reach the 3-line plate */
     else { g.fillRect(90, 49, 2, 1, tr); g.fillRect(90, 65, 2, 1, tr); }
     e_finish(g);
 }
@@ -941,8 +942,8 @@ static void e_covers(void)
         cover_add(cx - 57, cy - 57, 114, 114);
         cover_add(cx - 32, cy + 60, 64, 17);
     } else if (s_screen == SCR_GCHAT) {
-        if (P) { cover_add(28, 34, 184, 64); cover_add(96, 96, 36, 28); cover_add(27, 120, 185, 193); }
-        else { cover_add(28, 28, 64, 84); cover_add(88, 40, 4, 30); cover_add(90, 30, 198, 206); }
+        if (P) { cover_add(28, 34, 184, 64); cover_add(96, 96, 36, 28); cover_add(27, 257, 185, 56); }   /* 3-line plate */
+        else { cover_add(28, 28, 64, 84); cover_add(88, 40, 4, 30); cover_add(90, 179, 198, 57); }   /* 3-line plate */
     } else if (s_screen == SCR_DIAG) {
         int PL[4]; e_diag_geo(PL);
         cover_add(PL[0] - 2, PL[1] - 2, PL[2] + 4, PL[3] + 4);

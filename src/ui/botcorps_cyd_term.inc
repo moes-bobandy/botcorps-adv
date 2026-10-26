@@ -265,18 +265,10 @@ static void cyd_hub_abc(Gfx g)
 /* ---- open / close / input ------------------------------------------------------------------- */
 static void cyd_pop_open(bool list)
 {
-    s_osk_open = true;
-    s_osk_sym = false;
-    s_cyd_pl = list;
-    if (list) s_cyd_pl_top = 0;
-    if (s_screen == SCR_TERMINAL) {
-        s_term_prompt = true; s_focus_cmds = false; s_cmd_btn = false; s_atk_btn = false;
-    } else if (s_screen == SCR_GIBSON) {
-        s_gp_focus = true;
-        s_hub_zone = 1;
-    }
-    s_osk_dirty = true;
-    s_dirty = true;
+    /* owner 8:15 AM ET Oct 26 "remove the keyboard": the legacy pop-up keyboard is gone;
+     * every old opener lands on the command list instead. */
+    (void)list;
+    cyd_cl_open();
 }
 
 /* Fill the command line with entry i. Never runs it. */

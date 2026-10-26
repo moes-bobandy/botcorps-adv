@@ -172,16 +172,15 @@ static void e_log_line(Gfx g, const char *ln, int lx, int ly, int w)
 static bool pt_overlay_rect(int *x, int *y, int *w, int *h)
 {
     /* rain cover while Adv OSK / sheet / palette / attack is open */
-    if (s_pt_mode == 1 && s_pt_bw > 0) {
-        cyd_adv_osk_layout();   /* full-width input row + bottom-anchored OSK frame */
-        *x = 0; *y = s_adv_row_y;
-        *w = EW(); *h = (s_adv_osk_y + s_adv_osk_h + 2) - s_adv_row_y;
-        return true;
-    }
+    if (cyd_cl_cover(x, y, w, h)) return true;   /* pt346u command list */
     if (s_sheet && s_pt_bw > 0) {
         int by, hh, top, nshow;
         cyd_adv_sheet_box(&by, &hh, &top, &nshow);
         *x = s_adv_sx + 2; *y = by; *w = s_adv_sw - 4; *h = hh;
+        return true;
+    }
+    if (s_term_ovl == 2 && s_pt_bw > 0) {   /* attack prompts open upward above the 3-line plate */
+        cyd_adv_atk_box(x, y, w, h);
         return true;
     }
     if ((s_focus_cmds || s_term_ovl) && s_pt_bw > 0) {
@@ -189,16 +188,6 @@ static bool pt_overlay_rect(int *x, int *y, int *w, int *h)
         return true;
     }
     return false;
-}
-/* second rain cover: the completion list above the OSK input row */
-static bool pt_overlay_rect2(int *x, int *y, int *w, int *h)
-{
-    if (s_pt_mode != 1 || s_pt_bw <= 0) return false;
-    cyd_adv_osk_layout();
-    CydAdvCands c;
-    if (!cyd_adv_cands_calc(&c)) return false;
-    *x = c.bx; *y = c.by; *w = c.w; *h = c.h;
-    return true;
 }
 /* live terminal plate: silk shell + Adv prompt plate in the screen rect.
  * dark: shell + black screen only (intro staging). */
@@ -209,8 +198,9 @@ static void e_plate(Gfx g, int bx, int by, int bw, int bh, const char *silk, boo
     if (sel) g.drawRect(bx - 2, by - 2, bw + 4, bh + 4, PAL_WHITE);
     if (!dark) cyd_adv_paint_plate(g, sx, sy, sw, sh);
 }
-/* Adv plate content wants ~68 px screen height (outer ≈ 81). Portrait hub already 80. */
-static int e_plate_h(void) { return botcorps_cyd_orient ? 81 : 81; }
+/* Owner 8:16 AM ET Oct 26: every CYD terminal plate is 3 lines (2 log lines + cmdline):
+ * outer 49 -> screen sh 36 -> log rows at sy+4, sy+12, cmdline at sy+25. */
+static int e_plate_h(void) { return 49; }
 
 /* draw in a shifted frame: everything painted through .h lands (dx, dy) away (Gfx fill ops use the
  * global band x origin + the member y origin, raw blits use .ox/.oy) */

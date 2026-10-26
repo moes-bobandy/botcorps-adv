@@ -16,13 +16,14 @@ static void cyd_adv_geo(int sx, int sy, int sw, int sh)
     s_adv_sx = sx; s_adv_sy = sy; s_adv_sw = sw; s_adv_sh = sh;
     s_adv_py = sy + sh - 11;                          /* Adv: PROMPT_Y = plate_bot - 8 */
     if (s_adv_py < sy + 10) s_adv_py = sy + 10;
-    /* ≡ and reticle stacked in the plate's top-right corner (owner 5:45 PM): one 28 px
-     * pad column [sx+sw-28, sx+sw); ≡ pad rows [sy, sy+28), reticle [sy+28, sy+56).
-     * The cmdline below gets the full plate width. Art stays Adv 20x12. */
-    s_adv_cmd_x = sx + sw - 24;                       /* art x; pad x = art+10-14 = sx+sw-28 */
+    /* Owner 8:16 AM ET Oct 26: 3-line plate (2 log lines + cmdline), "command prompt button
+     * in the bottom right corner within" -> ≡ art in the bottom-right corner inside the rim,
+     * reticle art directly above it in the top-right corner. Art stays Adv 20x12. */
+    s_adv_cmd_x = sx + sw - 24;
     s_adv_atk_x = s_adv_cmd_x;
-    s_adv_btn_y = sy + 8;                             /* ≡ art; pad centred = sy .. sy+28 */
-    s_adv_atk_y = sy + 36;                            /* reticle art; pad sy+28 .. sy+56 */
+    s_adv_atk_y = sy + 3;                             /* reticle art: top-right */
+    s_adv_btn_y = sy + sh - 15;                       /* ≡ art: bottom-right */
+    if (s_adv_btn_y < s_adv_atk_y + 14) s_adv_btn_y = s_adv_atk_y + 14;
 }
 /* Left edge of the button pad column: log text, scanline and overlays stop 2 px short. */
 static int cyd_adv_col_x(void) { return s_adv_cmd_x - 4; }
@@ -66,18 +67,24 @@ static int cyd_adv_cmdline(Gfx g, int px, int y, int fx0, int fx1, bool pf)
     return typed_max;
 }
 
-/* Invisible touch pads >=28x28 around Adv-sized 20x12 art. */
+/* Invisible 28x28 touch pads for the stacked reticle (top) / ≡ (bottom) art. The 3-line
+ * plate is shorter than two 28 px pads, so they split at the midpoint between the two arts
+ * and run past the plate's screen rect: reticle pad up into the silk strip, ≡ pad down past
+ * the bottom rim (see the cmdlist report). No overlap: reticle [mid-28, mid), ≡ [mid, mid+28). */
 static void cyd_adv_btn_hit(int art_x, int art_y, int *hx, int *hy, int *hw, int *hh)
 {
-    const int aw = 20, ah = 12;
-    int pad = 28;
-    *hx = art_x + aw / 2 - pad / 2;
-    *hy = art_y + ah / 2 - pad / 2;
-    *hw = pad; *hh = pad;
-    if (*hx < s_adv_sx) *hx = s_adv_sx;
-    if (*hy < s_adv_sy) *hy = s_adv_sy;
-    if (*hx + *hw > s_adv_sx + s_adv_sw) *hx = s_adv_sx + s_adv_sw - *hw;
-    if (*hy + *hh > s_adv_sy + s_adv_sh) *hy = s_adv_sy + s_adv_sh - *hh;
+    const int mid = (s_adv_atk_y + 6 + s_adv_btn_y + 6) / 2;
+    *hx = s_adv_sx + s_adv_sw - 28;
+    *hw = 28; *hh = 28;
+    *hy = (art_y == s_adv_atk_y && art_x == s_adv_atk_x) ? mid - 28 : mid;
+}
+/* union of the two pads (they may stick out of the plate rect) */
+static bool cyd_adv_in_pads(int tx, int ty)
+{
+    if (s_pt_bw <= 0) return false;
+    int hx, hy, hw, hh;
+    cyd_adv_btn_hit(s_adv_atk_x, s_adv_atk_y, &hx, &hy, &hw, &hh);
+    return tx >= hx && tx < hx + hw && ty >= hy && ty < hy + 56;
 }
 
 /* ---- paint_cands port. Closed OSK: inside the plate, left of the button column.
@@ -92,7 +99,7 @@ static bool cyd_adv_cands_calc(CydAdvCands *c)
 {
     const char *buf = botcorps_t0_term_prompt;
     if (!buf[0] || s_sheet || s_focus_cmds || s_pt_bw <= 0) return false;
-    const bool osk = s_pt_mode == 1 && s_adv_row_y >= 0;
+    const bool osk = false;   /* no OSK on the CYD (owner 8:15 AM ET Oct 26) */
     const char *sp = strchr(buf, ' ');
     const char *arg = "";
     c->cmd[0] = 0;
@@ -268,14 +275,13 @@ static void cyd_adv_paint_prompt(Gfx g)
 
     /* cmdline: user@botcorps (idx 194 + glow) :~$ accent, typed white, scroll on overflow.
      * Full plate width now that ≡ / reticle sit in the top-right column. */
-    const bool pf = (s_cyd_adv_focus || s_term_prompt || s_pt_mode == 1) && !s_sheet && !s_focus_cmds && !s_cmd_btn;
-    cyd_adv_cmdline(g, sx + 5, s_adv_py, sx + 2, sx + sw - 4, pf);
-
-    if (s_pt_mode != 1) cyd_adv_paint_cands(g);   /* OSK open: cands ride above the input row */
+    const bool pf = (s_cyd_adv_focus || s_term_prompt) && !s_sheet && !s_focus_cmds && !s_cmd_btn;
+    cyd_adv_cmdline(g, sx + 5, s_adv_py, sx + 2, cyd_adv_col_x() - 2, pf);   /* clear of ≡ (bottom-right) */
+    /* no in-plate completion box: the 3-line plate has no room; the command list replaces it */
 
     /* ≡ chip palette button */
     {
-        const bool po = (s_focus_cmds || s_cmd_btn) && !s_sheet;
+        const bool po = (s_focus_cmds || s_cmd_btn || cyd_cl_on()) && !s_sheet;
         plate(g, s_adv_cmd_x, s_adv_btn_y, 20, 12, po ? COL_SEL : COL_DEEP, po ? accent() : COL_LINE);
         if (po) g.drawRect(s_adv_cmd_x - 1, s_adv_btn_y - 1, 22, 14, PAL_WHITE);
         for (int k = 0; k < 3; ++k)
@@ -611,119 +617,16 @@ static void cyd_adv_paint_sheet(Gfx g)
     s_px = keep;
 }
 
-/* ---- OSK opens upward from cmdline, Adv rim/palette, full-cell hits ---- */
-static int s_adv_osk_x, s_adv_osk_y, s_adv_osk_w, s_adv_osk_h;
-static int s_adv_osk_kp, s_adv_osk_rp;
-
-static void cyd_adv_osk_layout(void)
+/* Attack prompts box: opens upward from the plate (the 3-line plate is too short to hold it),
+ * plate width, bottom 4 px above the plate's silk strip. */
+static void cyd_adv_atk_box(int *bx, int *by, int *bw, int *bh)
 {
-    /* Open upward from the cmdline; keep cmdline visible. Stay between pin columns when
-     * possible; portrait may use near-full width so 10 cols can meet the 24 px floor. */
-    const int W = EW();
-    const bool P = botcorps_cyd_orient != 0;
-    const int pin_l = 33, pin_r = W - 33;
-    int avail = pin_r - pin_l;
-    if (avail < 80) avail = W - 4;
-    int kp = avail / 10;
-    if (P) {
-        /* portrait: require >=24 — if pins are too tight, widen to full width (rain covered). */
-        if (kp < 24) {
-            avail = W - 4;
-            kp = avail / 10;
-            if (kp < 24) kp = 24;
-            s_adv_osk_x = (W - kp * 10) / 2;
-        } else {
-            s_adv_osk_x = pin_l + (avail - kp * 10) / 2;
-        }
-    } else {
-        /* landscape: between pins; take largest kp that fits (target 28 when avail allows). */
-        if (kp > 28) kp = 28;
-        if (kp < 1) kp = 1;
-        s_adv_osk_x = pin_l + (avail - kp * 10) / 2;
-    }
-    s_adv_osk_kp = kp;
-    s_adv_osk_w = kp * 10;
-    int rp = 28;
-    s_adv_osk_rp = rp;
-    s_adv_osk_h = rp * 5 + 4;
-    /* Bottom-anchored: the outer frame (osk_y-2, height osk_h+4) ends at H-2. The
-     * full-width input row sits directly above it; cands above the row, top bar clear. */
-    const int H = EH();
-    s_adv_osk_y = (H - 2) - 1 - s_adv_osk_h;
-    if (s_adv_osk_y - 2 - CYD_ADV_ROW_H < 26 + 20) {
-        /* short screen: shrink row pitch (floor 24) so row + one cand row stay below the bar */
-        const int max_h = (H - 3) - (26 + 20 + CYD_ADV_ROW_H + 2);
-        s_adv_osk_rp = (max_h - 4) / 5;
-        if (s_adv_osk_rp < 24) s_adv_osk_rp = 24;
-        s_adv_osk_h = s_adv_osk_rp * 5 + 4;
-        s_adv_osk_y = (H - 2) - 1 - s_adv_osk_h;
-    }
-    s_adv_row_y = s_adv_osk_y - 2 - CYD_ADV_ROW_H;
+    *bw = s_adv_sw;
+    *bx = s_adv_sx;
+    *bh = 20 + 5 * 12 + 2;
+    *by = (s_adv_sy - 10) - 4 - *bh;
+    if (*by < 28) *by = 28;
 }
-
-static void cyd_adv_osk_key_rect(int i, int *kx, int *ky, int *kw, int *kh,
-                                 int *cx, int *cy, int *cw, int *ch)
-{
-    const CydOskSpec &sp = CYD_OSK_SPEC[i];
-    const int kp = s_adv_osk_kp, rp = s_adv_osk_rp;
-    *cx = s_adv_osk_x + sp.col * kp;
-    *cy = s_adv_osk_y + 2 + sp.row * rp;
-    *cw = kp * sp.span;
-    *ch = rp;
-    *kx = *cx;
-    *ky = *cy;
-    *kw = *cw - 1;
-    *kh = *ch - 1;
-}
-
-static int cyd_adv_osk_at(int tx, int ty)
-{
-    int best = -1, bd = 1 << 30;
-    for (int i = 0; i < CYD_OSK_N; ++i) {
-        int kx, ky, kw, kh, cx, cy, cw, ch;
-        cyd_adv_osk_key_rect(i, &kx, &ky, &kw, &kh, &cx, &cy, &cw, &ch);
-        const int dx = tx < cx ? cx - tx : (tx >= cx + cw ? tx - (cx + cw - 1) : 0);
-        const int dy = ty < cy ? cy - ty : (ty >= cy + ch ? ty - (cy + ch - 1) : 0);
-        const int d = dx * dx + dy * dy;
-        if (d < bd) { bd = d; best = i; }
-        if (d == 0) break;
-    }
-    return best;
-}
-
-static void cyd_adv_paint_osk(Gfx g)
-{
-    if (s_pt_mode != 1) return;
-    cyd_adv_osk_layout();
-    const int x = s_adv_osk_x - 2, y = s_adv_osk_y - 2;
-    const int w = s_adv_osk_w + 4, h = s_adv_osk_h + 4;
-    /* the bottom-anchored OSK sits over the plate: blank the plate (and its select
-     * outline) between the pin strips so nothing peeks out beside the frame */
-    g.fillRect(32, y, EW() - 64, EH() - 2 - y, PAL_BLACK);
-    g.fillRect(x, y, w, h, PAL_BLACK);
-    g.fillRect(x, y, w, 1, term_rim(0));
-    g.fillRect(x, y + h - 1, w, 1, term_rim(1));
-    g.fillRect(x, y, 1, h, term_rim(0));
-    g.fillRect(x + w - 1, y, 1, h, term_rim(1));
-    g.drawRect(x + 1, y + 1, w - 2, h - 2, PAL_TERM_M);
-    for (int i = 0; i < CYD_OSK_N; ++i) {
-        const CydOskSpec &sp = CYD_OSK_SPEC[i];
-        int kx, ky, kw, kh, cx, cy, cw, ch;
-        cyd_adv_osk_key_rect(i, &kx, &ky, &kw, &kh, &cx, &cy, &cw, &ch);
-        g.fillRect(kx, ky, kw, kh, PAL_DEEP);
-        g.drawRect(kx, ky, kw, kh, PAL_TERM_M);   /* Adv term magenta, not dim M22 (reads orange) */
-        char lab[8] = {0};
-        if (sp.kind == CYD_OSK_CHAR) lab[0] = s_pt_sym ? sp.symbol : sp.alpha;
-        else if (sp.kind == CYD_OSK_SPACE) snprintf(lab, sizeof lab, "SPC");
-        else if (sp.kind == CYD_OSK_BKSP) snprintf(lab, sizeof lab, "<");
-        else if (sp.kind == CYD_OSK_ENTER) snprintf(lab, sizeof lab, "OK");
-        else if (sp.kind == CYD_OSK_TAB) snprintf(lab, sizeof lab, "TAB");
-        else if (sp.kind == CYD_OSK_SYM) snprintf(lab, sizeof lab, s_pt_sym ? "abc" : "SYM");
-        else if (sp.kind == CYD_OSK_HIDE) snprintf(lab, sizeof lab, "BACK");
-        txt(g, lab, kx + kw / 2, ky + kh / 2 - 4, PAL_WHITE, lgfx::textdatum::top_center);
-    }
-}
-
 /* Idle plate (mode 0) + overlays drawn after the plate shell fills black. */
 static void cyd_adv_paint_plate(Gfx g, int sx, int sy, int sw, int sh)
 {
@@ -736,8 +639,9 @@ static void cyd_adv_paint_plate(Gfx g, int sx, int sy, int sw, int sh)
     if (s_term_ovl == 2 && !s_sheet) {
         /* Adv paint_gc_attack layout, fitted to the plate */
         const uint8_t ac = PAL_CYAN;
-        const int bx = sx + 2, by = sy + 2;
-        const int bw = cyd_adv_col_x() - 2 - bx, bh = s_adv_py - sy - 6;   /* ≡ / reticle stay clear */
+        int bx, by, bw, bh;
+        cyd_adv_atk_box(&bx, &by, &bw, &bh);
+        (void)sw; (void)sh;
         if (bh >= 40) {
             GATE_BOX(g, "OCCLUDE", "gcattack", bx, by, bw, bh, "-");
             g.fillRect(bx, by, bw, bh, PAL_BLACK);
@@ -761,7 +665,7 @@ static void cyd_adv_paint_plate(Gfx g, int sx, int sy, int sw, int sh)
                 int n = 0;
                 while (val[k][n] && n < 39) { vbuf[n] = val[k][n]; ++n; }
                 vbuf[n] = 0;
-                const int max_ch = (bw - 56 - 8) / 5;
+                const int max_ch = (bw - 56 - 8) / 6;   /* 6 px glyph pitch */
                 if (max_ch > 0 && max_ch < n) {
                     if (max_ch <= 1) vbuf[0] = 0;
                     else { vbuf[max_ch - 1] = '.'; vbuf[max_ch] = 0; }
@@ -774,30 +678,265 @@ static void cyd_adv_paint_plate(Gfx g, int sx, int sy, int sw, int sh)
     }
 }
 
-/* OSK overlay is painted on top of the whole board (upward from cmdline). */
-static void cyd_adv_paint_osk_row(Gfx g)
-{
-    /* The plate cmdline, re-drawn full screen width directly above the OSK. Same Adv
-     * prefix / typed / caret / accent focus box and term rims as the plate. */
-    const int W = EW(), ry = s_adv_row_y, rh = CYD_ADV_ROW_H;
-    const int keep = s_px;
-    s_px = 6;
-    g.fillRect(0, ry, W, rh, PAL_BLACK);
-    g.fillRect(0, ry, W, 1, term_rim(0));
-    g.fillRect(0, ry + rh - 1, W, 1, term_rim(1));
-    g.fillRect(0, ry + 1, 1, rh - 2, term_rim(0));
-    g.fillRect(W - 1, ry + 1, 1, rh - 2, term_rim(1));
-    cyd_adv_cmdline(g, 3, ry + 5, 1, W - 4, true);
-    cyd_adv_paint_cands(g);
-    s_px = keep;
-}
-
+static void cyd_cl_paint(Gfx g);
 static void cyd_adv_paint_osk_overlay(Gfx g)
 {
-    if (s_pt_mode == 1 && s_pt_bw > 0) {
-        cyd_adv_paint_osk(g);
-        cyd_adv_paint_osk_row(g);
+    cyd_cl_paint(g);   /* owner 8:15 AM ET Oct 26 "remove the keyboard": the list is the only input */
+}
+
+/* ---- Command list (owner pt346u, 8:06 AM ET Oct 26): "for the cramped screen, lets either just do
+ * the command prompt list and then it adds it to the line. For any terminal that is too tight for
+ * letter keyboard". When the 10-column letter OSK cannot keep a 24 px key pitch between the pin
+ * strips (every portrait plate), tapping the cmdline opens this list instead of the OSK.
+ * Token by token: level 0 = verbs (CMDN / CMDP / CMD_ICO), level 1 = that verb's next tokens from
+ * the same data run_cmd parses (opt_list, bot short names, found devices), level 2+ = nothing more
+ * (run_cmd takes no flags). A row tap appends "token " to the line. Bottom bar, always present:
+ * BACK (close, keep text), <WORD (drop the last token, step back a level), up / down (page), RUN
+ * (K_OK, the exact Enter path). The full-width cmdline row sits between the list and the bar.
+ * Rows and controls are 28 px tall; touches fire on release through read_key's drop-out guard. */
+static bool s_cyd_cl = false;
+static int s_cyd_cl_scr = -1;          /* screen the list was opened on: any screen change closes it */
+static int s_cyd_cl_top = 0;           /* first visible row */
+static uint32_t s_cyd_tap_fires = 0;   /* taps released past the drop-out guard (sim double check) */
+static const int CYD_CL_ROW = 28, CYD_CL_HEAD = 14, CYD_CL_MAX = 40;
+enum { CYD_CL_BACK = 0, CYD_CL_DELW, CYD_CL_UP, CYD_CL_DN, CYD_CL_RUN, CYD_CL_NB };
+
+static bool cyd_cl_on(void) { return s_cyd_cl && s_cyd_cl_scr == (int)s_screen && s_pt_bw > 0; }
+static void cyd_cl_open(void)
+{
+    s_cyd_cl = true; s_cyd_cl_scr = (int)s_screen; s_cyd_cl_top = 0;
+    s_pt_mode = 0; s_cyd_adv_focus = true; s_term_prompt = true;
+    s_sheet = false; s_focus_cmds = false; s_term_ovl = 0; s_tab_i = -1;
+    s_dirty = true;
+}
+static void cyd_cl_close(void) { s_cyd_cl = false; s_cyd_cl_top = 0; s_dirty = true; }
+
+struct CydClItems {
+    const char *tok[CYD_CL_MAX];
+    const char *sub[CYD_CL_MAX];   /* second line: purpose (verbs) or long name (bots) */
+    int8_t ico[CYD_CL_MAX];        /* CMD_ICO slot, -1 none */
+    int n, level;
+    char head[40];
+};
+/* complete tokens before the last space; the trailing partial word filters the rows */
+static void cyd_cl_items(CydClItems *c)
+{
+    const char *b = botcorps_t0_term_prompt;
+    c->n = 0; c->level = 0; c->head[0] = 0;
+    char verb[16] = { 0 };
+    const char *pre = b;
+    int words = 0;
+    for (const char *p = b; *p; ++p) {
+        if (*p == ' ') continue;
+        const char *e = p;
+        while (*e && *e != ' ') ++e;
+        if (*e == ' ') {
+            if (words == 0) { int n = (int)(e - p); if (n > 15) n = 15; memcpy(verb, p, (size_t)n); verb[n] = 0; }
+            ++words; p = e; pre = e + 1;
+            while (*pre == ' ') ++pre;
+            continue;
+        }
+        pre = p;
+        break;
     }
+    if (words == 0 || !*pre) pre = (words == 0) ? b : "";
+    while (*pre == ' ') ++pre;
+    const size_t pn = strlen(pre);
+    c->level = words;
+    auto add = [&](const char *t, const char *s, int ico) {
+        if (c->n >= CYD_CL_MAX || strncmp(t, pre, pn) != 0) return;
+        for (int i = 0; i < c->n; ++i) if (strcmp(c->tok[i], t) == 0) return;
+        c->tok[c->n] = t; c->sub[c->n] = s; c->ico[c->n] = (int8_t)ico; ++c->n;
+    };
+    if (words == 0) {
+        snprintf(c->head, sizeof c->head, "COMMANDS");
+        for (int i = 0; i < CMD_N; ++i) {
+            if (strchr(CMDN[i], ' ')) continue;            /* "scan all" / "hunt run" come as next tokens */
+            add(CMDN[i], CMDP[i], i);
+        }
+        return;
+    }
+    int vi = -1;
+    for (int i = 0; i < CMD_N; ++i) if (strcmp(CMDN[i], verb) == 0) { vi = i; break; }
+    if (words >= 2) {
+        snprintf(c->head, sizeof c->head, "%s > no more options", verb);
+        return;
+    }
+    snprintf(c->head, sizeof c->head, "%s >", verb);
+    const char *o[12];
+    const int on = opt_list(verb, "", o, 12);
+    for (int i = 0; i < on; ++i) add(o[i], nullptr, -1);
+    if (!strcmp(verb, "hunt")) add("run", "gibson hunt game", -1);
+    const bool bot_arg = !strcmp(verb, "scan") || !strcmp(verb, "hunt") || !strcmp(verb, "hail") ||
+                         !strcmp(verb, "ask") || !strcmp(verb, "link") || !strcmp(verb, "mute") ||
+                         !strcmp(verb, "say") || !strcmp(verb, "whisper") || !strcmp(verb, "play") ||
+                         !strcmp(verb, "defend") || !strcmp(verb, "sweep");
+    if (bot_arg) {
+        if (strcmp(verb, "scan") && strcmp(verb, "hunt") && strcmp(verb, "sweep")) add("gibson", "gibson", -1);
+        for (int i = 0; i < 12; ++i) add(BOTS[i].short_name, BOTS[i].id, -1);
+    }
+    if (!strcmp(verb, "ping") || !strcmp(verb, "info") || !strcmp(verb, "track") ||
+        !strcmp(verb, "pulse") || !strcmp(verb, "dig")) {
+        for (int i = 0; i < s_found_n && i < 12; ++i) add(botcorps_t0_term_found[i], "found device", -1);
+        if (!strcmp(verb, "track")) add("off", "stop tracking", -1);
+    }
+    if (c->n == 0) snprintf(c->head, sizeof c->head, "%s > %s", verb,
+                            vi >= 0 && CMD_ARG[vi] && s_found_n == 0 ? "scan first" : "no more options");
+}
+
+/* geometry: bar at the bottom, cmdline row above it, the list box above the row (opens upward) */
+struct CydClGeo { int bar_y, row_y, bx, by, bw, bh, vis; };
+static void cyd_cl_geo(const CydClItems &c, CydClGeo *g)
+{
+    const int W = EW(), H = EH();
+    g->bar_y = H - 3 - CYD_CL_ROW;
+    g->row_y = g->bar_y - 2 - CYD_ADV_ROW_H;
+    g->bx = 2; g->bw = W - 4;
+    const int room = (g->row_y - 2) - 28 - CYD_CL_HEAD - 8;
+    int vis = room / CYD_CL_ROW;
+    if (vis < 1) vis = 1;
+    const int rows = c.n > 0 ? c.n : 0;
+    if (vis > rows) vis = rows;
+    g->vis = vis;
+    g->bh = CYD_CL_HEAD + (vis > 0 ? vis : 1) * CYD_CL_ROW + 8;
+    g->by = (g->row_y - 2) - g->bh;
+}
+static void cyd_cl_btn(const CydClGeo &g, int k, int *x, int *y, int *w, int *h)
+{
+    const int W = EW(), cw = (W - 4) / CYD_CL_NB;
+    *x = 2 + k * cw; *y = g.bar_y; *w = cw - 1; *h = CYD_CL_ROW;
+    if (k == CYD_CL_NB - 1) *w = (W - 2) - *x;
+}
+static int cyd_cl_clamp_top(const CydClItems &c, const CydClGeo &g)
+{
+    int t = s_cyd_cl_top;
+    if (t > c.n - g.vis) t = c.n - g.vis;
+    if (t < 0) t = 0;
+    return t;
+}
+
+static void cyd_cl_paint(Gfx g)
+{
+    if (!cyd_cl_on()) return;
+    CydClItems c;
+    cyd_cl_items(&c);
+    CydClGeo G;
+    cyd_cl_geo(c, &G);
+    const int top = cyd_cl_clamp_top(c, G);
+    s_cyd_cl_top = top;
+    const int W = EW(), H = EH();
+    const int keep = s_px;
+    s_px = 6;
+    g.fillRect(0, G.by - 1, W, (H - 1) - (G.by - 1), PAL_BLACK);
+    /* list box: Adv glossary wash + single magenta rim (sheet_ramp_top + bottom ramp) */
+    const int bx = G.bx, by = G.by, w = G.bw, h = G.bh, x1 = bx + w, y1 = by + h;
+    GATE_BOX(g, "OCCLUDE", "cmdlist", bx, by, w + 1, h + 1, "-");
+    g.fillRect(bx + 1, by + 1, w - 1, h - 1, PAL_BG);
+    sheet_ramp_top(g, bx, by, w, h);
+    g.fillRect(bx + 1, y1, w - 1, 1, PAL_TERM_M);
+    g.fillRect(bx + 3, y1 - 1, w - 5, 1, PAL_TERM_M35);
+    g.fillRect(bx + 3, y1 - 2, w - 5, 1, PAL_TERM_M22);
+    g.fillRect(bx + 3, y1 - 3, w - 5, 1, PAL_TERM_M18);
+    /* header: level title (CORE glow look) */
+    {
+        const uint8_t ringc[3] = { PAL_TERM_M22, PAL_TERM_M18, PAL_TERM_M10 };
+        const int gx = bx + 10, gy = by + 4;
+        for (int d = 3; d >= 1; --d)
+            for (int dy = -d; dy <= d; ++dy)
+                for (int dx = -d; dx <= d; ++dx) {
+                    const int ax = dx < 0 ? -dx : dx, ay = dy < 0 ? -dy : dy;
+                    if ((ax > ay ? ax : ay) != d) continue;
+                    txt(g, c.head, gx + dx, gy + dy, ringc[d - 1], lgfx::textdatum::top_left);
+                }
+        txt(g, c.head, gx, gy, PAL_TERM_M, lgfx::textdatum::top_left);
+        char pg[12];
+        if (c.n > G.vis) {
+            snprintf(pg, sizeof pg, "%d-%d/%d", top + 1, top + G.vis, c.n);
+            txt(g, pg, x1 - 9, gy, COL_MUTED, lgfx::textdatum::top_right);
+        }
+    }
+    const int ry0 = by + CYD_CL_HEAD + 2;
+    if (c.n == 0) {
+        txt(g, "RUN the line, or <WORD", bx + 24, ry0 + 10, COL_MUTED, lgfx::textdatum::top_left);
+    }
+    for (int k = 0; k < G.vis; ++k) {
+        const int i = top + k, y = ry0 + k * CYD_CL_ROW;
+        if (k > 0) g.fillRect(bx + 8, y - 1, w - 16, 1, PAL_TERM_M10);
+        if (c.ico[i] >= 0) blit_ico(g, CMD_ICO[c.ico[i]], bx + 10, y + (c.sub[i] ? 4 : 10), accent());
+        const int ny = c.sub[i] ? y + 4 : y + 10;
+        txt_bg(g, c.tok[i], bx + 24, ny, PAL_TERM_INK, PAL_BG, lgfx::textdatum::top_left);
+        if (c.sub[i]) {
+            /* second line, dim; cut only at '|' or a space, never mid-word */
+            const char *pur = c.sub[i];
+            const int max_pw = (x1 - 10) - (bx + 24);
+            char pbuf[48];
+            int best = 0;
+            for (int j = 0; pur[j] && j < 47; ++j) {
+                pbuf[j] = pur[j]; pbuf[j + 1] = 0;
+                if (purpose_px(pbuf) > max_pw) break;
+                if (pur[j + 1] == 0 || pur[j] == '|' || pur[j] == ' ') best = j + 1;
+            }
+            while (best > 0 && (pur[best - 1] == '|' || pur[best - 1] == ' ')) --best;
+            if (best > 0) {
+                for (int j = 0; j < best; ++j) pbuf[j] = pur[j];
+                pbuf[best] = 0;
+                int px = bx + 24;
+                char one[2] = { 0, 0 };
+                for (const char *p = pbuf; *p; ++p) {
+                    if (*p == '\x7f') { g.fillRect(px + 1, y + 15 + 3, 1, 1, theme().pur); px += 4; continue; }
+                    one[0] = *p;
+                    txt_bg(g, one, px, y + 15, theme().pur, PAL_BG, lgfx::textdatum::top_left);
+                    px += 6;
+                }
+            }
+        }
+    }
+    /* cmdline row: full width, tail scrolls so the end stays in view */
+    {
+        const int ry = G.row_y, rh = CYD_ADV_ROW_H;
+        g.fillRect(0, ry, W, rh, PAL_BLACK);
+        g.fillRect(0, ry, W, 1, term_rim(0));
+        g.fillRect(0, ry + rh - 1, W, 1, term_rim(1));
+        g.fillRect(0, ry + 1, 1, rh - 2, term_rim(0));
+        g.fillRect(W - 1, ry + 1, 1, rh - 2, term_rim(1));
+        cyd_adv_cmdline(g, 3, ry + 5, 1, W - 4, true);
+    }
+    /* bar: BACK  <WORD  up  down  RUN (OSK key look) */
+    for (int k = 0; k < CYD_CL_NB; ++k) {
+        int kx, ky, kw, kh;
+        cyd_cl_btn(G, k, &kx, &ky, &kw, &kh);
+        const bool live = (k == CYD_CL_UP) ? top > 0 : (k == CYD_CL_DN) ? top + G.vis < c.n :
+                          (k == CYD_CL_RUN || k == CYD_CL_DELW) ? botcorps_t0_term_prompt[0] != 0 : true;
+        g.fillRect(kx, ky, kw, kh, PAL_DEEP);
+        g.drawRect(kx, ky, kw, kh, PAL_TERM_M);
+        const uint8_t ink = live ? (k == CYD_CL_RUN ? accent() : (uint8_t)PAL_WHITE) : (uint8_t)COL_MUTED;
+        if (k == CYD_CL_UP || k == CYD_CL_DN) {
+            blit_ico(g, k == CYD_CL_UP ? ARROW_UP : ARROW_DN, kx + kw / 2 - 4, ky + kh / 2 - 4, ink);
+        } else {
+            static const char *const L[CYD_CL_NB] = { "BACK", "<WORD", "", "", "RUN" };
+            txt(g, L[k], kx + kw / 2, ky + kh / 2 - 4, ink, lgfx::textdatum::top_center);
+        }
+    }
+    s_px = keep;
+}
+static bool cyd_cl_cover(int *x, int *y, int *w, int *h)
+{
+    if (!cyd_cl_on()) return false;
+    CydClItems c;
+    cyd_cl_items(&c);
+    CydClGeo G;
+    cyd_cl_geo(c, &G);
+    *x = 0; *y = G.by - 1; *w = EW(); *h = (EH() - 1) - (G.by - 1);
+    return true;
+}
+/* drop the last token (or the partial word) and its trailing space */
+static void cyd_cl_del_word(void)
+{
+    char *b = botcorps_t0_term_prompt;
+    int n = (int)strlen(b);
+    while (n > 0 && b[n - 1] == ' ') --n;
+    while (n > 0 && b[n - 1] != ' ') --n;
+    b[n] = 0;
 }
 
 /* ---- hits ---- */
@@ -862,9 +1001,7 @@ static int cyd_adv_hit_idle(int tx, int ty)
     int hx, hy, hw, hh;
     cyd_adv_btn_hit(s_adv_cmd_x, s_adv_btn_y, &hx, &hy, &hw, &hh);
     if (tx >= hx && tx < hx + hw && ty >= hy && ty < hy + hh) {
-        s_focus_cmds = !s_focus_cmds;
-        if (s_focus_cmds) { s_sheet = false; s_term_ovl = 0; }
-        s_dirty = true;
+        cyd_cl_open();      /* owner 8:16 AM ET: the bottom-right command prompt button opens the list */
         return 0;
     }
     cyd_adv_btn_hit(s_adv_atk_x, s_adv_atk_y, &hx, &hy, &hw, &hh);
@@ -874,66 +1011,58 @@ static int cyd_adv_hit_idle(int tx, int ty)
         s_dirty = true;
         return 0;
     }
-    /* cmdline row (full plate width; pads above win first) → open OSK */
-    if (ty >= s_adv_py - 4 && ty < s_adv_sy + s_adv_sh &&
-        tx >= s_adv_sx && tx < s_adv_sx + s_adv_sw) {
-        s_pt_mode = 1;
-        s_cyd_adv_focus = true;
-        s_term_prompt = true;
-        s_sheet = false;
-        s_focus_cmds = false;
-        s_term_ovl = 0;
-        s_dirty = true;
+    /* anywhere else on the plate (cmdline or log; pads win first) -> the command list.
+     * Owner 8:15 AM ET Oct 26 "remove the keyboard": no letter OSK exists on the CYD. */
+    if (ty >= s_adv_sy && ty < s_adv_sy + s_adv_sh &&
+        tx >= s_adv_sx && tx < s_adv_sx + s_adv_sw && !s_sheet) {
+        cyd_cl_open();
         return 0;
-    }
-    /* completion list pick */
-    if (botcorps_t0_term_prompt[0] && !s_sheet && !s_focus_cmds) {
-        /* approximate: any tap in upper plate while cands show applies first cand via tab */
-        if (ty >= s_adv_sy && ty < s_adv_py - 4 && tx >= s_adv_sx && tx < s_adv_sx + s_adv_sw) {
-            /* cycle / apply tab completion */
-            return 7; /* K_TAB */
-        }
     }
     return -1;
 }
 
-static int cyd_adv_hit_osk(int tx, int ty, char *typed)
+/* Command list hits (modal while open). Returns 0 consumed, 5 = K_OK for RUN. */
+static int cyd_cl_hit(int tx, int ty)
 {
-    if (s_pt_mode != 1) return -1;
-    cyd_adv_osk_layout();
-    if (ty < s_adv_osk_y - 2 || ty >= s_adv_osk_y + s_adv_osk_h + 2 ||
-        tx < s_adv_osk_x - 2 || tx >= s_adv_osk_x + s_adv_osk_w + 2) {
-        /* tap on the full-width input row keeps the OSK */
-        if (ty >= s_adv_row_y && ty < s_adv_row_y + CYD_ADV_ROW_H && tx >= 0 && tx < EW()) return 0;
-        /* tap a completion above the row: put it on the line */
-        CydAdvCands c;
-        if (cyd_adv_cands_calc(&c) && tx >= c.bx && tx < c.bx + c.w && ty >= c.by && ty < c.by + c.h) {
-            const int r = (ty - (c.by + 3 + c.head)) / c.rh;
-            if (r >= 0 && r < c.vis) {
-                const char *pick = c.rows[c.start + r];
-                if (c.sp) snprintf(botcorps_t0_term_prompt, 60, "%s %s", c.cmd, pick);
-                else snprintf(botcorps_t0_term_prompt, 60, "%s ", pick);
-                s_tab_i = -1;
-                s_dirty = true;
-            }
-            return 0;
+    CydClItems c;
+    cyd_cl_items(&c);
+    CydClGeo G;
+    cyd_cl_geo(c, &G);
+    const int top = cyd_cl_clamp_top(c, G);
+    for (int k = 0; k < CYD_CL_NB; ++k) {
+        int kx, ky, kw, kh;
+        cyd_cl_btn(G, k, &kx, &ky, &kw, &kh);
+        if (tx < kx || tx >= kx + kw + 1 || ty < ky || ty >= ky + kh) continue;
+        s_dirty = true;
+        if (k == CYD_CL_BACK) { cyd_cl_close(); return 0; }
+        if (k == CYD_CL_DELW) { cyd_cl_del_word(); s_cyd_cl_top = 0; s_tab_i = -1; return 0; }
+        if (k == CYD_CL_UP) { s_cyd_cl_top = top - G.vis; if (s_cyd_cl_top < 0) s_cyd_cl_top = 0; return 0; }
+        if (k == CYD_CL_DN) { if (top + G.vis < c.n) s_cyd_cl_top = top + G.vis; return 0; }
+        if (!botcorps_t0_term_prompt[0]) return 0;      /* empty RUN: nothing to submit */
+        {   /* list rows append "tok "; trim so run_cmd strcmp matches (wifi not "wifi ") */
+            char *b = botcorps_t0_term_prompt;
+            int n = (int)strlen(b);
+            while (n > 0 && b[n - 1] == ' ') b[--n] = 0;
+            if (!b[0]) return 0;
         }
-        return -1;
+        cyd_cl_close();
+        return 5;                                       /* K_OK: the exact Enter path */
     }
-    const int i = cyd_adv_osk_at(tx, ty);
-    if (i < 0) return 0;
-    const CydOskSpec &sp = CYD_OSK_SPEC[i];
-    if (sp.kind == CYD_OSK_HIDE) { s_pt_mode = 0; s_dirty = true; return 0; }
-    if (sp.kind == CYD_OSK_SYM) { s_pt_sym = !s_pt_sym; s_dirty = true; return 0; }
-    if (sp.kind == CYD_OSK_BKSP) return 8; /* K_BS */
-    if (sp.kind == CYD_OSK_ENTER) return 5; /* K_OK */
-    if (sp.kind == CYD_OSK_TAB) return 7; /* K_TAB */
-    if (sp.kind == CYD_OSK_SPACE) { if (typed) *typed = ' '; return 9; /* K_CHAR */ }
-    if (sp.kind == CYD_OSK_CHAR) {
-        const char ch = s_pt_sym ? sp.symbol : sp.alpha;
-        if (ch && typed) { *typed = ch; return 9; /* K_CHAR */ }
+    const int ry0 = G.by + CYD_CL_HEAD + 2;
+    if (tx >= G.bx && tx < G.bx + G.bw && ty >= ry0 && ty < ry0 + G.vis * CYD_CL_ROW) {
+        const int i = top + (ty - ry0) / CYD_CL_ROW;
+        if (i < 0 || i >= c.n) return 0;
+        char *b = botcorps_t0_term_prompt;
+        int n = (int)strlen(b);
+        while (n > 0 && b[n - 1] != ' ') --n;           /* replace the partial word, if any */
+        b[n] = 0;
+        snprintf(b + n, (size_t)(60 - n), "%s ", c.tok[i]);
+        s_cyd_cl_top = 0;
+        s_tab_i = -1;
+        s_dirty = true;
+        return 0;
     }
-    return 0;
+    return 0;                                           /* modal: other taps do nothing */
 }
 
 /* Adv on_ok / peel for CYD plates (s_screen may be hub/scan/gchat). */
@@ -980,6 +1109,7 @@ static bool cyd_adv_on_ok(void)
 static bool cyd_adv_on_esc(void)
 {
     /* peel: overlay → sheet → text/OSK → go back */
+    if (cyd_cl_on()) { cyd_cl_close(); return true; }
     if (s_term_ovl) { s_term_ovl = 0; s_dirty = true; return true; }
     if (s_focus_cmds) { s_focus_cmds = false; s_dirty = true; return true; }
     if (s_sheet) { s_sheet = false; s_dirty = true; return true; }

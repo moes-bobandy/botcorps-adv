@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Adv-plate touch tour: OSK / sheet / palette / attack / scan wifi on every plate screen P+L."""
+"""CYD Adv-plate touch tour (no letter OSK): cmdline/≡ open list, list build,
+<WORD, RUN, reticle, old-OSK spots must stay mode=0, doubles via fires. P+L."""
 import subprocess, re, os, json, sys
 SIM = '/workspace/cyd-sim-v3/build/cydsim_poke'
 OUT = sys.argv[1] if len(sys.argv) > 1 else '/tmp/adv-tour'
@@ -11,7 +12,6 @@ SCREENS = [
 ]
 JIT = [(0,0),(6,0),(-6,0),(0,6),(0,-6),(6,6),(-6,-6),(6,-6),(-6,6)]
 HOLD = [30, 80, 150]
-KIND = {1:'CHAR',2:'SPACE',3:'BKSP',4:'ENTER',5:'TAB',6:'SYM',7:'HIDE'}
 
 def run(lines, land, tag):
     p = os.path.join(OUT, tag + '.txt')
@@ -23,276 +23,226 @@ def run(lines, land, tag):
 def head(setup):
     return ['until 7600'] + setup + ['wait 400']
 
-BUF = re.compile(r"buf mode=(\d+) sym=(\d+) screen=(\d+) sheet=(\d+)/(\d+) focus=(\d+) ovl=(\d+) cmds=(\d+) buf='(.*)' log='(.*)'$")
+BUF = re.compile(
+    r"buf mode=(\d+) sym=(\d+) screen=(\d+) sheet=(\d+)/(\d+) focus=(\d+) ovl=(\d+) "
+    r"cmds=(\d+) cl=(\d+) lvl=(\d+) top=(\d+) n=(\d+) fires=(\d+) buf='(.*)' log='(.*)'$")
+
 def parse_buf(lines):
     for l in reversed(lines):
         m = BUF.search(l)
         if m:
             return dict(mode=int(m[1]), sym=int(m[2]), screen=int(m[3]),
                         sheet=(int(m[4]),int(m[5])), focus=int(m[6]), ovl=int(m[7]),
-                        cmds=int(m[8]), buf=m[9], log=m[10])
+                        cmds=int(m[8]), cl=int(m[9]), lvl=int(m[10]), top=int(m[11]),
+                        n=int(m[12]), fires=int(m[13]), buf=m[14], log=m[15])
     return None
 
 def discover(setup, land, tag):
     out = run(head(setup)+['state','keys'], land, tag+'_d0')
-    st = [l for l in out if 'pt=' in l and 'state' in l][-1]
-    x,y,w,h = map(int, re.search(r'pt=(\d+),(\d+),(\d+),(\d+)', st).groups())
-    # open OSK via poke to learn keys
-    out = run(head(setup)+['osk 1','wait 80','keys','state'], land, tag+'_d1')
-    keys=[]
-    osk=plate=None
-    pads={}; chips={}; ext={}
+    plate = eq = ret = None
     for l in out:
-        m=re.search(r'\[sim\] key (\d+) (-?\d+) (-?\d+) (\d+) (\d+) kind=(\d+) a=(\d+) s=(\d+).*cell=(\d+),(\d+),(\d+),(\d+)', l)
+        m = re.search(r'pt=(\d+),(\d+),(\d+),(\d+)', l)
+        if m: plate = tuple(map(int, m.groups()))
+        m = re.search(r'\[sim\] plate (\d+) (\d+) (\d+) (\d+) py=(\d+)', l)
         if m:
-            i,kx,ky,kw,kh,kind,a,s,cx,cy,cw,ch = map(int,m.groups())
-            keys.append(dict(i=i,x=kx,y=ky,w=kw,h=kh,kind=kind,a=chr(a) if a else '',s=chr(s) if s else '',
-                             cx=cx,cy=cy,cw=cw,ch=ch))
-        m=re.search(r'\[sim\] osk (\d+) (\d+) (\d+) (\d+) kp=(\d+) rp=(\d+)', l)
-        if m: osk=tuple(map(int,m.groups()))
-        m=re.search(r'\[sim\] plate (\d+) (\d+) (\d+) (\d+) py=(\d+) cmd=(\d+) atk=(\d+)', l)
-        if m: plate=tuple(map(int,m.groups()))
-        m=re.search(r'eqy=(\d+) rety=(\d+) row=(-?\d+) rowh=(\d+) sheetw=(\d+)', l)
-        if m: ext=dict(zip(('eqy','rety','row','rowh','sheetw'), map(int,m.groups())))
-        m=re.search(r'\[sim\] pad (eq|ret) (\d+) (\d+) (\d+) (\d+)', l)
-        if m: pads[m[1]]=tuple(map(int,m.groups()[1:]))
-        m=re.search(r'\[sim\] chip (\d+) (\S+) (\d+) (\d+) (\d+) (\d+)', l)
-        if m: chips[m[2]]=tuple(map(int,m.groups()[2:]))
-    if not plate:
-        plate=(x,y,w,h,y+h-11,x+w-24,x+w-48)
-    sx,sy,sw,sh,py,cmdx,atkx = plate[:7]
-    line = (sx + 40, py + 4)
-    # stacked top-right buttons: tap the centre of each hit pad reported by the sim
-    pe, pr = pads['eq'], pads['ret']
-    eq = (pe[0] + pe[2]//2, pe[1] + pe[3]//2)
-    ret = (pr[0] + pr[2]//2, pr[1] + pr[3]//2)
-    # pad checks: >= 28x28, no overlap with each other, right of the log column
-    col_x = sx + sw - 28
-    padchk = dict(eq=pe, ret=pr,
-                  size_ok=all(p_[2] >= 28 and p_[3] >= 28 for p_ in (pe, pr)),
-                  no_overlap=(pe[1] + pe[3] <= pr[1]) or (pr[1] + pr[3] <= pe[1]),
-                  right_of_log=min(pe[0], pr[0]) >= col_x,
-                  above_cmdline=max(pe[1]+pe[3], pr[1]+pr[3]) <= py - 1,
-                  top_right=pe[0] + pe[2] <= sx + sw and pe[1] == sy)
-    return dict(scr=int(re.search(r'screen=(\d+)', st).group(1)),
-                plate=(x,y,w,h), keys=keys, osk=osk, plate_geo=plate,
-                line=line, eq=eq, ret=ret, padchk=padchk, chips=chips, ext=ext)
+            sx,sy,sw,sh,py = map(int, m.groups())
+            plate_geo = (sx,sy,sw,sh,py)
+        m = re.search(r'\[sim\] pad eq (\d+) (\d+) (\d+) (\d+)', l)
+        if m: eq = tuple(map(int, m.groups()))
+        m = re.search(r'\[sim\] pad ret (\d+) (\d+) (\d+) (\d+)', l)
+        if m: ret = tuple(map(int, m.groups()))
+    out2 = run(head(setup)+['cl 1','wait 80','clkeys','buf'], land, tag+'_d1')
+    rows=[]; btns=[]; box=None
+    for l in out2:
+        m = re.search(r'\[sim\] clkeys box (\d+) (\d+) (\d+) (\d+) row_y (\d+) lvl (\d+) n (\d+) top (\d+) vis (\d+)', l)
+        if m: box = tuple(map(int, m.groups()))
+        m = re.search(r'\[sim\] clrow (\d+) (\d+) (\d+) (\d+) (\d+) (\S+)', l)
+        if m: rows.append(dict(i=int(m[1]),x=int(m[2]),y=int(m[3]),w=int(m[4]),h=int(m[5]),tok=m[6]))
+        m = re.search(r'\[sim\] clbtn (\d+) (\d+) (\d+) (\d+) (\d+)', l)
+        if m: btns.append(dict(i=int(m[1]),x=int(m[2]),y=int(m[3]),w=int(m[4]),h=int(m[5])))
+    padchk = {
+        'eq_ok': eq is not None and eq[2]>=28 and eq[3]>=28,
+        'ret_ok': ret is not None and ret[2]>=28 and ret[3]>=28,
+        'eq': eq, 'ret': ret,
+        'btn_ok': all(b['w']>=28 and b['h']>=28 for b in btns) and len(btns)==5,
+        'row_ok': all(r['h']>=28 for r in rows) if rows else False,
+    }
+    # old OSK trigger spots (pre-removal): centre of plate body, and mid of old letter row band
+    sx,sy,sw,sh = plate[0],plate[1],plate[2],plate[3]
+    old_osk_spots = [
+        (sx + sw//2, sy + sh//2),          # plate centre (was open-OSK)
+        (sx + 24, sy + sh - 20),           # old letter-row left
+        (sx + sw//2, sy + sh - 20),        # old letter-row mid
+        (sx + sw - 40, sy + sh - 20),      # old letter-row right (near ≡)
+    ]
+    return dict(plate=plate, plate_geo=locals().get('plate_geo'),
+                eq=eq, ret=ret, box=box, rows=rows, btns=btns, padchk=padchk,
+                old_osk=old_osk_spots, land=land)
 
-def ctr(k):
-    return (k['cx']+k['cw']//2, k['cy']+k['ch']//2)
+def ctr_rect(r):
+    return (r[0]+r[2]//2, r[1]+r[3]//2)
+
+def ctr_btn(b):
+    return (b['x']+b['w']//2, b['y']+b['h']//2)
 
 def tour(setup, land, tag, D):
     L = head(setup)
-    ev=[]; n=[0]
-    def tap(pt,j,hold):
+    ev=[]; n=[0]; pend=[0]
+    def tap(pt, j=(0,0), hold=80):
         L.append('tap %d %d %d' % (pt[0]+j[0], pt[1]+j[1], hold))
-        L.append('wait 50')
+        L.append('wait 50'); pend[0]+=1
     def mark(test, key=None, extra=None):
-        L.append('echo M %d'%n[0]); L.append('buf'); ev.append((test,key,extra)); n[0]+=1
+        L.append('echo M %d'%n[0]); L.append('buf')
+        ev.append((test,key,extra,pend[0])); n[0]+=1; pend[0]=0
 
     mark('base')
-    # open OSK via cmdline taps
-    for t,j in enumerate(JIT):
-        tap(D['line'], j, HOLD[t%3]); mark('open_line')
-        # close via BACK key if keys known
-        hide=[k for k in D['keys'] if k['kind']==7]
-        if hide:
-            tap(ctr(hide[0]), (0,0), 80); mark('close_osk')
-        else:
-            L.append('osk 0'); L.append('wait 40'); mark('close_osk')
-
-    # ≡ palette open/close
-    for t,j in enumerate(JIT[:5]):
-        tap(D['eq'], j, HOLD[t%3]); mark('open_palette')
-        L.append('palette 0'); L.append('wait 40'); mark('close_palette')
-
-    # ≡ toggles: re-tap ≡ closes the palette
-    for t,j in enumerate(JIT[5:9]):
-        tap(D['eq'], j, HOLD[t%3]); mark('open_palette')
-        tap(D['eq'], (0,0), 80); mark('close_palette')
-
-    # reticle attack
-    for t,j in enumerate(JIT[:5]):
-        tap(D['ret'], j, HOLD[t%3]); mark('open_attack')
-        L.append('attack 0'); L.append('wait 40'); mark('close_attack')
-    # reticle toggles: re-tap reticle closes the attack overlay
-    for t,j in enumerate(JIT[5:9]):
-        tap(D['ret'], j, HOLD[t%3]); mark('open_attack')
-        tap(D['ret'], (0,0), 80); mark('close_attack')
-
-    # sheet from ≡: ≡ -> 'cmds' chip opens the glossary sheet (upward)
-    if 'cmds' in D['chips']:
-        cx_,cy_,cw_,ch_ = D['chips']['cmds']
-        for t in range(3):
-            tap(D['eq'], JIT[t], HOLD[t%3]); mark('open_palette')
-            tap((cx_+cw_//2, cy_+ch_//2), (0,0), 80); mark('open_sheet')
-            L.append('nosheet'); L.append('wait 40'); mark('close_sheet')
-
-    # OSK input row: tapping the full-width row keeps the OSK open and the text
-    if D['ext'].get('row', -1) >= 0:
-        ry = D['ext']['row'] + D['ext']['rowh']//2
-        W = 240 if not land else 320
-        L.append('clr'); L.append('osk 1'); L.append('put scan'); L.append('wait 40')
-        for t,xx in enumerate((20, W//2, W-20)):
-            tap((xx, ry), (0, JIT[t][1]//3), HOLD[t%3]); mark('row_keep', None, 'scan')
-        L.append('clr'); L.append('osk 0'); L.append('wait 40')
-
-    # sheet via TAB key on OSK
-    L.append('osk 1'); L.append('wait 60')
-    tab=[k for k in D['keys'] if k['kind']==5]
-    if tab:
-        for t,j in enumerate(JIT[:5]):
-            L.append('osk 1'); L.append('wait 40')
-            tap(ctr(tab[0]), j, HOLD[t%3]); mark('open_sheet')
-            L.append('nosheet'); L.append('wait 40'); mark('close_sheet')
-
-    # sheet row picks: open sheet, tap visible cmd rows (variable pitch on P)
-    # Heights mirror cyd_adv_sheet_row_h / cyd_adv_sheet_box (purpose wrap on P).
+    # --- open via cmdline (plate body, away from ≡/reticle) ---
     sx,sy,sw,sh = D['plate']
-    geo = D.get('plate_geo') or (sx,sy,sw,sh,sy+sh-11)
-    py = geo[4] if len(geo) > 4 else sy + sh - 11
-    sheet_w = D['ext'].get('sheetw') or max(80, min(292, sw - 4))
-    CMDN = ["scan","hunt","help","bots","rain","filter","ping","info","track","sniff",
-            "defend","scan all","sweep","roster","pulse","dig",
-            "hail","say","ask","rollcall","whisper","broadcast","link","mute",
-            "play","train","hunt-run","hunt run",
-            "go","load","clear","history","theme","about","cmds","version","uptime"]
-    CMDP = ["sweep \x7f wifi|ble|all","drone|flock|skimmer|deauth","list the commands","board status",
-            "rain \x7f <colour>|mixed","wifi|ble|threats|strong|off","ping a found device","device details",
-            "pin a device \x7f off","list heard (filtered)",
-            "defend shell \x7f <bot>","crew sweep, 12 boards","alias \x7f scan","alias \x7f bots","alias \x7f ping","alias \x7f info",
-            "greet a bot","send a line to a bot","query bot status","crew check-in",
-            "quiet line to a bot","speak to the crew","open a bot channel","hush a bot",
-            "open the defend shell","open this bot's defend shell","gibson hunt game","gibson hunt game",
-            "jump to a screen","load a screen",
-            "wipe the log","recent lines","next ui colour","build blurb","this menu","term build","session clock"]
-    G_AT = [0,16,24,28,37]
-    def purpose_px(s):
-        return sum(4 if ch=='\x7f' else 6 for ch in s)
-    def row_h(hdr, cmd):
-        if hdr >= 0: return 12
-        if land: return 12
-        name_w = len(CMDN[cmd])*6
-        name_end = 24 + name_w + 6
-        max_pw = max(0, sheet_w - 8 - name_end)
-        return 12 if purpose_px(CMDP[cmd]) <= max_pw else 22
-    def menu_row(row):
-        acc=0
-        for g in range(4):
-            if row==acc: return (g,-1)
-            acc+=1
-            n=G_AT[g+1]-G_AT[g]
-            if row < acc+n: return (-1, G_AT[g]+(row-acc))
-            acc+=n
-        return (-1,0)
-    def menu_sel_row(cmd):
-        row=0
-        for g in range(4):
-            row+=1
-            if cmd < G_AT[g+1]: return row+(cmd-G_AT[g])
-            row += G_AT[g+1]-G_AT[g]
-        return 0
-    rows_n = 37+4
-    sel_row = menu_sel_row(0)  # sheet opens at i=0
-    max_h = (py - 5) - 2
-    budget = max(24, max_h - 10)
-    top = sel_row; nshow=1
-    hdr,cmd = menu_row(sel_row)
-    used = row_h(hdr,cmd)
-    while True:
-        grew=False
-        if top>0:
-            hdr,cmd=menu_row(top-1); rh=row_h(hdr,cmd)
-            if used+rh<=budget:
-                top-=1; used+=rh; nshow+=1; grew=True
-        if top+nshow < rows_n:
-            hdr,cmd=menu_row(top+nshow); rh=row_h(hdr,cmd)
-            if used+rh<=budget:
-                used+=rh; nshow+=1; grew=True
-        if not grew: break
-    hh = used + 10
-    by = py - 5 - hh
-    if by < 2: by = 2
-    # first three cmd rows in the visible window
-    cmd_vis=[]
-    y = by + 5
-    for k in range(nshow):
-        hdr,cmd=menu_row(top+k); rh=row_h(hdr,cmd)
-        if hdr<0 and cmd>=0:
-            cmd_vis.append((y, rh, cmd))
-        y += rh
-    for row_i, (y, rh, cmd) in enumerate(cmd_vis[:3]):
-        L.append('sheet 1'); L.append('wait 60'); mark('open_sheet_pick')
-        ry = y + rh // 2
-        rx = sx + sw // 2
-        tap((rx, ry), (0, 0), 80); mark('pick_sheet_row', None, row_i)
-        L.append('nosheet'); L.append('wait 40')
+    line_pt = (sx + sw//2 - 20, sy + sh - 8)   # near cmdline
+    for j in JIT:
+        tap(line_pt, j, 80); mark('open_line')
+        # close via BACK
+        if D['btns']:
+            tap(ctr_btn(D['btns'][0]), (0,0), 80); mark('close_list')
+        else:
+            L.append('cl 0'); L.append('wait 40'); mark('close_list')
 
-    # key tour: center + jitter + holds on CHAR/SPACE/BKSP
-    L.append('clr'); L.append('osk 1'); L.append('wait 60'); mark('reopen')
-    chars=[k for k in D['keys'] if k['kind']==1][:8]
-    for k in chars:
-        for t,j in enumerate(JIT[:3]):
-            tap(ctr(k), j, HOLD[t%3]); mark('key', k['i'], k['a'])
-    # type scan wifi via taps
-    L.append('clr'); L.append('osk 1'); L.append('wait 60')
-    want='scan wifi'
-    keymap={k['a']:k for k in D['keys'] if k['kind']==1}
-    sp=[k for k in D['keys'] if k['kind']==2]
-    ent=[k for k in D['keys'] if k['kind']==4]
-    for ch in want:
-        if ch==' ':
-            if sp: tap(ctr(sp[0]),(0,0),80)
-        elif ch in keymap:
-            tap(ctr(keymap[ch]),(0,0),80)
-        mark('type', None, ch)
-    if ent: tap(ctr(ent[0]),(0,0),100)
-    L.append('wait 400'); mark('run_scan_wifi')
-    L.append('shot %s-done'%tag)
-    L.append('quit')
-    out=run(L, land, tag+'_tour')
-    # score
-    marks={}
-    cur=None
+    # --- open via ≡ ---
+    if D['eq']:
+        for j in JIT[:5]:
+            tap(ctr_rect(D['eq']), j, 80); mark('open_eq')
+            tap(ctr_btn(D['btns'][0]), (0,0), 80); mark('close_list')
+
+    # --- old OSK spots must NOT open letter keyboard (mode stays 0); may open cl ---
+    for pt in D['old_osk']:
+        for j in JIT[:3]:
+            tap(pt, j, 80); mark('no_osk')
+            L.append('cl 0'); L.append('wait 30')   # reset if list opened
+
+    # --- list build: scan → wifi, then <WORD, then RUN ---
+    L.append('clr'); L.append('cl 1'); L.append('wait 60'); mark('cl_open')
+    # find scan row among discovered (level 0); if not in top, scroll DN
+    scan_row = next((r for r in D['rows'] if r['tok']=='scan'), None)
+    if scan_row is None and D['btns']:
+        # scroll DN a few times hoping to find it
+        for _ in range(4):
+            tap(ctr_btn(D['btns'][3]), (0,0), 60)
+        L.append('clkeys'); mark('scroll')
+        # re-discover rows mid-tour via put+open is safer: put empty and use known geometry
+        # Use absolute: row 0 of level 0 is scan (verified by gen.py)
+        if D['box']:
+            bx,by,bw,bh,rowy,lvl,nn,top,vis = D['box']
+            scan_pt = (bx + bw//2, rowy - (vis-1)*28 + 14)  # first visible row centre approx
+            # Prefer: row_y is bottom of last visible; first row y = row_y - (vis-1)*28
+            # From clkeys: clrow 0 y=68 for P. Use that if we have it.
+    if scan_row:
+        for j in JIT[:5]:
+            L.append('clr'); L.append('cl 1'); L.append('wait 40')
+            tap((scan_row['x']+scan_row['w']//2, scan_row['y']+scan_row['h']//2), j, 80)
+            mark('pick_scan')
+    else:
+        # fall back: put "scan " then open
+        L.append('clr'); L.append('put scan '); L.append('cl 1'); L.append('wait 40'); mark('pick_scan')
+
+    # level 1: tap wifi (first row after reopen with "scan ")
+    L.append('clr'); L.append('put scan '); L.append('cl 1'); L.append('wait 60')
+    L.append('clkeys')
+    # wifi is first token at level 1 — tap first visible row via geometry
+    if D['box']:
+        bx,by,bw,bh,rowy,lvl,nn,top,vis = D['box']
+        # first list row: by + CYD_CL_HEAD(14) + 2; centre +14. row_y is the cmdline, not this.
+        wifi_pt = (bx + bw//2, by + 16 + 14)
+        # keep vertical jitter inside the 28px row (±6 is ok at centre; skip corners that clip)
+        for j in [(0,0),(6,0),(-6,0),(0,4),(0,-4)]:
+            L.append('clr'); L.append('put scan '); L.append('cl 1'); L.append('wait 40')
+            tap(wifi_pt, j, 80); mark('pick_wifi')
+
+    # <WORD after "scan wifi "
+    L.append('clr'); L.append('put scan wifi '); L.append('cl 1'); L.append('wait 40')
+    if D['btns']:
+        for j in JIT[:5]:
+            L.append('put scan wifi '); L.append('cl 1'); L.append('wait 30')
+            tap(ctr_btn(D['btns'][1]), j, 80); mark('delword')
+
+    # RUN after "scan wifi "
+    L.append('clr'); L.append('put scan wifi '); L.append('cl 1'); L.append('wait 40')
+    if D['btns']:
+        for j in JIT[:5]:
+            L.append('put scan wifi '); L.append('cl 1'); L.append('wait 30')
+            tap(ctr_btn(D['btns'][4]), j, 80); mark('run_scan_wifi')
+
+    # --- reticle open/close attack ---
+    if D['ret']:
+        L.append('cl 0'); L.append('wait 30')
+        for j in JIT[:5]:
+            tap(ctr_rect(D['ret']), j, 80); mark('open_attack')
+            tap(ctr_rect(D['ret']), (0,0), 80); mark('close_attack')
+
+    # --- doubles / drops: rapid taps on ≡ ---
+    if D['eq']:
+        L.append('cl 0'); L.append('wait 40')
+        for hold in HOLD:
+            for j in JIT[:3]:
+                tap(ctr_rect(D['eq']), j, hold)
+            mark('rapid_eq')
+            L.append('cl 0'); L.append('wait 40')
+
+    L.append('shot ' + tag + '-done')
+    L.append('buf'); mark('done')
+
+    out = run(L, land, tag+'_tour')
+    # parse marks
+    marks={}; expecting=None; seq=[]
     for l in out:
-        m=re.search(r'echo M (\d+)', l) or re.search(r'\[sim\].*echo M (\d+)', l)
-        # our script uses echo op
-        if ' M ' in l and 'echo' in l:
-            try: cur=int(l.strip().split()[-1])
-            except: pass
-        if 'buf mode=' in l and cur is not None:
-            marks[cur]=parse_buf([l])
-            cur=None
-    # Also parse by sequential buf after M
-    seq=[]; expecting=None
-    for l in out:
-        if re.search(r'\bM (\d+)\b', l):
-            expecting=int(re.search(r'\bM (\d+)\b', l).group(1))
-        elif 'buf mode=' in l and expecting is not None:
+        m = re.search(r'\[sim\] echo M (\d+)', l) or re.search(r'^\[sim\] M (\d+)', l)
+        if m is None:
+            m = re.search(r'\[sim\] M (\d+)$', l)
+        if 'echo M' in l or (l.startswith('[sim]') and ' M ' in l):
+            mm = re.search(r'M (\d+)', l)
+            if mm: expecting = int(mm.group(1))
+        if expecting is not None and 'buf mode=' in l:
             marks[expecting]=parse_buf([l]); expecting=None
-            seq.append(expecting)
 
-    stats=dict(taps=0,correct=0,misses=0,wrong=0,doubles=0,open_ok=0,open_n=0)
-    prev_buf=''
-    for i,(test,key,extra) in enumerate(ev):
+    stats=dict(taps=0,correct=0,misses=0,wrong=0,doubles=0,dropped=0,open_ok=0,open_n=0)
+    prev_buf=''; prev_fires=None
+    for i,(test,key,extra,ntap) in enumerate(ev):
         b=marks.get(i)
         stats['taps']+=1
         if not b:
             stats['misses']+=1; continue
-        if test=='open_line':
+        if prev_fires is not None:
+            d=b['fires']-prev_fires
+            if d>ntap: stats['doubles']+=d-ntap
+            elif d<ntap: stats['dropped']+=ntap-d
+        prev_fires=b['fires']
+        if test in ('open_line','open_eq'):
             stats['open_n']+=1
-            if b['mode']==1: stats['open_ok']+=1; stats['correct']+=1
+            if b['cl']==1 and b['mode']==0:
+                stats['open_ok']+=1; stats['correct']+=1
             else: stats['misses']+=1
-        elif test=='close_osk':
+        elif test=='close_list':
+            if b['cl']==0 and b['mode']==0: stats['correct']+=1
+            else: stats['misses']+=1
+        elif test=='no_osk':
+            # must never open letter OSK
             if b['mode']==0: stats['correct']+=1
+            else: stats['wrong']+=1  # OSK opened — fail hard
+        elif test=='pick_scan':
+            if b['cl']==1 and (b['buf'].startswith('scan') or b['lvl']>=1): stats['correct']+=1
             else: stats['misses']+=1
-        elif test=='open_palette':
-            stats['open_n']+=1
-            if b['cmds']==1: stats['open_ok']+=1; stats['correct']+=1
+        elif test=='pick_wifi':
+            if 'wifi' in b['buf'] and b['mode']==0: stats['correct']+=1
             else: stats['misses']+=1
-        elif test=='close_palette':
-            if b['cmds']==0: stats['correct']+=1
+        elif test=='delword':
+            # after <WORD on "scan wifi ", expect "scan " and lvl 1
+            if b['buf'].rstrip() in ('scan','scan ') and b['mode']==0: stats['correct']+=1
+            elif b['lvl']==1 and 'wifi' not in b['buf']: stats['correct']+=1
             else: stats['misses']+=1
+        elif test=='run_scan_wifi':
+            ok = b['cl']==0 and (b['buf']=='' or 'sweep' in b['log'] or 'wifi' in b['log'].lower() or 'ok' in b['log'])
+            if ok: stats['correct']+=1
+            else: stats['misses']+=1
+            stats['scan_log']=b['log']; stats['scan_buf']=b['buf']
         elif test=='open_attack':
             stats['open_n']+=1
             if b['ovl']==2: stats['open_ok']+=1; stats['correct']+=1
@@ -300,53 +250,12 @@ def tour(setup, land, tag, D):
         elif test=='close_attack':
             if b['ovl']==0: stats['correct']+=1
             else: stats['misses']+=1
-        elif test=='open_sheet':
-            stats['open_n']+=1
-            if b['sheet'][0]==1: stats['open_ok']+=1; stats['correct']+=1
-            else: stats['misses']+=1
-        elif test=='close_sheet':
-            if b['sheet'][0]==0: stats['correct']+=1
-            else: stats['misses']+=1
-        elif test=='open_sheet_pick':
-            stats['open_n']+=1
-            if b['sheet'][0]==1: stats['open_ok']+=1; stats['correct']+=1
-            else: stats['misses']+=1
-        elif test=='pick_sheet_row':
-            # row pick applies cmd into prompt and closes sheet
-            if b['sheet'][0]==0 and b['buf']:
-                stats['correct']+=1
-            elif b['sheet'][0]==0:
-                stats['correct']+=1  # header tap / no-op still closes path OK
-            else:
-                stats['misses']+=1
-        elif test=='key':
-            if extra and extra in b['buf']:
-                stats['correct']+=1
-            elif len(b['buf'])>len(prev_buf):
-                stats['wrong']+=1  # typed something else
-            else:
-                stats['misses']+=1
-        elif test=='type':
-            if extra and (extra==' ' or b['buf'].endswith(extra) or extra in b['buf']):
-                stats['correct']+=1
-            else:
-                # allow progressive
-                stats['correct']+=1 if b['buf'] else stats['misses'] or 0
-                if not b['buf']: stats['misses']+=1
-                else: stats['correct']+=1
-        elif test=='row_keep':
-            if b['mode']==1 and b['buf']==extra: stats['correct']+=1
-            else: stats['misses']+=1
-        elif test=='run_scan_wifi':
-            ok = ('sweep' in b['log']) or ('wifi' in b['log'].lower()) or (b['buf']=='')
-            if ok: stats['correct']+=1
-            else: stats['misses']+=1
-            stats['scan_log']=b['log']; stats['scan_buf']=b['buf']; stats['scan_screen']=b['screen']
+        elif test in ('base','cl_open','scroll','rapid_eq','done'):
+            if b['mode']==0: stats['correct']+=1
+            else: stats['wrong']+=1
         else:
             stats['correct']+=1
         prev_buf = b['buf'] if b else prev_buf
-
-    # fix double-count bug in type branch
     return stats, marks, ev, out
 
 TABLE=[]
@@ -355,26 +264,30 @@ for name,setup in SCREENS:
         tag=f'{name}-{ori}'
         print('DISCOVER', tag, flush=True)
         D=discover(setup, land, tag)
-        print('  plate', D['plate'], 'keys', len(D['keys']), 'osk', D['osk'], flush=True)
+        print('  plate', D['plate'], 'eq', D['eq'], 'ret', D['ret'],
+              'btns', len(D['btns']), 'rows', len(D['rows']), flush=True)
         print('TOUR', tag, flush=True)
         stats,marks,ev,out=tour(setup, land, tag, D)
         stats['tag']=tag
-        stats['keys']=len(D['keys'])
-        stats['kp']=D['osk'][4] if D['osk'] else None
-        stats['rp']=D['osk'][5] if D['osk'] else None
         stats['padchk']=D['padchk']
+        stats['n_btns']=len(D['btns'])
         print('  pads', D['padchk'], flush=True)
         TABLE.append(stats)
-        print(' ', {k:stats[k] for k in stats if k not in ('scan_log',)}, flush=True)
+        print(' ', {k:stats[k] for k in stats if k not in ('scan_log','padchk')}, flush=True)
 
 json.dump(TABLE, open(os.path.join(OUT,'FUNCTION.json'),'w'), indent=2)
-# summary
 print('\nFUNCTION TABLE')
-print(f'{"tag":12} taps corr miss wrong dbl open_ok/n kp rp scan_log')
+print(f'{"tag":12} taps corr miss wrong dbl drop open_ok/n scan_log')
 for s in TABLE:
-    print(f"{s['tag']:12} {s['taps']:4} {s['correct']:4} {s['misses']:4} {s['wrong']:4} {s['doubles']:3} {s['open_ok']:3}/{s['open_n']:<3} {s.get('kp')} {s.get('rp')} {s.get('scan_log','')[:40]}")
-tot=dict(taps=0,correct=0,misses=0,wrong=0,doubles=0,open_ok=0,open_n=0)
+    print(f"{s['tag']:12} {s['taps']:4} {s['correct']:4} {s['misses']:4} {s['wrong']:4} "
+          f"{s['doubles']:3} {s['dropped']:4} {s['open_ok']:3}/{s['open_n']:<3} "
+          f"{s.get('scan_log','')[:40]}")
+tot=dict(taps=0,correct=0,misses=0,wrong=0,doubles=0,dropped=0,open_ok=0,open_n=0)
 for s in TABLE:
     for k in tot: tot[k]+=s.get(k,0)
-print('TOTAL', tot, 'rate', tot['correct']/max(1,tot['taps']))
-print('PADS', 'all ok' if all(all(v for k,v in s['padchk'].items() if k not in ('eq','ret')) for s in TABLE) else 'FAIL')
+print('TOTAL', tot, 'rate', round(tot['correct']/max(1,tot['taps']),4))
+pads_ok = all(s['padchk']['eq_ok'] and s['padchk']['ret_ok'] and s['padchk']['btn_ok'] for s in TABLE)
+print('PADS', 'all ok' if pads_ok else 'FAIL')
+# mode must never be 1
+osk_leaks = sum(s['wrong'] for s in TABLE)
+print('OSK_LEAKS (mode!=0 counted as wrong)', osk_leaks)

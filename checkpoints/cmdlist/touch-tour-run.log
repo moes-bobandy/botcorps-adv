@@ -1,0 +1,42 @@
+DISCOVER hub-P
+  plate (33, 271, 173, 36) eq (178, 289, 28, 28) ret (178, 261, 28, 28) btns 5 rows 7
+TOUR hub-P
+  pads {'eq_ok': True, 'ret_ok': True, 'eq': (178, 289, 28, 28), 'ret': (178, 261, 28, 28), 'btn_ok': True, 'row_ok': True}
+  {'taps': 76, 'correct': 76, 'misses': 0, 'wrong': 0, 'doubles': 0, 'dropped': 0, 'open_ok': 19, 'open_n': 19, 'scan_buf': '', 'tag': 'hub-P', 'n_btns': 5}
+DISCOVER hub-L
+  plate (36, 194, 248, 36) eq (256, 212, 28, 28) ret (256, 184, 28, 28) btns 5 rows 5
+TOUR hub-L
+  pads {'eq_ok': True, 'ret_ok': True, 'eq': (256, 212, 28, 28), 'ret': (256, 184, 28, 28), 'btn_ok': True, 'row_ok': True}
+  {'taps': 76, 'correct': 76, 'misses': 0, 'wrong': 0, 'doubles': 0, 'dropped': 0, 'open_ok': 19, 'open_n': 19, 'scan_buf': '', 'tag': 'hub-L', 'n_btns': 5}
+DISCOVER scan-P
+  plate (31, 274, 177, 36) eq (180, 292, 28, 28) ret (180, 264, 28, 28) btns 5 rows 7
+TOUR scan-P
+  pads {'eq_ok': True, 'ret_ok': True, 'eq': (180, 292, 28, 28), 'ret': (180, 264, 28, 28), 'btn_ok': True, 'row_ok': True}
+  {'taps': 76, 'correct': 76, 'misses': 0, 'wrong': 0, 'doubles': 0, 'dropped': 0, 'open_ok': 19, 'open_n': 19, 'scan_buf': '', 'tag': 'scan-P', 'n_btns': 5}
+DISCOVER scan-L
+  plate (36, 194, 248, 36) eq (256, 212, 28, 28) ret (256, 184, 28, 28) btns 5 rows 5
+TOUR scan-L
+  pads {'eq_ok': True, 'ret_ok': True, 'eq': (256, 212, 28, 28), 'ret': (256, 184, 28, 28), 'btn_ok': True, 'row_ok': True}
+  {'taps': 76, 'correct': 76, 'misses': 0, 'wrong': 0, 'doubles': 0, 'dropped': 0, 'open_ok': 19, 'open_n': 19, 'scan_buf': '', 'tag': 'scan-L', 'n_btns': 5}
+DISCOVER gchat-P
+  plate (31, 271, 177, 36) eq (180, 289, 28, 28) ret (180, 261, 28, 28) btns 5 rows 7
+TOUR gchat-P
+  pads {'eq_ok': True, 'ret_ok': True, 'eq': (180, 289, 28, 28), 'ret': (180, 261, 28, 28), 'btn_ok': True, 'row_ok': True}
+  {'taps': 76, 'correct': 76, 'misses': 0, 'wrong': 0, 'doubles': 0, 'dropped': 0, 'open_ok': 19, 'open_n': 19, 'scan_buf': '', 'tag': 'gchat-P', 'n_btns': 5}
+DISCOVER gchat-L
+  plate (94, 193, 190, 36) eq (256, 211, 28, 28) ret (256, 183, 28, 28) btns 5 rows 5
+TOUR gchat-L
+  pads {'eq_ok': True, 'ret_ok': True, 'eq': (256, 211, 28, 28), 'ret': (256, 183, 28, 28), 'btn_ok': True, 'row_ok': True}
+  {'taps': 76, 'correct': 76, 'misses': 0, 'wrong': 0, 'doubles': 0, 'dropped': 0, 'open_ok': 19, 'open_n': 19, 'scan_buf': '', 'tag': 'gchat-L', 'n_btns': 5}
+
+FUNCTION TABLE
+tag          taps corr miss wrong dbl drop open_ok/n scan_log
+hub-P          76   76    0    0   0    0  19/19  [ok] sweep done
+hub-L          76   76    0    0   0    0  19/19  [ok] sweep done
+scan-P         76   76    0    0   0    0  19/19  [ok] sweep done
+scan-L         76   76    0    0   0    0  19/19  [ok] sweep done
+gchat-P        76   76    0    0   0    0  19/19  [ok] sweep done
+gchat-L        76   76    0    0   0    0  19/19  [ok] sweep done
+TOTAL {'taps': 456, 'correct': 456, 'misses': 0, 'wrong': 0, 'doubles': 0, 'dropped': 0, 'open_ok': 114, 'open_n': 114} rate 1.0
+PADS all ok
+OSK_LEAKS (mode!=0 counted as wrong) 0

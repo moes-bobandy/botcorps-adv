@@ -521,14 +521,17 @@ static const SBGeo &scanbot_geo(void)
          * Keep approved gold centre + WIFI/BLE/GIBSON. Owner review 7aa00ad: tabs were
          * <28 px and DEAUTH clipped; MORE covered a tile; copper ran diagonally through
          * the bay. 2x2 category pads (>=28), 2x2 tiles + dedicated MORE column, orthogonal copper. ---- */
-        L.mx = 90; L.my = 28; L.mw = 84; L.mh = 100;  /* bottom 128; D~51 face~39 (gold) */
+        /* Face kept at D=51/face=39 (>= portrait face 27). Module narrowed so bay fits
+         * fix4: module my=24; tabs ky=42 gap2; bay 166,102 120×78 (end 180); 3×2 tiles 28 @171,114;
+         * bottom margin 7 inside well; MORE abuts grid (x=255) — no empty cell; face D51/39 ≥ portrait. */
+        L.mx = 86; L.my = 24; L.mw = 78; L.mh = 100;  /* bottom 124; D~51 face~39 (gold) */
         L.cs = 24;
-        L.cx[0] = 38; L.cy[0] = 32;     /* WIFI  left stack */
-        L.cx[1] = 38; L.cy[1] = 78;     /* BLE */
-        L.cx[2] = 252; L.cy[2] = 30;    /* GIBSON top-right */
-        L.kx0 = 180; L.ky = 46; L.kw_band = 70; L.kh = 28; L.kcols = 2;  /* 2x2 pads 33x28 gap4; end 250 < GIBSON 252 */
-        L.bx = 180; L.by = 108; L.bw = 108; L.bh = 70;        /* bay end 178; plate cast 182 */
-        L.t0x = 186; L.t0y = 120; L.pitch = 30; L.cols = 2; L.rows = 2; L.tile = 28;  /* MORE bottom-right */
+        L.cx[0] = 36; L.cy[0] = 28;     /* WIFI  left stack */
+        L.cx[1] = 36; L.cy[1] = 74;     /* BLE */
+        L.cx[2] = 252; L.cy[2] = 26;    /* GIBSON top-right above bay */
+        L.kx0 = 166; L.ky = 42; L.kw_band = 84; L.kh = 28; L.kcols = 2;  /* 2x2 pads 40x28; end y=100 */
+        L.bx = 166; L.by = 102; L.bw = 120; L.bh = 78;        /* bay end 180; well 169..283 × 112..177 */
+        L.t0x = 171; L.t0y = 114; L.pitch = 28; L.cols = 3; L.rows = 2; L.tile = 28;  /* 3×2 bottom 170; MORE x=255 */
         L.pl[0] = 34; L.pl[1] = 184; L.pl[2] = 252; L.pl[3] = 49;   /* 3-line plate */
     }
     return botcorps_cyd_orient ? P : L;
@@ -542,7 +545,7 @@ static void sb_catpad_cell(const SBGeo &G, int ntab, int i, int *px, int *py, in
     const int gap = (G.kcols > 1) ? 4 : 6;
     const int pc = (G.kw_band - gap * (kcols - 1)) / kcols;
     const int c = i % kcols, r = i / kcols;
-    const int rpitch = G.kh + ((G.kcols > 1) ? 4 : 0);
+    const int rpitch = G.kh + ((G.kcols > 1) ? 2 : 0);
     *px = G.kx0 + c * (pc + gap);
     *py = G.ky + r * rpitch;
     *pw = pc;
@@ -551,9 +554,9 @@ static void sb_catpad_cell(const SBGeo &G, int ntab, int i, int *px, int *py, in
 static void sb_more_rect(const SBGeo &G, int *ax, int *ay, int *aw, int *ah)
 {
     *aw = 28; *ah = 28;
-    if (G.kcols > 1) {                         /* bottom-right of bay — clear of the 2x2 tiles */
-        *ax = G.bx + G.bw - 28 - 4;
-        *ay = G.by + G.bh - 28 - 4;
+    if (G.kcols > 1) {                         /* right strip beside Nx2 grid; vertically centered */
+        *ax = G.t0x + G.cols * G.pitch;       /* abut the grid; stay inside bay well */
+        *ay = G.t0y + (G.rows * G.pitch - 28) / 2;
     } else {
         *ax = G.bx + G.bw - 28 - 2;
         *ay = G.by + (G.bh - 28) / 2;

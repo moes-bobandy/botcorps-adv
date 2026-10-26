@@ -1,0 +1,176 @@
+[
+  {
+    "taps": 106,
+    "correct": 106,
+    "misses": 0,
+    "wrong": 0,
+    "doubles": 0,
+    "dropped": 0,
+    "open_ok": 35,
+    "open_n": 35,
+    "scan_log": "[ok] sweep done",
+    "tag": "hub-P",
+    "clbtn": 5,
+    "padchk": {
+      "eq": [
+        178,
+        289,
+        28,
+        28
+      ],
+      "ret": [
+        178,
+        261,
+        28,
+        28
+      ],
+      "size_ok": true,
+      "no_overlap": true
+    }
+  },
+  {
+    "taps": 106,
+    "correct": 106,
+    "misses": 0,
+    "wrong": 0,
+    "doubles": 0,
+    "dropped": 0,
+    "open_ok": 35,
+    "open_n": 35,
+    "scan_log": "[ok] sweep done",
+    "tag": "hub-L",
+    "clbtn": 5,
+    "padchk": {
+      "eq": [
+        256,
+        212,
+        28,
+        28
+      ],
+      "ret": [
+        256,
+        184,
+        28,
+        28
+      ],
+      "size_ok": true,
+      "no_overlap": true
+    }
+  },
+  {
+    "taps": 117,
+    "correct": 117,
+    "misses": 0,
+    "wrong": 0,
+    "doubles": 0,
+    "dropped": 0,
+    "open_ok": 35,
+    "open_n": 35,
+    "scan_log": "[ok] sweep done",
+    "tag": "scan-P",
+    "clbtn": 5,
+    "padchk": {
+      "eq": [
+        180,
+        292,
+        28,
+        28
+      ],
+      "ret": [
+        180,
+        264,
+        28,
+        28
+      ],
+      "size_ok": true,
+      "no_overlap": true
+    }
+  },
+  {
+    "taps": 117,
+    "correct": 117,
+    "misses": 0,
+    "wrong": 0,
+    "doubles": 0,
+    "dropped": 0,
+    "open_ok": 35,
+    "open_n": 35,
+    "scan_log": "[ok] sweep done",
+    "tag": "scan-L",
+    "clbtn": 5,
+    "padchk": {
+      "eq": [
+        256,
+        212,
+        28,
+        28
+      ],
+      "ret": [
+        256,
+        184,
+        28,
+        28
+      ],
+      "size_ok": true,
+      "no_overlap": true
+    }
+  },
+  {
+    "taps": 106,
+    "correct": 106,
+    "misses": 0,
+    "wrong": 0,
+    "doubles": 0,
+    "dropped": 0,
+    "open_ok": 35,
+    "open_n": 35,
+    "scan_log": "[ok] sweep done",
+    "tag": "gchat-P",
+    "clbtn": 5,
+    "padchk": {
+      "eq": [
+        180,
+        289,
+        28,
+        28
+      ],
+      "ret": [
+        180,
+        261,
+        28,
+        28
+      ],
+      "size_ok": true,
+      "no_overlap": true
+    }
+  },
+  {
+    "taps": 106,
+    "correct": 106,
+    "misses": 0,
+    "wrong": 0,
+    "doubles": 0,
+    "dropped": 0,
+    "open_ok": 35,
+    "open_n": 35,
+    "scan_log": "[ok] sweep done",
+    "tag": "gchat-L",
+    "clbtn": 5,
+    "padchk": {
+      "eq": [
+        256,
+        211,
+        28,
+        28
+      ],
+      "ret": [
+        256,
+        183,
+        28,
+        28
+      ],
+      "size_ok": true,
+      "no_overlap": true
+    }
+  }
+]

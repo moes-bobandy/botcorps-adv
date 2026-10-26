@@ -1,0 +1,5 @@
+commit 05f29eaef26045c5d58e5b1da49d2784c1a1e40c
+app cyd-firmware.bin sha256 67ab64a68f14258a051ef9a9103c625f79fb56f931c3342f5b5300da2ec9d066 len 1485792
+merged cyd-firmware-merged-0x0.bin sha256 a5bedd9559d408daa7373aa24c83d4c65daf219f5b87cca9b7f28d420502a8d0 len 1551328
+slice tail -c +65537 | head -c 1485792 sha256 67ab64a68f14258a051ef9a9103c625f79fb56f931c3342f5b5300da2ec9d066
+SLICE == APP: OK

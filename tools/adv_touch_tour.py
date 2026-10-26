@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
-"""Adv-plate touch tour for the command-list (CL) design — every plate screen P+L.
+"""Adv-plate touch tour for SELECT chip grid + CORE glossary — every plate screen P+L.
 
-Covers: cmdline + ≡ jitter (both open CL), verb→device list build, <WORD + BACK,
-RUN, every leaf, scan tabs/MORE/tiles/link chips, crown→home. Scores
-correct/miss/wrong/double with a real double-fire detector on s_cyd_tap_fires.
-Misses must be 0.
+Covers: cmdline + ≡ jitter (both open chip grid), glossary pad → CORE sheet,
+verb→device chip build, <WORD + BACK, RUN, every leaf, scan tabs/MORE/tiles/link
+chips, crown→home. Scores correct/miss/wrong/double on s_cyd_tap_fires. Misses=0.
 """
 import subprocess, re, os, json, sys
 
@@ -75,7 +74,7 @@ def discover(setup, land, tag):
         m = re.search(r'eqy=(\d+) rety=(\d+) row=(-?\d+) rowh=(\d+) sheetw=(\d+)', l)
         if m:
             ext = dict(zip(('eqy', 'rety', 'row', 'rowh', 'sheetw'), map(int, m.groups())))
-        m = re.search(r'\[sim\] pad (eq|ret) (\d+) (\d+) (\d+) (\d+)', l)
+        m = re.search(r'\[sim\] pad (eq|ret|gls) (\d+) (\d+) (\d+) (\d+)', l)
         if m:
             pads[m[1]] = tuple(map(int, m.groups()[1:]))
         m = re.search(r'\[sim\] chip (\d+) (\S+) (\d+) (\d+) (\d+) (\d+)', l)
@@ -97,7 +96,9 @@ def discover(setup, land, tag):
     sx, sy, sw, sh, py = plate[0], plate[1], plate[2], plate[3], plate[4]
     line = (sx + 40, py + 4)
     pe, pr = pads['eq'], pads['ret']
+    pg = pads.get('gls')
     eq, ret = ctr_box(pe), ctr_box(pr)
+    gls = ctr_box(pg) if pg else None
     ew = 320 if land else 240
     crown = (ew - 94, 13)
     # Clamp ≡ jitter so taps stay inside the eq pad (pad may sit on cmdline band)
@@ -123,17 +124,30 @@ def discover(setup, land, tag):
     if not line_jit:
         line_jit = [(0, 0)]
 
+    pads_list = [pe, pr] + ([pg] if pg else [])
+    # stacked column: no pairwise overlap on Y
+    ys = sorted((p_[1], p_[1] + p_[3]) for p_ in pads_list)
+    no_ov = all(ys[i][1] <= ys[i + 1][0] for i in range(len(ys) - 1))
     padchk = dict(
-        eq=pe, ret=pr,
-        size_ok=all(p_[2] >= 28 and p_[3] >= 28 for p_ in (pe, pr)),
-        no_overlap=(pe[1] + pe[3] <= pr[1]) or (pr[1] + pr[3] <= pe[1]),
+        eq=pe, ret=pr, gls=pg,
+        size_ok=all(p_[2] >= 28 and p_[3] >= 28 for p_ in pads_list),
+        no_overlap=no_ov,
     )
+    gls_jit = [(0, 0)]
+    if pg:
+        gls_jit = []
+        for jx, jy in JIT:
+            tx, ty = gls[0] + jx, gls[1] + jy
+            if pg[0] <= tx < pg[0] + pg[2] and pg[1] <= ty < pg[1] + pg[3]:
+                gls_jit.append((jx, jy))
+        if not gls_jit:
+            gls_jit = [(0, 0)]
     return dict(
         scr=int(re.search(r'screen=(\d+)', st).group(1)),
-        plate=(x, y, w, h), plate_geo=plate, line=line, eq=eq, ret=ret,
+        plate=(x, y, w, h), plate_geo=plate, line=line, eq=eq, ret=ret, gls=gls,
         padchk=padchk, chips=chips, ext=ext, clbtn=clbtn, rows0=rows0,
         crown=crown, land=land, name=tag,
-        eq_jit=eq_jit, ret_jit=ret_jit, line_jit=line_jit,
+        eq_jit=eq_jit, ret_jit=ret_jit, line_jit=line_jit, gls_jit=gls_jit,
     )
 
 
@@ -213,6 +227,22 @@ def tour(setup, land, tag, D):
         tap(D['ret'], (0, 0), 80)
         mark('close_attack')
 
+    # --- glossary / CORE sheet button ---
+    if D.get('gls'):
+        for t, j in enumerate(D['gls_jit']):
+            ensure_closed()
+            tap(D['gls'], j, HOLD[t % 3])
+            mark('open_gls')
+            L.append('nosheet')
+            L.append('wait 40')
+            mark('close_gls')
+        for t, j in enumerate(D['gls_jit'][:4]):
+            ensure_closed()
+            tap(D['gls'], j, HOLD[t % 3])
+            mark('open_gls')
+            tap(D['gls'], (0, 0), 80)  # toggle close
+            mark('close_gls')
+
     # --- link chips ---
     for name, box in list(D['chips'].items())[:6]:
         ensure_closed()
@@ -220,20 +250,21 @@ def tour(setup, land, tag, D):
         mark('chip', None, name)
         ensure_closed()
 
-    # --- build via list: verb then device, <WORD, RUN ---
+    # --- build via chip grid: scan → wifi, <WORD, RUN ---
     ensure_closed()
+    L.append('clr')
     open_cl()
     mark('cl_open_poke')
-    if D['rows0']:
-        r0 = D['rows0'][0]
-        tap((r0['x'] + r0['w'] // 2, r0['y'] + r0['h'] // 2), (0, 0), 80)
-        mark('pick_verb', None, r0['tok'])
-        r = D['rows0'][0]
-        tap((r['x'] + r['w'] // 2, r['y'] + r['h'] // 2), (0, 0), 80)
+    scan = next((r for r in D['rows0'] if r['tok'] == 'scan'), D['rows0'][0] if D['rows0'] else None)
+    if scan:
+        tap((scan['x'] + scan['w'] // 2, scan['y'] + scan['h'] // 2), (0, 0), 80)
+        mark('pick_verb', None, 'scan')
+        # device chips share chip[0] slot (stable Y); wifi is first opt for scan
+        tap((scan['x'] + scan['w'] // 2, scan['y'] + scan['h'] // 2), (0, 0), 80)
         mark('pick_arg', None, 'wifi')
         tap(btn(1), (0, 0), 80)  # <WORD
         mark('word_pop')
-        tap((r['x'] + r['w'] // 2, r['y'] + r['h'] // 2), (0, 0), 80)
+        tap((scan['x'] + scan['w'] // 2, scan['y'] + scan['h'] // 2), (0, 0), 80)
         mark('pick_arg2', None, 'wifi')
         tap(btn(4), (0, 0), 100)  # RUN
         L.append('wait 220')
@@ -255,13 +286,13 @@ def tour(setup, land, tag, D):
         mark('leaf_run', None, verb)
 
     # list-built leaves
-    for verb_tok, row_idx in [('help', 2), ('bots', 3)]:
+    for verb_tok in ('help', 'bots'):
         ensure_closed()
         L.append('clr')
         open_cl()
         L.append('wait 50')
-        if row_idx < len(D['rows0']):
-            r = D['rows0'][row_idx]
+        r = next((x for x in D['rows0'] if x['tok'] == verb_tok), None)
+        if r:
             tap((r['x'] + r['w'] // 2, r['y'] + r['h'] // 2), (0, 0), 80)
             mark('leaf_pick', None, verb_tok)
             tap(btn(4), (0, 0), 100)
@@ -388,6 +419,13 @@ def tour(setup, land, tag, D):
                 stats['open_ok'] += 1
         elif test == 'close_attack':
             ok = (b['ovl'] == 0)
+        elif test == 'open_gls':
+            stats['open_n'] += 1
+            ok = (b['sheet'][0] == 1 and b['cl'] == 0)
+            if ok:
+                stats['open_ok'] += 1
+        elif test == 'close_gls':
+            ok = (b['sheet'][0] == 0)
         elif test == 'chip':
             ok = True
         elif test == 'cl_open_poke':
@@ -450,7 +488,7 @@ for name, setup in SCREENS:
         D = discover(setup, land, tag)
         print('  plate', D['plate'], 'clbtn', len(D['clbtn']), 'rows', len(D['rows0']),
               'chips', len(D['chips']), 'crown', D['crown'],
-              'jit', len(D['line_jit']), len(D['eq_jit']), len(D['ret_jit']), flush=True)
+              'jit', len(D['line_jit']), len(D['eq_jit']), len(D['ret_jit']), 'gls', D.get('gls'), flush=True)
         print('TOUR', tag, flush=True)
         stats, marks, ev, out = tour(setup, land, tag, D)
         stats['tag'] = tag

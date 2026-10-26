@@ -17,7 +17,8 @@ static void cyd_adv_geo(int sx, int sy, int sw, int sh)
     s_adv_py = sy + sh - 11;                          /* Adv: PROMPT_Y = plate_bot - 8 */
     if (s_adv_py < sy + 10) s_adv_py = sy + 10;
     /* Owner pt358u: 3-line plate, stacked right column = reticle / glossary(CORE) / ≡.
-     * Art stays Adv 20x12; 28x28 hit pads spill past the plate (see cyd_adv_btn_hit). */
+     * Art stays Adv 20x12 inside the plate; 28x28 hit pads: ≡ inside bottom-right,
+     * gls/ret stack upward (see cyd_adv_btn_hit). */
     s_adv_cmd_x = sx + sw - 24;
     s_adv_atk_x = s_adv_cmd_x;
     s_adv_gls_x = s_adv_cmd_x;
@@ -69,24 +70,24 @@ static int cyd_adv_cmdline(Gfx g, int px, int y, int fx0, int fx1, bool pf)
     return typed_max;
 }
 
-/* Invisible 28x28 touch pads for stacked reticle / glossary / ≡ art. Three pads of 28
- * need 84 px; the 3-line plate is shorter, so they stack from a mid baseline and spill
- * past the plate: ret [mid-56, mid-28), gls [mid-28, mid), eq [mid, mid+28). */
+/* Invisible 28x28 touch pads for stacked reticle / glossary / ≡ art.
+ * ≡ sits bottom-right fully inside the plate; gls then ret stack upward (may rise
+ * above the plate top over the board, never past the plate bottom rim). */
 static void cyd_adv_btn_hit(int art_x, int art_y, int *hx, int *hy, int *hw, int *hh)
 {
-    const int mid = (s_adv_atk_y + 6 + s_adv_btn_y + 6) / 2;
     *hx = s_adv_sx + s_adv_sw - 28;
     *hw = 28; *hh = 28;
-    if (art_y == s_adv_atk_y && art_x == s_adv_atk_x) *hy = mid - 56;       /* reticle */
-    else if (art_y == s_adv_gls_y && art_x == s_adv_gls_x) *hy = mid - 28;  /* glossary */
-    else *hy = mid;                                                         /* ≡ */
+    const int eq_hy = s_adv_sy + s_adv_sh - 28;   /* ≡: bottom-right, inside plate */
+    if (art_y == s_adv_btn_y && art_x == s_adv_cmd_x) *hy = eq_hy;          /* ≡ */
+    else if (art_y == s_adv_gls_y && art_x == s_adv_gls_x) *hy = eq_hy - 28; /* glossary */
+    else *hy = eq_hy - 56;                                                   /* reticle */
 }
-/* union of the three pads (they may stick out of the plate rect) */
+/* union of the three stacked pads (ret may sit above the plate top) */
 static bool cyd_adv_in_pads(int tx, int ty)
 {
     if (s_pt_bw <= 0) return false;
     int hx, hy, hw, hh;
-    cyd_adv_btn_hit(s_adv_atk_x, s_adv_atk_y, &hx, &hy, &hw, &hh);
+    cyd_adv_btn_hit(s_adv_atk_x, s_adv_atk_y, &hx, &hy, &hw, &hh);  /* ret = top of stack */
     return tx >= hx && tx < hx + hw && ty >= hy && ty < hy + 84;
 }
 
@@ -795,10 +796,22 @@ static void cyd_cl_geo(const CydClItems &c, CydClGeo *g)
     g->bar_y = (s_adv_sy > 0 ? s_adv_sy : (H - 40)) - 2 - g->chip_h;  /* control row just above plate */
     if (g->bar_y < 30) g->bar_y = 30;
     g->bx = 2; g->bw = W - 4;
-    /* Prefer Adv 6-wide when chips stay >= 40 px; else 4 / 3. */
+    /* Widen chips so every token at this level fits Font0 (6 px/glyph) with pad.
+     * Drop columns until chip_w >= need; floor at 2 cols. Never clip labels. */
+    int maxlen = 1;
+    for (int i = 0; i < c.n; ++i) {
+        int L = (int)strlen(c.tok[i] ? c.tok[i] : "");
+        if (L > maxlen) maxlen = L;
+    }
+    const int need = maxlen * 6 + 8;   /* side pad */
     int cols = 6;
-    if ((g->bw - CYD_CL_GAP * (cols + 1)) / cols < 40) cols = 4;
-    if ((g->bw - CYD_CL_GAP * (cols + 1)) / cols < 40) cols = 3;
+    while (cols > 2) {
+        const int cw = (g->bw - CYD_CL_GAP * (cols + 1)) / cols;
+        if (cw >= need && cw >= 40) break;
+        if (cw >= need) break;
+        --cols;
+    }
+    /* still short at 2 cols? keep 2; paint will use a tighter pitch for long words */
     g->cols = cols;
     g->chip_w = (g->bw - CYD_CL_GAP * (cols + 1)) / cols;
     const int room = g->bar_y - 4 - 20;                  /* above control row, below status */
@@ -904,18 +917,27 @@ static void cyd_cl_paint(Gfx g)
         const bool sel = (i == s_cyd_cl_sel);
         plate(g, x, y, ww, ch, sel ? COL_SEL : COL_BG, sel ? accent() : COL_LINE);
         if (sel) g.drawRect(x - 1, y - 1, ww + 2, ch + 2, PAL_WHITE);
-        const char *lab = c.tok[i];
-        /* trim label to chip width */
-        char cut[16];
-        int maxc = (ww - 6) / 6;
-        if (maxc < 1) maxc = 1;
-        if (maxc > 15) maxc = 15;
-        int n = 0;
-        while (lab[n] && n < maxc) { cut[n] = lab[n]; ++n; }
-        cut[n] = 0;
-        txt_bg(g, cut, x + ww / 2, y + (ch - 8) / 2,
-               sel ? COL_WHITE : COL_MUTED, sel ? COL_SEL : COL_BG,
-               lgfx::textdatum::top_center);
+        const char *lab = c.tok[i] ? c.tok[i] : "";
+        /* Full word, no clipping. Font0 6 px pitch when it fits; else 5 / 4 px pitch. */
+        const int nlab = (int)strlen(lab);
+        int pitch = 6;
+        if (nlab * pitch + 6 > ww) pitch = 5;
+        if (nlab * pitch + 6 > ww) pitch = 4;
+        const uint8_t fg = sel ? COL_WHITE : COL_MUTED;
+        const uint8_t bg = sel ? COL_SEL : COL_BG;
+        if (pitch >= 6) {
+            txt_bg(g, lab, x + ww / 2, y + (ch - 8) / 2, fg, bg, lgfx::textdatum::top_center);
+        } else {
+            const int tw = nlab * pitch;
+            int tx = x + (ww - tw) / 2;
+            const int ty = y + (ch - 8) / 2;
+            char one[2] = { 0, 0 };
+            for (int ci = 0; ci < nlab; ++ci) {
+                one[0] = lab[ci];
+                txt_bg(g, one, tx, ty, fg, bg, lgfx::textdatum::top_left);
+                tx += pitch;
+            }
+        }
     }
     /* control chips: BACK  <WORD  ▲  ▼  RUN */
     static const char *const L[CYD_CL_NB] = { "BACK", "<WORD", "", "", "RUN" };

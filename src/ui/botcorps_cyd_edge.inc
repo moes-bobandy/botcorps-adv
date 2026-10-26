@@ -217,7 +217,9 @@ struct EShift {
 };
 
 /* CONTROLbot on the edge board: the scattered parts (ctlbot_layout per orientation) over the shared
- * board, headers and top bar; no own frame, no own pin rows. */
+ * board, headers and top bar; no own frame, no own pin rows.
+ * Owner pt358u: same 3-line Adv plate as hub/scan (log/prompt/ret/CORE/≡ + chip grid + CORE sheet).
+ * Chips stay put (only SCANbot is re-spaced); plate may cover lower parts — honest overlap. */
 static void paint_ctlbot(Gfx g)
 {
     const bool P = botcorps_cyd_orient != 0;
@@ -236,6 +238,9 @@ static void paint_ctlbot(Gfx g)
     const char *nm = "CONTROLBOT";
     if (P) e_silk(g, nm, 205 - tiny_w(nm), 311);
     else e_silk(g, nm, 160 - tiny_w(nm) / 2, 37);
+    /* Same outer rect as hub TERMINALBOT (HB_TBOT_P / HB_TBOT_L); chips not moved. */
+    if (P) e_plate(g, 31, 261, 177, 49, "CONTROLBOT", false);
+    else e_plate(g, 34, 184, 252, 49, "CONTROLBOT", false);
     e_finish(g);
 }
 /* the whole Control board is copper: rain is painted once under it and never stepped over the parts */

@@ -14,6 +14,7 @@ os.makedirs(OUT, exist_ok=True)
 SCREENS = [
     ('hub', ['poke screen 1']),
     ('scan', ['poke screen 7']),
+    ('ctrl', ['poke screen 8']),
     ('gchat', ['poke screen 10']),
 ]
 JIT = [(0, 0), (6, 0), (-6, 0), (0, 6), (0, -6), (6, 6), (-6, -6), (6, -6), (-6, 6)]
@@ -128,10 +129,14 @@ def discover(setup, land, tag):
     # stacked column: no pairwise overlap on Y
     ys = sorted((p_[1], p_[1] + p_[3]) for p_ in pads_list)
     no_ov = all(ys[i][1] <= ys[i + 1][0] for i in range(len(ys) - 1))
+    # ≡ must sit fully inside the plate (bottom rim); ret/gls may rise above plate top
+    plate_bot = y + h
+    eq_inside = pe[1] >= y and pe[1] + pe[3] <= plate_bot
     padchk = dict(
         eq=pe, ret=pr, gls=pg,
         size_ok=all(p_[2] >= 28 and p_[3] >= 28 for p_ in pads_list),
         no_overlap=no_ov,
+        eq_inside_plate=eq_inside,
     )
     gls_jit = [(0, 0)]
     if pg:

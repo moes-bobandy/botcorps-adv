@@ -739,6 +739,16 @@ static void cyd_cl_items(CydClItems *c)
         for (int i = 0; i < c->n; ++i) if (strcmp(c->tok[i], t) == 0) return;
         c->tok[c->n] = t; c->sub[c->n] = s; c->ico[c->n] = (int8_t)ico; ++c->n;
     };
+    if (s_screen == SCR_GCHAT) {   /* hub9: Defend verbs / own devices / subs on the game board */
+        const char *t[CYD_CL_MAX], *d[CYD_CL_MAX];
+        const int gn = cyd_dl_tokens(b, t, d, CYD_CL_MAX, c->head, sizeof c->head);
+        if (gn >= 0) {
+            for (int i = 0; i < gn; ++i) add(t[i], d[i], -1);
+            if (words == 0) for (int i = 0; i < CMD_N; ++i) if (!strchr(CMDN[i], ' ')) add(CMDN[i], CMDP[i], i);
+            return;
+        }
+        c->head[0] = 0;
+    }
     if (words == 0) {
         snprintf(c->head, sizeof c->head, "SELECT");
         for (int i = 0; i < CMD_N; ++i) {

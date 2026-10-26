@@ -519,9 +519,10 @@ static const SBGeo &scanbot_geo(void)
         P.cx[0] = 33; P.cy[0] = 30;     /* WIFI  top-left   */
         P.cx[1] = 33; P.cy[1] = 93;     /* BLE   mid-left   */
         P.cx[2] = 165; P.cy[2] = 60;    /* GIBSON right (mirror x of WIFI/BLE) */
-        P.kx0 = 34; P.ky = 156; P.kw_band = 172; P.kh = 14; P.kcols = 0;  /* pads end 170 */
-        P.bx = 34; P.by = 176; P.bw = 172; P.bh = 80;        /* bay end 256 (cast 257); plate cast 262 */
-        P.t0x = 42; P.t0y = 187; P.pitch = 31; P.cols = 4; P.rows = 2; P.tile = 28;
+        /* hub9: category pads >= 28 tall, clear of BLE chip (ends 153) and plate cast 262 */
+        P.kx0 = 34; P.ky = 155; P.kw_band = 172; P.kh = 28; P.kcols = 0;  /* pads end 183 */
+        P.bx = 34; P.by = 186; P.bw = 172; P.bh = 70;        /* bay end 256 */
+        P.t0x = 42; P.t0y = 193; P.pitch = 31; P.cols = 4; P.rows = 2; P.tile = 28;
         P.pl[0] = 29; P.pl[1] = 264; P.pl[2] = 181; P.pl[3] = 49;   /* 3-line plate */
         /* hub6 L (Mobandy 4:30 + hub6 review): shared 74x96 main chip centred; WIFI|BLE mirrored
          * top; tabs 2x2 (28 tall) left | 2x3 tile bay right (mirror blocks); GIBSON under the
@@ -834,36 +835,63 @@ static void paint_gchat_e(Gfx g)
     e_silk_c(g, "DEFEND", scx, sy + 7, cb_silk());
     e_silk_c(g, "CHAT U1", scx, sy + 14, cb_silk());
     e_plate(g, PL[0], PL[1], PL[2], PL[3], "DEFEND CHAT", false);
-    if (P) { g.fillRect(101, 96, 1, PL[1] - 98, tr); g.fillRect(125, 96, 1, PL[1] - 98, tr); }   /* traces reach the 3-line plate */
-    else { g.fillRect(90, 49, 2, 1, tr); g.fillRect(90, 65, 2, 1, tr); }
+    /* hub9: traces chip -> play field -> 3-line plate */
+    if (P) { for (int x : { 101, 125 }) { g.fillRect(x, 96, 1, 8, tr); g.fillRect(x, 220, 1, PL[1] - 222, tr); } }
+    else { g.fillRect(90, 49, 8, 1, tr); g.fillRect(90, 65, 8, 1, tr); g.fillRect(150, 140, 1, PL[1] - 142, tr); g.fillRect(234, 140, 1, PL[1] - 142, tr); }
+    cyd_dl_paint(g);
     e_finish(g);
 }
 
-/* Diag: the probe readout in a silk plate, wired to a probe chip */
-static void e_diag_geo(int *pl)
+/* Diag (hub9): edge-to-edge board, probe chip centred on top, the probe readout in a centred silk
+ * panel, and the shared 3-line Adv terminal plate (reticle / CORE / menu column) centred at the bottom. */
+static void e_diag_geo(int *pl)   /* the 3-line plate */
 {
-    if (botcorps_cyd_orient) { pl[0] = 30; pl[1] = 34; pl[2] = 180; pl[3] = 200; }
-    else { pl[0] = 30; pl[1] = 32; pl[2] = 190; pl[3] = 198; }
+    if (botcorps_cyd_orient) { pl[0] = 31; pl[1] = 261; pl[2] = 178; pl[3] = 49; }
+    else { pl[0] = 34; pl[1] = 184; pl[2] = 252; pl[3] = 49; }
 }
-static void e_probe_chip(Gfx g, int x, int y)
+static void e_diag_panel(int *r)  /* the readout panel, clear of the plate's pad column */
+{
+    if (botcorps_cyd_orient) { r[0] = 37; r[1] = 80; r[2] = 166; r[3] = 137; }
+    else { r[0] = 47; r[1] = 64; r[2] = 226; r[3] = 78; }
+}
+static void e_diag_chip(int *x, int *y, int *s)
+{
+    if (botcorps_cyd_orient) { *s = 32; *x = 120 - 16; *y = 34; }
+    else { *s = 24; *x = 160 - 12; *y = 32; }
+}
+static void e_probe_chip(Gfx g, int x, int y, int s)
 {
     const uint8_t ring = (uint8_t)110, pin = (uint8_t)186;
-    g.fillRect(x, y, 40, 40, PAL_BLACK);
-    g.drawRect(x, y, 40, 40, ring);
-    for (int k = 0; k < 4; ++k) {
-        g.fillRect(x + 7 + k * 8, y - 3, 2, 3, pin); g.fillRect(x + 7 + k * 8, y + 40, 2, 3, pin);
-        g.fillRect(x - 3, y + 7 + k * 8, 3, 2, pin); g.fillRect(x + 40, y + 7 + k * 8, 3, 2, pin);
+    g.fillRect(x, y, s, s, PAL_BLACK);
+    g.drawRect(x, y, s, s, ring);
+    const int n = s / 8, st = s / n, o = (s - (n - 1) * st) / 2 - 1;
+    for (int k = 0; k < n; ++k) {
+        g.fillRect(x + o + k * st, y - 3, 2, 3, pin); g.fillRect(x + o + k * st, y + s, 2, 3, pin);
+        g.fillRect(x - 3, y + o + k * st, 3, 2, pin); g.fillRect(x + s, y + o + k * st, 3, 2, pin);
     }
-    g.fillRect(x + 8, y + 8, 24, 24, (uint8_t)PAL_DIAG);
-    tiny_text(g, "PRB", x + 14, y + 17, PAL_BLACK);
+    const int in = s - 12;
+    g.fillRect(x + 6, y + 6, in, in, (uint8_t)PAL_DIAG);
+    tiny_text(g, "PRB", x + (s - tiny_w("PRB")) / 2, y + (s - 5) / 2, PAL_BLACK);
 }
 static void paint_diag_e(Gfx g)
 {
     const bool P = botcorps_cyd_orient != 0;
     int PL[4]; e_diag_geo(PL);
+    int R[4]; e_diag_panel(R);
+    int cx, cy, cs; e_diag_chip(&cx, &cy, &cs);
     e_board(g);
+    const uint8_t tr = cb_trace();
+    /* traces: chip -> panel -> plate (mirrored about the centre line) */
+    const int mid = EW() / 2;
+    for (int d : { -8, 8 }) {
+        g.fillRect(mid + d, cy + cs + 3, 1, R[1] - 2 - (cy + cs + 3), tr);
+        g.fillRect(mid + d, R[1] + R[3] + 2, 1, PL[1] - 2 - (R[1] + R[3] + 2), tr);
+    }
+    e_probe_chip(g, cx, cy, cs);
+    e_silk_c(g, "PROBE", cx - 7 - tiny_w("PROBE") / 2, cy + cs / 2 - 2, cb_silk());
+    e_silk_c(g, "U9", cx + cs + 7 + tiny_w("U9") / 2, cy + cs / 2 - 2, cb_silk());
     int sx, sy, sw, sh;
-    e_plate_shell(g, PL[0], PL[1], PL[2], PL[3], "DIAG", true, &sx, &sy, &sw, &sh);
+    e_plate_shell(g, R[0], R[1], R[2], R[3], "PROBE", false, &sx, &sy, &sw, &sh);
     const botcorps_probe_t *p = botcorps_probe_get();
     struct spec { int id; const char *name; int kind; };
     static const spec rows[] = {
@@ -874,10 +902,12 @@ static void paint_diag_e(Gfx g)
         { BOTCORPS_ST_SF, "SF", 6 }, { BOTCORPS_ST_W0, "W0", 0 }, { BOTCORPS_ST_W1, "W1", 7 },
         { BOTCORPS_ST_OV0, "O0", 0 }, { BOTCORPS_ST_OV1, "O1", 8 }, { BOTCORPS_ST_N2, "N2", 9 },
     };
-    const int maxc = (sw - 6) / 4;
+    enum { NR = (int)(sizeof(rows) / sizeof(rows[0])), PITCH = 6 };
+    const int cols = P ? 1 : 2, per = (NR + cols - 1) / cols;
+    const int colw = (sw - 6) / cols, maxc = (colw - (cols > 1 ? 4 : 0)) / 4;
     char line[64], up[64];
     if (p) {
-        for (int i = 0; i < (int)(sizeof(rows) / sizeof(rows[0])); ++i) {
+        for (int i = 0; i < NR; ++i) {
             char tail[16];
             tail[0] = 0;
             switch (rows[i].kind) {
@@ -892,31 +922,23 @@ static void paint_diag_e(Gfx g)
             case 9: snprintf(tail, sizeof(tail), "%s %d", p->nim_2, p->nim_2_rc); break;
             default: break;
             }
-            snprintf(line, sizeof(line), "%02d %s %lu L%lu %lu %s", p->ord[rows[i].id], rows[i].name,
-                     (unsigned long)p->st[rows[i].id].free_b, (unsigned long)p->st[rows[i].id].max_b,
-                     (unsigned long)p->st[rows[i].id].min_b, tail);
+            if (P)
+                snprintf(line, sizeof(line), "%02d %s %lu L%lu %lu %s", p->ord[rows[i].id], rows[i].name,
+                         (unsigned long)p->st[rows[i].id].free_b, (unsigned long)p->st[rows[i].id].max_b,
+                         (unsigned long)p->st[rows[i].id].min_b, tail);
+            else   /* landscape: two columns, min_b dropped to fit */
+                snprintf(line, sizeof(line), "%02d %s %lu L%lu %s", p->ord[rows[i].id], rows[i].name,
+                         (unsigned long)p->st[rows[i].id].free_b, (unsigned long)p->st[rows[i].id].max_b, tail);
             sb_upper(up, sizeof up, line, maxc);
-            tiny_text(g, up, sx + 3, sy + 3 + i * 7, PAL_WHITE);
+            tiny_text(g, up, sx + 3 + (i / per) * colw, sy + 3 + (i % per) * PITCH, PAL_WHITE);
         }
     }
     snprintf(line, sizeof(line), "%s %s L%lu", botcorps_band_mode_name(), botcorps_band_direct() ? "direct" : "ok",
              (unsigned long)botcorps_band_largest());
-    sb_upper(up, sizeof up, line, maxc);
-    tiny_text(g, up, sx + 3, sy + 3 + 18 * 7 + 2, accent());
-    if (g.raw()) {
-        for (int i = 0; i < BOTCORPS_ICON_N && sx + 4 + i * 16 + 14 <= sx + sw; ++i)
-            botcorps_glyph_blit(*g.raw(), sx + 4 + i * 16 - g.ox, sy + 3 + 18 * 7 + 12 - g.oy, i, PAL_DIAG, PAL_MUTED, PAL_WHITE, nullptr);
-    }
-    const uint8_t tr = cb_trace();
-    if (P) {
-        e_probe_chip(g, 100, 252);
-        g.fillRect(118, PL[1] + PL[3] + 2, 1, 252 - 3 - (PL[1] + PL[3] + 2), tr);
-        e_silk_c(g, "PROBE U9", 120, 300, cb_silk());
-    } else {
-        e_probe_chip(g, 236, 60);
-        g.fillRect(PL[0] + PL[2], 79, 236 - 3 - (PL[0] + PL[2]), 1, tr);
-        e_silk_c(g, "PROBE U9", 256, 108, cb_silk());
-    }
+    sb_upper(up, sizeof up, line, (sw - 6) / 4);
+    g.fillRect(sx + 2, sy + 3 + per * PITCH, sw - 4, 1, PAL_LINE);
+    tiny_text(g, up, sx + 3, sy + 3 + per * PITCH + 2, accent());
+    e_plate(g, PL[0], PL[1], PL[2], PL[3], "DIAG", false);
     e_finish(g);
 }
 
@@ -934,12 +956,11 @@ static void e_covers(void)
         cover_add(cx - 57, cy - 57, 114, 114);
         cover_add(cx - 32, cy + 60, 64, 17);
     } else if (s_screen == SCR_GCHAT) {
-        if (P) { cover_add(28, 34, 184, 64); cover_add(96, 96, 36, 28); cover_add(27, 257, 185, 56); }   /* 3-line plate */
-        else { cover_add(28, 28, 64, 84); cover_add(88, 40, 4, 30); cover_add(90, 179, 198, 57); }   /* 3-line plate */
+        if (P) { cover_add(28, 34, 184, 64); cover_add(96, 96, 36, 8); cover_add(36, 102, 168, 120); cover_add(96, 220, 36, 40); cover_add(27, 257, 185, 56); }   /* hub9: + field */
+        else { cover_add(28, 28, 64, 84); cover_add(88, 28, 200, 114); cover_add(148, 140, 90, 42); cover_add(90, 179, 198, 57); }   /* hub9: + field */
     } else if (s_screen == SCR_DIAG) {
-        int PL[4]; e_diag_geo(PL);
-        cover_add(PL[0] - 2, PL[1] - 2, PL[2] + 4, PL[3] + 4);
-        if (P) cover_add(94, 230, 52, 76); else cover_add(218, 54, 72, 62);
+        (void)P;
+        cover_add(28, 28, W - 56, H - 32);   /* hub9: edge-to-edge board, the whole interior is parts */
     } else {
         cover_add(28, 28, W - 56, H - 32);   /* scan boards: the whole interior is parts */
     }

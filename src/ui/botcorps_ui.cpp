@@ -424,6 +424,13 @@ static void dl_begin(int bot);
 static void dl_end(void);
 static void dl_steer(int key);
 static void dl_fire(void);
+#ifdef BOTCORPS_CYD
+static void cyd_dl_paint(Gfx g);          /* hub9: botcorps_cyd_dlfield.inc */
+static bool cyd_dl_touch(int tx, int ty);
+static bool cyd_dl_line(void);
+static void cyd_dl_tick(uint32_t t);
+static int cyd_dl_tokens(const char *b, const char **tok, const char **sub, int max, char *head, size_t hcap);
+#endif
 static void zap_strip(Gfx g, int dx, int th, int ty, int dw);
 static void zap_rain_rect(Gfx g);
 static void chip_on_enter(void);
@@ -9607,7 +9614,7 @@ static bool ctlbot_hit_box(int i, int *x, int *y, int *w, int *h)
 {
     if (i < 0 || i > CP_N + 3) return false;
     if (i == CP_N) return false;                                               /* no >_ glyph: no Terminal screen on the CYD */
-    if (i == CP_N + 1) { *x = e_crown_x() - 19; *y = 0; *w = 38; *h = 26; return true; }   /* crown = BACK */
+    if (i == CP_N + 1) { *x = e_crown_x() - 19; *y = 0; *w = 38; *h = 28; return true; }   /* crown = BACK (hub9: >=28) */
     if (i == CP_N + 2 || i == CP_N + 3) return false;                          /* BOOT/EN removed with decorative power */
     int X, Y, W, H;
     if (!ctlbot_rect(i, &X, &Y, &W, &H)) return false;
@@ -9615,9 +9622,15 @@ static bool ctlbot_hit_box(int i, int *x, int *y, int *w, int *h)
     if (i == 8) { *x = X - 2; *y = Y - 2; *w = W + 4; *h = H + 4; return true; } /* tighter: avoid plate/chip silk bleed */
     if (i == 3 || i == 4 || i == 6) {
         const int bw = W + 6 < 40 ? 40 : W + 6;
-        *x = X + W / 2 - bw / 2; *y = Y - 3; *w = bw; *h = H + 3 + 4 + 14; return true;
+        *x = X + W / 2 - bw / 2; *y = Y - 3; *w = bw; *h = H + 3 + 4 + 14;
+    } else {
+        *x = X - 3; *y = Y - 3; *w = W + 6; *h = H + 6;
     }
-    *x = X - 3; *y = Y - 3; *w = W + 6; *h = H + 6; return true;
+    /* hub9: every touch button >= 28px (grow the hit box around the silk) */
+    if (*w < 28) { *x -= (28 - *w) / 2; *w = 28; }
+    if (*h < 28) { *y -= (28 - *h) / 2; *h = 28; }
+    if (*y < 28) { *h -= (28 - *y); *y = 28; if (*h < 28) *h = 28; }
+    return true;
 }
 static int ctlbot_touch(int tx, int ty)
 {
@@ -9642,7 +9655,7 @@ static int portrait_touch(int tx, int ty, char *typed)
 {
     if (s_intro_until) return K_NONE;                       /* BOOTbot intro: touches are swallowed */
     if (s_screen == SCR_RAIN) return K_OK;                  /* the rain disc: a tap jacks in */
-    if (ty < 26) {
+    if (ty < 28) {                                          /* hub9: crown / status chip are 28 tall */
         const int cx = e_crown_x();
         if (tx >= cx - 19 && tx < cx + 19) {
             /* one-tap BACK: drop typed lines / overlays that Esc would otherwise close first */
@@ -9724,6 +9737,8 @@ static int portrait_touch(int tx, int ty, char *typed)
         {                                                          /* category pads (1-row or 2x2) */
             for (int k = 0; k < ntab; ++k) {
                 int px, py, pw, ph; sb_catpad_cell(G, ntab, k, &px, &py, &pw, &ph);
+                if (pw < 28) { px -= (28 - pw) / 2; pw = 28; }
+                if (ph < 28) { py -= (28 - ph) / 2; ph = 28; }
                 if (tx >= px && tx < px + pw && ty >= py && ty < py + ph) {
                     s_scan_cat = k; s_scan_tile0 = 0; s_dirty = true; return K_NONE;
                 }
@@ -9782,6 +9797,7 @@ static int portrait_touch(int tx, int ty, char *typed)
         }
         return K_NONE;
     }
+    if (s_screen == SCR_GCHAT && cyd_dl_touch(tx, ty)) return K_NONE;   /* hub9: Defend field + banner buttons */
     if (s_screen == SCR_DIAG) { enter_screen(SCR_GIBSON, SCR_GIBSON); s_dirty = true; return K_NONE; }   /* any tap = HOME */
     return K_NONE;
 }
@@ -9790,6 +9806,7 @@ static int portrait_touch(int tx, int ty, char *typed)
 
 
 #include "ui/botcorps_defend.inc"
+#include "ui/botcorps_cyd_dlfield.inc"   /* hub9: CYD Defend field + banners (CYD-only body) */
 
 static bool v2_left_on(int bot)
 {
@@ -10629,6 +10646,7 @@ static void ui_dispatch(int key, char typed)
         if (key == K_ESC && cyd_adv_on_esc()) return;
         if (key == K_OK) {
             if (cyd_route_line()) return;
+            if (cyd_dl_line()) return;     /* hub9: Defend lines reach the game on GCHAT */
             if (cyd_adv_on_ok()) return;
         }
         if (key == K_TAB && cyd_adv_on_tab()) return;
@@ -10636,6 +10654,7 @@ static void ui_dispatch(int key, char typed)
         if (key == K_CHAR && cyd_adv_on_char(typed)) return;
     }
     if (key == K_OK && cyd_route_line()) return;   /* home / hub / scanbot / scan / control, from any plate */
+    if (key == K_OK && cyd_dl_line()) return;
 #endif
     if (s_sp_auto_t) {                             /* v1019r (#4): a key during the pre-typed scan */
         s_sp_auto_t = 0;

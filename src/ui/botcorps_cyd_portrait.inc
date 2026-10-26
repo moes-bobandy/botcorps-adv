@@ -487,7 +487,8 @@ static int scanbot_band(void) { return scanbot_active() == SB_BLE ? 1 : 0; }  /*
 struct SBGeo {
     int mx, my, mw, mh;             /* gold centre module */
     int cx[3], cy[3], cs;           /* scattered scan chips: 0 WIFI, 1 BLE, 2 GIBSON */
-    int kx0, ky, kw_band, kh;       /* category pad row (ntab pads with gaps over kw_band) */
+    int kx0, ky, kw_band, kh;       /* category pad band: kw_band wide, kh tall */
+    int kcols;                      /* pads per row; 0/1 = single row of ntab */
     int bx, by, bw, bh;             /* results bay */
     int t0x, t0y, pitch, cols, rows, tile;   /* tile grid inside the bay */
     int pl[4];                      /* SCANBOT plate: x y w h */
@@ -512,25 +513,51 @@ static const SBGeo &scanbot_geo(void)
         P.cx[0] = 38; P.cy[0] = 38;     /* WIFI  top-left   */
         P.cx[1] = 38; P.cy[1] = 90;     /* BLE   mid-left; silk ends ~127 */
         P.cx[2] = 174; P.cy[2] = 64;    /* GIBSON right     */
-        P.kx0 = 34; P.ky = 133; P.kw_band = 172; P.kh = 14;  /* pads end 147 */
+        P.kx0 = 34; P.ky = 133; P.kw_band = 172; P.kh = 14; P.kcols = 0;  /* pads end 147 */
         P.bx = 34; P.by = 152; P.bw = 172; P.bh = 107;       /* bay end 259; plate cast 262 */
         P.t0x = 42; P.t0y = 163; P.pitch = 31; P.cols = 4; P.rows = 3; P.tile = 28;  /* 3 rows: 163/194/225 -> 253 */
         P.pl[0] = 29; P.pl[1] = 264; P.pl[2] = 181; P.pl[3] = 49;   /* 3-line plate */
         /* ---- landscape 320 x 240 : 3-line plate y=184 (cast 182).
-         * Owner review 47d838a: centre face had crushed to ~6 px (I-glyph). Grow the gold
-         * WROOM module to CONTROLbot-class die/face; WIFI/BLE stack left, GIBSON top-right,
-         * category pads + 3-row bay in the right column so the face stays portrait-readable. ---- */
+         * Keep approved gold centre + WIFI/BLE/GIBSON. Owner review 7aa00ad: tabs were
+         * <28 px and DEAUTH clipped; MORE covered a tile; copper ran diagonally through
+         * the bay. 2x2 category pads (>=28), 2x2 tiles + dedicated MORE column, orthogonal copper. ---- */
         L.mx = 90; L.my = 28; L.mw = 84; L.mh = 100;  /* bottom 128; D~51 face~39 (gold) */
         L.cs = 24;
         L.cx[0] = 38; L.cy[0] = 32;     /* WIFI  left stack */
         L.cx[1] = 38; L.cy[1] = 78;     /* BLE */
-        L.cx[2] = 252; L.cy[2] = 30;    /* GIBSON top-right; above bay */
-        L.kx0 = 188; L.ky = 66; L.kw_band = 90; L.kh = 12;   /* pads above right bay */
-        L.bx = 188; L.by = 80; L.bw = 90; L.bh = 98;         /* bay end 178; plate cast 182 */
-        L.t0x = 192; L.t0y = 88; L.pitch = 29; L.cols = 3; L.rows = 3; L.tile = 28;  /* 3 rows */
+        L.cx[2] = 252; L.cy[2] = 30;    /* GIBSON top-right */
+        L.kx0 = 180; L.ky = 46; L.kw_band = 70; L.kh = 28; L.kcols = 2;  /* 2x2 pads 33x28 gap4; end 250 < GIBSON 252 */
+        L.bx = 180; L.by = 108; L.bw = 108; L.bh = 70;        /* bay end 178; plate cast 182 */
+        L.t0x = 186; L.t0y = 120; L.pitch = 30; L.cols = 2; L.rows = 2; L.tile = 28;  /* MORE bottom-right */
         L.pl[0] = 34; L.pl[1] = 184; L.pl[2] = 252; L.pl[3] = 49;   /* 3-line plate */
     }
     return botcorps_cyd_orient ? P : L;
+}
+
+
+/* Category pad cell + MORE chip rect — shared by painter and touch hit-test. */
+static void sb_catpad_cell(const SBGeo &G, int ntab, int i, int *px, int *py, int *pw, int *ph)
+{
+    const int kcols = (G.kcols > 1) ? G.kcols : ntab;
+    const int gap = (G.kcols > 1) ? 4 : 6;
+    const int pc = (G.kw_band - gap * (kcols - 1)) / kcols;
+    const int c = i % kcols, r = i / kcols;
+    const int rpitch = G.kh + ((G.kcols > 1) ? 4 : 0);
+    *px = G.kx0 + c * (pc + gap);
+    *py = G.ky + r * rpitch;
+    *pw = pc;
+    *ph = G.kh;
+}
+static void sb_more_rect(const SBGeo &G, int *ax, int *ay, int *aw, int *ah)
+{
+    *aw = 28; *ah = 28;
+    if (G.kcols > 1) {                         /* bottom-right of bay — clear of the 2x2 tiles */
+        *ax = G.bx + G.bw - 28 - 4;
+        *ay = G.by + G.bh - 28 - 4;
+    } else {
+        *ax = G.bx + G.bw - 28 - 2;
+        *ay = G.by + (G.bh - 28) / 2;
+    }
 }
 
 /* GIBSON face (ivory + dark Agent Smith glasses) lives in hubbot.inc, included later. */
@@ -744,35 +771,45 @@ static void paint_scan_e(Gfx g)
     e_board(g);
     cbf(g, 34, 27, EW() - 68, EH() - 32, (uint8_t)PAL_FIELD);
 
-    /* ---- copper: each scan chip -> module edge; module -> results bay ---- */
+    /* ---- copper: orthogonal PCB traces only (no diagonals across chips/tabs/tiles) ---- */
     const uint8_t tr = cb_trace(), via = cbmix(botcorps_rgb565(tr), 0xFFFF, 35);
+    const bool side_bay = (G.by < G.my + G.mh);
     for (int i = 0; i < 3; ++i) {
         const int ccx = G.cx[i] + G.cs / 2, ccy = G.cy[i] + G.cs / 2;
-        const int tgty = G.my + G.mh / 2;
-        const int tgtx = ccx < G.mx ? G.mx : (ccx > G.mx + G.mw ? G.mx + G.mw : ccx);
-        cb_line(g, ccx, ccy, ccx, tgty, tr); cb_via(g, ccx, tgty, via);
-        cb_line(g, ccx, tgty, tgtx, tgty, tr);
+        if (side_bay && ccx > G.mx + G.mw) {
+            /* right-side chip (GIBSON): run above the 2x2 tab block */
+            const int spine_y = G.ky - 6;
+            if (ccy != spine_y) { cb_line(g, ccx, ccy, ccx, spine_y, tr); cb_via(g, ccx, spine_y, via); }
+            cb_line(g, ccx, spine_y, G.mx + G.mw, spine_y, tr);
+            cb_via(g, G.mx + G.mw, spine_y, via);
+        } else {
+            const int tgty = G.my + G.mh / 2;
+            const int tgtx = ccx < G.mx ? G.mx : (ccx > G.mx + G.mw ? G.mx + G.mw : ccx);
+            cb_line(g, ccx, ccy, ccx, tgty, tr); cb_via(g, ccx, tgty, via);
+            cb_line(g, ccx, tgty, tgtx, tgty, tr);
+        }
     }
-    if (G.by >= G.my + G.mh) {
+    if (!side_bay) {
         const int mxc = G.mx + G.mw / 2;
         cb_line(g, mxc, G.my + G.mh, mxc, G.by, tr); cb_via(g, mxc, G.by, via);
     } else {
-        /* bay beside the module (landscape): copper into the bay's left lip */
-        const int my_mid = G.my + G.mh / 2;
-        const int by_mid = G.by + G.bh / 2;
-        cb_line(g, G.mx + G.mw, my_mid, G.bx, by_mid, tr); cb_via(g, G.bx, by_mid, via);
+        /* bay beside module: short horizontal into the bay's left lip (below tabs) */
+        const int cy = G.by + 4;
+        cb_line(g, G.mx + G.mw, cy, G.bx, cy, tr); cb_via(g, G.bx, cy, via);
     }
 
     /* ---- gold centre boss + three scattered scan chips ---- */
     sb_center(g, G.mx, G.my, G.mw, G.mh);
     for (int i = 0; i < 3; ++i) sb_scanchip(g, G.cx[i], G.cy[i], G.cs, i, NAME[i], i == act);
 
-    /* ---- category pads (small chips with gaps, not a bar) ---- */
+    /* ---- category pads (small chips with gaps; landscape = 2x2 >=28 hit cells) ---- */
     SBCat cat[5];
     const int ntab = scanbot_cats_e(act, cat);
     if (s_scan_cat < 0 || s_scan_cat >= ntab) s_scan_cat = 0;
-    { const int gap = 6, pw = (G.kw_band - gap * (ntab - 1)) / ntab;
-      for (int i = 0; i < ntab; ++i) sb_catpad(g, G.kx0 + i * (pw + gap), G.ky, pw, G.kh, cat[i].lab, i == s_scan_cat); }
+    for (int i = 0; i < ntab; ++i) {
+        int px, py, pw, ph; sb_catpad_cell(G, ntab, i, &px, &py, &pw, &ph);
+        sb_catpad(g, px, py, pw, ph, cat[i].lab, i == s_scan_cat);
+    }
 
     /* ---- results bay + tiles (gibson = BOTH bands; filtered by the selected category) ---- */
     const SBCat &fc = cat[s_scan_cat];
@@ -797,11 +834,9 @@ static void paint_scan_e(Gfx g)
           tiny_text(g, db, tx + 2, tyy + G.tile - 7, (uint8_t)PAL_WHITE, G.tile - 4);
           ++slot;
       }
-      /* scroll chip on bay right (≥28×28 hit); cycles the tile window */
+      /* scroll chip (≥28×28); landscape: own column right of tiles — never covers a tile */
       if (finds > cap) {
-          const int aw = 28, ah = 28;
-          const int ax = G.bx + G.bw - aw - 2;
-          const int ay = G.by + (G.bh - ah) / 2;
+          int ax, ay, aw, ah; sb_more_rect(G, &ax, &ay, &aw, &ah);
           cbf(g, ax, ay, aw, ah, accent());
           g.drawRect(ax, ay, aw, ah, PAL_WHITE);
           tiny_text(g, "MORE", ax + (aw - tiny_w("MORE")) / 2, ay + 8, (uint8_t)PAL_BLACK);

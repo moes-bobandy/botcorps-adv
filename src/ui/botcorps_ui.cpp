@@ -9703,18 +9703,17 @@ static int portrait_touch(int tx, int ty, char *typed)
         }
         SBCat cat[5];
         const int ntab = scanbot_cats_e(act, cat);
-        if (ty >= G.ky && ty < G.ky + G.kh) {                      /* category pads (chips with gaps) */
-            const int gap = 6, pw = (G.kw_band - gap * (ntab - 1)) / ntab;
+        {                                                          /* category pads (1-row or 2x2) */
             for (int k = 0; k < ntab; ++k) {
-                const int px = G.kx0 + k * (pw + gap);
-                if (tx >= px && tx < px + pw) { s_scan_cat = k; s_scan_tile0 = 0; s_dirty = true; return K_NONE; }
+                int px, py, pw, ph; sb_catpad_cell(G, ntab, k, &px, &py, &pw, &ph);
+                if (tx >= px && tx < px + pw && ty >= py && ty < py + ph) {
+                    s_scan_cat = k; s_scan_tile0 = 0; s_dirty = true; return K_NONE;
+                }
             }
-            return K_NONE;
         }
-        /* bay scroll chip 28×28 on bay right — advance tile window */
+        /* bay scroll chip 28×28 — advance tile window (dedicated slot; never a tile) */
         {
-            const int aw = 28, ah = 28;
-            const int ax = G.bx + G.bw - aw - 2, ay = G.by + (G.bh - ah) / 2;
+            int ax, ay, aw, ah; sb_more_rect(G, &ax, &ay, &aw, &ah);
             if (tx >= ax && tx < ax + aw && ty >= ay && ty < ay + ah) {
                 SBCat cat0[5];
                 const int n0 = scanbot_cats_e(act, cat0);

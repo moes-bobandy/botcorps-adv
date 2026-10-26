@@ -9675,11 +9675,6 @@ static int portrait_touch(int tx, int ty, char *typed)
             enter_defend(12, SCR_GIBSON);
             return K_NONE;
         }
-        if (c == HB4_GIB && s_hub_term) {               /* hub7: GIBSON chip on the term board = back to the hub */
-            log_add("terminalbot> gibson");
-            s_hub_term = false; s_dirty = true;
-            return K_NONE;
-        }
         if (c == HB4_SCAN) {
             log_add("gibson> scanbot");
             s_scan_bot = 12; s_gib_hunt = false;

@@ -3,7 +3,17 @@
  * Art ported 1:1 from Adv botcorps_id.cpp @ f1c08aa (board/gpio_pad/sq_face/bar_one/module teeth),
  * function parts reuse the live Control painters (cp_chip U1..U5) and cp_part art (CP / J1 / PWR). */
 
-static inline void cbf(Gfx g, int x, int y, int w, int h, int c) { g.fillRect(x, y, w, h, (uint8_t)c); }
+/* hub8 (Mobandy 5:18 PM ET): BOOTbot = GIBSONbot's photo-negative BY CONSTRUCTION. While s_mb_inv
+ * is set every cbf colour goes through mb_iv() = nearest palette entry to the bitwise-inverted RGB565,
+ * so BOOT runs GIBSON's exact draw path and only the colours differ. */
+static bool s_mb_inv = false;
+static uint8_t mb_iv(int c)
+{
+    static uint8_t T[256]; static bool ok = false;
+    if (!ok) { for (int i = 0; i < 256; ++i) T[i] = botcorps_pal_fit((uint16_t)(0xFFFFu ^ botcorps_rgb565((uint8_t)i))); ok = true; }
+    return T[c & 255];
+}
+static inline void cbf(Gfx g, int x, int y, int w, int h, int c) { g.fillRect(x, y, w, h, (uint8_t)(s_mb_inv ? mb_iv(c) : c)); }
 static uint8_t s_cb_col = 43;               /* controlbot body colour: set to the UI COLOR accent each paint (43 = idle default) */
 static uint8_t cbp(uint16_t c565) { return botcorps_pal_fit(c565); }
 static uint8_t cbmix(uint16_t a, uint16_t b, int num) { return cbp(mix16(a, b, num, 100)); }
@@ -76,7 +86,6 @@ static int mb_h(bool P, int k16 = 16) { return mb_S(P ? MB_H_P : MB_H_L, k16); }
 static void e_metal_face(Gfx g, int cx, int cy, int s, bool gold);   /* edge.inc */
 static void hb_gib_face(Gfx g, int cx, int cy, int s);               /* hubbot.inc */
 static void hb_term_face(Gfx g, int cx, int cy, int s);              /* hubbot.inc */
-static void hb_boot_face(Gfx g, int cx, int cy, int s);              /* hubbot.inc */
 /* die geometry relative to the chip origin: centre, die side D, label top (label = Font0 name
  * [+ info line]); k16 = 16 reproduces the hub6 geometry exactly */
 static void mb_geo(bool P, int *dcx, int *dcy, int *D, int *ty, int k16 = 16, bool info = true)
@@ -116,6 +125,10 @@ static void drawBotChipK(Gfx g, int mx, int my, bool P, int bot, int k16, const 
 {
 #define MS(v) mb_S((v), k16)
     const uint8_t gold = 177, goldd = 104, steel = PAL_STEEL;
+    /* BOOT = GIBSON geometry + face with every colour inverted (s_mb_inv); only the name differs */
+    const bool inv = bot == MB_BOOT;
+    const int fbot = inv ? (int)MB_GIB : bot;
+    const bool inv_keep = s_mb_inv; s_mb_inv = inv;
     const int mw = mb_w(P, k16), mh = mb_h(P, k16);
     cbf(g, mx, my, mw, mh, cbp(0x18E3));
     const int pstep = MS(6) < 3 ? 3 : MS(6);
@@ -162,8 +175,7 @@ static void drawBotChipK(Gfx g, int mx, int my, bool P, int bot, int k16, const 
     cbf(g, cx - D / 2, cy - D / 2, 1, D, steel); cbf(g, cx + D / 2 - 1, cy - D / 2, 1, D, steel);
     const int bob = ((millis() / 900u) % 2u) ? 1 : 0;
     const int fs = D - MS(12), fy = cy + bob - 1;
-    if (bot == MB_GIB) hb_gib_face(g, cx, fy, fs);              /* ivory + dark glasses */
-    else if (bot == MB_BOOT) hb_boot_face(g, cx, fy, fs);       /* GIBSON inverted: black + white glasses */
+    if (fbot == MB_GIB) hb_gib_face(g, cx, fy, fs);             /* ivory + dark glasses (BOOT: inverted) */
     else if (bot == MB_SCAN) e_metal_face(g, cx, fy, fs, true);  /* metallic gold */
     else if (bot == MB_TERM) hb_term_face(g, cx, fy, fs);        /* metallic silver */
     else if (bot == MB_WIFI || bot == MB_BLE) {                  /* radio bots: theme face, steel when idle */
@@ -178,14 +190,16 @@ static void drawBotChipK(Gfx g, int mx, int my, bool P, int bot, int k16, const 
         const int keep = s_px; use_px(g, 6);
         /* hub7: names in near-black ink on the light face window (the old grey 41 washed out on
          * small chips); the faint accent info line is now a deep accent with the same contrast */
-        txt(g, nm, cx, ty, sh_rgb(0x10, 0x12, 0x18), lgfx::textdatum::top_center);
-        if (hasInfo) txt(g, info, cx, ty + 9, cbmix(botcorps_rgb565(accent()), 0x0000, 40), lgfx::textdatum::top_center);
+        const uint8_t ink = sh_rgb(0x10, 0x12, 0x18), inf = cbmix(botcorps_rgb565(accent()), 0x0000, 40);
+        txt(g, nm, cx, ty, inv ? mb_iv(ink) : ink, lgfx::textdatum::top_center);
+        if (hasInfo) txt(g, info, cx, ty + 9, inv ? mb_iv(inf) : inf, lgfx::textdatum::top_center);
         s_px = keep;
     }
     if (lit) {                                                   /* selection ring: 2 px, outside the pins */
         const int o = k16 >= 16 ? 4 : 3;
         g.drawRect(mx - o, my - o, mw + 2 * o, mh + 2 * o, PAL_WHITE); g.drawRect(mx - o + 1, my - o + 1, mw + 2 * o - 2, mh + 2 * o - 2, accent());
     }
+    s_mb_inv = inv_keep;
     OVL_BOX("CHIP", nm, mx, my, mw, mh);
 #undef MS
 }

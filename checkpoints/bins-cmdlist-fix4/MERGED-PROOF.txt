@@ -1,0 +1,7 @@
+app_sha256=5ccfa14ac5102eb87b38982da79b10f6bb0a01c09ccc6ed29f509d56752cc373
+merged_sha256=3a6d736b99a211856c895b10d7a8d86c0aece2cb1db8b4e1e2b7043fd1b0f67b
+slice_0x10000_len_app_sha256=5ccfa14ac5102eb87b38982da79b10f6bb0a01c09ccc6ed29f509d56752cc373
+PROOF_slice_eq_app=True
+app_len=1487824
+merged_len=1553360
+merge=esptool merge-bin bootloader@0x1000 partitions@0x8000 boot_app0@0xe000 app@0x10000

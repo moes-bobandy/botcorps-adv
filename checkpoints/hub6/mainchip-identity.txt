@@ -1,0 +1,12 @@
+L homeA  @(123,34,74,96): frame px differing vs ctrl = 0/2896
+L homeB  @(123,34,74,96): frame px differing vs ctrl = 0/2896
+L homeC  @(123,34,74,96): frame px differing vs ctrl = 0/2896
+L term   @(123,30,74,96): frame px differing vs ctrl = 0/2896
+L scan   @(123,30,74,96): frame px differing vs ctrl = 0/2896
+L ctrl   @(123,38,74,96): frame px differing vs ctrl = 0/2896
+P homeA  @(78,78,84,120): frame px differing vs ctrl = 0/4346
+P homeB  @(78,78,84,120): frame px differing vs ctrl = 0/4346
+P homeC  @(78,78,84,120): frame px differing vs ctrl = 0/4346
+P term   @(78,78,84,120): frame px differing vs ctrl = 0/4346
+P scan   @(78,30,84,120): frame px differing vs ctrl = 0/4346
+P ctrl   @(78,86,84,120): frame px differing vs ctrl = 0/4346

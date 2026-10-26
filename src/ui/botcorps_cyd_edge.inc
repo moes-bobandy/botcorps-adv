@@ -223,9 +223,12 @@ static bool pt_overlay_rect(int *x, int *y, int *w, int *h)
 static void e_plate(Gfx g, int bx, int by, int bw, int bh, const char *silk, bool sel, bool dark = false)
 {
     int sx, sy, sw, sh;
+    OVL_PLATE_BEGIN();
     e_plate_shell(g, bx, by, bw, bh, silk, true, &sx, &sy, &sw, &sh, 2);
     if (sel) g.drawRect(bx - 2, by - 2, bw + 4, bh + 4, PAL_WHITE);
     if (!dark) cyd_adv_paint_plate(g, sx, sy, sw, sh);
+    OVL_PLATE_END();
+    OVL_BOX("PLATE", silk, bx, by - 2, bw, bh + 2);   /* incl. top castellations */
 }
 /* Owner 8:16 AM ET Oct 26: every CYD terminal plate is 3 lines (2 log lines + cmdline):
  * outer 49 -> screen sh 36 -> log rows at sy+4, sy+12, cmdline at sy+25. */
@@ -264,9 +267,7 @@ static void paint_ctlbot(Gfx g)
     static const int CH[4] = { 1, 2, 5, 7 };
     for (int k = 0; k < 4; ++k) cb_chip(g, CH[k], s_cursor == CH[k]);
     cb_part(g, 3); cb_part(g, 4); cb_part(g, 6);
-    const char *nm = "CONTROLBOT";
-    if (P) e_silk(g, nm, 205 - tiny_w(nm), 311);
-    else e_silk(g, nm, 160 - tiny_w(nm) / 2, 28);
+    cb_power_strip(g);   /* hub6: header now lives in the stretched strip (bottom silk sat in the plate keep-out) */   /* hub6: stretched top power bars (replaces the L top silk) */
     if (P) e_plate(g, 31, 261, 177, 49, "CONTROLBOT", false);
     else e_plate(g, 34, 184, 252, 49, "CONTROLBOT", false);
     e_finish(g);

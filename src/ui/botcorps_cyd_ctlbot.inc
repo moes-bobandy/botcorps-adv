@@ -63,22 +63,58 @@ static void cb_face(Gfx g, int cx, int cy, int s)
     cbf(g, x + m, y + c + (bl ? c - 1 : 0), c, bl ? 1 : c, PAL_BLACK);
     cbf(g, x + m + 2 * c, y + c + (bl ? c - 1 : 0), c, bl ? 1 : c, PAL_BLACK);
 }
-/* botcorps_id.cpp:1027-1078 WROOM module + die + face, scaled to the boss size
- * (portrait 84x120, die 60, face 48; landscape 74x104, die 50, face 38), centred on the board's x axis */
-static void cb_module(Gfx g, int mx, int my, int mw, int mh)
+/* ---- hub6 (Mobandy 4:30 PM ET Oct 26): ONE main-bot chip for every main board ----
+ * CONTROLbot's centre module (frame, side/bottom pins, power-bar header, shaded face window,
+ * die, name/info label) at EXACTLY CONTROLbot's size per orientation. Only the face inside the
+ * die window and the two label lines switch per bot; every other pixel is identical. */
+enum { MB_GIB = 0, MB_TERM = 1, MB_SCAN = 2, MB_CTRL = 3, MB_N = 4 };
+static const int MB_W_L = 74, MB_H_L = 96, MB_W_P = 84, MB_H_P = 120;
+static int mb_w(bool P) { return P ? MB_W_P : MB_W_L; }
+static int mb_h(bool P) { return P ? MB_H_P : MB_H_L; }
+static void e_metal_face(Gfx g, int cx, int cy, int s, bool gold);   /* edge.inc */
+static void hb_gib_face(Gfx g, int cx, int cy, int s);               /* hubbot.inc */
+static void hb_term_face(Gfx g, int cx, int cy, int s);              /* hubbot.inc */
+/* die geometry relative to the chip origin: centre, die side D, label top */
+static void mb_geo(bool P, int *dcx, int *dcy, int *D, int *ty)
+{
+    const int mw = mb_w(P), mh = mb_h(P), sw = mw - 6;
+    int d = sw - 18;
+    if (!P) { const int dmax = mh - 18 - 24; if (d > dmax) d = dmax; }
+    if (d < 20) d = 20;
+    *dcx = 3 + sw / 2; *dcy = 18 + d / 2 + 3; *D = d;
+    int t = *dcy + d / 2 + 5;
+    if (!P && t + 18 > mh - 4) t = mh - 22;
+    *ty = t;
+}
+/* face rect (die window incl. its pin ticks) and label rect, chip-relative — the only areas that differ */
+static void mb_face_rect(bool P, int *x, int *y, int *w, int *h)
+{ int cx, cy, D, ty; mb_geo(P, &cx, &cy, &D, &ty); *x = cx - D / 2 - 2; *y = cy - D / 2 - 2; *w = D + 4; *h = D + 4; }
+static void mb_label_rect(bool P, int *x, int *y, int *w, int *h)
+{ int cx, cy, D, ty; mb_geo(P, &cx, &cy, &D, &ty); *x = 3; *y = ty - 1; *w = mb_w(P) - 6; *h = P ? 21 : 19; }
+static const char *mb_name(int bot)
+{
+    static const char *const N[MB_N] = { "GIBSONBOT", "TERMINALBOT", "SCANBOT", "CONTROLBOT" };
+    return N[(bot < 0 || bot >= MB_N) ? MB_CTRL : bot];
+}
+static void drawMainBotChip(Gfx g, int mx, int my, bool P, int bot, const char *info = nullptr)
 {
     const uint8_t gold = 177, goldd = 104, steel = PAL_STEEL;
+    const int mw = mb_w(P), mh = mb_h(P);
     cbf(g, mx, my, mw, mh, cbp(0x18E3));
     for (int y = my + 22; y < my + mh - 4; y += 6) {
         cbf(g, mx - 2, y, 4, 3, gold); cbf(g, mx - 2, y, 1, 3, goldd);
         cbf(g, mx + mw - 2, y, 4, 3, gold); cbf(g, mx + mw + 1, y, 1, 3, goldd);
     }
     for (int x = mx + 7; x < mx + mw - 6; x += 6) cbf(g, x, my + mh - 2, 3, 4, gold);
-    int ax = mx + (mw - 48) / 2;
-    for (int i = 0; i < 7; ++i) {
-        cbf(g, ax, my + 3, 1, 11, gold); cbf(g, ax, my + 3, 4, 1, gold);
-        cbf(g, ax + 3, my + 3, 1, 11, gold); cbf(g, ax + 3, my + 13, 4, 1, gold);
-        ax += 7;
+    /* power-bar header, stretched across the whole chip top (Mobandy 4:27): evenly spaced meanders */
+    {
+        const int span = mw - 8, n = (span - 4) / 7, used = n * 7 - 3;
+        int ax = mx + (mw - used) / 2;
+        for (int i = 0; i < n; ++i) {
+            cbf(g, ax, my + 3, 1, 11, gold); cbf(g, ax, my + 3, 4, 1, gold);
+            cbf(g, ax + 3, my + 3, 1, 11, gold); cbf(g, ax + 3, my + 13, 4, 1, gold);
+            ax += 7;
+        }
     }
     const int sx = mx + 3, sy = my + 18, sw = mw - 6, sh = mh - 22;
     for (int r = 0; r < sh; ++r) {
@@ -92,40 +128,66 @@ static void cb_module(Gfx g, int mx, int my, int mw, int mh)
     }
     cbf(g, sx, sy, sw, 1, 186);
     cbf(g, sx, sy, 1, sh, 186);
-    int D = sw - 18;
-    if (!botcorps_cyd_orient) {                       /* L: leave ~24 px for 2× Font0 silk */
-        const int dmax = mh - 18 - 24; if (D > dmax) D = dmax;
-    }
-    if (D < 20) D = 20;
-    const int cx = sx + sw / 2, cy = sy + D / 2 + 3;
+    int dcx, dcy, D, rty; mb_geo(P, &dcx, &dcy, &D, &rty);
+    const int cx = mx + dcx, cy = my + dcy;
     const uint8_t pin = PAL_SOFT;
     for (int k = 0; k < 5; ++k) {
         const int i = (D - 4 * (D / 6) - 1) / 2 + (D / 6) * k;
         cbf(g, cx - D / 2 - 2, cy - D / 2 + i, 2, 1, pin); cbf(g, cx + D / 2, cy - D / 2 + i, 2, 1, pin);
         cbf(g, cx - D / 2 + i, cy - D / 2 - 2, 1, 2, pin); cbf(g, cx - D / 2 + i, cy + D / 2, 1, 2, pin);
     }
-    /* die follows live UI theme (old GRAPE chip job); black inset keeps the face readable */
-    cbf(g, cx - D / 2, cy - D / 2, D, D, accent());
-    cbf(g, cx - D / 2 + 1, cy - D / 2 + 1, D - 2, D - 2, PAL_BLACK);
+    cbf(g, cx - D / 2, cy - D / 2, D, D, PAL_BLACK);
     cbf(g, cx - D / 2, cy - D / 2, D, 1, steel); cbf(g, cx - D / 2, cy + D / 2 - 1, D, 1, steel);
     cbf(g, cx - D / 2, cy - D / 2, 1, D, steel); cbf(g, cx + D / 2 - 1, cy - D / 2, 1, D, steel);
     const int bob = ((millis() / 900u) % 2u) ? 1 : 0;
-    cb_face(g, cx, cy + bob - 1, D - 12);
-    const int ty = cy + D / 2 + 5;
-    /* Landscape: Font0 (~6 px); drop WROOM/theme silk that won't fit (Mobandy 4:13) */
-    if (!botcorps_cyd_orient) {
-        int lty = ty;
-        if (lty + 18 > my + mh - 4) lty = my + mh - 22;
+    const int fs = D - 12;
+    if (bot == MB_GIB) hb_gib_face(g, cx, cy + bob - 1, fs);              /* ivory + dark glasses */
+    else if (bot == MB_SCAN) e_metal_face(g, cx, cy + bob - 1, fs, true);  /* metallic gold */
+    else if (bot == MB_TERM) hb_term_face(g, cx, cy + bob - 1, fs);        /* metallic silver */
+    else cb_face(g, cx, cy + bob - 1, fs);                                 /* live theme */
+    const char *nm = mb_name(bot);
+    const char *in = info ? info : (bot == MB_CTRL ? theme().sname : "");
+    const int ty = my + rty;
+    if (!P) {
         const int keep = s_px; use_px(g, 6);
-        txt(g, "CONTROL", cx, lty, 41, lgfx::textdatum::top_center);
-        txt(g, theme().sname, cx, lty + 9, accent(), lgfx::textdatum::top_center);
+        txt(g, nm, cx, ty, 41, lgfx::textdatum::top_center);
+        if (in[0]) txt(g, in, cx, ty + 9, accent(), lgfx::textdatum::top_center);
         s_px = keep;
     } else {
-        tiny_text(g, "CONTROL", cx - tiny_w("CONTROL") / 2, ty, 41);
+        tiny_text(g, nm, cx - tiny_w(nm) / 2, ty, 41);
         tiny_text(g, "WROOM-32", cx - tiny_w("WROOM-32") / 2, ty + 7, 41);
-        const char *sn = theme().sname;
-        tiny_text(g, sn, cx - tiny_w(sn) / 2, ty + 14, accent());
+        if (in[0]) tiny_text(g, in, cx - tiny_w(in) / 2, ty + 14, accent());
     }
+    OVL_BOX("CHIP", nm, mx, my, mw, mh);
+}
+/* hub6 (Mobandy 4:27): CONTROLbot board power-bar strip stretched across the whole top area
+ * between the side pin columns, just under the top bar; header centred on a black window. */
+static uint8_t cb_silk(void);
+static void cb_power_strip(Gfx g)
+{
+    const bool P = botcorps_cyd_orient != 0;
+    const int x0 = P ? 30 : 36, x1 = P ? 210 : 284, y = 27, h = P ? 8 : 10;
+    const uint8_t gold = 177;
+    const char *nm = "CONTROLBOT";
+    const int tw = P ? tiny_w(nm) : (int)strlen(nm) * 6, tx0 = (x0 + x1) / 2 - tw / 2 - 4, tx1 = (x0 + x1) / 2 + tw / 2 + 4;
+    cbf(g, x0, y, x1 - x0, h, PAL_BLACK);
+    /* evenly spaced meanders (period 7) on each side of the header window, mirrored */
+    const int side = tx0 - x0, n = (side - 2) / 7, used = n * 7 - 3, off = (side - used) / 2;
+    for (int sd = 0; sd < 2; ++sd)
+        for (int i = 0; i < n; ++i) {
+            const int ax = sd == 0 ? x0 + off + i * 7 : x1 - off - used + i * 7;
+            cbf(g, ax, y + 1, 1, h - 2, gold); cbf(g, ax, y + 1, 4, 1, gold);
+            cbf(g, ax + 3, y + 1, 1, h - 2, gold); cbf(g, ax + 3, y + h - 2, 4, 1, gold);
+        }
+    if (P) tiny_text(g, nm, (x0 + x1) / 2 - tw / 2, y + 2, cb_silk());
+    else { const int keep = s_px; use_px(g, 6); txt(g, nm, (x0 + x1) / 2, y + 1, cb_silk(), lgfx::textdatum::top_center); s_px = keep; }
+    (void)tx1;
+    OVL_BOX("CHIP", "PWRSTRIP", x0, y, x1 - x0, h);
+}
+static void cb_module(Gfx g, int mx, int my, int mw, int mh)
+{
+    (void)mw; (void)mh;
+    drawMainBotChip(g, mx, my, botcorps_cyd_orient != 0, MB_CTRL);
 }
 /* botcorps_id.cpp:908 bar_one, palette path; label / value given */
 static void cb_bar(Gfx g, int x, int y, int bw, const char *lab, const char *val, int v100)
@@ -162,6 +224,7 @@ static void cb_chip(Gfx g, int index, bool on)
     const uint8_t ac = accent(), dark = sh_rgb(0x2a, 0x2a, 0x32);
     cbf(g, x - 1, y - 1, w + 2, h + 2, PAL_BLACK);
     if (on) { cbf(g, x - 3, y - 3, w + 6, h + 6, wash22(ac)); sel_rect(g, x - 3, y - 3, w + 6, h + 6); cbf(g, x, y, w, h, PAL_BLACK); }
+    OVL_BOX("CHIP", "CB", x, y, w, h);
     const int S = 28, sx = x + (w - S) / 2, sy = y + 6;
     const int lit = (int)((millis() / 90u) % 6u);
     for (int k = 0; k < 6; ++k) {
@@ -246,15 +309,33 @@ static void cb_part(Gfx g, int i)
         lab = RAIN_WORD[botcorps_rain_mode() < 0 ? 0 : botcorps_rain_mode()];
     } else if (i == 6) {
         const bool pon = s_bg_motion != 0;
+        lab = pon ? "ON" : "OFF";
+        if (!botcorps_cyd_orient) {
+            /* hub6 L: wide toggle mirroring ORIENT; name above, live value inside (no stray square) */
+            cbf(g, x - 3, y - 10, w + 6, h + 11, PAL_BLACK);
+            if (on) { cbf(g, x - 3, y - 10, w + 6, h + 11, wash22(accent())); sel_rect(g, x - 4, y - 11, w + 8, h + 13); }
+            cb_lab(g, "BG MOTION", x + w / 2, y - 9, on);
+            cbf(g, x, y, w, h, 68);
+            cbf(g, x + 1, y + 1, w - 2, h - 2, cbp(0x18E3));
+            const int kw = 22, kx = pon ? x + w - 2 - kw : x + 2;
+            cbf(g, kx, y + 2, kw, h - 4, pon ? sh_rgb(0xff, 0x22, 0x44) : sh_rgb(0x3a, 0x0a, 0x12));
+            cbf(g, kx, y + 2, kw, 1, sh_rgb(0xd9, 0xd9, 0xdf));
+            const int keep = s_px; use_px(g, 6);
+            txt(g, lab, pon ? x + 2 + (w - 4 - kw) / 2 : x + 2 + kw + (w - 4 - kw) / 2, y + (h - 8) / 2 + 1,
+                on ? (uint8_t)PAL_WHITE : cb_silk(), lgfx::textdatum::top_center);
+            s_px = keep;
+            OVL_BOX("CHIP", "BG MOTION", x, y, w, h);
+            return;
+        }
         cbf(g, x, y, w, h, sh_rgb(0xd9, 0xd9, 0xdf));
         cbf(g, x + 2, y + 1, w - 4, h - 2, pon ? sh_rgb(0xff, 0x22, 0x44) : sh_rgb(0x3a, 0x0a, 0x12));
-        lab = pon ? "ON" : "OFF";
     }
     /* two-line silk: function name, then live value */
     static const char *const FN[9] = { "", "", "", "RAIN MODE", "RAIN COL", "", "BG MOTION", "", "" };
     const int ly = y + h + 4;
+    OVL_BOX("CHIP", FN[i], x, y, w, h);
     cb_lab(g, FN[i], x + w / 2, ly, on);
-    cb_lab(g, lab, x + w / 2, ly + 7, on);
+    cb_lab(g, lab, x + w / 2, ly + (botcorps_cyd_orient ? 7 : 9), on);   /* hub6 L: Font0 rows don't touch */
 }
 /* NEW: ORIENT slide switch (LAND <-> PORT), gpio_pad contacts at each throw */
 static void cb_orient(Gfx g)
@@ -263,6 +344,24 @@ static void cb_orient(Gfx g)
     ctlbot_rect(8, &x, &y, &w, &h);
     const bool on = s_cursor == 8, port = botcorps_cyd_orient != 0;
     const uint16_t body = botcorps_rgb565(s_cb_col);
+    OVL_BOX("CHIP", "ORIENT", x, y, w, h);
+    if (!port) {
+        /* hub6 L: wide 72x16 toggle; ORIENT above, LAND on the knob-free side, nothing below */
+        cbf(g, x - 3, y - 10, w + 6, h + 11, PAL_BLACK);
+        if (on) { cbf(g, x - 3, y - 10, w + 6, h + 11, wash22(accent())); sel_rect(g, x - 4, y - 11, w + 8, h + 13); }
+        cb_lab(g, "ORIENT", x + w / 2, y - 9, on);
+        cbf(g, x, y, w, h, 68);
+        cbf(g, x + 1, y + 1, w - 2, h - 2, cbp(0x18E3));
+        const int kw = 22, kx = x + 2;                                     /* knob on the LAND end */
+        cbf(g, kx, y + 2, kw, h - 4, sh_rgb(0x00, 0x7a, 0x9a));
+        cbf(g, kx, y + 2, kw, h - 6, sh_rgb(0x00, 0xc8, 0xff));
+        for (int k = 0; k < 3; ++k) cbf(g, kx + 7 + k * 3, y + 5, 1, h - 10, sh_rgb(0x00, 0x7a, 0x9a));
+        const int keep = s_px; use_px(g, 6);
+        txt(g, "LAND", x + 2 + kw + (w - 4 - kw) / 2, y + (h - 8) / 2 + 1, on ? (uint8_t)PAL_WHITE : cb_silk(), lgfx::textdatum::top_center);
+        s_px = keep;
+        (void)body;
+        return;
+    }
     cbf(g, x - 3, y - 10, w + 6, h + 20, PAL_BLACK);
     if (on) { cbf(g, x - 3, y - 10, w + 6, h + 20, wash22(accent())); sel_rect(g, x - 4, y - 11, w + 8, h + 22); }
     cb_lab(g, "ORIENT", x + w / 2, y - 8, on);
@@ -442,6 +541,7 @@ static void cb_hilite(Gfx g)
 static void cb_meters(Gfx g, const int *M)
 {
     if (!M || M[2] <= 0) return;           /* L hub5: meters omitted when MET w=0 */
+    OVL_BOX("CHIP", "METERS", M[0], M[1] - 8, M[2], 45);
     char v[12];
     snprintf(v, sizeof v, "%d/%d", theme_ix(s_color) + 1, THEME_N);
     cb_bar(g, M[0], M[1], M[2], "THEME", v, (theme_ix(s_color) + 1) * 100 / THEME_N);

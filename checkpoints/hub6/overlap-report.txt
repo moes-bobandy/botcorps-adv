@@ -1,0 +1,13 @@
+L/ctrl.ovl.txt: 0 hits (10 chips, 44 text, 1 plate)
+L/homeA.ovl.txt: 0 hits (5 chips, 34 text, 1 plate)
+L/homeB.ovl.txt: 0 hits (5 chips, 35 text, 1 plate)
+L/homeC.ovl.txt: 0 hits (5 chips, 37 text, 1 plate)
+L/scan.ovl.txt: 0 hits (10 chips, 46 text, 1 plate)
+L/term.ovl.txt: 0 hits (4 chips, 33 text, 1 plate)
+P/ctrl.ovl.txt: 0 hits (11 chips, 64 text, 1 plate)
+P/homeA.ovl.txt: 0 hits (5 chips, 51 text, 1 plate)
+P/homeB.ovl.txt: 0 hits (5 chips, 52 text, 1 plate)
+P/homeC.ovl.txt: 0 hits (5 chips, 55 text, 1 plate)
+P/scan.ovl.txt: 0 hits (10 chips, 61 text, 1 plate)
+P/term.ovl.txt: 0 hits (4 chips, 50 text, 1 plate)
+TOTAL 0

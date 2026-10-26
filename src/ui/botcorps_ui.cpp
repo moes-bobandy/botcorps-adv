@@ -39,6 +39,21 @@ extern char botcorps_t0_term_found[12][28];
 #else
 #define GATE_BOX(g, k, n, x, y, w, h, p) ((void)0)
 #endif
+#ifdef BOTCORPS_CYD
+/* hub6: sim-only layout recorder (chip / label / text / plate rects) for the automated overlap
+ * check. Compiles to nothing on the device (BOTCORPS_SIM is only defined by the native sim). */
+#if defined(BOTCORPS_SIM)
+void sim_ovl_box(const char *kind, const char *name, int x, int y, int w, int h);
+static int s_ovl_in_plate = 0;
+#define OVL_BOX(k, n, x, y, w, h) sim_ovl_box((s_ovl_in_plate && !strcmp((k), "TEXT")) ? "PTEXT" : (k), n, x, y, w, h)
+#define OVL_PLATE_BEGIN() (++s_ovl_in_plate)
+#define OVL_PLATE_END() (--s_ovl_in_plate)
+#else
+#define OVL_BOX(k, n, x, y, w, h) ((void)0)
+#define OVL_PLATE_BEGIN() ((void)0)
+#define OVL_PLATE_END() ((void)0)
+#endif
+#endif
 
 static const uint8_t COL_BG    = PAL_BG;
 static const uint8_t COL_FIELD = PAL_FIELD;
@@ -813,6 +828,12 @@ static void txt(Gfx g, const char *s, int x, int y, uint8_t col,
     g.setTextDatum(dat);
     g.drawString(s ? s : "", x, y);
     g.setTextDatum(lgfx::textdatum::top_left);
+#if defined(BOTCORPS_CYD) && defined(BOTCORPS_SIM)
+    { const int n = s ? (int)strlen(s) : 0, cw = s_px >= 8 ? 8 : 6, w = n * cw, h = 8;
+      const int hx = ((int)dat & 3) == 1 ? x - w / 2 : ((int)dat & 3) == 2 ? x - w : x;
+      const int vy = ((int)dat & 12) == 4 ? y - h / 2 : ((int)dat & 12) == 8 ? y - h : y;
+      if (n) OVL_BOX("TEXT", s, hx - g.ox, vy - g.oy, w, h); }
+#endif
 }
 
 /* Opaque glyphs. The background is part of the character, not a fillRect under it. */
@@ -4116,6 +4137,9 @@ static void tiny_text(Gfx g, const char *s, int x0, int y, uint8_t col, int maxw
 {
     const int n = (int)strlen(s);
     GATE_BOX(g, "SILK", s, x0, y, (maxw > 0 && n * 4 - 1 > maxw) ? maxw : n * 4 - 1, 5, "-");
+#if defined(BOTCORPS_CYD) && defined(BOTCORPS_SIM)
+    if (n) OVL_BOX("TEXT", s, x0 - g.ox, y - g.oy, (maxw > 0 && n * 4 - 1 > maxw) ? maxw : n * 4 - 1, 5);
+#endif
     for (int i = 0; i < n; ++i) {
         /* past maxw the glyphs squeeze, like the mock's maxWidth silk */
         const int x = (maxw > 0 && n * 4 - 1 > maxw) ? x0 + i * (maxw - 2) / (n - 1) : x0 + i * 4;

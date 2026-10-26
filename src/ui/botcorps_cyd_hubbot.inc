@@ -101,7 +101,8 @@ static void hb_term_face(Gfx g, int cx, int cy, int s)
     e_metal_face(g, cx, cy, s, false);                 /* silver plate */
     const int x = cx - s / 2, y = cy - s / 2;
     const uint8_t ink = PAL_BLACK;
-    const int u = s / 8 > 1 ? s / 8 : 1, ox = x + s / 5, oy = cy - 2 * u;
+    /* hub6: on the big main chip the prompt sits under the eyes (small chips unchanged) */
+    const int u = s >= 36 ? s / 12 : (s / 8 > 1 ? s / 8 : 1), ox = x + s / 5, oy = s >= 36 ? y + 3 * s / 5 - u : cy - 2 * u;
     for (int k = 0; k < 2; ++k) {
         cbf(g, ox + k * u, oy + k * u, u, u, ink);
         cbf(g, ox + k * u, oy + (3 - k) * u, u, u, ink);
@@ -126,6 +127,7 @@ static void hb4_chip(Gfx g, int i)
     }
     g.drawRect(x, y, w, h, on ? accent() : (uint8_t)PAL_STEEL);
     if (on) sel_rect(g, x - 3, y - 3, w + 6, h + 6);
+    OVL_BOX("CHIP", HB_SILK1[i], x, y, w, h);
     const int sm = botcorps_cyd_orient ? 26 : 18;          /* L: one Font0 line */
     const int fs = (w - 10 < h - sm ? w - 10 : h - sm);
     const int cx = x + w / 2, cy = y + 4 + fs / 2;
@@ -148,75 +150,30 @@ static void hb4_chip(Gfx g, int i)
     }
 }
 
-/* face geo of centre die (intro power-up + hub module) — square chip sized */
+/* face geo of centre die (intro power-up + hub module): the shared main-bot chip die (hub6) */
 static void hb4_gib_geo(int *cx, int *cy, int *fs)
 {
-    const int x = HB_MOD[0], y = HB_MOD[1], w = HB_MOD[2], h = HB_MOD[3];
-    const int bot = botcorps_cyd_orient ? 22 : 16;
-    int D = w - 14; if (D > h - bot) D = h - bot; if (D < 20) D = 20;
-    *cx = x + w / 2; *cy = y + 5 + D / 2; *fs = D - 6;
+    const bool P = botcorps_cyd_orient != 0;
+    int dcx, dcy, D, ty; mb_geo(P, &dcx, &dcy, &D, &ty);
+    const int bob = ((millis() / 900u) % 2u) ? 1 : 0;
+    *cx = HB_MOD[0] + dcx; *cy = HB_MOD[1] + dcy + bob - 1; *fs = D - 12;
 }
 static void hb_module(Gfx g)
 {
+    const bool P = botcorps_cyd_orient != 0;
     const int mx = HB_MOD[0], my = HB_MOD[1], mw = HB_MOD[2], mh = HB_MOD[3];
-    const uint8_t gold = 177, goldd = 104;
-    cbf(g, mx, my, mw, mh, cbp(0x18E3));
-    for (int y = my + 8; y < my + mh - 6; y += 8) {
-        cbf(g, mx - 2, y, 4, 3, gold); cbf(g, mx - 2, y, 1, 3, goldd);
-        cbf(g, mx + mw - 2, y, 4, 3, gold); cbf(g, mx + mw + 1, y, 1, 3, goldd);
-    }
-    for (int x = mx + 6; x < mx + mw - 5; x += 8) {
-        cbf(g, x, my - 2, 3, 3, gold); cbf(g, x, my + mh - 1, 3, 3, gold);
-    }
-    g.drawRect(mx, my, mw, mh, PAL_STEEL);
-    int cx, cy, fs; hb4_gib_geo(&cx, &cy, &fs);
-    const int D = fs + 6;
-    cbf(g, cx - D / 2, cy - D / 2, D, D, PAL_BLACK);
-    g.drawRect(cx - D / 2, cy - D / 2, D, D, PAL_STEEL);
-    const int bob = ((millis() / 900u) % 2u) ? 1 : 0;
-    hb_gib_face(g, cx, cy + bob - 1, fs);
+    drawMainBotChip(g, mx, my, P, MB_GIB, "JACK IN");
     if (s_hb_sel == HB4_GIB) {
-        g.drawRect(mx - 3, my - 3, mw + 6, mh + 6, PAL_WHITE);
-        g.drawRect(mx - 2, my - 2, mw + 4, mh + 4, accent());
-    }
-    if (!botcorps_cyd_orient) {
-        const int keep = s_px; use_px(g, 6);
-        txt(g, "GIBSON", cx, my + mh - 9, PAL_WHITE, lgfx::textdatum::top_center);
-        s_px = keep;
-    } else {
-        tiny_text(g, "GIBSON", cx - tiny_w("GIBSON") / 2, my + mh - 17, PAL_WHITE);
-        tiny_text(g, "BOT", cx - tiny_w("BOT") / 2, my + mh - 10, 41);
+        g.drawRect(mx - 4, my - 4, mw + 8, mh + 8, PAL_WHITE);
+        g.drawRect(mx - 3, my - 3, mw + 6, mh + 6, accent());
     }
 }
 
-/* TERMINALbot centre: square silver metallic face */
+/* TERMINALbot centre: the shared main-bot chip with the silver face */
 static void ht_module(Gfx g)
 {
-    const int mx = HB_CHIPR[HB4_TERM][0], my = HB_CHIPR[HB4_TERM][1];
-    const int mw = HB_CHIPR[HB4_TERM][2], mh = HB_CHIPR[HB4_TERM][3];
-    const uint8_t gold = 177, goldd = 104;
-    cbf(g, mx, my, mw, mh, cbp(0x18E3));
-    for (int y = my + 8; y < my + mh - 6; y += 8) {
-        cbf(g, mx - 2, y, 4, 3, gold); cbf(g, mx - 2, y, 1, 3, goldd);
-        cbf(g, mx + mw - 2, y, 4, 3, gold); cbf(g, mx + mw + 1, y, 1, 3, goldd);
-    }
-    for (int x = mx + 6; x < mx + mw - 5; x += 8) {
-        cbf(g, x, my - 2, 3, 3, gold); cbf(g, x, my + mh - 1, 3, 3, gold);
-    }
-    g.drawRect(mx, my, mw, mh, PAL_STEEL);
-    int D = mw - 14; if (D > mh - 22) D = mh - 22; if (D < 20) D = 20;
-    const int cx = mx + mw / 2, cy = my + 6 + D / 2, fs = D - 6;
-    cbf(g, cx - D / 2, cy - D / 2, D, D, PAL_BLACK);
-    g.drawRect(cx - D / 2, cy - D / 2, D, D, PAL_STEEL);
-    hb_term_face(g, cx, cy, fs);
-    if (!botcorps_cyd_orient) {
-        const int keep = s_px; use_px(g, 6);
-        txt(g, "TERM", cx, my + mh - 9, PAL_WHITE, lgfx::textdatum::top_center);
-        s_px = keep;
-    } else {
-        tiny_text(g, "TERMINAL", cx - tiny_w("TERMINAL") / 2, my + mh - 17, PAL_WHITE);
-        tiny_text(g, "BOT", cx - tiny_w("BOT") / 2, my + mh - 10, 41);
-    }
+    const bool P = botcorps_cyd_orient != 0;
+    drawMainBotChip(g, HB_CHIPR[HB4_TERM][0], HB_CHIPR[HB4_TERM][1], P, MB_TERM, "TTY0");
 }
 
 /* route copper between chips */
@@ -248,6 +205,14 @@ static bool hb_over_chip(int x, int y)
         y >= HB_TBOT[1] - 2 && y < HB_TBOT[1] + HB_TBOT[3] + 2) return true;
     return false;
 }
+/* hub6: a silk label is only printed where no chip (+4px keep-out) sits under any of its pixels */
+static bool hb_rect_free(int x, int y, int w, int h)
+{
+    for (int yy = y; yy <= y + h; yy += 2)
+        for (int xx = x; xx <= x + w; xx += 2)
+            if (hb_over_chip(xx < x + w ? xx : x + w - 1, yy < y + h ? yy : y + h - 1)) return false;
+    return true;
+}
 static void hb_rich(Gfx g)
 {
     const int W = EW(), H = EH();
@@ -278,7 +243,7 @@ static void hb_rich(Gfx g)
     /* variant-specific bus art */
     if (!s_hub_term && s_hub5_var == HUB5_B) {
         /* horizontal backplane spine */
-        const int by = botcorps_cyd_orient ? 140 : 86;
+        const int by = botcorps_cyd_orient ? 140 : 104;   /* hub6 L: between A/B bus routes 96/112 */
         for (int x = x0 + 8; x < x1 - 8; x += 2) {
             if (hb_over_chip(x, by)) continue;
             cbf(g, x, by, 2, 2, tr);
@@ -289,7 +254,7 @@ static void hb_rich(Gfx g)
     } else if (!s_hub_term && s_hub5_var == HUB5_C) {
         /* ring bus around Gibson */
         const int cx = HB_MOD[0] + HB_MOD[2] / 2, cy = HB_MOD[1] + HB_MOD[3] / 2;
-        const int rx = botcorps_cyd_orient ? 70 : 78, ry = botcorps_cyd_orient ? 62 : 48;
+        const int rx = botcorps_cyd_orient ? 70 : 78, ry = botcorps_cyd_orient ? 62 : 44;
         static const int8_t OX[8] = { 0, 1, 1, 1, 0, -1, -1, -1 };
         static const int8_t OY[8] = { -1, -1, 0, 1, 1, 1, 0, -1 };
         int px = cx, py = cy - ry;
@@ -299,8 +264,8 @@ static void hb_rich(Gfx g)
             cb_via(g, nx, ny, via);
             px = nx; py = ny;
         }
-        if (botcorps_cyd_orient) tiny_text(g, "RING", cx - tiny_w("RING") / 2, cy - ry - 10, silk);
-        else { const int keep = s_px; use_px(g, 6); txt(g, "RING", cx, cy - ry - 12, silk, lgfx::textdatum::top_center); s_px = keep; }
+        if (botcorps_cyd_orient) tiny_text(g, "RING", cx + 24, cy - ry - 10, silk);   /* hub6: beside N chip */
+        else { const int keep = s_px; use_px(g, 6); txt(g, "RING", cx, 156, silk, lgfx::textdatum::top_center); s_px = keep; }   /* hub6 L: between BOOT|TERM pair */
     } else {
         /* A: radial spoke stubs from centre midpoints */
         const int cx = HB_MOD[0] + HB_MOD[2] / 2, cy = HB_MOD[1] + HB_MOD[3] / 2;
@@ -339,13 +304,13 @@ static void hb_rich(Gfx g)
     }
     /* silk net labels — portrait tiny OK; landscape Font0 or drop (Mobandy 4:13) */
     if (botcorps_cyd_orient) {
-        tiny_text(g, "3V3", x0 + 2, y0 + 2, silk);
-        tiny_text(g, "GND", x1 - tiny_w("GND") - 2, y0 + 2, silk);
-        tiny_text(g, "NET-H", x0 + 2, y1 - 10, silk);
+        if (hb_rect_free(x0 + 2, y0 + 2, tiny_w("3V3"), 5)) tiny_text(g, "3V3", x0 + 2, y0 + 2, silk);
+        if (hb_rect_free(x1 - tiny_w("GND") - 2, y0 + 2, tiny_w("GND"), 5)) tiny_text(g, "GND", x1 - tiny_w("GND") - 2, y0 + 2, silk);
+        if (hb_rect_free(x0 + 2, y1 - 10, tiny_w("NET-H"), 5)) tiny_text(g, "NET-H", x0 + 2, y1 - 10, silk);
     } else {
         const int keep = s_px; use_px(g, 6);
-        txt(g, "3V3", x0 + 2, y0 + 2, silk, lgfx::textdatum::top_left);
-        txt(g, "GND", x1 - 2, y0 + 2, silk, lgfx::textdatum::top_right);
+        if (hb_rect_free(x0 + 2, y0 + 2, 18, 8)) txt(g, "3V3", x0 + 2, y0 + 2, silk, lgfx::textdatum::top_left);
+        if (hb_rect_free(x1 - 20, y0 + 2, 18, 8)) txt(g, "GND", x1 - 2, y0 + 2, silk, lgfx::textdatum::top_right);
         s_px = keep;
     }
 }

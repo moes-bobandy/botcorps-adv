@@ -316,12 +316,7 @@ static void paint_intro_board(Gfx g, const IntroSt &s)
 }
 
 /* ---- hub power-up (PICK.md §8 staged order), on the real hub tables (hb_layout_sync) ---- */
-static void ib_face_geo(int *cx, int *cy, int *fs)
-{
-    const int mx = HB_MOD[0], my = HB_MOD[1], mw = HB_MOD[2];
-    const int sx = mx + 3, sy = my + 15, sw = mw - 6, D = sw - 18;
-    *cx = sx + sw / 2; *cy = sy + D / 2 + 3; *fs = D - 8;
-}
+static void ib_face_geo(int *cx, int *cy, int *fs) { hb4_gib_geo(cx, cy, fs); }
 static void ib_hub_route(Gfx g, int i, float prog)
 {
     if (prog <= 0) return;
@@ -357,34 +352,30 @@ static void ib_title(Gfx g, int mode)
 }
 static void paint_intro_hub(Gfx g, const IntroSt &s)
 {
-    static const int SEAT[12] = { 3, 9, 2, 8, 4, 10, 0, 6, 1, 7, 5, 11 };
+    /* hub4 power-up: copper surges in, GIBSON face drops in, corner bots seat, plate lights */
     hb_layout_sync();
     s_cb_col = accent(); s_hb_sel = -1;
     const int W = EW(), H = EH();
     e_headers_hub(g);
     hb_copper(g);
-    for (int r : { 12, 13, 15 }) ib_hub_route(g, r, s.hsurge);
-    s_hb_sel = s.halo == 14 ? 14 : -1;
+    for (int r = 0; r < 4; ++r) ib_hub_route(g, r, s.hsurge);
+    s_hb_sel = s.halo == 14 ? HB4_GIB : -1;
     hb_module(g);
     s_hb_sel = -1;
     int fcx, fcy, fs; ib_face_geo(&fcx, &fcy, &fs);
     const int D = fs + 8;
     if (!s.gib) cbf(g, fcx - D / 2 + 1, fcy - D / 2 + 1, D - 2, D - 2, PAL_BLACK);
     else if (s.gk > 0) {
-        /* glasses raised by gk px, sliding down to the hub's face */
         const int bob = ((millis() / 900u) % 2u) ? 1 : 0, cy = fcy + bob - 1;
         const int fx = fcx - fs / 2, fy = cy - fs / 2, gk = s.gk;
         g.setClipRect(fx, fy + 2, fs, 8 - gk);  hb_gib_face(g, fcx, cy - gk, fs);
         g.setClipRect(fx, fy + 10 - gk, fs, gk); hb_gib_face(g, fcx, cy - 6, fs);
         g.clearClipRect();
     }
-    if (s.crown) gib_crown(g, HB_CROWN[0], HB_CROWN[1]);
-    for (int k = 0; k < s.seat; ++k) hb_chip(g, SEAT[k]);
-    for (int i = 12; i <= 13; ++i) {
-        const bool on = i == 12 ? s.term : s.ctl;
-        if (on) { s_hb_sel = s.halo == i ? i : -1; hb_chip(g, i); s_hb_sel = -1; }
-        else { hb_castle(g, HB_CHIP[i][0], HB_CHIP[i][1] + 9, 18); hb_silk(g, i, HB_CHIP[i][0], HB_CHIP[i][1] + 20, cb_silk(), PAL_BLACK); }
-    }
+    if (s.seat > 0 || s.term) hb4_chip(g, HB4_BOOT);
+    if (s.seat > 0 || s.term) hb4_chip(g, HB4_SCAN);
+    if (s.seat > 0 || s.ctl) hb4_chip(g, HB4_CTRL);
+    if (s.seat > 0 || s.term) hb4_chip(g, HB4_TERM);
     e_plate(g, HB_TBOT[0], HB_TBOT[1], HB_TBOT[2], HB_TBOT[3], HB_TBOT_SILK, s.hin != 0, s.plate != 2);
     if (s.hin) {
         const uint8_t hot = cbmix(botcorps_rgb565(accent()), 0xFFFF, 55);

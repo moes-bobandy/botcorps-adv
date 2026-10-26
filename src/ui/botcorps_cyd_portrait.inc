@@ -524,14 +524,18 @@ static const SBGeo &scanbot_geo(void)
         /* Face kept at D=51/face=39 (>= portrait face 27). Module narrowed so bay fits
          * fix4: module my=24; tabs ky=42 gap2; bay 166,102 120×78 (end 180); 3×2 tiles 28 @171,114;
          * bottom margin 7 inside well; MORE abuts grid (x=255) — no empty cell; face D51/39 ≥ portrait. */
-        L.mx = 86; L.my = 24; L.mw = 78; L.mh = 100;  /* bottom 124; D~51 face~39 (gold) */
-        L.cs = 24;
-        L.cx[0] = 36; L.cy[0] = 28;     /* WIFI  left stack */
-        L.cx[1] = 36; L.cy[1] = 74;     /* BLE */
-        L.cx[2] = 252; L.cy[2] = 26;    /* GIBSON top-right above bay */
-        L.kx0 = 166; L.ky = 42; L.kw_band = 84; L.kh = 28; L.kcols = 2;  /* 2x2 pads 40x28; end y=100 */
-        L.bx = 166; L.by = 102; L.bw = 120; L.bh = 78;        /* bay end 180; well 169..283 × 112..177 */
-        L.t0x = 171; L.t0y = 114; L.pitch = 28; L.cols = 3; L.rows = 2; L.tile = 28;  /* 3×2 bottom 170; MORE x=255 */
+        /* ctrltheme (Mobandy 3:23 PM ET): scan-L re-laid as a balanced board — gold module + WIFI/BT
+         * left, GIBSON right of the module, big 3x3 bay right with MORE in its own slot, the four
+         * category tabs in ONE row across the full width above the plate. All clear of the top bar
+         * (y>=30), the side headers (34 / 286) and the plate castellations (182). */
+        L.mx = 70; L.my = 32; L.mw = 52; L.mh = 92;    /* gold centre, end 122 x 124 */
+        L.cs = 28;
+        L.cx[0] = 36; L.cy[0] = 34;     /* WIFI  left-top (pad 28) */
+        L.cx[1] = 36; L.cy[1] = 96;     /* BLE   left-bottom */
+        L.cx[2] = 128; L.cy[2] = 64;    /* GIBSON right of module, beside the bay */
+        L.kx0 = 36; L.ky = 150; L.kw_band = 248; L.kh = 28; L.kcols = 0;   /* one row of 4, end 178 */
+        L.bx = 162; L.by = 32; L.bw = 122; L.bh = 112;         /* bay end 144; gap from GIB 6 */
+        L.t0x = 166; L.t0y = 46; L.pitch = 30; L.cols = 3; L.rows = 3; L.tile = 28;  /* 3x3, end 254 x 134; MORE x=256 */
         L.pl[0] = 34; L.pl[1] = 184; L.pl[2] = 252; L.pl[3] = 49;   /* 3-line plate */
     }
     return botcorps_cyd_orient ? P : L;
@@ -779,7 +783,7 @@ static void paint_scan_e(Gfx g)
     const bool side_bay = (G.by < G.my + G.mh);
     for (int i = 0; i < 3; ++i) {
         const int ccx = G.cx[i] + G.cs / 2, ccy = G.cy[i] + G.cs / 2;
-        if (side_bay && ccx > G.mx + G.mw) {
+        if (side_bay && ccx > G.mx + G.mw && G.ky < G.my + G.mh) {
             /* right-side chip (GIBSON): run above the 2x2 tab block */
             const int spine_y = G.ky - 6;
             if (ccy != spine_y) { cb_line(g, ccx, ccy, ccx, spine_y, tr); cb_via(g, ccx, spine_y, via); }

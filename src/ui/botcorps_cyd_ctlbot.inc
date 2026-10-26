@@ -17,6 +17,12 @@ struct CbR { int x, y, w, h; };
 static bool ctlbot_rect(int index, int *x, int *y, int *w, int *h)
 {
     if (index < 0 || index > 8) return false;
+    /* index 0 = centre CONTROLbot module (theme button); RECT[0] mirrors MOD */
+    if (index == 0) {
+        const int *M = botcorps_cyd_orient ? CB_P_MOD : CB_L_MOD;
+        *x = M[0]; *y = M[1]; *w = M[2]; *h = M[3];
+        return true;
+    }
     const CbR &r = botcorps_cyd_orient ? CB_P_RECT[index] : CB_L_RECT[index];
     *x = r.x; *y = r.y; *w = r.w; *h = r.h;
     return true;
@@ -93,7 +99,9 @@ static void cb_module(Gfx g, int mx, int my, int mw, int mh)
         cbf(g, cx - D / 2 - 2, cy - D / 2 + i, 2, 1, pin); cbf(g, cx + D / 2, cy - D / 2 + i, 2, 1, pin);
         cbf(g, cx - D / 2 + i, cy - D / 2 - 2, 1, 2, pin); cbf(g, cx - D / 2 + i, cy + D / 2, 1, 2, pin);
     }
-    cbf(g, cx - D / 2, cy - D / 2, D, D, PAL_BLACK);
+    /* die follows live UI theme (old GRAPE chip job); black inset keeps the face readable */
+    cbf(g, cx - D / 2, cy - D / 2, D, D, accent());
+    cbf(g, cx - D / 2 + 1, cy - D / 2 + 1, D - 2, D - 2, PAL_BLACK);
     cbf(g, cx - D / 2, cy - D / 2, D, 1, steel); cbf(g, cx - D / 2, cy + D / 2 - 1, D, 1, steel);
     cbf(g, cx - D / 2, cy - D / 2, 1, D, steel); cbf(g, cx + D / 2 - 1, cy - D / 2, 1, D, steel);
     const int bob = ((millis() / 900u) % 2u) ? 1 : 0;
@@ -101,7 +109,11 @@ static void cb_module(Gfx g, int mx, int my, int mw, int mh)
     const int ty = cy + D / 2 + 5;
     tiny_text(g, "CONTROL", cx - tiny_w("CONTROL") / 2, ty, 41);
     tiny_text(g, "WROOM-32", cx - tiny_w("WROOM-32") / 2, ty + 7, 41);
-    tiny_text(g, "FCC 2AC7Z", cx - tiny_w("FCC 2AC7Z") / 2, ty + 14, 41);
+    /* theme short name (was separate GRAPE chip silk); THEME n/N stays on meters */
+    {
+        const char *sn = theme().sname;
+        tiny_text(g, sn, cx - tiny_w(sn) / 2, ty + 14, accent());
+    }
 }
 /* botcorps_id.cpp:908 bar_one, palette path; label / value given */
 static void cb_bar(Gfx g, int x, int y, int bw, const char *lab, const char *val, int v100)
@@ -342,7 +354,7 @@ static void cb_poly(Gfx g, const int *px, const int *py, int n, uint8_t c, uint8
 static void cb_copper(Gfx g, uint8_t trace, uint8_t via)
 {
     int px[6], py[6];
-    for (int i = 0; i < 9; ++i) { const int n = cb_route(i, px, py); cb_poly(g, px, py, n, trace, via); }
+    for (int i = 1; i < 9; ++i) { const int n = cb_route(i, px, py); cb_poly(g, px, py, n, trace, via); }
     const bool P = botcorps_cyd_orient != 0;
     for (int d = 0; d < (P ? CB_P_DN : CB_L_DN); ++d) {
         const int n = P ? CB_P_DL[d] : CB_L_DL[d];
@@ -372,6 +384,11 @@ static void cb_hilite(Gfx g)
     int px[6], py[6];
     /* selected feed in the theme ink, 2 px wide, + travelling pulses (live Control behaviour) */
     if (s_cursor < 0 || s_cursor > 8) return;
+    if (s_cursor == 0) {
+        const int *M = botcorps_cyd_orient ? CB_P_MOD : CB_L_MOD;
+        sel_rect(g, M[0] - 3, M[1] - 3, M[2] + 6, M[3] + 6);
+        return;
+    }
     const int n = cb_route(s_cursor, px, py);
     const uint8_t wc = th_wire();
     int len = 0;

@@ -9584,14 +9584,11 @@ static bool ctlbot_hit_box(int i, int *x, int *y, int *w, int *h)
     if (i < 0 || i > CP_N + 3) return false;
     if (i == CP_N) return false;                                               /* no >_ glyph: no Terminal screen on the CYD */
     if (i == CP_N + 1) { *x = e_crown_x() - 19; *y = 0; *w = 38; *h = 26; return true; }   /* crown = BACK */
-    {
-        const int (*T)[2] = botcorps_cyd_orient ? CB_P_TACT : CB_L_TACT;
-        if (i == CP_N + 2) { *x = T[0][0] - 2; *y = T[0][1] - 2; *w = 16; *h = 21; return true; }  /* BOOT tact */
-        if (i == CP_N + 3) { *x = T[1][0] - 2; *y = T[1][1] - 2; *w = 16; *h = 21; return true; }  /* EN tact */
-    }
+    if (i == CP_N + 2 || i == CP_N + 3) return false;                          /* BOOT/EN removed with decorative power */
     int X, Y, W, H;
     if (!ctlbot_rect(i, &X, &Y, &W, &H)) return false;
-    if (i == 8) { *x = X - 3; *y = Y - 10; *w = W + 6; *h = H + 20; return true; }
+    if (i == 0) { *x = X; *y = Y; *w = W; *h = H; return true; }              /* whole centre chip = theme pad */
+    if (i == 8) { *x = X - 2; *y = Y - 2; *w = W + 4; *h = H + 4; return true; } /* tighter: avoid plate/chip silk bleed */
     if (i == 3 || i == 4 || i == 6) {
         const int bw = W + 6 < 40 ? 40 : W + 6;
         *x = X + W / 2 - bw / 2; *y = Y - 3; *w = bw; *h = H + 3 + 4 + 14; return true;
@@ -9634,6 +9631,7 @@ static int portrait_touch(int tx, int ty, char *typed)
             if (sbox_on()) { s_sp_buf[0] = 0; s_sp_cmd = -1; }
             s_pt_mode = 0;
             /* field fix: the crown is HOME on every screen -> TERMINALbot (the hub), in one tap */
+            s_hub_term = false;                 /* hub4: TERMINALbot board -> GIBSON home */
             if (s_screen != SCR_GIBSON) { s_gib_hunt = false; enter_screen(SCR_GIBSON, SCR_GIBSON); }
             s_dirty = true;
             return K_NONE;
@@ -9645,46 +9643,42 @@ static int portrait_touch(int tx, int ty, char *typed)
         }
         return K_NONE;
     }
-    {
-        const int pk = pt_hit(tx, ty, typed);
-        if (pk >= 0) return pk;
-    }
-    if (s_screen == SCR_CONTROL) return ctlbot_touch(tx, ty);
+    /* hub4: SCR_GIBSON chips before plate pads — TERM sat under Adv RET on portrait. */
     if (s_screen == SCR_GIBSON) {
-        const int c = hb_hit(tx, ty);
-        if (c == 0) {                             /* DEFEND game chip (old WI-FI seat) */
-            log_add("gibson> defend");
+        const int c = hb_hit(tx, ty);           /* BOOTbot never returned (not tappable) */
+        if (c == HB4_GIB && !s_hub_term) {
+            log_add("gibson> gibsonbot");
             enter_defend(12, SCR_GIBSON);
             return K_NONE;
         }
-        if (c == 1) {                             /* HUNT game chip (old BLE seat) */
-            log_add("gibson> hunt");
-            s_scan_bot = 12; s_gib_hunt = true; s_gib_hunt_keep = true;
-            enter_screen(SCR_SCAN, SCR_GIBSON);
-            return K_NONE;
-        }
-        if (c >= 2 && c < 12) {                   /* bot chip: its SCAN board */
-            s_scan_bot = c;
-            enter_screen(SCR_SCAN, SCR_GIBSON);
-            return K_NONE;
-        }
-        if (c == 12) {                            /* SCANBOT link chip -> Gibson scan (GIBSON preselected) */
+        if (c == HB4_SCAN) {
             log_add("gibson> scanbot");
             s_scan_bot = 12; s_gib_hunt = false;
             enter_screen(SCR_SCAN, SCR_GIBSON);
             return K_NONE;
         }
-        if (c == 13) {                            /* CONTROLBOT link chip */
+        if (c == HB4_CTRL) {
             enter_screen(SCR_CONTROL, SCR_GIBSON);
             return K_NONE;
         }
-        if (c == 15) {                            /* GIBSONbot module -> SCAN */
-            s_scan_bot = 12;
-            enter_screen(SCR_SCAN, SCR_GIBSON);
+        if (c == HB4_TERM) {
+            if (!s_hub_term) {
+                log_add("gibson> terminalbot");
+                s_hub_term = true;
+            } else {
+                s_cyd_term_plate = true;
+            }
+            s_dirty = true;
             return K_NONE;
         }
-        return K_NONE;
+        /* miss chip: fall through to plate / crown already handled */
     }
+    {
+        const int pk = pt_hit(tx, ty, typed);
+        if (pk >= 0) return pk;
+    }
+    if (s_screen == SCR_CONTROL) return ctlbot_touch(tx, ty);
+    if (s_screen == SCR_GIBSON) return K_NONE;
     if (s_screen == SCR_WIFI_RADAR || s_screen == SCR_BT_RADAR || s_screen == SCR_SCAN) {
         /* SCANbot (cp1 fixes): selector scanbots, category tabs, and tile taps over the unified board.
          * Uses the same category/device model as the painter so taps always match what is drawn. */
@@ -10711,6 +10705,7 @@ void botcorps_ui_draw(void)
     /* Rule 4: there is no Terminal screen. Anything that asked for it lands on the hub with the
      * TERMINALBOT plate open (keys). */
     if (s_screen == SCR_TERMINAL) { s_screen = SCR_GIBSON; s_cyd_term_plate = true; }
+    if (s_screen != SCR_GIBSON && s_hub_term) s_hub_term = false;   /* sub-boards return to GIBSON home */
     if (s_cyd_term_plate) {
         s_cyd_term_plate = false;
         if (s_screen == SCR_GIBSON) {
@@ -12228,6 +12223,8 @@ int botcorps_host_ctlbot_tap(int tx, int ty)
     return k;
 }
 int botcorps_host_ctlbot_box(int i, int *x, int *y, int *w, int *h) { return ctlbot_hit_box(i, x, y, w, h) ? 1 : 0; }
+int botcorps_host_hub_term(void) { return s_hub_term ? 1 : 0; }
+int botcorps_host_hub_box(int i, int *x, int *y, int *w, int *h) { return hb_hit_box(i, x, y, w, h) ? 1 : 0; }
 void botcorps_host_ctlbot_board(uint8_t *buf, uint8_t fill)
 {
     host_frame = buf;

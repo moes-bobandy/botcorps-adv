@@ -516,15 +516,18 @@ static const SBGeo &scanbot_geo(void)
         P.bx = 34; P.by = 152; P.bw = 172; P.bh = 107;       /* bay end 259; plate cast 262 */
         P.t0x = 42; P.t0y = 163; P.pitch = 31; P.cols = 4; P.rows = 3; P.tile = 28;  /* 3 rows: 163/194/225 -> 253 */
         P.pl[0] = 29; P.pl[1] = 264; P.pl[2] = 181; P.pl[3] = 49;   /* 3-line plate */
-        /* ---- landscape 320 x 240 : 3-line plate y=184 (bottom kept at 233), cast at 182 ---- */
-        L.mx = 128; L.my = 26; L.mw = 70; L.mh = 66;  /* bottom 92 */
+        /* ---- landscape 320 x 240 : 3-line plate y=184 (cast 182).
+         * Owner review 47d838a: centre face had crushed to ~6 px (I-glyph). Grow the gold
+         * WROOM module to CONTROLbot-class die/face; WIFI/BLE stack left, GIBSON top-right,
+         * category pads + 3-row bay in the right column so the face stays portrait-readable. ---- */
+        L.mx = 90; L.my = 28; L.mw = 84; L.mh = 100;  /* bottom 128; D~51 face~39 (gold) */
         L.cs = 24;
-        L.cx[0] = 40; L.cy[0] = 32;     /* WIFI  left */
-        L.cx[1] = 88; L.cy[1] = 32;     /* BLE */
-        L.cx[2] = 250; L.cy[2] = 44;    /* GIBSON right */
-        L.kx0 = 78; L.ky = 95; L.kw_band = 204; L.kh = 12;   /* pads end 107 */
-        L.bx = 78; L.by = 110; L.bw = 204; L.bh = 70;        /* bay end 180; plate cast 182 */
-        L.t0x = 84; L.t0y = 120; L.pitch = 29; L.cols = 5; L.rows = 2; L.tile = 28;  /* 2 rows: 120/149 -> 177 */
+        L.cx[0] = 38; L.cy[0] = 32;     /* WIFI  left stack */
+        L.cx[1] = 38; L.cy[1] = 78;     /* BLE */
+        L.cx[2] = 252; L.cy[2] = 30;    /* GIBSON top-right; above bay */
+        L.kx0 = 188; L.ky = 66; L.kw_band = 90; L.kh = 12;   /* pads above right bay */
+        L.bx = 188; L.by = 80; L.bw = 90; L.bh = 98;         /* bay end 178; plate cast 182 */
+        L.t0x = 192; L.t0y = 88; L.pitch = 29; L.cols = 3; L.rows = 3; L.tile = 28;  /* 3 rows */
         L.pl[0] = 34; L.pl[1] = 184; L.pl[2] = 252; L.pl[3] = 49;   /* 3-line plate */
     }
     return botcorps_cyd_orient ? P : L;
@@ -750,7 +753,15 @@ static void paint_scan_e(Gfx g)
         cb_line(g, ccx, ccy, ccx, tgty, tr); cb_via(g, ccx, tgty, via);
         cb_line(g, ccx, tgty, tgtx, tgty, tr);
     }
-    { const int mxc = G.mx + G.mw / 2; cb_line(g, mxc, G.my + G.mh, mxc, G.by, tr); cb_via(g, mxc, G.by, via); }
+    if (G.by >= G.my + G.mh) {
+        const int mxc = G.mx + G.mw / 2;
+        cb_line(g, mxc, G.my + G.mh, mxc, G.by, tr); cb_via(g, mxc, G.by, via);
+    } else {
+        /* bay beside the module (landscape): copper into the bay's left lip */
+        const int my_mid = G.my + G.mh / 2;
+        const int by_mid = G.by + G.bh / 2;
+        cb_line(g, G.mx + G.mw, my_mid, G.bx, by_mid, tr); cb_via(g, G.bx, by_mid, via);
+    }
 
     /* ---- gold centre boss + three scattered scan chips ---- */
     sb_center(g, G.mx, G.my, G.mw, G.mh);

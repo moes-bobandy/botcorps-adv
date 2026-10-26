@@ -1,9 +1,8 @@
 /* ============================================================================
- * HOME hub5 — Mobandy 4:07 PM ET Oct 26. THREE selectable edge-to-edge PCB boards (A/B/C):
- * A radial corners, B backplane bus, C diamond/compass + ring. GIBSONbot square centre ~1.25x
- * the other four (ivory + dark glasses). BOOTbot black/white shades (not tappable). SCANbot
- * metallic gold. TERMINALbot metallic silver. CONTROLbot = live theme. Rich decorative copper.
- * Geometry: botcorps_hubbot_layout.inc. s_hub5_var selects (default A). s_hub_term = TERMINALbot board.
+ * HOME hub7 (Mobandy 4:57 PM ET Oct 26): ONE board. GIBSON upper centre; BOOT (GIBSON inverted,
+ * not tappable), SCAN (gold), CONTROL (theme), TERMINAL (silver) around it, every bot drawn with the
+ * shared main-bot chip (drawBotChipK) at one uniform scale, wired with copper.
+ * Geometry: botcorps_hubbot_layout.inc. s_hub_term = TERMINALbot board.
  * Included from botcorps_cyd_portrait.inc (CYD only).
  * ==========================================================================*/
 #include "ui/botcorps_hubbot_layout.inc"
@@ -111,69 +110,37 @@ static void hb_term_face(Gfx g, int cx, int cy, int s)
     if ((millis() / 500u) % 2u == 0u) cbf(g, ox + 4 * u, oy + 3 * u, 2 * u, u, sh_rgb(0x3a, 0x40, 0x4c));
 }
 
-/* chip body + face + two-line silk */
+/* hub7: every surrounding bot is the shared main-bot chip at the board's uniform bot scale */
+static int hb_mb_of(int i)
+{
+    static const int M[HB4_N] = { MB_BOOT, MB_SCAN, MB_CTRL, MB_TERM, MB_GIB };
+    return M[(i < 0 || i >= HB4_N) ? HB4_GIB : i];
+}
 static void hb4_chip(Gfx g, int i)
 {
     const int x = HB_CHIPR[i][0], y = HB_CHIPR[i][1], w = HB_CHIPR[i][2], h = HB_CHIPR[i][3];
     if (w <= 0 || h <= 0) return;
-    const bool on = s_hb_sel == i;
-    const uint8_t gold = sh_rgb(0xd4, 0xa9, 0x3c), silk = on ? (uint8_t)PAL_WHITE : cb_silk();
-    cbf(g, x, y, w, h, cbp(0x18E3));
-    for (int k = 0; k < 5; ++k) {
-        const int py = y + 6 + k * ((h - 14) / 4);
-        cbf(g, x - 2, py, 3, 2, gold); cbf(g, x + w - 1, py, 3, 2, gold);
-        const int px = x + 5 + k * ((w - 12) / 4);
-        cbf(g, px, y - 2, 2, 3, gold); cbf(g, px, y + h - 1, 2, 3, gold);
-    }
-    g.drawRect(x, y, w, h, on ? accent() : (uint8_t)PAL_STEEL);
-    if (on) sel_rect(g, x - 3, y - 3, w + 6, h + 6);
-    OVL_BOX("CHIP", HB_SILK1[i], x, y, w, h);
-    const int sm = botcorps_cyd_orient ? 26 : 18;          /* L: one Font0 line */
-    const int fs = (w - 10 < h - sm ? w - 10 : h - sm);
-    const int cx = x + w / 2, cy = y + 4 + fs / 2;
-    if (i == HB4_BOOT) hb_boot_face(g, cx, cy, fs);
-    else if (i == HB4_SCAN) e_metal_face(g, cx, cy, fs, true);     /* metallic gold */
-    else if (i == HB4_CTRL) face_block(g, cx, cy, fs, accent(), false, false);
-    else hb_term_face(g, cx, cy, fs);                               /* metallic silver */
-    /* Landscape: Font0 (~6 px) single-line name — tiny 3x5 is unreadable on 320x240.
-     * Portrait keeps two-line tiny silk (same as before). Short L names for fit. */
-    if (!botcorps_cyd_orient) {
-        static const char *const SHORT[5] = { "BOOT", "SCAN", "CTRL", "TERM", "GIBSON" };
-        const char *a = SHORT[i];
-        const int keep = s_px; use_px(g, 6);
-        txt(g, a, cx, y + h - 9, silk, lgfx::textdatum::top_center);
-        s_px = keep;
-    } else {
-        const char *a = HB_SILK1[i];
-        tiny_text(g, a, cx - tiny_w(a) / 2, y + h - 17, silk);
-        tiny_text(g, "BOT", cx - tiny_w("BOT") / 2, y + h - 10, silk);
-    }
+    drawBotChipK(g, x, y, botcorps_cyd_orient != 0, hb_mb_of(i), HB_KBOT, nullptr, s_hb_sel == i);
 }
 
-/* face geo of centre die (intro power-up + hub module): the shared main-bot chip die (hub6) */
+/* face geo of the centre die (intro power-up + hub module) at the centre chip's scale */
 static void hb4_gib_geo(int *cx, int *cy, int *fs)
 {
+    hb_layout_sync();
     const bool P = botcorps_cyd_orient != 0;
-    int dcx, dcy, D, ty; mb_geo(P, &dcx, &dcy, &D, &ty);
+    int dcx, dcy, D, ty; mb_geo(P, &dcx, &dcy, &D, &ty, HB_KMID, true);
     const int bob = ((millis() / 900u) % 2u) ? 1 : 0;
-    *cx = HB_MOD[0] + dcx; *cy = HB_MOD[1] + dcy + bob - 1; *fs = D - 12;
+    *cx = HB_MOD[0] + dcx; *cy = HB_MOD[1] + dcy + bob - 1; *fs = D - mb_S(12, HB_KMID);
 }
 static void hb_module(Gfx g)
 {
-    const bool P = botcorps_cyd_orient != 0;
-    const int mx = HB_MOD[0], my = HB_MOD[1], mw = HB_MOD[2], mh = HB_MOD[3];
-    drawMainBotChip(g, mx, my, P, MB_GIB, "JACK IN");
-    if (s_hb_sel == HB4_GIB) {
-        g.drawRect(mx - 4, my - 4, mw + 8, mh + 8, PAL_WHITE);
-        g.drawRect(mx - 3, my - 3, mw + 6, mh + 6, accent());
-    }
+    drawBotChipK(g, HB_MOD[0], HB_MOD[1], botcorps_cyd_orient != 0, MB_GIB, HB_KMID, "JACK IN", s_hb_sel == HB4_GIB);
 }
 
-/* TERMINALbot centre: the shared main-bot chip with the silver face */
+/* TERMINALbot centre: the shared main-bot chip with the silver face (centre slot) */
 static void ht_module(Gfx g)
 {
-    const bool P = botcorps_cyd_orient != 0;
-    drawMainBotChip(g, HB_CHIPR[HB4_TERM][0], HB_CHIPR[HB4_TERM][1], P, MB_TERM, "TTY0");
+    drawBotChipK(g, HB_MOD[0], HB_MOD[1], botcorps_cyd_orient != 0, MB_TERM, HB_KMID, "TTY0");
 }
 
 /* route copper between chips */
@@ -215,7 +182,7 @@ static bool hb_rect_free(int x, int y, int w, int h)
 }
 static void hb_rich(Gfx g)
 {
-    const int W = EW(), H = EH();
+    const int W = EW();
     const uint8_t tr = cb_trace();
     const uint8_t via = cbmix(botcorps_rgb565(tr), 0xFFFF, 40);
     const uint8_t pour = cbmix(botcorps_rgb565(tr), 0x0000, 55);
@@ -240,33 +207,8 @@ static void hb_rich(Gfx g)
             cb_via(g, x, y, via);
         }
     }
-    /* variant-specific bus art */
-    if (!s_hub_term && s_hub5_var == HUB5_B) {
-        /* horizontal backplane spine */
-        const int by = botcorps_cyd_orient ? 140 : 104;   /* hub6 L: between A/B bus routes 96/112 */
-        for (int x = x0 + 8; x < x1 - 8; x += 2) {
-            if (hb_over_chip(x, by)) continue;
-            cbf(g, x, by, 2, 2, tr);
-            cbf(g, x, by + 3, 2, 1, pour);
-        }
-        if (botcorps_cyd_orient) tiny_text(g, "BUS0", x0 + 4, by - 8, silk);
-        else { const int keep = s_px; use_px(g, 6); txt(g, "BUS0", x0 + 4, by - 10, silk, lgfx::textdatum::top_left); s_px = keep; }
-    } else if (!s_hub_term && s_hub5_var == HUB5_C) {
-        /* ring bus around Gibson */
-        const int cx = HB_MOD[0] + HB_MOD[2] / 2, cy = HB_MOD[1] + HB_MOD[3] / 2;
-        const int rx = botcorps_cyd_orient ? 70 : 78, ry = botcorps_cyd_orient ? 62 : 44;
-        static const int8_t OX[8] = { 0, 1, 1, 1, 0, -1, -1, -1 };
-        static const int8_t OY[8] = { -1, -1, 0, 1, 1, 1, 0, -1 };
-        int px = cx, py = cy - ry;
-        for (int s = 0; s < 8; ++s) {
-            const int nx = cx + OX[s] * rx, ny = cy + OY[s] * ry;
-            cb_line(g, px, py, nx, ny, tr);
-            cb_via(g, nx, ny, via);
-            px = nx; py = ny;
-        }
-        if (botcorps_cyd_orient) tiny_text(g, "RING", cx + 24, cy - ry - 10, silk);   /* hub6: beside N chip */
-        else { const int keep = s_px; use_px(g, 6); txt(g, "RING", cx, 156, silk, lgfx::textdatum::top_center); s_px = keep; }   /* hub6 L: between BOOT|TERM pair */
-    } else {
+    /* hub7: one layout — radial spoke vias around the centre chip */
+    {
         /* A: radial spoke stubs from centre midpoints */
         const int cx = HB_MOD[0] + HB_MOD[2] / 2, cy = HB_MOD[1] + HB_MOD[3] / 2;
         for (int a = 0; a < 4; ++a) {
@@ -330,6 +272,7 @@ static void paint_hubbot(Gfx g)
     if (s_hub_term) {
         ht_module(g);
         for (int i = 0; i < 3; ++i) hb4_chip(g, i);
+        drawBotChipK(g, HB_CHIPR[HB4_GIB][0], HB_CHIPR[HB4_GIB][1], botcorps_cyd_orient != 0, MB_GIB, HB_KBOT, nullptr);
     } else {
         hb_module(g);
         for (int i = 0; i < 4; ++i) hb4_chip(g, i);
@@ -342,8 +285,7 @@ static void paint_hubbot(Gfx g)
 static int hb_hit(int tx, int ty)
 {
     hb_layout_sync();
-    const int last = s_hub_term ? HB4_TERM : HB4_GIB;
-    for (int i = HB4_SCAN; i <= last; ++i) {
+    for (int i = HB4_SCAN; i <= HB4_GIB; ++i) {   /* term board: GIBSON chip = back to the hub */
         const int x = HB_CHIPR[i][0] - 2, y = HB_CHIPR[i][1] - 2;
         const int w = HB_CHIPR[i][2] + 4, h = HB_CHIPR[i][3] + 4;
         if (w <= 4 || h <= 4) continue;

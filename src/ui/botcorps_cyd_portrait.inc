@@ -486,13 +486,15 @@ static int scanbot_band(void) { return scanbot_active() == SB_BLE ? 1 : 0; }  /*
  * with >=28 px tiles, and a silk SCANBOT terminal plate at the foot. */
 struct SBGeo {
     int mx, my, mw, mh;             /* gold centre module */
-    int cx[3], cy[3], cs;           /* scattered scan chips: 0 WIFI, 1 BLE, 2 GIBSON */
+    int cx[3], cy[3], cs;           /* scan bot chips: 0 WIFI, 1 BLE, 2 GIBSON; cs = chip width */
+    int ch, ck;                     /* hub7: chip height + main-chip scale k/16 (real chip look) */
     int kx0, ky, kw_band, kh;       /* category pad band: kw_band wide, kh tall */
     int kcols;                      /* pads per row; 0/1 = single row of ntab */
     int bx, by, bw, bh;             /* results bay */
     int t0x, t0y, pitch, cols, rows, tile;   /* tile grid inside the bay */
     int pl[4];                      /* SCANBOT plate: x y w h */
     int mox, moy;                   /* hub6: explicit MORE pad origin (0,0 = legacy rule) */
+    int mow;                        /* hub7: MORE pad width (0 = 28) */
 };
 /* Tile scroll offset (slot index) when finds exceed the visible grid. */
 static int s_scan_tile0 = 0;
@@ -511,10 +513,12 @@ static const SBGeo &scanbot_geo(void)
          * third tile row. Plate castellations at 262, so bay bottom <= 260. */
         /* hub6 (Mobandy 4:30): main chip = shared CONTROLbot-size module 84x120 */
         P.mx = 78; P.my = 30; P.mw = 84; P.mh = 120;  /* bottom 150 */
-        P.cs = 28;
-        P.cx[0] = 38; P.cy[0] = 40;     /* WIFI  top-left   */
-        P.cx[1] = 38; P.cy[1] = 96;     /* BLE   mid-left   */
-        P.cx[2] = 174; P.cy[2] = 66;    /* GIBSON right     */
+        /* hub7 (Mobandy 4:57): the three scan bots are the shared main-bot chip at 8/16 (42x60),
+         * the largest that fits beside the module above the tabs (pads at 156). */
+        P.ck = 8; P.cs = 42; P.ch = 60;
+        P.cx[0] = 33; P.cy[0] = 30;     /* WIFI  top-left   */
+        P.cx[1] = 33; P.cy[1] = 93;     /* BLE   mid-left   */
+        P.cx[2] = 165; P.cy[2] = 60;    /* GIBSON right (mirror x of WIFI/BLE) */
         P.kx0 = 34; P.ky = 156; P.kw_band = 172; P.kh = 14; P.kcols = 0;  /* pads end 170 */
         P.bx = 34; P.by = 176; P.bw = 172; P.bh = 80;        /* bay end 256 (cast 257); plate cast 262 */
         P.t0x = 42; P.t0y = 187; P.pitch = 31; P.cols = 4; P.rows = 2; P.tile = 28;
@@ -523,14 +527,16 @@ static const SBGeo &scanbot_geo(void)
          * top; tabs 2x2 (28 tall) left | 2x3 tile bay right (mirror blocks); GIBSON under the
          * tabs, MORE centred under SCANBOT beside the bay. Everything ends <= 177 (cast 182). */
         L.mx = 123; L.my = 30; L.mw = 74; L.mh = 96;   /* centre x=160 */
-        L.cs = 28;
-        L.cx[0] = 62; L.cy[0] = 32;     /* WIFI  left  (mirror of BLE) */
-        L.cx[1] = 230; L.cy[1] = 32;    /* BLE   right 320-62-28 */
-        L.cx[2] = 63; L.cy[2] = 139;    /* GIBSON under the tab block */
+        /* hub7: scan bots = shared main-bot chip at 7/16 (32x42): WIFI over the tabs, BLE over the
+         * bay (mirrored), GIBSON centred under SCANBOT; MORE moves under the tabs (full tab width). */
+        L.ck = 7; L.cs = 32; L.ch = 42;
+        L.cx[0] = 61; L.cy[0] = 30;     /* WIFI  left  (mirror of BLE) */
+        L.cx[1] = 227; L.cy[1] = 30;    /* BLE   right 320-61-32 */
+        L.cx[2] = 144; L.cy[2] = 132;   /* GIBSON under the module, centre x=160 */
         L.kx0 = 36; L.ky = 76; L.kw_band = 82; L.kh = 28; L.kcols = 2;   /* 2x2, 39x28 */
-        L.bx = 202; L.by = 74; L.bw = 82; L.bh = 101;          /* bay 202..284 x 74..175 */
-        L.t0x = 214; L.t0y = 85; L.pitch = 29; L.cols = 2; L.rows = 3; L.tile = 28;  /* 6 tiles */
-        L.mox = 146; L.moy = 141;                              /* MORE under the module */
+        L.bx = 202; L.by = 76; L.bw = 82; L.bh = 100;          /* hub7: bay 202..284 x 76..176 */
+        L.t0x = 214; L.t0y = 87; L.pitch = 29; L.cols = 2; L.rows = 3; L.tile = 28;  /* 6 tiles */
+        L.mox = 36; L.moy = 140; L.mow = 82;                   /* hub7: MORE under the tabs */
         L.pl[0] = 34; L.pl[1] = 184; L.pl[2] = 252; L.pl[3] = 49;   /* 3-line plate */
     }
     return botcorps_cyd_orient ? P : L;
@@ -552,7 +558,7 @@ static void sb_catpad_cell(const SBGeo &G, int ntab, int i, int *px, int *py, in
 }
 static void sb_more_rect(const SBGeo &G, int *ax, int *ay, int *aw, int *ah)
 {
-    *aw = 28; *ah = 28;
+    *aw = G.mow ? G.mow : 28; *ah = 28;
     if (G.mox || G.moy) { *ax = G.mox; *ay = G.moy; return; }
     if (G.kcols > 1) {                         /* right strip beside Nx2 grid; vertically centered */
         *ax = G.t0x + G.cols * G.pitch;       /* abut the grid; stay inside bay well */
@@ -649,57 +655,6 @@ static int scanbot_cats_e(int act, SBCat *cat)
     return n;
 }
 
-/* One scattered scan chip in the CONTROLbot peripheral-chip language (cb_chip art):
- * castellated square, a face, silk name under. Selected = lit (accent body + wash + rim),
- * others dim. kind 0 = WIFIbot, 1 = BLUETOOTHbot (themed faces + a radio emblem),
- * 2 = GIBSON (ivory + dark Agent Smith glasses, never theme-coloured). */
-static void sb_scanchip(Gfx g, int x, int y, int s, int kind, const char *silk, bool lit)
-{
-    const uint8_t gold = sh_rgb(0xd4, 0xa9, 0x3c), silk2 = sh_rgb(0x9a, 0x9a, 0xa6);
-    const uint8_t ac = accent(), dark = sh_rgb(0x2a, 0x2a, 0x32);
-    cbf(g, x - 1, y - 1, s + 2, s + 2, PAL_BLACK);
-    if (lit) { cbf(g, x - 3, y - 3, s + 6, s + 6, wash22(ac)); sel_rect(g, x - 3, y - 3, s + 6, s + 6); cbf(g, x, y, s, s, PAL_BLACK); }
-    const int lit6 = (int)((millis() / 90u) % 6u);
-    for (int k = 0; k < 6; ++k) {
-        const int o = 3 + k * 4;
-        if (o + 2 > s) break;
-        const uint8_t pc = (lit && lit6 == k) ? ac : gold;
-        cbf(g, x + o, y - 3, 2, 3, pc); cbf(g, x + o, y + s, 2, 3, pc);
-        cbf(g, x - 3, y + o, 3, 2, pc); cbf(g, x + s, y + o, 3, 2, pc);
-    }
-    cbf(g, x, y, s, s, lit ? ac : dark);
-    cbf(g, x + 1, y + 1, s - 2, s - 2, PAL_BLACK);
-    OVL_BOX("CHIP", silk, x - 3, y - 3, s + 6, s + 6);
-    const int mx = x + s / 2, my = y + s / 2, fs = s - 10;
-    if (kind == 2) {
-        hb_gib_face(g, mx, my, fs);
-    } else {
-        const uint8_t keep = s_cb_col; s_cb_col = lit ? ac : (uint8_t)PAL_STEEL;
-        cb_face(g, mx, my, fs);
-        s_cb_col = keep;
-        const uint8_t em = lit ? (uint8_t)PAL_WHITE : silk2;
-        if (kind == 0) {                                   /* WIFI: rising arcs */
-            cbf(g, mx - 3, y + s - 6, 7, 1, em); cbf(g, mx - 2, y + s - 8, 5, 1, em); cbf(g, mx - 1, y + s - 10, 3, 1, em);
-        } else {                                           /* BLE: bluetooth rune */
-            cbf(g, mx, y + s - 11, 1, 9, em); cbf(g, mx, y + s - 11, 3, 1, em); cbf(g, mx + 2, y + s - 9, 1, 2, em);
-            cbf(g, mx, y + s - 7, 3, 1, em); cbf(g, mx + 2, y + s - 5, 1, 2, em);
-        }
-    }
-    /* Landscape: Font0 (~6 px) under chip — tiny 3x5 unreadable (Mobandy 4:13) */
-    char nm[14]; snprintf(nm, sizeof nm, "%.13s", silk);
-    if (!botcorps_cyd_orient) {
-        const int keep = s_px; use_px(g, 6);
-        const int tw = (int)strlen(nm) * 6;
-        cbf(g, mx - tw / 2 - 1, y + s + 2, tw + 2, 9, PAL_BLACK);
-        txt(g, nm, mx, y + s + 3, lit ? (uint8_t)PAL_WHITE : cb_silk(), lgfx::textdatum::top_center);
-        s_px = keep;
-    } else {
-        const int tw = tiny_w(nm), tx = mx - tw / 2;
-        cbf(g, tx - 1, y + s + 3, tw + 2, 7, PAL_BLACK);
-        tiny_text(g, nm, tx, y + s + 4, lit ? (uint8_t)PAL_WHITE : cb_silk(), s + 14);
-    }
-}
-
 /* category pad: a small raised silk chip with side solder tabs (NOT a tab in a bar).
  * selected = lit (accent body), others dim. */
 static void sb_catpad(Gfx g, int x, int y, int w, int h, const char *lab, bool sel)
@@ -754,14 +709,14 @@ static void paint_scan_e(Gfx g)
     {
         const int L0 = G.mx, R0 = G.mx + G.mw;
         for (int i = 0; i < 3; ++i) {
-            const int ccx = G.cx[i] + G.cs / 2, ccy = G.cy[i] + G.cs / 2;
-            if (ccy > G.my + G.mh) {                       /* below the module: right, then up */
-                const int ux = G.mx + 12;
-                cb_line(g, ccx, ccy, ux, ccy, tr); cb_via(g, ux, ccy, via);
-                cb_line(g, ux, ccy, ux, G.my + G.mh, tr);
+            const int ccx = G.cx[i] + G.cs / 2, ccy = G.cy[i] + G.ch / 2;
+            if (G.cy[i] >= G.my + G.mh) {                  /* below the module: straight up into it */
+                cb_line(g, ccx, G.cy[i], ccx, G.my + G.mh, tr); cb_via(g, ccx, G.cy[i] - 3, via);
             } else {
-                cb_line(g, ccx, ccy, ccx < L0 ? L0 : R0, ccy, tr);
-                cb_via(g, ccx < L0 ? L0 - 6 : R0 + 6, ccy, via);
+                const int ry = ccy < G.my + 24 ? G.my + 24 : ccy;   /* hit the module's side pins */
+                const int ex = ccx < L0 ? G.cx[i] + G.cs : G.cx[i];
+                cb_line(g, ex, ry, ccx < L0 ? L0 : R0, ry, tr);
+                cb_via(g, ccx < L0 ? L0 - 4 : R0 + 4, ry, via);
             }
         }
         if (G.by >= G.my + G.mh) {                         /* bay under the module */
@@ -770,14 +725,16 @@ static void paint_scan_e(Gfx g)
         } else {                                           /* bay beside the module */
             const int cy = G.by + G.bh / 4;
             cb_line(g, R0, cy, G.bx, cy, tr); cb_via(g, G.bx, cy, via);
-            if (G.mox || G.moy) { const int my2 = G.moy + 14; cb_line(g, G.mox + 28, my2, G.bx, my2, tr); }
+            if ((G.mox || G.moy) && G.mox > G.mx) { const int my2 = G.moy + 14; cb_line(g, G.mox + 28, my2, G.bx, my2, tr); }
         }
     }
 
     /* ---- gold centre boss + three scattered scan chips ---- */
     { static const char *const INF[3] = { "WIFI", "BT", "ALL RADIO" };
       drawMainBotChip(g, G.mx, G.my, botcorps_cyd_orient != 0, MB_SCAN, INF[act]); }
-    for (int i = 0; i < 3; ++i) sb_scanchip(g, G.cx[i], G.cy[i], G.cs, i, NAME[i], i == act);
+    { static const int MBK[3] = { MB_WIFI, MB_BLE, MB_GIB };      /* hub7: real chip look, not squares */
+      for (int i = 0; i < 3; ++i) drawBotChipK(g, G.cx[i], G.cy[i], botcorps_cyd_orient != 0, MBK[i], G.ck, nullptr, i == act);
+      (void)NAME; }
 
     /* ---- category pads (small chips with gaps; landscape = 2x2 >=28 hit cells) ---- */
     SBCat cat[5];

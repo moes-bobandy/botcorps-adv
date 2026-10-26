@@ -9675,6 +9675,11 @@ static int portrait_touch(int tx, int ty, char *typed)
             enter_defend(12, SCR_GIBSON);
             return K_NONE;
         }
+        if (c == HB4_GIB && s_hub_term) {               /* hub7: GIBSON chip on the term board = back to the hub */
+            log_add("terminalbot> gibson");
+            s_hub_term = false; s_dirty = true;
+            return K_NONE;
+        }
         if (c == HB4_SCAN) {
             log_add("gibson> scanbot");
             s_scan_bot = 12; s_gib_hunt = false;
@@ -9710,7 +9715,7 @@ static int portrait_touch(int tx, int ty, char *typed)
         const int act = scanbot_active();
         for (int i = 0; i < 3; ++i) {                              /* scattered scan chips -> switch bot */
             if (tx < G.cx[i] - 3 || tx >= G.cx[i] + G.cs + 3) continue;
-            if (ty < G.cy[i] - 3 || ty >= G.cy[i] + G.cs + 11) continue;   /* chip + its silk label */
+            if (ty < G.cy[i] - 3 || ty >= G.cy[i] + G.ch + 3) continue;    /* hub7: chip (label inside) */
             if (i != act) { s_scan_cat = 0; s_scan_tile0 = 0; s_cursor = 0; s_scan_selband = (i == 1) ? 1 : 0; }
             s_gib_hunt = false;
             if (i == 0) { log_add("scanbot> wifibot"); enter_screen(SCR_WIFI_RADAR, SCR_GIBSON); }

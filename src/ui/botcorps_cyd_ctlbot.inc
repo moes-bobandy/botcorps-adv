@@ -65,58 +65,77 @@ static void cb_face(Gfx g, int cx, int cy, int s)
 }
 /* ---- hub6 (Mobandy 4:30 PM ET Oct 26): ONE main-bot chip for every main board ----
  * CONTROLbot's centre module (frame, side/bottom pins, power-bar header, shaded face window,
- * die, name/info label) at EXACTLY CONTROLbot's size per orientation. Only the face inside the
- * die window and the two label lines switch per bot; every other pixel is identical. */
-enum { MB_GIB = 0, MB_TERM = 1, MB_SCAN = 2, MB_CTRL = 3, MB_N = 4 };
+ * die, name/info label). hub7 (Mobandy 4:57 PM ET): the SAME design at a uniform scale k16/16
+ * (k16 = 16 is CONTROLbot's exact size) so every bot on every board is this chip, never a
+ * little square. Only the face, name and info line switch per bot. */
+enum { MB_GIB = 0, MB_TERM = 1, MB_SCAN = 2, MB_CTRL = 3, MB_BOOT = 4, MB_WIFI = 5, MB_BLE = 6, MB_N = 7 };
 static const int MB_W_L = 74, MB_H_L = 96, MB_W_P = 84, MB_H_P = 120;
-static int mb_w(bool P) { return P ? MB_W_P : MB_W_L; }
-static int mb_h(bool P) { return P ? MB_H_P : MB_H_L; }
+static int mb_S(int v, int k16) { const int r = (v * k16 + 8) / 16; return r < 1 ? 1 : r; }
+static int mb_w(bool P, int k16 = 16) { return mb_S(P ? MB_W_P : MB_W_L, k16); }
+static int mb_h(bool P, int k16 = 16) { return mb_S(P ? MB_H_P : MB_H_L, k16); }
 static void e_metal_face(Gfx g, int cx, int cy, int s, bool gold);   /* edge.inc */
 static void hb_gib_face(Gfx g, int cx, int cy, int s);               /* hubbot.inc */
 static void hb_term_face(Gfx g, int cx, int cy, int s);              /* hubbot.inc */
-/* die geometry relative to the chip origin: centre, die side D, label top */
-static void mb_geo(bool P, int *dcx, int *dcy, int *D, int *ty)
+static void hb_boot_face(Gfx g, int cx, int cy, int s);              /* hubbot.inc */
+/* die geometry relative to the chip origin: centre, die side D, label top (label = Font0 name
+ * [+ info line]); k16 = 16 reproduces the hub6 geometry exactly */
+static void mb_geo(bool P, int *dcx, int *dcy, int *D, int *ty, int k16 = 16, bool info = true)
 {
-    const int mw = mb_w(P), mh = mb_h(P), sw = mw - 6;
-    int d = sw - 18;
-    if (!P) { const int dmax = mh - 18 - 24; if (d > dmax) d = dmax; }
-    if (d < 20) d = 20;
-    *dcx = 3 + sw / 2; *dcy = 18 + d / 2 + 3; *D = d;
-    int t = *dcy + d / 2 + 5;
-    if (!P && t + 18 > mh - 4) t = mh - 22;
+    const int mw = mb_w(P, k16), mh = mb_h(P, k16), sw = mw - 2 * mb_S(3, k16);
+    const int lh = info ? 18 : 9;
+    int d = sw - mb_S(18, k16);
+    { const int dmax = mh - mb_S(18, k16) - mb_S(6, k16) - lh; if (d > dmax) d = dmax; }
+    if (d < 12) d = 12;
+    *dcx = mb_S(3, k16) + sw / 2; *dcy = mb_S(18, k16) + d / 2 + mb_S(3, k16); *D = d;
+    int t = *dcy + d / 2 + mb_S(5, k16);
+    if (t + lh > mh - mb_S(4, k16)) t = mh - mb_S(4, k16) - lh;
     *ty = t;
 }
 /* face rect (die window incl. its pin ticks) and label rect, chip-relative — the only areas that differ */
 static void mb_face_rect(bool P, int *x, int *y, int *w, int *h)
 { int cx, cy, D, ty; mb_geo(P, &cx, &cy, &D, &ty); *x = cx - D / 2 - 2; *y = cy - D / 2 - 2; *w = D + 4; *h = D + 4; }
 static void mb_label_rect(bool P, int *x, int *y, int *w, int *h)
-{ int cx, cy, D, ty; mb_geo(P, &cx, &cy, &D, &ty); *x = 3; *y = ty - 1; *w = mb_w(P) - 6; *h = P ? 21 : 19; }
-static const char *mb_name(int bot)
+{ int cx, cy, D, ty; mb_geo(P, &cx, &cy, &D, &ty); *x = 3; *y = ty - 1; *w = mb_w(P) - 6; *h = 19; }
+/* longest name that fits the face window at Font0 (6 px/char) */
+static const char *mb_name(int bot, int avail = 999)
 {
-    static const char *const N[MB_N] = { "GIBSONBOT", "TERMINALBOT", "SCANBOT", "CONTROLBOT" };
-    return N[(bot < 0 || bot >= MB_N) ? MB_CTRL : bot];
+    static const char *const N[MB_N][3] = {
+        { "GIBSONBOT", "GIBSON", "GIB" }, { "TERMINALBOT", "TERMBOT", "TERM" }, { "SCANBOT", "SCAN", "SCAN" },
+        { "CONTROLBOT", "CTRLBOT", "CTRL" }, { "BOOTBOT", "BOOT", "BOOT" }, { "WIFIBOT", "WIFI", "WIFI" },
+        { "BLUETOOTH", "BLE", "BLE" } };
+    const int b = (bot < 0 || bot >= MB_N) ? MB_CTRL : bot;
+    for (int i = 0; i < 3; ++i) if ((int)strlen(N[b][i]) * 6 - 1 <= avail) return N[b][i];
+    return N[b][2];
 }
+static void drawBotChipK(Gfx g, int mx, int my, bool P, int bot, int k16, const char *info, bool lit = false);
 static void drawMainBotChip(Gfx g, int mx, int my, bool P, int bot, const char *info = nullptr)
 {
+    drawBotChipK(g, mx, my, P, bot, 16, info ? info : (bot == MB_CTRL ? theme().sname : ""));
+}
+static void drawBotChipK(Gfx g, int mx, int my, bool P, int bot, int k16, const char *info, bool lit)
+{
+#define MS(v) mb_S((v), k16)
     const uint8_t gold = 177, goldd = 104, steel = PAL_STEEL;
-    const int mw = mb_w(P), mh = mb_h(P);
+    const int mw = mb_w(P, k16), mh = mb_h(P, k16);
     cbf(g, mx, my, mw, mh, cbp(0x18E3));
-    for (int y = my + 22; y < my + mh - 4; y += 6) {
-        cbf(g, mx - 2, y, 4, 3, gold); cbf(g, mx - 2, y, 1, 3, goldd);
-        cbf(g, mx + mw - 2, y, 4, 3, gold); cbf(g, mx + mw + 1, y, 1, 3, goldd);
+    const int pstep = MS(6) < 3 ? 3 : MS(6);
+    for (int y = my + MS(22); y < my + mh - MS(4); y += pstep) {
+        cbf(g, mx - MS(2), y, MS(4), MS(3), gold); cbf(g, mx - MS(2), y, 1, MS(3), goldd);
+        cbf(g, mx + mw - MS(2), y, MS(4), MS(3), gold); cbf(g, mx + mw - MS(2) + MS(4) - 1, y, 1, MS(3), goldd);
     }
-    for (int x = mx + 7; x < mx + mw - 6; x += 6) cbf(g, x, my + mh - 2, 3, 4, gold);
+    for (int x = mx + MS(7); x < mx + mw - MS(6); x += pstep) cbf(g, x, my + mh - MS(2), MS(3), MS(4), gold);
     /* power-bar header, stretched across the whole chip top (Mobandy 4:27): evenly spaced meanders */
     {
-        const int span = mw - 8, n = (span - 4) / 7, used = n * 7 - 3;
+        const int leg = MS(3) < 2 ? 2 : MS(3), cap = leg + 1, per = cap + leg, hh = MS(11), hy = my + MS(3);
+        const int span = mw - MS(8), n = (span - MS(4)) / per, used = n * per - (per - cap);
         int ax = mx + (mw - used) / 2;
         for (int i = 0; i < n; ++i) {
-            cbf(g, ax, my + 3, 1, 11, gold); cbf(g, ax, my + 3, 4, 1, gold);
-            cbf(g, ax + 3, my + 3, 1, 11, gold); cbf(g, ax + 3, my + 13, 4, 1, gold);
-            ax += 7;
+            cbf(g, ax, hy, 1, hh, gold); cbf(g, ax, hy, cap, 1, gold);
+            cbf(g, ax + leg, hy, 1, hh, gold); cbf(g, ax + leg, hy + hh - 1, cap, 1, gold);
+            ax += per;
         }
     }
-    const int sx = mx + 3, sy = my + 18, sw = mw - 6, sh = mh - 22;
+    const int sx = mx + MS(3), sy = my + MS(18), sw = mw - 2 * MS(3), sh = mh - MS(22);
     for (int r = 0; r < sh; ++r) {
         int a = sw / 3 - r / 3, b = sw + sw / 3 - r / 3;
         if (a < 0) a = 0;
@@ -128,37 +147,47 @@ static void drawMainBotChip(Gfx g, int mx, int my, bool P, int bot, const char *
     }
     cbf(g, sx, sy, sw, 1, 186);
     cbf(g, sx, sy, 1, sh, 186);
-    int dcx, dcy, D, rty; mb_geo(P, &dcx, &dcy, &D, &rty);
+    const bool hasInfo = info && info[0];
+    int dcx, dcy, D, rty; mb_geo(P, &dcx, &dcy, &D, &rty, k16, k16 >= 16 || hasInfo);
     const int cx = mx + dcx, cy = my + dcy;
     const uint8_t pin = PAL_SOFT;
+    const int tk = MS(2);
     for (int k = 0; k < 5; ++k) {
         const int i = (D - 4 * (D / 6) - 1) / 2 + (D / 6) * k;
-        cbf(g, cx - D / 2 - 2, cy - D / 2 + i, 2, 1, pin); cbf(g, cx + D / 2, cy - D / 2 + i, 2, 1, pin);
-        cbf(g, cx - D / 2 + i, cy - D / 2 - 2, 1, 2, pin); cbf(g, cx - D / 2 + i, cy + D / 2, 1, 2, pin);
+        cbf(g, cx - D / 2 - tk, cy - D / 2 + i, tk, 1, pin); cbf(g, cx + D / 2, cy - D / 2 + i, tk, 1, pin);
+        cbf(g, cx - D / 2 + i, cy - D / 2 - tk, 1, tk, pin); cbf(g, cx - D / 2 + i, cy + D / 2, 1, tk, pin);
     }
     cbf(g, cx - D / 2, cy - D / 2, D, D, PAL_BLACK);
     cbf(g, cx - D / 2, cy - D / 2, D, 1, steel); cbf(g, cx - D / 2, cy + D / 2 - 1, D, 1, steel);
     cbf(g, cx - D / 2, cy - D / 2, 1, D, steel); cbf(g, cx + D / 2 - 1, cy - D / 2, 1, D, steel);
     const int bob = ((millis() / 900u) % 2u) ? 1 : 0;
-    const int fs = D - 12;
-    if (bot == MB_GIB) hb_gib_face(g, cx, cy + bob - 1, fs);              /* ivory + dark glasses */
-    else if (bot == MB_SCAN) e_metal_face(g, cx, cy + bob - 1, fs, true);  /* metallic gold */
-    else if (bot == MB_TERM) hb_term_face(g, cx, cy + bob - 1, fs);        /* metallic silver */
-    else cb_face(g, cx, cy + bob - 1, fs);                                 /* live theme */
-    const char *nm = mb_name(bot);
-    const char *in = info ? info : (bot == MB_CTRL ? theme().sname : "");
+    const int fs = D - MS(12), fy = cy + bob - 1;
+    if (bot == MB_GIB) hb_gib_face(g, cx, fy, fs);              /* ivory + dark glasses */
+    else if (bot == MB_BOOT) hb_boot_face(g, cx, fy, fs);       /* GIBSON inverted: black + white glasses */
+    else if (bot == MB_SCAN) e_metal_face(g, cx, fy, fs, true);  /* metallic gold */
+    else if (bot == MB_TERM) hb_term_face(g, cx, fy, fs);        /* metallic silver */
+    else if (bot == MB_WIFI || bot == MB_BLE) {                  /* radio bots: theme face, steel when idle */
+        const uint8_t keep = s_cb_col; s_cb_col = lit ? accent() : (uint8_t)PAL_STEEL;
+        cb_face(g, cx, fy, fs);
+        s_cb_col = keep;
+    }
+    else cb_face(g, cx, fy, fs);                                 /* live theme */
+    const char *nm = k16 >= 16 ? mb_name(bot) : mb_name(bot, sw);
     const int ty = my + rty;
-    if (!P) {
+    {
         const int keep = s_px; use_px(g, 6);
-        txt(g, nm, cx, ty, 41, lgfx::textdatum::top_center);
-        if (in[0]) txt(g, in, cx, ty + 9, accent(), lgfx::textdatum::top_center);
+        /* hub7: names in near-black ink on the light face window (the old grey 41 washed out on
+         * small chips); the faint accent info line is now a deep accent with the same contrast */
+        txt(g, nm, cx, ty, sh_rgb(0x10, 0x12, 0x18), lgfx::textdatum::top_center);
+        if (hasInfo) txt(g, info, cx, ty + 9, cbmix(botcorps_rgb565(accent()), 0x0000, 40), lgfx::textdatum::top_center);
         s_px = keep;
-    } else {
-        tiny_text(g, nm, cx - tiny_w(nm) / 2, ty, 41);
-        tiny_text(g, "WROOM-32", cx - tiny_w("WROOM-32") / 2, ty + 7, 41);
-        if (in[0]) tiny_text(g, in, cx - tiny_w(in) / 2, ty + 14, accent());
+    }
+    if (lit) {                                                   /* selection ring: 2 px, outside the pins */
+        const int o = k16 >= 16 ? 4 : 3;
+        g.drawRect(mx - o, my - o, mw + 2 * o, mh + 2 * o, PAL_WHITE); g.drawRect(mx - o + 1, my - o + 1, mw + 2 * o - 2, mh + 2 * o - 2, accent());
     }
     OVL_BOX("CHIP", nm, mx, my, mw, mh);
+#undef MS
 }
 /* hub6 (Mobandy 4:27): CONTROLbot board power-bar strip stretched across the whole top area
  * between the side pin columns, just under the top bar; header centred on a black window. */

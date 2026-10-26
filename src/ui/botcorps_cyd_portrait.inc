@@ -528,14 +528,15 @@ static const SBGeo &scanbot_geo(void)
          * left, GIBSON right of the module, big 3x3 bay right with MORE in its own slot, the four
          * category tabs in ONE row across the full width above the plate. All clear of the top bar
          * (y>=30), the side headers (34 / 286) and the plate castellations (182). */
-        L.mx = 70; L.my = 32; L.mw = 52; L.mh = 92;    /* gold centre, end 122 x 124 */
+        /* hub5 L (Mobandy 4:13): centred gold module; WIFI|BLE top mirror; GIBSON|bay mid mirror */
+        L.mx = 124; L.my = 32; L.mw = 72; L.mh = 86;   /* centre x=160; big metallic face */
         L.cs = 28;
-        L.cx[0] = 36; L.cy[0] = 34;     /* WIFI  left-top (pad 28) */
-        L.cx[1] = 36; L.cy[1] = 96;     /* BLE   left-bottom */
-        L.cx[2] = 128; L.cy[2] = 64;    /* GIBSON right of module, beside the bay */
-        L.kx0 = 36; L.ky = 150; L.kw_band = 248; L.kh = 28; L.kcols = 0;   /* one row of 4, end 178 */
-        L.bx = 162; L.by = 32; L.bw = 122; L.bh = 112;         /* bay end 144; gap from GIB 6 */
-        L.t0x = 166; L.t0y = 46; L.pitch = 30; L.cols = 3; L.rows = 3; L.tile = 28;  /* 3x3, end 254 x 134; MORE x=256 */
+        L.cx[0] = 40; L.cy[0] = 36;     /* WIFI  left  (mirror of BLE) */
+        L.cx[1] = 252; L.cy[1] = 36;    /* BLE   right 320-40-28 */
+        L.cx[2] = 40; L.cy[2] = 90;     /* GIBSON left-mid; bay mirrors on right */
+        L.kx0 = 40; L.ky = 148; L.kw_band = 240; L.kh = 28; L.kcols = 0;   /* one row of 4 */
+        L.bx = 200; L.by = 90; L.bw = 80; L.bh = 52;           /* bay right, top-aligned with GIBSON */
+        L.t0x = 208; L.t0y = 102; L.pitch = 30; L.cols = 1; L.rows = 1; L.tile = 28;  /* 1 tile + MORE */
         L.pl[0] = 34; L.pl[1] = 184; L.pl[2] = 252; L.pl[3] = 49;   /* 3-line plate */
     }
     return botcorps_cyd_orient ? P : L;
@@ -672,7 +673,8 @@ static void sb_center(Gfx g, int mx, int my, int mw, int mh)
         ax += 7;
     }
     const int sx = mx + 3, sy = my + 18, sw = mw - 6;
-    int D = sw - 18; const int dmax = mh - 18 - 31; if (D > dmax) D = dmax; if (D < 18) D = 18;
+    int D = sw - 18; const int silk_budget = botcorps_cyd_orient ? 31 : 14;
+    const int dmax = mh - 18 - silk_budget; if (D > dmax) D = dmax; if (D < 18) D = 18;
     const int cx = sx + sw / 2, cy = sy + D / 2 + 3;
     const uint8_t pin = PAL_SOFT;
     for (int k = 0; k < 5; ++k) {
@@ -683,18 +685,24 @@ static void sb_center(Gfx g, int mx, int my, int mw, int mh)
     cbf(g, cx - D / 2, cy - D / 2, D, D, PAL_BLACK);
     cbf(g, cx - D / 2, cy - D / 2, D, 1, steel); cbf(g, cx - D / 2, cy + D / 2 - 1, D, 1, steel);
     cbf(g, cx - D / 2, cy - D / 2, 1, D, steel); cbf(g, cx + D / 2 - 1, cy - D / 2, 1, D, steel);
-    const uint8_t keep = s_cb_col; s_cb_col = gold;         /* force a GOLD bot face */
     const int bob = ((millis() / 900u) % 2u) ? 1 : 0;
-    cb_face(g, cx, cy + bob - 1, D - 12);
-    s_cb_col = keep;
+    e_metal_face(g, cx, cy + bob - 1, D - 12, true);         /* metallic gold, never flat yellow */
     int ty = cy + D / 2 + 5;
-    /* keep SCANBOT / WROOM-32 / FCC fully above the bottom pad row */
     const int silk_lim = my + mh - 6;
-    if (ty + 19 > silk_lim) ty = silk_lim - 19;
-    if (ty < cy + D / 2 + 2) ty = cy + D / 2 + 2;
-    tiny_text(g, "SCANBOT", cx - tiny_w("SCANBOT") / 2, ty, gold);
-    tiny_text(g, "WROOM-32", cx - tiny_w("WROOM-32") / 2, ty + 7, gold);
-    tiny_text(g, "FCC 2AC7Z", cx - tiny_w("FCC 2AC7Z") / 2, ty + 14, gold);
+    if (!botcorps_cyd_orient) {
+        /* Font0 single line; drop WROOM/FCC (unreadable at tiny size on 320x240) */
+        if (ty + 9 > silk_lim) ty = silk_lim - 9;
+        if (ty < cy + D / 2 + 2) ty = cy + D / 2 + 2;
+        const int keep = s_px; use_px(g, 6);
+        txt(g, "SCANBOT", cx, ty, gold, lgfx::textdatum::top_center);
+        s_px = keep;
+    } else {
+        if (ty + 19 > silk_lim) ty = silk_lim - 19;
+        if (ty < cy + D / 2 + 2) ty = cy + D / 2 + 2;
+        tiny_text(g, "SCANBOT", cx - tiny_w("SCANBOT") / 2, ty, gold);
+        tiny_text(g, "WROOM-32", cx - tiny_w("WROOM-32") / 2, ty + 7, gold);
+        tiny_text(g, "FCC 2AC7Z", cx - tiny_w("FCC 2AC7Z") / 2, ty + 14, gold);
+    }
 }
 
 /* One scattered scan chip in the CONTROLbot peripheral-chip language (cb_chip art):
@@ -732,10 +740,19 @@ static void sb_scanchip(Gfx g, int x, int y, int s, int kind, const char *silk, 
             cbf(g, mx, y + s - 7, 3, 1, em); cbf(g, mx + 2, y + s - 5, 1, 2, em);
         }
     }
+    /* Landscape: Font0 (~6 px) under chip — tiny 3x5 unreadable (Mobandy 4:13) */
     char nm[14]; snprintf(nm, sizeof nm, "%.13s", silk);
-    const int tw = tiny_w(nm), tx = mx - tw / 2;
-    cbf(g, tx - 1, y + s + 3, tw + 2, 7, PAL_BLACK);
-    tiny_text(g, nm, tx, y + s + 4, lit ? (uint8_t)PAL_WHITE : cb_silk(), s + 14);
+    if (!botcorps_cyd_orient) {
+        const int keep = s_px; use_px(g, 6);
+        const int tw = (int)strlen(nm) * 6;
+        cbf(g, mx - tw / 2 - 1, y + s + 2, tw + 2, 9, PAL_BLACK);
+        txt(g, nm, mx, y + s + 3, lit ? (uint8_t)PAL_WHITE : cb_silk(), lgfx::textdatum::top_center);
+        s_px = keep;
+    } else {
+        const int tw = tiny_w(nm), tx = mx - tw / 2;
+        cbf(g, tx - 1, y + s + 3, tw + 2, 7, PAL_BLACK);
+        tiny_text(g, nm, tx, y + s + 4, lit ? (uint8_t)PAL_WHITE : cb_silk(), s + 14);
+    }
 }
 
 /* category pad: a small raised silk chip with side solder tabs (NOT a tab in a bar).
@@ -748,8 +765,14 @@ static void sb_catpad(Gfx g, int x, int y, int w, int h, const char *lab, bool s
     cbf(g, x - 2, y + h / 2 - 1, 2, 3, sel ? ac : (uint8_t)PAL_MUTED);
     cbf(g, x + w, y + h / 2 - 1, 2, 3, sel ? ac : (uint8_t)PAL_MUTED);
     char b[10]; snprintf(b, sizeof b, "%.8s", lab);
-    const int tw = tiny_w(b); int tx = x + (w - tw) / 2; if (tx < x + 1) tx = x + 1;
-    tiny_text(g, b, tx, y + (h - 5) / 2, sel ? (uint8_t)PAL_BLACK : (uint8_t)PAL_WHITE, w - 2);
+    if (!botcorps_cyd_orient) {
+        const int keep = s_px; use_px(g, 6);
+        txt(g, b, x + w / 2, y + (h - 6) / 2, sel ? (uint8_t)PAL_BLACK : (uint8_t)PAL_WHITE, lgfx::textdatum::top_center);
+        s_px = keep;
+    } else {
+        const int tw = tiny_w(b); int tx = x + (w - tw) / 2; if (tx < x + 1) tx = x + 1;
+        tiny_text(g, b, tx, y + (h - 5) / 2, sel ? (uint8_t)PAL_BLACK : (uint8_t)PAL_WHITE, w - 2);
+    }
 }
 
 /* results bay: a gold-edged sub-board wired to the module, FINDS count silk on its lip */
@@ -838,7 +861,11 @@ static void paint_scan_e(Gfx g)
           g.drawRect(tx, tyy, G.tile, G.tile, seld ? (uint8_t)PAL_WHITE : (uint8_t)GOLD);
           gl_icon_sz(g, sb_ty(band, d), tx + (G.tile - 18) / 2, tyy + 2, false, 18);
           char db[8]; snprintf(db, sizeof db, "%d", sb_db(band, d));
-          tiny_text(g, db, tx + 2, tyy + G.tile - 7, (uint8_t)PAL_WHITE, G.tile - 4);
+          if (!botcorps_cyd_orient) {
+              const int keep = s_px; use_px(g, 6);
+              txt(g, db, tx + G.tile / 2, tyy + G.tile - 9, (uint8_t)PAL_WHITE, lgfx::textdatum::top_center);
+              s_px = keep;
+          } else tiny_text(g, db, tx + 2, tyy + G.tile - 7, (uint8_t)PAL_WHITE, G.tile - 4);
           ++slot;
       }
       /* scroll chip (≥28×28); landscape: own column right of tiles — never covers a tile */
@@ -846,8 +873,15 @@ static void paint_scan_e(Gfx g)
           int ax, ay, aw, ah; sb_more_rect(G, &ax, &ay, &aw, &ah);
           cbf(g, ax, ay, aw, ah, accent());
           g.drawRect(ax, ay, aw, ah, PAL_WHITE);
-          tiny_text(g, "MORE", ax + (aw - tiny_w("MORE")) / 2, ay + 8, (uint8_t)PAL_BLACK);
-          tiny_text(g, "v", ax + (aw - tiny_w("v")) / 2, ay + 16, (uint8_t)PAL_BLACK);
+          if (!botcorps_cyd_orient) {
+              const int keep = s_px; use_px(g, 6);
+              txt(g, "MORE", ax + aw / 2, ay + 6, (uint8_t)PAL_BLACK, lgfx::textdatum::top_center);
+              txt(g, "v", ax + aw / 2, ay + 15, (uint8_t)PAL_BLACK, lgfx::textdatum::top_center);
+              s_px = keep;
+          } else {
+              tiny_text(g, "MORE", ax + (aw - tiny_w("MORE")) / 2, ay + 8, (uint8_t)PAL_BLACK);
+              tiny_text(g, "v", ax + (aw - tiny_w("v")) / 2, ay + 16, (uint8_t)PAL_BLACK);
+          }
       }
     }
 

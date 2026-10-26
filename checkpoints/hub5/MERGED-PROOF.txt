@@ -1,0 +1,11 @@
+hub5 MERGED-PROOF 2026-10-26 16:24 EDT
+branch: cyd-portrait-v3-fixes
+dirty: yes (pre-commit)
+cardputer-adv .iram0.text: 94423 (want 94423 Δ0)
+cyd .iram0.text: 119271
+gate render: 1042/1057 PASS, 15 FAIL, 4 N/A (baseline)
+RAM: see ram-hub5 below
+RAM cardputer-adv: 71232 B <= cap 71264 B PASS
+RAM cardputer-adv-dual: 71856 B <= cap 71896 B PASS
+RAM cardputer-adv-dual-launcher: 71856 B <= cap 71896 B PASS
+RAM dual LIVE_SCAN=1: 71880 B <= cap 71904 B PASS

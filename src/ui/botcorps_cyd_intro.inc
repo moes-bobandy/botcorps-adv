@@ -321,7 +321,7 @@ static void ib_hub_route(Gfx g, int i, float prog)
 {
     if (prog <= 0) return;
     const uint8_t ac = accent();
-    const int n = HB_RN[i];
+    const int n = HB_ROUTE_N[i];
     int Lsum = 0;
     for (int q = 0; q + 1 < n; ++q) {
         const int ddx = abs(HB_RT[i][q + 1][0] - HB_RT[i][q][0]), ddy = abs(HB_RT[i][q + 1][1] - HB_RT[i][q][1]);

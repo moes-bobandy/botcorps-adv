@@ -1,103 +1,135 @@
-/* HOME hub4 (Mobandy 3:25–3:29 PM ET Oct 26): GIBSONbot big in the middle, the other four in the
- * board corners — TL BOOTbot (drawn, not tappable), TR SCANbot, BL CONTROLbot, BR TERMINALbot —
- * wired to GIBSON with copper. Shared 3-line Adv TERMINALBOT plate at the bottom, untouched.
- * Rects are x,y,w,h; all clear of the top bar (y>=28), the 34 px side headers and the plate. */
+/* HOME hub5 (Mobandy 4:07 PM ET Oct 26): THREE selectable boards A/B/C.
+ * Gibson square ~1.25x the other four. Rich PCB circuitry. SCAN metallic gold,
+ * TERM metallic silver, BOOT black+white shades (not tappable), CONTROL=theme.
+ * Default variant A via s_hub5_var. TERMINALbot board via s_hub_term. */
 enum { HB4_BOOT = 0, HB4_SCAN = 1, HB4_CTRL = 2, HB4_TERM = 3, HB4_GIB = 4, HB4_N = 5 };
+enum { HUB5_A = 0, HUB5_B = 1, HUB5_C = 2, HUB5_N = 3 };
 
+static int s_hub5_var = HUB5_A;
+static bool s_hub_term = false;
+
+/* Variant A — radial corners */
+static const int HA_CHIP_P[5][4] = {
+    { 36, 40, 44, 44 }, { 160, 40, 44, 44 }, { 36, 200, 44, 44 }, { 160, 200, 44, 44 },
+    { 92, 114, 56, 56 }
+};
+static const int HA_CHIP_L[5][4] = {
+    /* L margins 40 / 280; GIB centre x=160; vertical pack above plate cast 182 */
+    { 40, 34, 48, 48 }, { 232, 34, 48, 48 }, { 40, 134, 48, 48 }, { 232, 134, 48, 48 },
+    { 132, 74, 56, 56 }
+};
+static const int8_t HA_RN[4] = { 3, 3, 3, 3 };
+static const int16_t HA_RT_P[4][4][2] = {
+    { { 58, 84 }, { 58, 114 }, { 92, 114 } },
+    { { 182, 84 }, { 182, 114 }, { 148, 114 } },
+    { { 58, 200 }, { 58, 170 }, { 92, 170 } },
+    { { 182, 200 }, { 182, 170 }, { 148, 170 } } };
+static const int16_t HA_RT_L[4][4][2] = {
+    { { 88, 58 }, { 88, 74 }, { 132, 74 } },
+    { { 232, 58 }, { 232, 74 }, { 188, 74 } },
+    { { 64, 134 }, { 64, 130 }, { 132, 130 } },
+    { { 256, 134 }, { 256, 130 }, { 188, 130 } } };
+
+/* Variant B — horizontal backplane bus */
 static const int HB_CHIP_P[5][4] = {
-    { 36, 34, 38, 58 },    /* BOOT     TL */
-    { 166, 34, 38, 58 },   /* SCAN     TR */
-    { 36, 194, 38, 58 },   /* CONTROL  BL  (end 252; plate cast 259) */
-    { 166, 194, 38, 58 },  /* TERMINAL BR */
-    { 84, 34, 72, 218 }    /* GIBSON   centre, end 252 */
+    { 40, 36, 44, 44 }, { 156, 36, 44, 44 }, { 40, 198, 44, 44 }, { 156, 198, 44, 44 },
+    { 92, 112, 56, 56 }
 };
 static const int HB_CHIP_L[5][4] = {
-    { 38, 32, 52, 70 },    /* BOOT     TL */
-    { 230, 32, 52, 70 },   /* SCAN     TR */
-    { 38, 108, 52, 70 },   /* CONTROL  BL  (end 178; plate cast 182) */
-    { 230, 108, 52, 70 },  /* TERMINAL BR */
-    { 100, 32, 120, 146 }  /* GIBSON   centre, end 178 */
+    { 40, 34, 48, 48 }, { 232, 34, 48, 48 }, { 40, 134, 48, 48 }, { 232, 134, 48, 48 },
+    { 132, 74, 56, 56 }
 };
+static const int8_t HB5B_RN[4] = { 4, 4, 4, 4 };
+static const int16_t HB_RT_P[4][4][2] = {
+    { { 62, 80 }, { 62, 100 }, { 92, 100 }, { 92, 112 } },
+    { { 178, 80 }, { 178, 100 }, { 148, 100 }, { 148, 112 } },
+    { { 62, 198 }, { 62, 178 }, { 92, 178 }, { 92, 168 } },
+    { { 178, 198 }, { 178, 178 }, { 148, 178 }, { 148, 168 } } };
+static const int16_t HB_RT_L[4][4][2] = {
+    { { 64, 82 }, { 64, 102 }, { 132, 102 }, { 132, 102 } },
+    { { 256, 82 }, { 256, 102 }, { 188, 102 }, { 188, 102 } },
+    { { 64, 134 }, { 64, 120 }, { 132, 120 }, { 132, 120 } },
+    { { 256, 134 }, { 256, 120 }, { 188, 120 }, { 188, 120 } } };
+
+/* Variant C — diamond/compass + ring */
+static const int HC_CHIP_P[5][4] = {
+    { 98, 36, 44, 44 }, { 166, 118, 44, 44 }, { 36, 118, 44, 44 }, { 98, 196, 44, 44 },
+    { 92, 112, 56, 56 }
+};
+static const int HC_CHIP_L[5][4] = {
+    /* N BOOT / E SCAN / W CTRL / S TERM — mirrored about x=160; no overlaps */
+    { 138, 30, 44, 44 }, { 236, 80, 44, 44 }, { 40, 80, 44, 44 }, { 138, 138, 44, 44 },
+    { 132, 76, 56, 56 }
+};
+static const int8_t HC_RN[4] = { 3, 3, 3, 3 };
+static const int16_t HC_RT_P[4][4][2] = {
+    { { 120, 80 }, { 120, 112 }, { 120, 112 } },
+    { { 166, 140 }, { 148, 140 }, { 148, 140 } },
+    { { 80, 140 }, { 92, 140 }, { 92, 140 } },
+    { { 120, 196 }, { 120, 168 }, { 120, 168 } } };
+static const int16_t HC_RT_L[4][4][2] = {
+    { { 160, 74 }, { 160, 76 }, { 160, 76 } },
+    { { 236, 102 }, { 188, 102 }, { 188, 102 } },
+    { { 84, 102 }, { 132, 102 }, { 132, 102 } },
+    { { 160, 138 }, { 160, 132 }, { 160, 132 } } };
 
 static const int HB_TBOT_P[4] = { 31, 261, 177, 49 };
 static const int HB_TBOT_L[4] = { 34, 184, 252, 49 };
 static const char *const HB_TBOT_SILK = "TERMINALBOT";
 static const char *const HB_SILK1[5] = { "BOOT", "SCAN", "CONTROL", "TERMINAL", "GIBSON" };
-static const int HB_SILK_PITCH = 6;
 
-/* copper: corner chip inner edge -> GIBSON edge (orthogonal, via at the bend) */
-static const int8_t HB_RN_P[5] = { 3, 3, 3, 3, 0 };
-static const int16_t HB_RT_P[5][4][2] = {
-    { { 55, 92 }, { 55, 104 }, { 84, 104 } },
-    { { 185, 92 }, { 185, 104 }, { 155, 104 } },
-    { { 55, 194 }, { 55, 182 }, { 84, 182 } },
-    { { 185, 194 }, { 185, 182 }, { 155, 182 } },
-    { { 0, 0 } }
-};
-static const int8_t HB_RN_L[5] = { 3, 3, 3, 3, 0 };
-static const int16_t HB_RT_L[5][4][2] = {
-    { { 90, 52 }, { 95, 57 }, { 100, 57 } },
-    { { 230, 52 }, { 225, 57 }, { 219, 57 } },
-    { { 90, 158 }, { 95, 153 }, { 100, 153 } },
-    { { 230, 158 }, { 225, 153 }, { 219, 153 } },
-    { { 0, 0 } }
-};
-
-/* rain covers: top bar, side pins (no rain on the pins), plate, five chips */
-static const botcorps_cover_t HB_COVER_P[10] = {
-    { 0, 0, 240, 26 }, { 0, 26, 34, 294 }, { 206, 26, 34, 294 }, { 0, 312, 240, 8 },
-    { 27, 257, 185, 58 },
-    { 33, 31, 44, 64 }, { 163, 31, 44, 64 }, { 33, 191, 44, 64 }, { 163, 191, 44, 64 }, { 80, 30, 80, 226 } };
-static const botcorps_cover_t HB_COVER_L[10] = {
-    { 0, 0, 320, 26 }, { 0, 26, 36, 214 }, { 284, 26, 36, 214 }, { 0, 230, 320, 10 },
-    { 30, 180, 260, 56 },
-    { 35, 29, 58, 76 }, { 227, 29, 58, 76 }, { 35, 105, 58, 76 }, { 227, 105, 58, 76 }, { 96, 28, 128, 154 } };
-
-
-/* TERMINALbot board (Mobandy 3:30 PM ET): same PCB look, big TERMINALbot centre, BOOT TL (drawn, not
- * tappable), SCAN TR, CONTROL bottom-centre; NO GIBSON. Shown on SCR_GIBSON while s_hub_term is set. */
+/* TERMINALbot board — square silver centre, BOOT/SCAN/CONTROL around */
 static const int HT_CHIP_P[5][4] = {
-    { 36, 34, 38, 58 },    /* BOOT     TL */
-    { 166, 34, 38, 58 },   /* SCAN     TR */
-    { 98, 196, 44, 56 },   /* CONTROL  bottom-centre (end 252) */
-    { 84, 34, 72, 150 },   /* TERMINAL centre (end 184) */
-    { 0, 0, 0, 0 }         /* no GIBSON */
+    { 36, 40, 44, 44 }, { 160, 40, 44, 44 }, { 98, 198, 44, 44 }, { 92, 112, 56, 56 }, { 0, 0, 0, 0 }
 };
 static const int HT_CHIP_L[5][4] = {
-    { 38, 32, 52, 70 },
-    { 230, 32, 52, 70 },
-    { 134, 128, 52, 50 },  /* CONTROL  bottom-centre (end 178) */
-    { 100, 32, 120, 88 },  /* TERMINAL centre (end 120) */
-    { 0, 0, 0, 0 }
+    { 40, 34, 48, 48 }, { 232, 34, 48, 48 }, { 136, 134, 48, 48 }, { 132, 74, 56, 56 }, { 0, 0, 0, 0 }
 };
-static const int8_t HT_RN[3] = { 3, 3, 2 };
+static const int8_t HT_RN[3] = { 3, 3, 3 };
 static const int16_t HT_RT_P[3][4][2] = {
-    { { 55, 92 }, { 55, 104 }, { 84, 104 } },
-    { { 185, 92 }, { 185, 104 }, { 155, 104 } },
-    { { 120, 196 }, { 120, 184 } } };
+    { { 58, 84 }, { 58, 112 }, { 92, 112 } },
+    { { 182, 84 }, { 182, 112 }, { 148, 112 } },
+    { { 120, 198 }, { 120, 168 }, { 120, 168 } } };
 static const int16_t HT_RT_L[3][4][2] = {
-    { { 90, 52 }, { 95, 57 }, { 100, 57 } },
-    { { 230, 52 }, { 225, 57 }, { 219, 57 } },
-    { { 160, 128 }, { 160, 120 } } };
-static const botcorps_cover_t HT_COVER_P[9] = {
-    { 0, 0, 240, 26 }, { 0, 26, 34, 294 }, { 206, 26, 34, 294 }, { 0, 312, 240, 8 }, { 27, 257, 185, 58 },
-    { 33, 31, 44, 64 }, { 163, 31, 44, 64 }, { 95, 186, 50, 68 }, { 80, 30, 80, 158 } };
-static const botcorps_cover_t HT_COVER_L[9] = {
-    { 0, 0, 320, 26 }, { 0, 26, 36, 214 }, { 284, 26, 36, 214 }, { 0, 230, 320, 10 }, { 30, 180, 260, 56 },
-    { 35, 29, 58, 76 }, { 227, 29, 58, 76 }, { 131, 120, 58, 60 }, { 96, 28, 128, 96 } };
+    { { 88, 58 }, { 88, 74 }, { 132, 74 } },
+    { { 232, 58 }, { 232, 74 }, { 188, 74 } },
+    { { 160, 134 }, { 160, 130 }, { 160, 130 } } };
 
-static bool s_hub_term = false;   /* SCR_GIBSON shows the TERMINALbot board */
-static const int (*HB_CHIPR)[4] = HB_CHIP_P;
+static const int (*HB_CHIPR)[4] = HA_CHIP_P;
 static const int *HB_TBOT = HB_TBOT_P;
-static const int8_t *HB_RN = HB_RN_P;
-static const int16_t (*HB_RT)[4][2] = HB_RT_P;
-static const int *HB_MOD = HB_CHIP_P[HB4_GIB];
+static const int8_t *HB_ROUTE_N = HA_RN;
+static const int16_t (*HB_RT)[4][2] = HA_RT_P;
+static int HB_RNcount = 4;
+static const int *HB_MOD = HA_CHIP_P[HB4_GIB];
+
 static void hb_layout_sync(void)
 {
     const bool P = botcorps_cyd_orient != 0;
-    HB_CHIPR = s_hub_term ? (P ? HT_CHIP_P : HT_CHIP_L) : (P ? HB_CHIP_P : HB_CHIP_L);
     HB_TBOT = P ? HB_TBOT_P : HB_TBOT_L;
-    HB_RN = P ? HB_RN_P : HB_RN_L;
-    HB_RT = P ? HB_RT_P : HB_RT_L;
-    HB_MOD = (P ? HB_CHIP_P : HB_CHIP_L)[HB4_GIB];   /* intro face geo always = home GIBSON */
+    if (s_hub_term) {
+        HB_CHIPR = P ? HT_CHIP_P : HT_CHIP_L;
+        HB_ROUTE_N = HT_RN;
+        HB_RT = P ? HT_RT_P : HT_RT_L;
+        HB_RNcount = 3;
+        HB_MOD = HB_CHIPR[HB4_TERM]; /* centre is TERM slot on term board */
+        return;
+    }
+    const int v = (s_hub5_var < 0 || s_hub5_var >= HUB5_N) ? HUB5_A : s_hub5_var;
+    if (v == HUB5_B) {
+        HB_CHIPR = P ? HB_CHIP_P : HB_CHIP_L;
+        HB_ROUTE_N = HB5B_RN;
+        HB_RT = P ? HB_RT_P : HB_RT_L;
+        HB_RNcount = 4;
+    } else if (v == HUB5_C) {
+        HB_CHIPR = P ? HC_CHIP_P : HC_CHIP_L;
+        HB_ROUTE_N = HC_RN;
+        HB_RT = P ? HC_RT_P : HC_RT_L;
+        HB_RNcount = 4;
+    } else {
+        HB_CHIPR = P ? HA_CHIP_P : HA_CHIP_L;
+        HB_ROUTE_N = HA_RN;
+        HB_RT = P ? HA_RT_P : HA_RT_L;
+        HB_RNcount = 4;
+    }
+    HB_MOD = HB_CHIPR[HB4_GIB];
 }

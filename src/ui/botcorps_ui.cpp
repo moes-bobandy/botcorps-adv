@@ -12225,6 +12225,8 @@ int botcorps_host_ctlbot_tap(int tx, int ty)
 int botcorps_host_ctlbot_box(int i, int *x, int *y, int *w, int *h) { return ctlbot_hit_box(i, x, y, w, h) ? 1 : 0; }
 int botcorps_host_hub_term(void) { return s_hub_term ? 1 : 0; }
 int botcorps_host_hub_box(int i, int *x, int *y, int *w, int *h) { return hb_hit_box(i, x, y, w, h) ? 1 : 0; }
+int botcorps_host_hub_var(void) { return s_hub5_var; }
+void botcorps_host_set_hub_var(int v) { if (v < 0) v = 0; if (v > 2) v = 2; s_hub5_var = v; s_dirty = true; }
 void botcorps_host_ctlbot_board(uint8_t *buf, uint8_t fill)
 {
     host_frame = buf;

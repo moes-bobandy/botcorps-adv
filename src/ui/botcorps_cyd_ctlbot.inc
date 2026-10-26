@@ -92,7 +92,12 @@ static void cb_module(Gfx g, int mx, int my, int mw, int mh)
     }
     cbf(g, sx, sy, sw, 1, 186);
     cbf(g, sx, sy, 1, sh, 186);
-    const int D = sw - 18, cx = sx + sw / 2, cy = sy + D / 2 + 3;
+    int D = sw - 18;
+    if (!botcorps_cyd_orient) {                       /* L: leave ~24 px for 2× Font0 silk */
+        const int dmax = mh - 18 - 24; if (D > dmax) D = dmax;
+    }
+    if (D < 20) D = 20;
+    const int cx = sx + sw / 2, cy = sy + D / 2 + 3;
     const uint8_t pin = PAL_SOFT;
     for (int k = 0; k < 5; ++k) {
         const int i = (D - 4 * (D / 6) - 1) / 2 + (D / 6) * k;
@@ -107,10 +112,17 @@ static void cb_module(Gfx g, int mx, int my, int mw, int mh)
     const int bob = ((millis() / 900u) % 2u) ? 1 : 0;
     cb_face(g, cx, cy + bob - 1, D - 12);
     const int ty = cy + D / 2 + 5;
-    tiny_text(g, "CONTROL", cx - tiny_w("CONTROL") / 2, ty, 41);
-    tiny_text(g, "WROOM-32", cx - tiny_w("WROOM-32") / 2, ty + 7, 41);
-    /* theme short name (was separate GRAPE chip silk); THEME n/N stays on meters */
-    {
+    /* Landscape: Font0 (~6 px); drop WROOM/theme silk that won't fit (Mobandy 4:13) */
+    if (!botcorps_cyd_orient) {
+        int lty = ty;
+        if (lty + 18 > my + mh - 4) lty = my + mh - 22;
+        const int keep = s_px; use_px(g, 6);
+        txt(g, "CONTROL", cx, lty, 41, lgfx::textdatum::top_center);
+        txt(g, theme().sname, cx, lty + 9, accent(), lgfx::textdatum::top_center);
+        s_px = keep;
+    } else {
+        tiny_text(g, "CONTROL", cx - tiny_w("CONTROL") / 2, ty, 41);
+        tiny_text(g, "WROOM-32", cx - tiny_w("WROOM-32") / 2, ty + 7, 41);
         const char *sn = theme().sname;
         tiny_text(g, sn, cx - tiny_w(sn) / 2, ty + 14, accent());
     }
@@ -181,16 +193,26 @@ static void cb_chip(Gfx g, int index, bool on)
     g.clearClipRect();
     char up[16];
     cp_short(index, up, (int)sizeof(up));
-    txt(g, up, x + w / 2, y + h - 9, on ? (uint8_t)PAL_WHITE : silk2, lgfx::textdatum::top_center);
+    { const int keep = s_px; use_px(g, 6);
+      txt(g, up, x + w / 2, y + h - 9, on ? (uint8_t)PAL_WHITE : silk2, lgfx::textdatum::top_center);
+      s_px = keep; }
 }
 
 /* ---------- small parts (live cp_part art, labels in 3x5 silk) ---------- */
 static uint8_t cb_silk(void) { return cbmix(botcorps_rgb565(PAL_STEEL), 0xFFFF, 25); }
 static void cb_lab(Gfx g, const char *s, int cx, int y, bool on)
 {
-    const int w = tiny_w(s);
-    cbf(g, cx - w / 2 - 1, y - 1, w + 2, 7, PAL_BLACK);
-    tiny_text(g, s, cx - w / 2, y, on ? (uint8_t)PAL_WHITE : cb_silk());
+    if (!botcorps_cyd_orient) {
+        const int keep = s_px; use_px(g, 6);
+        const int tw = (int)strlen(s) * 6;
+        cbf(g, cx - tw / 2 - 1, y - 1, tw + 2, 9, PAL_BLACK);
+        txt(g, s, cx, y, on ? (uint8_t)PAL_WHITE : cb_silk(), lgfx::textdatum::top_center);
+        s_px = keep;
+    } else {
+        const int w = tiny_w(s);
+        cbf(g, cx - w / 2 - 1, y - 1, w + 2, 7, PAL_BLACK);
+        tiny_text(g, s, cx - w / 2, y, on ? (uint8_t)PAL_WHITE : cb_silk());
+    }
 }
 static void cb_part(Gfx g, int i)
 {
@@ -260,7 +282,11 @@ static void cb_orient(Gfx g)
     else      g.drawRect(x + w - 24, y + 4, 7, 10, ic);   /* portrait glyph on the free PORT side */
     cb_lab(g, "LAND", x + 14, y + h + 3, on && !port);
     cb_lab(g, "PORT", x + w - 14, y + h + 3, on && port);
-    if (!port) tiny_text(g, "LAND", x + 14 - tiny_w("LAND") / 2, y + h + 3, PAL_WHITE);
+    if (!botcorps_cyd_orient) {
+        const int keep = s_px; use_px(g, 6);
+        txt(g, port ? "PORT" : "LAND", x + w / 2, y + h - 8, PAL_WHITE, lgfx::textdatum::top_center);
+        s_px = keep;
+    } else if (!port) tiny_text(g, "LAND", x + 14 - tiny_w("LAND") / 2, y + h + 3, PAL_WHITE);
     else tiny_text(g, "PORT", x + w - 14 - tiny_w("PORT") / 2, y + h + 3, PAL_WHITE);
 }
 static void cb_tact(Gfx g, int bx, int by, const char *lab)
@@ -415,6 +441,7 @@ static void cb_hilite(Gfx g)
 
 static void cb_meters(Gfx g, const int *M)
 {
+    if (!M || M[2] <= 0) return;           /* L hub5: meters omitted when MET w=0 */
     char v[12];
     snprintf(v, sizeof v, "%d/%d", theme_ix(s_color) + 1, THEME_N);
     cb_bar(g, M[0], M[1], M[2], "THEME", v, (theme_ix(s_color) + 1) * 100 / THEME_N);

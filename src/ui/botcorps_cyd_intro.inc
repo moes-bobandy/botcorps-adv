@@ -83,8 +83,14 @@ struct IntroGeo {
     int BX, BY, BD, RL, RR, RY0, RY1, FY, USBX, USBY, LEDY, LEDL, LEDR, TCY, TCL, TCR;
     int REGX, REGY, C1X, C1Y, R16X, R16Y, J1X, J1Y, PX, PY, PW, PH, WY;
 };
+/* hub13 (Mobandy 12:58-12:59 PM ET Oct 27): portrait PY 176 -> 184, WY 194 -> 202 (U2 plate + its wire
+ * row 8 px lower) so the full-size k16 BOOTbot chip (84 x 120 at IB_CHIP_P) clears the plate castellations. */
 static const IntroGeo IG_P = { 88, 80, 64, 38, 200, 32, 268, 111, 113, 30, 48, 58, 176, 124, 55, 173,
-                               52, 228, 168, 233, 102, 236, 97, 302, 44, 176, 152, 38, 194 };
+                               52, 228, 168, 233, 102, 236, 97, 302, 44, 184, 152, 38, 202 };
+/* hub13: portrait entrance BOOTbot = the locked GIBSON chip (drawBotChipK k16, GIBSON's seat size)
+ * drawn as MB_BOOT, i.e. GIBSON's exact path with every colour photo-negative (s_mb_inv). */
+static const int IB_CHIP_P[2] = { 78, 60 };
+static const char IB_BOOT_INFO[] = "BOOTING";
 static const IntroGeo IG_L = { 128, 80, 64, 38, 280, 32, 182, 111, 153, 30, 48, 58, 256, 124, 55, 253,
                                50, 150, 250, 155, -1, 0, 137, 224, 84, 172, 152, 38, 190 };
 static const IntroGeo &ig(void) { return botcorps_cyd_orient ? IG_P : IG_L; }
@@ -99,6 +105,10 @@ static void ib_mf(Gfx g, int x, int y, int w, int h, uint8_t c)
 }
 static void ib_bootbot(Gfx g, const IntroSt &s)
 {
+    if (botcorps_cyd_orient) {   /* hub13 portrait: no separate BOOT art — GIBSON's chip, inverted */
+        drawBotChipK(g, IB_CHIP_P[0], IB_CHIP_P[1], true, MB_BOOT, 16, IB_BOOT_INFO, s.bhalo != 0);
+        return;
+    }
     const IntroGeo &G = ig();
     const int BX = G.BX, BY = G.BY, BD = G.BD;
     const uint8_t ac = accent();
@@ -397,7 +407,9 @@ static void intro_covers(void)
     const int W = EW(), H = EH();
     cover_add(0, 0, W, 26); cover_add(0, 26, 46, H - 26); cover_add(W - 46, 26, 46, H - 26);
     cover_add(0, G.J1Y - 12, W, H - (G.J1Y - 12));
-    cover_add(G.BX - 10, G.BY - 8, 84, 102); cover_add(G.USBX - 7, 26, 28, 52);
+    if (botcorps_cyd_orient) cover_add(IB_CHIP_P[0] - 4, IB_CHIP_P[1] - 4, mb_w(true) + 8, mb_h(true) + 8);   /* hub13 */
+    else cover_add(G.BX - 10, G.BY - 8, 84, 102);
+    cover_add(G.USBX - 7, 26, 28, 52);
     cover_add(G.PX - 4, G.PY - 4, G.PW + 8, G.PH + 8);
     cover_add(G.LEDL - 6, 44, 20, 20); cover_add(G.LEDR - 8, 44, 20, 20);
     cover_add(G.TCL - 5, 120, 24, 26); cover_add(G.TCR - 7, 120, 24, 26);

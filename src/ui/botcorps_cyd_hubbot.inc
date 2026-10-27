@@ -210,6 +210,54 @@ static void hb_rich(Gfx g)
     }
 }
 
+/* hub13 (Mobandy LOCKED 12:54 PM ET Oct 27, ref hub13-term-v3/term_P.png): PORTRAIT TERMINALbot board.
+ * TERMINALBOT big at the home GIBSONBOT seat (78,30, k16) and only the 10 device bots (BOTS[2..11])
+ * around it, each a full drawBotChipK chip (k7, 37 x 53) with its BOT_PAL face and full name, wired
+ * to TERMINALBOT with 2 px copper. No decor beyond board / pins / copper / plate. Landscape unchanged. */
+struct Ht3Chip { int8_t bot; int16_t x, y; int8_t n; Pt r[6]; };
+enum { HT3_K = 7, HT3_N = 10 };
+static const Ht3Chip HT3_P[HT3_N] = {
+    { 2, 34, 30,  2, { {72,56}, {77,56} } },                                             /* DEAUTH */
+    { 3, 34, 87,  2, { {72,113}, {77,113} } },                                           /* HACK */
+    { 4, 34, 144, 4, { {72,170}, {84,170}, {90,164}, {90,152} } },                       /* FLOCK */
+    { 5, 34, 201, 6, { {72,213}, {75,213}, {75,190}, {80,185}, {96,185}, {96,152} } },   /* DRONE */
+    { 8, 169, 30,  2, { {168,56}, {163,56} } },                                          /* META */
+    { 9, 169, 87,  2, { {168,113}, {163,113} } },                                        /* SKIMMER */
+    { 10, 169, 144, 4, { {168,170}, {156,170}, {150,164}, {150,152} } },                 /* FLIPPER */
+    { 11, 169, 201, 6, { {168,213}, {165,213}, {165,190}, {160,185}, {144,185}, {144,152} } }, /* SAMSUNG */
+    { 6, 80, 201,  2, { {110,201}, {110,152} } },                                        /* AIR TAG */
+    { 7, 123, 201, 2, { {130,201}, {130,152} } },                                        /* KEYFOB */
+};
+static bool ht3_on(void) { return s_hub_term && botcorps_cyd_orient != 0; }
+static void ht3_paint(Gfx g)
+{
+    s_cb_col = accent();
+    e_board(g);
+    for (int i = 0; i < HT3_N; ++i) e_route2(g, HT3_P[i].r, HT3_P[i].n);
+    for (int i = 0; i < HT3_N; ++i) {
+        const Ht3Chip &c = HT3_P[i];
+        drawBotChipK(g, c.x, c.y, true, MB_N, HT3_K, "", false, BOTS[c.bot].target, bot_color(c.bot));
+    }
+    drawMainBotChip(g, HB_CHIPR[HB4_TERM][0], HB_CHIPR[HB4_TERM][1], true, MB_TERM, "");
+    e_plate(g, HB_TBOT[0], HB_TBOT[1], HB_TBOT[2], HB_TBOT[3], HB_TBOT_SILK, s_hb_sel == 15);
+    e_finish(g);
+}
+/* device chip under (tx, ty) -> BOTS index (2..11), or -1. Pad = chip + 2 (as hb_hit). */
+static int ht3_hit(int tx, int ty, int *cx = nullptr, int *cy = nullptr)
+{
+    if (!ht3_on()) return -1;
+    const int w = mb_w(true, HT3_K), h = mb_h(true, HT3_K);
+    for (int i = 0; i < HT3_N; ++i) {
+        const Ht3Chip &c = HT3_P[i];
+        if (tx >= c.x - 2 && tx < c.x + w + 2 && ty >= c.y - 2 && ty < c.y + h + 2) {
+            if (cx) *cx = c.x;
+            if (cy) *cy = c.y;
+            return c.bot;
+        }
+    }
+    return -1;
+}
+
 static void hb_terminalbot(Gfx g)
 {
     e_plate(g, HB_TBOT[0], HB_TBOT[1], HB_TBOT[2], HB_TBOT[3], HB_TBOT_SILK, s_hb_sel == 15);
@@ -219,6 +267,7 @@ static void paint_hubbot(Gfx g)
     hb_layout_sync();
     s_hb_sel = hb_sel_now();
     s_cb_col = accent();
+    if (ht3_on()) { ht3_paint(g); return; }        /* hub13: portrait TERMINALbot board */
     e_headers_hub(g);
     hb_rich(g);
     hb_copper(g);
@@ -238,6 +287,7 @@ static int hb_hit(int tx, int ty)
 {
     hb_layout_sync();
     for (int i = HB4_SCAN; i <= HB4_GIB; ++i) {   /* empty slots (term board GIBSON) skipped */
+        if (ht3_on() && i != HB4_TERM) continue;   /* hub13: P term board has no BOOT/SCAN/CTRL chips */
         const int x = HB_CHIPR[i][0] - 2, y = HB_CHIPR[i][1] - 2;
         const int w = HB_CHIPR[i][2] + 4, h = HB_CHIPR[i][3] + 4;
         if (w <= 4 || h <= 4) continue;

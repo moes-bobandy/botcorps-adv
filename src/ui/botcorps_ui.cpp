@@ -9682,6 +9682,20 @@ static int portrait_touch(int tx, int ty, char *typed)
     }
     /* hub4: SCR_GIBSON chips before plate pads — TERM sat under Adv RET on portrait. */
     if (s_screen == SCR_GIBSON) {
+#ifdef BOTCORPS_CYD
+        {   /* hub13: portrait TERMINALbot board device chip -> that bot's DEFEND game (TERM plate "defend <bot>") */
+            int dx = 0, dy = 0;
+            const int b = ht3_hit(tx, ty, &dx, &dy);
+            if (b >= 2 && b < 12) {
+                mb_flash(dx, dy);
+                char row[40];
+                snprintf(row, sizeof row, "terminalbot> defend %s", BOTS[b].short_name);
+                log_add(row);
+                enter_defend(b, SCR_GIBSON);
+                return K_NONE;
+            }
+        }
+#endif
         const int c = hb_hit(tx, ty);           /* BOOTbot never returned (not tappable) */
 #ifdef BOTCORPS_CYD
         if (c == HB4_GIB) mb_flash(HB_MOD[0], HB_MOD[1]);           /* hub12: brief tap flash only */

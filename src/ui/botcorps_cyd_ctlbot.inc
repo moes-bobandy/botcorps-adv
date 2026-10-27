@@ -216,7 +216,10 @@ static void mb_label_rect(bool P, int *x, int *y, int *w, int *h)
     MbLab L = mb_lab_plan(P, MB_CTRL, 16, "X");
     *x = mb_pad(16); *y = L.ty - 1; *w = mb_w(P) - 2 * mb_pad(16); *h = L.nh + (L.info ? L.gap + L.ih : 0) + 2;
 }
-static void drawBotChipK(Gfx g, int mx, int my, bool P, int bot, int k16, const char *info, bool lit = false);
+/* hub13: nm_ovr / col_ovr = a device bot drawn by this same painter (TERMINALbot board P):
+ * the caller's full name (tiny 4x5, pad >= 3) and a cb_face in col_ovr. nullptr / -1 = the MB_* bot. */
+static void drawBotChipK(Gfx g, int mx, int my, bool P, int bot, int k16, const char *info, bool lit = false,
+                         const char *nm_ovr = nullptr, int col_ovr = -1);
 static bool intro_on(void);
 static uint32_t s_mb_flash_ms = 0; static int s_mb_flash_x = -9999, s_mb_flash_y = -9999;
 static void mb_flash(int x, int y) { s_mb_flash_x = x; s_mb_flash_y = y; s_mb_flash_ms = millis() | 1u; }
@@ -226,7 +229,21 @@ static void drawMainBotChip(Gfx g, int mx, int my, bool P, int bot, const char *
 {
     drawBotChipK(g, mx, my, P, bot, 16, info ? info : (bot == MB_CTRL ? theme().sname : ""));
 }
-static void drawBotChipK(Gfx g, int mx, int my, bool P, int bot, int k16, const char *info, bool lit)
+/* hub13: label plan for a caller-named chip — one font for the whole device set (the 7-letter names
+ * cannot take Font0 at k7), pad >= 3 px, name at the silk bottom. */
+static MbLab mb_lab_named(bool P, int k16, const char *nm)
+{
+    MbLab L = {};
+    const int mh = mb_h(P, k16);
+    L.nm = nm; L.cw = 4; L.nh = 5; L.gap = mb_gap(k16);
+    L.pad = mb_pad(k16) < 3 ? 3 : mb_pad(k16);
+    const int silk_top = mb_S(18, k16), silk_bot = mh - mb_S(4, k16);
+    L.ty = silk_bot - L.pad - L.nh;
+    if (L.ty < silk_top + L.gap) L.ty = silk_top + L.gap;
+    return L;
+}
+static void drawBotChipK(Gfx g, int mx, int my, bool P, int bot, int k16, const char *info, bool lit,
+                         const char *nm_ovr, int col_ovr)
 {
 #define MS(v) mb_S((v), k16)
     const uint8_t gold = 177, goldd = 104, steel = PAL_STEEL;
@@ -265,7 +282,7 @@ static void drawBotChipK(Gfx g, int mx, int my, bool P, int bot, int k16, const 
     }
     cbf(g, sx, sy, sw, 1, 186);
     cbf(g, sx, sy, 1, sh, 186);
-    const MbLab lab = mb_lab_plan(P, bot, k16, info);
+    const MbLab lab = nm_ovr ? mb_lab_named(P, k16, nm_ovr) : mb_lab_plan(P, bot, k16, info);
     int dcx, dcy, D, rty; mb_geo(P, &dcx, &dcy, &D, &rty, k16, lab.info || lab.nm2);
     /* Prefer planned label top; clamp into silk with pad; never into the face. */
     { const int face_bot = dcy + D / 2; const int min_ty = face_bot + mb_gap(k16);
@@ -285,7 +302,12 @@ static void drawBotChipK(Gfx g, int mx, int my, bool P, int bot, int k16, const 
     cbf(g, cx - D / 2, cy - D / 2, 1, D, steel); cbf(g, cx + D / 2 - 1, cy - D / 2, 1, D, steel);
     const int bob = ((millis() / 900u) % 2u) ? 1 : 0;
     const int fs = D - MS(12), fy = cy + bob - 1;
-    if (fbot == MB_GIB) hb_gib_face(g, cx, fy, fs);             /* ivory + dark glasses (BOOT: inverted) */
+    if (col_ovr >= 0) {                                          /* hub13 device bot: its own BOT_PAL colour */
+        const uint8_t keep = s_cb_col; s_cb_col = (uint8_t)col_ovr;
+        cb_face(g, cx, fy, fs);
+        s_cb_col = keep;
+    }
+    else if (fbot == MB_GIB) hb_gib_face(g, cx, fy, fs);             /* ivory + dark glasses (BOOT: inverted) */
     else if (bot == MB_SCAN) e_metal_face(g, cx, fy, fs, true);  /* metallic gold */
     else if (bot == MB_TERM) hb_term_face(g, cx, fy, fs);        /* metallic silver */
     else if (bot == MB_WIFI || bot == MB_BLE) {                  /* radio bots: theme face, steel when idle */

@@ -1,0 +1,4 @@
+app sha256 789c3857c4c7ac7a1f7bfababc11d20dadc9ce5505b3aefb1f9c48157c65d53d size 1495552
+merged sha256 33fffd350d21e40e2302427614948ab94d26870d3f99061a3e75cddbdbbcf473 size 1561088
+slice@0x10000 == app: True
+merged = .pio/build/cyd/firmware.factory.bin (bootloader+partitions+boot_app0+app) built 21:14 ET from bb062f2 sources

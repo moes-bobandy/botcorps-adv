@@ -89,7 +89,12 @@ static void hb_term_face(Gfx g, int cx, int cy, int s);              /* hubbot.i
 /* hub10 (Mobandy 7:29 PM ET): label padding / spacing. Pad from the body frame is >=3 px at
  * k16 and scales with k; name↔info gap >=2 px; face↔name has a clear gap; text never touches
  * or overflows the body. Drop the info line first, then shorten the name / use tiny font. */
-static int mb_pad(int k16) { const int p = mb_S(3, k16); return p < 2 ? 2 : p; }
+static int mb_pad(int k16) {
+    const int p = mb_S(3, k16);
+    /* hub11: >=3 px once near full size so CONTROLBOT (10*6=60) yields to CTRLBOT at k13 */
+    if (k16 >= 12 && p < 3) return 3;
+    return p < 2 ? 2 : p;
+}
 static int mb_gap(int k16) { const int g = mb_S(2, k16); return g < 2 ? 2 : g; }
 /* longest name that fits avail px at char width cw (no "-1": never touch the frame) */
 static const char *mb_name(int bot, int avail = 999, int cw = 6)
@@ -116,8 +121,10 @@ static MbLab mb_lab_plan(bool P, int bot, int k16, const char *info)
     L.pad = pad; L.gap = gap;
     /* Prefer Font0 (6x8); fall back to tiny (4x5) if the shortest name still won't fit. */
     auto pick = [&](int cw, int nh) -> bool {
-        const char *nm = mb_name(bot, avail, cw);
-        if ((int)strlen(nm) * cw > avail) return false;
+        /* 2 px slack so a name that exactly fills avail still shortens (CONTROLBOT @ k13). */
+        const int fit = avail > 2 ? avail - 2 : avail;
+        const char *nm = mb_name(bot, fit, cw);
+        if ((int)strlen(nm) * cw > fit) return false;
         L.nm = nm; L.cw = cw; L.nh = nh; return true;
     };
     if (!pick(6, 8)) {
@@ -256,7 +263,12 @@ static void drawBotChipK(Gfx g, int mx, int my, bool P, int bot, int k16, const 
         cb_face(g, cx, fy, fs);
         s_cb_col = keep;
     }
-    else cb_face(g, cx, fy, fs);                                 /* live theme */
+    else if (bot == MB_CTRL) {                                   /* hub11: face = live accent, matches info sname */
+        const uint8_t keep = s_cb_col; s_cb_col = accent();
+        cb_face(g, cx, fy, fs);
+        s_cb_col = keep;
+    }
+    else cb_face(g, cx, fy, fs);                                 /* other bots: current s_cb_col */
     const char *nm = lab.nm;
     const int ty = my + rty;
     const int pad = lab.pad;

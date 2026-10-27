@@ -528,17 +528,17 @@ static const SBGeo &scanbot_geo(void)
          * top; tabs 2x2 (28 tall) left | 2x3 tile bay right (mirror blocks); GIBSON under the
          * tabs, MORE centred under SCANBOT beside the bay. Everything ends <= 177 (cast 182). */
         L.mx = 123; L.my = 30; L.mw = 74; L.mh = 96;   /* centre x=160 */
-        /* hub7: scan bots = shared main-bot chip at 7/16 (32x42): WIFI over the tabs, BLE over the
-         * bay (mirrored), GIBSON centred under SCANBOT; MORE moves under the tabs (full tab width). */
-        L.ck = 7; L.cs = 32; L.ch = 42;
-        L.cx[0] = 61; L.cy[0] = 30;     /* WIFI  left  (mirror of BLE) */
-        L.cx[1] = 227; L.cy[1] = 30;    /* BLE   right 320-61-32 */
-        L.cx[2] = 144; L.cy[2] = 132;   /* GIBSON under the module, centre x=160 */
-        L.kx0 = 36; L.ky = 76; L.kw_band = 82; L.kh = 28; L.kcols = 2;   /* 2x2, 39x28 */
-        L.bx = 202; L.by = 76; L.bw = 82; L.bh = 100;          /* hub7: bay 202..284 x 76..176 */
-        L.t0x = 214; L.t0y = 87; L.pitch = 29; L.cols = 2; L.rows = 3; L.tile = 28;  /* 6 tiles */
-        L.mox = 36; L.moy = 140; L.mow = 82;                   /* hub7: MORE under the tabs */
-        L.pl[0] = 34; L.pl[1] = 184; L.pl[2] = 252; L.pl[3] = 49;   /* 3-line plate */
+        /* hub11: side bots k8 (37x48) — one step up from hub7 k7, as big as fit with
+         * WIFI|BLE over the tabs/bay and GIBSON under the module clear of the plate. */
+        L.ck = 8; L.cs = 37; L.ch = 48;
+        L.cx[0] = 48; L.cy[0] = 30;     /* WIFI  left */
+        L.cx[1] = 235; L.cy[1] = 30;    /* BLE   right 320-48-37 */
+        L.cx[2] = 141; L.cy[2] = 130;   /* GIBSON under module (ends y178 < plate 184) */
+        L.kx0 = 36; L.ky = 82; L.kw_band = 82; L.kh = 28; L.kcols = 2;   /* below side chips */
+        L.bx = 202; L.by = 82; L.bw = 82; L.bh = 94;           /* bay end 176 */
+        L.t0x = 214; L.t0y = 90; L.pitch = 29; L.cols = 2; L.rows = 3; L.tile = 28;
+        L.mox = 36; L.moy = 144; L.mow = 82;                   /* MORE under tabs */
+        L.pl[0] = 34; L.pl[1] = 184; L.pl[2] = 252; L.pl[3] = 49;
     }
     return botcorps_cyd_orient ? P : L;
 }
@@ -822,18 +822,20 @@ static void paint_gchat_e(Gfx g)
     int PL[4], cdx, cdy; e_gchat_geo(PL, &cdx, &cdy);
     e_board(g);
     const uint8_t tr = cb_trace();
-    {
+    /* hub11: GIBSON defend uses shared main-bot chip (home-P language); other bots keep crew die. */
+    if (b >= 12) {
+        /* hub11: k9 P clears FIELD at y104 (chip ends y102); L k11 already clear */
+        const int kx = P ? 36 : 40, ky = P ? 34 : 36, kk = P ? 9 : 11;
+        drawBotChipK(g, kx, ky, P, MB_GIB, kk, "DEFEND", false);
+    } else {
         EShift s(g, cdx, cdy);
-        if (b >= 12) { paint_scanb_chip_p(s.h, (uint8_t)251, (uint8_t)255, (uint8_t)214, tr, false); e_gib_chip_extras(s.h, tr, false); }
-        else paint_scanb_chip_p(s.h, bot_color(b), (uint8_t)250, (uint8_t)140, tr, true);
+        paint_scanb_chip_p(s.h, bot_color(b), (uint8_t)250, (uint8_t)140, tr, true);
+        char nm[16]; sb_upper(nm, 16, BOTS[b].short_name, 12);
+        const int scx = P ? 60 : 62, sy = P ? 52 : 96;
+        e_silk_c(g, nm, scx, sy, cb_silk());
+        e_silk_c(g, "DEFEND", scx, sy + 7, cb_silk());
+        e_silk_c(g, "CHAT U1", scx, sy + 14, cb_silk());
     }
-    char nm[16];
-    if (b >= 12) snprintf(nm, sizeof nm, "GIBSON");
-    else sb_upper(nm, 16, BOTS[b].short_name, 12);
-    const int scx = P ? 60 : 62, sy = P ? 52 : 96;
-    e_silk_c(g, nm, scx, sy, cb_silk());
-    e_silk_c(g, "DEFEND", scx, sy + 7, cb_silk());
-    e_silk_c(g, "CHAT U1", scx, sy + 14, cb_silk());
     e_plate(g, PL[0], PL[1], PL[2], PL[3], "DEFEND CHAT", false);
     /* hub9: traces chip -> play field -> 3-line plate */
     if (P) { for (int x : { 101, 125 }) { g.fillRect(x, 96, 1, 8, tr); g.fillRect(x, 220, 1, PL[1] - 222, tr); } }

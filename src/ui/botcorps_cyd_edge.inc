@@ -9,20 +9,35 @@
  * ==========================================================================*/
 struct Pt { int x, y; };
 static const uint8_t GOLD = 177;
-/* Metallic plated faces: gold (SCAN) / silver (TERMINAL). Shaded, never flat yellow. */
+/* Metallic plated faces: gold (SCAN) / silver (TERMINAL). Shaded, never flat yellow.
+ * hub11: SCAN gold uses ORIGINAL palette 177 PAL_GOLD_PIN (182,145,85) as base, plus
+ * other pack332/reserved gold-family indices (B≈85 kept so faces stay gold, not orange).
+ * cbmix→pal_fit collapsed prior ramps; native indices keep ≥4 distinct luminances. */
 static void e_metal_face(Gfx g, int cx, int cy, int s, bool gold)
 {
-    const uint8_t base = gold ? sh_rgb(0xc9, 0x9a, 0x2e) : sh_rgb(0xa8, 0xae, 0xb8);
-    const uint8_t hi   = gold ? sh_rgb(0xf0, 0xd8, 0x6a) : sh_rgb(0xe8, 0xec, 0xf2);
-    const uint8_t mid  = gold ? sh_rgb(0xe0, 0xb8, 0x3c) : sh_rgb(0xc8, 0xce, 0xd6);
-    const uint8_t lo   = gold ? sh_rgb(0x8a, 0x62, 0x14) : sh_rgb(0x5a, 0x60, 0x6c);
-    const uint8_t rim  = gold ? sh_rgb(0x6e, 0x4a, 0x0c) : sh_rgb(0x3e, 0x44, 0x50);
+    /* gold stops (pack332 unless noted): rim104res L73, lo173 L128, base177 L149,
+     * mid181 L171, sheen185 L192, hi217 L203 — all B≈85 gold family. silver: cool steel. */
+    const uint8_t base = gold ? (uint8_t)177 : sh_rgb(0xa8, 0xae, 0xb8);
+    const uint8_t hi   = gold ? (uint8_t)217 : sh_rgb(0xe8, 0xec, 0xf2);
+    const uint8_t mid  = gold ? (uint8_t)181 : sh_rgb(0xc8, 0xce, 0xd6);
+    const uint8_t lo   = gold ? (uint8_t)173 : sh_rgb(0x5a, 0x60, 0x6c);
+    const uint8_t rim  = gold ? (uint8_t)104 : sh_rgb(0x3e, 0x44, 0x50);
+    const uint8_t sheen = gold ? (uint8_t)185 : mid;
     const int x = cx - s / 2, y = cy - s / 2;
     cbf(g, x, y, s, s, base);
-    /* top-left highlight band */
-    for (int r = 0; r < s / 3; ++r) cbf(g, x, y + r, s - r, 1, r < 2 ? hi : mid);
-    /* bottom-right shade */
-    for (int r = 0; r < s / 3; ++r) cbf(g, x + r, y + s - 1 - r, s - r, 1, lo);
+    /* top-left highlight band (pale → mid); keep ≥2 rows even at small s */
+    const int hb = s / 3 > 2 ? s / 3 : 2;
+    for (int r = 0; r < hb; ++r) cbf(g, x, y + r, s - r, 1, r < 2 ? hi : mid);
+    /* diagonal sheen stripe (metallic catch-light) */
+    if (s >= 6) {
+        const int sw = s / 6 > 2 ? s / 6 : 2;
+        for (int i = 0; i < s / 2; ++i) {
+            const int sx = x + 1 + i, sy = y + s / 5 + i / 2;
+            if (sy < y + s - 2) cbf(g, sx, sy, sw, 1, sheen);
+        }
+    }
+    /* bottom-right bronze shade */
+    for (int r = 0; r < hb; ++r) cbf(g, x + r, y + s - 1 - r, s - r, 1, lo);
     cbf(g, x, y, s, 1, hi);
     cbf(g, x, y + s - 1, s, 1, rim);
     cbf(g, x, y, 1, s, hi);

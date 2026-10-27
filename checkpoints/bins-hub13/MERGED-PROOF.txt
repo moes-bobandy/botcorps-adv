@@ -1,0 +1,5 @@
+app sha256 ca5c22f41ea76d3f7cf74f953f09af2cca82590138af0e69f74390ee8253592e size 1497104
+merged sha256 24fb3ee59f6c8ae7025b96b53a37dc355e267e4d6c7dfec5e4d7eef2af76417c size 1562640
+slice@0x10000 sha256 ca5c22f41ea76d3f7cf74f953f09af2cca82590138af0e69f74390ee8253592e
+slice@0x10000 == app: True
+merged = .pio/build/cyd/firmware.factory.bin (bootloader+partitions+boot_app0+app), flash at 0x0; built from 050fa83 sources

@@ -1,0 +1,5 @@
+hub14 merged-bin proof (cyd env)
+app    cyd-firmware.bin         len=1498352 sha256=09533338c1ecb2992f04f6bfbd3a73930eceec75b41855e4af52ee9fa447523c
+merged cyd-firmware-merged.bin  len=1563888 sha256=d0899053999ee175cad70eae86c1f897f74a3553078a20a162e8976155b3498b
+slice  merged[0x10000:0x10000+1498352] sha256=09533338c1ecb2992f04f6bfbd3a73930eceec75b41855e4af52ee9fa447523c
+slice == app: True

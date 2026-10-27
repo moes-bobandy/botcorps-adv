@@ -832,8 +832,34 @@ static void e_gchat_geo(int *pl, int *cdx, int *cdy)
     else { pl[0] = 92; pl[1] = 183; pl[2] = 194; pl[3] = 49; *cdx = -58; *cdy = -148; }
 }
 static void cdl_rect(int *x, int *y, int *w, int *h);   /* dlfield.inc */
-static void paint_gchat_e(Gfx g)
-{
+static void paint_gchat_e_p10(Gfx g)
+{   /* hub14: portrait = restored hub10 4f379c2 Defend screen (Mobandy 10-27 2:19 PM: never asked for the hub11/hub12 change) */
+    const bool P = botcorps_cyd_orient != 0;
+    const int b = (s_defend_bot >= 0 && s_defend_bot < 12) ? s_defend_bot : 12;
+    int PL[4], cdx, cdy; e_gchat_geo(PL, &cdx, &cdy);
+    e_board(g);
+    const uint8_t tr = cb_trace();
+    {
+        EShift s(g, cdx, cdy);
+        if (b >= 12) { paint_scanb_chip_p(s.h, (uint8_t)251, (uint8_t)255, (uint8_t)214, tr, false); e_gib_chip_extras(s.h, tr, false); }
+        else paint_scanb_chip_p(s.h, bot_color(b), (uint8_t)250, (uint8_t)140, tr, true);
+    }
+    char nm[16];
+    if (b >= 12) snprintf(nm, sizeof nm, "GIBSON");
+    else sb_upper(nm, 16, BOTS[b].short_name, 12);
+    const int scx = P ? 60 : 62, sy = P ? 52 : 96;
+    e_silk_c(g, nm, scx, sy, cb_silk());
+    e_silk_c(g, "DEFEND", scx, sy + 7, cb_silk());
+    e_silk_c(g, "CHAT U1", scx, sy + 14, cb_silk());
+    e_plate(g, PL[0], PL[1], PL[2], PL[3], "DEFEND CHAT", false);
+    /* hub9: traces chip -> play field -> 3-line plate */
+    if (P) { for (int x : { 101, 125 }) { g.fillRect(x, 96, 1, 8, tr); g.fillRect(x, 220, 1, PL[1] - 222, tr); } }
+    else { g.fillRect(90, 49, 8, 1, tr); g.fillRect(90, 65, 8, 1, tr); g.fillRect(150, 140, 1, PL[1] - 142, tr); g.fillRect(234, 140, 1, PL[1] - 142, tr); }
+    cyd_dl_paint(g);
+    e_finish(g);
+}
+static void paint_gchat_e_l(Gfx g)
+{   /* hub14: landscape Defend unchanged from 050fa83 (hub12 look) */
     const bool P = botcorps_cyd_orient != 0;
     const int b = (s_defend_bot >= 0 && s_defend_bot < 12) ? s_defend_bot : 12;
     int PL[4], cdx, cdy; e_gchat_geo(PL, &cdx, &cdy);
@@ -872,6 +898,10 @@ static void paint_gchat_e(Gfx g)
            for (int x : { 150, 234 }) { const Pt a[2] = { { x, 140 }, { x, PL[1] - 2 } }; e_route2(g, a, 2); } }
     cyd_dl_paint(g);
     e_finish(g);
+}
+static void paint_gchat_e(Gfx g)
+{   /* hub14: P = restored hub10 Defend (Mobandy 10-27); L untouched */
+    if (botcorps_cyd_orient != 0) paint_gchat_e_p10(g); else paint_gchat_e_l(g);
 }
 
 /* Diag (hub9): edge-to-edge board, probe chip centred on top, the probe readout in a centred silk
@@ -996,7 +1026,8 @@ static void e_covers(void)
         cover_add(cx - 57, cy - 57, 114, 114);
         cover_add(cx - 32, cy + 60, 64, 17);
     } else if (s_screen == SCR_GCHAT) {
-        (void)P; cover_add(28, 28, W - 56, H - 32);   /* hub12: whole interior is board (decor), like SCAN */
+        if (P) { cover_add(28, 34, 184, 64); cover_add(96, 96, 36, 8); cover_add(36, 102, 168, 120); cover_add(96, 220, 36, 40); cover_add(27, 257, 185, 56); }   /* hub14: hub10 P Defend covers */
+        else cover_add(28, 28, W - 56, H - 32);   /* hub12 L: whole interior is board (decor), like SCAN */
     } else if (s_screen == SCR_DIAG) {
         (void)P;
         cover_add(28, 28, W - 56, H - 32);   /* hub9: edge-to-edge board, the whole interior is parts */

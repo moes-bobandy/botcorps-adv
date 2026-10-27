@@ -57,20 +57,10 @@ static void hb_gib_face(Gfx g, int cx, int cy, int s)
     }
 }
 
-/* TERMINALbot: metallic silver face with dark >_ prompt etched on */
+/* TERMINALbot: hub12 clean silver face, eyes + one >_ prompt (e_silver_face, edge.inc) */
 static void hb_term_face(Gfx g, int cx, int cy, int s)
 {
-    e_metal_face(g, cx, cy, s, false);                 /* silver plate */
-    const int x = cx - s / 2, y = cy - s / 2;
-    const uint8_t ink = PAL_BLACK;
-    /* hub6: on the big main chip the prompt sits under the eyes (small chips unchanged) */
-    const int u = s >= 36 ? s / 12 : (s / 8 > 1 ? s / 8 : 1), ox = x + s / 5, oy = s >= 36 ? y + 3 * s / 5 - u : cy - 2 * u;
-    for (int k = 0; k < 2; ++k) {
-        cbf(g, ox + k * u, oy + k * u, u, u, ink);
-        cbf(g, ox + k * u, oy + (3 - k) * u, u, u, ink);
-    }
-    cbf(g, ox + 2 * u, oy + 2 * u - u / 2, u, u, ink);
-    if ((millis() / 500u) % 2u == 0u) cbf(g, ox + 4 * u, oy + 3 * u, 2 * u, u, sh_rgb(0x3a, 0x40, 0x4c));
+    e_metal_face(g, cx, cy, s, false);
 }
 
 /* hub7: every surrounding bot is the shared main-bot chip at the board's uniform bot scale */
@@ -83,7 +73,7 @@ static void hb4_chip(Gfx g, int i)
 {
     const int x = HB_CHIPR[i][0], y = HB_CHIPR[i][1], w = HB_CHIPR[i][2], h = HB_CHIPR[i][3];
     if (w <= 0 || h <= 0) return;
-    drawBotChipK(g, x, y, botcorps_cyd_orient != 0, hb_mb_of(i), HB_KS[i], nullptr, s_hb_sel == i);
+    drawBotChipK(g, x, y, botcorps_cyd_orient != 0, hb_mb_of(i), HB_KS[i], nullptr, s_hb_sel == i && intro_on());   /* hub12: no persistent focus tint/ring */
 }
 
 /* face geo of the centre die (intro power-up + hub module) at the centre chip's scale */
@@ -97,7 +87,7 @@ static void hb4_gib_geo(int *cx, int *cy, int *fs)
 }
 static void hb_module(Gfx g)
 {
-    drawBotChipK(g, HB_MOD[0], HB_MOD[1], botcorps_cyd_orient != 0, MB_GIB, HB_KMID, "JACK IN", s_hb_sel == HB4_GIB);
+    drawBotChipK(g, HB_MOD[0], HB_MOD[1], botcorps_cyd_orient != 0, MB_GIB, HB_KMID, "JACK IN", s_hb_sel == HB4_GIB && intro_on());
 }
 
 /* TERMINALbot centre: the shared main-bot chip with the silver face (centre slot) */

@@ -10,45 +10,124 @@
 struct Pt { int x, y; };
 static const uint8_t GOLD = 177;
 /* Metallic plated faces: gold (SCAN) / silver (TERMINAL). Shaded, never flat yellow.
- * hub11: SCAN gold uses ORIGINAL palette 177 PAL_GOLD_PIN (182,145,85) as base, plus
- * other pack332/reserved gold-family indices (B≈85 kept so faces stay gold, not orange).
- * cbmix→pal_fit collapsed prior ramps; native indices keep ≥4 distinct luminances. */
-static void e_metal_face(Gfx g, int cx, int cy, int s, bool gold)
+ * hub12 SCAN gold: original base pal 177 PAL_GOLD_PIN (182,146,85). Ramp is built ONLY from static palette
+ * slots whose sim pixel has hue 30..50 deg and R>=G>=B (no green / pink / gray):
+ *   108 rim (82,69,24)  104 bronze (99,73,16)  140 lo (148,109,0)  177 base (181,146,82)
+ *   213 bright (247,182,74)  249 sheen (247,211,74)  250 pale (255,219,173).
+ * Light from top-left: diagonal bands (d = col + row), one diagonal sheen band, 2-px bevel rim. */
+static void e_gold_face(Gfx g, int x, int y, int s)
 {
-    /* gold stops (pack332 unless noted): rim104res L73, lo173 L128, base177 L149,
-     * mid181 L171, sheen185 L192, hi217 L203 — all B≈85 gold family. silver: cool steel. */
-    const uint8_t base = gold ? (uint8_t)177 : sh_rgb(0xa8, 0xae, 0xb8);
-    const uint8_t hi   = gold ? (uint8_t)217 : sh_rgb(0xe8, 0xec, 0xf2);
-    const uint8_t mid  = gold ? (uint8_t)181 : sh_rgb(0xc8, 0xce, 0xd6);
-    const uint8_t lo   = gold ? (uint8_t)173 : sh_rgb(0x5a, 0x60, 0x6c);
-    const uint8_t rim  = gold ? (uint8_t)104 : sh_rgb(0x3e, 0x44, 0x50);
-    const uint8_t sheen = gold ? (uint8_t)185 : mid;
-    const int x = cx - s / 2, y = cy - s / 2;
-    cbf(g, x, y, s, s, base);
-    /* top-left highlight band (pale → mid); keep ≥2 rows even at small s */
-    const int hb = s / 3 > 2 ? s / 3 : 2;
-    for (int r = 0; r < hb; ++r) cbf(g, x, y + r, s - r, 1, r < 2 ? hi : mid);
-    /* diagonal sheen stripe (metallic catch-light) */
-    if (s >= 6) {
-        const int sw = s / 6 > 2 ? s / 6 : 2;
-        for (int i = 0; i < s / 2; ++i) {
-            const int sx = x + 1 + i, sy = y + s / 5 + i / 2;
-            if (sy < y + s - 2) cbf(g, sx, sy, sw, 1, sheen);
+    static const uint8_t RIM = 108, BRZ = 104, LO = 140, BASE = 177, BRT = 213, SHN = 249, PALE = 250;
+    const int bw = s >= 12 ? 2 : 1;                    /* bevel width */
+    const int sh0 = (s * 70) / 100, shw = s / 6 > 2 ? s / 6 : 2;   /* sheen band on d */
+    for (int r = 0; r < s; ++r) {
+        int i = 0;
+        while (i < s) {
+            const int d = i + r;
+            uint8_t c; int run = 1;
+            if (d < (s * 45) / 100) c = BRT;
+            else if (d >= sh0 && d < sh0 + shw) c = (d == sh0 + shw / 2) ? PALE : SHN;
+            else if (d >= (s * 165) / 100) c = BRZ;
+            else if (d >= (s * 135) / 100) c = LO;
+            else c = BASE;
+            /* extend run while colour stays the same */
+            while (i + run < s) {
+                const int d2 = i + run + r; uint8_t c2;
+                if (d2 < (s * 45) / 100) c2 = BRT;
+                else if (d2 >= sh0 && d2 < sh0 + shw) c2 = (d2 == sh0 + shw / 2) ? PALE : SHN;
+                else if (d2 >= (s * 165) / 100) c2 = BRZ;
+                else if (d2 >= (s * 135) / 100) c2 = LO;
+                else c2 = BASE;
+                if (c2 != c) break; ++run;
+            }
+            cbf(g, x + i, y + r, run, 1, c);
+            i += run;
         }
     }
-    /* bottom-right bronze shade */
-    for (int r = 0; r < hb; ++r) cbf(g, x + r, y + s - 1 - r, s - r, 1, lo);
-    cbf(g, x, y, s, 1, hi);
-    cbf(g, x, y + s - 1, s, 1, rim);
-    cbf(g, x, y, 1, s, hi);
-    cbf(g, x + s - 1, y, 1, s, rim);
-    /* specular glint */
+    /* bevel: lit top/left (pale outer, bright inner), shaded bottom/right (rim outer, bronze inner) */
+    for (int k = 0; k < bw; ++k) {
+        const uint8_t lit = k == 0 ? PALE : BRT, dk = k == 0 ? RIM : BRZ;
+        cbf(g, x + k, y + k, s - 2 * k, 1, lit);
+        cbf(g, x + k, y + k, 1, s - 2 * k, lit);
+        cbf(g, x + k, y + s - 1 - k, s - 2 * k, 1, dk);
+        cbf(g, x + s - 1 - k, y + k, 1, s - 2 * k, dk);
+    }
+    /* specular glint (pale gold, never white) */
     const int gx = x + s / 5, gy = y + s / 5, gw = s / 4 > 2 ? s / 4 : 2;
-    cbf(g, gx, gy, gw, 1, PAL_WHITE);
-    cbf(g, gx, gy, 1, gw / 2 > 1 ? gw / 2 : 1, PAL_WHITE);
+    cbf(g, gx, gy, gw, 1, PALE);
+    cbf(g, gx, gy, 1, gw / 2 > 1 ? gw / 2 : 1, PALE);
+}
+/* hub12 TERMINALbot silver (Mobandy 8:54 PM: stray pixel / broken > on the old face).
+ * Face = shaded cool-silver fill + two eyes + ONE >_ prompt centred low. Ramp from static slots whose
+ * sim pixel has B>=G>=R (no green / muddy gray): 41 rim (41,56,66) 110 lo (107,121,132)
+ * 146 mid (140,154,165) 186 base (198,207,214) 223 hi (231,239,247) 255 glint.
+ * e_term_marks() is the single source of the black marks (eyes + prompt): the painter fills them and
+ * the sim face check builds its allowed-element mask from the same rects. */
+static int e_term_marks(int x, int y, int s, bool blink, int R[][4])
+{
+    int n = 0;
+    const int c = s / 5 > 2 ? s / 5 : 2, m = (s - 3 * c) / 2;          /* eyes (same as SCAN) */
+    const int ey = y + c + (blink ? c - 1 : 0), eh = blink ? 1 : c;
+    R[n][0] = x + m; R[n][1] = ey; R[n][2] = c; R[n][3] = eh; ++n;
+    R[n][0] = x + m + 2 * c; R[n][1] = ey; R[n][2] = c; R[n][3] = eh; ++n;
+    const int bw = s >= 12 ? 2 : 1, eye_bot = y + 2 * c;               /* first free row under the eyes */
+    int u = s / 12 > 1 ? s / 12 : 1;
+    while (u > 1 && y + s - bw - 1 - 5 * u < eye_bot + 1) --u;
+    if (y + s - bw - 1 - 5 * u >= eye_bot + 1) {                      /* full chevron: 2u-wide stroke rows (edge-joined, no
+                                                                          * diagonal-only dots) + 3-block cursor */
+        const int gw = 8 * u, gx = x + (s - gw) / 2, gy = y + s - bw - 1 - 5 * u;
+        static const int8_t OFS[5] = { 0, 1, 2, 1, 0 };
+        for (int r = 0; r < 5; ++r) { R[n][0] = gx + OFS[r] * u; R[n][1] = gy + r * u; R[n][2] = 2 * u; R[n][3] = u; ++n; }
+        R[n][0] = gx + 5 * u; R[n][1] = gy + 4 * u; R[n][2] = 3 * u; R[n][3] = u; ++n;
+    } else {                                                           /* tiny faces: 3-row chevron + 2-px cursor */
+        const int gx = x + (s - 5) / 2, gy0 = y + s - bw - 1 - 3, gy = gy0 > eye_bot ? gy0 : eye_bot;
+        static const int8_t OFS[3] = { 0, 1, 0 };
+        for (int r = 0; r < 3; ++r) { R[n][0] = gx + OFS[r]; R[n][1] = gy + r; R[n][2] = 1; R[n][3] = 1; ++n; }
+        R[n][0] = gx + 3; R[n][1] = gy + 2; R[n][2] = 2; R[n][3] = 1; ++n;
+    }
+    return n;
+}
+static bool e_blink_now(void) { return (millis() / 2600u) % 7u == 0u && (millis() % 2600u) < 140u; }
+static void e_silver_face(Gfx g, int x, int y, int s)
+{
+    static const uint8_t RIM = 41, LO = 110, MID = 146, BASE = 186, HI = 223, GL = 255;
+    const int bw = s >= 12 ? 2 : 1;
+    const int sh0 = (s * 70) / 100, shw = s / 6 > 2 ? s / 6 : 2;
+    for (int r = 0; r < s; ++r) {
+        int i = 0;
+        while (i < s) {
+            auto col = [&](int d) -> uint8_t {
+                if (d < (s * 45) / 100) return HI;
+                if (d >= sh0 && d < sh0 + shw) return HI;
+                if (d >= (s * 165) / 100) return LO;
+                if (d >= (s * 135) / 100) return MID;
+                return BASE;
+            };
+            const uint8_t c = col(i + r); int run = 1;
+            while (i + run < s && col(i + run + r) == c) ++run;
+            cbf(g, x + i, y + r, run, 1, c);
+            i += run;
+        }
+    }
+    for (int k = 0; k < bw; ++k) {
+        const uint8_t lit = k == 0 ? GL : HI, dk = k == 0 ? RIM : LO;
+        cbf(g, x + k, y + k, s - 2 * k, 1, lit);
+        cbf(g, x + k, y + k, 1, s - 2 * k, lit);
+        cbf(g, x + k, y + s - 1 - k, s - 2 * k, 1, dk);
+        cbf(g, x + s - 1 - k, y + k, 1, s - 2 * k, dk);
+    }
+    if (s >= 12) cbf(g, x + bw + 1, y + bw, s / 4, 1, GL);          /* specular glint on the lit bevel, clear of the eyes */
+    int R[8][4]; const int n = e_term_marks(x, y, s, e_blink_now(), R);
+    for (int q = 0; q < n; ++q) cbf(g, R[q][0], R[q][1], R[q][2], R[q][3], PAL_BLACK);
+}
+static void e_metal_face(Gfx g, int cx, int cy, int s, bool gold)
+{
+    const int x = cx - s / 2, y = cy - s / 2;
+    if (!gold) { e_silver_face(g, x, y, s); return; }
+    e_gold_face(g, x, y, s);
     /* eyes */
     const int c = s / 5 > 2 ? s / 5 : 2, m = (s - 3 * c) / 2;
-    const bool bl = (millis() / 2600u) % 7u == 0u && (millis() % 2600u) < 140u;
+    const bool bl = e_blink_now();
     cbf(g, x + m, y + c + (bl ? c - 1 : 0), c, bl ? 1 : c, PAL_BLACK);
     cbf(g, x + m + 2 * c, y + c + (bl ? c - 1 : 0), c, bl ? 1 : c, PAL_BLACK);
 }
@@ -135,6 +214,73 @@ static void e_board(Gfx g)
     e_headers_hub(g);
 }
 #include "ui/botcorps_cyd_adv_plate.inc"
+
+/* hub12: home-P board decor (same pour hatch / via grid / SMD / test pads / net silk density as
+ * hb_rich) for every non-TERM edge board. No pixel readback on the panel, so each painter passes its
+ * parts as explicit keep-out rects; decor stays EK px clear of every one. Paint before copper + parts. */
+struct ERect { int16_t x, y, w, h; };
+static bool s_e_decor_off = false;   /* sim A/B toggle (decor-clearance check) */
+static bool e_kept(const ERect *K, int nk, int x, int y, int w, int h)
+{
+    enum { EK = 3 };
+    for (int i = 0; i < nk; ++i)
+        if (x < K[i].x + K[i].w + EK && x + w > K[i].x - EK && y < K[i].y + K[i].h + EK && y + h > K[i].y - EK) return true;
+    return false;
+}
+static void e_decor(Gfx g, const ERect *K, int nk, int y1)
+{
+    if (s_e_decor_off) return;
+    const int W = EW(), x0 = 30, x1 = W - 30, y0 = 34;
+    const uint8_t tr = cb_trace();
+    const uint8_t via = cbmix(botcorps_rgb565(tr), 0xFFFF, 40);
+    const uint8_t pour = cbmix(botcorps_rgb565(tr), 0x0000, 55);
+    const uint8_t silk = cb_silk();
+    const uint8_t smd = sh_rgb(0x2a, 0x2e, 0x36);
+    const uint8_t pad = sh_rgb(0xb8, 0x9a, 0x3c);
+    for (int y = y0 + 4; y < y1 - 2; y += 14)          /* ground-pour hatch 18 x 14 */
+        for (int x = x0 + 4; x + 5 <= x1; x += 18) {
+            if (e_kept(K, nk, x, y - 2, 5, 5)) continue;
+            cbf(g, x, y, 5, 1, pour); cbf(g, x + 2, y - 2, 1, 5, pour);
+        }
+    for (int y = y0 + 10; y < y1 - 1; y += 22)         /* via grid 26 x 22 */
+        for (int x = x0 + 10; x < x1 - 1; x += 26) {
+            if (e_kept(K, nk, x - 1, y - 1, 3, 3)) continue;
+            cb_via(g, x, y, via);
+        }
+    /* SMD parts + test pads on a staggered 52 x 44 pocket grid (between the hatch/via lattices) */
+    int n = 0;
+    for (int y = y0 + 17; y < y1; y += 44)
+        for (int x = x0 + 19 + ((y / 44) & 1) * 26; x < x1; x += 52, ++n) {
+            const int kind = n % 3, w = kind == 0 ? 10 : kind == 1 ? 4 : 5, h = kind == 0 ? 4 : kind == 1 ? 8 : 5;
+            if (x + w > x1 || y + h > y1 || e_kept(K, nk, x, y, w, h)) continue;
+            if (kind == 2) { cbf(g, x, y, 5, 5, pad); cbf(g, x + 1, y + 1, 3, 3, smd); continue; }
+            cbf(g, x, y, w, h, smd);
+            if (kind == 0) { cbf(g, x, y, 2, h, pad); cbf(g, x + w - 2, y, 2, h, pad); }
+            else { cbf(g, x, y, w, 2, pad); cbf(g, x, y + h - 2, w, 2, pad); }
+        }
+    /* net silk: portrait tiny, landscape Font0 (as hb_rich) */
+    if (botcorps_cyd_orient) {
+        if (!e_kept(K, nk, x0 + 2, y0 + 2, tiny_w("3V3"), 5)) tiny_text(g, "3V3", x0 + 2, y0 + 2, silk);
+        if (!e_kept(K, nk, x1 - tiny_w("GND") - 2, y0 + 2, tiny_w("GND"), 5)) tiny_text(g, "GND", x1 - tiny_w("GND") - 2, y0 + 2, silk);
+        if (!e_kept(K, nk, x0 + 2, y1 - 10, tiny_w("NET-H"), 5)) tiny_text(g, "NET-H", x0 + 2, y1 - 10, silk);
+    } else {
+        const int keep = s_px; use_px(g, 6);
+        if (!e_kept(K, nk, x0 + 2, y0 + 2, 18, 8)) txt(g, "3V3", x0 + 2, y0 + 2, silk, lgfx::textdatum::top_left);
+        if (!e_kept(K, nk, x1 - 20, y0 + 2, 18, 8)) txt(g, "GND", x1 - 2, y0 + 2, silk, lgfx::textdatum::top_right);
+        s_px = keep;
+    }
+}
+/* 2 px copper route with vias at the bends (home-P hb_copper language) */
+static void e_route2(Gfx g, const Pt *p, int n)
+{
+    const uint8_t tr = cb_trace(), via = cbmix(botcorps_rgb565(tr), 0xFFFF, 40);
+    for (int q = 0; q + 1 < n; ++q) {
+        cb_line(g, p[q].x, p[q].y, p[q + 1].x, p[q + 1].y, tr);
+        if (p[q].y == p[q + 1].y) cb_line(g, p[q].x, p[q].y + 1, p[q + 1].x, p[q + 1].y + 1, tr);
+        else cb_line(g, p[q].x + 1, p[q].y, p[q + 1].x + 1, p[q + 1].y, tr);
+    }
+    for (int q = 1; q + 1 < n; ++q) cb_via(g, p[q].x, p[q].y, via);
+}
 
 static void e_finish(Gfx g)
 {
@@ -272,6 +418,17 @@ static void paint_ctlbot(Gfx g)
     const bool P = botcorps_cyd_orient != 0;
     e_board(g);
     const uint8_t trace = cb_trace(), via = cbmix(botcorps_rgb565(trace), 0xFFFF, 35);
+#ifdef BOTCORPS_CYD
+    {   /* hub12 board match: home-P decor density; keep-outs = every part + its silk labels, strip, meters, plate */
+        ERect K[16]; int nk = 0;
+        const CbR *RC = P ? CB_P_RECT : CB_L_RECT;
+        for (int i = 0; i < 9; ++i) K[nk++] = { (int16_t)(RC[i].x - 14), (int16_t)(RC[i].y - 12), (int16_t)(RC[i].w + 28), (int16_t)(RC[i].h + (P ? 30 : 26)) };
+        K[nk++] = { 28, 24, (int16_t)(EW() - 56), 14 };                       /* power strip */
+        if (P) K[nk++] = { 34, 34, 80, 50 };                                   /* meters */
+        if (P) K[nk++] = { 29, 257, 181, 56 }; else K[nk++] = { 32, 180, 256, 56 };
+        e_decor(g, K, nk, P ? 255 : 178);
+    }
+#endif
     cb_copper(g, trace, via);
     cb_hilite(g);
     const int *M = P ? CB_P_MOD : CB_L_MOD;

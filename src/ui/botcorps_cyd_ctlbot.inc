@@ -109,7 +109,9 @@ static const char *mb_name(int bot, int avail = 999, int cw = 6)
     return N[b][2];
 }
 /* Decide label band: returns name, whether to draw info, font (6=Font0 / 4=tiny), name/info heights, ty. */
-struct MbLab { const char *nm; bool info; int cw, nh, ih, gap, ty, pad; };
+struct MbLab { const char *nm; bool info; int cw, nh, ih, gap, ty, pad; const char *nm2; };
+/* label block height: name (+ hub12 2nd name line) (+ info) */
+static int mb_blk(const MbLab &L) { return L.nh + (L.nm2 ? L.gap + L.nh : 0) + (L.info ? L.gap + L.ih : 0); }
 static MbLab mb_lab_plan(bool P, int bot, int k16, const char *info)
 {
     MbLab L = {};
@@ -119,6 +121,29 @@ static MbLab mb_lab_plan(bool P, int bot, int k16, const char *info)
     const int avail = sw - 2 * pad;
     const bool want = info && info[0];
     L.pad = pad; L.gap = gap;
+    /* hub12 (Mobandy 8:58 PM ET): TERMINALBOT / CONTROLBOT always carry the FULL name wherever it can
+     * fit inside the pad rule: Font0 -> tiny -> tiny on two lines (TERMINAL / BOT); never TERMBOT/CTRLBOT
+     * unless even the two-line tiny name cannot fit (tiny k only). */
+    if (bot == MB_TERM || bot == MB_CTRL) {
+        const char *full = bot == MB_TERM ? "TERMINALBOT" : "CONTROLBOT", *l1 = bot == MB_TERM ? "TERMINAL" : "CONTROL";
+        const int silk_top = mb_S(18, k16), silk_bot = mh - mb_S(4, k16);
+        const int dmin = k16 >= 12 ? 12 : (k16 >= 8 ? 8 : 6);
+        auto fitv = [&](int bh) { return silk_top + mb_S(3, k16) + dmin + gap + bh + pad <= silk_bot; };
+        const int fl = (int)strlen(full);
+        struct Opt { const char *a, *b; int cw, nh; } O[3] = { { full, nullptr, 6, 8 }, { full, nullptr, 4, 5 }, { l1, "BOT", 4, 5 } };
+        for (const Opt &o : O) {
+            const int wa = (int)strlen(o.a) * o.cw;
+            if (wa > avail || (o.b == nullptr && fl * o.cw > avail)) continue;
+            const int bh = o.nh + (o.b ? gap + o.nh : 0);
+            if (!fitv(bh)) continue;
+            L.nm = o.a; L.nm2 = o.b; L.cw = o.cw; L.nh = o.nh;
+            L.info = false; L.ih = 0;
+            if (want && !o.b && (int)strlen(info) * o.cw <= avail && fitv(bh + gap + o.nh)) { L.info = true; L.ih = o.nh; }
+            L.ty = silk_bot - pad - mb_blk(L);
+            if (L.ty < silk_top + gap) L.ty = silk_top + gap;
+            return L;
+        }
+    }
     /* Prefer Font0 (6x8); fall back to tiny (4x5) if the shortest name still won't fit. */
     auto pick = [&](int cw, int nh) -> bool {
         /* 2 px slack so a name that exactly fills avail still shortens (CONTROLBOT @ k13). */
@@ -192,6 +217,11 @@ static void mb_label_rect(bool P, int *x, int *y, int *w, int *h)
     *x = mb_pad(16); *y = L.ty - 1; *w = mb_w(P) - 2 * mb_pad(16); *h = L.nh + (L.info ? L.gap + L.ih : 0) + 2;
 }
 static void drawBotChipK(Gfx g, int mx, int my, bool P, int bot, int k16, const char *info, bool lit = false);
+static bool intro_on(void);
+static uint32_t s_mb_flash_ms = 0; static int s_mb_flash_x = -9999, s_mb_flash_y = -9999;
+static void mb_flash(int x, int y) { s_mb_flash_x = x; s_mb_flash_y = y; s_mb_flash_ms = millis() | 1u; }
+static bool mb_flash_on(int x, int y)
+{ return s_mb_flash_ms && x == s_mb_flash_x && y == s_mb_flash_y && (uint32_t)(millis() - s_mb_flash_ms) < 200u; }
 static void drawMainBotChip(Gfx g, int mx, int my, bool P, int bot, const char *info = nullptr)
 {
     drawBotChipK(g, mx, my, P, bot, 16, info ? info : (bot == MB_CTRL ? theme().sname : ""));
@@ -236,10 +266,10 @@ static void drawBotChipK(Gfx g, int mx, int my, bool P, int bot, int k16, const 
     cbf(g, sx, sy, sw, 1, 186);
     cbf(g, sx, sy, 1, sh, 186);
     const MbLab lab = mb_lab_plan(P, bot, k16, info);
-    int dcx, dcy, D, rty; mb_geo(P, &dcx, &dcy, &D, &rty, k16, lab.info);
+    int dcx, dcy, D, rty; mb_geo(P, &dcx, &dcy, &D, &rty, k16, lab.info || lab.nm2);
     /* Prefer planned label top; clamp into silk with pad; never into the face. */
     { const int face_bot = dcy + D / 2; const int min_ty = face_bot + mb_gap(k16);
-      const int silk_bot = mh - MS(4); const int block = lab.nh + (lab.info ? lab.gap + lab.ih : 0);
+      const int silk_bot = mh - MS(4); const int block = mb_blk(lab);
       const int max_ty = silk_bot - lab.pad - block;
       rty = lab.ty; if (rty < min_ty) rty = min_ty; if (rty > max_ty) rty = max_ty; }
     const int cx = mx + dcx, cy = my + dcy;
@@ -277,12 +307,14 @@ static void drawBotChipK(Gfx g, int mx, int my, bool P, int bot, int k16, const 
         if (lab.cw >= 6) {
             const int keep = s_px; use_px(g, 6);
             txt(g, nm, cx, ty, inv ? mb_iv(ink) : ink, lgfx::textdatum::top_center);
+            if (lab.nm2) txt(g, lab.nm2, cx, ty + lab.nh + lab.gap, inv ? mb_iv(ink) : ink, lgfx::textdatum::top_center);
             if (lab.info) txt(g, info, cx, ty + lab.nh + lab.gap, inv ? mb_iv(infc) : infc, lgfx::textdatum::top_center);
             s_px = keep;
         } else {
             const int avail = sw - 2 * pad;
             const int nw0 = tiny_w(nm); const int nw = nw0 > avail ? avail : nw0;
             tiny_text(g, nm, cx - nw / 2, ty, inv ? mb_iv(ink) : ink, avail);
+            if (lab.nm2) { const int n2 = tiny_w(lab.nm2); tiny_text(g, lab.nm2, cx - n2 / 2, ty + lab.nh + lab.gap, inv ? mb_iv(ink) : ink, avail); }
             if (lab.info) {
                 const int iw0 = tiny_w(info); const int iw = iw0 > avail ? avail : iw0;
                 tiny_text(g, info, cx - iw / 2, ty + lab.nh + lab.gap, inv ? mb_iv(infc) : infc, avail);
@@ -290,10 +322,12 @@ static void drawBotChipK(Gfx g, int mx, int my, bool P, int bot, int k16, const 
         }
         /* BODY = silk window; LABEL = text block. Sim chiplabel check uses these. */
         OVL_BOX("BODY", nm, mx + MS(3), my + MS(18), mw - 2 * MS(3), mh - MS(22));
-        const int lh = lab.nh + (lab.info ? lab.gap + lab.ih : 0);
+        const int lh = mb_blk(lab);
         OVL_BOX("LABEL", nm, mx + pad, ty, mw - 2 * pad, lh);
     }
-    if (lit) {                                                   /* selection ring: 2 px, outside the pins */
+    /* hub12 (Mobandy 8:58 PM ET): no persistent white border on any chip; the ring is a brief tap flash
+     * (mb_flash at the tapped chip origin) or the BOOTbot intro halo animation. */
+    if (mb_flash_on(mx, my) || (lit && intro_on())) {           /* selection ring: 2 px, outside the pins */
         const int o = k16 >= 16 ? 4 : 3;
         g.drawRect(mx - o, my - o, mw + 2 * o, mh + 2 * o, PAL_WHITE); g.drawRect(mx - o + 1, my - o + 1, mw + 2 * o - 2, mh + 2 * o - 2, accent());
     }
@@ -614,7 +648,13 @@ static int cb_route(int i, int *px, int *py)
 }
 static void cb_poly(Gfx g, const int *px, const int *py, int n, uint8_t c, uint8_t via)
 {
-    for (int q = 0; q + 1 < n; ++q) cb_line(g, px[q], py[q], px[q + 1], py[q + 1], c);
+    for (int q = 0; q + 1 < n; ++q) {
+        cb_line(g, px[q], py[q], px[q + 1], py[q + 1], c);
+#ifdef BOTCORPS_CYD   /* hub12: 2 px copper like home P */
+        if (py[q] == py[q + 1]) cb_line(g, px[q], py[q] + 1, px[q + 1], py[q + 1] + 1, c);
+        else cb_line(g, px[q] + 1, py[q], px[q + 1] + 1, py[q + 1], c);
+#endif
+    }
     for (int q = 1; q + 1 < n; ++q) cb_via(g, px[q], py[q], via);
 }
 static void cb_copper(Gfx g, uint8_t trace, uint8_t via)

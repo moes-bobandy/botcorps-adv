@@ -516,9 +516,9 @@ static const SBGeo &scanbot_geo(void)
         /* hub7 (Mobandy 4:57): the three scan bots are the shared main-bot chip at 8/16 (42x60),
          * the largest that fits beside the module above the tabs (pads at 156). */
         P.ck = 8; P.cs = 42; P.ch = 60;
-        P.cx[0] = 33; P.cy[0] = 30;     /* WIFI  top-left   */
-        P.cx[1] = 33; P.cy[1] = 93;     /* BLE   mid-left   */
-        P.cx[2] = 165; P.cy[2] = 60;    /* GIBSON right (mirror x of WIFI/BLE) */
+        P.cx[0] = 32; P.cy[0] = 30;     /* WIFI  top-left  (hub12: 4 px gap to the module, as home P) */
+        P.cx[1] = 32; P.cy[1] = 93;     /* BLE   mid-left   */
+        P.cx[2] = 166; P.cy[2] = 60;    /* GIBSON right (mirror x of WIFI/BLE) */
         /* hub9: category pads >= 28 tall, clear of BLE chip (ends 153) and plate cast 262 */
         P.kx0 = 34; P.ky = 155; P.kw_band = 172; P.kh = 28; P.kcols = 0;  /* pads end 183 */
         P.bx = 34; P.by = 186; P.bw = 172; P.bh = 70;        /* bay end 256 */
@@ -704,29 +704,47 @@ static void paint_scan_e(Gfx g)
     e_board(g);
     cbf(g, 29, 26, EW() - 58, EH() - 28, (uint8_t)PAL_FIELD);   /* hub6: also the y=26 row + header gaps (stray bg-motion silk) */
 
-    /* ---- copper: orthogonal PCB traces only (no diagonals across chips/tabs/tiles) ---- */
-    const uint8_t tr = cb_trace(), via = cbmix(botcorps_rgb565(tr), 0xFFFF, 35);
-    /* hub6: orthogonal copper for the shared-main-chip layout */
+    /* ---- hub12 board match: home-P decor, then 2 px copper with vias (hb_copper language) ---- */
+    SBCat cat[5];
+    const int ntab = scanbot_cats_e(act, cat);
+    {
+        ERect K[20]; int nk = 0;
+        K[nk++] = { (int16_t)G.mx, (int16_t)G.my, (int16_t)G.mw, (int16_t)G.mh };
+        for (int i = 0; i < 3; ++i) K[nk++] = { (int16_t)G.cx[i], (int16_t)G.cy[i], (int16_t)G.cs, (int16_t)G.ch };
+        for (int i = 0; i < ntab && i < 5; ++i) { int px, py, pw, ph; sb_catpad_cell(G, ntab, i, &px, &py, &pw, &ph); K[nk++] = { (int16_t)px, (int16_t)(py - 3), (int16_t)pw, (int16_t)(ph + 6) }; }
+        K[nk++] = { (int16_t)G.bx, (int16_t)(G.by - 2), (int16_t)G.bw, (int16_t)(G.bh + 4) };
+        if (G.mox || G.moy) K[nk++] = { (int16_t)G.mox, (int16_t)G.moy, (int16_t)G.mow, 30 };
+        K[nk++] = { (int16_t)(G.pl[0] - 2), (int16_t)(G.pl[1] - 4), (int16_t)(G.pl[2] + 4), (int16_t)(G.pl[3] + 6) };
+        e_decor(g, K, nk, G.pl[1] - 4);
+    }
     {
         const int L0 = G.mx, R0 = G.mx + G.mw;
         for (int i = 0; i < 3; ++i) {
             const int ccx = G.cx[i] + G.cs / 2, ccy = G.cy[i] + G.ch / 2;
             if (G.cy[i] >= G.my + G.mh) {                  /* below the module: straight up into it */
-                cb_line(g, ccx, G.cy[i], ccx, G.my + G.mh, tr); cb_via(g, ccx, G.cy[i] - 3, via);
+                const Pt r[2] = { { ccx, G.cy[i] }, { ccx, G.my + G.mh } }; e_route2(g, r, 2);
             } else {
                 const int ry = ccy < G.my + 24 ? G.my + 24 : ccy;   /* hit the module's side pins */
                 const int ex = ccx < L0 ? G.cx[i] + G.cs : G.cx[i];
-                cb_line(g, ex, ry, ccx < L0 ? L0 : R0, ry, tr);
-                cb_via(g, ccx < L0 ? L0 - 4 : R0 + 4, ry, via);
+                const Pt r[2] = { { ex, ry }, { ccx < L0 ? L0 : R0, ry } }; e_route2(g, r, 2);
             }
+        }
+        if (botcorps_cyd_orient) {                         /* chip-to-chip: WIFI -> BLE, GIBSON -> its pad column */
+            const int wx = G.cx[0] + 8;
+            const Pt a[2] = { { wx, G.cy[0] + G.ch }, { wx, G.cy[1] } }; e_route2(g, a, 2);
+            const int gx = G.cx[2] + G.cs / 2;
+            const Pt b2[2] = { { gx, G.cy[2] + G.ch }, { gx, G.ky } }; e_route2(g, b2, 2);
+        } else if (G.mox || G.moy) {                       /* L: GIBSON -> MORE and GIBSON -> bay */
+            const int gy = G.cy[2] + G.ch / 2 + 4;
+            const Pt a[2] = { { G.mox + G.mow, gy }, { G.cx[2], gy } }; e_route2(g, a, 2);
+            const Pt b2[2] = { { G.cx[2] + G.cs, gy }, { G.bx, gy } }; e_route2(g, b2, 2);
         }
         if (G.by >= G.my + G.mh) {                         /* bay under the module */
             const int mxc = G.mx + G.mw / 2;
-            cb_line(g, mxc, G.my + G.mh, mxc, G.by, tr); cb_via(g, mxc, G.by, via);
+            const Pt r[2] = { { mxc - 1, G.my + G.mh }, { mxc - 1, G.by } }; e_route2(g, r, 2);
         } else {                                           /* bay beside the module */
             const int cy = G.by + G.bh / 4;
-            cb_line(g, R0, cy, G.bx, cy, tr); cb_via(g, G.bx, cy, via);
-            if ((G.mox || G.moy) && G.mox > G.mx) { const int my2 = G.moy + 14; cb_line(g, G.mox + 28, my2, G.bx, my2, tr); }
+            const Pt r[2] = { { R0, cy }, { G.bx, cy } }; e_route2(g, r, 2);
         }
     }
 
@@ -738,8 +756,6 @@ static void paint_scan_e(Gfx g)
       (void)NAME; }
 
     /* ---- category pads (small chips with gaps; landscape = 2x2 >=28 hit cells) ---- */
-    SBCat cat[5];
-    const int ntab = scanbot_cats_e(act, cat);
     if (s_scan_cat < 0 || s_scan_cat >= ntab) s_scan_cat = 0;
     for (int i = 0; i < ntab; ++i) {
         int px, py, pw, ph; sb_catpad_cell(G, ntab, i, &px, &py, &pw, &ph);
@@ -815,6 +831,7 @@ static void e_gchat_geo(int *pl, int *cdx, int *cdy)
     if (botcorps_cyd_orient) { pl[0] = 29; pl[1] = 261; pl[2] = 181; pl[3] = 49; *cdx = 0; *cdy = -140; }
     else { pl[0] = 92; pl[1] = 183; pl[2] = 194; pl[3] = 49; *cdx = -58; *cdy = -148; }
 }
+static void cdl_rect(int *x, int *y, int *w, int *h);   /* dlfield.inc */
 static void paint_gchat_e(Gfx g)
 {
     const bool P = botcorps_cyd_orient != 0;
@@ -822,11 +839,22 @@ static void paint_gchat_e(Gfx g)
     int PL[4], cdx, cdy; e_gchat_geo(PL, &cdx, &cdy);
     e_board(g);
     const uint8_t tr = cb_trace();
+    cbf(g, 29, 26, EW() - 58, EH() - 28, (uint8_t)PAL_FIELD);   /* hub12: full-interior field like SCAN */
+    {   /* hub12 board match: home-P decor; keep-outs = chip/die + silk, play field, traces, plate */
+        int fx, fy, fw, fh; cdl_rect(&fx, &fy, &fw, &fh);
+        ERect K[6]; int nk = 0;
+        if (P) { K[nk++] = { 28, 30, 184, 76 }; K[nk++] = { 96, 94, 36, 12 }; K[nk++] = { 96, 218, 36, 44 }; }
+        else { K[nk++] = { 28, 28, 70, 96 }; K[nk++] = { 86, 44, 14, 26 }; K[nk++] = { 144, 138, 96, 46 }; }
+        K[nk++] = { (int16_t)(fx - 2), (int16_t)(fy - 2), (int16_t)(fw + 4), (int16_t)(fh + 4) };
+        K[nk++] = { (int16_t)(PL[0] - 2), (int16_t)(PL[1] - 4), (int16_t)(PL[2] + 4), (int16_t)(PL[3] + 6) };
+        e_decor(g, K, nk, PL[1] - 4);
+    }
     /* hub11: GIBSON defend uses shared main-bot chip (home-P language); other bots keep crew die. */
     if (b >= 12) {
-        /* hub11: k9 P clears FIELD at y104 (chip ends y102); L k11 already clear */
+        /* hub11: k9 P clears FIELD at y104 (chip ends y102); L k11 already clear.
+         * hub12: name-only label in P (home chips carry no info line) so the k9 label keeps its padding. */
         const int kx = P ? 36 : 40, ky = P ? 34 : 36, kk = P ? 9 : 11;
-        drawBotChipK(g, kx, ky, P, MB_GIB, kk, "DEFEND", false);
+        drawBotChipK(g, kx, ky, P, MB_GIB, kk, P ? nullptr : "DEFEND", false);
     } else {
         EShift s(g, cdx, cdy);
         paint_scanb_chip_p(s.h, bot_color(b), (uint8_t)250, (uint8_t)140, tr, true);
@@ -838,8 +866,10 @@ static void paint_gchat_e(Gfx g)
     }
     e_plate(g, PL[0], PL[1], PL[2], PL[3], "DEFEND CHAT", false);
     /* hub9: traces chip -> play field -> 3-line plate */
-    if (P) { for (int x : { 101, 125 }) { g.fillRect(x, 96, 1, 8, tr); g.fillRect(x, 220, 1, PL[1] - 222, tr); } }
-    else { g.fillRect(90, 49, 8, 1, tr); g.fillRect(90, 65, 8, 1, tr); g.fillRect(150, 140, 1, PL[1] - 142, tr); g.fillRect(234, 140, 1, PL[1] - 142, tr); }
+    (void)tr;   /* hub12: 2 px copper + vias (home-P language) */
+    if (P) { for (int x : { 101, 125 }) { const Pt a[2] = { { x, 96 }, { x, 104 } }; e_route2(g, a, 2); const Pt b2[2] = { { x, 220 }, { x, PL[1] - 2 } }; e_route2(g, b2, 2); } }
+    else { for (int y : { 49, 65 }) { const Pt a[2] = { { 90, y }, { 98, y } }; e_route2(g, a, 2); }
+           for (int x : { 150, 234 }) { const Pt a[2] = { { x, 140 }, { x, PL[1] - 2 } }; e_route2(g, a, 2); } }
     cyd_dl_paint(g);
     e_finish(g);
 }
@@ -882,12 +912,20 @@ static void paint_diag_e(Gfx g)
     int R[4]; e_diag_panel(R);
     int cx, cy, cs; e_diag_chip(&cx, &cy, &cs);
     e_board(g);
-    const uint8_t tr = cb_trace();
-    /* traces: chip -> panel -> plate (mirrored about the centre line) */
+    cbf(g, 29, 26, EW() - 58, EH() - 28, (uint8_t)PAL_FIELD);   /* hub12: field fill (stale rain/icons showed through) */
+    {   /* hub12 board match: home-P decor around probe chip + silk, readout panel and plate */
+        const int pw = tiny_w("PROBE");
+        const ERect K[4] = { { (int16_t)(cx - 7 - pw - 2), (int16_t)(cy - 4), (int16_t)(cs + 14 + pw + tiny_w("U9") + 4), (int16_t)(cs + 8) },
+                             { (int16_t)(EW() / 2 - 10), (int16_t)(cy + cs), 22, (int16_t)(PL[1] - cy - cs) },
+                             { (int16_t)R[0], (int16_t)(R[1] - 2), (int16_t)R[2], (int16_t)(R[3] + 4) },
+                             { (int16_t)(PL[0] - 2), (int16_t)(PL[1] - 4), (int16_t)(PL[2] + 4), (int16_t)(PL[3] + 6) } };
+        e_decor(g, K, 4, PL[1] - 4);
+    }
+    /* traces: chip -> panel -> plate (mirrored about the centre line), hub12: 2 px + vias */
     const int mid = EW() / 2;
-    for (int d : { -8, 8 }) {
-        g.fillRect(mid + d, cy + cs + 3, 1, R[1] - 2 - (cy + cs + 3), tr);
-        g.fillRect(mid + d, R[1] + R[3] + 2, 1, PL[1] - 2 - (R[1] + R[3] + 2), tr);
+    for (int d : { -8, 7 }) {
+        const Pt a[2] = { { mid + d, cy + cs + 3 }, { mid + d, R[1] - 2 } }; e_route2(g, a, 2);
+        const Pt b2[2] = { { mid + d, R[1] + R[3] + 2 }, { mid + d, PL[1] - 2 } }; e_route2(g, b2, 2);
     }
     e_probe_chip(g, cx, cy, cs);
     e_silk_c(g, "PROBE", cx - 7 - tiny_w("PROBE") / 2, cy + cs / 2 - 2, cb_silk());
@@ -958,8 +996,7 @@ static void e_covers(void)
         cover_add(cx - 57, cy - 57, 114, 114);
         cover_add(cx - 32, cy + 60, 64, 17);
     } else if (s_screen == SCR_GCHAT) {
-        if (P) { cover_add(28, 34, 184, 64); cover_add(96, 96, 36, 8); cover_add(36, 102, 168, 120); cover_add(96, 220, 36, 40); cover_add(27, 257, 185, 56); }   /* hub9: + field */
-        else { cover_add(28, 28, 64, 84); cover_add(88, 28, 200, 114); cover_add(148, 140, 90, 42); cover_add(90, 179, 198, 57); }   /* hub9: + field */
+        (void)P; cover_add(28, 28, W - 56, H - 32);   /* hub12: whole interior is board (decor), like SCAN */
     } else if (s_screen == SCR_DIAG) {
         (void)P;
         cover_add(28, 28, W - 56, H - 32);   /* hub9: edge-to-edge board, the whole interior is parts */

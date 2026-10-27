@@ -14,12 +14,14 @@ static bool s_hub_term = false;
 /* hub8: per-slot rects + scale {x, y, w, h, k16}; w/h = mb_w/mb_h at k16. Index = HB4_*.
  * Home: [HB4_GIB] = GIBSON (centre). TERMINALbot board: [HB4_TERM] = TERM (centre), no GIBSON
  * (Mobandy: "TERMINALbot will get just the bots no Gibson") -> [HB4_GIB] is empty (w = 0). */
-static const int HN_HOME_P[5][5] = {          /* GIBSON full size, BOOT/SCAN flank, CTRL/TERM large below */
-    { 32, 51, 42, 60, 8 }, { 166, 51, 42, 60, 8 }, { 33, 157, 68, 98, 13 }, { 139, 157, 68, 98, 13 },
+/* hub12 (Mobandy 8:54 PM ET): SCAN <-> CONTROL swapped on HOME — SCANbot takes the big lower-left
+ * slot (k13), CONTROLbot the small upper-right one (k8). Route geometry is per slot, so copper is unchanged. */
+static const int HN_HOME_P[5][5] = {          /* GIBSON full size, BOOT/CTRL flank, SCAN/TERM large below */
+    { 32, 51, 42, 60, 8 }, { 33, 157, 68, 98, 13 }, { 166, 51, 42, 60, 8 }, { 139, 157, 68, 98, 13 },
     { 78, 30, 84, 120, 16 }
 };
 static const int HN_HOME_L[5][5] = {
-    { 42, 28, 56, 72, 12 }, { 222, 28, 56, 72, 12 }, { 42, 104, 56, 72, 12 }, { 222, 104, 56, 72, 12 },
+    { 42, 28, 56, 72, 12 }, { 42, 104, 56, 72, 12 }, { 222, 28, 56, 72, 12 }, { 222, 104, 56, 72, 12 },   /* hub12 swap */
     { 123, 30, 74, 96, 16 }
 };
 static const int HN_TERM_P[5][5] = {          /* TERM full size, BOOT/SCAN flank, CTRL large below */
@@ -34,18 +36,18 @@ static const int HN_TERM_L[5][5] = {          /* TERM top centre, CTRL under it 
 static const int8_t HN_RN_P[6] = { 2, 2, 3, 3, 2, 2 };
 static const int16_t HN_RT_P[6][4][2] = {
     { { 74, 95 }, { 77, 95 } },                                   /* BOOT -> GIBSON */
-    { { 162, 95 }, { 165, 95 } },                                 /* SCAN -> GIBSON */
-    { { 112, 150 }, { 112, 200 }, { 101, 200 } },                 /* GIBSON -> CTRL */
+    { { 162, 95 }, { 165, 95 } },                                 /* CTRL -> GIBSON (hub12 swap) */
+    { { 112, 150 }, { 112, 200 }, { 101, 200 } },                 /* GIBSON -> SCAN (hub12 swap) */
     { { 126, 150 }, { 126, 200 }, { 137, 200 } },                 /* GIBSON -> TERM */
-    { { 52, 111 }, { 52, 157 } },                                 /* BOOT -> CTRL */
-    { { 186, 111 }, { 186, 157 } } };                             /* SCAN -> TERM */
+    { { 52, 111 }, { 52, 157 } },                                 /* BOOT -> SCAN (hub12 swap) */
+    { { 186, 111 }, { 186, 157 } } };                             /* CTRL -> TERM (hub12 swap) */
 static const int8_t HN_RN_L[6] = { 2, 2, 4, 4, 3, 3 };
 static const int16_t HN_RT_L[6][4][2] = {
     { { 98, 62 }, { 123, 62 } },                                  /* BOOT -> GIBSON */
-    { { 220, 62 }, { 195, 62 } },                                 /* SCAN -> GIBSON */
-    { { 98, 140 }, { 110, 140 }, { 110, 110 }, { 123, 110 } },    /* CTRL -> GIBSON */
+    { { 220, 62 }, { 195, 62 } },                                 /* CTRL -> GIBSON (hub12 swap) */
+    { { 98, 140 }, { 110, 140 }, { 110, 110 }, { 123, 110 } },    /* SCAN -> GIBSON (hub12 swap) */
     { { 220, 140 }, { 208, 140 }, { 208, 110 }, { 195, 110 } },   /* TERM -> GIBSON */
-    { { 150, 126 }, { 150, 160 }, { 98, 160 } },                  /* GIBSON bus -> CTRL */
+    { { 150, 126 }, { 150, 160 }, { 98, 160 } },                  /* GIBSON bus -> SCAN (hub12 swap) */
     { { 168, 126 }, { 168, 160 }, { 220, 160 } } };               /* GIBSON bus -> TERM */
 static const int8_t HT_RN_P[5] = { 2, 2, 2, 3, 3 };
 static const int16_t HT_RT_P[5][4][2] = {

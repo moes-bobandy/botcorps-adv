@@ -9683,6 +9683,10 @@ static int portrait_touch(int tx, int ty, char *typed)
     /* hub4: SCR_GIBSON chips before plate pads — TERM sat under Adv RET on portrait. */
     if (s_screen == SCR_GIBSON) {
         const int c = hb_hit(tx, ty);           /* BOOTbot never returned (not tappable) */
+#ifdef BOTCORPS_CYD
+        if (c == HB4_GIB) mb_flash(HB_MOD[0], HB_MOD[1]);           /* hub12: brief tap flash only */
+        else if (c >= 0) mb_flash(HB_CHIPR[c][0], HB_CHIPR[c][1]);
+#endif
         if (c == HB4_GIB && !s_hub_term) {
             log_add("gibson> gibsonbot");
             enter_defend(12, SCR_GIBSON);

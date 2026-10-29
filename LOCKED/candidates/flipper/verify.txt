@@ -1,0 +1,15 @@
+frames 739 739
+native px changed (>24) outside mask: 836  outside mask+1px: 815  max diff outside mask+1px: 45
+mask native px: 11090  bbox rows [ 57 303] cols [ 33 206]
+residual AIR TAG colours inside per-device mask (candidate): {'5a5510': 0, '524518': 0, '5a654a': 0, 'ffff00': 0, 'ffba4a': 111143, '312c10': 313965}
+leftover tracker rain icons: 0 []
+yellow tag px in field (y33-117,x40-205): 0  in chip icon box: 0
+explanations:
+  outside-mask diffs are x264 generation loss only (pre-encode: 0 changed px outside mask, asserted per frame); baseline re-encode of untouched AIR TAG v3 = 2397 px >24, max 46.
+  '312c10' hits inside mask = untouched binary rain digits (mask is the union over all frames).
+  'ffba4a' hits (tolerance +-10) = FLIPPER's own face top colour f7b64a (firmware formula mix(base F2E3, white, 45%)); exact ffba4a inside mask pre-encode = 0 (checked frames 0,100,250,265,379,470,560,700).
+two devices (BH_DEV flipper = {GL_TV, GL_CAR}): chip icon + silk use bot_dev_kind = TV; field targets TV/CAR/TV (firmware bh_kind alternates a/b by rng); rain cells pick TV or CAR by firmware dev_only_icon parity ((h&1), h = gl*37+col*11+row*5) with col/row from the cell and the unknown glyph byte taken as even.
+zoom: mainchip/devchip/topchip @f250,f265 + field targets @f100 reviewed: full inner pin ring + outer pins, theme-coloured, no stray native pixels (faint <=12-level halo around old tag cells is AIR TAG v3's own codec ringing, under the 24 threshold).
+ffprobe: stream|codec_name=h264|profile=High|width=720|height=960|pix_fmt=yuv420p|r_frame_rate=100/3|nb_frames=739
+atom order: type:'moov' parent:'root' sz: 9141 40 1029907
+type:'moov' type:'mdat' 

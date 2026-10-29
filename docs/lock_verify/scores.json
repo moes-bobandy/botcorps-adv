@@ -1,0 +1,314 @@
+{
+ "boot": {
+  "clip": "boot",
+  "frames": "0-84",
+  "loop": 0,
+  "mean_close_pct": 99.917,
+  "min_close_pct": 99.22,
+  "min_at": 82,
+  "pngs": [
+   "/workspace/cydport/verify/boot_f000_ref_render_diff.png",
+   "/workspace/cydport/verify/boot_f042_ref_render_diff.png",
+   "/workspace/cydport/verify/boot_f084_ref_render_diff.png"
+  ]
+ },
+ "home_intro": {
+  "clip": "home",
+  "frames": "6-90",
+  "loop": 0,
+  "mean_close_pct": 99.447,
+  "min_close_pct": 99.378,
+  "min_at": 61,
+  "pngs": [
+   "/workspace/cydport/verify/home_intro_f006_ref_render_diff.png",
+   "/workspace/cydport/verify/home_intro_f048_ref_render_diff.png",
+   "/workspace/cydport/verify/home_intro_f090_ref_render_diff.png"
+  ]
+ },
+ "home_t0": {
+  "clip": "home",
+  "frames": "420-479",
+  "loop": 1,
+  "mean_close_pct": 99.991,
+  "min_close_pct": 99.964,
+  "min_at": 445,
+  "pngs": [
+   "/workspace/cydport/verify/home_t0_f420_ref_render_diff.png",
+   "/workspace/cydport/verify/home_t0_f449_ref_render_diff.png",
+   "/workspace/cydport/verify/home_t0_f479_ref_render_diff.png"
+  ]
+ },
+ "home_t1": {
+  "clip": "home",
+  "frames": "120-179",
+  "loop": 1,
+  "mean_close_pct": 99.991,
+  "min_close_pct": 99.983,
+  "min_at": 152,
+  "pngs": [
+   "/workspace/cydport/verify/home_t1_f120_ref_render_diff.png",
+   "/workspace/cydport/verify/home_t1_f149_ref_render_diff.png",
+   "/workspace/cydport/verify/home_t1_f179_ref_render_diff.png"
+  ]
+ },
+ "home_t2": {
+  "clip": "home",
+  "frames": "180-239",
+  "loop": 1,
+  "mean_close_pct": 99.992,
+  "min_close_pct": 99.98,
+  "min_at": 217,
+  "pngs": [
+   "/workspace/cydport/verify/home_t2_f180_ref_render_diff.png",
+   "/workspace/cydport/verify/home_t2_f209_ref_render_diff.png",
+   "/workspace/cydport/verify/home_t2_f239_ref_render_diff.png"
+  ]
+ },
+ "home_t3": {
+  "clip": "home",
+  "frames": "240-299",
+  "loop": 1,
+  "mean_close_pct": 99.997,
+  "min_close_pct": 99.984,
+  "min_at": 280,
+  "pngs": [
+   "/workspace/cydport/verify/home_t3_f240_ref_render_diff.png",
+   "/workspace/cydport/verify/home_t3_f269_ref_render_diff.png",
+   "/workspace/cydport/verify/home_t3_f299_ref_render_diff.png"
+  ]
+ },
+ "home_t4": {
+  "clip": "home",
+  "frames": "300-359",
+  "loop": 1,
+  "mean_close_pct": 100.0,
+  "min_close_pct": 99.997,
+  "min_at": 322,
+  "pngs": [
+   "/workspace/cydport/verify/home_t4_f300_ref_render_diff.png",
+   "/workspace/cydport/verify/home_t4_f329_ref_render_diff.png",
+   "/workspace/cydport/verify/home_t4_f359_ref_render_diff.png"
+  ]
+ },
+ "home_t5": {
+  "clip": "home",
+  "frames": "360-419",
+  "loop": 1,
+  "mean_close_pct": 99.993,
+  "min_close_pct": 99.988,
+  "min_at": 376,
+  "pngs": [
+   "/workspace/cydport/verify/home_t5_f360_ref_render_diff.png",
+   "/workspace/cydport/verify/home_t5_f389_ref_render_diff.png",
+   "/workspace/cydport/verify/home_t5_f419_ref_render_diff.png"
+  ]
+ },
+ "term_t0": {
+  "clip": "term",
+  "frames": "0-59",
+  "loop": 1,
+  "mean_close_pct": 99.984,
+  "min_close_pct": 99.973,
+  "min_at": 42,
+  "pngs": [
+   "/workspace/cydport/verify/term_t0_f000_ref_render_diff.png",
+   "/workspace/cydport/verify/term_t0_f029_ref_render_diff.png",
+   "/workspace/cydport/verify/term_t0_f059_ref_render_diff.png"
+  ]
+ },
+ "term_t1": {
+  "clip": "term",
+  "frames": "120-179",
+  "loop": 1,
+  "mean_close_pct": 99.985,
+  "min_close_pct": 99.967,
+  "min_at": 175,
+  "pngs": [
+   "/workspace/cydport/verify/term_t1_f120_ref_render_diff.png",
+   "/workspace/cydport/verify/term_t1_f149_ref_render_diff.png",
+   "/workspace/cydport/verify/term_t1_f179_ref_render_diff.png"
+  ]
+ },
+ "term_t2": {
+  "clip": "term",
+  "frames": "180-239",
+  "loop": 1,
+  "mean_close_pct": 99.994,
+  "min_close_pct": 99.979,
+  "min_at": 186,
+  "pngs": [
+   "/workspace/cydport/verify/term_t2_f180_ref_render_diff.png",
+   "/workspace/cydport/verify/term_t2_f209_ref_render_diff.png",
+   "/workspace/cydport/verify/term_t2_f239_ref_render_diff.png"
+  ]
+ },
+ "term_t3": {
+  "clip": "term",
+  "frames": "240-299",
+  "loop": 1,
+  "mean_close_pct": 99.999,
+  "min_close_pct": 99.99,
+  "min_at": 267,
+  "pngs": [
+   "/workspace/cydport/verify/term_t3_f240_ref_render_diff.png",
+   "/workspace/cydport/verify/term_t3_f269_ref_render_diff.png",
+   "/workspace/cydport/verify/term_t3_f299_ref_render_diff.png"
+  ]
+ },
+ "term_t4": {
+  "clip": "term",
+  "frames": "300-359",
+  "loop": 1,
+  "mean_close_pct": 99.99,
+  "min_close_pct": 99.967,
+  "min_at": 345,
+  "pngs": [
+   "/workspace/cydport/verify/term_t4_f300_ref_render_diff.png",
+   "/workspace/cydport/verify/term_t4_f329_ref_render_diff.png",
+   "/workspace/cydport/verify/term_t4_f359_ref_render_diff.png"
+  ]
+ },
+ "term_t5": {
+  "clip": "term",
+  "frames": "360-419",
+  "loop": 1,
+  "mean_close_pct": 99.988,
+  "min_close_pct": 99.941,
+  "min_at": 372,
+  "pngs": [
+   "/workspace/cydport/verify/term_t5_f360_ref_render_diff.png",
+   "/workspace/cydport/verify/term_t5_f389_ref_render_diff.png",
+   "/workspace/cydport/verify/term_t5_f419_ref_render_diff.png"
+  ]
+ },
+ "scan_t0": {
+  "clip": "scan",
+  "frames": "0-49",
+  "loop": 1,
+  "mean_close_pct": 100.0,
+  "min_close_pct": 100.0,
+  "min_at": 0,
+  "pngs": [
+   "/workspace/cydport/verify/scan_t0_f000_ref_render_diff.png",
+   "/workspace/cydport/verify/scan_t0_f024_ref_render_diff.png",
+   "/workspace/cydport/verify/scan_t0_f049_ref_render_diff.png"
+  ]
+ },
+ "scan_t1": {
+  "clip": "scan",
+  "frames": "50-99",
+  "loop": 1,
+  "mean_close_pct": 100.0,
+  "min_close_pct": 100.0,
+  "min_at": 50,
+  "pngs": [
+   "/workspace/cydport/verify/scan_t1_f050_ref_render_diff.png",
+   "/workspace/cydport/verify/scan_t1_f074_ref_render_diff.png",
+   "/workspace/cydport/verify/scan_t1_f099_ref_render_diff.png"
+  ]
+ },
+ "scan_t2": {
+  "clip": "scan",
+  "frames": "100-149",
+  "loop": 1,
+  "mean_close_pct": 99.999,
+  "min_close_pct": 99.999,
+  "min_at": 103,
+  "pngs": [
+   "/workspace/cydport/verify/scan_t2_f100_ref_render_diff.png",
+   "/workspace/cydport/verify/scan_t2_f124_ref_render_diff.png",
+   "/workspace/cydport/verify/scan_t2_f149_ref_render_diff.png"
+  ]
+ },
+ "scan_t3": {
+  "clip": "scan",
+  "frames": "150-199",
+  "loop": 1,
+  "mean_close_pct": 100.0,
+  "min_close_pct": 100.0,
+  "min_at": 150,
+  "pngs": [
+   "/workspace/cydport/verify/scan_t3_f150_ref_render_diff.png",
+   "/workspace/cydport/verify/scan_t3_f174_ref_render_diff.png",
+   "/workspace/cydport/verify/scan_t3_f199_ref_render_diff.png"
+  ]
+ },
+ "scan_t4": {
+  "clip": "scan",
+  "frames": "200-249",
+  "loop": 1,
+  "mean_close_pct": 100.0,
+  "min_close_pct": 100.0,
+  "min_at": 200,
+  "pngs": [
+   "/workspace/cydport/verify/scan_t4_f200_ref_render_diff.png",
+   "/workspace/cydport/verify/scan_t4_f224_ref_render_diff.png",
+   "/workspace/cydport/verify/scan_t4_f249_ref_render_diff.png"
+  ]
+ },
+ "scan_t5": {
+  "clip": "scan",
+  "frames": "250-299",
+  "loop": 1,
+  "mean_close_pct": 100.0,
+  "min_close_pct": 100.0,
+  "min_at": 250,
+  "pngs": [
+   "/workspace/cydport/verify/scan_t5_f250_ref_render_diff.png",
+   "/workspace/cydport/verify/scan_t5_f274_ref_render_diff.png",
+   "/workspace/cydport/verify/scan_t5_f299_ref_render_diff.png"
+  ]
+ },
+ "ctl": {
+  "clip": "ctl",
+  "frames": "0-44",
+  "loop": 1,
+  "mean_close_pct": 99.983,
+  "min_close_pct": 99.941,
+  "min_at": 42,
+  "pngs": [
+   "/workspace/cydport/verify/ctl_f000_ref_render_diff.png",
+   "/workspace/cydport/verify/ctl_f022_ref_render_diff.png",
+   "/workspace/cydport/verify/ctl_f044_ref_render_diff.png"
+  ]
+ },
+ "gib": {
+  "clip": "gib",
+  "frames": "0-629",
+  "loop": 0,
+  "mean_close_pct": 99.879,
+  "min_close_pct": 99.741,
+  "min_at": 33,
+  "pngs": [
+   "/workspace/cydport/verify/gib_f000_ref_render_diff.png",
+   "/workspace/cydport/verify/gib_f314_ref_render_diff.png",
+   "/workspace/cydport/verify/gib_f629_ref_render_diff.png"
+  ]
+ },
+ "air": {
+  "clip": "air",
+  "frames": "0-738",
+  "loop": 0,
+  "mean_close_pct": 99.892,
+  "min_close_pct": 99.796,
+  "min_at": 511,
+  "pngs": [
+   "/workspace/cydport/verify/air_f000_ref_render_diff.png",
+   "/workspace/cydport/verify/air_f369_ref_render_diff.png",
+   "/workspace/cydport/verify/air_f738_ref_render_diff.png"
+  ]
+ },
+ "key": {
+  "clip": "key",
+  "frames": "0-658",
+  "loop": 0,
+  "mean_close_pct": 99.91,
+  "min_close_pct": 99.796,
+  "min_at": 50,
+  "pngs": [
+   "/workspace/cydport/verify/key_f000_ref_render_diff.png",
+   "/workspace/cydport/verify/key_f329_ref_render_diff.png",
+   "/workspace/cydport/verify/key_f658_ref_render_diff.png"
+  ]
+ }
+}

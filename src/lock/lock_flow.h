@@ -23,22 +23,23 @@ static const int16_t LK_HOLD_KEY[] = {32, 104, 176, 271, 434, 556, 658};
 
 struct LkGame { const char *name; int seg; const int16_t *hold; int nhold; bool own_clip; };
 #define LK_G(name, s, h, own) {name, s, h, (int)(sizeof(h) / sizeof(h[0])), own}
-/* Index 0 = GIBSON (home). 1..10 = TERMINALbot devices. Devices without their
- * own LOCKED clip yet use the family template (A,C -> AIR TAG v3, B -> KEYFOB v2). */
+/* Index 0 = GIBSON (home). 1..10 = TERMINALbot devices, each on its own LOCKED clip
+ * (LOCKED/ui_game_<game>/<game>@3x.mp4, built on AIR TAG v3: same 739 frames and
+ * the same 7 phases, so they share LK_HOLD_AIR; typing starts re-measured per clip). */
 enum { LK_G_GIBSON, LK_G_DEAUTH, LK_G_META, LK_G_HACK, LK_G_SKIMMER, LK_G_FLOCK, LK_G_FLIPPER,
        LK_G_DRONE, LK_G_AIRTAG, LK_G_KEYFOB, LK_G_SAMSUNG, LK_NGAME };
 static const LkGame LK_GAME[LK_NGAME] = {
     LK_G("GIBSON", LK_S_GIB, LK_HOLD_GIB, true),
-    LK_G("DEAUTH", LK_S_AIR, LK_HOLD_AIR, false),
-    LK_G("META", LK_S_KEY, LK_HOLD_KEY, false),
-    LK_G("HACK", LK_S_AIR, LK_HOLD_AIR, false),
-    LK_G("SKIMMER", LK_S_KEY, LK_HOLD_KEY, false),
-    LK_G("FLOCK", LK_S_AIR, LK_HOLD_AIR, false),
-    LK_G("FLIPPER", LK_S_AIR, LK_HOLD_AIR, false),
-    LK_G("DRONE", LK_S_AIR, LK_HOLD_AIR, false),
+    LK_G("DEAUTH", LK_S_DEAUTH, LK_HOLD_AIR, true),
+    LK_G("META", LK_S_META, LK_HOLD_AIR, true),
+    LK_G("HACK", LK_S_HACK, LK_HOLD_AIR, true),
+    LK_G("SKIMMER", LK_S_SKIMMER, LK_HOLD_AIR, true),
+    LK_G("FLOCK", LK_S_FLOCK, LK_HOLD_AIR, true),
+    LK_G("FLIPPER", LK_S_FLIPPER, LK_HOLD_AIR, true),
+    LK_G("DRONE", LK_S_DRONE, LK_HOLD_AIR, true),
     LK_G("AIR TAG", LK_S_AIR, LK_HOLD_AIR, true),
     LK_G("KEYFOB", LK_S_KEY, LK_HOLD_KEY, true),
-    LK_G("SAMSUNG", LK_S_AIR, LK_HOLD_AIR, false),
+    LK_G("SAMSUNG", LK_S_SAMSUNG, LK_HOLD_AIR, true),
 };
 
 struct LkRect { int16_t x0, y0, x1, y1; int8_t act; };

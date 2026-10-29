@@ -3,27 +3,94 @@ dump 02_home_intro scr=1 seg=1 frame=53 clipframe=59
 dump 03_home_grape scr=2 seg=2 frame=27 clipframe=447
 tap 80,8 -> scr=2 seg=3 game=0 theme=1 act=1
 dump 04_home_magenta scr=2 seg=3 frame=29 clipframe=149
-tap 150,175 -> scr=3 seg=9 game=0 theme=1 act=1
-dump 05_terminalbot scr=3 seg=9 frame=29 clipframe=149
-tap 97,225 -> scr=6 seg=22 game=8 theme=1 act=1
-dump 06_airtag_phase0_hold scr=6 seg=22 frame=32 clipframe=32
-tap 120,120 -> scr=6 seg=22 game=8 theme=1 act=1
-dump 07_airtag_phase1_hold scr=6 seg=22 frame=120 clipframe=120
-tap 10,10 -> scr=2 seg=3 game=8 theme=1 act=1
-dump 08_back_home scr=2 seg=3 frame=19 clipframe=139
 tap 110,70 -> scr=6 seg=21 game=0 theme=1 act=1
-dump 09_gibson_phase0_hold scr=6 seg=21 frame=66 clipframe=66
+dump 05_gibson_phase0_hold scr=6 seg=21 frame=66 clipframe=66
+tap 120,120 -> scr=6 seg=21 game=0 theme=1 act=1
+dump 06_gibson_phase1_hold scr=6 seg=21 frame=159 clipframe=159
 tap 10,10 -> scr=2 seg=3 game=0 theme=1 act=1
 tap 60,175 -> scr=4 seg=15 game=0 theme=1 act=1
-dump 10_scanbot scr=4 seg=15 frame=29 clipframe=79
+dump 07_scanbot scr=4 seg=15 frame=29 clipframe=79
 tap 10,10 -> scr=2 seg=3 game=0 theme=1 act=1
 tap 185,50 -> scr=5 seg=20 game=0 theme=1 act=1
-dump 11_controlbot scr=5 seg=20 frame=29 clipframe=29
+dump 08_controlbot scr=5 seg=20 frame=29 clipframe=29
 tap 10,10 -> scr=2 seg=3 game=0 theme=1 act=1
 tap 150,175 -> scr=3 seg=9 game=0 theme=1 act=1
-tap 140,225 -> scr=6 seg=23 game=9 theme=1 act=1
-dump 12_keyfob_phase0_hold scr=6 seg=23 frame=32 clipframe=32
+dump 09_terminalbot_before_deauth scr=3 seg=9 frame=29 clipframe=149
+tap 52,55 -> scr=6 seg=24 game=1 theme=1 act=1
+dump 10_deauth_phase0_hold scr=6 seg=24 frame=32 clipframe=32
+tap 120,120 -> scr=6 seg=24 game=1 theme=1 act=1
+dump 11_deauth_phase1_hold scr=6 seg=24 frame=120 clipframe=120
+tap 10,10 -> scr=2 seg=3 game=1 theme=1 act=1
+dump 12_back_home_from_deauth scr=2 seg=3 frame=19 clipframe=139
+tap 150,175 -> scr=3 seg=9 game=1 theme=1 act=1
+dump 13_terminalbot_before_meta scr=3 seg=9 frame=29 clipframe=149
+tap 187,55 -> scr=6 seg=25 game=2 theme=1 act=1
+dump 14_meta_phase0_hold scr=6 seg=25 frame=32 clipframe=32
+tap 120,120 -> scr=6 seg=25 game=2 theme=1 act=1
+dump 15_meta_phase1_hold scr=6 seg=25 frame=120 clipframe=120
+tap 10,10 -> scr=2 seg=3 game=2 theme=1 act=1
+dump 16_back_home_from_meta scr=2 seg=3 frame=19 clipframe=139
+tap 150,175 -> scr=3 seg=9 game=2 theme=1 act=1
+dump 17_terminalbot_before_hack scr=3 seg=9 frame=29 clipframe=149
+tap 52,112 -> scr=6 seg=26 game=3 theme=1 act=1
+dump 18_hack_phase0_hold scr=6 seg=26 frame=32 clipframe=32
+tap 120,120 -> scr=6 seg=26 game=3 theme=1 act=1
+dump 19_hack_phase1_hold scr=6 seg=26 frame=120 clipframe=120
+tap 10,10 -> scr=2 seg=3 game=3 theme=1 act=1
+dump 20_back_home_from_hack scr=2 seg=3 frame=19 clipframe=139
+tap 150,175 -> scr=3 seg=9 game=3 theme=1 act=1
+dump 21_terminalbot_before_skimmer scr=3 seg=9 frame=29 clipframe=149
+tap 187,112 -> scr=6 seg=27 game=4 theme=1 act=1
+dump 22_skimmer_phase0_hold scr=6 seg=27 frame=32 clipframe=32
+tap 120,120 -> scr=6 seg=27 game=4 theme=1 act=1
+dump 23_skimmer_phase1_hold scr=6 seg=27 frame=120 clipframe=120
+tap 10,10 -> scr=2 seg=3 game=4 theme=1 act=1
+dump 24_back_home_from_skimmer scr=2 seg=3 frame=19 clipframe=139
+tap 150,175 -> scr=3 seg=9 game=4 theme=1 act=1
+dump 25_terminalbot_before_flock scr=3 seg=9 frame=29 clipframe=149
+tap 52,170 -> scr=6 seg=28 game=5 theme=1 act=1
+dump 26_flock_phase0_hold scr=6 seg=28 frame=32 clipframe=32
+tap 120,120 -> scr=6 seg=28 game=5 theme=1 act=1
+dump 27_flock_phase1_hold scr=6 seg=28 frame=120 clipframe=120
+tap 10,10 -> scr=2 seg=3 game=5 theme=1 act=1
+dump 28_back_home_from_flock scr=2 seg=3 frame=19 clipframe=139
+tap 150,175 -> scr=3 seg=9 game=5 theme=1 act=1
+dump 29_terminalbot_before_flipper scr=3 seg=9 frame=29 clipframe=149
+tap 187,170 -> scr=6 seg=29 game=6 theme=1 act=1
+dump 30_flipper_phase0_hold scr=6 seg=29 frame=32 clipframe=32
+tap 120,120 -> scr=6 seg=29 game=6 theme=1 act=1
+dump 31_flipper_phase1_hold scr=6 seg=29 frame=120 clipframe=120
+tap 10,10 -> scr=2 seg=3 game=6 theme=1 act=1
+dump 32_back_home_from_flipper scr=2 seg=3 frame=19 clipframe=139
+tap 150,175 -> scr=3 seg=9 game=6 theme=1 act=1
+dump 33_terminalbot_before_drone scr=3 seg=9 frame=29 clipframe=149
+tap 52,225 -> scr=6 seg=30 game=7 theme=1 act=1
+dump 34_drone_phase0_hold scr=6 seg=30 frame=32 clipframe=32
+tap 120,120 -> scr=6 seg=30 game=7 theme=1 act=1
+dump 35_drone_phase1_hold scr=6 seg=30 frame=120 clipframe=120
+tap 10,10 -> scr=2 seg=3 game=7 theme=1 act=1
+dump 36_back_home_from_drone scr=2 seg=3 frame=19 clipframe=139
+tap 150,175 -> scr=3 seg=9 game=7 theme=1 act=1
+dump 37_terminalbot_before_airtag scr=3 seg=9 frame=29 clipframe=149
+tap 97,225 -> scr=6 seg=22 game=8 theme=1 act=1
+dump 38_airtag_phase0_hold scr=6 seg=22 frame=32 clipframe=32
+tap 120,120 -> scr=6 seg=22 game=8 theme=1 act=1
+dump 39_airtag_phase1_hold scr=6 seg=22 frame=120 clipframe=120
+tap 10,10 -> scr=2 seg=3 game=8 theme=1 act=1
+dump 40_back_home_from_airtag scr=2 seg=3 frame=19 clipframe=139
+tap 150,175 -> scr=3 seg=9 game=8 theme=1 act=1
+dump 41_terminalbot_before_keyfob scr=3 seg=9 frame=29 clipframe=149
+tap 142,225 -> scr=6 seg=23 game=9 theme=1 act=1
+dump 42_keyfob_phase0_hold scr=6 seg=23 frame=32 clipframe=32
+tap 120,120 -> scr=6 seg=23 game=9 theme=1 act=1
+dump 43_keyfob_phase1_hold scr=6 seg=23 frame=104 clipframe=104
 tap 10,10 -> scr=2 seg=3 game=9 theme=1 act=1
+dump 44_back_home_from_keyfob scr=2 seg=3 frame=19 clipframe=139
 tap 150,175 -> scr=3 seg=9 game=9 theme=1 act=1
-tap 50,55 -> scr=6 seg=22 game=1 theme=1 act=1
-dump 13_deauth_template_air scr=6 seg=22 frame=32 clipframe=32
+dump 45_terminalbot_before_samsung scr=3 seg=9 frame=29 clipframe=149
+tap 187,225 -> scr=6 seg=31 game=10 theme=1 act=1
+dump 46_samsung_phase0_hold scr=6 seg=31 frame=32 clipframe=32
+tap 120,120 -> scr=6 seg=31 game=10 theme=1 act=1
+dump 47_samsung_phase1_hold scr=6 seg=31 frame=120 clipframe=120
+tap 10,10 -> scr=2 seg=3 game=10 theme=1 act=1
+dump 48_back_home_from_samsung scr=2 seg=3 frame=19 clipframe=139

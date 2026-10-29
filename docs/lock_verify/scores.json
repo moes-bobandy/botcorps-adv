@@ -310,5 +310,109 @@
    "/workspace/cydport/verify/key_f329_ref_render_diff.png",
    "/workspace/cydport/verify/key_f658_ref_render_diff.png"
   ]
+ },
+ "deauth": {
+  "clip": "deauth",
+  "frames": "0-738",
+  "loop": 0,
+  "mean_close_pct": 99.976,
+  "min_close_pct": 99.945,
+  "min_at": 390,
+  "pngs": [
+   "/workspace/cydport/verify/deauth_f000_ref_render_diff.png",
+   "/workspace/cydport/verify/deauth_f369_ref_render_diff.png",
+   "/workspace/cydport/verify/deauth_f738_ref_render_diff.png"
+  ]
+ },
+ "meta": {
+  "clip": "meta",
+  "frames": "0-738",
+  "loop": 0,
+  "mean_close_pct": 99.943,
+  "min_close_pct": 99.883,
+  "min_at": 401,
+  "pngs": [
+   "/workspace/cydport/verify/meta_f000_ref_render_diff.png",
+   "/workspace/cydport/verify/meta_f369_ref_render_diff.png",
+   "/workspace/cydport/verify/meta_f738_ref_render_diff.png"
+  ]
+ },
+ "hack": {
+  "clip": "hack",
+  "frames": "0-738",
+  "loop": 0,
+  "mean_close_pct": 99.947,
+  "min_close_pct": 99.889,
+  "min_at": 395,
+  "pngs": [
+   "/workspace/cydport/verify/hack_f000_ref_render_diff.png",
+   "/workspace/cydport/verify/hack_f369_ref_render_diff.png",
+   "/workspace/cydport/verify/hack_f738_ref_render_diff.png"
+  ]
+ },
+ "skimmer": {
+  "clip": "skimmer",
+  "frames": "0-738",
+  "loop": 0,
+  "mean_close_pct": 99.996,
+  "min_close_pct": 99.979,
+  "min_at": 180,
+  "pngs": [
+   "/workspace/cydport/verify/skimmer_f000_ref_render_diff.png",
+   "/workspace/cydport/verify/skimmer_f369_ref_render_diff.png",
+   "/workspace/cydport/verify/skimmer_f738_ref_render_diff.png"
+  ]
+ },
+ "flock": {
+  "clip": "flock",
+  "frames": "0-738",
+  "loop": 0,
+  "mean_close_pct": 99.946,
+  "min_close_pct": 99.888,
+  "min_at": 379,
+  "pngs": [
+   "/workspace/cydport/verify/flock_f000_ref_render_diff.png",
+   "/workspace/cydport/verify/flock_f369_ref_render_diff.png",
+   "/workspace/cydport/verify/flock_f738_ref_render_diff.png"
+  ]
+ },
+ "flipper": {
+  "clip": "flipper",
+  "frames": "0-738",
+  "loop": 0,
+  "mean_close_pct": 99.944,
+  "min_close_pct": 99.857,
+  "min_at": 397,
+  "pngs": [
+   "/workspace/cydport/verify/flipper_f000_ref_render_diff.png",
+   "/workspace/cydport/verify/flipper_f369_ref_render_diff.png",
+   "/workspace/cydport/verify/flipper_f738_ref_render_diff.png"
+  ]
+ },
+ "drone": {
+  "clip": "drone",
+  "frames": "0-738",
+  "loop": 0,
+  "mean_close_pct": 99.997,
+  "min_close_pct": 99.977,
+  "min_at": 498,
+  "pngs": [
+   "/workspace/cydport/verify/drone_f000_ref_render_diff.png",
+   "/workspace/cydport/verify/drone_f369_ref_render_diff.png",
+   "/workspace/cydport/verify/drone_f738_ref_render_diff.png"
+  ]
+ },
+ "samsung": {
+  "clip": "samsung",
+  "frames": "0-738",
+  "loop": 0,
+  "mean_close_pct": 99.941,
+  "min_close_pct": 99.9,
+  "min_at": 509,
+  "pngs": [
+   "/workspace/cydport/verify/samsung_f000_ref_render_diff.png",
+   "/workspace/cydport/verify/samsung_f369_ref_render_diff.png",
+   "/workspace/cydport/verify/samsung_f738_ref_render_diff.png"
+  ]
  }
 }

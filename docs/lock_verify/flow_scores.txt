@@ -1,13 +1,48 @@
-01_boot seg=0 clipframe=39 close=100.000%
-02_home_intro seg=1 clipframe=59 close=99.387%
-03_home_grape seg=2 clipframe=447 close=99.964%
-04_home_magenta seg=3 clipframe=149 close=99.991%
-05_terminalbot seg=9 clipframe=149 close=99.982%
-06_airtag_phase0_hold seg=22 clipframe=32 close=99.973%
-07_airtag_phase1_hold seg=22 clipframe=120 close=99.859%
-08_back_home seg=3 clipframe=139 close=99.990%
-09_gibson_phase0_hold seg=21 clipframe=66 close=99.746%
-10_scanbot seg=15 clipframe=79 close=100.000%
-11_controlbot seg=20 clipframe=29 close=99.984%
-12_keyfob_phase0_hold seg=23 clipframe=32 close=99.850%
-13_deauth_template_air seg=22 clipframe=32 close=99.973%
+01_boot clip=boot seg=0 clipframe=39 close=100.000%
+02_home_intro clip=home seg=1 clipframe=59 close=99.387%
+03_home_grape clip=home seg=2 clipframe=447 close=99.964%
+04_home_magenta clip=home seg=3 clipframe=149 close=99.991%
+05_gibson_phase0_hold clip=gib seg=21 clipframe=66 close=99.746%
+06_gibson_phase1_hold clip=gib seg=21 clipframe=159 close=99.855%
+07_scanbot clip=scan seg=15 clipframe=79 close=100.000%
+08_controlbot clip=ctl seg=20 clipframe=29 close=99.984%
+09_terminalbot_before_deauth clip=term seg=9 clipframe=149 close=99.982%
+10_deauth_phase0_hold clip=deauth seg=24 clipframe=32 close=99.967%
+11_deauth_phase1_hold clip=deauth seg=24 clipframe=120 close=99.982%
+12_back_home_from_deauth clip=home seg=3 clipframe=139 close=99.990%
+13_terminalbot_before_meta clip=term seg=9 clipframe=149 close=99.982%
+14_meta_phase0_hold clip=meta seg=25 clipframe=32 close=99.975%
+15_meta_phase1_hold clip=meta seg=25 clipframe=120 close=99.917%
+16_back_home_from_meta clip=home seg=3 clipframe=139 close=99.990%
+17_terminalbot_before_hack clip=term seg=9 clipframe=149 close=99.982%
+18_hack_phase0_hold clip=hack seg=26 clipframe=32 close=99.987%
+19_hack_phase1_hold clip=hack seg=26 clipframe=120 close=99.902%
+20_back_home_from_hack clip=home seg=3 clipframe=139 close=99.990%
+21_terminalbot_before_skimmer clip=term seg=9 clipframe=149 close=99.982%
+22_skimmer_phase0_hold clip=skimmer seg=27 clipframe=32 close=99.997%
+23_skimmer_phase1_hold clip=skimmer seg=27 clipframe=120 close=100.000%
+24_back_home_from_skimmer clip=home seg=3 clipframe=139 close=99.990%
+25_terminalbot_before_flock clip=term seg=9 clipframe=149 close=99.982%
+26_flock_phase0_hold clip=flock seg=28 clipframe=32 close=99.979%
+27_flock_phase1_hold clip=flock seg=28 clipframe=120 close=99.893%
+28_back_home_from_flock clip=home seg=3 clipframe=139 close=99.990%
+29_terminalbot_before_flipper clip=term seg=9 clipframe=149 close=99.982%
+30_flipper_phase0_hold clip=flipper seg=29 clipframe=32 close=99.964%
+31_flipper_phase1_hold clip=flipper seg=29 clipframe=120 close=99.913%
+32_back_home_from_flipper clip=home seg=3 clipframe=139 close=99.990%
+33_terminalbot_before_drone clip=term seg=9 clipframe=149 close=99.982%
+34_drone_phase0_hold clip=drone seg=30 clipframe=32 close=99.997%
+35_drone_phase1_hold clip=drone seg=30 clipframe=120 close=99.999%
+36_back_home_from_drone clip=home seg=3 clipframe=139 close=99.990%
+37_terminalbot_before_airtag clip=term seg=9 clipframe=149 close=99.982%
+38_airtag_phase0_hold clip=air seg=22 clipframe=32 close=99.973%
+39_airtag_phase1_hold clip=air seg=22 clipframe=120 close=99.859%
+40_back_home_from_airtag clip=home seg=3 clipframe=139 close=99.990%
+41_terminalbot_before_keyfob clip=term seg=9 clipframe=149 close=99.982%
+42_keyfob_phase0_hold clip=key seg=23 clipframe=32 close=99.850%
+43_keyfob_phase1_hold clip=key seg=23 clipframe=104 close=99.997%
+44_back_home_from_keyfob clip=home seg=3 clipframe=139 close=99.990%
+45_terminalbot_before_samsung clip=term seg=9 clipframe=149 close=99.982%
+46_samsung_phase0_hold clip=samsung seg=31 clipframe=32 close=99.982%
+47_samsung_phase1_hold clip=samsung seg=31 clipframe=120 close=99.922%
+48_back_home_from_samsung clip=home seg=3 clipframe=139 close=99.990%

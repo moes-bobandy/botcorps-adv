@@ -7,36 +7,138 @@ dump 03_home_grape
 tap 80 8
 tick 30
 dump 04_home_magenta
-tap 150 175
-tick 30
-dump 05_terminalbot
-tap 97 225
-tick 40
-dump 06_airtag_phase0_hold
-tap 120 120
-tick 100
-dump 07_airtag_phase1_hold
-tap 10 10
-tick 20
-dump 08_back_home
 tap 110 70
 tick 80
-dump 09_gibson_phase0_hold
+dump 05_gibson_phase0_hold
+tap 120 120
+tick 100
+dump 06_gibson_phase1_hold
 tap 10 10
 tap 60 175
 tick 30
-dump 10_scanbot
+dump 07_scanbot
 tap 10 10
 tap 185 50
 tick 30
-dump 11_controlbot
+dump 08_controlbot
 tap 10 10
 tap 150 175
-tap 140 225
+tick 30
+dump 09_terminalbot_before_deauth
+tap 52 55
 tick 40
-dump 12_keyfob_phase0_hold
+dump 10_deauth_phase0_hold
+tap 120 120
+tick 100
+dump 11_deauth_phase1_hold
 tap 10 10
+tick 20
+dump 12_back_home_from_deauth
 tap 150 175
-tap 50 55
+tick 30
+dump 13_terminalbot_before_meta
+tap 187 55
 tick 40
-dump 13_deauth_template_air
+dump 14_meta_phase0_hold
+tap 120 120
+tick 100
+dump 15_meta_phase1_hold
+tap 10 10
+tick 20
+dump 16_back_home_from_meta
+tap 150 175
+tick 30
+dump 17_terminalbot_before_hack
+tap 52 112
+tick 40
+dump 18_hack_phase0_hold
+tap 120 120
+tick 100
+dump 19_hack_phase1_hold
+tap 10 10
+tick 20
+dump 20_back_home_from_hack
+tap 150 175
+tick 30
+dump 21_terminalbot_before_skimmer
+tap 187 112
+tick 40
+dump 22_skimmer_phase0_hold
+tap 120 120
+tick 100
+dump 23_skimmer_phase1_hold
+tap 10 10
+tick 20
+dump 24_back_home_from_skimmer
+tap 150 175
+tick 30
+dump 25_terminalbot_before_flock
+tap 52 170
+tick 40
+dump 26_flock_phase0_hold
+tap 120 120
+tick 100
+dump 27_flock_phase1_hold
+tap 10 10
+tick 20
+dump 28_back_home_from_flock
+tap 150 175
+tick 30
+dump 29_terminalbot_before_flipper
+tap 187 170
+tick 40
+dump 30_flipper_phase0_hold
+tap 120 120
+tick 100
+dump 31_flipper_phase1_hold
+tap 10 10
+tick 20
+dump 32_back_home_from_flipper
+tap 150 175
+tick 30
+dump 33_terminalbot_before_drone
+tap 52 225
+tick 40
+dump 34_drone_phase0_hold
+tap 120 120
+tick 100
+dump 35_drone_phase1_hold
+tap 10 10
+tick 20
+dump 36_back_home_from_drone
+tap 150 175
+tick 30
+dump 37_terminalbot_before_airtag
+tap 97 225
+tick 40
+dump 38_airtag_phase0_hold
+tap 120 120
+tick 100
+dump 39_airtag_phase1_hold
+tap 10 10
+tick 20
+dump 40_back_home_from_airtag
+tap 150 175
+tick 30
+dump 41_terminalbot_before_keyfob
+tap 142 225
+tick 40
+dump 42_keyfob_phase0_hold
+tap 120 120
+tick 100
+dump 43_keyfob_phase1_hold
+tap 10 10
+tick 20
+dump 44_back_home_from_keyfob
+tap 150 175
+tick 30
+dump 45_terminalbot_before_samsung
+tap 187 225
+tick 40
+dump 46_samsung_phase0_hold
+tap 120 120
+tick 100
+dump 47_samsung_phase1_hold
+tap 10 10
+tick 20
+dump 48_back_home_from_samsung

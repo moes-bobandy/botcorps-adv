@@ -198,5 +198,109 @@
   ],
   "bytes": 119620,
   "npal": 76
+ },
+ "deauth": {
+  "src": "/workspace/cyd-lock-store/LOCKED/ui_game_deauth/deauth@3x.mp4",
+  "segs": [
+   [
+    0,
+    738,
+    0,
+    "deauth"
+   ]
+  ],
+  "bytes": 138688,
+  "npal": 71
+ },
+ "meta": {
+  "src": "/workspace/cyd-lock-store/LOCKED/ui_game_meta/meta@3x.mp4",
+  "segs": [
+   [
+    0,
+    738,
+    0,
+    "meta"
+   ]
+  ],
+  "bytes": 143514,
+  "npal": 103
+ },
+ "hack": {
+  "src": "/workspace/cyd-lock-store/LOCKED/ui_game_hack/hack@3x.mp4",
+  "segs": [
+   [
+    0,
+    738,
+    0,
+    "hack"
+   ]
+  ],
+  "bytes": 132109,
+  "npal": 66
+ },
+ "skimmer": {
+  "src": "/workspace/cyd-lock-store/LOCKED/ui_game_skimmer/skimmer@3x.mp4",
+  "segs": [
+   [
+    0,
+    738,
+    0,
+    "skimmer"
+   ]
+  ],
+  "bytes": 140280,
+  "npal": 102
+ },
+ "flock": {
+  "src": "/workspace/cyd-lock-store/LOCKED/ui_game_flock/flock@3x.mp4",
+  "segs": [
+   [
+    0,
+    738,
+    0,
+    "flock"
+   ]
+  ],
+  "bytes": 136138,
+  "npal": 69
+ },
+ "flipper": {
+  "src": "/workspace/cyd-lock-store/LOCKED/ui_game_flipper/flipper@3x.mp4",
+  "segs": [
+   [
+    0,
+    738,
+    0,
+    "flipper"
+   ]
+  ],
+  "bytes": 135025,
+  "npal": 76
+ },
+ "drone": {
+  "src": "/workspace/cyd-lock-store/LOCKED/ui_game_drone/drone@3x.mp4",
+  "segs": [
+   [
+    0,
+    738,
+    0,
+    "drone"
+   ]
+  ],
+  "bytes": 137718,
+  "npal": 69
+ },
+ "samsung": {
+  "src": "/workspace/cyd-lock-store/LOCKED/ui_game_samsung/samsung@3x.mp4",
+  "segs": [
+   [
+    0,
+    738,
+    0,
+    "samsung"
+   ]
+  ],
+  "bytes": 145477,
+  "npal": 70
  }
 }

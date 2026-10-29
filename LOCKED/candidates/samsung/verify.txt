@@ -1,0 +1,17 @@
+frames 739 739
+native px changed (>24) outside mask: 1920  outside mask+1px: 1916  max diff outside mask+1px: 30
+mask native px: 7086  bbox rows [168 303] cols [ 35 175]
+residual AIR TAG colours inside per-device mask (candidate): {'5a5510': 674, '524518': 82, '5a654a': 0, 'ffff00': 0, 'ffba4a': 0, '312c10': 0}
+leftover tracker rain icons: 5793 [(0, 40, 232), (0, 56, 248), (0, 64, 232), (0, 88, 248), (0, 184, 224), (0, 192, 208), (0, 192, 216), (0, 192, 232), (0, 192, 240), (1, 40, 232)]
+yellow tag px in field (y33-117,x40-205): 116928  in chip icon box: 41384
+explanations:
+  outside-mask diffs are x264 generation loss only (pre-encode: 0 changed px outside mask, asserted per frame in run.py); baseline re-encode of untouched AIR TAG v3 = 2397 px >24, max 46.
+  '5a5510'/'524518' hits inside mask in the control-A rect (y184-226,x35-102) are codec blur of control A's own ZAP/EMP button edges: exact +-10 matches in that rect pre-encode = 0 (frames 0,190,250,260,265,300,330,379,400,500,578,600); the A gif itself has 0 pixels within +-10 of those colours.
+control A source: chat attachment /home/box/agent-data/agents/c18300f9-2b0f-42e0-a342-d3bd5c97abe7/attachments/cff6033e20e3c9aac1c05626cce4c62899b6910eb04e22673174e8e45e2e6e3c.gif (A_shock animation: ZAP + EMP chip buttons + 9-cell meter, 22 frames) + stills sheet b56df02e7cf08beb038f4bfaf5a10c00436b53493120747bd2f26bbb2c2f9dd0.png ('A idle' / 'A fire'). Not in git history or firmware source.
+control A placement: rect y184-226 x35-102 replaces AIR TAG's control C rect; gif rows shifted +2 px (gif layout is 2 px higher than the game clips; measured on C gif af9d vs AIR TAG and B gif 4acb vs KEYFOB). Timing: gif frame A11 (fire) anchored to AIR TAG's C fire frames 260/379/578; gif ms timing at 30 ms per video frame (t=2210+(f-E)*30); A0 idle elsewhere.
+zoom: mainchip/devchip/topchip @f250,f265, control A @f330 (EMP pressed), f260 (ZAP fire, meter full), f500 (idle), field targets @f100 reviewed: full inner pin ring + outer pins, theme-coloured, real gl_icon art, no red rings, no stray native pixels.
+  leftover tracker rain icons / yellow tag px / tracker field+chip icon are intended: BH_DEV samsung = GL_TRACKER, the same device as AIR TAG, so field targets, chip icon, rain and silk 'TRACKER U2' are AIR TAG v3's own pixels, untouched (not in mask).
+device: GL_TRACKER (unchanged). Changed: face BOT_PAL 207 = e75dff, label SAMSUNG, control A, terminal SIG/SUB[11]: tracker / echo / ring.
+ffprobe: stream|codec_name=h264|profile=High|width=720|height=960|pix_fmt=yuv420p|r_frame_rate=100/3|nb_frames=739
+atom order: type:'moov' parent:'root' sz: 9341 40 1069174
+type:'moov' type:'mdat' 

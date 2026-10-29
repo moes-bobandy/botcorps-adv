@@ -403,7 +403,6 @@ static const CydRect CYD_SB_TERM = { 190, 2, 16, 13 };       /* sb_top >_ quick 
 static const CydRect CYD_TERM_CROWN = { 203, 0, 24, 16 };    /* paint_term_icons CROWN "back" -> hub */
 static const CydRect CYD_CP_CROWN = { 142, 0, 36, 16 };      /* paint_control crown (cursor CP_N+1) */
 static const CydRect CYD_CP_TERM = { 194, 1, 22, 14 };       /* paint_control BTN "term" (cursor CP_N) */
-static const CydRect CYD_CROWN_BTN = { 140, 0, 40, 20 };     /* crown_btn (Diag) -> Esc */
 
 static int cyd_top_touch(int tx, int ty)
 {
@@ -435,7 +434,6 @@ static int cyd_top_touch(int tx, int ty)
         }
         return -1;
     }
-    if (s_screen == SCR_DIAG && cyd_in(CYD_CROWN_BTN, tx, ty, 0)) return K_ESC;
     return -1;
 }
 

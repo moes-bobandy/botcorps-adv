@@ -356,7 +356,7 @@ static void scanb_crew_die_p(Gfx g, int x, int y, bool bt)
 }
 
 /* ============================================================================
- * Edge-board screens: Wi-Fi / BT radar, bot + Gibson SCAN, Rain, Defend chat, Diag.
+ * Edge-board screens: Wi-Fi / BT radar, bot + Gibson SCAN, Rain, Defend chat (Diag deleted hub14).
  * Each one: e_board (side headers) -> parts -> silk -> castellated plate wired by traces -> e_finish
  * (top bar + gold edge). The scan parts are drawn in the mock-B portrait geometry and placed per
  * orientation through EShift.
@@ -904,113 +904,7 @@ static void paint_gchat_e(Gfx g)
     if (botcorps_cyd_orient != 0) paint_gchat_e_p10(g); else paint_gchat_e_l(g);
 }
 
-/* Diag (hub9): edge-to-edge board, probe chip centred on top, the probe readout in a centred silk
- * panel, and the shared 3-line Adv terminal plate (reticle / CORE / menu column) centred at the bottom. */
-static void e_diag_geo(int *pl)   /* the 3-line plate */
-{
-    if (botcorps_cyd_orient) { pl[0] = 31; pl[1] = 261; pl[2] = 178; pl[3] = 49; }
-    else { pl[0] = 34; pl[1] = 184; pl[2] = 252; pl[3] = 49; }
-}
-static void e_diag_panel(int *r)  /* the readout panel, clear of the plate's pad column */
-{
-    if (botcorps_cyd_orient) { r[0] = 37; r[1] = 80; r[2] = 166; r[3] = 137; }
-    else { r[0] = 47; r[1] = 64; r[2] = 226; r[3] = 78; }
-}
-static void e_diag_chip(int *x, int *y, int *s)
-{
-    if (botcorps_cyd_orient) { *s = 32; *x = 120 - 16; *y = 34; }
-    else { *s = 24; *x = 160 - 12; *y = 32; }
-}
-static void e_probe_chip(Gfx g, int x, int y, int s)
-{
-    const uint8_t ring = (uint8_t)110, pin = (uint8_t)186;
-    g.fillRect(x, y, s, s, PAL_BLACK);
-    g.drawRect(x, y, s, s, ring);
-    const int n = s / 8, st = s / n, o = (s - (n - 1) * st) / 2 - 1;
-    for (int k = 0; k < n; ++k) {
-        g.fillRect(x + o + k * st, y - 3, 2, 3, pin); g.fillRect(x + o + k * st, y + s, 2, 3, pin);
-        g.fillRect(x - 3, y + o + k * st, 3, 2, pin); g.fillRect(x + s, y + o + k * st, 3, 2, pin);
-    }
-    const int in = s - 12;
-    g.fillRect(x + 6, y + 6, in, in, (uint8_t)PAL_DIAG);
-    tiny_text(g, "PRB", x + (s - tiny_w("PRB")) / 2, y + (s - 5) / 2, PAL_BLACK);
-}
-static void paint_diag_e(Gfx g)
-{
-    const bool P = botcorps_cyd_orient != 0;
-    int PL[4]; e_diag_geo(PL);
-    int R[4]; e_diag_panel(R);
-    int cx, cy, cs; e_diag_chip(&cx, &cy, &cs);
-    e_board(g);
-    cbf(g, 29, 26, EW() - 58, EH() - 28, (uint8_t)PAL_FIELD);   /* hub12: field fill (stale rain/icons showed through) */
-    {   /* hub12 board match: home-P decor around probe chip + silk, readout panel and plate */
-        const int pw = tiny_w("PROBE");
-        const ERect K[4] = { { (int16_t)(cx - 7 - pw - 2), (int16_t)(cy - 4), (int16_t)(cs + 14 + pw + tiny_w("U9") + 4), (int16_t)(cs + 8) },
-                             { (int16_t)(EW() / 2 - 10), (int16_t)(cy + cs), 22, (int16_t)(PL[1] - cy - cs) },
-                             { (int16_t)R[0], (int16_t)(R[1] - 2), (int16_t)R[2], (int16_t)(R[3] + 4) },
-                             { (int16_t)(PL[0] - 2), (int16_t)(PL[1] - 4), (int16_t)(PL[2] + 4), (int16_t)(PL[3] + 6) } };
-        e_decor(g, K, 4, PL[1] - 4);
-    }
-    /* traces: chip -> panel -> plate (mirrored about the centre line), hub12: 2 px + vias */
-    const int mid = EW() / 2;
-    for (int d : { -8, 7 }) {
-        const Pt a[2] = { { mid + d, cy + cs + 3 }, { mid + d, R[1] - 2 } }; e_route2(g, a, 2);
-        const Pt b2[2] = { { mid + d, R[1] + R[3] + 2 }, { mid + d, PL[1] - 2 } }; e_route2(g, b2, 2);
-    }
-    e_probe_chip(g, cx, cy, cs);
-    e_silk_c(g, "PROBE", cx - 7 - tiny_w("PROBE") / 2, cy + cs / 2 - 2, cb_silk());
-    e_silk_c(g, "U9", cx + cs + 7 + tiny_w("U9") / 2, cy + cs / 2 - 2, cb_silk());
-    int sx, sy, sw, sh;
-    e_plate_shell(g, R[0], R[1], R[2], R[3], "PROBE", false, &sx, &sy, &sw, &sh);
-    const botcorps_probe_t *p = botcorps_probe_get();
-    struct spec { int id; const char *name; int kind; };
-    static const spec rows[] = {
-        { BOTCORPS_ST_M0, "M0", 0 }, { BOTCORPS_ST_M5, "M5", 0 }, { BOTCORPS_ST_E0, "E0", 0 },
-        { BOTCORPS_ST_EXT, "EXT", 1 }, { BOTCORPS_ST_T0, "T0", 2 }, { BOTCORPS_ST_A0, "A0", 0 },
-        { BOTCORPS_ST_A1, "A1", 3 }, { BOTCORPS_ST_SC0, "S0", 0 }, { BOTCORPS_ST_SC1, "S1", 4 },
-        { BOTCORPS_ST_B0, "B0", 0 }, { BOTCORPS_ST_B1, "B1", 5 }, { BOTCORPS_ST_F0, "F0", 0 },
-        { BOTCORPS_ST_SF, "SF", 6 }, { BOTCORPS_ST_W0, "W0", 0 }, { BOTCORPS_ST_W1, "W1", 7 },
-        { BOTCORPS_ST_OV0, "O0", 0 }, { BOTCORPS_ST_OV1, "O1", 8 }, { BOTCORPS_ST_N2, "N2", 9 },
-    };
-    enum { NR = (int)(sizeof(rows) / sizeof(rows[0])), PITCH = 6 };
-    const int cols = P ? 1 : 2, per = (NR + cols - 1) / cols;
-    const int colw = (sw - 6) / cols, maxc = (colw - (cols > 1 ? 4 : 0)) / 4;
-    char line[64], up[64];
-    if (p) {
-        for (int i = 0; i < NR; ++i) {
-            char tail[16];
-            tail[0] = 0;
-            switch (rows[i].kind) {
-            case 1: snprintf(tail, sizeof(tail), "%s", p->ext_st); break;
-            case 2: snprintf(tail, sizeof(tail), "%lu", (unsigned long)p->tier0); break;
-            case 3: snprintf(tail, sizeof(tail), "%s %d", p->nim_a, p->nim_a_rc); break;
-            case 4: snprintf(tail, sizeof(tail), "spr%d", p->sprite_held); break;
-            case 5: snprintf(tail, sizeof(tail), "%s %d", p->nim_b, p->nim_b_rc); break;
-            case 6: snprintf(tail, sizeof(tail), "free%d", p->sprite_freed); break;
-            case 7: snprintf(tail, sizeof(tail), "n%d", p->wifi_n); break;
-            case 8: snprintf(tail, sizeof(tail), "%d", p->ov_ok); break;
-            case 9: snprintf(tail, sizeof(tail), "%s %d", p->nim_2, p->nim_2_rc); break;
-            default: break;
-            }
-            if (P)
-                snprintf(line, sizeof(line), "%02d %s %lu L%lu %lu %s", p->ord[rows[i].id], rows[i].name,
-                         (unsigned long)p->st[rows[i].id].free_b, (unsigned long)p->st[rows[i].id].max_b,
-                         (unsigned long)p->st[rows[i].id].min_b, tail);
-            else   /* landscape: two columns, min_b dropped to fit */
-                snprintf(line, sizeof(line), "%02d %s %lu L%lu %s", p->ord[rows[i].id], rows[i].name,
-                         (unsigned long)p->st[rows[i].id].free_b, (unsigned long)p->st[rows[i].id].max_b, tail);
-            sb_upper(up, sizeof up, line, maxc);
-            tiny_text(g, up, sx + 3 + (i / per) * colw, sy + 3 + (i % per) * PITCH, PAL_WHITE);
-        }
-    }
-    snprintf(line, sizeof(line), "%s %s L%lu", botcorps_band_mode_name(), botcorps_band_direct() ? "direct" : "ok",
-             (unsigned long)botcorps_band_largest());
-    sb_upper(up, sizeof up, line, (sw - 6) / 4);
-    g.fillRect(sx + 2, sy + 3 + per * PITCH, sw - 4, 1, PAL_LINE);
-    tiny_text(g, up, sx + 3, sy + 3 + per * PITCH + 2, accent());
-    e_plate(g, PL[0], PL[1], PL[2], PL[3], "DIAG", false);
-    e_finish(g);
-}
+/* hub14: the CYD Diag screen (probe chip + readout panel) is deleted (Mobandy 10-27 3:04 PM "delete it"). */
 
 /* rain covers for the live-rain edge screens (hub / Control have their own) */
 static void e_covers(void)
@@ -1028,9 +922,6 @@ static void e_covers(void)
     } else if (s_screen == SCR_GCHAT) {
         if (P) { cover_add(28, 34, 184, 64); cover_add(96, 96, 36, 8); cover_add(36, 102, 168, 120); cover_add(96, 220, 36, 40); cover_add(27, 257, 185, 56); }   /* hub14: hub10 P Defend covers */
         else cover_add(28, 28, W - 56, H - 32);   /* hub12 L: whole interior is board (decor), like SCAN */
-    } else if (s_screen == SCR_DIAG) {
-        (void)P;
-        cover_add(28, 28, W - 56, H - 32);   /* hub9: edge-to-edge board, the whole interior is parts */
     } else {
         cover_add(28, 28, W - 56, H - 32);   /* scan boards: the whole interior is parts */
     }
@@ -1071,7 +962,6 @@ static void paint_ext_portrait(Gfx g)
     case SCR_BT_RADAR:
     case SCR_SCAN: paint_scan_e(g); break;
     case SCR_CONTROL: paint_ctlbot(g); break;
-    case SCR_DIAG: paint_diag_e(g); break;
     default: paint_hubbot(g); break;   /* SCR_GIBSON (and anything unmapped lands on the hub) */
     }
     if (fa_live()) paint_found_alert(g);

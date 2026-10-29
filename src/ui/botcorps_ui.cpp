@@ -1196,6 +1196,7 @@ static void enter_screen(int id, int ret)
 #ifdef BOTCORPS_CYD
     /* Rule 4: no SCR_TERMINAL route on the CYD. TERMINAL = the hub TERMINALBOT plate. */
     if (id == SCR_TERMINAL) { id = SCR_GIBSON; ret = SCR_RAIN; s_cyd_term_plate = true; }
+    if (id == SCR_DIAG) return;   /* hub14: Diag deleted on the CYD (Mobandy 10-27 3:04 PM) */
 #endif
     /* v1016: the Wi-Fi / BLE lists live inside the scan box. No full-screen switch. */
     if (id == SCR_WIFI_LIST) id = SCR_WIFI_RADAR;
@@ -1646,7 +1647,11 @@ static void run_cmd(const char *line)
         }
     } else if (strcmp(cmd, "go") == 0 || strcmp(cmd, "load") == 0) {
         int id = -1;
+#ifdef BOTCORPS_CYD
+        if (!arg) log_add("rain gibson terminal bots scan wifi ble wifilist blelist control");   /* hub14: no diag */
+#else
         if (!arg) log_add("rain gibson terminal bots scan wifi ble wifilist blelist control diag");
+#endif
         else if (strcmp(arg, "rain") == 0) id = SCR_RAIN;
         else if (strcmp(arg, "gibson") == 0) id = SCR_GIBSON;
         else if (strcmp(arg, "terminal") == 0) id = SCR_TERMINAL;
@@ -1654,7 +1659,9 @@ static void run_cmd(const char *line)
         else if (strcmp(arg, "ble") == 0) { s_scan_bot = 1; id = SCR_SCAN; }    /* v1016n: bluetoothbot's scan screen */
         else if (strcmp(arg, "keyfob") == 0) { s_scan_bot = 7; id = SCR_SCAN; }
         else if (strcmp(arg, "control") == 0) id = SCR_CONTROL;
+#ifndef BOTCORPS_CYD
         else if (strcmp(arg, "diag") == 0) id = SCR_DIAG;
+#endif
         else if (strcmp(arg, "bots") == 0) id = SCR_TERMINAL;                   /* v1016n: the 12 ESP32 chip tiles */
         /* v1019q (#9c): the listed go / load options that used to answer "no such screen" */
         else if (strcmp(arg, "scan") == 0) { s_scan_bot = 12; id = SCR_SCAN; }  /* Gibson's scan board */
@@ -9816,7 +9823,6 @@ static int portrait_touch(int tx, int ty, char *typed)
         return K_NONE;
     }
     if (s_screen == SCR_GCHAT && cyd_dl_touch(tx, ty)) return K_NONE;   /* hub9: Defend field + banner buttons */
-    if (s_screen == SCR_DIAG) { enter_screen(SCR_GIBSON, SCR_GIBSON); s_dirty = true; return K_NONE; }   /* any tap = HOME */
     return K_NONE;
 }
 
@@ -10451,7 +10457,9 @@ static int gp_screen(const char *name)
     if (strcmp(name, "bleradar") == 0) return SCR_BT_RADAR;
     if (strcmp(name, "rain") == 0) return SCR_RAIN;
     if (strcmp(name, "gibson") == 0) return SCR_GIBSON;
+#ifndef BOTCORPS_CYD   /* hub14: Diag deleted on the CYD */
     if (strcmp(name, "diag") == 0) return SCR_DIAG;
+#endif
     return -1;
 }
 

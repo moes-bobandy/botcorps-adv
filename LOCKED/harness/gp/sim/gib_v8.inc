@@ -123,11 +123,12 @@ static void v8_plate(Gfx g, int f)
     g.fillRect(sx + 1, sy + 1, 146, 34, PAL_BLACK);
     const bool focus = f >= 34;
     if (focus) {
-        g.fillRect(sx + 2, sy + 13, 143, 1, dark);
+        /* extents measured on the clip (f60/f130/f300): dark x35-176, accent x35-175, dim edge x176 from row 285 */
+        g.fillRect(sx + 2, sy + 13, 142, 1, dark);
         g.fillRect(sx + 1, sy + 14, 1, 19, dark);
-        g.fillRect(sx + 2, sy + 14, 143, 1, ac);
+        g.fillRect(sx + 2, sy + 14, 141, 1, ac);
         g.fillRect(sx + 2, sy + 15, 1, 18, ac);
-        g.fillRect(sx + 145, sy + 15, 1, 18, dim);
+        g.fillRect(sx + 143, sy + 14, 1, 19, dim);
     }
     {
         /* scanline sweep fitted to the clip (scanobs: 628/630 frames): period 448 ms from t=63 ms,
@@ -136,9 +137,9 @@ static void v8_plate(Gfx g, int f)
         auto line_y = [](int32_t tt) { int32_t ph = ((tt - 63) % 448 + 448) % 448; int y = 275 + ph / 28; return y > 284 ? 284 : y; };
         const int scy = line_y((int32_t)t), prv = f > 1 ? line_y((int32_t)t - 30) : 284;
         const int tr0 = prv >= 284 ? 274 : prv + 1;
-        if (scy < 284 && tr0 < scy) g.fillRect(sx + 4, tr0, 141, scy - tr0, v8_ix(0x080808));
-        const uint8_t wc = (ts == 0 && ((f >= 57 && f <= 160) || (f >= 206 && f <= 210))) ? v8_ix(0x7328A5) : wire;
-        g.fillRect(sx + 4, scy, 141, 1, wc);
+        if (scy < 284 && tr0 < scy) g.fillRect(sx + 4, tr0, 139, scy - tr0, v8_ix(0x080808));
+        const uint8_t wc = (ts == 0 && scy == 284 && ((f >= 57 && f <= 160) || (f >= 206 && f <= 210))) ? v8_ix(0x7328A5) : wire;
+        g.fillRect(sx + 4, scy, 139, 1, wc);   /* x37-175 */
     }
     const int keep = s_px; s_px = 6;
     const char *ln = v8_at(V8_LOG, f);
@@ -151,8 +152,8 @@ static void v8_plate(Gfx g, int f)
     }
     /* prompt row: same glyph stack as cyd_adv_cmdline */
     const int px = sx + 5, py = sy + 17;
-    /* clip colours (measured, all themes): glow 211039, face b524ad */
-    const uint8_t pglow = v8_ix(0x211039), pface = v8_ix(0xB524AD);
+    /* clip colours (measured mode over all 630 frames): glow 101821, face b524ad */
+    const uint8_t pglow = v8_ix(0x101821), pface = v8_ix(0xB524AD);
     txt(g, "user@botcorps", px - 1, py, pglow, lgfx::textdatum::top_left);
     txt(g, "user@botcorps", px + 1, py, pglow, lgfx::textdatum::top_left);
     txt(g, "user@botcorps", px, py + 1, pglow, lgfx::textdatum::top_left);
@@ -224,7 +225,7 @@ static void v8_paint(Gfx g, int f)
     e_board(g);
     e_plate(g, HB_TBOT_P[0], HB_TBOT_P[1], HB_TBOT_P[2], HB_TBOT_P[3], HB_TBOT_SILK, false);
     e_finish(g);
-    if (!ov && !s_v8_noart) v8_art(g, f);
+    if (!s_v8_noart) v8_art(g, f);   /* all frames: overlay frames are traced too (delta vs base incl. the cl overlay) */
     v8_plate(g, f);
     s_screen = keep;
 }

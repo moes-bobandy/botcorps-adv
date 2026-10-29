@@ -1,0 +1,42 @@
+tick 40
+dump 01_boot
+tick 100
+dump 02_home_intro
+tick 60
+dump 03_home_grape
+tap 80 8
+tick 30
+dump 04_home_magenta
+tap 150 175
+tick 30
+dump 05_terminalbot
+tap 97 225
+tick 40
+dump 06_airtag_phase0_hold
+tap 120 120
+tick 100
+dump 07_airtag_phase1_hold
+tap 10 10
+tick 20
+dump 08_back_home
+tap 110 70
+tick 80
+dump 09_gibson_phase0_hold
+tap 10 10
+tap 60 175
+tick 30
+dump 10_scanbot
+tap 10 10
+tap 185 50
+tick 30
+dump 11_controlbot
+tap 10 10
+tap 150 175
+tap 140 225
+tick 40
+dump 12_keyfob_phase0_hold
+tap 10 10
+tap 150 175
+tap 50 55
+tick 40
+dump 13_deauth_template_air

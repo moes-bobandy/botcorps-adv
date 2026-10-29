@@ -1,4 +1,4 @@
-import sys; sys.path.insert(0,'/workspace/cydport/tools'); from lkenc import Enc
+import sys; sys.path.insert(0,__import__('os').path.dirname(__file__)); from lkenc import Enc
 L='/workspace/cyd-lock-store/LOCKED/'
 CTL='/home/box/agent-data/agents/c18300f9-2b0f-42e0-a342-d3bd5c97abe7/attachments/8cc9946c6003d1ebc97ae20980f9edb2874d4ffe6065c9e6b24b625cb2df952d.mp4'
 TH6=lambda pre,ranges:[(a,b,1,'%s_t%d'%(pre,i)) for i,(a,b) in enumerate(ranges)]

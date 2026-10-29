@@ -5,7 +5,7 @@ share of pixels within RGB Euclidean distance 40 (LOCKED/harness/gp score.py).
 Writes ref|render|diff PNGs (red = distance > 40) for first/mid/last frames."""
 import sys, os, json, subprocess, numpy as np
 from PIL import Image
-sys.path.insert(0, '/workspace/cydport/tools'); import lkenc
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'lock_enc')); import lkenc
 SIM = sys.argv[1]; OUT = sys.argv[2]; os.makedirs(OUT, exist_ok=True)
 meta = json.load(open('src/lock/lock_blob.bin.json'))
 seg = 0; res = {}

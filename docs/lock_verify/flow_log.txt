@@ -1,0 +1,29 @@
+dump 01_boot scr=0 seg=0 frame=39 clipframe=39
+dump 02_home_intro scr=1 seg=1 frame=53 clipframe=59
+dump 03_home_grape scr=2 seg=2 frame=27 clipframe=447
+tap 80,8 -> scr=2 seg=3 game=0 theme=1 act=1
+dump 04_home_magenta scr=2 seg=3 frame=29 clipframe=149
+tap 150,175 -> scr=3 seg=9 game=0 theme=1 act=1
+dump 05_terminalbot scr=3 seg=9 frame=29 clipframe=149
+tap 97,225 -> scr=6 seg=22 game=8 theme=1 act=1
+dump 06_airtag_phase0_hold scr=6 seg=22 frame=32 clipframe=32
+tap 120,120 -> scr=6 seg=22 game=8 theme=1 act=1
+dump 07_airtag_phase1_hold scr=6 seg=22 frame=120 clipframe=120
+tap 10,10 -> scr=2 seg=3 game=8 theme=1 act=1
+dump 08_back_home scr=2 seg=3 frame=19 clipframe=139
+tap 110,70 -> scr=6 seg=21 game=0 theme=1 act=1
+dump 09_gibson_phase0_hold scr=6 seg=21 frame=66 clipframe=66
+tap 10,10 -> scr=2 seg=3 game=0 theme=1 act=1
+tap 60,175 -> scr=4 seg=15 game=0 theme=1 act=1
+dump 10_scanbot scr=4 seg=15 frame=29 clipframe=79
+tap 10,10 -> scr=2 seg=3 game=0 theme=1 act=1
+tap 185,50 -> scr=5 seg=20 game=0 theme=1 act=1
+dump 11_controlbot scr=5 seg=20 frame=29 clipframe=29
+tap 10,10 -> scr=2 seg=3 game=0 theme=1 act=1
+tap 150,175 -> scr=3 seg=9 game=0 theme=1 act=1
+tap 140,225 -> scr=6 seg=23 game=9 theme=1 act=1
+dump 12_keyfob_phase0_hold scr=6 seg=23 frame=32 clipframe=32
+tap 10,10 -> scr=2 seg=3 game=9 theme=1 act=1
+tap 150,175 -> scr=3 seg=9 game=9 theme=1 act=1
+tap 50,55 -> scr=6 seg=22 game=1 theme=1 act=1
+dump 13_deauth_template_air scr=6 seg=22 frame=32 clipframe=32

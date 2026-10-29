@@ -2,7 +2,7 @@
 Each clip: own palette (<=255 RGB565). Each segment: keyframe op, delta ops, optional loop-back op.
 An op is a list of raw-deflate chunks; each chunk inflates to <=16 KB of records: u16 y, u8 x, u8 n, n index bytes."""
 import sys, os, zlib, struct, json, numpy as np
-sys.path.insert(0,'/workspace/cydport/tools'); import clip
+sys.path.insert(0,os.path.dirname(os.path.abspath(__file__))); import clip
 TH=30; CH=16384
 def frames(p):
     cache='/workspace/cydport/cache/'+os.path.basename(p)+'.npy'
@@ -86,9 +86,9 @@ class Enc:
         for i,p in enumerate(s.pals):
             v=[((c[0]>>3)<<11)|((c[1]>>2)<<5)|(c[2]>>3) for c in p]
             w('static const uint16_t LK_PAL%d[%d] = {%s};'%(i,len(v),','.join('0x%04x'%x for x in v)))
-        w('struct LkClip { const char *name; const uint16_t *pal; uint16_t seg0, nseg; };')
+        w('struct LkClip { const char *name; const uint16_t *pal; uint16_t npal, seg0, nseg; };')
         w('static const LkClip LK_CLIP[%d] = {'%len(s.clips))
-        for (n,pi,s0,ns) in s.clips: w('  {"%s", LK_PAL%d, %d, %d},'%(n,pi,s0,ns))
+        for (n,pi,s0,ns) in s.clips: w('  {"%s", LK_PAL%d, %d, %d, %d},'%(n,pi,len(s.pals[pi]),s0,ns))
         w('};')
         for i,(n,pi,s0,ns) in enumerate(s.clips): w('#define LK_C_%s %d'%(n.upper(),i))
         for i,(op0,n,lp,a,tag) in enumerate(s.segs): w('#define LK_S_%s %d'%(tag.upper(),i))

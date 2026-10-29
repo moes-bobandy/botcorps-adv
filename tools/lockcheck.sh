@@ -6,11 +6,11 @@
 #   env:   LOCKED=<registry dir>  PY=<python with PIL+numpy>  LGFX=<LovyanGFX checkout>  WORK=<scratch>
 set -u
 REPO=$(cd "$(dirname "$0")/.." && pwd)
-LOCKED=${LOCKED:-/workspace/out/cyd-full-board-build/LOCKED}
-PY=${PY:-/tmp/cydpaint-venv/bin/python}
+LOCKED=${LOCKED:-$REPO/LOCKED}   # 2026-10-29 rebuild: registry lives on the cyd-lock-store branch
+PY=${PY:-/workspace/cydpaint-venv/bin/python}   # /tmp venv lost in the box restart
 LGFX=${LGFX:-/workspace/cyd-sim/LovyanGFX}
 SRC=${1:-$REPO}
-WORK=${WORK:-/tmp/lockcheck-$(basename "$SRC")-$$}
+WORK=${WORK:-/workspace/scratch/lockcheck-$(basename "$SRC")-$$}   # on / (not /dev/shm: noexec)
 rm -rf "$WORK"; mkdir -p "$WORK/fw"
 if [ -d "$SRC" ]; then
   (cd "$SRC" && git ls-files -co --exclude-standard | grep -v '^checkpoints/' | tar -cf - -T -) | tar -xf - -C "$WORK/fw"

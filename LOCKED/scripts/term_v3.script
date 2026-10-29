@@ -1,0 +1,7 @@
+# hub13 TERMINALbot v3 board: firmware hub TERMINALbot board (poke hterm 1) and the sim-only v3 painter
+until 9000
+poke hterm 1
+wait 400
+shot term_fw
+termv3
+shot term_v3

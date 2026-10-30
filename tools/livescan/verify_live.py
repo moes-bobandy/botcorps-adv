@@ -1,5 +1,5 @@
 """cyd_livescan harness proof. Runs tools/livescan/sim_live (same lv_core.h as the firmware, FAKE radio)
-on scripts/main.txt, ticker.txt, calbot.txt (no saved cal) and calbot_nvs.txt, writes PNGs to docs/livescan_verify/, and scores every dump of a
+on scripts/main.txt, ticker.txt, calbot.txt (no saved cal), calbot_nvs.txt and calbot_recal.txt, writes PNGs to docs/livescan_verify/, and scores every dump of a
 LOCKED screen against its clip frame on the pixels OUTSIDE the live overlay rects (metric = share of pixels
 within RGB distance 40, same as tools/lock_sim/verify.py). ref|render|diff PNGs: red = distance > 40,
 blue tint = live overlay area (not scored)."""
@@ -18,7 +18,7 @@ MASK = {2: TICK, 3: TICK + [(34, 272, 181, 305)], 4: TICK + [(36, 188, 203, 253)
         5: TICK + [(82, 36, 112, 44), (76, 51, 112, 59), (82, 66, 112, 74), (178, 246, 198, 252)], 0: [], 1: []}
 def png(a, p, s=2): Image.fromarray(a).resize((a.shape[1] * s, a.shape[0] * s), Image.NEAREST).save(p)
 res = {}
-for script, extra in (('main', []), ('ticker', []), ('calbot', ['nocal']), ('calbot_nvs', [])):
+for script, extra in (('main', []), ('ticker', []), ('calbot', ['nocal']), ('calbot_nvs', []), ('calbot_recal', [])):
     out = subprocess.run([SIM, 'tools/livescan/scripts/%s.txt' % script, RAW] + extra, check=True, capture_output=True, text=True).stdout
     open('%s/sim_%s_log.txt' % (OUT, script), 'w').write(out)
     for m in re.finditer(r'DUMP (\S+) scr=(\d+) seg=(-?\d+) clipframe=(-?\d+)', out):
@@ -26,7 +26,7 @@ for script, extra in (('main', []), ('ticker', []), ('calbot', ['nocal']), ('cal
         r = np.fromfile('%s/%s.rgb' % (RAW, nm), np.uint8).reshape(320, 240, 3)
         prefix = {'scan': '', 'term': '', 'ticker': ''}
         png(r, '%s/%s.png' % (OUT, nm))
-        if scr == 7: res[nm] = {'screen': 'CALbot (procedural full-screen, no clip, no ticker)'}; continue
+        if scr == 7: res[nm] = {'screen': 'CALbot (approved-board art + live terminal lines; scored by score_calbot.py)'}; continue
         if seg < 0: res[nm] = {'screen': 'TTY (live full-screen terminal, no clip)'}; continue
         ref = np.asarray(np.load(CACHE + clipfile(seg), mmap_mode='r')[cf])
         d = np.sqrt(((r.astype(np.int32) - ref.astype(np.int32)) ** 2).sum(2))

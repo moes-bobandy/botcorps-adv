@@ -10,4 +10,4 @@ t=23670 tap 217,10 -> tty-close (scr=3 seg=8)
 DUMP ticker_alert_airtag_term scr=3 seg=8 clipframe=9 t=23970
 DUMP ticker_alert_flash scr=3 seg=8 clipframe=16 t=24180
 t=33180 rec ticker_rec 300 frames
-px pushed by overlays: 4556645
+px pushed by overlays: 4607941

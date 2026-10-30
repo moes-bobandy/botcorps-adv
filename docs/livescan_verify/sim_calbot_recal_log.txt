@@ -1,0 +1,4 @@
+DUMP calbot_recal_1 scr=7 seg=-1 clipframe=-1 t=1500
+DUMP calbot_timeout_kept scr=7 seg=-1 clipframe=-1 t=16600
+DUMP calbot_timeout_then_boot scr=0 seg=0 clipframe=11 t=18000
+px pushed by overlays: 637026

@@ -1,3 +1,3 @@
 DUMP calbot_nvs scr=7 seg=-1 clipframe=-1 t=300
 DUMP calbot_nvs_then_boot scr=0 seg=0 clipframe=2 t=2100
-px pushed by overlays: 76800
+px pushed by overlays: 128096

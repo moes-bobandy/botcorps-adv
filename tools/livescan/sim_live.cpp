@@ -3,7 +3,9 @@
  *   sim_live <script> <outdir>
  *   sim_live <script> <outdir> nocal   (power on with NO saved cal: CALbot captures first)
  * script lines: hold X Y MS (finger down on screen x,y -> simulated raw) | up MS | recstart NAME | recstop |
- *   tick N | tap X Y | type TEXT (taps the on-screen keys; '~' = ENTER) | dump NAME | theme N | log */
+ *   tick N | tap X Y | type TEXT (taps the on-screen keys; '~' = ENTER) | dump NAME | theme N | log
+ *   press X Y / release (finger down / up NOW: one raw sample at the current time, then the usual 15 ms samples)
+ *   tickto T (advance to exactly T ms: 30 ms ticks, then 15 ms raw samples + one lv_tick at T) */
 #include <zlib.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -100,13 +102,26 @@ static bool fk_cal_save(const uint16_t c[8])
 static const LvRadio FAKE = {fk_wifi_start, fk_wifi_poll, fk_ble_start, fk_ble_poll, fk_deauth_start, fk_deauth_poll, fk_stop, fk_sys, fk_save, fk_cal_save};
 static bool g_down = false; static int g_fx, g_fy; static FILE *g_rec = nullptr;
 static void dump(const char *path);
+static void rec_frame(void);
 static void tick1(const LkIo &io)
 {
     for (int k = 0; k < 2; ++k) { t_ms += 15; int rx = 0, ry = 0; if (g_down) g_tm.raw(g_fx, g_fy, &rx, &ry); lv_cal_raw(g_down, rx, ry, t_ms); }
     lv_tick(io, t_ms);
+    rec_frame();
+}
+static void rec_frame(void)
+{
     if (g_rec) { dump("/tmp/.sim_rec_part"); FILE *b = fopen("/tmp/.sim_rec_part", "rb"); static uint8_t buf[240 * 320 * 3]; size_t k = fread(buf, 1, sizeof buf, b); fwrite(buf, 1, k, g_rec); fclose(b); }
 }
 
+static void tickto(const LkIo &io, uint32_t T)
+{
+    while (t_ms + 30 <= T) tick1(io);
+    if (t_ms >= T) return;
+    while (t_ms < T) { t_ms = t_ms + 15 <= T ? t_ms + 15 : T; int rx = 0, ry = 0; if (g_down) g_tm.raw(g_fx, g_fy, &rx, &ry); lv_cal_raw(g_down, rx, ry, t_ms); }
+    lv_tick(io, t_ms);
+    rec_frame();
+}
 static void dump(const char *path)
 {
     FILE *f = fopen(path, "wb");
@@ -135,11 +150,14 @@ int main(int argc, char **argv)
     if (fread(blob.data(), 1, LK_BLOB_SIZE, bf) != LK_BLOB_SIZE) return 1;
     LkIo io{blob.data(), infl, lv_clip_draw, ibuf};
     lv_begin(&FAKE, blit, raw_draw, 0, 0, !(argc > 3 && !strcmp(argv[3], "nocal")));
+    lv_tick(io, 0);                            /* power-on paint at t=0 (the firmware loop ticks at once too) */
     FILE *sc = fopen(argv[1], "r"); char cmd[32];
     while (fscanf(sc, "%31s", cmd) == 1) {
         if (!strcmp(cmd, "tick")) { int n; if (fscanf(sc, "%d", &n) != 1) return 2; for (int i = 0; i < n; ++i) tick1(io); }
         else if (!strcmp(cmd, "hold")) { int ms; if (fscanf(sc, "%d %d %d", &g_fx, &g_fy, &ms) != 3) return 2; g_down = true; for (int e = 0; e < ms; e += 30) tick1(io); g_down = false; printf("t=%u hold %d,%d -> scr=%d cal_n=%d phase=%d msg=%d\n", t_ms, g_fx, g_fy, lv_scr, lv_cal_n, lv_cal_phase, lv_cal_msg); }
-        else if (!strcmp(cmd, "press")) { if (fscanf(sc, "%d %d", &g_fx, &g_fy) != 2) return 2; g_down = true; }
+        else if (!strcmp(cmd, "press")) { if (fscanf(sc, "%d %d", &g_fx, &g_fy) != 2) return 2; g_down = true; int rx, ry; g_tm.raw(g_fx, g_fy, &rx, &ry); lv_cal_raw(true, rx, ry, t_ms); }
+        else if (!strcmp(cmd, "release")) { g_down = false; lv_cal_raw(false, 0, 0, t_ms); }
+        else if (!strcmp(cmd, "tickto")) { unsigned T; if (fscanf(sc, "%u", &T) != 1) return 2; tickto(io, T); }
         else if (!strcmp(cmd, "up")) { int ms; if (fscanf(sc, "%d", &ms) != 1) return 2; g_down = false; for (int e = 0; e < ms; e += 30) tick1(io); }
         else if (!strcmp(cmd, "recstart")) { char nm[64]; if (fscanf(sc, "%63s", nm) != 1) return 2; char p[512]; snprintf(p, sizeof p, "%s/%s.rgb", argv[2], nm); g_rec = fopen(p, "wb"); }
         else if (!strcmp(cmd, "recstop")) { if (g_rec) fclose(g_rec); g_rec = nullptr; remove("/tmp/.sim_rec_part"); }

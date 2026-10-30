@@ -122,4 +122,4 @@ DUMP scan_t1 scr=4 seg=15 clipframe=50 t=45930
   | #1 HomeNet-5G [AP]
   |  BSSID 3C:84:6A:12:07:01 CH6 -52dBm WP
   | A2
-px pushed by overlays: 11340128
+px pushed by overlays: 11391424

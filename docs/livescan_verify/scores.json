@@ -197,41 +197,63 @@
   "overlay_px": 9103
  },
  "calbot_1": {
-  "screen": "CALbot (procedural full-screen, no clip, no ticker)"
+  "screen": "CALbot (approved-board art + live terminal lines; scored by score_calbot.py)"
+ },
+ "calbot_released": {
+  "screen": "CALbot (approved-board art + live terminal lines; scored by score_calbot.py)"
+ },
+ "calbot_1_holding": {
+  "screen": "CALbot (approved-board art + live terminal lines; scored by score_calbot.py)"
+ },
+ "calbot_1_locked": {
+  "screen": "CALbot (approved-board art + live terminal lines; scored by score_calbot.py)"
  },
  "calbot_2": {
-  "screen": "CALbot (procedural full-screen, no clip, no ticker)"
+  "screen": "CALbot (approved-board art + live terminal lines; scored by score_calbot.py)"
  },
  "calbot_3": {
-  "screen": "CALbot (procedural full-screen, no clip, no ticker)"
+  "screen": "CALbot (approved-board art + live terminal lines; scored by score_calbot.py)"
  },
  "calbot_4": {
-  "screen": "CALbot (procedural full-screen, no clip, no ticker)"
+  "screen": "CALbot (approved-board art + live terminal lines; scored by score_calbot.py)"
  },
  "calbot_ok": {
-  "screen": "CALbot (procedural full-screen, no clip, no ticker)"
+  "screen": "CALbot (approved-board art + live terminal lines; scored by score_calbot.py)"
  },
  "calbot_then_boot": {
   "seg": 0,
   "clip": "bootbot_bg_v2@3x.mp4.npy",
-  "clip_frame": 65,
+  "clip_frame": 1,
   "close_pct_outside_overlays": 100.0,
   "overlay_px": 0
  },
  "calbot_then_home": {
   "seg": 2,
   "clip": "gibsonbot_bg@3x.mp4.npy",
-  "clip_frame": 453,
-  "close_pct_outside_overlays": 99.992,
+  "clip_frame": 449,
+  "close_pct_outside_overlays": 99.99,
   "overlay_px": 4071
  },
  "calbot_nvs": {
-  "screen": "CALbot (procedural full-screen, no clip, no ticker)"
+  "screen": "CALbot (approved-board art + live terminal lines; scored by score_calbot.py)"
  },
  "calbot_nvs_then_boot": {
   "seg": 0,
   "clip": "bootbot_bg_v2@3x.mp4.npy",
   "clip_frame": 2,
+  "close_pct_outside_overlays": 100.0,
+  "overlay_px": 0
+ },
+ "calbot_recal_1": {
+  "screen": "CALbot (approved-board art + live terminal lines; scored by score_calbot.py)"
+ },
+ "calbot_timeout_kept": {
+  "screen": "CALbot (approved-board art + live terminal lines; scored by score_calbot.py)"
+ },
+ "calbot_timeout_then_boot": {
+  "seg": 0,
+  "clip": "bootbot_bg_v2@3x.mp4.npy",
+  "clip_frame": 11,
   "close_pct_outside_overlays": 100.0,
   "overlay_px": 0
  }

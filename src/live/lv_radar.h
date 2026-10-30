@@ -143,7 +143,7 @@ static void lv_scene_radar(LvBand &B, void *)
     b_text35(B, 4, 311, lv_nf ? "TAP A TOWER = INFO" : "NO NODES YET - SCANNING", hdr);
     char c[24]; int nw = 0; for (int i = 0; i < lv_nf; ++i) nw += lv_f[i].kind == LV_K_WIFI;
     snprintf(c, sizeof c, "%dW %dB", nw, lv_nf - nw); b_text35(B, 200 - lv_w35(c), 292, c, hdr);
-    lv_draw_backbot(B, LV_R_BACKBOT.x0, 291);
+    lv_draw_backbot(B, LV_R_BACKBOT.x0, LV_R_BACKBOT.y0);
 }
 static void lv_radar_enter(void)
 {

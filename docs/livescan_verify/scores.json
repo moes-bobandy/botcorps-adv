@@ -27,14 +27,14 @@
   "seg": 14,
   "clip": "scanbot_bg_themes_v2@3x.mp4.npy",
   "clip_frame": 6,
-  "close_pct_outside_overlays": 91.127,
+  "close_pct_outside_overlays": 91.295,
   "overlay_px": 20293,
   "close_pct_overlay_aware": 100.0,
-  "overlay_aware_px": 29429,
+  "overlay_aware_px": 29329,
   "strict_drop_px_by_overlay": {
    "ticker full width (crown+GIBSON icon removed)": 1114,
    "SCAN emoji grid (4 tabs removed)": 3407,
-   "BACKbot": 493
+   "BACKbot": 398
   },
   "strict_drop_px_unexplained": 0
  },
@@ -42,16 +42,16 @@
   "seg": 14,
   "clip": "scanbot_bg_themes_v2@3x.mp4.npy",
   "clip_frame": 26,
-  "close_pct_outside_overlays": 75.578,
+  "close_pct_outside_overlays": 75.746,
   "overlay_px": 20293,
   "close_pct_overlay_aware": 100.0,
-  "overlay_aware_px": 42786,
+  "overlay_aware_px": 42686,
   "strict_drop_px_by_overlay": {
    "ticker full width (crown+GIBSON icon removed)": 1127,
    "SCAN emoji grid (4 tabs removed)": 3424,
    "WiFi chip lit": 1830,
    "SCANbot lit": 6926,
-   "BACKbot": 493
+   "BACKbot": 398
   },
   "strict_drop_px_unexplained": 0
  },
@@ -59,16 +59,16 @@
   "seg": 14,
   "clip": "scanbot_bg_themes_v2@3x.mp4.npy",
   "clip_frame": 26,
-  "close_pct_outside_overlays": 84.227,
+  "close_pct_outside_overlays": 84.395,
   "overlay_px": 20293,
   "close_pct_overlay_aware": 100.0,
-  "overlay_aware_px": 34718,
+  "overlay_aware_px": 34618,
   "strict_drop_px_by_overlay": {
    "ticker full width (crown+GIBSON icon removed)": 1157,
    "SCAN emoji grid (4 tabs removed)": 3719,
    "WiFi chip lit": 1786,
    "BLE chip lit": 1758,
-   "BACKbot": 493
+   "BACKbot": 398
   },
   "strict_drop_px_unexplained": 0
  },
@@ -76,16 +76,16 @@
   "seg": 14,
   "clip": "scanbot_bg_themes_v2@3x.mp4.npy",
   "clip_frame": 31,
-  "close_pct_outside_overlays": 84.825,
+  "close_pct_outside_overlays": 84.993,
   "overlay_px": 20293,
   "close_pct_overlay_aware": 100.0,
-  "overlay_aware_px": 34718,
+  "overlay_aware_px": 34618,
   "strict_drop_px_by_overlay": {
    "ticker full width (crown+GIBSON icon removed)": 1153,
    "SCAN emoji grid (4 tabs removed)": 3385,
    "WiFi chip lit": 1786,
    "BLE chip lit": 1758,
-   "BACKbot": 493
+   "BACKbot": 398
   },
   "strict_drop_px_unexplained": 0
  },
@@ -93,16 +93,16 @@
   "seg": 14,
   "clip": "scanbot_bg_themes_v2@3x.mp4.npy",
   "clip_frame": 36,
-  "close_pct_outside_overlays": 83.48,
+  "close_pct_outside_overlays": 83.648,
   "overlay_px": 20293,
   "close_pct_overlay_aware": 100.0,
-  "overlay_aware_px": 34718,
+  "overlay_aware_px": 34618,
   "strict_drop_px_by_overlay": {
    "ticker full width (crown+GIBSON icon removed)": 1124,
    "SCAN emoji grid (4 tabs removed)": 4174,
    "WiFi chip lit": 1786,
    "BLE chip lit": 1758,
-   "BACKbot": 493
+   "BACKbot": 398
   },
   "strict_drop_px_unexplained": 0
  },
@@ -110,16 +110,16 @@
   "seg": 14,
   "clip": "scanbot_bg_themes_v2@3x.mp4.npy",
   "clip_frame": 39,
-  "close_pct_outside_overlays": 80.151,
+  "close_pct_outside_overlays": 80.319,
   "overlay_px": 20293,
   "close_pct_overlay_aware": 100.0,
-  "overlay_aware_px": 34718,
+  "overlay_aware_px": 34618,
   "strict_drop_px_by_overlay": {
    "ticker full width (crown+GIBSON icon removed)": 1117,
    "SCAN emoji grid (4 tabs removed)": 6062,
    "WiFi chip lit": 1786,
    "BLE chip lit": 1758,
-   "BACKbot": 493
+   "BACKbot": 398
   },
   "strict_drop_px_unexplained": 0
  },
@@ -127,16 +127,16 @@
   "seg": 14,
   "clip": "scanbot_bg_themes_v2@3x.mp4.npy",
   "clip_frame": 44,
-  "close_pct_outside_overlays": 83.476,
+  "close_pct_outside_overlays": 83.645,
   "overlay_px": 20293,
   "close_pct_overlay_aware": 100.0,
-  "overlay_aware_px": 34718,
+  "overlay_aware_px": 34618,
   "strict_drop_px_by_overlay": {
    "ticker full width (crown+GIBSON icon removed)": 1126,
    "SCAN emoji grid (4 tabs removed)": 4174,
    "WiFi chip lit": 1786,
    "BLE chip lit": 1758,
-   "BACKbot": 493
+   "BACKbot": 398
   },
   "strict_drop_px_unexplained": 0
  },
@@ -144,16 +144,16 @@
   "seg": 14,
   "clip": "scanbot_bg_themes_v2@3x.mp4.npy",
   "clip_frame": 49,
-  "close_pct_outside_overlays": 84.303,
+  "close_pct_outside_overlays": 84.469,
   "overlay_px": 20293,
   "close_pct_overlay_aware": 100.0,
-  "overlay_aware_px": 34718,
+  "overlay_aware_px": 34618,
   "strict_drop_px_by_overlay": {
    "ticker full width (crown+GIBSON icon removed)": 1114,
    "SCAN emoji grid (4 tabs removed)": 3719,
    "WiFi chip lit": 1786,
    "BLE chip lit": 1758,
-   "BACKbot": 493
+   "BACKbot": 399
   },
   "strict_drop_px_unexplained": 0
  },
@@ -161,16 +161,16 @@
   "seg": 14,
   "clip": "scanbot_bg_themes_v2@3x.mp4.npy",
   "clip_frame": 4,
-  "close_pct_outside_overlays": 84.358,
+  "close_pct_outside_overlays": 84.526,
   "overlay_px": 20293,
   "close_pct_overlay_aware": 100.0,
-  "overlay_aware_px": 34718,
+  "overlay_aware_px": 34618,
   "strict_drop_px_by_overlay": {
    "ticker full width (crown+GIBSON icon removed)": 1112,
    "SCAN emoji grid (4 tabs removed)": 3690,
    "WiFi chip lit": 1786,
    "BLE chip lit": 1758,
-   "BACKbot": 493
+   "BACKbot": 398
   },
   "strict_drop_px_unexplained": 0
  },
@@ -178,16 +178,16 @@
   "seg": 14,
   "clip": "scanbot_bg_themes_v2@3x.mp4.npy",
   "clip_frame": 19,
-  "close_pct_outside_overlays": 84.505,
+  "close_pct_outside_overlays": 84.673,
   "overlay_px": 20293,
   "close_pct_overlay_aware": 100.0,
-  "overlay_aware_px": 34718,
+  "overlay_aware_px": 34618,
   "strict_drop_px_by_overlay": {
    "ticker full width (crown+GIBSON icon removed)": 1115,
    "SCAN emoji grid (4 tabs removed)": 3604,
    "WiFi chip lit": 1786,
    "BLE chip lit": 1758,
-   "BACKbot": 493
+   "BACKbot": 398
   },
   "strict_drop_px_unexplained": 0
  },
@@ -195,16 +195,16 @@
   "seg": 14,
   "clip": "scanbot_bg_themes_v2@3x.mp4.npy",
   "clip_frame": 27,
-  "close_pct_outside_overlays": 80.148,
+  "close_pct_outside_overlays": 80.316,
   "overlay_px": 20293,
   "close_pct_overlay_aware": 100.0,
-  "overlay_aware_px": 34718,
+  "overlay_aware_px": 34618,
   "strict_drop_px_by_overlay": {
    "ticker full width (crown+GIBSON icon removed)": 1119,
    "SCAN emoji grid (4 tabs removed)": 6062,
    "WiFi chip lit": 1786,
    "BLE chip lit": 1758,
-   "BACKbot": 493
+   "BACKbot": 398
   },
   "strict_drop_px_unexplained": 0
  },
@@ -212,17 +212,17 @@
   "seg": 14,
   "clip": "scanbot_bg_themes_v2@3x.mp4.npy",
   "clip_frame": 37,
-  "close_pct_outside_overlays": 84.542,
+  "close_pct_outside_overlays": 84.71,
   "overlay_px": 20293,
   "close_pct_overlay_aware": 100.0,
-  "overlay_aware_px": 45366,
+  "overlay_aware_px": 45266,
   "strict_drop_px_by_overlay": {
    "ticker full width (crown+GIBSON icon removed)": 1128,
    "SCAN emoji grid (4 tabs removed)": 3399,
    "WiFi chip lit": 1786,
    "BLE chip lit": 1758,
    "SCANbot lit": 171,
-   "BACKbot": 493
+   "BACKbot": 398
   },
   "strict_drop_px_unexplained": 0
  },
@@ -230,17 +230,17 @@
   "seg": 14,
   "clip": "scanbot_bg_themes_v2@3x.mp4.npy",
   "clip_frame": 37,
-  "close_pct_outside_overlays": 72.554,
+  "close_pct_outside_overlays": 72.722,
   "overlay_px": 20293,
   "close_pct_overlay_aware": 100.0,
-  "overlay_aware_px": 45366,
+  "overlay_aware_px": 45266,
   "strict_drop_px_by_overlay": {
    "ticker full width (crown+GIBSON icon removed)": 1139,
    "SCAN emoji grid (4 tabs removed)": 3407,
    "WiFi chip lit": 1786,
    "BLE chip lit": 1758,
    "SCANbot lit": 6926,
-   "BACKbot": 493
+   "BACKbot": 398
   },
   "strict_drop_px_unexplained": 0
  },
@@ -248,16 +248,16 @@
   "seg": 14,
   "clip": "scanbot_bg_themes_v2@3x.mp4.npy",
   "clip_frame": 37,
-  "close_pct_outside_overlays": 84.666,
+  "close_pct_outside_overlays": 84.834,
   "overlay_px": 20293,
   "close_pct_overlay_aware": 100.0,
-  "overlay_aware_px": 34718,
+  "overlay_aware_px": 34618,
   "strict_drop_px_by_overlay": {
    "ticker full width (crown+GIBSON icon removed)": 1281,
    "SCAN emoji grid (4 tabs removed)": 3347,
    "WiFi chip lit": 1786,
    "BLE chip lit": 1758,
-   "BACKbot": 493
+   "BACKbot": 398
   },
   "strict_drop_px_unexplained": 0
  },
@@ -278,14 +278,14 @@
   "seg": 8,
   "clip": "terminalbot_bg@3x.mp4.npy",
   "clip_frame": 6,
-  "close_pct_outside_overlays": 95.446,
+  "close_pct_outside_overlays": 95.582,
   "overlay_px": 9103,
   "close_pct_overlay_aware": 99.984,
-  "overlay_aware_px": 13067,
+  "overlay_aware_px": 12967,
   "strict_drop_px_by_overlay": {
    "ticker full width (crown+GIBSON icon removed)": 1310,
    "hunt chip lit": 1272,
-   "BACKbot": 491
+   "BACKbot": 399
   },
   "strict_drop_px_unexplained": 10
  },
@@ -308,13 +308,13 @@
   "seg": 8,
   "clip": "terminalbot_bg@3x.mp4.npy",
   "clip_frame": 6,
-  "close_pct_outside_overlays": 97.641,
+  "close_pct_outside_overlays": 97.777,
   "overlay_px": 9103,
   "close_pct_overlay_aware": 99.985,
-  "overlay_aware_px": 11231,
+  "overlay_aware_px": 11131,
   "strict_drop_px_by_overlay": {
    "ticker full width (crown+GIBSON icon removed)": 1096,
-   "BACKbot": 491
+   "BACKbot": 399
   },
   "strict_drop_px_unexplained": 10
  },
@@ -322,10 +322,10 @@
   "seg": 20,
   "clip": "8cc9946c6003d1ebc97ae20980f9edb2874d4ffe6065c9e6b24b625cb2df952d.mp4.npy",
   "clip_frame": 1,
-  "close_pct_outside_overlays": 94.832,
+  "close_pct_outside_overlays": 94.963,
   "overlay_px": 5109,
   "close_pct_overlay_aware": 99.982,
-  "overlay_aware_px": 9495,
+  "overlay_aware_px": 9395,
   "strict_drop_px_by_overlay": {
    "ticker full width (crown+GIBSON icon removed)": 1138,
    "live value mask (36, 141, 69, 147)": 238,
@@ -335,7 +335,7 @@
    "live value mask (166, 166, 204, 172)": 273,
    "live value mask (179, 226, 207, 237)": 172,
    "live value mask (96, 247, 160, 256)": 630,
-   "BACKbot": 493
+   "BACKbot": 399
   },
   "strict_drop_px_unexplained": 12
  },
@@ -343,10 +343,10 @@
   "seg": 20,
   "clip": "8cc9946c6003d1ebc97ae20980f9edb2874d4ffe6065c9e6b24b625cb2df952d.mp4.npy",
   "clip_frame": 0,
-  "close_pct_outside_overlays": 91.599,
+  "close_pct_outside_overlays": 91.73,
   "overlay_px": 5109,
   "close_pct_overlay_aware": 99.987,
-  "overlay_aware_px": 13124,
+  "overlay_aware_px": 13024,
   "strict_drop_px_by_overlay": {
    "ticker full width (crown+GIBSON icon removed)": 1132,
    "live value mask (36, 141, 69, 147)": 238,
@@ -358,7 +358,7 @@
    "live value mask (96, 247, 160, 256)": 630,
    "CONTROLbot face theme": 2142,
    "CONTROLbot name plate": 186,
-   "BACKbot": 493
+   "BACKbot": 399
   },
   "strict_drop_px_unexplained": 8
  },
@@ -366,10 +366,10 @@
   "seg": 20,
   "clip": "8cc9946c6003d1ebc97ae20980f9edb2874d4ffe6065c9e6b24b625cb2df952d.mp4.npy",
   "clip_frame": 0,
-  "close_pct_outside_overlays": 88.784,
+  "close_pct_outside_overlays": 88.915,
   "overlay_px": 5109,
   "close_pct_overlay_aware": 99.987,
-  "overlay_aware_px": 15140,
+  "overlay_aware_px": 15040,
   "strict_drop_px_by_overlay": {
    "ticker full width (crown+GIBSON icon removed)": 1134,
    "live value mask (36, 141, 69, 147)": 238,
@@ -381,7 +381,7 @@
    "live value mask (96, 247, 160, 256)": 630,
    "CONTROLbot face theme": 2142,
    "CONTROLbot name plate": 186,
-   "BACKbot": 493,
+   "BACKbot": 399,
    "press flash": 2016
   },
   "strict_drop_px_unexplained": 8
@@ -403,16 +403,16 @@
   "seg": 15,
   "clip": "scanbot_bg_themes_v2@3x.mp4.npy",
   "clip_frame": 50,
-  "close_pct_outside_overlays": 84.315,
+  "close_pct_outside_overlays": 84.483,
   "overlay_px": 20293,
   "close_pct_overlay_aware": 100.0,
-  "overlay_aware_px": 34718,
+  "overlay_aware_px": 34618,
   "strict_drop_px_by_overlay": {
    "ticker full width (crown+GIBSON icon removed)": 1128,
    "SCAN emoji grid (4 tabs removed)": 3698,
    "WiFi chip lit": 1786,
    "BLE chip lit": 1758,
-   "BACKbot": 493
+   "BACKbot": 398
   },
   "strict_drop_px_unexplained": 0
  },
@@ -420,16 +420,16 @@
   "seg": 14,
   "clip": "scanbot_bg_themes_v2@3x.mp4.npy",
   "clip_frame": 18,
-  "close_pct_outside_overlays": 87.628,
+  "close_pct_outside_overlays": 87.796,
   "overlay_px": 20293,
   "close_pct_overlay_aware": 100.0,
-  "overlay_aware_px": 42786,
+  "overlay_aware_px": 42686,
   "strict_drop_px_by_overlay": {
    "ticker full width (crown+GIBSON icon removed)": 1117,
    "SCAN emoji grid (4 tabs removed)": 3424,
    "WiFi chip lit": 1786,
    "SCANbot lit": 171,
-   "BACKbot": 493
+   "BACKbot": 398
   },
   "strict_drop_px_unexplained": 0
  },
@@ -437,16 +437,16 @@
   "seg": 14,
   "clip": "scanbot_bg_themes_v2@3x.mp4.npy",
   "clip_frame": 18,
-  "close_pct_outside_overlays": 84.207,
+  "close_pct_outside_overlays": 84.375,
   "overlay_px": 20293,
   "close_pct_overlay_aware": 100.0,
-  "overlay_aware_px": 34718,
+  "overlay_aware_px": 34618,
   "strict_drop_px_by_overlay": {
    "ticker full width (crown+GIBSON icon removed)": 1168,
    "SCAN emoji grid (4 tabs removed)": 3719,
    "WiFi chip lit": 1786,
    "BLE chip lit": 1758,
-   "BACKbot": 493
+   "BACKbot": 398
   },
   "strict_drop_px_unexplained": 0
  },
@@ -454,16 +454,16 @@
   "seg": 14,
   "clip": "scanbot_bg_themes_v2@3x.mp4.npy",
   "clip_frame": 8,
-  "close_pct_outside_overlays": 84.193,
+  "close_pct_outside_overlays": 84.361,
   "overlay_px": 20293,
   "close_pct_overlay_aware": 100.0,
-  "overlay_aware_px": 34718,
+  "overlay_aware_px": 34618,
   "strict_drop_px_by_overlay": {
    "ticker full width (crown+GIBSON icon removed)": 1176,
    "SCAN emoji grid (4 tabs removed)": 3719,
    "WiFi chip lit": 1786,
    "BLE chip lit": 1758,
-   "BACKbot": 493
+   "BACKbot": 398
   },
   "strict_drop_px_unexplained": 0
  },
@@ -471,14 +471,14 @@
   "seg": 8,
   "clip": "terminalbot_bg@3x.mp4.npy",
   "clip_frame": 6,
-  "close_pct_outside_overlays": 95.269,
+  "close_pct_outside_overlays": 95.405,
   "overlay_px": 9103,
   "close_pct_overlay_aware": 99.984,
-  "overlay_aware_px": 13067,
+  "overlay_aware_px": 12967,
   "strict_drop_px_by_overlay": {
    "ticker full width (crown+GIBSON icon removed)": 1401,
    "hunt chip lit": 1301,
-   "BACKbot": 491
+   "BACKbot": 399
   },
   "strict_drop_px_unexplained": 10
  },
@@ -486,14 +486,14 @@
   "seg": 8,
   "clip": "terminalbot_bg@3x.mp4.npy",
   "clip_frame": 13,
-  "close_pct_outside_overlays": 95.279,
+  "close_pct_outside_overlays": 95.415,
   "overlay_px": 9103,
   "close_pct_overlay_aware": 99.981,
-  "overlay_aware_px": 13067,
+  "overlay_aware_px": 12967,
   "strict_drop_px_by_overlay": {
    "ticker full width (crown+GIBSON icon removed)": 1391,
    "hunt chip lit": 1302,
-   "BACKbot": 491
+   "BACKbot": 399
   },
   "strict_drop_px_unexplained": 12
  },

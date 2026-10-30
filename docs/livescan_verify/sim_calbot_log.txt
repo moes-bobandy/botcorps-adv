@@ -5,13 +5,13 @@ DUMP calbot_1_locked scr=7 seg=-1 clipframe=-1 t=4200
 DUMP calbot_2 scr=7 seg=-1 clipframe=-1 t=5000
 DUMP calbot_3 scr=7 seg=-1 clipframe=-1 t=7500
 DUMP calbot_4 scr=7 seg=-1 clipframe=-1 t=10000
-t=11605 CAL SAVE c0..c7 = 3815 3771 250 3758 3817 275 252 261 (SIM NVS)
-  chip 1 at 52,55 -> lgfx maps to 52,54
-  chip 2 at 187,55 -> lgfx maps to 187,54
-  chip 3 at 187,226 -> lgfx maps to 186,226
-  chip 4 at 52,226 -> lgfx maps to 51,226
+t=11605 CAL SAVE c0..c7 = 3824 3751 244 3764 3822 269 242 282 (SIM NVS)
+  chip 1 at 52,55 -> lgfx maps to 52,56
+  chip 2 at 187,55 -> lgfx maps to 187,56
+  chip 3 at 187,226 -> lgfx maps to 188,226
+  chip 4 at 52,226 -> lgfx maps to 52,226
   worst axis error 1 px
 DUMP calbot_ok scr=7 seg=-1 clipframe=-1 t=12300
 DUMP calbot_then_boot scr=0 seg=0 clipframe=1 t=13000
 DUMP calbot_then_home scr=2 seg=2 clipframe=449 t=19000
-px pushed by overlays: 1015446
+px pushed by overlays: 1055062

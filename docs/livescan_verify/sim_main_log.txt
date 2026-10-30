@@ -1,41 +1,39 @@
 DUMP boot scr=0 seg=0 clipframe=39 t=3210
 DUMP home scr=2 seg=2 clipframe=437 t=7710
-t=7710 tap 140,10 -> crown-home (scr=2 seg=2)
-DUMP home_crown_noop scr=2 seg=2 clipframe=440 t=7800
+t=7710 tap 15,311 -> back(home=top) (scr=2 seg=2)
+DUMP home_back_noop scr=2 seg=2 clipframe=440 t=7800
 t=7800 tap 60,170 -> scan (scr=4 seg=14)
 DUMP scan_empty scr=4 seg=14 clipframe=9 t=8100
 t=8100 tap 190,211 -> scan-button (scr=4 seg=14)
 DUMP scan_running scr=4 seg=14 clipframe=29 t=8700
 DUMP scan_all scr=4 seg=14 clipframe=29 t=16200
-t=16200 tap 57,208 -> select (scr=4 seg=14)
-DUMP scan_select scr=4 seg=14 clipframe=34 t=16350
-t=16350 tap 57,208 -> detail (scr=4 seg=14)
-DUMP scan_detail scr=4 seg=14 clipframe=37 t=16440
-t=16440 tap 100,220 -> detail-back (scr=4 seg=14)
-t=16440 tap 190,240 -> more-page (scr=4 seg=14)
-DUMP scan_page2 scr=4 seg=14 clipframe=40 t=16530
-t=16530 tap 190,240 -> more-page (scr=4 seg=14)
-t=16530 tap 97,168 -> wifi-scan (scr=4 seg=14)
-DUMP scan_wifi scr=4 seg=14 clipframe=0 t=18330
-t=18330 tap 88,208 -> select (scr=4 seg=14)
-t=18330 tap 88,208 -> detail (scr=4 seg=14)
-DUMP scan_detail_wifi scr=4 seg=14 clipframe=3 t=18420
-t=18420 tap 88,208 -> detail-back (scr=4 seg=14)
-t=18420 tap 185,168 -> deauth-watch (scr=4 seg=14)
-DUMP scan_deauth_live scr=4 seg=14 clipframe=3 t=24420
-DUMP scan_deauth_done scr=4 seg=14 clipframe=3 t=30420
-t=30420 tap 140,10 -> crown-home (scr=2 seg=2)
-DUMP home_after_crown scr=2 seg=2 clipframe=424 t=30570
-t=30570 tap 160,170 -> term (scr=3 seg=8)
-DUMP term scr=3 seg=8 clipframe=9 t=30870
-t=30870 tap 97,225 -> airtag (scr=6 seg=-1)
-DUMP terminal_hunt_airtag scr=6 seg=-1 clipframe=-1 t=36870
+t=16200 tap 57,208 -> tile-detail (scr=4 seg=14)
+DUMP scan_detail scr=4 seg=14 clipframe=32 t=16290
+t=16290 tap 100,220 -> detail-back (scr=4 seg=14)
+t=16290 tap 190,240 -> more-page (scr=4 seg=14)
+DUMP scan_page2 scr=4 seg=14 clipframe=35 t=16380
+t=16380 tap 190,240 -> more-page (scr=4 seg=14)
+t=16380 tap 52,60 -> wifi-chip-scan (scr=4 seg=14)
+DUMP scan_wifi scr=4 seg=14 clipframe=45 t=18180
+t=18180 tap 88,208 -> tile-detail (scr=4 seg=14)
+DUMP scan_detail_wifi scr=4 seg=14 clipframe=48 t=18270
+t=18270 tap 88,208 -> detail-back (scr=4 seg=14)
+t=18270 tap 185,168 -> tab-deauth (scr=4 seg=14)
+t=18270 tap 190,211 -> scan-button (scr=4 seg=14)
+DUMP scan_deauth_live scr=4 seg=14 clipframe=48 t=24270
+DUMP scan_deauth_done scr=4 seg=14 clipframe=48 t=30270
+t=30270 tap 15,311 -> back (scr=2 seg=2)
+DUMP home_after_crown scr=2 seg=2 clipframe=424 t=30420
+t=30420 tap 160,170 -> term (scr=3 seg=8)
+DUMP term scr=3 seg=8 clipframe=9 t=30720
+t=30720 tap 97,225 -> airtag (scr=6 seg=-1)
+DUMP terminal_hunt_airtag scr=6 seg=-1 clipframe=-1 t=36720
   key 25 at 131,246 -> key
   key 12 at 59,217 -> key
   key 28 at 203,246 -> key
   key 19 at 227,217 -> key
   key 43 at 215,304 -> key
-DUMP terminal_help scr=6 seg=-1 clipframe=-1 t=37470
+DUMP terminal_help scr=6 seg=-1 clipframe=-1 t=37320
   key 21 at 35,246 -> key
   key 32 at 59,275 -> key
   key 20 at 11,246 -> key
@@ -51,10 +49,10 @@ DUMP terminal_help scr=6 seg=-1 clipframe=-1 t=37470
   key 21 at 35,246 -> key
   key 14 at 107,217 -> key
   key 43 at 215,304 -> key
-DUMP terminal_list scr=6 seg=-1 clipframe=-1 t=40770
-t=40770 tap 120,60 -> scroll-up (scr=6 seg=-1)
-DUMP terminal_scrolled scr=6 seg=-1 clipframe=-1 t=40860
-t=40860 tap 120,140 -> scroll-down (scr=6 seg=-1)
+DUMP terminal_list scr=6 seg=-1 clipframe=-1 t=40620
+t=40620 tap 120,60 -> scroll-up (scr=6 seg=-1)
+DUMP terminal_scrolled scr=6 seg=-1 clipframe=-1 t=40710
+t=40710 tap 120,140 -> scroll-down (scr=6 seg=-1)
   key 17 at 179,217 -> key
   key 35 at 131,275 -> key
   key 23 at 83,246 -> key
@@ -84,24 +82,24 @@ t=40860 tap 120,140 -> scroll-down (scr=6 seg=-1)
   key 40 at 23,304 -> key
   key 27 at 179,246 -> key
   key 40 at 23,304 -> key
-t=43560 tap 24,304 -> key (scr=6 seg=-1)
-DUMP terminal_typing_shift scr=6 seg=-1 clipframe=-1 t=43650
-t=43650 tap 24,304 -> key (scr=6 seg=-1)
-t=43650 tap 217,10 -> tty-close (scr=3 seg=8)
-DUMP term_after_close scr=3 seg=8 clipframe=9 t=43950
-t=43950 tap 140,10 -> crown-home (scr=2 seg=2)
-t=44040 tap 187,47 -> ctl (scr=5 seg=20)
-DUMP ctl scr=5 seg=20 clipframe=2 t=44340
-t=44340 tap 95,40 -> theme (scr=5 seg=20)
-t=44340 tap 95,70 -> focus (scr=5 seg=20)
-t=44340 tap 185,240 -> bg-motion (scr=5 seg=20)
-DUMP ctl_after scr=5 seg=20 clipframe=2 t=45240
-t=45240 tap 50,110 -> MIX (scr=5 seg=20)
-DUMP ctl_na_mix scr=5 seg=20 clipframe=2 t=45330
-t=45330 tap 140,10 -> crown-home (scr=2 seg=3)
-DUMP home_t1 scr=2 seg=3 clipframe=120 t=45630
-t=45630 tap 60,170 -> scan (scr=4 seg=15)
-DUMP scan_t1 scr=4 seg=15 clipframe=50 t=45930
+t=43410 tap 24,304 -> key (scr=6 seg=-1)
+DUMP terminal_typing_shift scr=6 seg=-1 clipframe=-1 t=43500
+t=43500 tap 24,304 -> key (scr=6 seg=-1)
+t=43500 tap 217,10 -> tty-back (scr=3 seg=8)
+DUMP term_after_close scr=3 seg=8 clipframe=9 t=43800
+t=43800 tap 15,311 -> back (scr=2 seg=2)
+t=43890 tap 187,47 -> ctl (scr=5 seg=20)
+DUMP ctl scr=5 seg=20 clipframe=2 t=44190
+t=44190 tap 95,40 -> theme (scr=5 seg=20)
+t=44190 tap 95,70 -> focus (scr=5 seg=20)
+t=44190 tap 185,240 -> bg-motion (scr=5 seg=20)
+DUMP ctl_after scr=5 seg=20 clipframe=0 t=45090
+t=45090 tap 50,110 -> mix (scr=5 seg=20)
+DUMP ctl_mix scr=5 seg=20 clipframe=0 t=45180
+t=45180 tap 15,311 -> back (scr=2 seg=3)
+DUMP home_t1 scr=2 seg=3 clipframe=120 t=45480
+t=45480 tap 60,170 -> scan (scr=4 seg=15)
+DUMP scan_t1 scr=4 seg=15 clipframe=50 t=45780
   |  4 3C:84:6A:12:54  -63 GALAXYTAG
   |  5 TELLO-5A21B3    -66 c1  OPEN
   |  6 RB Meta 0A1F    -67 GLASSES
@@ -122,4 +120,4 @@ DUMP scan_t1 scr=4 seg=15 clipframe=50 t=45930
   | #1 HomeNet-5G [AP]
   |  BSSID 3C:84:6A:12:07:01 CH6 -52dBm WP
   | A2
-px pushed by overlays: 11391424
+px pushed by overlays: 16318496

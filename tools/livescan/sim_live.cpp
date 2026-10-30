@@ -11,6 +11,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <vector>
+#include <malloc.h>
 #define BOTCORPS_CYD_LIVESCAN 1
 #include "../../src/live/lv_core.h"
 #include "lgfx_cal_ref.h"
@@ -84,6 +85,9 @@ static void fk_sys(int w, char *o, int n)
     else if (w == 4) snprintf(o, n, "touch cal: 8-pt matrix OK (SIM)");
 }
 static void fk_save(int) {}
+static void fk_set_flip(bool f) { printf("t=%u SET_FLIP %d (SIM NVS lkflip; firmware setRotation(%d))\n", t_ms, (int)f, f ? 0 : 2); }
+/* finger at SCREEN (x,y) -> where it physically is on the native (rotation 0) panel: rot 2 = 180 deg */
+static void scr_to_native(int x, int y, int *nx, int *ny) { if (lv_rot180) { *nx = 239 - x; *ny = 319 - y; } else { *nx = x; *ny = y; } }
 /* simulated XPT2046 (CYD-like swapped + flipped axes, +-30 raw noise) and the fake NVS save */
 static TouchModel g_tm = {"swap+flip (CYD-like)", 3820, 0, -11.2, 3760, -14.6, 0, 30, 2};
 static bool fk_cal_save(const uint16_t c[8])
@@ -91,7 +95,9 @@ static bool fk_cal_save(const uint16_t c[8])
     printf("t=%u CAL SAVE c0..c7 = %u %u %u %u %u %u %u %u (SIM NVS)\n", t_ms, c[0], c[1], c[2], c[3], c[4], c[5], c[6], c[7]);
     LgfxCalRef L; L.setCalibrate(c); int worst = 0;
     for (int i = 0; i < 4; ++i) {
-        int rx, ry, x, y; g_tm.raw(LV_CAL_PT[i][0], LV_CAL_PT[i][1], &rx, &ry, false); L.convertRawXY(rx, ry, &x, &y);
+        int rx, ry, x, y, nx, ny; scr_to_native(LV_CAL_PT[i][0], LV_CAL_PT[i][1], &nx, &ny);
+        g_tm.raw(nx, ny, &rx, &ry, false); L.convertRawXY(rx, ry, &x, &y);
+        if (lv_rot180) { x = 239 - x; y = 319 - y; }   /* LovyanGFX convertRawXY r=2: affine to native, then flip both axes */
         const int d = abs(x - LV_CAL_PT[i][0]) > abs(y - LV_CAL_PT[i][1]) ? abs(x - LV_CAL_PT[i][0]) : abs(y - LV_CAL_PT[i][1]);
         if (d > worst) worst = d;
         printf("  chip %d at %d,%d -> lgfx maps to %d,%d\n", i + 1, LV_CAL_PT[i][0], LV_CAL_PT[i][1], x, y);
@@ -99,13 +105,13 @@ static bool fk_cal_save(const uint16_t c[8])
     printf("  worst axis error %d px\n", worst);
     return true;
 }
-static const LvRadio FAKE = {fk_wifi_start, fk_wifi_poll, fk_ble_start, fk_ble_poll, fk_deauth_start, fk_deauth_poll, fk_stop, fk_sys, fk_save, fk_cal_save};
+static const LvRadio FAKE = {fk_wifi_start, fk_wifi_poll, fk_ble_start, fk_ble_poll, fk_deauth_start, fk_deauth_poll, fk_stop, fk_sys, fk_save, fk_cal_save, fk_set_flip};
 static bool g_down = false; static int g_fx, g_fy; static FILE *g_rec = nullptr;
 static void dump(const char *path);
 static void rec_frame(void);
 static void tick1(const LkIo &io)
 {
-    for (int k = 0; k < 2; ++k) { t_ms += 15; int rx = 0, ry = 0; if (g_down) g_tm.raw(g_fx, g_fy, &rx, &ry); lv_cal_raw(g_down, rx, ry, t_ms); }
+    for (int k = 0; k < 2; ++k) { t_ms += 15; int rx = 0, ry = 0; if (g_down) { int nx, ny; scr_to_native(g_fx, g_fy, &nx, &ny); g_tm.raw(nx, ny, &rx, &ry); } lv_cal_raw(g_down, rx, ry, t_ms); }
     lv_tick(io, t_ms);
     rec_frame();
 }
@@ -118,7 +124,7 @@ static void tickto(const LkIo &io, uint32_t T)
 {
     while (t_ms + 30 <= T) tick1(io);
     if (t_ms >= T) return;
-    while (t_ms < T) { t_ms = t_ms + 15 <= T ? t_ms + 15 : T; int rx = 0, ry = 0; if (g_down) g_tm.raw(g_fx, g_fy, &rx, &ry); lv_cal_raw(g_down, rx, ry, t_ms); }
+    while (t_ms < T) { t_ms = t_ms + 15 <= T ? t_ms + 15 : T; int rx = 0, ry = 0; if (g_down) { int nx, ny; scr_to_native(g_fx, g_fy, &nx, &ny); g_tm.raw(nx, ny, &rx, &ry); } lv_cal_raw(g_down, rx, ry, t_ms); }
     lv_tick(io, t_ms);
     rec_frame();
 }
@@ -139,6 +145,7 @@ static void dump(const char *path)
 static void tap_key(int k, LkIo &io)
 {
     const LvRect r = lv_key_rect(k);
+    lv_press((r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2);
     printf("  key %d at %d,%d -> %s\n", k, (r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2, lv_tap((r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2));
     for (int i = 0; i < 3; ++i) tick1(io);
 }
@@ -155,13 +162,31 @@ int main(int argc, char **argv)
     while (fscanf(sc, "%31s", cmd) == 1) {
         if (!strcmp(cmd, "tick")) { int n; if (fscanf(sc, "%d", &n) != 1) return 2; for (int i = 0; i < n; ++i) tick1(io); }
         else if (!strcmp(cmd, "hold")) { int ms; if (fscanf(sc, "%d %d %d", &g_fx, &g_fy, &ms) != 3) return 2; g_down = true; for (int e = 0; e < ms; e += 30) tick1(io); g_down = false; printf("t=%u hold %d,%d -> scr=%d cal_n=%d phase=%d msg=%d\n", t_ms, g_fx, g_fy, lv_scr, lv_cal_n, lv_cal_phase, lv_cal_msg); }
-        else if (!strcmp(cmd, "press")) { if (fscanf(sc, "%d %d", &g_fx, &g_fy) != 2) return 2; g_down = true; int rx, ry; g_tm.raw(g_fx, g_fy, &rx, &ry); lv_cal_raw(true, rx, ry, t_ms); }
+        else if (!strcmp(cmd, "press")) { if (fscanf(sc, "%d %d", &g_fx, &g_fy) != 2) return 2; g_down = true; int rx, ry, nx, ny; scr_to_native(g_fx, g_fy, &nx, &ny); g_tm.raw(nx, ny, &rx, &ry); lv_cal_raw(true, rx, ry, t_ms); }
         else if (!strcmp(cmd, "release")) { g_down = false; lv_cal_raw(false, 0, 0, t_ms); }
         else if (!strcmp(cmd, "tickto")) { unsigned T; if (fscanf(sc, "%u", &T) != 1) return 2; tickto(io, T); }
         else if (!strcmp(cmd, "up")) { int ms; if (fscanf(sc, "%d", &ms) != 1) return 2; g_down = false; for (int e = 0; e < ms; e += 30) tick1(io); }
         else if (!strcmp(cmd, "recstart")) { char nm[64]; if (fscanf(sc, "%63s", nm) != 1) return 2; char p[512]; snprintf(p, sizeof p, "%s/%s.rgb", argv[2], nm); g_rec = fopen(p, "wb"); }
         else if (!strcmp(cmd, "recstop")) { if (g_rec) fclose(g_rec); g_rec = nullptr; remove("/tmp/.sim_rec_part"); }
-        else if (!strcmp(cmd, "tap")) { int x, y; if (fscanf(sc, "%d %d", &x, &y) != 2) return 2; const char *r = lv_tap(x, y); printf("t=%u tap %d,%d -> %s (scr=%d seg=%d)\n", t_ms, x, y, r, lv_scr, lv_play.seg); }
+        else if (!strcmp(cmd, "pdown")) { int x, y; if (fscanf(sc, "%d %d", &x, &y) != 2) return 2; lv_press(x, y); printf("t=%u pdown %d,%d (flash)\n", t_ms, x, y); }
+        else if (!strcmp(cmd, "audit")) {   /* item 9: every target on this screen, tapped at its centre on a scratch copy is not possible
+                                               (static state), so list them; the 'auditrun' script taps each one for real */
+            LvHit o[LV_MAXHIT]; const int n = lv_targets(o);
+            printf("AUDIT scr=%d targets=%d\n", lv_scr, n);
+            for (int i = 0; i < n; ++i) printf("  [%d] %-26s {%d,%d,%d,%d} act=%d arg=%d\n", i, o[i].name, o[i].r.x0, o[i].r.y0, o[i].r.x1, o[i].r.y1, o[i].act, o[i].arg);
+        }
+        else if (!strcmp(cmd, "heap50")) {  /* item 7: 50 WiFi+BLE scan cycles, heap (sim process) before/after */
+            struct mallinfo2 m0 = mallinfo2(); size_t lo = m0.uordblks, hi = m0.uordblks;
+            for (int c = 0; c < 50; ++c) {
+                lv_job_start(LV_J_ALL, -1);
+                while (lv_job != LV_J_NONE) tick1(io);
+                struct mallinfo2 m = mallinfo2(); if (m.uordblks < lo) lo = m.uordblks; if (m.uordblks > hi) hi = m.uordblks;
+                if (c % 10 == 9) printf("  cycle %d t=%u finds=%d heap_in_use=%zu\n", c + 1, t_ms, lv_nf, m.uordblks);
+            }
+            struct mallinfo2 m1 = mallinfo2();
+            printf("HEAP50 start=%zu end=%zu min=%zu max=%zu delta=%ld finds=%d\n", m0.uordblks, m1.uordblks, lo, hi, (long)m1.uordblks - (long)m0.uordblks, lv_nf);
+        }
+        else if (!strcmp(cmd, "tap")) { int x, y; if (fscanf(sc, "%d %d", &x, &y) != 2) return 2; lv_press(x, y); const char *r = lv_tap(x, y); printf("t=%u tap %d,%d -> %s (scr=%d seg=%d)\n", t_ms, x, y, r, lv_scr, lv_play.seg); }
         else if (!strcmp(cmd, "theme")) { int t; if (fscanf(sc, "%d", &t) != 1) return 2; lv_set_theme(t); }
         else if (!strcmp(cmd, "type")) {
             char line[128]; if (!fgets(line, sizeof line, sc)) return 2;

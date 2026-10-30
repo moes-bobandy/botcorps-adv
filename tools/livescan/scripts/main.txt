@@ -3,9 +3,9 @@ tick 40
 dump boot
 tick 150
 dump home
-tap 140 10
+tap 15 311
 tick 3
-dump home_crown_noop
+dump home_back_noop
 tap 60 170
 tick 10
 dump scan_empty
@@ -15,9 +15,6 @@ dump scan_running
 tick 250
 dump scan_all
 tap 57 208
-tick 5
-dump scan_select
-tap 57 208
 tick 3
 dump scan_detail
 tap 100 220
@@ -25,20 +22,20 @@ tap 190 240
 tick 3
 dump scan_page2
 tap 190 240
-tap 97 168
+tap 52 60
 tick 60
 dump scan_wifi
-tap 88 208
 tap 88 208
 tick 3
 dump scan_detail_wifi
 tap 88 208
 tap 185 168
+tap 190 211
 tick 200
 dump scan_deauth_live
 tick 200
 dump scan_deauth_done
-tap 140 10
+tap 15 311
 tick 5
 dump home_after_crown
 tap 160 170
@@ -69,7 +66,7 @@ tap 24 304
 tap 217 10
 tick 10
 dump term_after_close
-tap 140 10
+tap 15 311
 tick 3
 tap 187 47
 tick 10
@@ -81,8 +78,8 @@ tick 30
 dump ctl_after
 tap 50 110
 tick 3
-dump ctl_na_mix
-tap 140 10
+dump ctl_mix
+tap 15 311
 tick 10
 dump home_t1
 tap 60 170

@@ -19,14 +19,21 @@ static void nod(int, int, int, const uint8_t *) {}
 static int z0(void) { return 0; } static int zp(LvFind *, int) { return 0; } static int z1(uint32_t) { return 0; }
 static int zd(uint32_t *, uint32_t *, uint8_t *) { return 0; } static void zs(void) {}
 static void zy(int, char *o, int n) { if (n) o[0] = 0; } static void zt(int) {}
-static const LvRadio R = {z0, zp, z1, zp, z1, zd, zs, zy, zt, save};
+static void zf(bool) {}
+static const LvRadio R = {z0, zp, z1, zp, z1, zd, zs, zy, zt, save, zf};
+/* item 6: the UI runs at LovyanGFX rotation 2 (USB at the bottom) unless ORIENT flips it. A finger at SCREEN
+ * (sx,sy) touches the native panel at (239-sx, 319-sy); convertRawXY r=2 applies the affine (native) and flips. */
+static void praw(TouchModel &m, double sx, double sy, int *rx, int *ry, bool noise = true)
+{ if (lv_rot180) { sx = 239 - sx; sy = 319 - sy; } m.raw(sx, sy, rx, ry, noise); }
+static void conv(const LgfxCalRef &L, int rx, int ry, int *x, int *y)
+{ L.convertRawXY(rx, ry, x, y); if (lv_rot180) { *x = 239 - *x; *y = 319 - *y; } }
 static int infl(const uint8_t *, uint32_t, uint8_t *, uint32_t) { return -1; }
 
 static uint32_t t;
 static void step(LkIo &io, TouchModel &m, bool down, double sx, double sy, int ms)
 {
     for (int e = 0; e < ms; e += 15) {
-        t += 15; int rx = 0, ry = 0; if (down) m.raw(sx, sy, &rx, &ry);
+        t += 15; int rx = 0, ry = 0; if (down) praw(m, sx, sy, &rx, &ry);
         lv_cal_raw(down, rx, ry, t);
         if (t % 30 == 0) lv_tick(io, t);
     }
@@ -41,25 +48,27 @@ int main(void)
     };
     static uint8_t ib[16]; LkIo io{nullptr, infl, lv_clip_draw, ib};
     double worst_all = 0; int runs = 0;
+    for (int rot = 0; rot < 2; ++rot)
     for (auto &m0 : M) {
+        lv_rot180 = rot == 0; if (&m0 == &M[0]) printf("--- %s ---\n", lv_rot180 ? "rotation 2 (USB bottom, default)" : "rotation 0 (ORIENT flipped)");
         double wmax = 0, wsum = 0, cmax = 0; int wn = 0, axmax = 0;
         for (int seed = 0; seed < 50; ++seed) {
             TouchModel m = m0; m.seed = m0.seed * 7919u + seed * 104729u;
-            t = 1000; g_saves = 0; lv_begin(&R, nob, nod, 0, t, false);
+            t = 1000; g_saves = 0; { const bool r180 = lv_rot180; lv_begin(&R, nob, nod, 0, t, false); lv_rot180 = r180; }
             for (int i = 0; i < 4; ++i) {
                 step(io, m, false, 0, 0, 90);
-                step(io, m, true, LV_CAL_PT[i][0], LV_CAL_PT[i][1], 700);
-                step(io, m, false, 0, 0, 90);
+                step(io, m, true, LV_CAL_PT[i][0], LV_CAL_PT[i][1], 1800);   /* hold >= LV_CAL_HOLD_MS (1.5 s) */
+                step(io, m, false, 0, 0, 900);   /* the lock + next-chip step after release */
             }
             if (g_saves != 1 || lv_cal_phase != LV_CAL_OK) { printf("FAIL %s seed %d: saves=%d phase=%d\n", m.name, seed, g_saves, lv_cal_phase); return 1; }
             LgfxCalRef L; L.setCalibrate(g_c8);
             for (int i = 0; i < 4; ++i) {           /* the four chip centres */
-                int rx, ry, x, y; m.raw(LV_CAL_PT[i][0], LV_CAL_PT[i][1], &rx, &ry, false); L.convertRawXY(rx, ry, &x, &y);
+                int rx, ry, x, y; praw(m, LV_CAL_PT[i][0], LV_CAL_PT[i][1], &rx, &ry, false); conv(L, rx, ry, &x, &y);
                 const double d = hypot(x - LV_CAL_PT[i][0], y - LV_CAL_PT[i][1]); if (d > cmax) cmax = d;
             }
             for (int gy = 0; gy <= 10; ++gy) for (int gx = 0; gx <= 8; ++gx) {   /* 9x11 grid incl. the true corners */
                 const int sx = gx * 239 / 8, sy = gy * 319 / 10; int rx, ry, x, y;
-                m.raw(sx, sy, &rx, &ry, false); L.convertRawXY(rx, ry, &x, &y);
+                praw(m, sx, sy, &rx, &ry, false); conv(L, rx, ry, &x, &y);
                 const double d = hypot(x - sx, y - sy); if (d > wmax) wmax = d; wsum += d; ++wn;
                 if (abs(x - sx) > axmax) axmax = abs(x - sx); if (abs(y - sy) > axmax) axmax = abs(y - sy);
             }

@@ -65,7 +65,8 @@ static void lv_use_pal(void)
 
 static const LkIo s_io{lk_blob_live, lv_infl, lv_clip_draw, s_buf};
 
-static bool lv_read_tap(int *ox, int *oy)
+/* item 2: *pressed is set once per touch, on the 2nd down sample (first may be noisy): touch-down flash */
+static bool lv_read_tap(int *ox, int *oy, bool *pressed, int *pxo, int *pyo)
 {
     static bool down_prev = false;
     static int n = 0, up = 0, px[2], py[2];
@@ -75,6 +76,7 @@ static bool lv_read_tap(int *ox, int *oy)
     if (down) {
         if (!down_prev) { down_prev = true; n = 0; }
         px[0] = px[1]; py[0] = py[1]; px[1] = tx; py[1] = ty; ++n; up = 0;
+        if (n == 2) { *pressed = true; *pxo = tx; *pyo = ty; }
         return false;
     }
     if (!down_prev) return false;
@@ -129,7 +131,8 @@ static int r_wifi_start(void)
     WiFi.persistent(false);
     WiFi.mode(WIFI_STA);
     WiFi.disconnect(true, false);
-    if (WiFi.scanNetworks(true, true) == WIFI_SCAN_FAILED) { wifi_off(); return -1; }
+    /* item 7: async, show hidden, active probe, 120 ms per channel (13 ch ~1.6 s instead of ~4 s at the 300 ms default) */
+    if (WiFi.scanNetworks(true, true, false, 120) == WIFI_SCAN_FAILED) { wifi_off(); return -1; }
     s_job = JOB_WIFI;
     return 0;
 }
@@ -316,18 +319,31 @@ static bool r_cal_save(const uint16_t c8[8])
     return ok && botcorps_cyd_has_valid_cal();
 }
 
+/* item 6: USB at the bottom = LovyanGFX rotation 2 (portrait, 180 deg from rot 0). CONTROLbot ORIENT can flip back
+ * to rot 0 (USB top); persisted as NVS "lkflip". convertRawXY applies the native cv=2 cal then flips for r=2,
+ * so the saved cal stays valid in both rotations (no cv bump). */
+static void r_set_flip(bool flip)
+{
+    g_cyd.setRotation(flip ? 0 : 2);
+    Preferences prefs;
+    if (prefs.begin("botcorps", false)) { prefs.putUChar("lkflip", flip ? 1 : 0); prefs.end(); }
+    Serial.printf("[live] ORIENT %s (rotation %d)\n", flip ? "flipped, USB top" : "normal, USB bottom", flip ? 0 : 2);
+}
+
 static const LvRadio s_radio{r_wifi_start, r_wifi_poll, r_ble_start, r_ble_poll, r_deauth_start, r_deauth_poll,
-                             r_stop, r_sys, r_save_theme, r_cal_save};
+                             r_stop, r_sys, r_save_theme, r_cal_save, r_set_flip};
 
 void lv_ui_begin(void)
 {
     botcorps_cyd_orient = 1;
-    botcorps_cyd_apply_rotation(); /* rot 0: portrait 240x320 */
-    g_cyd.fillScreen(0x0000);
+    botcorps_cyd_apply_rotation(); /* shared helper: rot 0 portrait */
     WiFi.mode(WIFI_OFF);
     Preferences prefs;
-    int th = 0;
-    if (prefs.begin("botcorps", true)) { th = prefs.getUChar("lktheme", 0); prefs.end(); }
+    int th = 0, flip = 0;
+    if (prefs.begin("botcorps", true)) { th = prefs.getUChar("lktheme", 0); flip = prefs.getUChar("lkflip", 0); prefs.end(); }
+    lv_flip = flip != 0; lv_rot180 = !lv_flip;
+    g_cyd.setRotation(lv_flip ? 0 : 2);   /* item 6: rot 2 = USB at the bottom (portrait 240x320 either way) */
+    g_cyd.fillScreen(0x0000);
     if (th < 0 || th >= LV_NTHEME) th = 0;
     Serial.printf("[live] blob=%u (expect %u) theme=%d %dx%d\n", (unsigned)(lk_blob_live_end - lk_blob_live),
                   (unsigned)LK_BLOB_SIZE, th, (int)g_cyd.width(), (int)g_cyd.height());
@@ -346,12 +362,17 @@ void lv_ui_loop(void)
         const bool d = g_cyd.get_touch_raw(&rx, &ry);
         lv_cal_raw(d, rx, ry, millis());
     }
-    else if (lv_read_tap(&x, &y)) {
+    else {
+      bool pr = false; int qx = 0, qy = 0;
+      const bool tapped = lv_read_tap(&x, &y, &pr, &qx, &qy);
+      if (pr) { lv_use_pal(); g_cyd.startWrite(); lv_press(qx, qy); g_cyd.endWrite(); }
+      if (tapped) {
         lv_use_pal();
         g_cyd.startWrite();
         const char *a = lv_tap(x, y);
         g_cyd.endWrite();
         Serial.printf("[live] tap %d,%d scr=%d -> %s\n", x, y, (int)lv_scr, a ? a : "-");
+      }
     }
     const uint32_t now = millis();
     if ((int32_t)(now - next) < 0) { delay(1); return; }

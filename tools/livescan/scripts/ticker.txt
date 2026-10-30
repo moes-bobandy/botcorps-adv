@@ -9,7 +9,7 @@ tick 250
 dump ticker_find_wifi
 tick 40
 dump ticker_find_2
-tap 140 10
+tap 15 311
 tick 10
 tap 160 170
 tick 10

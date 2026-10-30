@@ -16,6 +16,21 @@ def clipfile(seg):
 TICK = [(24, 1, 127, 23), (164, 1, 236, 23)]
 MASK = {2: TICK, 3: TICK + [(34, 272, 181, 305)], 4: TICK + [(36, 188, 203, 253), (32, 275, 182, 308)],
         5: TICK + [(82, 36, 112, 44), (76, 51, 112, 59), (82, 66, 112, 74), (178, 246, 198, 252)], 0: [], 1: []}
+# Dual scoring (hitlist). The "before" MASK keeps the top-bar centre (old crown/GIBSON icon, 128..163) scored, so
+# removing that art (item 3) and widening the ticker to full width necessarily drops the home/term/scan/ctl scores
+# there; the new back button (item 4, bottom-left) is also scored against bare clip art. MASK2 is the honest view:
+# it widens the ticker to the full top bar and excludes the new live overlays (back button, SCANbot/CONTROLbot dyn
+# label plates) so only genuine art regressions remain.
+TICKW = [(3, 1, 236, 23)]                 # full-width ticker strip (crown/icon removed)
+BACK = [(0, 290, 29, 319)]                 # LV_R_BACK_HIT, bottom-left back button
+DYN5 = [(96, 189, 143, 199), (34, 125, 72, 134), (36, 180, 68, 186), (33, 238, 76, 246),
+        (167, 118, 206, 126), (170, 156, 207, 162), (167, 215, 209, 223), (112, 219, 148, 225)]  # CONTROLbot live labels
+SCANLBL = [(86, 133, 152, 143)]            # SCANbot centre plate label
+MASK2 = {0: [], 1: [],
+         2: TICKW + BACK,
+         3: TICKW + [(34, 272, 181, 305)] + BACK,
+         4: TICKW + [(36, 188, 203, 253), (32, 275, 182, 308)] + SCANLBL + BACK,
+         5: TICKW + [(82, 36, 112, 44), (76, 51, 112, 59), (82, 66, 112, 74), (178, 246, 198, 252)] + DYN5 + BACK}
 def png(a, p, s=2): Image.fromarray(a).resize((a.shape[1] * s, a.shape[0] * s), Image.NEAREST).save(p)
 res = {}
 for script, extra in (('main', []), ('ticker', []), ('calbot', ['nocal']), ('calbot_nvs', []), ('calbot_recal', [])):
@@ -33,11 +48,15 @@ for script, extra in (('main', []), ('ticker', []), ('calbot', ['nocal']), ('cal
         keep = np.ones((320, 240), bool)
         for (x0, y0, x1, y1) in MASK[scr]: keep[y0:y1 + 1, x0:x1 + 1] = False
         close = float((d[keep] <= 40).mean() * 100)
+        keep2 = np.ones((320, 240), bool)
+        for (x0, y0, x1, y1) in MASK2[scr]: keep2[y0:y1 + 1, x0:x1 + 1] = False
+        close2 = float((d[keep2] <= 40).mean() * 100)
         diff = (ref // 3).astype(np.uint8); diff[(d > 40) & keep] = [255, 0, 0]; diff[~keep] = diff[~keep] // 2 + np.array([0, 0, 90], np.uint8)
         sbs = np.concatenate([ref, np.full((320, 4, 3), 255, np.uint8), r, np.full((320, 4, 3), 255, np.uint8), diff], 1)
         png(sbs, '%s/%s_ref_render_diff.png' % (OUT, nm))
-        res[nm] = {'seg': seg, 'clip': clipfile(seg), 'clip_frame': cf, 'close_pct_outside_overlays': round(close, 3), 'overlay_px': int((~keep).sum())}
-        print('%-24s seg %2d frame %3d  close %.3f%%  (overlay px %d)' % (nm, seg, cf, close, (~keep).sum()))
+        res[nm] = {'seg': seg, 'clip': clipfile(seg), 'clip_frame': cf, 'close_pct_outside_overlays': round(close, 3),
+                   'close_pct_new_mask': round(close2, 3), 'overlay_px': int((~keep).sum()), 'overlay_px_new': int((~keep2).sum())}
+        print('%-24s seg %2d frame %3d  before-mask %.3f%%  new-mask %.3f%%  (ov %d/%d)' % (nm, seg, cf, close, close2, (~keep).sum(), (~keep2).sum()))
 json.dump(res, open(OUT + '/scores.json', 'w'), indent=1)
 # CALbot power-on flow video: every 30 ms sim frame, x3 nearest, H.264 yuv420p faststart (same recipe as ticker@3x.mp4)
 subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-s', '240x320', '-framerate', '100/3',

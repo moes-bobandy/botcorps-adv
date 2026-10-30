@@ -112,10 +112,10 @@ DUMP gif_110 scr=7 seg=-1 clipframe=-1 t=11000
 DUMP gif_111 scr=7 seg=-1 clipframe=-1 t=11100
 DUMP gif_112 scr=7 seg=-1 clipframe=-1 t=11200
 DUMP gif_113 scr=7 seg=-1 clipframe=-1 t=11300
-t=11400 CAL SAVE c0..c7 = 3823 3761 251 3770 3813 268 240 276 (SIM NVS)
+t=11400 CAL SAVE c0..c7 = 3812 3765 240 3757 3823 280 250 272 (SIM NVS)
   chip 1 at 52,55 -> lgfx maps to 52,55
-  chip 2 at 187,55 -> lgfx maps to 186,54
-  chip 3 at 187,226 -> lgfx maps to 187,225
+  chip 2 at 187,55 -> lgfx maps to 188,56
+  chip 3 at 187,226 -> lgfx maps to 187,227
   chip 4 at 52,226 -> lgfx maps to 52,226
   worst axis error 1 px
 DUMP gif_114 scr=7 seg=-1 clipframe=-1 t=11400

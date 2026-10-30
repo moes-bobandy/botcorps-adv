@@ -1,0 +1,90 @@
+tick 40
+dump boot
+tick 150
+dump home
+tap 140 10
+tick 3
+dump home_crown_noop
+tap 60 170
+tick 10
+dump scan_empty
+tap 190 211
+tick 20
+dump scan_running
+tick 250
+dump scan_all
+tap 57 208
+tick 5
+dump scan_select
+tap 57 208
+tick 3
+dump scan_detail
+tap 100 220
+tap 190 240
+tick 3
+dump scan_page2
+tap 190 240
+tap 97 168
+tick 60
+dump scan_wifi
+tap 88 208
+tap 88 208
+tick 3
+dump scan_detail_wifi
+tap 88 208
+tap 185 168
+tick 200
+dump scan_deauth_live
+tick 200
+dump scan_deauth_done
+tap 140 10
+tick 5
+dump home_after_crown
+tap 160 170
+tick 10
+dump term
+tap 97 225
+tick 200
+dump terminal_hunt_airtag
+type help~
+tick 5
+dump terminal_help
+type scan wifi~
+tick 60
+type list~
+tick 5
+dump terminal_list
+tap 120 60
+tick 3
+dump terminal_scrolled
+tap 120 140
+type info 1~
+tick 3
+type Hunt FLOCK
+tap 24 304
+tick 3
+dump terminal_typing_shift
+tap 24 304
+tap 217 10
+tick 10
+dump term_after_close
+tap 140 10
+tick 3
+tap 187 47
+tick 10
+dump ctl
+tap 95 40
+tap 95 70
+tap 185 240
+tick 30
+dump ctl_after
+tap 50 110
+tick 3
+dump ctl_na_mix
+tap 140 10
+tick 10
+dump home_t1
+tap 60 170
+tick 10
+dump scan_t1
+log

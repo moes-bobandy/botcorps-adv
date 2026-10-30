@@ -1,0 +1,125 @@
+DUMP boot scr=0 seg=0 clipframe=39 t=1200
+DUMP home scr=2 seg=2 clipframe=437 t=5700
+t=5700 tap 140,10 -> crown-home (scr=2 seg=2)
+DUMP home_crown_noop scr=2 seg=2 clipframe=440 t=5790
+t=5790 tap 60,170 -> scan (scr=4 seg=14)
+DUMP scan_empty scr=4 seg=14 clipframe=9 t=6090
+t=6090 tap 190,211 -> scan-button (scr=4 seg=14)
+DUMP scan_running scr=4 seg=14 clipframe=29 t=6690
+DUMP scan_all scr=4 seg=14 clipframe=29 t=14190
+t=14190 tap 57,208 -> select (scr=4 seg=14)
+DUMP scan_select scr=4 seg=14 clipframe=34 t=14340
+t=14340 tap 57,208 -> detail (scr=4 seg=14)
+DUMP scan_detail scr=4 seg=14 clipframe=37 t=14430
+t=14430 tap 100,220 -> detail-back (scr=4 seg=14)
+t=14430 tap 190,240 -> more-page (scr=4 seg=14)
+DUMP scan_page2 scr=4 seg=14 clipframe=40 t=14520
+t=14520 tap 190,240 -> more-page (scr=4 seg=14)
+t=14520 tap 97,168 -> wifi-scan (scr=4 seg=14)
+DUMP scan_wifi scr=4 seg=14 clipframe=0 t=16320
+t=16320 tap 88,208 -> select (scr=4 seg=14)
+t=16320 tap 88,208 -> detail (scr=4 seg=14)
+DUMP scan_detail_wifi scr=4 seg=14 clipframe=3 t=16410
+t=16410 tap 88,208 -> detail-back (scr=4 seg=14)
+t=16410 tap 185,168 -> deauth-watch (scr=4 seg=14)
+DUMP scan_deauth_live scr=4 seg=14 clipframe=3 t=22410
+DUMP scan_deauth_done scr=4 seg=14 clipframe=3 t=28410
+t=28410 tap 140,10 -> crown-home (scr=2 seg=2)
+DUMP home_after_crown scr=2 seg=2 clipframe=424 t=28560
+t=28560 tap 160,170 -> term (scr=3 seg=8)
+DUMP term scr=3 seg=8 clipframe=9 t=28860
+t=28860 tap 97,225 -> airtag (scr=6 seg=-1)
+DUMP terminal_hunt_airtag scr=6 seg=-1 clipframe=-1 t=34860
+  key 25 at 131,246 -> key
+  key 12 at 59,217 -> key
+  key 28 at 203,246 -> key
+  key 19 at 227,217 -> key
+  key 43 at 215,304 -> key
+DUMP terminal_help scr=6 seg=-1 clipframe=-1 t=35460
+  key 21 at 35,246 -> key
+  key 32 at 59,275 -> key
+  key 20 at 11,246 -> key
+  key 35 at 131,275 -> key
+  key 41 at 95,304 -> key
+  key 11 at 35,217 -> key
+  key 17 at 179,217 -> key
+  key 23 at 83,246 -> key
+  key 17 at 179,217 -> key
+  key 43 at 215,304 -> key
+  key 28 at 203,246 -> key
+  key 17 at 179,217 -> key
+  key 21 at 35,246 -> key
+  key 14 at 107,217 -> key
+  key 43 at 215,304 -> key
+DUMP terminal_list scr=6 seg=-1 clipframe=-1 t=38760
+t=38760 tap 120,60 -> scroll-up (scr=6 seg=-1)
+DUMP terminal_scrolled scr=6 seg=-1 clipframe=-1 t=38850
+t=38850 tap 120,140 -> scroll-down (scr=6 seg=-1)
+  key 17 at 179,217 -> key
+  key 35 at 131,275 -> key
+  key 23 at 83,246 -> key
+  key 18 at 203,217 -> key
+  key 41 at 95,304 -> key
+  key 0 at 11,188 -> key
+  key 43 at 215,304 -> key
+  key 40 at 23,304 -> key
+  key 25 at 131,246 -> key
+  key 40 at 23,304 -> key
+  key 16 at 155,217 -> key
+  key 35 at 131,275 -> key
+  key 14 at 107,217 -> key
+  key 41 at 95,304 -> key
+  key 40 at 23,304 -> key
+  key 23 at 83,246 -> key
+  key 40 at 23,304 -> key
+  key 40 at 23,304 -> key
+  key 28 at 203,246 -> key
+  key 40 at 23,304 -> key
+  key 40 at 23,304 -> key
+  key 18 at 203,217 -> key
+  key 40 at 23,304 -> key
+  key 40 at 23,304 -> key
+  key 32 at 59,275 -> key
+  key 40 at 23,304 -> key
+  key 40 at 23,304 -> key
+  key 27 at 179,246 -> key
+  key 40 at 23,304 -> key
+t=41550 tap 24,304 -> key (scr=6 seg=-1)
+DUMP terminal_typing_shift scr=6 seg=-1 clipframe=-1 t=41640
+t=41640 tap 24,304 -> key (scr=6 seg=-1)
+t=41640 tap 217,10 -> tty-close (scr=3 seg=8)
+DUMP term_after_close scr=3 seg=8 clipframe=9 t=41940
+t=41940 tap 140,10 -> crown-home (scr=2 seg=2)
+t=42030 tap 187,47 -> ctl (scr=5 seg=20)
+DUMP ctl scr=5 seg=20 clipframe=2 t=42330
+t=42330 tap 95,40 -> theme (scr=5 seg=20)
+t=42330 tap 95,70 -> focus (scr=5 seg=20)
+t=42330 tap 185,240 -> bg-motion (scr=5 seg=20)
+DUMP ctl_after scr=5 seg=20 clipframe=2 t=43230
+t=43230 tap 50,110 -> MIX (scr=5 seg=20)
+DUMP ctl_na_mix scr=5 seg=20 clipframe=2 t=43320
+t=43320 tap 140,10 -> crown-home (scr=2 seg=3)
+DUMP home_t1 scr=2 seg=3 clipframe=120 t=43620
+t=43620 tap 60,170 -> scan (scr=4 seg=15)
+DUMP scan_t1 scr=4 seg=15 clipframe=50 t=43920
+  |  4 3C:84:6A:12:54  -63 GALAXYTAG
+  |  5 TELLO-5A21B3    -66 c1  OPEN
+  |  6 RB Meta 0A1F    -67 GLASSES
+  |  7 xfinitywifi     -70 c1  OPEN
+  |  8 HC-05           -71 SKIMMER
+  |  9 DIRECT-6B-HP O  -73 c6  WPA2
+  | 10 Galaxy Watch6   -74 WATCH
+  | 11 Tile            -77 KEYFOB
+  | 12 JBL Flip 6      -79 SPEAKER
+  | 13 <hidden>        -80 c149 WPA3
+  | 14 Tesla_Model3    -82 c36 WPA2
+  | 15 3C:84:6A:12:7E  -83 PHONE
+  | 16 NETGEAR42       -84 c9  WPA/2
+  | 17 [TV] Samsung Q  -86 TV
+  | 18 CoffeeShop Gue  -88 c3  OPEN
+  | 19 3C:84:6A:12:8C  -91 UNKNOWN
+  | $ info 1
+  | #1 HomeNet-5G [AP]
+  |  BSSID 3C:84:6A:12:07:01 CH6 -52dBm WP
+  | A2
+px pushed by overlays: 11263328

@@ -9,7 +9,11 @@
  * Shared by the firmware (ROM tinfl) and the host sim (zlib).
  */
 #include <stdint.h>
+#if defined(BOTCORPS_CYD_LIVESCAN) && BOTCORPS_CYD_LIVESCAN
+#include "live/lock_data_live.h" /* cyd_livescan: non-game subset of the same blob (tools/livescan/make_live_blob.py) */
+#else
 #include "lock_data.h"
+#endif
 
 #define LK_INFL_CAP 16384u
 

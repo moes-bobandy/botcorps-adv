@@ -1,0 +1,22 @@
+tick 190
+tap 60 170
+tick 10
+tap 190 211
+tick 12
+dump ticker_scanning
+tick 250
+dump ticker_find_wifi
+tick 40
+dump ticker_find_2
+tap 140 10
+tick 10
+tap 160 170
+tick 10
+tap 97 225
+tick 200
+tap 217 10
+tick 10
+dump ticker_alert_airtag_term
+tick 7
+dump ticker_alert_flash
+rec 300 ticker_rec

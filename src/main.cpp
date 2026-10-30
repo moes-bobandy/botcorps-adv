@@ -127,6 +127,38 @@ void loop(void)
     botcorps_ui_draw();
     delay(10);
 }
+#elif defined(BOTCORPS_CYD_LIVESCAN) && BOTCORPS_CYD_LIVESCAN
+#include "live/lv_ui.h"
+
+/* LIVE-SCAN build (env cyd_livescan): locked non-game screens + real WiFi/BLE scans. No games. */
+void setup(void)
+{
+    Serial.begin(115200);
+    delay(100);
+    Serial.printf("\n[botcorps] %s CYD livescan\n", BOTCORPS_VERSION);
+    if (!botcorps_dual_begin()) {
+        Serial.println("[botcorps] display fail");
+        while (1) delay(1000);
+    }
+    if (!botcorps_cyd_has_valid_cal()) {
+        Serial.println("[botcorps] no valid cv=2 cal — auto-entering cal");
+        botcorps_cyd_run_touch_cal();
+    } else {
+        int x, y, hold = 0;
+        const uint32_t t0 = millis();
+        while (millis() - t0 < 2500 && g_cyd.get_touch_raw(&x, &y)) {
+            if (++hold >= 100) { Serial.println("[botcorps] hold-at-boot cal"); botcorps_cyd_run_touch_cal(); break; }
+            delay(10);
+        }
+    }
+    lv_ui_begin();
+}
+
+void loop(void)
+{
+    lv_ui_loop();
+}
+
 #elif BOTCORPS_LOCK_UI
 #include "lock/lock_ui.h"
 

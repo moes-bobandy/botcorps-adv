@@ -1,0 +1,16 @@
+{
+ "from_blob_sha256": "cd07c1f524af482401b931b3c5b71df66cbab49ec924193c5630c81b99348add",
+ "bytes": 315100,
+ "sha256": "d1027ae0287021019e7c92225164da9bd05042c6ed170afb17e258f20cb4201e",
+ "clips": [
+  "boot",
+  "home",
+  "term",
+  "scan",
+  "ctl"
+ ],
+ "segs": 21,
+ "ops": 1254,
+ "chunks": 1338,
+ "dropped_bytes": 1528847
+}

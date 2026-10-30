@@ -140,17 +140,7 @@ void setup(void)
         Serial.println("[botcorps] display fail");
         while (1) delay(1000);
     }
-    if (!botcorps_cyd_has_valid_cal()) {
-        Serial.println("[botcorps] no valid cv=2 cal — auto-entering cal");
-        botcorps_cyd_run_touch_cal();
-    } else {
-        int x, y, hold = 0;
-        const uint32_t t0 = millis();
-        while (millis() - t0 < 2500 && g_cyd.get_touch_raw(&x, &y)) {
-            if (++hold >= 100) { Serial.println("[botcorps] hold-at-boot cal"); botcorps_cyd_run_touch_cal(); break; }
-            delay(10);
-        }
-    }
+    /* Touch cal is the CALbot screen (first screen of lv_ui): CALbot -> BOOTbot -> GIBSONbot home. */
     lv_ui_begin();
 }
 

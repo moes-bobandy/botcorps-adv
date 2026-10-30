@@ -1,3 +1,4 @@
+tick 67
 tick 40
 dump boot
 tick 150

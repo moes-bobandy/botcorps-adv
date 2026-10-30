@@ -52,9 +52,10 @@ struct LvRadio {
     void (*stop)(void);                          /* abort whatever runs, radios OFF */
     void (*sys)(int what, char *out, int n);     /* 0 heap, 1 chip, 2 reset reason, 3 flash, 4 touch cal */
     void (*save_theme)(int t);
+    bool (*cal_save)(const uint16_t c8[8]);     /* apply the 8-point matrix + write NVS c0..c7, cv LAST; true = saved */
 };
 
-enum LvScr { LV_SC_BOOT, LV_SC_HOME_INTRO, LV_SC_HOME, LV_SC_TERM, LV_SC_SCAN, LV_SC_CTL, LV_SC_TTY };
+enum LvScr { LV_SC_BOOT, LV_SC_HOME_INTRO, LV_SC_HOME, LV_SC_TERM, LV_SC_SCAN, LV_SC_CTL, LV_SC_TTY, LV_SC_CAL };
 #define LV_NTHEME 6
 static const char *const LV_THEME_NAME[LV_NTHEME] = {"GRAPE", "MAGENTA", "TOXIC", "ICE", "BLUE", "ORANGE"};
 /* Theme inks sampled from the LOCKED SCANbot/TERMINALbot clips (frame 0 of each theme loop). */
@@ -499,7 +500,7 @@ static int lv_nmask = 0;
 static void lv_set_masks(void)
 {
     lv_nmask = 0;
-    if (lv_scr != LV_SC_BOOT && lv_scr != LV_SC_HOME_INTRO) { lv_masks[lv_nmask++] = LV_R_TICK_L; lv_masks[lv_nmask++] = LV_R_TICK_R; }
+    if (lv_scr != LV_SC_BOOT && lv_scr != LV_SC_HOME_INTRO && lv_scr != LV_SC_CAL) { lv_masks[lv_nmask++] = LV_R_TICK_L; lv_masks[lv_nmask++] = LV_R_TICK_R; }
     if (lv_scr == LV_SC_SCAN) { lv_masks[lv_nmask++] = LV_R_SBOX; lv_masks[lv_nmask++] = LV_R_STERM; }
     if (lv_scr == LV_SC_TERM) lv_masks[lv_nmask++] = LV_R_TTERM;
     if (lv_scr == LV_SC_CTL) { lv_masks[lv_nmask++] = LV_R_CTHEME; lv_masks[lv_nmask++] = LV_R_CUP; lv_masks[lv_nmask++] = LV_R_CFOCUS; lv_masks[lv_nmask++] = LV_R_CMOTION; }
@@ -773,11 +774,194 @@ static void lv_go(int s)
     case LV_SC_SCAN: lv_play.start(lv_theme_seg(LK_S_SCAN_T0)); break;
     case LV_SC_CTL: lv_play.start(LK_S_CTL); break;
     case LV_SC_TTY: lv_play.seg = -1; break;
+    case LV_SC_CAL: lv_play.seg = -1; break;
     }
     lv_set_masks();
     lv_dirty_box = lv_dirty_term = lv_dirty_ctl = lv_dirty_tty = lv_dirty_kbd = true;
 }
 static int lv_period(void) { return lv_scr == LV_SC_CTL ? 90 : 30; }
+
+/* ---------- CALbot: power-on touch calibration screen (CALbot -> BOOTbot -> GIBSONbot home) ----------
+ * Four hold-to-capture corner chips in LovyanGFX native order TL, BL, TR, BR (the order the old blocking cal
+ * used). Each hold takes 32 raw XPT2046 samples >= 15 ms apart; rejected if the spread is >= 150 raw (old
+ * rule); else the mean of the middle 16 (a trimmed median, ~1/2 the noise of the old 16-sample median).
+ * The chips sit inset from the glass edge (a finger can hold them), so the four medians are fitted with a
+ * least-squares affine screen->raw map and extrapolated to the TRUE corners (0,0) (0,319) (239,0) (239,319).
+ * Those 8 raws are exactly what the old cal stored: same c0..c7 + cv NVS keys, same LovyanGFX 8-point matrix. */
+#define LV_CAL_IN 24                         /* chip centre inset from the glass edge */
+static const int16_t LV_CAL_PT[4][2] = {{LV_CAL_IN, LV_CAL_IN}, {LV_CAL_IN, 319 - LV_CAL_IN},
+                                        {239 - LV_CAL_IN, LV_CAL_IN}, {239 - LV_CAL_IN, 319 - LV_CAL_IN}};
+enum { LV_CAL_NVS = 0, LV_CAL_RUN = 1, LV_CAL_OK = 2 };
+static int lv_cal_phase = LV_CAL_RUN, lv_cal_n = 0, lv_cal_ns = 0, lv_cal_msg = 0;
+static bool lv_cal_nvs = false, lv_cal_lift = false, lv_cal_saved = false;
+static uint32_t lv_cal_t0, lv_cal_last, lv_cal_up_t, lv_cal_hold0, lv_cal_deadline;
+#define LV_CAL_NS 32                         /* samples per hold, >= 15 ms apart (~0.5 s) */
+static int lv_cal_sx[LV_CAL_NS], lv_cal_sy[LV_CAL_NS];
+static uint16_t lv_cal_med[4][2], lv_cal_c8[8];
+static bool lv_cal_dirty_chip[4], lv_cal_dirty_txt, lv_cal_all;
+static const char *const LV_CAL_MSG[] = {"", "HOLD STILL - TRY AGAIN", "TIMEOUT - SAVED CAL KEPT", "NVS SAVE FAILED"};
+
+/* 4 medians at the inset chip centres -> raw at the 4 true corners (c0..c7). Pure math, host-testable. */
+static void lv_cal_solve(const uint16_t med[4][2], uint16_t out[8])
+{
+    for (int ax = 0; ax < 2; ++ax) {          /* fit raw = a + b*sx + c*sy (least squares over 4 points) */
+        double S[3][4] = {{0}};
+        for (int i = 0; i < 4; ++i) {
+            const double v[3] = {1.0, (double)LV_CAL_PT[i][0], (double)LV_CAL_PT[i][1]};
+            for (int r = 0; r < 3; ++r) { for (int c = 0; c < 3; ++c) S[r][c] += v[r] * v[c]; S[r][3] += v[r] * med[i][ax]; }
+        }
+        for (int p = 0; p < 3; ++p) {         /* Gauss-Jordan, the 3x3 is well conditioned (rectangle) */
+            for (int r = 0; r < 3; ++r) if (r != p) {
+                const double f = S[r][p] / S[p][p];
+                for (int c = p; c < 4; ++c) S[r][c] -= f * S[p][c];
+            }
+        }
+        const double a = S[0][3] / S[0][0], b = S[1][3] / S[1][1], c = S[2][3] / S[2][2];
+        for (int i = 0; i < 4; ++i) {
+            const int tx = (i & 2) ? 239 : 0, ty = (i & 1) ? 319 : 0;   /* LovyanGFX corner order */
+            double v = a + b * tx + c * ty + 0.5;
+            if (v < 0) v = 0; if (v > 4095) v = 4095;
+            out[i * 2 + ax] = (uint16_t)v;
+        }
+    }
+}
+static void lv_cal_start_run(uint32_t now)
+{
+    lv_cal_phase = LV_CAL_RUN; lv_cal_n = 0; lv_cal_ns = 0; lv_cal_lift = true; lv_cal_msg = 0;
+    lv_cal_deadline = now + 15000; lv_cal_all = true;
+}
+static void lv_cal_finish(uint32_t now)
+{
+    lv_cal_solve(lv_cal_med, lv_cal_c8);
+    const bool ok = lv_radio && lv_radio->cal_save && lv_radio->cal_save(lv_cal_c8);
+    if (ok) { lv_cal_phase = LV_CAL_OK; lv_cal_saved = true; lv_cal_t0 = now; lv_cal_msg = 0; lv_cal_all = true; return; }
+    lv_cal_msg = 3;
+    if (lv_cal_nvs) { lv_cal_phase = LV_CAL_OK; lv_cal_t0 = now; lv_cal_all = true; }  /* old cal still applied */
+    else { lv_cal_start_run(now); lv_cal_msg = 3; }
+}
+/* Firmware feeds the RAW touch every loop while lv_scr == LV_SC_CAL. */
+static void lv_cal_raw(bool down, int rx, int ry, uint32_t now)
+{
+    if (lv_scr != LV_SC_CAL) return;
+    if (lv_cal_phase == LV_CAL_NVS) {                 /* saved cal: hold the glass 1 s to redo it */
+        if (!down) { lv_cal_hold0 = 0; return; }
+        if (!lv_cal_hold0) lv_cal_hold0 = now ? now : 1;
+        if ((int32_t)(now - lv_cal_hold0) >= 1000) lv_cal_start_run(now);
+        return;
+    }
+    if (lv_cal_phase != LV_CAL_RUN) return;
+    if (lv_cal_lift) { if (!down) lv_cal_lift = false; return; }
+    if (!down) {                                      /* resistive drop-outs: > 40 ms up restarts the hold */
+        if (lv_cal_ns && (int32_t)(now - lv_cal_up_t) > 40) { lv_cal_ns = 0; lv_cal_dirty_chip[lv_cal_n] = true; }
+        return;
+    }
+    lv_cal_up_t = now;
+    if (lv_cal_ns && (int32_t)(now - lv_cal_last) < 15) return;
+    lv_cal_last = now;
+    lv_cal_sx[lv_cal_ns] = rx; lv_cal_sy[lv_cal_ns] = ry; ++lv_cal_ns;
+    lv_cal_dirty_chip[lv_cal_n] = true;
+    if (lv_cal_ns < LV_CAL_NS) return;
+    int sx[LV_CAL_NS], sy[LV_CAL_NS];
+    for (int k = 0; k < LV_CAL_NS; ++k) { sx[k] = lv_cal_sx[k]; sy[k] = lv_cal_sy[k]; }
+    for (int a = 0; a < LV_CAL_NS - 1; ++a) for (int b = a + 1; b < LV_CAL_NS; ++b) {
+        if (sx[a] > sx[b]) { int t = sx[a]; sx[a] = sx[b]; sx[b] = t; }
+        if (sy[a] > sy[b]) { int t = sy[a]; sy[a] = sy[b]; sy[b] = t; }
+    }
+    lv_cal_ns = 0; lv_cal_lift = true; lv_cal_dirty_txt = true;
+    if (sx[LV_CAL_NS - 1] - sx[0] >= 150 || sy[LV_CAL_NS - 1] - sy[0] >= 150) { lv_cal_msg = 1; return; }
+    lv_cal_msg = 0;
+    int mx = 0, my = 0;                               /* mean of the middle half (outliers dropped) */
+    for (int k = LV_CAL_NS / 4; k < LV_CAL_NS * 3 / 4; ++k) { mx += sx[k]; my += sy[k]; }
+    lv_cal_med[lv_cal_n][0] = (uint16_t)((mx + LV_CAL_NS / 4) / (LV_CAL_NS / 2)); lv_cal_med[lv_cal_n][1] = (uint16_t)((my + LV_CAL_NS / 4) / (LV_CAL_NS / 2));
+    lv_cal_dirty_chip[lv_cal_n] = true;
+    lv_cal_deadline = now + 15000;
+    if (++lv_cal_n < 4) { lv_cal_dirty_chip[lv_cal_n] = true; return; }
+    lv_cal_finish(now);
+}
+
+/* drawing: GIBSONbot chip style, CALbot's own fixed colours (not themed) */
+#define LV_CAL_BODY  0x6b7584
+#define LV_CAL_SHADE 0x4a494a
+#define LV_CAL_PLATE 0x181818
+#define LV_CAL_GOLD  0xffb200
+#define LV_CAL_LIME  0x8cf01e
+#define LV_CAL_LIMED 0x5aa010
+#define LV_CAL_OFF   0x2a2e33
+static void lv_cal_wave(LvBand &B, int x0, int x1, int y, int hgt, int th, int per)
+{
+    const uint16_t g = lv_hex(LV_CAL_GOLD);
+    for (int x = x0, k = 0; x + per / 2 <= x1; x += per / 2, ++k) {
+        const int yy = (k & 1) ? y + hgt - th : y;
+        b_fill(B, x, yy, per / 2 + th, th, g);         /* flat */
+        b_fill(B, x, y, th, hgt, g);                    /* edge */
+    }
+    b_fill(B, x1 - th + 1, y, th, hgt, g);
+}
+static void lv_cal_chip_body(LvBand &B, int x0, int y0, int w, int h, int pin, int gap, int cut)
+{
+    b_fill(B, x0, y0, w, h, lv_hex(LV_CAL_BODY));
+    for (int k = 0; k < cut; ++k) b_fill(B, x0 + w - cut + k, y0 + h - 1 - k, cut - k, 1, lv_hex(LV_CAL_SHADE));
+    const uint16_t g = lv_hex(LV_CAL_GOLD);
+    for (int y = y0 + gap; y + pin <= y0 + h - gap / 2; y += pin + gap) {
+        b_fill(B, x0 - pin - 2, y, pin, pin, g); b_fill(B, x0 + w + 2, y, pin, pin, g);
+    }
+    for (int x = x0 + gap; x + pin <= x0 + w - gap / 2; x += pin + gap) b_fill(B, x, y0 + h + 2, pin, pin, g);
+}
+static void lv_scene_cal(LvBand &B, void *)
+{
+    b_fill(B, B.x0, B.y0, B.w, B.h, 0);
+    const uint16_t dim = lv_hex(0x210c31);
+    for (int y = 12; y < 320; y += 24) for (int x = 12; x < 240; x += 24) { b_fill(B, x - 2, y, 5, 1, dim); b_fill(B, x, y - 2, 1, 5, dim); }
+    /* centre chip: plate, gold wave, body, gold pins, solid black face frame, lime face */
+    b_fill(B, 34, 58, 172, 212, lv_hex(LV_CAL_PLATE));
+    lv_cal_wave(B, 48, 191, 64, 14, 2, 10);
+    lv_cal_chip_body(B, 52, 86, 136, 160, 5, 5, 12);
+    b_fill(B, 66, 98, 108, 92, 0);
+    b_fill(B, 71, 103, 98, 82, lv_hex(LV_CAL_LIME));
+    b_fill(B, 71, 179, 98, 6, lv_hex(LV_CAL_LIMED));
+    b_fill(B, 92, 126, 18, 16, 0); b_fill(B, 130, 126, 18, 16, 0);            /* eyes */
+    b_fill(B, 106, 160, 28, 4, 0);                                              /* mouth */
+    b_text(B, 120 - 36, 198, "CALbot", 0x0000, 2);
+    char st[24];
+    if (lv_cal_phase == LV_CAL_RUN) snprintf(st, sizeof st, "CAL %d OF 4", lv_cal_n + 1);
+    else snprintf(st, sizeof st, "CAL OK");
+    b_text(B, 120 - (int)strlen(st) * 6, 220, st, lv_hex(LV_CAL_LIME), 2);
+    /* corner chips: same style, plain, unlabeled */
+    for (int i = 0; i < 4; ++i) {
+        const int cx = LV_CAL_PT[i][0], cy = LV_CAL_PT[i][1];
+        if (cx + 21 <= B.x0 || cx - 21 >= B.x0 + B.w || cy + 21 <= B.y0 || cy - 21 >= B.y0 + B.h) continue;
+        b_fill(B, cx - 20, cy - 20, 41, 41, lv_hex(LV_CAL_PLATE));
+        lv_cal_wave(B, cx - 15, cx + 15, cy - 18, 5, 1, 6);
+        lv_cal_chip_body(B, cx - 13, cy - 11, 27, 27, 2, 3, 4);
+        b_fill(B, cx - 9, cy - 8, 19, 19, 0);
+        const bool done = lv_cal_phase != LV_CAL_RUN || i < lv_cal_n, act = lv_cal_phase == LV_CAL_RUN && i == lv_cal_n;
+        uint16_t face = lv_hex(done ? LV_CAL_LIME : LV_CAL_OFF);
+        if (act) face = lv_hex(((lv_now / 400) & 1) ? LV_CAL_LIMED : LV_CAL_OFF);
+        b_fill(B, cx - 6, cy - 5, 13, 13, face);
+        if (act && lv_cal_ns) { const int f = (13 * lv_cal_ns + LV_CAL_NS - 1) / LV_CAL_NS; b_fill(B, cx - 6, cy + 8 - f, 13, f, lv_hex(LV_CAL_LIME)); }
+    }
+    const char *h1 = lv_cal_phase == LV_CAL_RUN ? "HOLD THE LIT CHIP" : lv_cal_phase == LV_CAL_NVS ? "SAVED CAL LOADED" : "SAVED TO NVS";
+    if (lv_cal_phase == LV_CAL_OK && !lv_cal_saved) h1 = "SAVED CAL KEPT";
+    b_text(B, 120 - (int)strlen(h1) * 3, 278, h1, lv_hex(0xc8c0a8), 1);
+    const char *h2 = lv_cal_msg ? LV_CAL_MSG[lv_cal_msg] : lv_cal_phase == LV_CAL_NVS ? "HOLD 1s TO RECAL" : "";
+    b_text(B, 120 - (int)strlen(h2) * 3, 292, h2, lv_hex(lv_cal_msg ? 0xffb200 : 0x8c8c8c), 1);
+}
+static const LvRect LV_R_CAL_TXT = {54, 196, 186, 238}, LV_R_CAL_HINT = {48, 276, 191, 301};
+static LvRect lv_cal_chip_rect(int i) { return {(int16_t)(LV_CAL_PT[i][0] - 20), (int16_t)(LV_CAL_PT[i][1] - 20), (int16_t)(LV_CAL_PT[i][0] + 20), (int16_t)(LV_CAL_PT[i][1] + 20)}; }
+static void lv_cal_tick(uint32_t now)
+{
+    if (lv_cal_phase == LV_CAL_NVS && !lv_cal_hold0 && (int32_t)(now - lv_cal_t0) >= 2000) { lv_go(LV_SC_BOOT); lv_clip_t = now; return; }
+    if (lv_cal_phase == LV_CAL_OK && (int32_t)(now - lv_cal_t0) >= 1200) { lv_go(LV_SC_BOOT); lv_clip_t = now; return; }
+    if (lv_cal_phase == LV_CAL_RUN && lv_cal_nvs && (int32_t)(now - lv_cal_deadline) >= 0) {
+        lv_cal_phase = LV_CAL_OK; lv_cal_saved = false; lv_cal_msg = 2; lv_cal_t0 = now; lv_cal_all = true;   /* old cal untouched */
+    }
+    if (lv_cal_phase == LV_CAL_RUN && (now / 400) != ((now - 30) / 400)) lv_cal_dirty_chip[lv_cal_n] = true;  /* blink */
+    static int ph = -1, n = -1, msg = -1;
+    if (ph != lv_cal_phase || n != lv_cal_n || msg != lv_cal_msg) { lv_cal_dirty_txt = true; ph = lv_cal_phase; n = lv_cal_n; msg = lv_cal_msg; }
+    if (lv_enter || lv_cal_all) { lv_render(lv_blit, {0, 0, 239, 319}, lv_scene_cal, 0); lv_enter = lv_cal_all = false; lv_cal_dirty_txt = false; for (int i = 0; i < 4; ++i) lv_cal_dirty_chip[i] = false; return; }
+    for (int i = 0; i < 4; ++i) if (lv_cal_dirty_chip[i]) { lv_render(lv_blit, lv_cal_chip_rect(i), lv_scene_cal, 0); lv_cal_dirty_chip[i] = false; }
+    if (lv_cal_dirty_txt) { lv_render(lv_blit, LV_R_CAL_TXT, lv_scene_cal, 0); lv_render(lv_blit, LV_R_CAL_HINT, lv_scene_cal, 0); lv_cal_dirty_txt = false; }
+}
 
 static void lv_selftest(void)
 {
@@ -808,19 +992,23 @@ static void lv_paint_overlays(bool all)
 }
 
 /* public API */
-static void lv_begin(const LvRadio *radio, lv_blit_fn blit, lk_draw_fn raw_draw, int theme, uint32_t now)
+/* cal_valid: a cv=2 8-point cal is already in NVS (and was applied at display begin). */
+static void lv_begin(const LvRadio *radio, lv_blit_fn blit, lk_draw_fn raw_draw, int theme, uint32_t now, bool cal_valid)
 {
     lv_radio = radio; lv_blit = blit; lv_raw_draw = raw_draw;
     lv_theme = (theme >= 0 && theme < LV_NTHEME) ? theme : 0;
     lv_now = lv_boot_ms = now; lv_clip_t = now;
     lv_print("BOTCORPS %s", LV_VERSION);
     lv_print("type 'help'. scans: tap SCAN or 'scan'");
-    lv_go(LV_SC_BOOT);
+    lv_cal_nvs = cal_valid; lv_cal_t0 = now; lv_cal_hold0 = 0;
+    if (cal_valid) lv_cal_phase = LV_CAL_NVS; else lv_cal_start_run(now);
+    lv_go(LV_SC_CAL);
 }
 /* call every ~30 ms. io.draw must be lv_clip_draw. */
 static void lv_tick(const LkIo &io, uint32_t now)
 {
     lv_now = now;
+    if (lv_scr == LV_SC_CAL) { lv_cal_tick(now); return; }
     lv_job_tick();
     if (lv_scr != LV_SC_TTY && (int32_t)(now - lv_clip_t) >= lv_period()) {
         lv_clip_t = now;
@@ -863,6 +1051,7 @@ static void lv_key(int k)
 /* Tap at portrait (x,y). Returns a short name of what it did (for logs / the sim). */
 static const char *lv_tap(int x, int y)
 {
+    if (lv_scr == LV_SC_CAL) return "cal-raw-only";
     if (lv_scr == LV_SC_BOOT || lv_scr == LV_SC_HOME_INTRO) { lv_go(LV_SC_HOME); if (lv_selftest_pending) { lv_selftest_pending = false; lv_selftest(); } return "skip-intro"; }
     if (lv_scr == LV_SC_TTY) {
         if (lv_in(LV_R_TTY_CLOSE, x, y)) { lv_go(LV_SC_TERM); return "tty-close"; }

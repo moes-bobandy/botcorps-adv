@@ -1,0 +1,28 @@
+recstart calbot_flow
+tick 20
+press 24 24
+tick 8
+dump calbot_1
+tick 12
+up 300
+press 24 295
+tick 8
+dump calbot_2
+tick 12
+up 300
+press 215 24
+tick 8
+dump calbot_3
+tick 12
+up 300
+press 215 295
+tick 8
+dump calbot_4
+tick 12
+up 60
+dump calbot_ok
+tick 100
+recstop
+dump calbot_then_boot
+tick 200
+dump calbot_then_home

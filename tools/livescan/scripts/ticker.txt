@@ -1,3 +1,4 @@
+tick 67
 tick 190
 tap 60 170
 tick 10

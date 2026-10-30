@@ -195,5 +195,44 @@
   "clip_frame": 16,
   "close_pct_outside_overlays": 99.982,
   "overlay_px": 9103
+ },
+ "calbot_1": {
+  "screen": "CALbot (procedural full-screen, no clip, no ticker)"
+ },
+ "calbot_2": {
+  "screen": "CALbot (procedural full-screen, no clip, no ticker)"
+ },
+ "calbot_3": {
+  "screen": "CALbot (procedural full-screen, no clip, no ticker)"
+ },
+ "calbot_4": {
+  "screen": "CALbot (procedural full-screen, no clip, no ticker)"
+ },
+ "calbot_ok": {
+  "screen": "CALbot (procedural full-screen, no clip, no ticker)"
+ },
+ "calbot_then_boot": {
+  "seg": 0,
+  "clip": "bootbot_bg_v2@3x.mp4.npy",
+  "clip_frame": 65,
+  "close_pct_outside_overlays": 100.0,
+  "overlay_px": 0
+ },
+ "calbot_then_home": {
+  "seg": 2,
+  "clip": "gibsonbot_bg@3x.mp4.npy",
+  "clip_frame": 453,
+  "close_pct_outside_overlays": 99.992,
+  "overlay_px": 4071
+ },
+ "calbot_nvs": {
+  "screen": "CALbot (procedural full-screen, no clip, no ticker)"
+ },
+ "calbot_nvs_then_boot": {
+  "seg": 0,
+  "clip": "bootbot_bg_v2@3x.mp4.npy",
+  "clip_frame": 2,
+  "close_pct_outside_overlays": 100.0,
+  "overlay_px": 0
  }
 }

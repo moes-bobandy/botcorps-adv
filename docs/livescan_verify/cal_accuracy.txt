@@ -1,0 +1,9 @@
+nominal  rx~x ry~y        c0..c7 = 306 304 302 3896 3902 305 3898 3897
+nominal  rx~x ry~y        50 runs: chip-centre max 2.00 px | 99-pt grid max 2.00 px (worst single axis 2 px), mean 0.88 px  PASS (<=3 px)
+swap+flip (CYD-like)      c0..c7 = 3816 3756 249 3755 3824 270 257 269
+swap+flip (CYD-like)      50 runs: chip-centre max 1.41 px | 99-pt grid max 1.41 px (worst single axis 1 px), mean 0.83 px  PASS (<=3 px)
+rotated 2deg + shear      c0..c7 = 385 263 559 3801 3772 154 3946 3691
+rotated 2deg + shear      50 runs: chip-centre max 1.41 px | 99-pt grid max 1.41 px (worst single axis 1 px), mean 0.72 px  PASS (<=3 px)
+narrow span, +-60 noise   c0..c7 = 905 686 983 3292 3068 745 3146 3350
+narrow span, +-60 noise   50 runs: chip-centre max 3.61 px | 99-pt grid max 3.61 px (worst single axis 3 px), mean 1.09 px  FAIL
+ALL 200 cal runs: worst mapped error 3.61 px -> FAIL

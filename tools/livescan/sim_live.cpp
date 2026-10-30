@@ -1,7 +1,9 @@
 /* Host sim for the cyd_livescan UI: the SAME src/live/lv_core.h the firmware runs, with zlib raw inflate
  * in place of ROM tinfl, an RGB565 framebuffer, and a FAKE radio (canned finds, clearly not real data).
  *   sim_live <script> <outdir>
- * script lines: tick N | tap X Y | type TEXT (taps the on-screen keys; '~' = ENTER) | dump NAME | theme N | log */
+ *   sim_live <script> <outdir> nocal   (power on with NO saved cal: CALbot captures first)
+ * script lines: hold X Y MS (finger down on screen x,y -> simulated raw) | up MS | recstart NAME | recstop |
+ *   tick N | tap X Y | type TEXT (taps the on-screen keys; '~' = ENTER) | dump NAME | theme N | log */
 #include <zlib.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -9,6 +11,8 @@
 #include <vector>
 #define BOTCORPS_CYD_LIVESCAN 1
 #include "../../src/live/lv_core.h"
+#include "lgfx_cal_ref.h"
+#include "touch_model.h"
 
 static uint16_t fb[320][240];
 static std::vector<uint8_t> blob;
@@ -78,7 +82,30 @@ static void fk_sys(int w, char *o, int n)
     else if (w == 4) snprintf(o, n, "touch cal: 8-pt matrix OK (SIM)");
 }
 static void fk_save(int) {}
-static const LvRadio FAKE = {fk_wifi_start, fk_wifi_poll, fk_ble_start, fk_ble_poll, fk_deauth_start, fk_deauth_poll, fk_stop, fk_sys, fk_save};
+/* simulated XPT2046 (CYD-like swapped + flipped axes, +-30 raw noise) and the fake NVS save */
+static TouchModel g_tm = {"swap+flip (CYD-like)", 3820, 0, -11.2, 3760, -14.6, 0, 30, 2};
+static bool fk_cal_save(const uint16_t c[8])
+{
+    printf("t=%u CAL SAVE c0..c7 = %u %u %u %u %u %u %u %u (SIM NVS)\n", t_ms, c[0], c[1], c[2], c[3], c[4], c[5], c[6], c[7]);
+    LgfxCalRef L; L.setCalibrate(c); int worst = 0;
+    for (int i = 0; i < 4; ++i) {
+        int rx, ry, x, y; g_tm.raw(LV_CAL_PT[i][0], LV_CAL_PT[i][1], &rx, &ry, false); L.convertRawXY(rx, ry, &x, &y);
+        const int d = abs(x - LV_CAL_PT[i][0]) > abs(y - LV_CAL_PT[i][1]) ? abs(x - LV_CAL_PT[i][0]) : abs(y - LV_CAL_PT[i][1]);
+        if (d > worst) worst = d;
+        printf("  chip %d at %d,%d -> lgfx maps to %d,%d\n", i + 1, LV_CAL_PT[i][0], LV_CAL_PT[i][1], x, y);
+    }
+    printf("  worst axis error %d px\n", worst);
+    return true;
+}
+static const LvRadio FAKE = {fk_wifi_start, fk_wifi_poll, fk_ble_start, fk_ble_poll, fk_deauth_start, fk_deauth_poll, fk_stop, fk_sys, fk_save, fk_cal_save};
+static bool g_down = false; static int g_fx, g_fy; static FILE *g_rec = nullptr;
+static void dump(const char *path);
+static void tick1(const LkIo &io)
+{
+    for (int k = 0; k < 2; ++k) { t_ms += 15; int rx = 0, ry = 0; if (g_down) g_tm.raw(g_fx, g_fy, &rx, &ry); lv_cal_raw(g_down, rx, ry, t_ms); }
+    lv_tick(io, t_ms);
+    if (g_rec) { dump("/tmp/.sim_rec_part"); FILE *b = fopen("/tmp/.sim_rec_part", "rb"); static uint8_t buf[240 * 320 * 3]; size_t k = fread(buf, 1, sizeof buf, b); fwrite(buf, 1, k, g_rec); fclose(b); }
+}
 
 static void dump(const char *path)
 {
@@ -98,19 +125,24 @@ static void tap_key(int k, LkIo &io)
 {
     const LvRect r = lv_key_rect(k);
     printf("  key %d at %d,%d -> %s\n", k, (r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2, lv_tap((r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2));
-    for (int i = 0; i < 3; ++i) { t_ms += 30; lv_tick(io, t_ms); }
+    for (int i = 0; i < 3; ++i) tick1(io);
 }
 int main(int argc, char **argv)
 {
     FILE *bf = fopen("src/lock/live/lock_blob_live.bin", "rb");
-    if (!bf || argc != 3) { fprintf(stderr, "usage: sim_live script outdir (run from repo root)\n"); return 1; }
+    if (!bf || argc < 3) { fprintf(stderr, "usage: sim_live script outdir (run from repo root)\n"); return 1; }
     blob.resize(LK_BLOB_SIZE);
     if (fread(blob.data(), 1, LK_BLOB_SIZE, bf) != LK_BLOB_SIZE) return 1;
     LkIo io{blob.data(), infl, lv_clip_draw, ibuf};
-    lv_begin(&FAKE, blit, raw_draw, 0, 0);
+    lv_begin(&FAKE, blit, raw_draw, 0, 0, !(argc > 3 && !strcmp(argv[3], "nocal")));
     FILE *sc = fopen(argv[1], "r"); char cmd[32];
     while (fscanf(sc, "%31s", cmd) == 1) {
-        if (!strcmp(cmd, "tick")) { int n; if (fscanf(sc, "%d", &n) != 1) return 2; for (int i = 0; i < n; ++i) { t_ms += 30; lv_tick(io, t_ms); } }
+        if (!strcmp(cmd, "tick")) { int n; if (fscanf(sc, "%d", &n) != 1) return 2; for (int i = 0; i < n; ++i) tick1(io); }
+        else if (!strcmp(cmd, "hold")) { int ms; if (fscanf(sc, "%d %d %d", &g_fx, &g_fy, &ms) != 3) return 2; g_down = true; for (int e = 0; e < ms; e += 30) tick1(io); g_down = false; printf("t=%u hold %d,%d -> scr=%d cal_n=%d phase=%d msg=%d\n", t_ms, g_fx, g_fy, lv_scr, lv_cal_n, lv_cal_phase, lv_cal_msg); }
+        else if (!strcmp(cmd, "press")) { if (fscanf(sc, "%d %d", &g_fx, &g_fy) != 2) return 2; g_down = true; }
+        else if (!strcmp(cmd, "up")) { int ms; if (fscanf(sc, "%d", &ms) != 1) return 2; g_down = false; for (int e = 0; e < ms; e += 30) tick1(io); }
+        else if (!strcmp(cmd, "recstart")) { char nm[64]; if (fscanf(sc, "%63s", nm) != 1) return 2; char p[512]; snprintf(p, sizeof p, "%s/%s.rgb", argv[2], nm); g_rec = fopen(p, "wb"); }
+        else if (!strcmp(cmd, "recstop")) { if (g_rec) fclose(g_rec); g_rec = nullptr; remove("/tmp/.sim_rec_part"); }
         else if (!strcmp(cmd, "tap")) { int x, y; if (fscanf(sc, "%d %d", &x, &y) != 2) return 2; const char *r = lv_tap(x, y); printf("t=%u tap %d,%d -> %s (scr=%d seg=%d)\n", t_ms, x, y, r, lv_scr, lv_play.seg); }
         else if (!strcmp(cmd, "theme")) { int t; if (fscanf(sc, "%d", &t) != 1) return 2; lv_set_theme(t); }
         else if (!strcmp(cmd, "type")) {
@@ -131,7 +163,7 @@ int main(int argc, char **argv)
         else if (!strcmp(cmd, "rec")) { /* rec N NAME: N ticks, one frame per tick appended to NAME.rgb */
             int n; char nm[64]; if (fscanf(sc, "%d %63s", &n, nm) != 2) return 2; char p[512]; snprintf(p, sizeof p, "%s/%s.rgb", argv[2], nm);
             FILE *o = fopen(p, "wb"); fclose(o);
-            for (int i = 0; i < n; ++i) { t_ms += 30; lv_tick(io, t_ms); char q[520]; snprintf(q, sizeof q, "%s.part", p); dump(q); FILE *a = fopen(p, "ab"), *b = fopen(q, "rb"); static uint8_t buf[240 * 320 * 3]; size_t k = fread(buf, 1, sizeof buf, b); fwrite(buf, 1, k, a); fclose(a); fclose(b); remove(q); }
+            for (int i = 0; i < n; ++i) { tick1(io); char q[520]; snprintf(q, sizeof q, "%s.part", p); dump(q); FILE *a = fopen(p, "ab"), *b = fopen(q, "rb"); static uint8_t buf[240 * 320 * 3]; size_t k = fread(buf, 1, sizeof buf, b); fwrite(buf, 1, k, a); fclose(a); fclose(b); remove(q); }
             printf("t=%u rec %s %d frames\n", t_ms, nm, n);
         }
         else if (!strcmp(cmd, "log")) { for (int k = (lv_tn < 20 ? lv_tn : 20) - 1; k >= 0; --k) printf("  | %s\n", lv_line_back(k)); }

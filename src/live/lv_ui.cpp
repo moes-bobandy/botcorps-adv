@@ -299,8 +299,25 @@ static void r_save_theme(int t)
     if (prefs.begin("botcorps", false)) { prefs.putUChar("lktheme", (uint8_t)t); prefs.end(); }
 }
 
+/* CALbot result: apply the 8-point matrix now, then persist with the SAME keys and order as
+ * botcorps_cyd_run_touch_cal(): remove cv, tcal=1, c0..c7, cv=2 LAST (a partial write can't pass has_valid_cal). */
+static bool r_cal_save(const uint16_t c8[8])
+{
+    g_cyd.apply_touch_cal8(c8);
+    Preferences prefs;
+    if (!prefs.begin("botcorps", false)) { Serial.println("[live] CALbot NVS begin failed"); return false; }
+    prefs.remove("cv");
+    prefs.putUChar("tcal", 1);
+    bool ok = true;
+    for (int i = 0; i < 8; ++i) { char key[4]; snprintf(key, sizeof key, "c%d", i); if (!prefs.putUShort(key, c8[i])) ok = false; }
+    if (ok && !prefs.putUChar("cv", 2)) ok = false;
+    prefs.end();
+    Serial.printf("[live] CALbot c0..c7 = %u %u %u %u %u %u %u %u -> NVS %s\n", c8[0], c8[1], c8[2], c8[3], c8[4], c8[5], c8[6], c8[7], ok ? "OK" : "FAIL");
+    return ok && botcorps_cyd_has_valid_cal();
+}
+
 static const LvRadio s_radio{r_wifi_start, r_wifi_poll, r_ble_start, r_ble_poll, r_deauth_start, r_deauth_poll,
-                             r_stop, r_sys, r_save_theme};
+                             r_stop, r_sys, r_save_theme, r_cal_save};
 
 void lv_ui_begin(void)
 {
@@ -315,14 +332,21 @@ void lv_ui_begin(void)
     Serial.printf("[live] blob=%u (expect %u) theme=%d %dx%d\n", (unsigned)(lk_blob_live_end - lk_blob_live),
                   (unsigned)LK_BLOB_SIZE, th, (int)g_cyd.width(), (int)g_cyd.height());
     heap_log("begin");
-    lv_begin(&s_radio, ui_blit, ui_raw_draw, th, millis());
+    const bool cal_ok = botcorps_cyd_has_valid_cal();   /* if true, display begin already applied it from NVS */
+    Serial.printf("[live] CALbot: saved cal %s\n", cal_ok ? "valid (cv=2) - hold 1 s to redo" : "missing - capture 4 corners");
+    lv_begin(&s_radio, ui_blit, ui_raw_draw, th, millis(), cal_ok);
 }
 
 void lv_ui_loop(void)
 {
     static uint32_t next = 0;
     int x, y;
-    if (lv_read_tap(&x, &y)) {
+    if (lv_scr == LV_SC_CAL) {                 /* CALbot reads RAW XPT2046, not the calibrated getTouch() */
+        int rx = 0, ry = 0;
+        const bool d = g_cyd.get_touch_raw(&rx, &ry);
+        lv_cal_raw(d, rx, ry, millis());
+    }
+    else if (lv_read_tap(&x, &y)) {
         lv_use_pal();
         g_cyd.startWrite();
         const char *a = lv_tap(x, y);

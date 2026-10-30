@@ -1034,12 +1034,12 @@ static void lv_scene_tty(LvBand &B, void *)
 }
 
 /* ---------- BACKbot: the return control (replaces the crown; one level up, else GIBSONbot home) ----------
- * A square mini copy of the big chips: dark top band with a gold square wave, gray bevelled body, gold side pins,
- * framed face window with a back face (eyes + left-arrow mouth), two-line 'BACK' / 'bot' label. 25x25, hugging the
- * bottom-right corner on every non-home screen so it covers the right mounting-hole ring (231,311), the 5V pin and its
- * label; the GND pin above and the terminal box (right edge x209) stay clear. TTY keeps it top-right (CLOSE's slot).
- * It is a deco tint: the art around the silhouette is the real clip (from the shadow), BACKbot is drawn over it.
- * BACKBOT_FACE is the one face-colour constant. */
+ * A nameless square bot: a black-framed hot-pink square face with two eyes (the SCANbot/TERMINALbot face style:
+ * light top-left bevel, dark bottom-right, a diagonal shine) and one row of gold pins on every side.
+ * 19x19 (15x15 face + 2 px pins each side), hugging the bottom-right corner on every non-home screen so the face covers
+ * the right mounting-hole ring (228..234, 308..314); the top pins overlap the 5V pin art (allowed); GND, the 5V label
+ * and the terminal box (right edge x209) stay clear. TTY keeps it top-right (CLOSE's slot). It is a deco tint: the art
+ * around it is the real clip (from the shadow). BACKBOT_FACE is the one face-colour constant. */
 #ifndef BACKBOT_FACE_SEL
 #define BACKBOT_FACE_SEL 3          /* 0 orange, 1 hot red, 2 neon cyan, 3 hot pink (default) */
 #endif
@@ -1047,51 +1047,36 @@ static const uint32_t BACKBOT_FACES[4][4] = {{0x8a3200, 0xe06000, 0xff8c1a, 0xff
                                              {0x005e6c, 0x00b4cc, 0x1ef0ff, 0xb4ffff}, {0x780050, 0xd0208c, 0xff44b4, 0xffa8dc}};
 static int lv_backbot_face = BACKBOT_FACE_SEL;
 #define BACKBOT_FACE (BACKBOT_FACES[lv_backbot_face])
-#define BACKBOT_S 25                                              /* square side */
-static const LvRect LV_R_BACKBOT = {215, 295, 239, 319};     /* drawn (25x25), bottom-right corner, over the hole ring */
+#define BACKBOT_FS 15                                             /* square face side (incl. black frame) */
+#define BACKBOT_W (BACKBOT_FS + 4)                                /* + 2 px pins on each side */
+#define BACKBOT_H (BACKBOT_FS + 4)
+static const LvRect LV_R_BACKBOT = {240 - BACKBOT_W, 320 - BACKBOT_H, 239, 319}; /* {221,301,239,319}: bottom-right corner, over the hole ring */
 static const LvRect LV_R_BACKBOT_HIT = {210, 289, 239, 319}; /* finger target incl. slop (30x31); corner buttons end x205 */
 static const LvRect LV_R_BACKBOT_TTY = {204, 0, 239, 23};    /* TTY: the keyboard owns the bottom row, BACKbot takes CLOSE's slot */
-/* 3x5 lowercase b o t for the chip label (caps come from LV_F35) */
-static void b_lbl35(LvBand &B, int x, int y, const char *s, uint16_t c)
-{
-    static const uint16_t LB = 0x49EF /*100 100 111 101 111*/, LO = 0x01EF /*000 000 111 101 111*/, LT = 0x2E93 /*010 111 010 010 011*/;
-    for (; *s; ++s, x += 4) {
-        uint16_t g = *s == 'b' ? LB : *s == 'o' ? LO : *s == 't' ? LT : LV_F35[(*s & 0x7f) - 0x20];
-        for (int k = 0; k < 15; ++k) if (g >> (14 - k) & 1) b_pix(B, x + k % 3, y + k / 3, c);
-    }
-}
 static void lv_draw_backbot(LvBand &B, int x0, int y0)
 {
     const uint16_t gold = lv_hex(0xc8a24a), gold_hi = lv_hex(0xf0d080);
-    const int S = BACKBOT_S;
-    /* top band: dark strip with a gold square wave, like the big chips' wave band */
-    b_fill(B, x0 + 1, y0, S - 2, 3, lv_hex(0x181818));
-    for (int k = 0; k < S - 4; ++k) {
-        const int x = x0 + 2 + k, ph = k & 3;
-        if (ph == 0 || ph == 2) b_fill(B, x, y0, 1, 3, gold); else b_pix(B, x, ph == 1 ? y0 : y0 + 2, gold);
+    const int S = BACKBOT_FS, fx = x0 + 2, fy = y0 + (BACKBOT_H - S) / 2;
+    /* one row of pins on each of the four sides: 2x2 gold, light top row, 1 px gaps */
+    for (int i = 0; i < 5; ++i) {
+        const int py = fy + 1 + i * 3;
+        b_fill(B, x0, py, 2, 2, gold); b_fill(B, fx + S, py, 2, 2, gold);
+        b_fill(B, x0, py, 2, 1, gold_hi); b_fill(B, fx + S, py, 2, 1, gold_hi);
+        const int px = fx + 1 + i * 3;
+        b_fill(B, px, y0, 2, 2, gold); b_fill(B, px, fy + S, 2, 2, gold); b_fill(B, px, y0, 2, 1, gold_hi); b_fill(B, px, fy + S, 2, 1, gold_hi);
     }
-    /* side pins (1x2, both edges) */
-    for (int i = 0; i < 5; ++i) { const int py = y0 + 5 + i * 4; b_fill(B, x0, py, 1, 2, gold); b_fill(B, x0 + S - 1, py, 1, 2, gold); b_pix(B, x0, py, gold_hi); b_pix(B, x0 + S - 1, py, gold_hi); }
-    const int bx = x0 + 1, by = y0 + 3, bw = S - 2, bh = S - 3;          /* body 23x22 */
-    b_fill(B, bx, by, bw, bh, lv_hex(0x697783));
-    b_fill(B, bx, by, bw, 1, lv_hex(0xc5cdd4)); b_fill(B, bx, by, 1, bh, lv_hex(0xc5cdd4));
-    b_fill(B, bx + 1, by + 1, bw - 2, 1, lv_hex(0x92918a));
-    b_fill(B, bx, by + bh - 1, bw, 1, lv_hex(0x3a3d44)); b_fill(B, bx + bw - 1, by, 1, bh, lv_hex(0x3a3d44));
-    const int wx = bx + 4, wy = by + 2, ww = 15, wh = 7;                  /* face window */
-    b_fill(B, wx, wy, ww, wh, 0x0000);
+    /* face: black frame, pink square with bevel + diagonal shine, two black eyes */
+    b_fill(B, fx, fy, S, S, 0x0000);
     const uint32_t *F = BACKBOT_FACE;
-    for (int y = 0; y < wh - 2; ++y) for (int x = 0; x < ww - 2; ++x) {
-        const int d = x + y * 2;
-        const uint32_t c = y == 0 ? F[3] : (y >= wh - 3 ? F[0] : (d < 8 ? F[2] : F[1]));
-        b_pix(B, wx + 1 + x, wy + 1 + y, lv_hex(c));
+    const int n = S - 2;
+    for (int y = 0; y < n; ++y) for (int x = 0; x < n; ++x) {
+        uint32_t c;
+        if (y == 0 || x == 0) c = F[3];
+        else if (y == n - 1 || x == n - 1) c = F[0];
+        else { const int d = x + y; c = (d >= 9 && d <= 10) ? F[3] : (d < 9 ? F[2] : F[1]); }
+        b_pix(B, fx + 1 + x, fy + 1 + y, lv_hex(c));
     }
-    /* back face: eyes + a left-arrow mouth */
-    b_fill(B, wx + 4, wy + 1, 2, 2, 0x0000); b_fill(B, wx + 9, wy + 1, 2, 2, 0x0000);
-    b_fill(B, wx + 4, wy + 4, 7, 1, 0x0000); b_pix(B, wx + 3, wy + 4, 0x0000); b_pix(B, wx + 4, wy + 3, 0x0000); b_pix(B, wx + 4, wy + 5, 0x0000);
-    /* silkscreen plate under the window: light two-line label "BACK" / "bot" (the 27 px one-liner cannot fit 23 px) */
-    b_fill(B, bx + 1, by + 10, bw - 2, bh - 11, lv_hex(0x101418));
-    b_lbl35(B, x0 + 5, by + 10, "BACK", lv_hex(0xe8eef2));
-    b_lbl35(B, x0 + 7, by + 16, "bot", lv_hex(0xe8eef2));
+    b_fill(B, fx + 4, fy + 4, 3, 3, 0x0000); b_fill(B, fx + 8, fy + 4, 3, 3, 0x0000);
 }
 
 /* ---------- live tints: state per id (item 1 chip colours, CTL face, BACKbot) ---------- */
@@ -1424,7 +1409,7 @@ static void lv_selftest(void)
     lv_event(false, "SELF TEST OK  %s", LV_VERSION);
 }
 
-static void lv_scene_backbot_tty(LvBand &B, void *) { b_fill(B, B.x0, B.y0, B.w, B.h, 0); lv_draw_backbot(B, LV_R_BACKBOT_TTY.x1 + 1 - BACKBOT_S, LV_R_BACKBOT_TTY.y0); }
+static void lv_scene_backbot_tty(LvBand &B, void *) { b_fill(B, B.x0, B.y0, B.w, B.h, 0); lv_draw_backbot(B, LV_R_BACKBOT_TTY.x1 + 1 - BACKBOT_W, LV_R_BACKBOT_TTY.y0 + (24 - BACKBOT_H) / 2); }
 static void lv_paint_overlays(bool all)
 {
     if (lv_scr == LV_SC_TTY) {

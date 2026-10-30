@@ -1,19 +1,19 @@
 t=7710 tap 60,170 -> scan (scr=2 seg=2)
 t=8010 tap 187,185 -> scan-button (scr=4 seg=14)
 DUMP ticker_scanning scr=4 seg=14 clipframe=18 t=8370
-OVL ticker_scanning m:1,1,238,23 m:33,153,206,256 m:32,275,182,308 t1:32,30,74,92 t3:78,30,165,150 t6:215,295,239,319
+OVL ticker_scanning m:1,1,238,23 m:33,153,206,256 m:32,275,182,308 t1:32,30,74,92 t3:78,30,165,150 t6:221,301,239,319
 DUMP ticker_find_wifi scr=4 seg=14 clipframe=18 t=15870
-OVL ticker_find_wifi m:1,1,238,23 m:33,153,206,256 m:32,275,182,308 t1:32,30,74,92 t2:32,93,74,152 t6:215,295,239,319
+OVL ticker_find_wifi m:1,1,238,23 m:33,153,206,256 m:32,275,182,308 t1:32,30,74,92 t2:32,93,74,152 t6:221,301,239,319
 DUMP ticker_find_2 scr=4 seg=14 clipframe=8 t=17070
-OVL ticker_find_2 m:1,1,238,23 m:33,153,206,256 m:32,275,182,308 t1:32,30,74,92 t2:32,93,74,152 t6:215,295,239,319
+OVL ticker_find_2 m:1,1,238,23 m:33,153,206,256 m:32,275,182,308 t1:32,30,74,92 t2:32,93,74,152 t6:221,301,239,319
 t=17070 tap 222,296 -> backbot-home (scr=4 seg=14)
 t=17370 tap 160,170 -> term (scr=2 seg=2)
 t=17670 tap 97,225 -> airtag (scr=3 seg=8)
 t=23670 tap 217,10 -> backbot-tty (scr=6 seg=-1)
 DUMP ticker_alert_airtag_term scr=3 seg=8 clipframe=6 t=23970
-OVL ticker_alert_airtag_term m:1,1,238,23 m:34,272,181,305 t14:80,200,115,250 t6:215,295,239,319
+OVL ticker_alert_airtag_term m:1,1,238,23 m:34,272,181,305 t14:80,200,115,250 t6:221,301,239,319
 DUMP ticker_alert_flash scr=3 seg=8 clipframe=13 t=24180
-OVL ticker_alert_flash m:1,1,238,23 m:34,272,181,305 t14:80,200,115,250 t6:215,295,239,319
+OVL ticker_alert_flash m:1,1,238,23 m:34,272,181,305 t14:80,200,115,250 t6:221,301,239,319
 t=33180 rec ticker_rec 300 frames
-px pushed by overlays: 7966739
-SHADOW peak 30927 of 32768 bytes
+px pushed by overlays: 7965683
+SHADOW peak 30663 of 32768 bytes

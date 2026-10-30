@@ -11,6 +11,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <vector>
+#include <string>
+#include <malloc.h>
+#include <time.h>
+#include <unistd.h>
+#include <sys/wait.h>
 #define BOTCORPS_CYD_LIVESCAN 1
 #include "../../src/live/lv_core.h"
 #include "lgfx_cal_ref.h"
@@ -20,6 +25,7 @@ static uint16_t fb[320][240];
 static std::vector<uint8_t> blob;
 static uint8_t ibuf[LK_INFL_CAP];
 static uint32_t t_ms = 0;
+static int g_dead = 0;
 static long g_px_pushed = 0;
 
 static int infl(const uint8_t *src, uint32_t len, uint8_t *dst, uint32_t cap)
@@ -49,9 +55,10 @@ static LvFind mk(const char *n, int rssi, int ch, int auth, uint16_t mfg, uint8_
     const uint8_t mac[6] = {0x3C, 0x84, 0x6A, 0x12, (uint8_t)(m5 * 7), m5}; memcpy(f.mac, mac, 6);
     f.rssi = (int8_t)rssi; f.ch = (uint8_t)ch; f.auth = (uint8_t)auth; f.mfg = mfg; f.apple = apple; f.svc = svc; return f;
 }
-static int fk_wifi_start(void) { fk_job = 1; fk_t0 = t_ms; return 0; }
-static int fk_ble_start(uint32_t) { fk_job = 2; fk_t0 = t_ms; return 0; }
-static int fk_deauth_start(uint32_t) { fk_job = 3; fk_t0 = t_ms; return 0; }
+static int fk_overlap = 0, fk_starts = 0;
+static int fk_wifi_start(void) { fk_starts++; if (fk_job) fk_overlap++; fk_job = 1; fk_t0 = t_ms; return 0; }
+static int fk_ble_start(uint32_t) { fk_starts++; if (fk_job) fk_overlap++; fk_job = 2; fk_t0 = t_ms; return 0; }
+static int fk_deauth_start(uint32_t) { fk_starts++; if (fk_job) fk_overlap++; fk_job = 3; fk_t0 = t_ms; return 0; }
 static int fk_wifi_poll(LvFind *o, int max)
 {
     if (t_ms - fk_t0 < 1200) return -1;
@@ -84,6 +91,7 @@ static void fk_sys(int w, char *o, int n)
     else if (w == 4) snprintf(o, n, "touch cal: 8-pt matrix OK (SIM)");
 }
 static void fk_save(int) {}
+static int fk_rot = 2;   /* the UI's setRotation: 2 = portrait USB at the bottom (default), 0 = ORIENT FLIP */
 /* simulated XPT2046 (CYD-like swapped + flipped axes, +-30 raw noise) and the fake NVS save */
 static TouchModel g_tm = {"swap+flip (CYD-like)", 3820, 0, -11.2, 3760, -14.6, 0, 30, 2};
 static bool fk_cal_save(const uint16_t c[8])
@@ -92,6 +100,7 @@ static bool fk_cal_save(const uint16_t c[8])
     LgfxCalRef L; L.setCalibrate(c); int worst = 0;
     for (int i = 0; i < 4; ++i) {
         int rx, ry, x, y; g_tm.raw(LV_CAL_PT[i][0], LV_CAL_PT[i][1], &rx, &ry, false); L.convertRawXY(rx, ry, &x, &y);
+        if (fk_rot == 2) { x = 239 - x; y = 319 - y; }   /* Panel_Device::convertRawXY, r == 2: both axes flip */
         const int d = abs(x - LV_CAL_PT[i][0]) > abs(y - LV_CAL_PT[i][1]) ? abs(x - LV_CAL_PT[i][0]) : abs(y - LV_CAL_PT[i][1]);
         if (d > worst) worst = d;
         printf("  chip %d at %d,%d -> lgfx maps to %d,%d\n", i + 1, LV_CAL_PT[i][0], LV_CAL_PT[i][1], x, y);
@@ -99,7 +108,8 @@ static bool fk_cal_save(const uint16_t c[8])
     printf("  worst axis error %d px\n", worst);
     return true;
 }
-static const LvRadio FAKE = {fk_wifi_start, fk_wifi_poll, fk_ble_start, fk_ble_poll, fk_deauth_start, fk_deauth_poll, fk_stop, fk_sys, fk_save, fk_cal_save};
+static void fk_set_rot(int flip) { fk_rot = flip ? 0 : 2; printf("[sim] set_rot -> setRotation(%d)\n", fk_rot); }
+static const LvRadio FAKE = {fk_wifi_start, fk_wifi_poll, fk_ble_start, fk_ble_poll, fk_deauth_start, fk_deauth_poll, fk_stop, fk_sys, fk_save, fk_cal_save, fk_set_rot};
 static bool g_down = false; static int g_fx, g_fy; static FILE *g_rec = nullptr;
 static void dump(const char *path);
 static void rec_frame(void);
@@ -177,15 +187,109 @@ int main(int argc, char **argv)
                 if (sh) tap_key(LV_KEY_SHIFT, io);
             }
         }
-        else if (!strcmp(cmd, "dump")) { char nm[64]; if (fscanf(sc, "%63s", nm) != 1) return 2; char p[512]; snprintf(p, sizeof p, "%s/%s.rgb", argv[2], nm); dump(p); printf("DUMP %s scr=%d seg=%d clipframe=%d t=%u\n", nm, lv_scr, lv_play.seg, lv_play.seg >= 0 && lv_play.shown >= 0 ? LK_SEG[lv_play.seg].f0 + lv_play.shown : -1, t_ms); }
+        else if (!strcmp(cmd, "dump")) { char nm[64]; if (fscanf(sc, "%63s", nm) != 1) return 2; char p[512]; snprintf(p, sizeof p, "%s/%s.rgb", argv[2], nm); dump(p); printf("DUMP %s scr=%d seg=%d clipframe=%d t=%u\n", nm, lv_scr, lv_play.seg, lv_play.seg >= 0 && lv_play.shown >= 0 ? LK_SEG[lv_play.seg].f0 + lv_play.shown : -1, t_ms);
+            /* live overlay rects at this instant: masks (always repainted) + tints that are not plain clip pixels + an active press flash */
+            printf("OVL %s", nm);
+            for (int i = 0; i < lv_nmask; ++i) printf(" m:%d,%d,%d,%d", lv_masks[i].x0, lv_masks[i].y0, lv_masks[i].x1, lv_masks[i].y1);
+            for (int i = 0; i < lv_ntint; ++i) { const LvTS t = lv_tint_state(lv_tints[i].id); if (t.mode != LV_TM_RAW || t.deco) printf(" t%d:%d,%d,%d,%d", lv_tints[i].id, lv_tints[i].r.x0, lv_tints[i].r.y0, lv_tints[i].r.x1, lv_tints[i].r.y1); }
+            if (lv_flash_r.x1 >= lv_flash_r.x0) printf(" f:%d,%d,%d,%d", lv_flash_r.x0, lv_flash_r.y0, lv_flash_r.x1, lv_flash_r.y1);
+            printf("\n"); }
         else if (!strcmp(cmd, "rec")) { /* rec N NAME: N ticks, one frame per tick appended to NAME.rgb */
             int n; char nm[64]; if (fscanf(sc, "%d %63s", &n, nm) != 2) return 2; char p[512]; snprintf(p, sizeof p, "%s/%s.rgb", argv[2], nm);
             FILE *o = fopen(p, "wb"); fclose(o);
             for (int i = 0; i < n; ++i) { tick1(io); char q[520]; snprintf(q, sizeof q, "%s.part", p); dump(q); FILE *a = fopen(p, "ab"), *b = fopen(q, "rb"); static uint8_t buf[240 * 320 * 3]; size_t k = fread(buf, 1, sizeof buf, b); fwrite(buf, 1, k, a); fclose(a); fclose(b); remove(q); }
             printf("t=%u rec %s %d frames\n", t_ms, nm, n);
         }
+        else if (!strcmp(cmd, "backface")) { int k; if (fscanf(sc, "%d", &k) != 1) return 2; lv_backbot_face = k & 3; lv_go(lv_scr); for (int i = 0; i < 4; ++i) tick1(io); printf("backface %d\n", lv_backbot_face); }
+        else if (!strcmp(cmd, "go")) { int k; if (fscanf(sc, "%d", &k) != 1) return 2; lv_go(k); }
+        else if (!strcmp(cmd, "probe")) { /* probe NAME X Y: what a tap there does, in a forked child (no side effects) */
+            char nm[64]; int x, y; if (fscanf(sc, "%63s %d %d", nm, &x, &y) != 3) return 2;
+            int pf[2]; if (pipe(pf)) return 3; fflush(stdout);
+            const pid_t pid = fork();
+            if (pid == 0) { close(pf[0]); FILE *o = freopen("/dev/null", "w", stdout); (void)o; const char *r = lv_tap(x, y); char b[64]; snprintf(b, sizeof b, "%s", r); if (write(pf[1], b, strlen(b) + 1) < 0) {} _exit(0); }
+            close(pf[1]); char b[64] = {0}; if (read(pf[0], b, sizeof b - 1) < 0) {} close(pf[0]); waitpid(pid, nullptr, 0);
+            const bool dead = !strcmp(b, "none"); if (dead) ++g_dead;
+            printf("PROBE %-14s scr=%d %3d,%3d -> %s%s\n", nm, lv_scr, x, y, b, dead ? "   <<< DEAD" : "");
+        }
+        else if (!strcmp(cmd, "audit")) { /* audit NAME STEP: tap every STEP px in forked children, map + region list */
+            char nm[64]; int st; if (fscanf(sc, "%63s %d", nm, &st) != 2) return 2;
+            std::vector<std::string> names; std::vector<int> cnt, bx0, by0, bx1, by1; std::vector<int> grid((240 / st + 1) * (320 / st + 1), -1);
+            for (int y = 0; y < 320; y += st) {
+                const int gw = 240 / st + 1; int pf[2]; if (pipe(pf)) return 3; fflush(stdout);
+                const pid_t pid = fork();
+                if (pid == 0) { /* one child per row: each tap in its own grandchild */
+                    close(pf[0]); FILE *o = freopen("/dev/null", "w", stdout); (void)o;
+                    for (int x = 0; x < 240; x += st) {
+                        int q[2]; if (pipe(q)) _exit(3);
+                        const pid_t c = fork();
+                        if (c == 0) { close(q[0]); const char *r = lv_tap(x, y); char b[48] = {0}; snprintf(b, sizeof b, "%s", r); if (write(q[1], b, 48) < 0) {} _exit(0); }
+                        close(q[1]); char b[48] = {0}; if (read(q[0], b, 48) < 0) {} close(q[0]); waitpid(c, nullptr, 0);
+                        if (write(pf[1], b, 48) < 0) {}
+                    }
+                    _exit(0);
+                }
+                close(pf[1]);
+                for (int x = 0; x < 240; x += st) {
+                    char b[48] = {0}; if (read(pf[0], b, 48) != 48) break;
+                    if (!strcmp(b, "none")) continue;
+                    int k = -1; for (size_t j = 0; j < names.size(); ++j) if (names[j] == b) k = (int)j;
+                    if (k < 0) { k = (int)names.size(); names.push_back(b); cnt.push_back(0); bx0.push_back(999); by0.push_back(999); bx1.push_back(-1); by1.push_back(-1); }
+                    ++cnt[k]; if (x < bx0[k]) bx0[k] = x; if (y < by0[k]) by0[k] = y; if (x > bx1[k]) bx1[k] = x; if (y > by1[k]) by1[k] = y;
+                    grid[(y / st) * gw + x / st] = k;
+                }
+                close(pf[0]); waitpid(pid, nullptr, 0);
+            }
+            printf("AUDIT %s scr=%d step=%d: %zu actions\n", nm, lv_scr, st, names.size());
+            for (size_t j = 0; j < names.size(); ++j) printf("  %-18s %5d pts  bbox {%d,%d,%d,%d}\n", names[j].c_str(), cnt[j], bx0[j], by0[j], bx1[j], by1[j]);
+            char p[512]; snprintf(p, sizeof p, "%s/%s.audit.txt", argv[2], nm); FILE *f = fopen(p, "w");
+            if (f) { fprintf(f, "%d\n", st); for (size_t j = 0; j < names.size(); ++j) fprintf(f, "%s\n", names[j].c_str()); fprintf(f, "--\n");
+                     const int gw = 240 / st + 1; for (int y = 0; y < 320; y += st) { for (int x = 0; x < 240; x += st) fprintf(f, "%d ", grid[(y / st) * gw + x / st]); fprintf(f, "\n"); } fclose(f); }
+        }
+        else if (!strcmp(cmd, "radartime")) { int n; if (fscanf(sc, "%d", &n) != 1) return 2;
+            double tot = 0, mx = 0; const long px0 = g_px_pushed;
+            for (int i = 0; i < n; ++i) { lv_now = t_ms; timespec a, b; clock_gettime(CLOCK_MONOTONIC, &a); lv_radar_frame(); clock_gettime(CLOCK_MONOTONIC, &b);
+                const double ms = (b.tv_sec - a.tv_sec) * 1e3 + (b.tv_nsec - a.tv_nsec) / 1e6; tot += ms; if (ms > mx) mx = ms; t_ms += 30; }
+            const double ppf = (double)(g_px_pushed - px0) / n;
+            printf("RADARTIME frames=%d host avg %.3f ms max %.3f ms; %.0f px pushed/frame -> SPI 40MHz floor %.1f ms/frame (%.0f fps cap); towers=%d\n",
+                   n, tot / n, mx, ppf, ppf * 16 / 40e6 * 1e3, 1000.0 / (ppf * 16 / 40e6 * 1e3), lv_rd_n);
+        }
+        else if (!strcmp(cmd, "heap50")) { /* 50 scan cycles through the UI; one radio at a time, radios off after, no growth */
+            int stopped = 0, done = 0; size_t h1 = 0; const int st0 = fk_starts;
+            for (int c = 0; c < 50; ++c) {
+                if (c == 1) h1 = mallinfo2().uordblks;
+                lv_scanmix = c % 3; lv_tap(120, 90);   /* SCANbot: start the mix scan */
+                const uint32_t t0 = t_ms; bool cut = (c % 5) == 4;
+                while (lv_job != LV_J_NONE && t_ms - t0 < 20000) { tick1(io); if (cut && t_ms - t0 > 600) { lv_tap(120, 90); cut = false; ++stopped; } }
+                if (lv_job == LV_J_NONE) ++done;
+                if (fk_job != 0) printf("  cycle %d: RADIO LEFT ON (fk_job=%d)\n", c, fk_job);
+                for (int i = 0; i < 4; ++i) tick1(io);
+            }
+            const size_t h50 = mallinfo2().uordblks;
+            printf("HEAP50 cycles=50 completed=%d stopped_mid=%d radio_starts=%d overlaps=%d radio_on_at_end=%d lv_nf=%d/%d host_heap c1=%zu c50=%zu delta=%ld\n",
+                   done, stopped, fk_starts - st0, fk_overlap, fk_job, lv_nf, LV_MAXF, h1, h50, (long)h50 - (long)h1);
+        }
+        else if (!strcmp(cmd, "caltest")) { /* rot 2 and rot 0: noise-free chip medians -> lv_cal_solve -> LovyanGFX math -> screen */
+            for (int rot = 2; rot >= 0; rot -= 2) for (int wrong = 0; wrong < 2; ++wrong) {
+                uint16_t med[4][2], c8[8]; TouchModel tm = g_tm; tm.noise = 0;
+                /* raw is a function of where the finger is on the GLASS; at rot 0 the glass point for screen (x,y) is the 180-deg turned one */
+                for (int i = 0; i < 4; ++i) { int rx, ry; const int gx = rot == 2 ? LV_CAL_PT[i][0] : 239 - LV_CAL_PT[i][0], gy = rot == 2 ? LV_CAL_PT[i][1] : 319 - LV_CAL_PT[i][1]; tm.raw(gx, gy, &rx, &ry, false); med[i][0] = (uint16_t)rx; med[i][1] = (uint16_t)ry; }
+                const int rot2 = (rot == 2) ^ wrong; lv_cal_solve(med, c8, rot2);
+                LgfxCalRef L; L.setCalibrate(c8); int worst = 0;
+                const int P[9][2] = {{0, 0}, {239, 0}, {239, 319}, {0, 319}, {120, 160}, {52, 55}, {187, 226}, {224, 300}, {10, 290}};
+                char line[400]; int o = 0;
+                for (int k = 0; k < 9; ++k) {
+                    int rx, ry, x, y; const int gx = rot == 2 ? P[k][0] : 239 - P[k][0], gy = rot == 2 ? P[k][1] : 319 - P[k][1];
+                    tm.raw(gx, gy, &rx, &ry, false); L.convertRawXY(rx, ry, &x, &y); if (rot == 2) { x = 239 - x; y = 319 - y; }
+                    const int d = abs(x - P[k][0]) > abs(y - P[k][1]) ? abs(x - P[k][0]) : abs(y - P[k][1]); if (d > worst) worst = d;
+                    if (k < 4) o += snprintf(line + o, sizeof line - o, " (%d,%d)->(%d,%d)", P[k][0], P[k][1], x, y);
+                }
+                printf("CALTEST setRotation(%d) solve(rot2=%d)%s worst %d px |%s\n", rot, rot2, wrong ? " [WRONG FLAG, control]" : "", worst, line);
+            }
+        }
         else if (!strcmp(cmd, "log")) { for (int k = (lv_tn < 20 ? lv_tn : 20) - 1; k >= 0; --k) printf("  | %s\n", lv_line_back(k)); }
     }
     printf("px pushed by overlays: %ld\n", g_px_pushed);
+    printf("SHADOW peak %d of %d bytes\n", lv_shadow_peak, LV_SHADOW_CAP);
+    if (g_dead) printf("DEAD TARGETS: %d\n", g_dead);
     return 0;
 }

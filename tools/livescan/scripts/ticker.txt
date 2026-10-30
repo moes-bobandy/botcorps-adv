@@ -2,14 +2,14 @@ tick 67
 tick 190
 tap 60 170
 tick 10
-tap 190 211
+tap 187 185
 tick 12
 dump ticker_scanning
 tick 250
 dump ticker_find_wifi
 tick 40
 dump ticker_find_2
-tap 140 10
+tap 222 296
 tick 10
 tap 160 170
 tick 10

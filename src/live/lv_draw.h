@@ -81,9 +81,41 @@ static inline void b_icon(LvBand &B, int x, int y, int id, int num = 1, int den 
 struct LvRect { int16_t x0, y0, x1, y1; };  /* inclusive */
 static inline bool lv_in(const LvRect &r, int x, int y) { return x >= r.x0 && x <= r.x1 && y >= r.y0 && y <= r.y1; }
 
+/* brighten toward white by k/8 (press flash) */
+static inline uint16_t lv_lift(uint16_t c, int k)
+{
+    int r = c >> 11, g = (c >> 5) & 63, b = c & 31;
+    r += (31 - r) * k / 8; g += (63 - g) * k / 8; b += (31 - b) * k / 8;
+    return (uint16_t)((r << 11) | (g << 5) | b);
+}
+static inline uint16_t lv_boost(uint16_t c, int num, int den) /* scale up, clamp */
+{
+    int r = (c >> 11) * num / den, g = ((c >> 5) & 63) * num / den, b = (c & 31) * num / den;
+    if (r > 31) r = 31; if (g > 63) g = 63; if (b > 31) b = 31;
+    return (uint16_t)((r << 11) | (g << 5) | b);
+}
+static inline uint16_t lv_mix(uint16_t a, uint16_t b, int k, int n) /* a -> b by k/n */
+{
+    const int r = (a >> 11) + (((b >> 11) - (a >> 11)) * k) / n, g = ((a >> 5) & 63) + ((((b >> 5) & 63) - ((a >> 5) & 63)) * k) / n,
+              bl = (a & 31) + (((b & 31) - (a & 31)) * k) / n;
+    return (uint16_t)((r << 11) | (g << 5) | bl);
+}
+
+/* Press flash: whatever renders inside lv_flash_r (overlays, live-tinted clip art, BACKbot) is lifted toward
+ * white for ~140 ms after a tap. No border is ever drawn. */
+static LvRect lv_flash_r = {0, 0, -1, -1};
+#define LV_FLASH_LIFT 4
+
 /* Render region r band by band through scene(B, ctx). */
 typedef void (*lv_scene_fn)(LvBand &B, void *ctx);
 static uint16_t lv_bandbuf[LV_BAND_PX];
+static inline void lv_flash_band(LvBand &B)
+{
+    const LvRect &f = lv_flash_r;
+    const int x0 = f.x0 > B.x0 ? f.x0 : B.x0, x1 = f.x1 < B.x0 + B.w - 1 ? f.x1 : B.x0 + B.w - 1;
+    const int y0 = f.y0 > B.y0 ? f.y0 : B.y0, y1 = f.y1 < B.y0 + B.h - 1 ? f.y1 : B.y0 + B.h - 1;
+    for (int y = y0; y <= y1; ++y) for (int x = x0; x <= x1; ++x) { uint16_t &p = B.px[(y - B.y0) * B.w + (x - B.x0)]; p = lv_lift(p, LV_FLASH_LIFT); }
+}
 static inline void lv_render(lv_blit_fn blit, const LvRect &r, lv_scene_fn scene, void *ctx)
 {
     const int w = r.x1 - r.x0 + 1, h = r.y1 - r.y0 + 1;
@@ -93,6 +125,7 @@ static inline void lv_render(lv_blit_fn blit, const LvRect &r, lv_scene_fn scene
         const int bh = (y + rows - 1 <= r.y1) ? rows : r.y1 - y + 1;
         LvBand B{lv_bandbuf, r.x0, y, w, bh};
         scene(B, ctx);
+        if (lv_flash_r.x1 >= lv_flash_r.x0) lv_flash_band(B);
         blit(r.x0, y, w, bh, lv_bandbuf);
     }
 }

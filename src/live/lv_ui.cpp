@@ -316,18 +316,31 @@ static bool r_cal_save(const uint16_t c8[8])
     return ok && botcorps_cyd_has_valid_cal();
 }
 
+/* CONTROLbot ORIENT: 0 = setRotation(2) (portrait, USB at the bottom, default), 1 = setRotation(0) (flipped 180).
+ * Touch follows the panel rotation inside LovyanGFX; the native-order c0..c7 cal stays valid either way. */
+static void r_set_rot(int flip)
+{
+    g_cyd.setRotation(flip ? 0 : 2);
+    g_cyd.fillScreen(0x0000);
+    Preferences prefs;
+    if (prefs.begin("botcorps", false)) { prefs.putUChar("lkrot", (uint8_t)(flip ? 1 : 0)); prefs.end(); }
+    Serial.printf("[live] ORIENT %s (setRotation %d)\n", flip ? "FLIP" : "PORT", flip ? 0 : 2);
+}
+
 static const LvRadio s_radio{r_wifi_start, r_wifi_poll, r_ble_start, r_ble_poll, r_deauth_start, r_deauth_poll,
-                             r_stop, r_sys, r_save_theme, r_cal_save};
+                             r_stop, r_sys, r_save_theme, r_cal_save, r_set_rot};
 
 void lv_ui_begin(void)
 {
     botcorps_cyd_orient = 1;
-    botcorps_cyd_apply_rotation(); /* rot 0: portrait 240x320 */
-    g_cyd.fillScreen(0x0000);
+    botcorps_cyd_apply_rotation(); /* rot 2: portrait 240x320, USB at the bottom */
     WiFi.mode(WIFI_OFF);
     Preferences prefs;
-    int th = 0;
-    if (prefs.begin("botcorps", true)) { th = prefs.getUChar("lktheme", 0); prefs.end(); }
+    int th = 0, rot = 0;
+    if (prefs.begin("botcorps", true)) { th = prefs.getUChar("lktheme", 0); rot = prefs.getUChar("lkrot", 0); prefs.end(); }
+    lv_flip = rot == 1;
+    if (lv_flip) g_cyd.setRotation(0);   /* CONTROLbot ORIENT = FLIP */
+    g_cyd.fillScreen(0x0000);
     if (th < 0 || th >= LV_NTHEME) th = 0;
     Serial.printf("[live] blob=%u (expect %u) theme=%d %dx%d\n", (unsigned)(lk_blob_live_end - lk_blob_live),
                   (unsigned)LK_BLOB_SIZE, th, (int)g_cyd.width(), (int)g_cyd.height());
@@ -358,7 +371,17 @@ void lv_ui_loop(void)
     next = now + 30;
     lv_use_pal();
     g_cyd.startWrite();
+    const uint32_t t_us = micros();
     lv_tick(s_io, now);
     g_cyd.endWrite();
+    if (lv_scr == LV_SC_RADAR) {   /* field fps proof for the radar: render + SPI per tick, logged every 5 s */
+        static uint32_t acc = 0, n = 0, mx = 0, t_log = 0;
+        const uint32_t d = micros() - t_us; acc += d; ++n; if (d > mx) mx = d;
+        if ((int32_t)(now - t_log) >= 5000) {
+            if (n) Serial.printf("[live] radar %lu ticks avg %.1f ms max %.1f ms (~%.1f fps at 30 ms ticks)\n", (unsigned long)n, acc / 1000.0f / n, mx / 1000.0f,
+                                 1000.0f / ((acc / 1000.0f / n) > 30.0f ? (acc / 1000.0f / n) : 30.0f));
+            acc = 0; n = 0; mx = 0; t_log = now;
+        }
+    }
 }
 #endif

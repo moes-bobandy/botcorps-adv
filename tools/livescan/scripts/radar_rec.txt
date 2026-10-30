@@ -1,0 +1,10 @@
+tick 67
+tick 190
+recstart radar_rec
+tap 110 70
+tick 330
+tap 69 125
+tick 120
+tap 222 296
+tick 20
+recstop

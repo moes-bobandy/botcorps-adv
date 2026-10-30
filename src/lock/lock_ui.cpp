@@ -2,7 +2,7 @@
 /*
  * CYD glue for lock_flow: ROM tinfl inflate, palette -> swapped RGB565
  * line, pushImage straight to the ILI9341 (no framebuffer). Touch is
- * LovyanGFX getTouch in rotation 0 with the NVS 8-point cal; one tap
+ * LovyanGFX getTouch in rotation 2 (portrait, USB at bottom) with the NVS 8-point cal; one tap
  * fires on release (same drop-out guard as the hub14 UI). Theme is kept
  * in NVS "botcorps"/"lktheme".
  */

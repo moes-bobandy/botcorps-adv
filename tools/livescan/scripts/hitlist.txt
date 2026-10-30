@@ -1,0 +1,94 @@
+tick 67
+tick 190
+dump h_home
+tap 60 170
+tick 10
+dump h_scan_idle
+tap 187 185
+tick 1
+dump h_flash_scanbtn
+tick 12
+dump h_scan_wifi_lit
+tick 150
+dump h_scan_ble_lit
+tick 100
+dump h_scan_both_have
+tap 55 179
+tick 5
+dump h_sub_wifi
+tap 222 296
+tick 5
+tap 87 179
+tick 5
+dump h_sub_ble_cat
+tap 222 296
+tick 5
+tap 121 179
+tick 5
+dump h_sub_cat3
+tap 222 296
+tick 5
+tap 187 230
+tick 5
+dump h_grid_page2
+tap 222 296
+tick 1
+dump h_flash_backbot
+tick 10
+dump h_home_ticker
+tap 110 70
+tick 1
+dump h_flash_gibson
+tick 15
+dump h_radar
+tap 69 125
+tick 3
+dump h_radar_tap
+tick 60
+dump h_radar_ticker
+tap 222 296
+tick 10
+tap 160 170
+tick 10
+dump h_term
+tap 97 225
+tick 20
+dump h_hunt_scanning
+tick 200
+dump h_hunt_found
+tick 30
+dump h_hunt_ticker
+tap 217 10
+tick 10
+tap 222 296
+tick 10
+tap 187 47
+tick 10
+dump h_ctl_0
+tap 95 40
+tick 3
+dump h_ctl_theme
+tap 50 110
+tick 3
+dump h_ctl_mix
+tap 50 165
+tick 3
+dump h_ctl_raincol
+tap 50 220
+tick 3
+dump h_ctl_mashup
+tap 185 105
+tick 3
+dump h_ctl_rain
+tap 187 150
+tick 3
+dump h_ctl_rainmode
+tap 185 205
+tick 3
+dump h_ctl_multi
+tap 125 235
+tick 3
+dump h_ctl_orient
+tick 20
+dump h_ctl_all
+log

@@ -1,0 +1,11 @@
+tick 67
+tick 190
+tap 110 70
+tick 330
+radartime 300
+tap 222 296
+tick 10
+tap 60 170
+tick 10
+heap50
+caltest

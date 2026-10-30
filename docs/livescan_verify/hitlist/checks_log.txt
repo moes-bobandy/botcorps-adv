@@ -1,0 +1,6 @@
+RADARTIME frames=300 host avg 0.177 ms max 0.227 ms; 71040 px pushed/frame -> SPI 40MHz floor 28.4 ms/frame (35 fps cap); towers=20
+HEAP50 cycles=50 completed=50 stopped_mid=10 radio_starts=64 overlaps=0 radio_on_at_end=0 lv_nf=20/48 host_heap c1=120480 c50=120480 delta=0
+CALTEST setRotation(2) solve(rot2=1) worst 1 px | (0,0)->(0,1) (239,0)->(239,1) (239,319)->(239,319) (0,319)->(0,319)
+CALTEST setRotation(2) solve(rot2=0) [WRONG FLAG, control] worst 319 px | (0,0)->(239,319) (239,0)->(0,319) (239,319)->(0,0) (0,319)->(239,0)
+CALTEST setRotation(0) solve(rot2=0) worst 1 px | (0,0)->(0,0) (239,0)->(238,0) (239,319)->(238,319) (0,319)->(0,319)
+CALTEST setRotation(0) solve(rot2=1) [WRONG FLAG, control] worst 319 px | (0,0)->(239,319) (239,0)->(0,319) (239,319)->(0,0) (0,319)->(238,0)

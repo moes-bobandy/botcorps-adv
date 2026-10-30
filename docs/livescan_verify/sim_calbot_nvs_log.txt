@@ -1,3 +1,6 @@
 DUMP calbot_nvs scr=7 seg=-1 clipframe=-1 t=300
+OVL calbot_nvs
 DUMP calbot_nvs_then_boot scr=0 seg=0 clipframe=2 t=2100
+OVL calbot_nvs_then_boot
 px pushed by overlays: 128096
+SHADOW peak 0 of 32768 bytes

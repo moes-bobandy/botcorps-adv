@@ -1,0 +1,95 @@
+--- src/live/lv_core.h	2026-10-31 11:12:23.528443389 -0400
++++ src/live/lv_core.h	2026-10-31 11:20:43.718355604 -0400
+@@ -378,6 +378,7 @@
+ static bool lv_rd_is_trk(void);
+ static void lv_rd_track_done(void);
+ static bool lv_rd_hunt_tk(void);
++struct LvBand; static bool lv_hunt_bar_on(void); static void lv_hunt_bar(LvBand &B);   /* issue 5 (MOCK): fixed hunt bar in the ticker */
+ static void lv_rd_hunt_open(int i, int from);
+ static int lv_rd_unignore(const char *a);
+ static const char *lv_job_name(int j) { return j == LV_J_WIFI ? "WIFI" : j == LV_J_BLE ? "BLE" : j == LV_J_ALL ? "WIFI+BLE" : j == LV_J_DEAUTH ? "DEAUTH WATCH" : "-"; }
+@@ -785,6 +786,7 @@
+ static void lv_scene_ticker(LvBand &B, void *vctx)
+ {
+     LvTickCtx *c = (LvTickCtx *)vctx;
++    if (lv_hunt_bar_on()) { lv_hunt_bar(B); return; }   /* hunting: the banner stops scrolling and becomes the hunt bar */
+     const bool flash = lv_tk_alert && ((lv_now / 350) & 1);
+     const uint16_t bg = lv_tk_alert ? (flash ? lv_hex(0x6a0000) : lv_hex(0x3a0000)) : lv_hex(0x2a0400);
+     b_fill(B, B.x0, B.y0, B.w, B.h, bg);
+@@ -842,7 +844,7 @@
+     const bool tty = lv_scr == LV_SC_TTY;
+     const LvRect r = tty ? LV_R_TTY_TICK : LV_R_TICK;
+     const int w = (int)strlen(lv_tk_msg) * 12;
+-    lv_tk_off += lv_speed + 1;
++    if (!lv_hunt_bar_on()) lv_tk_off += lv_speed + 1;
+     if (lv_tk_off > (r.x1 - r.x0 + 1) + w) lv_tk_next();
+     LvTickCtx c{r.x0, r.x1};
+     lv_render(lv_blit, r, lv_scene_ticker, &c);
+--- src/live/lv_radar.h	2026-10-31 08:11:29.642588507 -0400
++++ src/live/lv_radar.h	2026-10-31 11:22:14.801247036 -0400
+@@ -307,6 +307,40 @@
+     lv_rd_term(B, hdr);
+     lv_draw_backbot(B, LV_R_BACKBOT.x0, LV_R_BACKBOT.y0);
+ }
++/* issue 5 (MOCK): while hunting on GIBSON the top banner (ticker rect, inside the gold rim) is a FIXED bar:
++ * HUNT + MAC tail / name | a signal meter from the real dBm (lv_rd_level) | live dBm | WARMER / COLDER / STEADY = only the
++ * change of the real dBm between two reads (+-2 dB = STEADY). No arrow, compass or bearing: nothing implies direction. */
++static bool lv_hunt_bar_on(void) { return lv_rd_hunting && lv_rd_tgt_have && lv_scr == LV_SC_RADAR; }
++static void lv_hunt_bar(LvBand &B)
++{
++    const uint16_t MAG = lv_hex(0xff2ad4), GOLD = lv_hex(0xffb000);
++    b_fill(B, B.x0, B.y0, B.w, B.h, lv_hex(0x1a0012));
++    for (int y = B.y0; y < B.y0 + B.h; ++y) {   /* the stripes stay, frozen, magenta + gold = hunt mode */
++        if (!(y <= 3 || y >= 21)) continue;
++        for (int x = B.x0; x < B.x0 + B.w; ++x) b_pix(B, x, y, (((x + (y <= 3 ? y : -y)) / 5) & 1) ? MAG : GOLD);
++    }
++    const LvFind &f = lv_rd_tgt; char m[18], t[24], l[26]; lv_macstr(f.mac, m);
++    if (f.name[0]) snprintf(l, sizeof l, "%.13s", f.name); else snprintf(l, sizeof l, "%s %.8s", f.kind == LV_K_WIFI ? "WIFI" : "BLE", LV_ICON_NAME[f.icon]);   /* no name: kind + type, the MAC tail is on the line above */
++    snprintf(t, sizeof t, "HUNT ..%s", m + 9);
++    b_text35(B, 3, 5, t, MAG); b_text(B, 3, 12, l, lv_hex(0xffffff));
++    /* signal meter: 11 rising bars, lit count from the real dBm (-96..-40 -> 1..11) */
++    const int lit = (lv_rd_level(f) - 4) * 11 / 56 + 1, miss = lv_rd_miss > 0;
++    for (int i = 0; i < 11; ++i) {
++        const int x = 84 + i * 6, h = 5 + i, y = 20 - h + 1;
++        const uint32_t on = i < 3 ? 0xff3030 : i < 7 ? 0xffb000 : 0x30ff60;
++        b_fill(B, x, y, 5, h, i < lit && !miss ? lv_hex(on) : lv_hex(0x3a2a34));
++    }
++    snprintf(t, sizeof t, "%d", f.rssi);
++    const uint16_t num = miss ? lv_hex(0x808080) : lv_hex(0xffffff);
++    b_text(B, 190 - (int)strlen(t) * 12, 6, t, num, 2); b_text35(B, 191, 15, "DB", num);
++    const char *w; char d[16] = ""; uint32_t k;
++    if (miss) { w = "NO SIG"; snprintf(d, sizeof d, "X%d", lv_rd_miss); k = 0xff3030; }
++    else if (lv_rd_reads < 2) { w = "1ST"; snprintf(d, sizeof d, "READ"); k = 0xc0c0c0; }
++    else if (lv_rd_trend > 0) { w = "WARMER"; snprintf(d, sizeof d, "%+dDB", lv_rd_trend); k = 0xff8020; }
++    else if (lv_rd_trend < 0) { w = "COLDER"; snprintf(d, sizeof d, "%+dDB", lv_rd_trend); k = 0x40c8ff; }
++    else { w = "STEADY"; snprintf(d, sizeof d, "READ %d", lv_rd_reads); k = 0xc0c0c0; }
++    b_text35(B, 236 - lv_w35(w), 6, w, lv_hex(k)); b_text35(B, 236 - lv_w35(d), 14, d, lv_hex(k));
++}
+ /* hunt ticker line: the target's full info + a trend that is ONLY the change of its real dBm (no direction) */
+ static void lv_rd_hunt_line(void)
+ {
+@@ -335,11 +369,13 @@
+         const int was = lv_rd_tgt.rssi; lv_rd_tgt = lv_f[i]; lv_rd_miss = 0;
+         const int d = lv_rd_tgt.rssi - was; lv_rd_trend = (d >= 3 || d <= -3) ? d : 0;   /* +-2 dB = STEADY (noise) */
+         ++lv_rd_reads;
++#if 0   /* issue 5 (MOCK): per-read dBm / trend moved to the hunt bar; the mini terminal stays the live event log */
+         lv_rd_log("#%d %dDBM %s", lv_rd_reads, lv_rd_tgt.rssi, lv_rd_trend > 0 ? "WARMER" : lv_rd_trend < 0 ? "COLDER" : "STEADY");
+         if (lv_rd_trend) { char *e = lv_rd_tl[2] + strlen(lv_rd_tl[2]); snprintf(e, sizeof lv_rd_tl[2] - (e - lv_rd_tl[2]), " %+dDB", lv_rd_trend); }
++#endif
+     } else if (lv_nf < LV_MAXF) {   /* not heard this pass: keep its last real reading as the target, say so */
+         ++lv_rd_miss; lv_f[lv_nf++] = lv_rd_tgt; lv_sort();
+-        lv_rd_log("NO SIGNAL X%d  LAST %dDBM", lv_rd_miss, lv_rd_tgt.rssi);
++        if (lv_rd_miss == 1) lv_rd_log("HUNT: SIGNAL LOST, RESCANNING");   /* one event line; the count + last dBm live on the hunt bar */
+     }
+     lv_rd_sel = lv_rd_find(lv_rd_tgt.mac);
+     lv_rd_hunt_line(); lv_tk_off = 196;
+--- tools/livescan/sim_live.cpp	2026-10-31 11:05:16.665638755 -0400
++++ tools/livescan/sim_live.cpp	2026-10-31 11:22:14.801247036 -0400
+@@ -96,6 +96,7 @@
+                         mk("[TV] Samsung Q60", -86, 0, 0, 0x0075, 0, 0, 19), mk("", -91, 0, 0, 0xFFFF, 0, 0, 20)};
+     int n = (int)(sizeof F / sizeof F[0]); if (n > max) n = max; memcpy(o, F, n * sizeof(LvFind)); fk_job = 0;
+     for (int i = 0; i < n; ++i) if (o[i].mac[5] == fk_ovr_m5) o[i].rssi = (int8_t)fk_ovr_rssi;   /* 'sig' command: SAMPLE dBm for a hunt test */
++    for (int i = 0; i < n; ++i) if (o[i].mac[5] == fk_ovr_m5 && fk_ovr_rssi <= -127) { memmove(o + i, o + i + 1, (n - i - 1) * sizeof(LvFind)); --n; break; }   /* scratch mock: sig M -127 = target gone */
+     return n;
+ }
+ static int fk_deauth_poll(uint32_t *d, uint32_t *m, uint8_t *ch)

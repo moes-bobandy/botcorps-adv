@@ -1,0 +1,29 @@
+tick 67
+go 5
+tick 60
+tap 185 248
+tick 30
+wstart
+tick 6
+wstop ctrl_notap
+wstart
+tap 120 140
+dump f_after_tap
+tick 1
+dump f_t1
+tick 1
+dump f_t2
+tick 1
+dump f_t3
+tick 1
+dump f_t4
+tick 1
+dump f_t5
+tick 1
+dump f_t6
+wstop face_tap
+tick 20
+wstart
+tap 70 40
+tick 6
+wstop bar_tap

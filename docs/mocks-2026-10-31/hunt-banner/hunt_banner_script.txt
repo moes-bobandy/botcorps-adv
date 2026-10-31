@@ -1,0 +1,47 @@
+tick 67
+tick 190
+tap 110 70
+tick 330
+tick 45
+dump h0_before
+rhold 97 140 1200
+tick 3
+recstart hb
+tick 20
+tap 200 257
+tick 6
+radarstate
+dump h1_start
+sig 10 -38
+tick 175
+radarstate
+dump h2_strong
+sig 10 -91
+tick 175
+radarstate
+dump h3_weak
+sig 10 -72
+tick 60
+radarstate
+dump h4_warmer
+tick 115
+sig 10 -84
+tick 60
+radarstate
+dump h5_colder
+tick 60
+sig 10 -127
+tick 75
+radarstate
+dump h7_nosig
+sig 10 -84
+tick 120
+radarstate
+tick 30
+tap 200 257
+tick 30
+radarstate
+dump h6_end
+tick 60
+recstop
+log

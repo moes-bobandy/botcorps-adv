@@ -1,0 +1,45 @@
+tick 67
+tick 190
+tap 110 70
+tick 330
+recstart gibson_radar
+tick 45
+dump k1_base
+tap 20 215
+tick 3
+dump k2_cycle_glow
+tick 30
+tap 20 215
+tick 30
+tap 20 215
+tick 3
+dump k3_cycle_3
+tick 30
+rhold 97 140 1200
+tick 3
+radarstate
+dump k4_locked
+tick 45
+tap 120 257
+tick 3
+dump k5_watch
+tick 40
+tap 120 257
+tick 30
+tap 200 257
+tick 3
+radarstate
+dump k6_hunt
+tick 200
+radarstate
+dump k7_hunt_ticker
+tick 100
+tap 200 257
+tick 30
+radarstate
+tap 40 257
+tick 3
+radarstate
+dump k8_ignore
+tick 45
+recstop

@@ -27,6 +27,16 @@ static uint8_t ibuf[LK_INFL_CAP];
 static uint32_t t_ms = 0;
 static int g_dead = 0;
 static long g_px_pushed = 0;
+/* flicker watch (wstart / wstop NAME): every framebuffer write that CHANGES a pixel is counted per pixel, so a pixel
+ * that changes more than once between wstart and wstop showed an intermediate state on the panel (a flash). */
+static bool g_w = false; static uint16_t g_w0[320][240]; static uint8_t g_wc[320][240]; static long g_wblack = 0, g_wpx = 0;
+static int g_wpx_x = -1, g_wpx_y = -1;
+static inline void wput(int y, int x, uint16_t v)
+{
+    if (g_w && x == g_wpx_x && y == g_wpx_y && fb[y][x] != v) printf("WPIX (%d,%d) %04x -> %04x after %ld px\n", x, y, fb[y][x], v, g_wpx);
+    if (g_w) { ++g_wpx; if (fb[y][x] != v) { if (g_wc[y][x] < 255) ++g_wc[y][x]; if ((v & 0xE79C) == 0 && (fb[y][x] & 0xE79C) != 0) ++g_wblack; } }
+    fb[y][x] = v;
+}
 
 static int infl(const uint8_t *src, uint32_t len, uint8_t *dst, uint32_t cap)
 {
@@ -46,11 +56,11 @@ static void raw_draw(int y, int x, int n, const uint8_t *idx)
     if (g_fwpal < 0) { const char *e = getenv("SIM_FWPAL"); g_fwpal = e && *e == '1' ? 1 : e && *e == '2' ? 2 : 0; }
     if (g_fwpal == 2) g_fwpal_clip = lk_clip_of_seg(lv_play.seg); /* fixed firmware: ui_raw_draw re-validates s_pal */
     const uint16_t *pal = LK_CLIP[g_fwpal && g_fwpal_clip >= 0 ? g_fwpal_clip : lk_clip_of_seg(lv_play.seg)].pal;
-    for (int i = 0; i < n; ++i) fb[y][x + i] = pal[idx[i]];
+    for (int i = 0; i < n; ++i) wput(y, x + i, pal[idx[i]]);
 }
 static void blit(int x, int y, int w, int h, const uint16_t *px)
 {
-    for (int r = 0; r < h; ++r) memcpy(&fb[y + r][x], px + r * w, w * 2);
+    for (int r = 0; r < h; ++r) for (int c = 0; c < w; ++c) wput(y + r, x + c, px[r * w + c]);
     g_px_pushed += w * h;
 }
 
@@ -312,6 +322,14 @@ int main(int argc, char **argv)
                 printf("CALTEST setRotation(%d) solve(rot2=%d)%s worst %d px |%s\n", rot, rot2, wrong ? " [WRONG FLAG, control]" : "", worst, line);
             }
         }
+        else if (!strcmp(cmd, "wstart")) { memcpy(g_w0, fb, sizeof fb); memset(g_wc, 0, sizeof g_wc); g_wblack = 0; g_wpx = 0; g_w = true; }
+        else if (!strcmp(cmd, "wpix")) { if (fscanf(sc, "%d %d", &g_wpx_x, &g_wpx_y) != 2) return 2; }
+        else if (!strcmp(cmd, "wstop")) { char nm[64]; if (fscanf(sc, "%63s", nm) != 1) return 2; g_w = false;
+            long once = 0, multi = 0, back = 0; static uint8_t m[320][240][3];
+            for (int y = 0; y < 320; ++y) for (int x = 0; x < 240; ++x) { const int c = g_wc[y][x]; once += c == 1; multi += c >= 2; back += c >= 2 && fb[y][x] == g_w0[y][x];
+                m[y][x][0] = c >= 2 ? 255 : 0; m[y][x][1] = c == 1 ? 160 : 0; m[y][x][2] = 0; }
+            char p[512]; snprintf(p, sizeof p, "%s/%s.wmap.rgb", argv[2], nm); FILE *f = fopen(p, "wb"); fwrite(m, 1, sizeof m, f); fclose(f);
+            printf("WATCH %s t=%u px_written=%ld changed_once=%ld changed_2plus=%ld (back_to_start=%ld) went_black=%ld\n", nm, t_ms, g_wpx, once, multi, back, g_wblack); }
         else if (!strcmp(cmd, "log")) { for (int k = (lv_tn < 20 ? lv_tn : 20) - 1; k >= 0; --k) printf("  | %s\n", lv_line_back(k)); }
     }
     printf("px pushed by overlays: %ld\n", g_px_pushed);

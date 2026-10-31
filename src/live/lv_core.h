@@ -59,13 +59,45 @@ struct LvRadio {
 };
 
 enum LvScr { LV_SC_BOOT, LV_SC_HOME_INTRO, LV_SC_HOME, LV_SC_TERM, LV_SC_SCAN, LV_SC_CTL, LV_SC_TTY, LV_SC_CAL, LV_SC_RADAR };
-#define LV_NTHEME 6
-static const char *const LV_THEME_NAME[LV_NTHEME] = {"GRAPE", "MAGENTA", "TOXIC", "ICE", "BLUE", "ORANGE"};
-/* Theme inks sampled from the LOCKED SCANbot/TERMINALbot clips (frame 0 of each theme loop). */
-static const uint32_t LV_ACC[LV_NTHEME] = {0xb324fd, 0xdd00ac, 0x92ff02, 0x00ffff, 0x345efb, 0xfd6b00};
-static const uint32_t LV_ACCD[LV_NTHEME] = {0x53205d, 0x68004f, 0x4a6010, 0x00636d, 0x0e5166, 0x61480f};
-static const uint32_t LV_HDR[LV_NTHEME] = {0xb36afe, 0xdc4aac, 0xb9fb4f, 0x4afffc, 0x6891ff, 0xf4b24c};
-static const uint32_t LV_FRAME[LV_NTHEME] = {0xff25ae, 0xdf00ae, 0x92fd00, 0x00feff, 0xfd22ff, 0xfd6b00};
+#define LV_NTHEME 12
+/* Issue 2: the full original CYD THEMES[11] (src/ui/botcorps_ui.cpp) on the live screens. 0..5 keep their NVS
+ * meaning (lktheme) and their LOCKED clips: GRAPE = NEON GRAPE, MAGENTA = HOT PINK, TOXIC = TOXIC, ICE = ICE,
+ * ORANGE = BLAZE ORANGE; BLUE is a live-only extra (no original is a solid blue). 6..11 are the originals the
+ * live UI never had: they play the ICE clip and re-ink its cyan accent pixels (lv_multi_ink) - gold, silver and
+ * pink art is never cyan, so SCANbot / TERMINALbot / BACKbot keep their own colours. LV_THEME_NAME fits the
+ * 31 px THEME field; LV_THEME_FULL is the original name (terminal 'theme', CONTROLbot name plate). */
+static const char *const LV_THEME_NAME[LV_NTHEME] = {"GRAPE", "MAGENTA", "TOXIC", "ICE", "BLUE", "ORANGE", "GOLD", "SYNTH", "AURA", "PRISM", "GLTCH", "ROSE"};
+static const char *const LV_THEME_FULL[LV_NTHEME] = {"NEON GRAPE", "HOT PINK", "TOXIC", "ICE", "BLUE", "BLAZE ORANGE", "GOLD RUSH", "SYNTHWAVE", "AURORA", "PRISM", "GLITCH", "HOT ROSE"};
+#define LV_THEME_ORIG 6          /* first re-inked theme */
+#define LV_THEME_BASE 3          /* ICE: the clip the re-inked themes play */
+/* Theme inks sampled from the LOCKED SCANbot/TERMINALbot clips (frame 0 of each theme loop). 6..11: the
+ * originals' accents (botcorps_rgb565 of ac); on the multi themes (7..10) these four values are sentinels
+ * that lv_blit_theme re-inks per pixel, so every overlay stroke follows the fade / spectrum / split. */
+static const uint32_t LV_ACC[LV_NTHEME] = {0xb324fd, 0xdd00ac, 0x92ff02, 0x00ffff, 0x345efb, 0xfd6b00, 0xffda00, 0xff24fd, 0x20fe01, 0x00fe02, 0xfe0001, 0xff0052};
+static const uint32_t LV_ACCD[LV_NTHEME] = {0x53205d, 0x68004f, 0x4a6010, 0x00636d, 0x0e5166, 0x61480f, 0x6a5a00, 0x690d69, 0x0d690d, 0x086908, 0x690405, 0x690022};
+static const uint32_t LV_HDR[LV_NTHEME] = {0xb36afe, 0xdc4aac, 0xb9fb4f, 0x4afffc, 0x6891ff, 0xf4b24c, 0xffe86a, 0xff6afd, 0x6aff6b, 0x6afe6c, 0xff6a6b, 0xff6a96};
+static const uint32_t LV_FRAME[LV_NTHEME] = {0xff25ae, 0xdf00ae, 0x92fd00, 0x00feff, 0xfd22ff, 0xfd6b00, 0xffda00, 0xff24fd, 0x20fe01, 0x00fe02, 0xfe0001, 0xff0052};
+static bool lv_multi_theme(int t) { return t >= 7 && t <= 10; }
+/* the theme's ink at screen pixel (x, y), 0xRRGGBB (originals: th_ink_at / sel_ink in botcorps_ui.cpp) */
+static uint32_t lv_mix3(uint32_t a, uint32_t b, int num, int den)
+{
+    uint32_t o = 0;
+    for (int sh = 0; sh <= 16; sh += 8) { const int ca = (a >> sh) & 255, cb = (b >> sh) & 255; o |= (uint32_t)(ca + (cb - ca) * num / den) << sh; }
+    return o;
+}
+static uint32_t lv_theme_at(int t, int x, int y)
+{
+    switch (t) {
+    case 7: return lv_mix3(0xff24ff, 0xff8918, y, 319);                                    /* SYNTHWAVE: magenta top -> sunset orange */
+    case 8: {                                                                                 /* AURORA: ice sky -> green -> violet */
+        const int k = y < 40 ? 40 : y > 280 ? 280 : y;
+        return k < 160 ? lv_mix3(0x00daff, 0x20ff00, k - 40, 120) : lv_mix3(0x20ff00, 0xb400ff, k - 160, 120);
+    }
+    case 9: { static const uint32_t H[6] = {0xff24ff, 0xff8918, 0xffda00, 0x20ff00, 0x00ffff, 0x3161ff}; return H[((x + y) / 22) % 6]; } /* PRISM */
+    case 10: return ((y / 3) % 4 == 1) ? 0x00ffff : 0xff0000;                                /* GLITCH: red, cyan split bands */
+    default: return LV_ACC[t];
+    }
+}
 #define LV_PROMPT_INK 0xdd00a7
 #define LV_TAN 0xb39152
 #define LV_PROMPT "user@botcorps:~$"
@@ -479,7 +511,7 @@ static const char *const LV_HELP[] = {
     "list [wifi|ble]   info <n>",
     "filter <all|wifi|ble>",
     "go <home|scan|term|ctl|radar|boot|wifi|ble>",
-    "theme [next|name|1-6]  history  clear",
+    "theme [next|name|1-12]  history  clear",
     "status heap uptime version about bots",
     "help cmds  home  back|exit|close",
     "dev: airtag samsung flipper flock",
@@ -539,10 +571,14 @@ static void lv_cmd(const char *line)
     else if (IS("history")) { for (int i = 0; i < lv_nhist; ++i) lv_print("%d %s", i + 1, lv_hist[i]); }
     else if (IS("theme")) {
         int t = -1;
-        for (int k = 0; a1 && k < LV_NTHEME; ++k) { char lo[12]; snprintf(lo, sizeof lo, "%s", LV_THEME_NAME[k]); for (char *c = lo; *c; ++c) *c += 32; if (!strcmp(a1, lo)) t = k; }
-        if (a1 && t < 0 && a1[0] >= '1' && a1[0] <= '6') t = a1[0] - '1';
+        for (int k = 0; a1 && k < LV_NTHEME; ++k)   /* short name, or the original name without its space (hotpink, goldrush, ...) */
+            for (const char *nm : {LV_THEME_NAME[k], LV_THEME_FULL[k]}) {
+                char lo[16]; int n = 0; for (const char *c = nm; *c && n < 15; ++c) if (*c != ' ') lo[n++] = (char)(*c >= 'A' && *c <= 'Z' ? *c + 32 : *c); lo[n] = 0;
+                if (!strcmp(a1, lo)) t = k;
+            }
+        if (a1 && t < 0 && atoi(a1) >= 1 && atoi(a1) <= LV_NTHEME) t = atoi(a1) - 1;
         lv_set_theme(t >= 0 ? t : lv_theme + 1);
-        lv_print("theme %d/6 %s", lv_theme + 1, LV_THEME_NAME[lv_theme]);
+        lv_print("theme %d/%d %s", lv_theme + 1, LV_NTHEME, LV_THEME_FULL[lv_theme]);
     }
     else if (IS("status") || IS("sys") || IS("heap")) lv_sysinfo();
     else if (IS("uptime")) { const uint32_t s = lv_now / 1000; lv_print("up %02lu:%02lu:%02lu", (unsigned long)(s / 3600), (unsigned long)(s / 60 % 60), (unsigned long)(s % 60)); }
@@ -600,7 +636,7 @@ static void lv_tint_add(int id, LvRect r)
     lv_tints[lv_ntint] = {r, lv_shadow_used, (uint8_t)id}; lv_tdrawn[lv_ntint].mode = 255; lv_tdirty[lv_ntint] = false;
     ++lv_ntint; lv_shadow_used += n; if (lv_shadow_used > lv_shadow_peak) lv_shadow_peak = lv_shadow_used;
 }
-static uint16_t lv_tx(const LvTS &s, uint16_t c)
+static uint16_t lv_tx(const LvTS &s, uint16_t c, int px = 0, int py = 0)
 {
     const int R = (c >> 11) << 3, G = ((c >> 5) & 63) << 2, Bl = (c & 31) << 3;
     switch (s.mode) {
@@ -618,12 +654,31 @@ static uint16_t lv_tx(const LvTS &s, uint16_t c)
     case LV_TM_HUE: {                                    /* re-ink the purple (GRAPE) pixels in the theme colour */
         const int mx = R > Bl ? R : Bl;
         if (mx - G < 60 || Bl < 80) return c;
-        int cr = (int)((s.col >> 16) & 255) * mx / 255, cg = (int)((s.col >> 8) & 255) * mx / 255, cb = (int)(s.col & 255) * mx / 255;
+        /* CONTROLbot's face is the theme preview: the fades (7, 8) run their whole range across its 66 px height */
+        const int fy = (lv_theme == 7 || lv_theme == 8) ? (py - 95) * 319 / 65 : py;
+        const uint32_t col = lv_multi_theme(lv_theme) ? lv_theme_at(lv_theme, px, fy < 0 ? 0 : fy > 319 ? 319 : fy) : s.col;
+        int cr = (int)((col >> 16) & 255) * mx / 255, cg = (int)((col >> 8) & 255) * mx / 255, cb = (int)(col & 255) * mx / 255;
         return lv_rgb((uint8_t)cr, (uint8_t)cg, (uint8_t)cb);
     }
     }
     return c;
 }
+/* Issue 2: themes 6..11 play the ICE clip; its cyan accent pixels (R well under G and B, G ~ B) take the theme ink at
+ * their screen position, keeping the clip's shading (max(G,B)) and its white lift (R). Everything else - black,
+ * greys, silver TERMINALbot, gold SCANbot, pink BACKbot, the green / red status art - is not cyan and stays. */
+static bool lv_reink_on(void) { return lv_theme >= LV_THEME_ORIG && (lv_scr == LV_SC_HOME || lv_scr == LV_SC_TERM || lv_scr == LV_SC_SCAN); }
+static uint16_t lv_multi_ink(uint16_t c, int x, int y)
+{
+    const int R = (c >> 11) << 3, G = ((c >> 5) & 63) << 2, Bl = (c & 31) << 3;
+    const int mx = G > Bl ? G : Bl, mn = G < Bl ? G : Bl;
+    if (mx < 12 || R * 10 > mn * 7 || Bl * 10 < G * 6 || G * 10 < Bl * 5) return c;
+    const uint32_t T = lv_theme_at(lv_theme, x, y);
+    const int W = R * 255 / mx;   /* 0 = pure accent, 255 = white highlight */
+    int o[3];
+    for (int k = 0; k < 3; ++k) { const int tc = (int)((T >> (16 - 8 * k)) & 255); o[k] = (tc * (255 - W) + 255 * W) / 255 * mx / 255; }
+    return lv_rgb((uint8_t)o[0], (uint8_t)o[1], (uint8_t)o[2]);
+}
+static uint16_t lv_pc(const uint16_t *pal, uint8_t i, int x, int y) { return lv_reink_on() ? lv_multi_ink(pal[i], x, y) : pal[i]; }
 static void lv_scene_tint(LvBand &B, void *ctx)
 {
     const int t = *(const int *)ctx;
@@ -632,22 +687,53 @@ static void lv_scene_tint(LvBand &B, void *ctx)
     const uint16_t *pal = lv_pal();
     const int w = T.r.x1 - T.r.x0 + 1;
     for (int y = B.y0; y < B.y0 + B.h; ++y)
-        for (int x = B.x0; x < B.x0 + B.w; ++x) B.px[(y - B.y0) * B.w + (x - B.x0)] = lv_tx(s, pal[lv_shadow[T.off + (y - T.r.y0) * w + (x - T.r.x0)]]);
+        for (int x = B.x0; x < B.x0 + B.w; ++x) B.px[(y - B.y0) * B.w + (x - B.x0)] = lv_tx(s, lv_pc(pal, lv_shadow[T.off + (y - T.r.y0) * w + (x - T.r.x0)], x, y), x, y);
     if (s.deco) lv_tint_deco(B, T.id, s);
 }
+/* Issue 1 (theme-tap flicker): a tint rect may overlap a mask (the CTL FLASH tints contain the value badges, the
+ * theme-bar tint contains THEME / UPTIME / FOCUS). lv_clip_draw never writes the shadow under a mask, so painting the
+ * whole tint rect put black / stale shadow pixels over the overlay, and the overlay repainted a moment later: a black
+ * blink on every badge after each lv_go(). Tints now skip masked pixels, so the overlays are never overdrawn. */
+static bool lv_rect_hit(const LvRect &a, const LvRect &b) { return a.x0 <= b.x1 && b.x0 <= a.x1 && a.y0 <= b.y1 && b.y0 <= a.y1; }
 static void lv_tint_paint(int t)
 {
     lv_tdrawn[t] = lv_tint_state(lv_tints[t].id); lv_tdirty[t] = false;
-    lv_render(lv_blit, lv_tints[t].r, lv_scene_tint, &t);
+    const LvRect r = lv_tints[t].r;
+    int ml[16], nm = 0;
+    for (int m = 0; m < lv_nmask; ++m) if (lv_rect_hit(lv_masks[m], r)) ml[nm++] = m;
+    if (!nm) { lv_render(lv_blit, r, lv_scene_tint, &t); return; }
+    const int w = r.x1 - r.x0 + 1;
+    int rows = LV_BAND_PX / w; if (rows > r.y1 - r.y0 + 1) rows = r.y1 - r.y0 + 1;
+    for (int y = r.y0; y <= r.y1; y += rows) {
+        const int bh = (y + rows - 1 <= r.y1) ? rows : r.y1 - y + 1;
+        LvBand B{lv_bandbuf, r.x0, y, w, bh};
+        lv_scene_tint(B, &t);
+        if (lv_flash_r.x1 >= lv_flash_r.x0) lv_flash_band(B);
+        for (int yy = y; yy < y + bh; ++yy) {
+            auto masked = [&](int x) { for (int k = 0; k < nm; ++k) if (lv_in(lv_masks[ml[k]], x, yy)) return true; return false; };
+            for (int x = r.x0; x <= r.x1;) {
+                if (masked(x)) { ++x; continue; }
+                int e = x; while (e + 1 <= r.x1 && !masked(e + 1)) ++e;
+                lv_blit(x, yy, e - x + 1, 1, lv_bandbuf + (yy - y) * w + (x - r.x0));
+                x = e + 1;
+            }
+        }
+    }
 }
 static void lv_clip_draw(int y, int x, int n, const uint8_t *idx)
 {
     int ml[16], nm = 0, tl[LV_MAXT], nt = 0;
     for (int m = 0; m < lv_nmask; ++m) if (y >= lv_masks[m].y0 && y <= lv_masks[m].y1 && lv_masks[m].x1 >= x && lv_masks[m].x0 < x + n) ml[nm++] = m;
     for (int t = 0; t < lv_ntint; ++t) if (y >= lv_tints[t].r.y0 && y <= lv_tints[t].r.y1 && lv_tints[t].r.x1 >= x && lv_tints[t].r.x0 < x + n) tl[nt++] = t;
-    if (!nm && !nt) { lv_raw_draw(y, x, n, idx); return; }
     const uint16_t *pal = lv_pal();
     static uint16_t lb[240];
+    const bool ri = lv_reink_on();
+    auto raw = [&](int x0, int m, const uint8_t *ix) {   /* re-inked themes push RGB565, the rest the palette indices */
+        if (!ri) { lv_raw_draw(y, x0, m, ix); return; }
+        for (int k = 0; k < m; ++k) lb[k] = lv_multi_ink(pal[ix[k]], x0 + k, y);
+        lv_blit(x0, y, m, 1, lb);
+    };
+    if (!nm && !nt) { raw(x, n, idx); return; }
     const bool fl = lv_flash_r.x1 >= lv_flash_r.x0;
     auto cls = [&](int i) -> int {                      /* -2 masked, -1 raw clip, else tint index */
         const int px = x + i;
@@ -658,7 +744,7 @@ static void lv_clip_draw(int y, int x, int n, const uint8_t *idx)
     for (int i = 0; i < n;) {
         const int c = cls(i); int j = i + 1;
         while (j < n && cls(j) == c) ++j;
-        if (c == -1) lv_raw_draw(y, x + i, j - i, idx + i);
+        if (c == -1) raw(x + i, j - i, idx + i);
         else if (c >= 0) {
             const LvTint &T = lv_tints[c]; const int w = T.r.x1 - T.r.x0 + 1;
             uint8_t *sh = lv_shadow + T.off + (y - T.r.y0) * w + (x + i - T.r.x0);
@@ -666,7 +752,7 @@ static void lv_clip_draw(int y, int x, int n, const uint8_t *idx)
             const LvTS s = lv_tint_state(T.id);
             if (s.deco) lv_tdirty[c] = true;          /* painted by its own scene (shadow + decorator) */
             else {
-                for (int k = i; k < j; ++k) { uint16_t v = lv_tx(s, pal[idx[k]]); if (fl && lv_in(lv_flash_r, x + k, y)) v = lv_hi(v); lb[k - i] = v; }
+                for (int k = i; k < j; ++k) { uint16_t v = lv_tx(s, ri ? lv_multi_ink(pal[idx[k]], x + k, y) : pal[idx[k]], x + k, y); if (fl && lv_in(lv_flash_r, x + k, y)) v = lv_hi(v); lb[k - i] = v; }
                 lv_blit(x + i, y, j - i, 1, lb);
             }
         }
@@ -1231,7 +1317,7 @@ static void lv_tint_deco(LvBand &B, int id, const LvTS &s)
             const uint16_t c = B.px[(y - B.y0) * B.w + (r.x0 - B.x0)];
             for (int x = r.x0 + 1; x < r.x1; ++x) B.px[(y - B.y0) * B.w + (x - B.x0)] = c;
         }
-        const char *t = LV_THEME_NAME[s.col];
+        const char *t = s.col >= LV_THEME_ORIG ? LV_THEME_FULL[s.col] : LV_THEME_NAME[s.col];
         b_text(B, (r.x0 + r.x1 + 1 - ((int)strlen(t) * 6 - 1)) / 2, r.y0 + 2, t, lv_hex(LV_ACC[s.col]));
     }
 }
@@ -1289,7 +1375,7 @@ static void lv_paint_tints(bool all)
 #include "lv_radar.h"
 
 /* ---------- flow ---------- */
-static int lv_theme_seg(int base) { return base + lv_theme; }
+static int lv_theme_seg(int base) { return base + (lv_theme < LV_THEME_ORIG ? lv_theme : LV_THEME_BASE); }
 static uint32_t lv_flash_t = 0;
 static int lv_soon_kind = 0, lv_soon_scr = 0; static char lv_soon_cmd[32]; static uint32_t lv_soon_t = 0;
 static void lv_go(int s)
@@ -1567,7 +1653,6 @@ static void lv_paint_overlays(bool all)
         lv_dirty_ctl = false;
     }
 }
-static bool lv_rect_hit(const LvRect &a, const LvRect &b) { return a.x0 <= b.x1 && b.x0 <= a.x1 && a.y0 <= b.y1 && b.y0 <= a.y1; }
 /* item 2: brief brighten flash on whatever was pressed (clip art via its tint, overlays via their scene) */
 static void lv_flash_repaint(const LvRect &r)
 {
@@ -1589,6 +1674,18 @@ static void lv_press(LvRect r)
     lv_flash_r = r; lv_flash_t = lv_now;
     lv_flash_repaint(r);
 }
+/* Issue 1: a theme tap on CONTROLbot used to lv_go(LV_SC_CTL) + lv_press(): the CTL clip restarted (full keyframe
+ * pushed again, animation jumped to frame 0), every tint/overlay was reset and painted twice, and the press brighten
+ * added one more intermediate frame. The CTL clip is theme-agnostic (one segment), so a theme change repaints in place:
+ * only tints whose state changed (CFACE hue, CLABEL name) and the CTL overlays, each through the band buffer, once. */
+static void lv_ctl_retheme(void)
+{
+    if (lv_flash_r.x1 >= lv_flash_r.x0) { const LvRect o = lv_flash_r; lv_flash_r = {0, 0, -1, -1}; lv_flash_repaint(o); }
+    if (lv_play.shown < 0) return;            /* nothing on screen yet: lv_tick paints everything once */
+    lv_paint_tints(false);
+    lv_dirty_ctl = lv_dirty_term = true;
+    lv_paint_overlays(false);
+}
 static void lv_go_soon(int scr, const char *tty_cmd)   /* navigate after the flash has been seen (~110 ms) */
 {
     lv_soon_kind = tty_cmd ? 2 : 1; lv_soon_scr = scr; lv_soon_t = lv_now;
@@ -1597,9 +1694,28 @@ static void lv_go_soon(int scr, const char *tty_cmd)   /* navigate after the fla
 
 /* public API */
 /* cal_valid: a cv=3 8-point cal (cv 3: targets moved to face centres, forces one recal) is already in NVS (and was applied at display begin). flip: NVS ORIENT setting. */
+/* Issue 2: on the multi themes (SYNTHWAVE / AURORA / PRISM / GLITCH) every overlay pixel drawn in the theme's
+ * LV_ACC / LV_FRAME / LV_HDR / LV_ACCD sentinel takes the theme ink at its screen position on the way out. The
+ * pixels are always lv_bandbuf or a line buffer of ours, consumed by this one blit, so they are re-inked in place. */
+static lv_blit_fn lv_blit_hw;
+static void lv_blit_theme(int x, int y, int w, int h, const uint16_t *px)
+{
+    if (lv_multi_theme(lv_theme)) {
+        const int t = lv_theme;
+        const uint16_t sa = lv_hex(LV_ACC[t]), sf = lv_hex(LV_FRAME[t]), sh = lv_hex(LV_HDR[t]), sd = lv_hex(LV_ACCD[t]);
+        uint16_t *p = (uint16_t *)px;
+        for (int r = 0; r < h; ++r) for (int c = 0; c < w; ++c) {
+            uint16_t &v = p[r * w + c];
+            if (v != sa && v != sf && v != sh && v != sd) continue;
+            const uint32_t T = lv_theme_at(t, x + c, y + r);
+            v = (v == sh) ? lv_hex(lv_mix3(T, 0xffffff, 2, 5)) : (v == sd) ? lv_hex(lv_mix3(T, 0x000000, 59, 100)) : lv_hex(T);
+        }
+    }
+    lv_blit_hw(x, y, w, h, px);
+}
 static void lv_begin(const LvRadio *radio, lv_blit_fn blit, lk_draw_fn raw_draw, int theme, uint32_t now, bool cal_valid)
 {
-    lv_radio = radio; lv_blit = blit; lv_raw_draw = raw_draw;
+    lv_radio = radio; lv_blit_hw = blit; lv_blit = lv_blit_theme; lv_raw_draw = raw_draw;
     lv_theme = (theme >= 0 && theme < LV_NTHEME) ? theme : 0;
     lv_now = lv_boot_ms = now; lv_clip_t = now; lv_auto_t = now;
     lv_print("BOTCORPS %s", LV_VERSION);
@@ -1845,7 +1961,7 @@ static const char *lv_tap(int x, int y)
     }
     if (lv_scr == LV_SC_CTL) {
         auto ev = [](const char *n, const char *v) { lv_event(false, "%s: %s", n, v); lv_tk_off = 1 << 14; lv_dirty_ctl = true; };
-        if (LV_TAP(((LvRect){35, 33, 113, 48}))) { if (lv_theme_bounce()) return "theme-debounce"; lv_set_theme(lv_theme + 1); lv_go(LV_SC_CTL); lv_press({35, 33, 113, 48}); ev("THEME", LV_THEME_NAME[lv_theme]); return "theme"; }
+        if (lv_in(((LvRect){35, 33, 113, 48}), x, y)) { if (lv_theme_bounce()) return "theme-debounce"; /* no lv_press: the new colour is the feedback */ lv_set_theme(lv_theme + 1); lv_ctl_retheme(); ev("THEME", LV_THEME_NAME[lv_theme]); return "theme"; }
         if (LV_TAP(((LvRect){35, 49, 113, 63}))) { char h[48] = ""; lv_radio->sys(0, h, sizeof h); lv_event(false, "UP %lus  %s", (unsigned long)(lv_now / 1000), h); lv_tk_off = 1 << 14; return "uptime"; }
         if (LV_TAP(((LvRect){35, 64, 113, 79}))) { lv_focus = (lv_focus + 1) % 4; lv_tk_item = 0; ev("TICKER FOCUS", LV_FOCUS_NAME[lv_focus]); return "focus"; }
         if (LV_TAP(((LvRect){165, 175, 207, 237}))) { lv_auto = (lv_auto + 1) % 3; lv_auto_t = lv_now; ev("MULTI AUTO SCAN", LV_AUTO_NAME[lv_auto]); return "multi"; }
@@ -1860,7 +1976,7 @@ static const char *lv_tap(int x, int y)
             lv_go(LV_SC_CTL); lv_event(false, "ORIENT: %s", LV_FLIP_NAME[lv_flip]); lv_tk_off = 1 << 14; return "orient";
         }
         if (const char *a = lv_mt_hit(x, y)) return a;
-        if (LV_TAP(((LvRect){75, 82, 164, 205}))) { if (lv_theme_bounce()) return "theme-debounce"; lv_set_theme(lv_theme + 1); lv_go(LV_SC_CTL); lv_press({75, 82, 164, 205}); ev("THEME", LV_THEME_NAME[lv_theme]); return "ctl-face-theme"; }
+        if (lv_in(((LvRect){75, 82, 164, 205}), x, y)) { if (lv_theme_bounce()) return "theme-debounce"; lv_set_theme(lv_theme + 1); lv_ctl_retheme(); ev("THEME", LV_THEME_NAME[lv_theme]); return "ctl-face-theme"; }
         return "none";
     }
     return "none";

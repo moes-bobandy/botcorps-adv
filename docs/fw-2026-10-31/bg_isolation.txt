@@ -1,0 +1,6 @@
+Same script, BG state set by `bgset` (no timing change). Changed px vs default RAIN/GREEN:
+BOTS  /MULTI : home 0  term 0  scan 0  tty 0  radar 312
+GIBSON/MULTI : home 0  term 0  scan 0  tty 0  radar 259
+FLYBY /PURPLE: home 0  term 0  scan 0  tty 0  radar 271
+BOUNCE/AMBER : home 0  term 0  scan 0  tty 0  radar 313
+OFF   /CYAN  : home 0  term 0  scan 0  tty 0  radar 137

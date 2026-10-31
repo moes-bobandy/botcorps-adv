@@ -1,0 +1,9 @@
+Hunt bar firmware vs control (fa33cf7 src + only the sim "sig" scenario hook), same script. rows 24..289 = radar body/rim/field
+h0_before.rgb    banner y0-23:     0  radar body/rim y24-289: 0  mini-terminal y290-319: 0
+h1_start.rgb     banner y0-23:  5317  radar body/rim y24-289: 0  mini-terminal y290-319: 0
+h2_strong.rgb    banner y0-23:  5187  radar body/rim y24-289: 0  mini-terminal y290-319: 793
+h3_weak.rgb      banner y0-23:  4927  radar body/rim y24-289: 0  mini-terminal y290-319: 812
+h4_warmer.rgb    banner y0-23:  5304  radar body/rim y24-289: 0  mini-terminal y290-319: 788
+h5_colder.rgb    banner y0-23:  5447  radar body/rim y24-289: 0  mini-terminal y290-319: 787
+h6_end.rgb       banner y0-23:  1981  radar body/rim y24-289: 0  mini-terminal y290-319: 217
+h7_nosig.rgb     banner y0-23:  5317  radar body/rim y24-289: 0  mini-terminal y290-319: 753

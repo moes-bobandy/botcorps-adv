@@ -99,10 +99,90 @@ static void b_line(LvBand &B, int x0, int y0, int x1, int y1, uint16_t c)
     for (int n = 0; n < 800; ++n) { b_pix(B, x0, y0, c); if (x0 == x1 && y0 == y1) break; const int e2 = 2 * e; if (e2 >= dy) { e += dy; x0 += sx; } if (e2 <= dx) { e += dx; y0 += sy; } }
 }
 static void lv_rd_vclip(LvBand &B, int &ya, int &yb) { if (ya < LV_RD_Y0) ya = LV_RD_Y0; if (yb > LV_RD_Y1) yb = LV_RD_Y1; (void)B; }
-static uint16_t lv_rd_rain_col(int k)
+/* BG COLOR: element e of the background layer. MULTI gives each element its own hue and walks the palette slowly. */
+static uint16_t lv_rd_bg_col(int e, int k)
 {
-    const uint32_t c = lv_raincol == 0 ? 0x20ff60 : lv_raincol == 1 ? 0x30e8ff : LV_ACC[lv_theme];
+    static const uint32_t MULTI[5] = {0x20ff60, 0x30e8ff, 0xb040ff, 0xffb000, 0xff2ad4};
+    uint32_t c;
+    switch (lv_raincol) {
+    case 0: c = 0x20ff60; break;
+    case 1: c = 0x30e8ff; break;
+    case 2: c = LV_ACC[lv_theme]; break;
+    case 3: c = MULTI[(unsigned)(e + lv_now / 1500) % 5]; break;
+    case 4: c = 0xb040ff; break;
+    default: c = 0xffb000; break;
+    }
     return lv_dim(lv_hex(c), k, 8);
+}
+/* a tiny bot (BOTS / FLYBY): head box, two eyes, antenna; sc = pixel scale, k = blend 0..8 */
+static void lv_rd_bot(LvBand &B, int x, int y, int sc, uint16_t c, int k)
+{
+    static const uint8_t BOT[7] = {0x08, 0x08, 0x7f, 0x41, 0x55, 0x41, 0x7f};   /* 7 x 7, MSB = left */
+    for (int r = 0; r < 7; ++r) for (int q = 0; q < 7; ++q) if (BOT[r] & (0x40 >> q))
+        for (int a = 0; a < sc; ++a) for (int b = 0; b < sc; ++b) { const int yy = y + r * sc + a; if (yy >= LV_RD_Y0 && yy <= LV_RD_Y1) b_blend(B, x + q * sc + b, yy, c, k); }
+}
+/* background engine: the GIBSON field's live layer between the grid and the towers (the only free background on screen) */
+static void lv_rd_bg(LvBand &B)
+{
+    if (!lv_rain) return;
+    const float ts = lv_now / 1000.0f;
+    switch (lv_bgstyle) {
+    case 0:   /* RAIN: the original code streaks, unchanged */
+        for (int s = 0; s < 18; ++s) {
+            const int x = (s * 53 + 17) % 236 + 2, len = 10 + (s * 7) % 18, sp = 40 + (s * 29) % 70;
+            const int head = LV_RD_Y0 + (int)((lv_now / 1000.0f * sp + s * 37)) % (LV_RD_Y1 - LV_RD_Y0 + len) ;
+            for (int k = 0; k < len; k += 2) { const int y = head - k; if (y >= LV_RD_Y0 && y <= LV_RD_Y1) b_blend(B, x, y, lv_rd_bg_col(s, 8), k == 0 ? 8 : 6 - k * 5 / len); }
+        }
+        break;
+    case 1:   /* BOTS: a slow swarm of little bots drifting down the field and wrapping */
+        for (int s = 0; s < 9; ++s) {
+            const int span = LV_RD_Y1 - LV_RD_Y0 + 8, sp = 9 + (s * 7) % 13;
+            const int y = LV_RD_Y0 - 7 + (int)(ts * sp + s * 41) % span;
+            const int x = (s * 61 + 11) % 226 + (int)(6 * sinf(ts * 0.7f + s));
+            lv_rd_bot(B, x, y, 1, lv_rd_bg_col(s, 8), 5);
+        }
+        break;
+    case 2:   /* GIBSON: data packets racing along the ground-grid lanes toward you, plus uplinks rising off the horizon */
+        for (int p = 0; p < 24; ++p) {
+            const float g = (float)((p * 7) % 25 - 12) * 0.5f, life = 2.2f + (p % 4) * 0.4f;
+            const float u = fmodf(ts / life + p * 0.37f, 1.0f), Z = 7.0f - u * 6.4f;
+            for (int tr = 0; tr < 4; ++tr) {
+                const float Zt = Z + tr * 0.25f;
+                const int y = (int)lroundf(LV_RD_HOR + LV_RD_F * LV_RD_CAMH / Zt), x = (int)lroundf(120 + LV_RD_F * (g - lv_rd_camx) / Zt);
+                if (y <= LV_RD_HOR || y > LV_RD_Y1) continue;
+                const int k = tr == 0 ? 8 : 6 - tr * 2, sz = tr == 0 ? (Z < 2.5f ? 3 : 2) : 1;
+                for (int a = 0; a < sz; ++a) for (int b = 0; b < sz; ++b) b_blend(B, x + b, y + a, lv_rd_bg_col(p, 8), k);
+            }
+        }
+        for (int s = 0; s < 6; ++s) {   /* uplinks: short dashes climbing from the skyline */
+            const int x = (s * 41 + 23) % 232 + 4, len = 6 + s % 4;
+            const int h = (int)(ts * (18 + s * 5) + s * 29) % (LV_RD_HOR - LV_RD_Y0);
+            for (int k = 0; k < len; ++k) { const int y = LV_RD_HOR - 1 - h + k; if (y >= LV_RD_Y0 && y < LV_RD_HOR) b_blend(B, x, y, lv_rd_bg_col(s + 3, 8), k == 0 ? 8 : 6 - k * 5 / len); }
+        }
+        break;
+    case 3: {   /* FLYBY: one bot crosses the sky with a fading trail, a new height every pass */
+        const float per = 5.0f; const int pass = (int)(ts / per); const float u = fmodf(ts, per) / per;
+        const int dir = pass & 1 ? -1 : 1, y0 = LV_RD_Y0 + 14 + (pass * 37) % 70;
+        const int x = dir > 0 ? -16 + (int)(u * 272) : 256 - (int)(u * 272), y = y0 + (int)(6 * sinf(u * 6.28f));
+        const uint16_t c = lv_rd_bg_col(pass, 8);
+        for (int tr = 1; tr <= 22; ++tr) {   /* trail */
+            const float uu = u - tr * 0.006f; const int tx = dir > 0 ? -16 + (int)(uu * 272) : 256 - (int)(uu * 272), ty = y0 + (int)(6 * sinf(uu * 6.28f));
+            const int k = 7 - tr * 6 / 22; b_blend(B, tx + 7, ty + 5, c, k); b_blend(B, tx + 7, ty + 9, c, k);
+        }
+        lv_rd_bot(B, x, y, 2, c, 8);
+        break;
+    }
+    default:   /* BOUNCE: balls bouncing on the grid, each with a shadow on the ground */
+        for (int s = 0; s < 3; ++s) {
+            const float vx = 34.0f + s * 17.0f, w = 228.0f; float px = fmodf(ts * vx + s * 70.0f, 2 * w); if (px > w) px = 2 * w - px;
+            const float per = 1.1f + s * 0.25f, ph = fmodf(ts / per + s * 0.31f, 1.0f);
+            const int gy = 236 + s * 14, hgt = 60 + s * 25, cx = 6 + (int)px, cy = gy - (int)(hgt * 4 * ph * (1 - ph));
+            const uint16_t c = lv_rd_bg_col(s, 8);
+            for (int x = -4; x <= 4; ++x) b_blend(B, cx + x, gy + 5, lv_hex(0x000000), 4);   /* shadow */
+            for (int a = -4; a <= 4; ++a) for (int b = -4; b <= 4; ++b) if (a * a + b * b <= 17) { const int y = cy + a; if (y >= LV_RD_Y0 && y <= LV_RD_Y1) b_blend(B, cx + b, y, a * a + b * b <= 4 && a < 0 ? lv_hex(0xffffff) : c, 7); }
+        }
+        break;
+    }
 }
 /* ---- item 8: TAP EMPTY SPACE TO CYCLE + HOLD TO LOCK ON (+ IGNORE / WATCH / HUNT), ported from the approved mocks
  * /workspace/out/gibson-ideas (mock1_tap_cycle, mock2_hold_lock). Height is the real dBm; the angle/position is a MAC hash,
@@ -260,12 +340,8 @@ static void lv_scene_radar(LvBand &B, void *)
         }
     }
     b_fill(B, 0, LV_RD_HOR, 240, 1, mag);
-    /* code streaks */
-    if (lv_rain) for (int s = 0; s < 18; ++s) {
-        const int x = (s * 53 + 17) % 236 + 2, len = 10 + (s * 7) % 18, sp = 40 + (s * 29) % 70;
-        const int head = LV_RD_Y0 + (int)((lv_now / 1000.0f * sp + s * 37)) % (LV_RD_Y1 - LV_RD_Y0 + len) ;
-        for (int k = 0; k < len; k += 2) { const int y = head - k; if (y >= LV_RD_Y0 && y <= LV_RD_Y1) b_blend(B, x, y, lv_rd_rain_col(8), k == 0 ? 8 : 6 - k * 5 / len); }
-    }
+    /* background engine layer (BG STYLE / BG COLOR; default RAIN + GREEN = the original code streaks) */
+    lv_rd_bg(B);
     /* towers, far to near: translucent faces, bright edges */
     for (int n = 0; n < lv_rd_n; ++n) {
         const LvTower &T = lv_rd_tw[n]; const LvFind &f = lv_f[T.i];
@@ -307,6 +383,40 @@ static void lv_scene_radar(LvBand &B, void *)
     lv_rd_term(B, hdr);
     lv_draw_backbot(B, LV_R_BACKBOT.x0, LV_R_BACKBOT.y0);
 }
+/* issue 5 (MOCK): while hunting on GIBSON the top banner (ticker rect, inside the gold rim) is a FIXED bar:
+ * HUNT + MAC tail / name | a signal meter from the real dBm (lv_rd_level) | live dBm | WARMER / COLDER / STEADY = only the
+ * change of the real dBm between two reads (+-2 dB = STEADY). No arrow, compass or bearing: nothing implies direction. */
+static bool lv_hunt_bar_on(void) { return lv_rd_hunting && lv_rd_tgt_have && lv_scr == LV_SC_RADAR; }
+static void lv_hunt_bar(LvBand &B)
+{
+    const uint16_t MAG = lv_hex(0xff2ad4), GOLD = lv_hex(0xffb000);
+    b_fill(B, B.x0, B.y0, B.w, B.h, lv_hex(0x1a0012));
+    for (int y = B.y0; y < B.y0 + B.h; ++y) {   /* the stripes stay, frozen, magenta + gold = hunt mode */
+        if (!(y <= 3 || y >= 21)) continue;
+        for (int x = B.x0; x < B.x0 + B.w; ++x) b_pix(B, x, y, (((x + (y <= 3 ? y : -y)) / 5) & 1) ? MAG : GOLD);
+    }
+    const LvFind &f = lv_rd_tgt; char m[18], t[24], l[26]; lv_macstr(f.mac, m);
+    if (f.name[0]) snprintf(l, sizeof l, "%.13s", f.name); else snprintf(l, sizeof l, "%s %.8s", f.kind == LV_K_WIFI ? "WIFI" : "BLE", LV_ICON_NAME[f.icon]);   /* no name: kind + type, the MAC tail is on the line above */
+    snprintf(t, sizeof t, "HUNT ..%s", m + 9);
+    b_text35(B, 3, 5, t, MAG); b_text(B, 3, 12, l, lv_hex(0xffffff));
+    /* signal meter: 11 rising bars, lit count from the real dBm (-96..-40 -> 1..11) */
+    const int lit = (lv_rd_level(f) - 4) * 11 / 56 + 1, miss = lv_rd_miss > 0;
+    for (int i = 0; i < 11; ++i) {
+        const int x = 84 + i * 6, h = 5 + i, y = 20 - h + 1;
+        const uint32_t on = i < 3 ? 0xff3030 : i < 7 ? 0xffb000 : 0x30ff60;
+        b_fill(B, x, y, 5, h, i < lit && !miss ? lv_hex(on) : lv_hex(0x3a2a34));
+    }
+    snprintf(t, sizeof t, "%d", f.rssi);
+    const uint16_t num = miss ? lv_hex(0x808080) : lv_hex(0xffffff);
+    b_text(B, 190 - (int)strlen(t) * 12, 6, t, num, 2); b_text35(B, 191, 15, "DB", num);
+    const char *w; char d[16] = ""; uint32_t k;
+    if (miss) { w = "NO SIG"; snprintf(d, sizeof d, "X%d", lv_rd_miss); k = 0xff3030; }
+    else if (lv_rd_reads < 2) { w = "1ST"; snprintf(d, sizeof d, "READ"); k = 0xc0c0c0; }
+    else if (lv_rd_trend > 0) { w = "WARMER"; snprintf(d, sizeof d, "%+dDB", lv_rd_trend); k = 0xff8020; }
+    else if (lv_rd_trend < 0) { w = "COLDER"; snprintf(d, sizeof d, "%+dDB", lv_rd_trend); k = 0x40c8ff; }
+    else { w = "STEADY"; snprintf(d, sizeof d, "READ %d", lv_rd_reads); k = 0xc0c0c0; }
+    b_text35(B, 236 - lv_w35(w), 6, w, lv_hex(k)); b_text35(B, 236 - lv_w35(d), 14, d, lv_hex(k));
+}
 /* hunt ticker line: the target's full info + a trend that is ONLY the change of its real dBm (no direction) */
 static void lv_rd_hunt_line(void)
 {
@@ -335,11 +445,13 @@ static void lv_rd_track_done(void)
         const int was = lv_rd_tgt.rssi; lv_rd_tgt = lv_f[i]; lv_rd_miss = 0;
         const int d = lv_rd_tgt.rssi - was; lv_rd_trend = (d >= 3 || d <= -3) ? d : 0;   /* +-2 dB = STEADY (noise) */
         ++lv_rd_reads;
+#if 0   /* issue 5 (MOCK): per-read dBm / trend moved to the hunt bar; the mini terminal stays the live event log */
         lv_rd_log("#%d %dDBM %s", lv_rd_reads, lv_rd_tgt.rssi, lv_rd_trend > 0 ? "WARMER" : lv_rd_trend < 0 ? "COLDER" : "STEADY");
         if (lv_rd_trend) { char *e = lv_rd_tl[2] + strlen(lv_rd_tl[2]); snprintf(e, sizeof lv_rd_tl[2] - (e - lv_rd_tl[2]), " %+dDB", lv_rd_trend); }
+#endif
     } else if (lv_nf < LV_MAXF) {   /* not heard this pass: keep its last real reading as the target, say so */
         ++lv_rd_miss; lv_f[lv_nf++] = lv_rd_tgt; lv_sort();
-        lv_rd_log("NO SIGNAL X%d  LAST %dDBM", lv_rd_miss, lv_rd_tgt.rssi);
+        if (lv_rd_miss == 1) lv_rd_log("HUNT: SIGNAL LOST, RESCANNING");   /* one event line; the count + last dBm live on the hunt bar */
     }
     lv_rd_sel = lv_rd_find(lv_rd_tgt.mac);
     lv_rd_hunt_line(); lv_tk_off = 196;

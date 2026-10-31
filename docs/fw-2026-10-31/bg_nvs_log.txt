@@ -1,0 +1,35 @@
+t=18960 BG rain=1 style=0 col=0 nvs lkbgs=0 lkbgc=0
+t=19710 NVS lkbgs=1 lkbgc=0 (SIM)
+t=20010 BG rain=1 style=1 col=0 nvs lkbgs=1 lkbgc=0
+t=22650 NVS lkbgs=2 lkbgc=0 (SIM)
+t=22950 BG rain=1 style=2 col=0 nvs lkbgs=2 lkbgc=0
+t=25590 NVS lkbgs=3 lkbgc=0 (SIM)
+t=25890 BG rain=1 style=3 col=0 nvs lkbgs=3 lkbgc=0
+t=28530 NVS lkbgs=4 lkbgc=0 (SIM)
+t=28830 BG rain=1 style=4 col=0 nvs lkbgs=4 lkbgc=0
+t=31470 NVS lkbgs=5 lkbgc=0 (SIM)
+t=31770 BG rain=0 style=4 col=0 nvs lkbgs=5 lkbgc=0
+t=33120 NVS lkbgs=0 lkbgc=0 (SIM)
+t=33420 BG rain=1 style=0 col=0 nvs lkbgs=0 lkbgc=0
+t=33570 NVS lkbgs=0 lkbgc=1 (SIM)
+t=33870 BG rain=1 style=0 col=1 nvs lkbgs=0 lkbgc=1
+t=35220 NVS lkbgs=0 lkbgc=2 (SIM)
+t=35520 BG rain=1 style=0 col=2 nvs lkbgs=0 lkbgc=2
+t=36870 NVS lkbgs=0 lkbgc=3 (SIM)
+t=37170 BG rain=1 style=0 col=3 nvs lkbgs=0 lkbgc=3
+t=38520 NVS lkbgs=0 lkbgc=4 (SIM)
+t=38820 BG rain=1 style=0 col=4 nvs lkbgs=0 lkbgc=4
+t=40170 NVS lkbgs=0 lkbgc=5 (SIM)
+t=40470 BG rain=1 style=0 col=5 nvs lkbgs=0 lkbgc=5
+t=41820 NVS lkbgs=0 lkbgc=0 (SIM)
+t=41970 NVS lkbgs=0 lkbgc=1 (SIM)
+t=42120 NVS lkbgs=0 lkbgc=2 (SIM)
+t=42270 NVS lkbgs=0 lkbgc=3 (SIM)
+t=42570 BG rain=1 style=0 col=3 nvs lkbgs=0 lkbgc=3
+t=42720 NVS lkbgs=1 lkbgc=3 (SIM)
+t=44670 NVS lkbgs=2 lkbgc=3 (SIM)
+t=46620 NVS lkbgs=3 lkbgc=3 (SIM)
+t=48570 NVS lkbgs=4 lkbgc=3 (SIM)
+t=50370 BG rain=1 style=4 col=3 nvs lkbgs=4 lkbgc=3
+t=50370 BG boot-load from SIM NVS -> rain=1 style=4 col=3
+t=50370 BG rain=1 style=4 col=3 nvs lkbgs=4 lkbgc=3

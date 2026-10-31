@@ -1,0 +1,5 @@
+Locked clip screens, fa33cf7 sim vs firmware sim (same script, default BG):
+  home  changed px: 0
+  term  changed px: 0
+  scan  changed px: 0
+  ctl   changed px: 0

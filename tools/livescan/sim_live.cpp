@@ -96,6 +96,7 @@ static int fk_ble_poll(LvFind *o, int max)
                         mk("[TV] Samsung Q60", -86, 0, 0, 0x0075, 0, 0, 19), mk("", -91, 0, 0, 0xFFFF, 0, 0, 20)};
     int n = (int)(sizeof F / sizeof F[0]); if (n > max) n = max; memcpy(o, F, n * sizeof(LvFind)); fk_job = 0;
     for (int i = 0; i < n; ++i) if (o[i].mac[5] == fk_ovr_m5) o[i].rssi = (int8_t)fk_ovr_rssi;   /* 'sig' command: SAMPLE dBm for a hunt test */
+    for (int i = 0; i < n; ++i) if (o[i].mac[5] == fk_ovr_m5 && fk_ovr_rssi <= -127) { memmove(o + i, o + i + 1, (n - i - 1) * sizeof(LvFind)); --n; break; }   /* scratch mock: sig M -127 = target gone */
     return n;
 }
 static int fk_deauth_poll(uint32_t *d, uint32_t *m, uint8_t *ch)
@@ -116,6 +117,8 @@ static void fk_save(int) {}
 static uint8_t fk_nvs[2][16 * 6]; static int fk_nvs_n[2] = {0, 0};   /* SIM NVS for radar rdign / rdwat */
 static int fk_mac_load(const char *k, uint8_t *o, int max) { const int w = !strcmp(k, "rdwat"); int n = fk_nvs_n[w] < max ? fk_nvs_n[w] : max; memcpy(o, fk_nvs[w], n * 6); return n; }
 static void fk_mac_save(const char *k, const uint8_t *m, int n) { const int w = !strcmp(k, "rdwat"); fk_nvs_n[w] = n; memcpy(fk_nvs[w], m, n * 6); printf("t=%u NVS %s = %d MACs (SIM)\n", t_ms, k, n); }
+static int fk_bgs = 0, fk_bgc = 0;   /* SIM NVS lkbgs / lkbgc (background engine) */
+static void fk_bg_save(int s, int c) { fk_bgs = s; fk_bgc = c; printf("t=%u NVS lkbgs=%d lkbgc=%d (SIM)\n", t_ms, s, c); }
 static int fk_rot = 2;   /* the UI's setRotation: 2 = portrait USB at the bottom (default), 0 = ORIENT FLIP */
 /* simulated XPT2046 (CYD-like swapped + flipped axes, +-30 raw noise) and the fake NVS save */
 static TouchModel g_tm = {"swap+flip (CYD-like)", 3820, 0, -11.2, 3760, -14.6, 0, 30, 2};
@@ -134,7 +137,7 @@ static bool fk_cal_save(const uint16_t c[8])
     return true;
 }
 static void fk_set_rot(int flip) { fk_rot = flip ? 0 : 2; printf("[sim] set_rot -> setRotation(%d)\n", fk_rot); }
-static const LvRadio FAKE = {fk_wifi_start, fk_wifi_poll, fk_ble_start, fk_ble_poll, fk_deauth_start, fk_deauth_poll, fk_stop, fk_sys, fk_save, fk_cal_save, fk_set_rot, fk_mac_load, fk_mac_save};
+static const LvRadio FAKE = {fk_wifi_start, fk_wifi_poll, fk_ble_start, fk_ble_poll, fk_deauth_start, fk_deauth_poll, fk_stop, fk_sys, fk_save, fk_cal_save, fk_set_rot, fk_mac_load, fk_mac_save, fk_bg_save};
 static bool g_down = false; static int g_fx, g_fy; static FILE *g_rec = nullptr;
 static void dump(const char *path);
 static void rec_frame(void);
@@ -207,6 +210,9 @@ int main(int argc, char **argv)
         }
         else if (!strcmp(cmd, "sig")) { if (fscanf(sc, "%d %d", &fk_ovr_m5, &fk_ovr_rssi) != 2) return 2; }
         else if (!strcmp(cmd, "towers")) { lv_rd_layout(); for (int n = 0; n < lv_rd_n; ++n) { const LvTower &T = lv_rd_tw[n]; printf("  tower f%d %s %d dBm m5=%d x%d-%d y%d-%d\n", T.i, lv_f[T.i].name, lv_f[T.i].rssi, lv_f[T.i].mac[5], T.x0, T.x1, T.byt, T.yb); } }
+        else if (!strcmp(cmd, "bgstate")) printf("t=%u BG rain=%d style=%d col=%d nvs lkbgs=%d lkbgc=%d\n", t_ms, lv_rain, lv_bgstyle, lv_raincol, fk_bgs, fk_bgc);
+        else if (!strcmp(cmd, "bgset")) { int a, b; if (fscanf(sc, "%d %d", &a, &b) != 2) return 2; lv_rain = a < LV_NBGSTYLE; lv_bgstyle = a < LV_NBGSTYLE ? a : 0; lv_raincol = b; lv_dirty_ctl = true; }   /* direct state set, same timing as a no-op (screen-isolation tests) */
+        else if (!strcmp(cmd, "bgboot")) { lv_rain = fk_bgs < LV_NBGSTYLE; lv_bgstyle = fk_bgs < LV_NBGSTYLE ? fk_bgs : 0; lv_raincol = fk_bgc < LV_NBGCOL ? fk_bgc : 0; printf("t=%u BG boot-load from SIM NVS -> rain=%d style=%d col=%d\n", t_ms, lv_rain, lv_bgstyle, lv_raincol); }
         else if (!strcmp(cmd, "radarstate")) printf("t=%u RADAR sel=%d lock=%d hunt=%d reads=%d trend=%d miss=%d ign=%d wat=%d job=%d tk='%s'\n", t_ms, lv_rd_sel, lv_rd_lock, lv_rd_hunting, lv_rd_reads, lv_rd_trend, lv_rd_miss, lv_rd_nign, lv_rd_nwat, lv_job, lv_tk_msg);
         else if (!strcmp(cmd, "theme")) { int t; if (fscanf(sc, "%d", &t) != 1) return 2; lv_set_theme(t); }
         else if (!strcmp(cmd, "type")) {

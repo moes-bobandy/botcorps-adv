@@ -359,8 +359,16 @@ static void r_mac_save(const char *key, const uint8_t *macs, int n)
     prefs.end(); Serial.printf("[live] NVS %s = %d MACs\n", key, n);
 }
 
+/* background engine: BG STYLE (0..4, 5 = OFF) + BG COLOR (0..5) in NVS "botcorps" lkbgs / lkbgc */
+static void r_bg_save(int style, int col)
+{
+    Preferences prefs;
+    if (prefs.begin("botcorps", false)) { prefs.putUChar("lkbgs", (uint8_t)style); prefs.putUChar("lkbgc", (uint8_t)col); prefs.end(); }
+    Serial.printf("[live] NVS BG style=%d col=%d\n", style, col);
+}
+
 static const LvRadio s_radio{r_wifi_start, r_wifi_poll, r_ble_start, r_ble_poll, r_deauth_start, r_deauth_poll,
-                             r_stop, r_sys, r_save_theme, r_cal_save, r_set_rot, r_mac_load, r_mac_save};
+                             r_stop, r_sys, r_save_theme, r_cal_save, r_set_rot, r_mac_load, r_mac_save, r_bg_save};
 
 void lv_ui_begin(void)
 {
@@ -368,8 +376,9 @@ void lv_ui_begin(void)
     botcorps_cyd_apply_rotation(); /* rot 2: portrait 240x320, USB at the bottom */
     WiFi.mode(WIFI_OFF);
     Preferences prefs;
-    int th = 0, rot = 0;
-    if (prefs.begin("botcorps", true)) { th = prefs.getUChar("lktheme", 0); rot = prefs.getUChar("lkrot", 0); prefs.end(); }
+    int th = 0, rot = 0, bgs = 0, bgc = 0;
+    if (prefs.begin("botcorps", true)) { th = prefs.getUChar("lktheme", 0); rot = prefs.getUChar("lkrot", 0); bgs = prefs.getUChar("lkbgs", 0); bgc = prefs.getUChar("lkbgc", 0); prefs.end(); }
+    lv_rain = bgs < LV_NBGSTYLE; lv_bgstyle = bgs < LV_NBGSTYLE ? bgs : 0; lv_raincol = bgc < LV_NBGCOL ? bgc : 0;   /* background engine (defaults RAIN + GREEN) */
     lv_flip = rot == 1;
     if (lv_flip) g_cyd.setRotation(0);   /* CONTROLbot ORIENT = FLIP */
     g_cyd.fillScreen(0x0000);

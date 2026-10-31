@@ -1,0 +1,4 @@
+CONTROLbot + radar: fa33cf7 sim vs firmware sim, same script (r_default/ctl_default = no BG tap; ctl_s1 = after one RAIN-chip tap: base badge ON->OFF, new badge ON->BOTS)
+r_default    changed px: ticker y0-23 0, below ticker 0 bbox None
+ctl_default  changed px: ticker y0-23 0, below ticker 0 bbox None
+ctl_s1       changed px: ticker y0-23 92, below ticker 546 bbox (166, 125, 204, 138)

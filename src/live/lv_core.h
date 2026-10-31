@@ -56,6 +56,7 @@ struct LvRadio {
     void (*set_rot)(int flip);                   /* 0 = normal (setRotation 2, USB at the bottom), 1 = flipped (rot 0); saved */
     int (*mac_load)(const char *key, uint8_t *out, int max);        /* radar IGNORE / WATCH lists (6 bytes per MAC), NVS */
     void (*mac_save)(const char *key, const uint8_t *macs, int n);
+    void (*bg_save)(int style, int col);         /* background engine: BG STYLE 0..4 (5 = OFF) + BG COLOR 0..5, NVS lkbgs / lkbgc */
 };
 
 enum LvScr { LV_SC_BOOT, LV_SC_HOME_INTRO, LV_SC_HOME, LV_SC_TERM, LV_SC_SCAN, LV_SC_CTL, LV_SC_TTY, LV_SC_CAL, LV_SC_RADAR };
@@ -378,6 +379,7 @@ static int lv_view(int *idx) /* finds shown in the SCANbot box for lv_mode */
 static bool lv_rd_is_trk(void);
 static void lv_rd_track_done(void);
 static bool lv_rd_hunt_tk(void);
+struct LvBand; static bool lv_hunt_bar_on(void); static void lv_hunt_bar(LvBand &B);   /* issue 5 (MOCK): fixed hunt bar in the ticker */
 static void lv_rd_hunt_open(int i, int from);
 static int lv_rd_unignore(const char *a);
 static const char *lv_job_name(int j) { return j == LV_J_WIFI ? "WIFI" : j == LV_J_BLE ? "BLE" : j == LV_J_ALL ? "WIFI+BLE" : j == LV_J_DEAUTH ? "DEAUTH WATCH" : "-"; }
@@ -765,8 +767,9 @@ static uint16_t lv_ink(const uint32_t *t) { return lv_hex(t[lv_scr == LV_SC_CTL 
 
 /* CONTROLbot settings (item 5): every chip on CONTROLbot drives one of these */
 static int lv_scanmix = 0;        /* MIX: what SCANbot's chip / crosshair scan: 0 WIFI+BLE, 1 WIFI, 2 BLE */
-static int lv_rain = 1;       /* RAIN: GIBSON radar code rain on / off */
-static int lv_raincol = 0;    /* RAIN COL: 0 GREEN, 1 CYAN, 2 THEME */
+static int lv_rain = 1;       /* RAIN: GIBSON radar background layer on / off */
+static int lv_bgstyle = 0;    /* BG STYLE (background engine, picked on the RAIN chip): 0 RAIN, 1 BOTS, 2 GIBSON, 3 FLYBY, 4 BOUNCE */
+static int lv_raincol = 0;    /* BG COLOR (RAIN COL chip): 0 GREEN, 1 CYAN, 2 THEME, 3 MULTI, 4 PURPLE, 5 AMBER */
 static int lv_rainmode = 0;   /* RAIN MODE: radar camera 0 DRIFT, 1 SWEEP, 2 STILL */
 static int lv_speed = 1;      /* MASHUP: ticker speed 0 SLOW, 1 MED, 2 FAST */
 static int lv_auto = 0;       /* MULTI: auto re-scan 0 OFF, 1 30S, 2 60S */
@@ -774,7 +777,13 @@ static int lv_flip = 0;       /* ORIENT: 0 PORT (USB bottom, setRotation 2), 1 F
 static uint32_t lv_auto_t = 0;
 static const char *const LV_MIX_NAME[3] = {"ALL", "WIFI", "BLE"};
 static const char *const LV_ONOFF[2] = {"OFF", "ON"};
-static const char *const LV_RAINCOL_NAME[3] = {"GREEN", "CYAN", "THEME"};
+#define LV_NBGCOL 6
+#define LV_NBGSTYLE 5
+static const char *const LV_RAINCOL_NAME[LV_NBGCOL] = {"GREEN", "CYAN", "THEME", "MULTI", "PURPLE", "AMBER"};
+static const char *const LV_BGSTYLE_NAME[LV_NBGSTYLE] = {"RAIN", "BOTS", "GIBSON", "FLYBY", "BOUNCE"};
+static const char *lv_bgstyle_name(void) { return lv_rain ? LV_BGSTYLE_NAME[lv_bgstyle] : "OFF"; }
+static const char *lv_bgstyle_badge(void) { return lv_rain && lv_bgstyle == 0 ? "ON" : lv_bgstyle_name(); }   /* RAIN badge: the default keeps its old "ON" (0 px change) */
+static void lv_bg_save(void) { if (lv_radio && lv_radio->bg_save) lv_radio->bg_save(lv_rain ? lv_bgstyle : LV_NBGSTYLE, lv_raincol); }
 static const char *const LV_RAINMODE_NAME[3] = {"DRIFT", "SWEEP", "STILL"};
 static const char *const LV_SPEED_NAME[3] = {"SLOW", "MED", "FAST"};
 static const char *const LV_AUTO_NAME[3] = {"OFF", "30S", "60S"};
@@ -785,6 +794,7 @@ struct LvTickCtx { int span0, span1; };
 static void lv_scene_ticker(LvBand &B, void *vctx)
 {
     LvTickCtx *c = (LvTickCtx *)vctx;
+    if (lv_hunt_bar_on()) { lv_hunt_bar(B); return; }   /* hunting: the banner stops scrolling and becomes the hunt bar */
     const bool flash = lv_tk_alert && ((lv_now / 350) & 1);
     const uint16_t bg = lv_tk_alert ? (flash ? lv_hex(0x6a0000) : lv_hex(0x3a0000)) : lv_hex(0x2a0400);
     b_fill(B, B.x0, B.y0, B.w, B.h, bg);
@@ -842,7 +852,7 @@ static void lv_ticker_tick(void)
     const bool tty = lv_scr == LV_SC_TTY;
     const LvRect r = tty ? LV_R_TTY_TICK : LV_R_TICK;
     const int w = (int)strlen(lv_tk_msg) * 12;
-    lv_tk_off += lv_speed + 1;
+    if (!lv_hunt_bar_on()) lv_tk_off += lv_speed + 1;
     if (lv_tk_off > (r.x1 - r.x0 + 1) + w) lv_tk_next();
     LvTickCtx c{r.x0, r.x1};
     lv_render(lv_blit, r, lv_scene_ticker, &c);
@@ -1076,7 +1086,7 @@ static const char *lv_ctl_val(int i)
 {
     switch (i) {
     case 0: return LV_MIX_NAME[lv_scanmix]; case 1: return LV_RAINCOL_NAME[lv_raincol]; case 2: return LV_SPEED_NAME[lv_speed];
-    case 3: return LV_ONOFF[lv_rain]; case 4: return LV_RAINMODE_NAME[lv_rainmode]; case 5: return LV_AUTO_NAME[lv_auto];
+    case 3: return lv_bgstyle_badge(); case 4: return LV_RAINMODE_NAME[lv_rainmode]; case 5: return LV_AUTO_NAME[lv_auto];
     }
     return LV_FLIP_NAME[lv_flip];
 }
@@ -1114,12 +1124,29 @@ static void lv_scene_ctl(LvBand &B, void *)
 /* full-screen terminal + keyboard */
 static const char *const LV_KROW[4] = {"1234567890", "qwertyuiop", "asdfghjkl-", "zxcvbnm._/"};
 static const char *const LV_KROW_S[4] = {"!@#$%^&*()", "QWERTYUIOP", "ASDFGHJKL:", "ZXCVBNM,?="};
-enum { LV_KEY_SHIFT = 40, LV_KEY_SPACE, LV_KEY_DEL, LV_KEY_ENTER, LV_NKEY };
+enum { LV_KEY_SHIFT = 40, LV_KEY_SPACE, LV_KEY_DEL, LV_KEY_ENTER, LV_KEY_CMDS, LV_NKEY };
+/* item 4 (mock-pending-approval): CMDS cheat sheet. Every row is a REAL lv_cmd verb (see LV_HELP / lv_cmd);
+ * arg = 1: it takes an argument, so the insert ends with a space. */
+struct LvCs { const char *cmd, *hint; uint8_t arg; };
+static const LvCs LV_CS[] = {
+    {"help", "list commands", 0}, {"scan", "[all/wifi/ble]", 1}, {"wifi", "wifi scan", 0}, {"ble", "ble scan", 0},
+    {"stop", "stop scan", 0}, {"hunt", "[name/mac/n]", 1}, {"sweep", "<dev>", 1}, {"deauth", "deauth watch", 0},
+    {"sniff", "= deauth", 0}, {"list", "[wifi/ble]", 1}, {"info", "[n]", 1}, {"filter", "<all/wifi/ble>", 1},
+    {"ignored", "ignore list", 0}, {"unignore", "<mac/all>", 1}, {"go", "<home/scan/..>", 1}, {"theme", "[next/name/n]", 1},
+    {"history", "last 8 cmds", 0}, {"clear", "clear log", 0}, {"status", "sys info", 0}, {"heap", "sys info", 0},
+    {"uptime", "", 0}, {"version", "", 0}, {"about", "", 0}, {"bots", "bot names", 0},
+    {"home", "GIBSONbot", 0}, {"back", "prev screen", 0},
+};
+#define LV_NCS ((int)(sizeof LV_CS / sizeof LV_CS[0]))
+#define LV_CS_ROWS 5
+#define LV_CS_HDR 26   /* header band: BACK | PREV | NEXT */
+#define LV_CS_RH 24
+static bool lv_cs_open = false; static int lv_cs_page = 0, lv_cs_hl = -1;
 static LvRect lv_key_rect(int k)
 {
     if (k < 40) { const int r = k / 10, c = k % 10; const int x = c * LV_KBD_PITCH_X + 1, y = LV_KBD_Y + r * LV_KBD_PITCH_Y + 1; return {(int16_t)x, (int16_t)y, (int16_t)(x + LV_KEY_W - 1), (int16_t)(y + LV_KEY_H - 1)}; }
     const int y = LV_KBD_Y + 4 * LV_KBD_PITCH_Y + 1;
-    static const int X0[4] = {0, 48, 144, 192}, X1[4] = {47, 143, 191, 239};
+    static const int X0[5] = {0, 48, 144, 192, 112}, X1[5] = {47, 111, 191, 239, 143};   /* SPACE 48-111, CMDS 112-143 */
     const int i = k - 40;
     return {(int16_t)(X0[i] + 1), (int16_t)y, (int16_t)(X1[i] - 1), (int16_t)(y + LV_KEY_H - 1)};
 }
@@ -1129,12 +1156,51 @@ static int lv_key_at(int x, int y)
     const int r = (y - LV_KBD_Y) / LV_KBD_PITCH_Y;
     if (r < 4) { int c = x / LV_KBD_PITCH_X; if (c > 9) c = 9; return r * 10 + c; }
     if (x < 48) return LV_KEY_SHIFT;
-    if (x < 144) return LV_KEY_SPACE;
+    if (x < 112) return LV_KEY_SPACE;
+    if (x < 144) return LV_KEY_CMDS;
     if (x < 192) return LV_KEY_DEL;
     return LV_KEY_ENTER;
 }
+static int lv_cs_npage(void) { return (LV_NCS + LV_CS_ROWS - 1) / LV_CS_ROWS; }
+static int lv_cs_first(void) { const int f = lv_cs_page * LV_CS_ROWS; return f + LV_CS_ROWS > LV_NCS ? LV_NCS - LV_CS_ROWS : f; }   /* last page backs up: always 5 full rows, no empty (dead) slot */
+static void lv_cs_tri(LvBand &B, int cx, int cy, bool up, uint16_t c)
+{
+    for (int i = 0; i < 6; ++i) b_fill(B, cx - i, up ? cy - 3 + i : cy + 2 - i, 2 * i + 1, 1, c);
+}
+static void lv_scene_cs(LvBand &B)   /* overlay on the keyboard rect; TERMINALbot look: black, theme frame, white text */
+{
+    b_fill(B, B.x0, B.y0, B.w, B.h, lv_hex(0x050505));
+    const uint16_t acc = lv_ink(LV_ACC), fr = lv_ink(LV_FRAME), hdr = lv_ink(LV_HDR);
+    const int np = lv_cs_npage(), y0 = LV_KBD_Y;
+    static const int HX0[3] = {0, 80, 160}, HX1[3] = {79, 159, 239};
+    for (int i = 0; i < 3; ++i) {
+        const int x = HX0[i] + 1, w = HX1[i] - HX0[i] - 1, h = LV_CS_HDR - 2;
+        const bool hl = lv_cs_hl == 100 + i, dis = (i == 1 && lv_cs_page == 0) || (i == 2 && lv_cs_page >= np - 1);
+        b_fill(B, x, y0 + 1, w, h, hl ? lv_hex(0xffffff) : dis ? lv_hex(0x141414) : acc);
+        b_frame(B, x, y0 + 1, w, h, dis ? fr : lv_hex(0xffffff));
+        const uint16_t ink = dis ? lv_hex(0x505050) : lv_hex(0x000000);
+        if (i == 0) b_text(B, x + (w - 4 * 12 + 2) / 2, y0 + 6, "BACK", ink, 2);
+        else {
+            char t[8]; snprintf(t, sizeof t, "%d/%d", lv_cs_page + 1, np);
+            const int tw = (int)strlen(t) * 6 - 1, gx = x + (w - (12 + 4 + tw)) / 2;
+            lv_cs_tri(B, gx + 6, y0 + 13, i == 1, ink);
+            if (i == 2) b_text(B, gx + 16, y0 + 10, t, ink); else b_text(B, gx + 16, y0 + 10, "PREV", ink);
+        }
+    }
+    for (int r = 0; r < LV_CS_ROWS; ++r) {
+        const int n = lv_cs_first() + r, y = y0 + LV_CS_HDR + r * LV_CS_RH;
+        if (n >= LV_NCS) break;
+        const bool hl = lv_cs_hl == n;
+        b_fill(B, 1, y + 1, 238, LV_CS_RH - 2, hl ? lv_hex(0xffffff) : lv_hex(0x141414));
+        b_frame(B, 1, y + 1, 238, LV_CS_RH - 2, fr);
+        b_text(B, 7, y + 5, LV_CS[n].cmd, hl ? lv_hex(0x000000) : lv_hex(0xffffff), 2);
+        const int hw = (int)strlen(LV_CS[n].hint) * 6 - 1;
+        if (hw > 0) b_text(B, 232 - hw, y + 9, LV_CS[n].hint, hl ? lv_hex(0x000000) : LV_CS[n].arg ? hdr : acc);
+    }
+}
 static void lv_scene_kbd(LvBand &B, void *)
 {
+    if (lv_cs_open) { lv_scene_cs(B); return; }
     b_fill(B, B.x0, B.y0, B.w, B.h, lv_hex(0x050505));
     const uint16_t acc = lv_ink(LV_ACC), fr = lv_ink(LV_FRAME);
     for (int k = 0; k < LV_NKEY; ++k) {
@@ -1146,7 +1212,7 @@ static void lv_scene_kbd(LvBand &B, void *)
         b_frame(B, r.x0, r.y0, w, h, special ? lv_hex(0xffffff) : fr);
         char t[8];
         if (k < 40) { t[0] = (lv_shift ? LV_KROW_S : LV_KROW)[k / 10][k % 10]; t[1] = 0; }
-        else snprintf(t, sizeof t, "%s", k == LV_KEY_SHIFT ? (lv_shift ? "ABC" : "SHIFT") : k == LV_KEY_SPACE ? "SPACE" : k == LV_KEY_DEL ? "DEL" : "ENTER");
+        else snprintf(t, sizeof t, "%s", k == LV_KEY_SHIFT ? (lv_shift ? "ABC" : "SHIFT") : k == LV_KEY_SPACE ? "SPACE" : k == LV_KEY_DEL ? "DEL" : k == LV_KEY_CMDS ? "CMDS" : "ENTER");
         const uint16_t ink = hl || special ? lv_hex(0x000000) : lv_hex(0xffffff);
         if (k < 40) b_text(B, r.x0 + (w - 10) / 2, r.y0 + (h - 14) / 2, t, ink, 2);
         else b_text(B, r.x0 + (w - (int)strlen(t) * 6 + 1) / 2, r.y0 + (h - 7) / 2, t, ink);
@@ -1381,6 +1447,7 @@ static int lv_soon_kind = 0, lv_soon_scr = 0; static char lv_soon_cmd[32]; stati
 static void lv_go(int s)
 {
     const int prev = lv_scr;
+    lv_cs_open = false;   /* the CMDS overlay never survives a screen change */
     if (prev == LV_SC_RADAR && s != LV_SC_RADAR) lv_radar_leave();   /* leaving releases a lock and ends a hunt */
     /* item 14: tear the radio down when heading home so no scan/deauth/hunt is left running across screens */
     if (prev != s && lv_job != LV_J_NONE && (s == LV_SC_HOME || s == LV_SC_HOME_INTRO || s == LV_SC_BOOT)) lv_job_stop();
@@ -1787,6 +1854,7 @@ static void lv_key(int k)
     else if (k == LV_KEY_SHIFT) lv_shift = !lv_shift;
     else if (k == LV_KEY_SPACE) { if (lv_inlen < 62) { lv_inb[lv_inlen++] = ' '; lv_inb[lv_inlen] = 0; } }
     else if (k == LV_KEY_DEL) { if (lv_inlen) lv_inb[--lv_inlen] = 0; }
+    else if (k == LV_KEY_CMDS) { lv_cs_open = true; lv_cs_page = 0; lv_cs_hl = -1; }
     else if (k == LV_KEY_ENTER) { char c[64]; snprintf(c, sizeof c, "%s", lv_inb); lv_inlen = 0; lv_inb[0] = 0; if (lv_shift) lv_shift = false; if (c[0]) lv_cmd(c); }
     lv_dirty_tty = true;
 }
@@ -1878,6 +1946,21 @@ static const char *lv_tap(int x, int y)
     if (lv_scr == LV_SC_TTY) {
         if (LV_TAP(LV_R_BACKBOT_TTY)) return lv_back();
         if (lv_in(LV_R_TTY_TICK, x, y)) { lv_go(LV_SC_SCAN); return "ticker->scan"; }
+        if (y >= LV_KBD_Y && lv_cs_open) {   /* every pixel of the overlay is a button: header thirds, rows full width */
+            lv_dirty_kbd = true;
+            if (y < LV_KBD_Y + LV_CS_HDR) {
+                if (x < 80) { lv_cs_open = false; return "cmds-back"; }
+                const int np = lv_cs_npage();
+                if (x < 160) { if (lv_cs_page > 0) --lv_cs_page; return "cmds-prev"; }
+                if (lv_cs_page < np - 1) ++lv_cs_page; return "cmds-next";
+            }
+            const int n = lv_cs_first() + (y - LV_KBD_Y - LV_CS_HDR) / LV_CS_RH;
+            if (n >= LV_NCS) return "cmds-empty";
+            if (lv_inlen && lv_inb[lv_inlen - 1] != ' ' && lv_inlen < 62) { lv_inb[lv_inlen++] = ' '; lv_inb[lv_inlen] = 0; }
+            lv_inlen += snprintf(lv_inb + lv_inlen, 63 - lv_inlen, "%s%s", LV_CS[n].cmd, LV_CS[n].arg ? " " : "");
+            if (lv_inlen > 62) lv_inlen = 62;
+            lv_cs_open = false; lv_dirty_tty = true; return "cmds-insert";
+        }
         if (y >= LV_KBD_Y) { const int k = lv_key_at(x, y); lv_key(k); return "key"; }
         if (lv_in(LV_R_TTY_OUT, x, y)) {
             const int total = lv_tn < LV_TLINES ? lv_tn : LV_TLINES, mx = total > LV_TTY_LINES ? total - LV_TTY_LINES : 0;
@@ -1967,9 +2050,11 @@ static const char *lv_tap(int x, int y)
         if (LV_TAP(((LvRect){165, 175, 207, 237}))) { lv_auto = (lv_auto + 1) % 3; lv_auto_t = lv_now; ev("MULTI AUTO SCAN", LV_AUTO_NAME[lv_auto]); return "multi"; }
         if (LV_TAP(((LvRect){160, 238, 208, 258}))) { lv_motion = !lv_motion; ev("BG MOTION", lv_motion ? "ON" : "OFF"); return "bg-motion"; }
         if (LV_TAP(((LvRect){35, 85, 70, 140}))) { lv_scanmix = (lv_scanmix + 1) % 3; ev("MIX (SCAN)", LV_MIX_NAME[lv_scanmix]); return "mix"; }
-        if (LV_TAP(((LvRect){35, 145, 70, 190}))) { lv_raincol = (lv_raincol + 1) % 3; ev("RAIN COL", LV_RAINCOL_NAME[lv_raincol]); return "rain-col"; }
+        if (LV_TAP(((LvRect){35, 145, 70, 190}))) { lv_raincol = (lv_raincol + 1) % LV_NBGCOL; lv_bg_save(); ev("BG COLOR", LV_RAINCOL_NAME[lv_raincol]); return "rain-col"; }
         if (LV_TAP(((LvRect){35, 195, 70, 250}))) { lv_speed = (lv_speed + 1) % 3; ev("MASHUP TICKER", LV_SPEED_NAME[lv_speed]); return "mashup"; }
-        if (LV_TAP(((LvRect){165, 80, 205, 130}))) { lv_rain = !lv_rain; ev("RAIN", LV_ONOFF[lv_rain]); return "rain"; }
+        if (LV_TAP(((LvRect){165, 80, 205, 130}))) {   /* BG STYLE (temporary home on the RAIN chip): RAIN > BOTS > GIBSON > FLYBY > BOUNCE > OFF > RAIN */
+            if (!lv_rain) { lv_rain = 1; lv_bgstyle = 0; } else if (lv_bgstyle + 1 < LV_NBGSTYLE) ++lv_bgstyle; else lv_rain = 0;
+            lv_bg_save(); ev("BG STYLE", lv_bgstyle_name()); return "rain"; }
         if (LV_TAP(((LvRect){170, 131, 205, 170}))) { lv_rainmode = (lv_rainmode + 1) % 3; ev("RAIN MODE", LV_RAINMODE_NAME[lv_rainmode]); return "rain-mode"; }
         if (LV_TAP(((LvRect){90, 212, 159, 258}))) {
             lv_flip = !lv_flip; if (lv_radio->set_rot) lv_radio->set_rot(lv_flip);

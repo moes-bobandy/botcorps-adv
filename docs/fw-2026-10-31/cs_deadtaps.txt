@@ -1,0 +1,2 @@
+cs_p1.audit.txt: routes ['ticker->scan', 'backbot-tty', 'scroll-up', 'scroll-down', 'cmds-back', 'cmds-prev', 'cmds-next', 'cmds-insert']; CMDS sheet bbox px (0,176)-(239,319); sampled 2160 pts every 4px; dead (-1) inside sheet: 0
+cs_last.audit.txt: routes ['ticker->scan', 'backbot-tty', 'scroll-up', 'scroll-down', 'cmds-back', 'cmds-prev', 'cmds-next', 'cmds-insert']; CMDS sheet bbox px (0,176)-(239,319); sampled 2160 pts every 4px; dead (-1) inside sheet: 0

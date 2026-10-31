@@ -57,7 +57,7 @@ static void lv_rd_ldel(uint8_t (*L)[6], int &n, int i) { if (i < 0 || i >= n) re
 static uint16_t lv_rd_col(const LvFind &f, int num, int den)
 {
     if (!f.alert && lv_rd_watched(f.mac)) return lv_dim(WATCH_COLOR, num, den);
-    const uint32_t c = f.alert ? 0xff2020 : f.kind == LV_K_WIFI ? 0x00f7ff : 0xff2ad4;
+    const uint32_t c = f.alert ? 0xff2020 : f.kind == LV_K_WIFI ? LV_WIFI_COL : LV_BLE_COL;
     return lv_dim(lv_hex(c), num, den);
 }
 static int lv_rd_level(const LvFind &f) { int v = f.rssi + 100; if (v < 4) v = 4; if (v > 60) v = 60; return v; } /* 4..60 */
@@ -99,6 +99,7 @@ static void b_line(LvBand &B, int x0, int y0, int x1, int y1, uint16_t c)
     for (int n = 0; n < 800; ++n) { b_pix(B, x0, y0, c); if (x0 == x1 && y0 == y1) break; const int e2 = 2 * e; if (e2 >= dy) { e += dy; x0 += sx; } if (e2 <= dx) { e += dx; y0 += sy; } }
 }
 static void lv_rd_vclip(LvBand &B, int &ya, int &yb) { if (ya < LV_RD_Y0) ya = LV_RD_Y0; if (yb > LV_RD_Y1) yb = LV_RD_Y1; (void)B; }
+#if LV_BG_ENGINE
 /* BG COLOR: element e of the background layer. MULTI gives each element its own hue and walks the palette slowly. */
 static uint16_t lv_rd_bg_col(int e, int k)
 {
@@ -184,6 +185,13 @@ static void lv_rd_bg(LvBand &B)
         break;
     }
 }
+#else
+static uint16_t lv_rd_rain_col(int k)
+{
+    const uint32_t c = lv_raincol == 0 ? 0x20ff60 : lv_raincol == 1 ? 0x30e8ff : LV_ACC[lv_theme];
+    return lv_dim(lv_hex(c), k, 8);
+}
+#endif
 /* ---- item 8: TAP EMPTY SPACE TO CYCLE + HOLD TO LOCK ON (+ IGNORE / WATCH / HUNT), ported from the approved mocks
  * /workspace/out/gibson-ideas (mock1_tap_cycle, mock2_hold_lock). Height is the real dBm; the angle/position is a MAC hash,
  * NOT a direction. Nothing here draws unless a selection jump, a hold or a lock is active, so the base render is unchanged. */
@@ -302,8 +310,8 @@ static void lv_rd_term(LvBand &B, uint16_t hdr)
     snprintf(c, sizeof c, "%dW %dB", nw, lv_nf - nw);
     int rx = x1 - 3 - lv_w35(c); b_text35(B, rx, py, c, hdr);
     rx -= 4 + 5 + lv_w35("ALRT"); b_fill(B, rx, py, 3, 5, lv_hex(0xff2020)); b_text35(B, rx + 5, py, "ALRT", lv_hex(0xff4040));
-    rx -= 4 + 5 + lv_w35("BLE"); b_fill(B, rx, py, 3, 5, lv_hex(0xff2ad4)); b_text35(B, rx + 5, py, "BLE", lv_hex(0xff2ad4));
-    rx -= 4 + 5 + lv_w35("WIFI"); b_fill(B, rx, py, 3, 5, lv_hex(0x00f7ff)); b_text35(B, rx + 5, py, "WIFI", lv_hex(0x00f7ff));
+    rx -= 4 + 5 + lv_w35("BLE"); b_fill(B, rx, py, 3, 5, lv_hex(LV_BLE_COL)); b_text35(B, rx + 5, py, "BLE", lv_hex(LV_BLE_COL));
+    rx -= 4 + 5 + lv_w35("WIFI"); b_fill(B, rx, py, 3, 5, lv_hex(LV_WIFI_COL)); b_text35(B, rx + 5, py, "WIFI", lv_hex(LV_WIFI_COL));
     rx -= 4 + lv_w35("HEIGHT=SIGNAL"); b_text35(B, rx, py, "HEIGHT=SIGNAL", lv_hex(0xffffff));
 }
 static void lv_scene_radar(LvBand &B, void *)
@@ -340,8 +348,17 @@ static void lv_scene_radar(LvBand &B, void *)
         }
     }
     b_fill(B, 0, LV_RD_HOR, 240, 1, mag);
+#if LV_BG_ENGINE
     /* background engine layer (BG STYLE / BG COLOR; default RAIN + GREEN = the original code streaks) */
     lv_rd_bg(B);
+#else
+    /* code streaks */
+    if (lv_rain) for (int s = 0; s < 18; ++s) {
+        const int x = (s * 53 + 17) % 236 + 2, len = 10 + (s * 7) % 18, sp = 40 + (s * 29) % 70;
+        const int head = LV_RD_Y0 + (int)((lv_now / 1000.0f * sp + s * 37)) % (LV_RD_Y1 - LV_RD_Y0 + len) ;
+        for (int k = 0; k < len; k += 2) { const int y = head - k; if (y >= LV_RD_Y0 && y <= LV_RD_Y1) b_blend(B, x, y, lv_rd_rain_col(8), k == 0 ? 8 : 6 - k * 5 / len); }
+    }
+#endif
     /* towers, far to near: translucent faces, bright edges */
     for (int n = 0; n < lv_rd_n; ++n) {
         const LvTower &T = lv_rd_tw[n]; const LvFind &f = lv_f[T.i];

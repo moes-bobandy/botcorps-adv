@@ -39,6 +39,31 @@ struct LvFind {
     uint8_t icon;    /* LvIcon */
     uint8_t alert;   /* matched the last hunt */
 };
+/* Background engine (BG STYLE / BG COLOR on the RAIN / RAIN COL chips, NVS lkbgs / lkbgc): DISABLED 2026-10-31 12:02 ET
+ * (Mobandy: "get rid of the background changing ui for the gibson scan", "no extra background on the scan screen").
+ * Kept in the source but compiled out: with 0 the radar, the CTL chips and NVS are exactly as in 7ecb753. */
+#ifndef LV_BG_ENGINE
+#define LV_BG_ENGINE 0
+#endif
+/* CONTROLbot value boxes (theme / focus names, BG MOTION and the 7 per-chip value badges): REMOVED 2026-10-31 12:04 ET
+ * (Mobandy: "get rid of the blocks of changing text not redesign all the chips"). With 0 those rects are no longer masked
+ * or overdrawn, so the locked CTL clip shows its own pixels there; chips, positions and taps are unchanged. */
+#ifndef LV_CTL_VALUEBOX
+#define LV_CTL_VALUEBOX 0
+#endif
+/* WiFi / BLE bot identity colours — fixed, not theme-tinted (Mobandy 2026-10-31 12:06 ET:
+ * "Make WiFi bot orange and Bluetooth bot blue"). Distinct from SCANbot gold. */
+#ifndef LV_WIFI_COL
+#define LV_WIFI_COL 0xff7a00   /* ~#FF7A00 orange */
+#endif
+#ifndef LV_BLE_COL
+#define LV_BLE_COL  0x2f6bff   /* ~#2F6BFF blue */
+#endif
+/* CONTROLbot UI-selection chips redrawn as BACKbot-form overlays (Mobandy 12:05-12:07 ET:
+ * "make the chips shaped like the BACKbot", "just the ui selection chips", "keep controlbot the same"). */
+#ifndef LV_CTL_CHIPBOT
+#define LV_CTL_CHIPBOT 1
+#endif
 #define LV_MAXF 48
 
 /* ---------- radio + system hooks ---------- */
@@ -56,7 +81,9 @@ struct LvRadio {
     void (*set_rot)(int flip);                   /* 0 = normal (setRotation 2, USB at the bottom), 1 = flipped (rot 0); saved */
     int (*mac_load)(const char *key, uint8_t *out, int max);        /* radar IGNORE / WATCH lists (6 bytes per MAC), NVS */
     void (*mac_save)(const char *key, const uint8_t *macs, int n);
+#if LV_BG_ENGINE
     void (*bg_save)(int style, int col);         /* background engine: BG STYLE 0..4 (5 = OFF) + BG COLOR 0..5, NVS lkbgs / lkbgc */
+#endif
 };
 
 enum LvScr { LV_SC_BOOT, LV_SC_HOME_INTRO, LV_SC_HOME, LV_SC_TERM, LV_SC_SCAN, LV_SC_CTL, LV_SC_TTY, LV_SC_CAL, LV_SC_RADAR };
@@ -767,9 +794,14 @@ static uint16_t lv_ink(const uint32_t *t) { return lv_hex(t[lv_scr == LV_SC_CTL 
 
 /* CONTROLbot settings (item 5): every chip on CONTROLbot drives one of these */
 static int lv_scanmix = 0;        /* MIX: what SCANbot's chip / crosshair scan: 0 WIFI+BLE, 1 WIFI, 2 BLE */
+#if LV_BG_ENGINE
 static int lv_rain = 1;       /* RAIN: GIBSON radar background layer on / off */
 static int lv_bgstyle = 0;    /* BG STYLE (background engine, picked on the RAIN chip): 0 RAIN, 1 BOTS, 2 GIBSON, 3 FLYBY, 4 BOUNCE */
 static int lv_raincol = 0;    /* BG COLOR (RAIN COL chip): 0 GREEN, 1 CYAN, 2 THEME, 3 MULTI, 4 PURPLE, 5 AMBER */
+#else
+static int lv_rain = 1;       /* RAIN: GIBSON radar code rain on / off */
+static int lv_raincol = 0;    /* RAIN COL: 0 GREEN, 1 CYAN, 2 THEME */
+#endif
 static int lv_rainmode = 0;   /* RAIN MODE: radar camera 0 DRIFT, 1 SWEEP, 2 STILL */
 static int lv_speed = 1;      /* MASHUP: ticker speed 0 SLOW, 1 MED, 2 FAST */
 static int lv_auto = 0;       /* MULTI: auto re-scan 0 OFF, 1 30S, 2 60S */
@@ -777,6 +809,7 @@ static int lv_flip = 0;       /* ORIENT: 0 PORT (USB bottom, setRotation 2), 1 F
 static uint32_t lv_auto_t = 0;
 static const char *const LV_MIX_NAME[3] = {"ALL", "WIFI", "BLE"};
 static const char *const LV_ONOFF[2] = {"OFF", "ON"};
+#if LV_BG_ENGINE
 #define LV_NBGCOL 6
 #define LV_NBGSTYLE 5
 static const char *const LV_RAINCOL_NAME[LV_NBGCOL] = {"GREEN", "CYAN", "THEME", "MULTI", "PURPLE", "AMBER"};
@@ -784,6 +817,9 @@ static const char *const LV_BGSTYLE_NAME[LV_NBGSTYLE] = {"RAIN", "BOTS", "GIBSON
 static const char *lv_bgstyle_name(void) { return lv_rain ? LV_BGSTYLE_NAME[lv_bgstyle] : "OFF"; }
 static const char *lv_bgstyle_badge(void) { return lv_rain && lv_bgstyle == 0 ? "ON" : lv_bgstyle_name(); }   /* RAIN badge: the default keeps its old "ON" (0 px change) */
 static void lv_bg_save(void) { if (lv_radio && lv_radio->bg_save) lv_radio->bg_save(lv_rain ? lv_bgstyle : LV_NBGSTYLE, lv_raincol); }
+#else
+static const char *const LV_RAINCOL_NAME[3] = {"GREEN", "CYAN", "THEME"};
+#endif
 static const char *const LV_RAINMODE_NAME[3] = {"DRIFT", "SWEEP", "STILL"};
 static const char *const LV_SPEED_NAME[3] = {"SLOW", "MED", "FAST"};
 static const char *const LV_AUTO_NAME[3] = {"OFF", "30S", "60S"};
@@ -967,7 +1003,7 @@ static void lv_scene_box(LvBand &B, void *)
             else { const char *mn = lv_mfg_name(f.mfg); char mt[6]; snprintf(mt, sizeof mt, "%02X%02X", f.mac[4], f.mac[5]);
                 snprintf(t, sizeof t, "%-9s%4d %.4s", nm, f.rssi, f.mfg != 0xFFFF && mn ? mn : mt); }
             b_text(B, 38, y, t, f.alert ? lv_hex(0xff4040) : sel ? lv_hex(0xffffff) : lv_hex(0xd8d8d8));
-            b_fill(B, 168, y + 2, 2, 3, f.kind == LV_K_WIFI ? lv_hex(0x00f7ff) : lv_hex(0x3a7bff));
+            b_fill(B, 168, y + 2, 2, 3, f.kind == LV_K_WIFI ? lv_hex(LV_WIFI_COL) : lv_hex(LV_BLE_COL));
         }
         return;
     }
@@ -999,8 +1035,8 @@ static void lv_scene_box(LvBand &B, void *)
         b_icon(B, x + 7, y + 2, c.icon);
         char s[8]; snprintf(s, sizeof s, "X%d", c.n);
         b_text35(B, x + 2, y + 21, s, lv_hex(0xffffff));
-        if (c.wifi) b_fill(B, x + 27, y + 22, 2, 2, lv_hex(0x00f7ff));
-        if (c.ble) b_fill(B, x + 24, y + 22, 2, 2, lv_hex(0x3a7bff));
+        if (c.wifi) b_fill(B, x + 27, y + 22, 2, 2, lv_hex(LV_WIFI_COL));
+        if (c.ble) b_fill(B, x + 24, y + 22, 2, 2, lv_hex(LV_BLE_COL));
         if (c.alert) b_text35(B, x + 27, y + 2, "!", lv_hex(0xff4040));
     }
 }
@@ -1086,7 +1122,11 @@ static const char *lv_ctl_val(int i)
 {
     switch (i) {
     case 0: return LV_MIX_NAME[lv_scanmix]; case 1: return LV_RAINCOL_NAME[lv_raincol]; case 2: return LV_SPEED_NAME[lv_speed];
+#if LV_BG_ENGINE
     case 3: return lv_bgstyle_badge(); case 4: return LV_RAINMODE_NAME[lv_rainmode]; case 5: return LV_AUTO_NAME[lv_auto];
+#else
+    case 3: return LV_ONOFF[lv_rain]; case 4: return LV_RAINMODE_NAME[lv_rainmode]; case 5: return LV_AUTO_NAME[lv_auto];
+#endif
     }
     return LV_FLIP_NAME[lv_flip];
 }
@@ -1097,6 +1137,14 @@ static void lv_badge(LvBand &B, const LvRect &r, const char *v, bool on)
     b_frame(B, r.x0, r.y0, w, h, on ? lv_hex(0xffffff) : lv_hex(0x606060));
     b_text35(B, r.x0 + (w - lv_w35(v)) / 2, r.y0 + (h - 5) / 2, v, on ? lv_hex(0xffffff) : lv_hex(0xb0b0b0));
 }
+#if !LV_CTL_VALUEBOX
+/* The locked CTL clip has stale value text baked in under six of the removed boxes (THEME "1/11", FOCUS "1/11",
+ * BG MOTION "ON", RAIN COL "MULTI", RAIN MODE "MIXED", ORIENT "LAND PORT"). Each blank is the tight text bbox, kept
+ * INSIDE the old box rect, on a spot where the clip is plain black (0x000000) and static; it is filled with that black.
+ * MIX, RAIN, MASHUP and MULTI need no blank: under their old boxes the clip shows only its own chip art. */
+static const LvRect LV_CTL_BLANK[6] = {{88, 36, 110, 44}, {88, 66, 110, 74}, {181, 246, 189, 252}, {43, 180, 63, 186}, {178, 159, 198, 162}, {102, 248, 154, 254}};
+static void lv_scene_ctl_blank(LvBand &B, void *) { b_fill(B, B.x0, B.y0, B.w, B.h, lv_hex(0x000000)); }
+#endif
 static void lv_scene_ctl(LvBand &B, void *)
 {
     b_fill(B, B.x0, B.y0, B.w, B.h, lv_hex(0x080808));
@@ -1341,6 +1389,96 @@ static void lv_draw_backbot(LvBand &B, int x0, int y0)
 }
 
 /* ---------- live tints: state per id (item 1 chip colours, CTL face, BACKbot) ---------- */
+
+/* Scaled BACKbot form for CONTROLbot UI-selection chips: same pins / black frame / bevel face / two eyes.
+ * S = face side (incl. black frame); outer size is S+4. face = mid identity colour; F[] = dark/mid/lit/hi. */
+static void lv_draw_chipbot(LvBand &B, int x0, int y0, int S, const uint32_t F[4])
+{
+    const uint16_t gold = lv_hex(0xc8a24a), gold_hi = lv_hex(0xf0d080);
+    const int fx = x0 + 2, fy = y0 + 2;
+    const int n_side = (S - 1) / 3; if (n_side < 1) return;
+    for (int i = 0; i < n_side; ++i) {
+        const int py = fy + 1 + i * 3;
+        if (py + 1 < fy + S) {
+            b_fill(B, x0, py, 2, 2, gold); b_fill(B, fx + S, py, 2, 2, gold);
+            b_fill(B, x0, py, 2, 1, gold_hi); b_fill(B, fx + S, py, 2, 1, gold_hi);
+        }
+        const int px = fx + 1 + i * 3;
+        if (px + 1 < fx + S) {
+            b_fill(B, px, y0, 2, 2, gold); b_fill(B, px, fy + S, 2, 2, gold);
+            b_fill(B, px, y0, 2, 1, gold_hi); b_fill(B, px, fy + S, 2, 1, gold_hi);
+        }
+    }
+    b_fill(B, fx, fy, S, S, 0x0000);
+    const int n = S - 2;
+    for (int y = 0; y < n; ++y) for (int x = 0; x < n; ++x) {
+        uint32_t c;
+        if (y == 0 || x == 0) c = F[3];
+        else if (y == n - 1 || x == n - 1) c = F[0];
+        else { const int d = x + y; const int lo = n * 2 / 5, hi = n * 2 / 5 + 1; c = (d >= lo && d <= hi) ? F[3] : (d < lo ? F[2] : F[1]); }
+        b_pix(B, fx + 1 + x, fy + 1 + y, lv_hex(c));
+    }
+    const int es = S >= 28 ? 3 : (S >= 18 ? 2 : 2);
+    const int ey = fy + S / 5, ex0 = fx + S / 5, ex1 = fx + S - S / 5 - es;
+    b_fill(B, ex0, ey, es, es, 0x0000); b_fill(B, ex1, ey, es, es, 0x0000);
+}
+
+#if LV_CTL_CHIPBOT
+/* UI-selection chips converted to BACKbot form. Positions = old pin bboxes (labels stay in the clip below).
+ * MIX / RAIN COL / MASHUP / RAIN / MULTI. Skipped (not IC-chip forms): RAIN MODE (label+value), BG MOTION (LED),
+ * ORIENT (slider), THEME bar, big CONTROLbot, UPTIME, decorations. */
+struct LvChipBot { LvRect r; int S; uint32_t F[4]; uint8_t multi; };
+/* Face palettes: dark / mid / lit / hi, derived from each chip's identity colour. */
+static const LvChipBot LV_CTL_CHIPBOTS[5] = {
+    /* MIX      green 0x73db08 */ {{36, 89, 69, 122}, 30, {0x286800, 0x58c000, 0x90ff28, 0xd8ffb0}, 0},
+    /* RAIN COL cyan          */ {{39, 146, 64, 171}, 22, {0x005868, 0x00b4cc, 0x40f0ff, 0xc0ffff}, 0},
+    /* MASHUP   green         */ {{36, 201, 69, 234}, 30, {0x286800, 0x58c000, 0x90ff28, 0xd8ffb0}, 0},
+    /* RAIN     green         */ {{170, 81, 203, 114}, 30, {0x286820, 0x58b038, 0x90ef70, 0xd8ffc0}, 0},
+    /* MULTI    three-colour  */ {{170, 178, 203, 211}, 30, {0x401868, 0x8020b0, 0xb040ff, 0xe0a0ff}, 1},
+};
+static void lv_scene_ctl_chipbot(LvBand &B, void *ctx)
+{
+    const int i = *(const int *)ctx;
+    const LvChipBot &C = LV_CTL_CHIPBOTS[i];
+    /* clear to black inside the mask so any gap around the new form matches the surrounding clip */
+    b_fill(B, B.x0, B.y0, B.w, B.h, lv_hex(0x000000));
+    if (C.multi) {
+        /* MULTI: BACKbot form with a 3-band cyan / yellow / magenta face (the old three-bot icon). */
+        static const uint32_t BAND[3][4] = {
+            {0x006878, 0x00a8c0, 0x18d3e7, 0xa0ffff},
+            {0x686800, 0xb0b000, 0xffff00, 0xffffa0},
+            {0x680040, 0xb02070, 0xde49ad, 0xffa0d0},
+        };
+        const int x0 = C.r.x0, y0 = C.r.y0, S = C.S;
+        const uint16_t gold = lv_hex(0xc8a24a), gold_hi = lv_hex(0xf0d080);
+        const int fx = x0 + 2, fy = y0 + 2;
+        const int n_side = (S - 1) / 3;
+        for (int k = 0; k < n_side; ++k) {
+            const int py = fy + 1 + k * 3;
+            if (py + 1 < fy + S) { b_fill(B, x0, py, 2, 2, gold); b_fill(B, fx + S, py, 2, 2, gold); b_fill(B, x0, py, 2, 1, gold_hi); b_fill(B, fx + S, py, 2, 1, gold_hi); }
+            const int px = fx + 1 + k * 3;
+            if (px + 1 < fx + S) { b_fill(B, px, y0, 2, 2, gold); b_fill(B, px, fy + S, 2, 2, gold); b_fill(B, px, y0, 2, 1, gold_hi); b_fill(B, px, fy + S, 2, 1, gold_hi); }
+        }
+        b_fill(B, fx, fy, S, S, 0x0000);
+        const int n = S - 2, bh = n / 3;
+        for (int y = 0; y < n; ++y) {
+            const uint32_t *F = BAND[y < bh ? 0 : y < 2 * bh ? 1 : 2];
+            for (int x = 0; x < n; ++x) {
+                uint32_t c;
+                if (y == 0 || x == 0) c = F[3];
+                else if (y == n - 1 || x == n - 1) c = F[0];
+                else { const int d = x + (y % bh); const int lo = bh * 2 / 5; c = (d >= lo && d <= lo + 1) ? F[3] : (d < lo ? F[2] : F[1]); }
+                b_pix(B, fx + 1 + x, fy + 1 + y, lv_hex(c));
+            }
+        }
+        const int es = 3, ey = fy + S / 5, ex0 = fx + S / 5, ex1 = fx + S - S / 5 - es;
+        b_fill(B, ex0, ey, es, es, 0x0000); b_fill(B, ex1, ey, es, es, 0x0000);
+    } else {
+        lv_draw_chipbot(B, C.r.x0, C.r.y0, C.S, C.F);
+    }
+}
+#endif
+
 enum { LV_T_FLASH = 0, LV_T_SWIFI, LV_T_SBLE, LV_T_SBOT, LV_T_CFACE, LV_T_CLABEL, LV_T_BACK, LV_T_BGREY, LV_T_SPILL, LV_T_HUNT0 };
 static bool lv_wifi_busy(void) { return lv_job == LV_J_WIFI || (lv_job == LV_J_ALL && lv_job_phase == 0); }
 static bool lv_ble_busy(void) { return lv_job == LV_J_BLE || (lv_job == LV_J_ALL && lv_job_phase == 1); }
@@ -1350,8 +1488,8 @@ static LvTS lv_tint_state(int id)
     LvTS s = {LV_TM_RAW, 0, 0, 0};
     const bool ph = (lv_now / 400) & 1;
     switch (id) {
-    case LV_T_SWIFI: if (lv_wifi_busy()) s = {LV_TM_COLOR, (uint8_t)(ph ? 7 : 5), 0x00f7ff, 0}; else if (lv_have(LV_K_WIFI)) s = {LV_TM_COLOR, 5, 0x00f7ff, 0}; break;
-    case LV_T_SBLE: if (lv_ble_busy()) s = {LV_TM_COLOR, (uint8_t)(ph ? 7 : 5), 0x2f8cff, 0}; else if (lv_have(LV_K_BLE)) s = {LV_TM_COLOR, 5, 0x2f8cff, 0}; break;
+    case LV_T_SWIFI: s = {LV_TM_COLOR, (uint8_t)(lv_wifi_busy() ? (ph ? 7 : 6) : 5), LV_WIFI_COL, 0}; break;
+    case LV_T_SBLE: s = {LV_TM_COLOR, (uint8_t)(lv_ble_busy() ? (ph ? 7 : 6) : 5), LV_BLE_COL, 0}; break;
     case LV_T_SBOT: if (lv_job != LV_J_NONE) s = {LV_TM_LIT, (uint8_t)(ph ? 3 : 1), 0, 0}; break;
     case LV_T_CFACE: if (lv_theme) s = {LV_TM_HUE, 0, LV_ACC[lv_theme], 0}; break;
     case LV_T_CLABEL: if (lv_theme) s = {LV_TM_RAW, 0, (uint32_t)lv_theme, 1}; break;
@@ -1426,8 +1564,16 @@ static void lv_set_masks(void)
     if (lv_scr == LV_SC_SCAN) { lv_masks[lv_nmask++] = LV_R_SBOX; lv_masks[lv_nmask++] = LV_R_STERM; }
     if (lv_scr == LV_SC_TERM || lv_scr == LV_SC_HOME || lv_scr == LV_SC_CTL) lv_masks[lv_nmask++] = LV_R_TTERM;
     if (lv_scr == LV_SC_CTL) {
+#if LV_CTL_VALUEBOX
         lv_masks[lv_nmask++] = LV_R_CTHEME; lv_masks[lv_nmask++] = LV_R_CUP; lv_masks[lv_nmask++] = LV_R_CFOCUS; lv_masks[lv_nmask++] = LV_R_CMOTION;
         for (int i = 0; i < 7; ++i) lv_masks[lv_nmask++] = LV_CTL_BADGE[i].r;
+#else
+        lv_masks[lv_nmask++] = LV_R_CUP;   /* uptime clock stays (it is not a tap value) */
+        for (int i = 0; i < 6; ++i) lv_masks[lv_nmask++] = LV_CTL_BLANK[i];
+#if LV_CTL_CHIPBOT
+        for (int i = 0; i < 5; ++i) lv_masks[lv_nmask++] = LV_CTL_CHIPBOTS[i].r;
+#endif
+#endif
     }
 }
 static void lv_paint_tints(bool all)
@@ -1714,9 +1860,17 @@ static void lv_paint_overlays(bool all)
     }
     if ((lv_scr == LV_SC_TERM || lv_scr == LV_SC_HOME || lv_scr == LV_SC_CTL) && (all || lv_dirty_term)) { lv_render(lv_blit, LV_R_TTERM, lv_scene_minterm, 0); lv_dirty_term = false; }
     if (lv_scr == LV_SC_CTL && (all || lv_dirty_ctl)) {
+#if LV_CTL_VALUEBOX
         lv_render(lv_blit, LV_R_CTHEME, lv_scene_ctl, 0); lv_render(lv_blit, LV_R_CUP, lv_scene_ctl, 0);
         lv_render(lv_blit, LV_R_CFOCUS, lv_scene_ctl, 0); lv_render(lv_blit, LV_R_CMOTION, lv_scene_ctl, 0);
         for (int i = 0; i < 7; ++i) lv_render(lv_blit, LV_CTL_BADGE[i].r, lv_scene_ctl, 0);
+#else
+        lv_render(lv_blit, LV_R_CUP, lv_scene_ctl, 0);
+        for (int i = 0; i < 6; ++i) lv_render(lv_blit, LV_CTL_BLANK[i], lv_scene_ctl_blank, 0);
+#if LV_CTL_CHIPBOT
+        for (int i = 0; i < 5; ++i) { int id = i; lv_render(lv_blit, LV_CTL_CHIPBOTS[i].r, lv_scene_ctl_chipbot, &id); }
+#endif
+#endif
         lv_dirty_ctl = false;
     }
 }
@@ -2050,11 +2204,19 @@ static const char *lv_tap(int x, int y)
         if (LV_TAP(((LvRect){165, 175, 207, 237}))) { lv_auto = (lv_auto + 1) % 3; lv_auto_t = lv_now; ev("MULTI AUTO SCAN", LV_AUTO_NAME[lv_auto]); return "multi"; }
         if (LV_TAP(((LvRect){160, 238, 208, 258}))) { lv_motion = !lv_motion; ev("BG MOTION", lv_motion ? "ON" : "OFF"); return "bg-motion"; }
         if (LV_TAP(((LvRect){35, 85, 70, 140}))) { lv_scanmix = (lv_scanmix + 1) % 3; ev("MIX (SCAN)", LV_MIX_NAME[lv_scanmix]); return "mix"; }
+#if LV_BG_ENGINE
         if (LV_TAP(((LvRect){35, 145, 70, 190}))) { lv_raincol = (lv_raincol + 1) % LV_NBGCOL; lv_bg_save(); ev("BG COLOR", LV_RAINCOL_NAME[lv_raincol]); return "rain-col"; }
+#else
+        if (LV_TAP(((LvRect){35, 145, 70, 190}))) { lv_raincol = (lv_raincol + 1) % 3; ev("RAIN COL", LV_RAINCOL_NAME[lv_raincol]); return "rain-col"; }
+#endif
         if (LV_TAP(((LvRect){35, 195, 70, 250}))) { lv_speed = (lv_speed + 1) % 3; ev("MASHUP TICKER", LV_SPEED_NAME[lv_speed]); return "mashup"; }
+#if LV_BG_ENGINE
         if (LV_TAP(((LvRect){165, 80, 205, 130}))) {   /* BG STYLE (temporary home on the RAIN chip): RAIN > BOTS > GIBSON > FLYBY > BOUNCE > OFF > RAIN */
             if (!lv_rain) { lv_rain = 1; lv_bgstyle = 0; } else if (lv_bgstyle + 1 < LV_NBGSTYLE) ++lv_bgstyle; else lv_rain = 0;
             lv_bg_save(); ev("BG STYLE", lv_bgstyle_name()); return "rain"; }
+#else
+        if (LV_TAP(((LvRect){165, 80, 205, 130}))) { lv_rain = !lv_rain; ev("RAIN", LV_ONOFF[lv_rain]); return "rain"; }
+#endif
         if (LV_TAP(((LvRect){170, 131, 205, 170}))) { lv_rainmode = (lv_rainmode + 1) % 3; ev("RAIN MODE", LV_RAINMODE_NAME[lv_rainmode]); return "rain-mode"; }
         if (LV_TAP(((LvRect){90, 212, 159, 258}))) {
             lv_flip = !lv_flip; if (lv_radio->set_rot) lv_radio->set_rot(lv_flip);

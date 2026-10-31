@@ -62,7 +62,7 @@ struct LvFind {
 /* CONTROLbot UI-selection chips redrawn as BACKbot-form overlays (Mobandy 12:05-12:07 ET:
  * "make the chips shaped like the BACKbot", "just the ui selection chips", "keep controlbot the same"). */
 #ifndef LV_CTL_CHIPBOT
-#define LV_CTL_CHIPBOT 1
+#define LV_CTL_CHIPBOT 0   /* 2026-10-31 12:41 ET: Mobandy rejected face/eye bots ("shape of a bot, not a fuckin bot"). 0 = original 7ecb753/4273cb8 icon art + pin frames. */
 #endif
 #define LV_MAXF 48
 
@@ -1142,7 +1142,7 @@ static void lv_badge(LvBand &B, const LvRect &r, const char *v, bool on)
  * BG MOTION "ON", RAIN COL "MULTI", RAIN MODE "MIXED", ORIENT "LAND PORT"). Each blank is the tight text bbox, kept
  * INSIDE the old box rect, on a spot where the clip is plain black (0x000000) and static; it is filled with that black.
  * MIX, RAIN, MASHUP and MULTI need no blank: under their old boxes the clip shows only its own chip art. */
-static const LvRect LV_CTL_BLANK[6] = {{88, 36, 110, 44}, {88, 66, 110, 74}, {181, 246, 189, 252}, {43, 180, 63, 186}, {178, 159, 198, 162}, {102, 248, 154, 254}};
+static const LvRect LV_CTL_BLANK[6] = {{88, 36, 110, 44}, {88, 66, 110, 74}, {181, 246, 189, 252}, {43, 180, 63, 186}, {174, 157, 202, 165}, {102, 248, 154, 254}};
 static void lv_scene_ctl_blank(LvBand &B, void *) { b_fill(B, B.x0, B.y0, B.w, B.h, lv_hex(0x000000)); }
 #endif
 static void lv_scene_ctl(LvBand &B, void *)
@@ -1424,9 +1424,8 @@ static void lv_draw_chipbot(LvBand &B, int x0, int y0, int S, const uint32_t F[4
 }
 
 #if LV_CTL_CHIPBOT
-/* UI-selection chips converted to BACKbot form. Positions = old pin bboxes (labels stay in the clip below).
- * MIX / RAIN COL / MASHUP / RAIN / MULTI. Skipped (not IC-chip forms): RAIN MODE (label+value), BG MOTION (LED),
- * ORIENT (slider), THEME bar, big CONTROLbot, UPTIME, decorations. */
+/* DISABLED (LV_CTL_CHIPBOT=0): was a face/eye BACKbot fill that replaced the original icons — rejected.
+ * Kept compiled-out for reference. Live path uses the locked clip's original MIX/RAIN COL/MASHUP/RAIN/MULTI art. */
 struct LvChipBot { LvRect r; int S; uint32_t F[4]; uint8_t multi; };
 /* Face palettes: dark / mid / lit / hi, derived from each chip's identity colour. */
 static const LvChipBot LV_CTL_CHIPBOTS[5] = {

@@ -119,6 +119,9 @@ static int lv_rd_trend = 0, lv_rd_reads = 0, lv_rd_miss = 0;
 static int lv_rd_from = LV_SC_HOME;  /* where BACK goes (home, SCANbot list, TTY) */
 static int lv_rd_ret_cat = -1, lv_rd_ret_cpage = 0, lv_rd_ret_mode = 0; static bool lv_rd_ret_detail = false; static uint8_t lv_rd_ret_mac[6]; static bool lv_rd_ret_sel = false;
 static const LvRect LV_RD_BTN[3] = {{5, 250, 76, 260}, {84, 250, 155, 260}, {163, 250, 234, 260}};   /* IGNORE WATCH HUNT, inside the grown panel */
+/* touch (hit-list item 1): finger targets for the three buttons, padded ~8 px inside the panel (panel y 247..285; the
+ * radar field above y247 keeps its own taps) and split at the gap midpoints so they never overlap. Drawn rects unchanged. */
+static const LvRect LV_RD_BTN_TAP[3] = {{0, 247, 80, 268}, {81, 247, 159, 268}, {160, 247, 239, 268}};
 static int lv_rd_find(const uint8_t *m) { for (int i = 0; i < lv_nf; ++i) if (!memcmp(lv_f[i].mac, m, 6)) return i; return -1; }
 static const LvTower *lv_rd_tower_of(const uint8_t *m) { const int i = lv_rd_find(m); if (i < 0) return nullptr; for (int n = 0; n < lv_rd_n; ++n) if (lv_rd_tw[n].i == i) return &lv_rd_tw[n]; return nullptr; }
 static void lv_rd_box(const LvTower &T, int pad, int &xa, int &xb, int &ya, int &yb)
@@ -435,7 +438,7 @@ static const char *lv_radar_tap(int x, int y)
     if (lv_rd_swallow) { lv_rd_swallow = false; return "radar-locked"; }
     if (y > LV_RD_Y1 + 1) return "radar-term";   /* the footer terminal is read-only (BACKbot is handled before this) */
     if (lv_rd_lock) {
-        for (int k = 0; k < 3; ++k) if (lv_in(LV_RD_BTN[k], x, y)) {
+        for (int k = 0; k < 3; ++k) if (lv_in(LV_RD_BTN_TAP[k], x, y)) {
             lv_press(LV_RD_BTN[k]);
             const int i = lv_rd_find(lv_rd_lockmac);
             if (k == 0) {   /* IGNORE: gone from the radar + tap-cycle, kept in NVS; lock released */

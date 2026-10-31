@@ -1,0 +1,150 @@
+DUMP t_home scr=2 seg=2 clipframe=437 t=7710
+OVL t_home m:1,1,238,23 m:34,272,204,305 t7:30,45,75,113 t8:170,306,201,310
+AUDIT t_home scr=2 step=2: 10 actions
+  ticker->scan        1440 pts  bbox {0,0,238,22}
+  gibson-jackin-radar  2928 pts  bbox {70,24,168,158}
+  boot-selftest       1053 pts  bbox {24,44,76,120}
+  ctl                 1064 pts  bbox {162,44,216,118}
+  scan                2224 pts  bbox {26,148,108,254}
+  term                2226 pts  bbox {132,148,214,254}
+  home-crosshair-scan   719 pts  bbox {22,254,90,302}
+  home-list            585 pts  bbox {90,254,148,294}
+  home-menu-help       697 pts  bbox {148,254,214,302}
+  home-tty            1132 pts  bbox {22,296,214,318}
+t=7710 tap 60,170 -> scan (scr=2 seg=2)
+DUMP t_scan scr=4 seg=14 clipframe=6 t=8010
+OVL t_scan m:1,1,238,23 m:33,153,206,256 m:32,275,206,308 t8:172,309,203,313 t6:221,301,239,319
+AUDIT t_scan scr=4 step=2: 14 actions
+  ticker->scan        1440 pts  bbox {0,0,238,22}
+  wifi-chip-scan       949 pts  bbox {24,24,82,92}
+  scanbot-scan-mix    2895 pts  bbox {78,24,172,150}
+  gib-home            1066 pts  bbox {166,50,216,130}
+  ble-chip-scan        838 pts  bbox {24,92,82,160}
+  scan-button          367 pts  bbox {174,158,210,208}
+  empty-tile          2640 pts  bbox {38,164,170,252}
+  more-types           391 pts  bbox {174,210,210,260}
+  deauth-tile          240 pts  bbox {140,224,170,252}
+  crosshair-scan-all   768 pts  bbox {20,258,90,306}
+  list                 613 pts  bbox {90,258,148,298}
+  menu-help            681 pts  bbox {150,258,216,298}
+  backbot-home         225 pts  bbox {210,290,238,318}
+  tty                  934 pts  bbox {20,300,208,318}
+t=8010 tap 187,185 -> scan-button (scr=4 seg=14)
+DUMP t_scan_found scr=4 seg=14 clipframe=16 t=15810
+OVL t_scan_found m:1,1,238,23 m:33,153,206,256 m:32,275,206,308 t1:32,30,74,92 t2:32,93,74,152 t8:172,309,203,313 t6:221,301,239,319
+AUDIT t_scan_found scr=4 step=2: 14 actions
+  ticker->scan        1440 pts  bbox {0,0,238,22}
+  wifi-chip-scan       949 pts  bbox {24,24,82,92}
+  scanbot-scan-mix    2895 pts  bbox {78,24,172,150}
+  gib-home            1066 pts  bbox {166,50,216,130}
+  ble-chip-scan        838 pts  bbox {24,92,82,160}
+  scan-button          367 pts  bbox {174,158,210,208}
+  category            2640 pts  bbox {38,164,170,252}
+  more-types           391 pts  bbox {174,210,210,260}
+  deauth-tile          240 pts  bbox {140,224,170,252}
+  crosshair-scan-all   768 pts  bbox {20,258,90,306}
+  list                 613 pts  bbox {90,258,148,298}
+  menu-help            681 pts  bbox {150,258,216,298}
+  backbot-home         225 pts  bbox {210,290,238,318}
+  tty                  934 pts  bbox {20,300,208,318}
+t=15810 tap 55,179 -> category (scr=4 seg=14)
+DUMP t_list scr=4 seg=14 clipframe=21 t=15960
+OVL t_list m:1,1,238,23 m:33,153,206,256 m:32,275,206,308 t1:32,30,74,92 t2:32,93,74,152 t8:172,309,203,313 t6:221,301,239,319
+AUDIT t_list scr=4 step=2: 14 actions
+  ticker->scan        1440 pts  bbox {0,0,238,22}
+  wifi-chip-scan       949 pts  bbox {24,24,82,92}
+  scanbot-scan-mix    2895 pts  bbox {78,24,172,150}
+  gib-home            1066 pts  bbox {166,50,216,130}
+  ble-chip-scan        838 pts  bbox {24,92,82,160}
+  scan-button          367 pts  bbox {174,158,210,208}
+  row-select          1965 pts  bbox {26,174,214,222}
+  more-rows            391 pts  bbox {174,210,210,260}
+  empty-row           1356 pts  bbox {26,224,214,256}
+  crosshair-scan-all   768 pts  bbox {20,258,90,306}
+  list                 613 pts  bbox {90,258,148,298}
+  menu-help            681 pts  bbox {150,258,216,298}
+  backbot-list->grid   225 pts  bbox {210,290,238,318}
+  tty                  934 pts  bbox {20,300,208,318}
+t=15960 tap 222,296 -> backbot-list->grid (scr=4 seg=14)
+t=16260 tap 222,296 -> backbot-home (scr=4 seg=14)
+t=16560 tap 160,170 -> term (scr=2 seg=2)
+DUMP t_term scr=3 seg=8 clipframe=6 t=16860
+OVL t_term m:1,1,238,23 m:34,272,204,305 t8:170,306,201,310 t6:221,301,239,319
+AUDIT t_term scr=3 step=2: 16 actions
+  ticker->scan        1440 pts  bbox {0,0,238,22}
+  deauth               726 pts  bbox {28,24,78,82}
+  tty                 4140 pts  bbox {22,24,208,318}
+  meta                 726 pts  bbox {162,24,212,82}
+  hack                 696 pts  bbox {28,84,74,140}
+  skimmer              696 pts  bbox {166,84,212,140}
+  flock                717 pts  bbox {28,142,78,196}
+  flipper              717 pts  bbox {162,142,212,196}
+  airtag               697 pts  bbox {76,192,118,258}
+  keyfob               727 pts  bbox {120,192,164,258}
+  drone                679 pts  bbox {28,198,74,254}
+  samsung              687 pts  bbox {166,198,212,256}
+  term-crosshair-scan   733 pts  bbox {22,254,90,302}
+  term-list            570 pts  bbox {90,254,148,294}
+  term-menu-help       684 pts  bbox {148,254,214,302}
+  backbot-home         225 pts  bbox {210,290,238,318}
+t=16860 tap 222,296 -> backbot-home (scr=3 seg=8)
+t=17160 tap 187,80 -> ctl (scr=2 seg=2)
+DUMP t_ctl scr=5 seg=20 clipframe=1 t=17460
+OVL t_ctl m:1,1,238,23 m:34,272,204,305 m:82,36,112,44 m:76,51,112,59 m:82,66,112,74 m:178,246,198,252 m:36,134,69,147 m:36,180,69,193 m:36,244,69,257 m:166,125,204,138 m:166,159,204,172 m:166,220,207,237 m:90,242,160,256 t8:170,306,201,310 t6:221,301,239,319
+AUDIT t_ctl scr=5 step=2: 20 actions
+  ticker->scan        1440 pts  bbox {0,0,238,22}
+  theme                564 pts  bbox {28,26,120,48}
+  uptime               329 pts  bbox {28,50,120,62}
+  focus                443 pts  bbox {28,64,120,86}
+  rain                 732 pts  bbox {158,72,212,130}
+  ctl-face-theme      2866 pts  bbox {76,74,164,212}
+  mix                  700 pts  bbox {28,78,74,140}
+  rain-mode            542 pts  bbox {166,128,212,178}
+  rain-col             648 pts  bbox {28,142,74,194}
+  multi                796 pts  bbox {158,168,214,236}
+  mashup               744 pts  bbox {28,196,78,252}
+  orient              1038 pts  bbox {82,206,158,258}
+  bg-motion            377 pts  bbox {160,230,216,266}
+  go-ble               516 pts  bbox {22,254,68,302}
+  go-scan              340 pts  bbox {68,254,102,294}
+  ctl-crosshair-scan   306 pts  bbox {104,260,136,294}
+  ctl-list             303 pts  bbox {138,260,170,294}
+  ctl-menu-help        372 pts  bbox {172,260,214,302}
+  backbot-home         225 pts  bbox {210,290,238,318}
+  tty                 1108 pts  bbox {22,296,208,318}
+t=17460 tap 222,296 -> backbot-home (scr=5 seg=20)
+t=17760 tap 110,70 -> gibson-jackin-radar (scr=2 seg=2)
+DUMP t_radar scr=8 seg=-1 clipframe=-1 t=18210
+OVL t_radar
+AUDIT t_radar scr=8 step=2: 5 actions
+  ticker->scan        1440 pts  bbox {0,0,238,22}
+  radar-cycle        12704 pts  bbox {0,34,238,286}
+  radar-tower         2536 pts  bbox {30,94,192,206}
+  radar-term          1695 pts  bbox {0,288,238,318}
+  backbot-radar        225 pts  bbox {210,290,238,318}
+t=19440 rhold 69,125 1200ms -> radar-locked (scr=8)
+t=19590 RADAR sel=0 lock=1 hunt=0 reads=0 trend=0 miss=0 ign=0 wat=0 job=0 tk='BLE: 3C:84:6A:12:46:0A  -48dBm  APPLE 004C FINDMY  MAC 3C:84:6A:12:46:0A  TYPE AIRTAG'
+DUMP t_radar_lock scr=8 seg=-1 clipframe=-1 t=19590
+OVL t_radar_lock
+AUDIT t_radar_lock scr=8 step=2: 9 actions
+  ticker->scan        1440 pts  bbox {0,0,238,22}
+  radar-unlock       12605 pts  bbox {0,34,238,286}
+  radar-locked         355 pts  bbox {46,94,68,186}
+  radar-ignore         451 pts  bbox {0,248,80,268}
+  radar-watch          429 pts  bbox {82,248,158,268}
+  radar-hunt           440 pts  bbox {160,248,238,268}
+  radar-panel          960 pts  bbox {0,270,238,284}
+  radar-term          1695 pts  bbox {0,288,238,318}
+  backbot-radar        225 pts  bbox {210,290,238,318}
+t=19590 tap 222,296 -> backbot-radar (scr=8 seg=-1)
+t=19890 tap 120,300 -> home-tty (scr=2 seg=2)
+DUMP t_tty scr=6 seg=-1 clipframe=-1 t=20190
+OVL t_tty
+AUDIT t_tty scr=6 step=2: 5 actions
+  ticker->scan        1224 pts  bbox {0,0,202,22}
+  backbot-tty          216 pts  bbox {204,0,238,22}
+  scroll-up           3570 pts  bbox {2,38,238,96}
+  scroll-down         3808 pts  bbox {2,98,238,160}
+  key                 8760 pts  bbox {0,174,238,318}
+px pushed by overlays: 7912770
+SHADOW peak 29943 of 32768 bytes

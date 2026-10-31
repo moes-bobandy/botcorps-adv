@@ -1,0 +1,47 @@
+tick 67
+tick 190
+dump t_home
+audit t_home 2
+tap 60 170
+tick 10
+dump t_scan
+audit t_scan 2
+tap 187 185
+tick 260
+dump t_scan_found
+audit t_scan_found 2
+tap 55 179
+tick 5
+dump t_list
+audit t_list 2
+tap 222 296
+tick 10
+tap 222 296
+tick 10
+tap 160 170
+tick 10
+dump t_term
+audit t_term 2
+tap 222 296
+tick 10
+tap 187 80
+tick 10
+dump t_ctl
+audit t_ctl 2
+tap 222 296
+tick 10
+tap 110 70
+tick 15
+dump t_radar
+audit t_radar 2
+rhold 69 125 1200
+tick 5
+radarstate
+dump t_radar_lock
+audit t_radar_lock 2
+tap 222 296
+tick 10
+tap 120 300
+tick 10
+dump t_tty
+audit t_tty 2

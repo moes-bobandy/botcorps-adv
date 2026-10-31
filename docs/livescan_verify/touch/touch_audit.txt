@@ -1,0 +1,206 @@
+== t_home  (grid step 2 px; 10 actions)
+   region ticker->scan           bbox {0,0,239,23}  240x24   (< 30 px)
+   region gibson-jackin-radar    bbox {70,24,169,159}  100x136
+   region boot-selftest          bbox {24,44,77,121}  54x78
+   region ctl                    bbox {162,44,217,119}  56x76
+   region scan                   bbox {26,148,109,255}  84x108
+   region term                   bbox {132,148,215,255}  84x108
+   region home-crosshair-scan    bbox {22,254,91,303}  70x50
+   region home-list              bbox {90,254,149,295}  60x42
+   region home-menu-help         bbox {148,254,215,303}  68x50
+   region home-tty               bbox {22,296,215,319}  194x24   (< 30 px)
+   drawn boot-selftest            {31,52,74,112}  own taps fire 100.0%  dead taps 0  other -  centre -> boot-selftest
+   drawn gibson-jackin-radar      {78,30,160,150}  own taps fire 100.0%  dead taps 0  other -  centre -> gibson-jackin-radar
+   drawn ctl                      {165,51,208,110}  own taps fire 100.0%  dead taps 0  other -  centre -> ctl
+   drawn scan                     {33,156,101,255}  own taps fire 100.0%  dead taps 0  other -  centre -> scan
+   drawn term                     {139,156,207,255}  own taps fire 100.0%  dead taps 0  other -  centre -> term
+   drawn ticker->scan             {1,1,238,23}  own taps fire 100.0%  dead taps 0  other -  centre -> ticker->scan
+   drawn home-crosshair-scan      {36,283,88,295}  own taps fire 100.0%  dead taps 0  other -  centre -> home-crosshair-scan
+   drawn home-list                {93,283,145,295}  own taps fire 100.0%  dead taps 0  other -  centre -> home-list
+   drawn home-menu-help           {150,283,202,295}  own taps fire 100.0%  dead taps 0  other -  centre -> home-menu-help
+   drawn home-tty                 {34,296,204,305}  own taps fire 100.0%  dead taps 0  other -  centre -> home-tty
+== t_scan  (grid step 2 px; 14 actions)
+   region ticker->scan           bbox {0,0,239,23}  240x24   (< 30 px)
+   region wifi-chip-scan         bbox {24,24,83,93}  60x70
+   region scanbot-scan-mix       bbox {78,24,173,151}  96x128
+   region gib-home               bbox {166,50,217,131}  52x82
+   region ble-chip-scan          bbox {24,92,83,161}  60x70
+   region scan-button            bbox {174,158,211,209}  38x52
+   region empty-tile             bbox {38,164,171,253}  134x90
+   region more-types             bbox {174,210,211,261}  38x52
+   region deauth-tile            bbox {140,224,171,253}  32x30
+   region crosshair-scan-all     bbox {20,258,91,307}  72x50
+   region list                   bbox {90,258,149,299}  60x42
+   region menu-help              bbox {150,258,217,299}  68x42
+   region backbot-home           bbox {210,290,239,319}  30x30
+   region tty                    bbox {20,300,209,319}  190x20   (< 30 px)
+   drawn wifi-chip-scan           {32,30,74,92}  own taps fire 100.0%  dead taps 0  other -  centre -> wifi-chip-scan
+   drawn ble-chip-scan            {32,93,74,152}  own taps fire 100.0%  dead taps 0  other -  centre -> ble-chip-scan
+   drawn scanbot-scan-mix/scanbot-stop {78,30,165,150}  own taps fire 100.0%  dead taps 0  other -  centre -> scanbot-scan-mix
+   drawn gib-home                 {166,58,208,122}  own taps fire 100.0%  dead taps 0  other -  centre -> gib-home
+   drawn scan-button/stop         {174,165,203,206}  own taps fire 100.0%  dead taps 0  other -  centre -> scan-button
+   drawn more-types/more-rows/detail-hunt {174,210,203,252}  own taps fire 100.0%  dead taps 0  other -  centre -> more-types
+   drawn backbot                  {221,301,239,319}  own taps fire 100.0%  dead taps 0  other -  centre -> backbot-home
+   drawn ticker->scan             {1,1,238,23}  own taps fire 100.0%  dead taps 0  other -  centre -> ticker->scan
+   drawn crosshair-scan-all       {35,286,88,298}  own taps fire 100.0%  dead taps 0  other -  centre -> crosshair-scan-all
+   drawn list                     {93,286,146,298}  own taps fire 100.0%  dead taps 0  other -  centre -> list
+   drawn menu-help                {151,286,204,298}  own taps fire 100.0%  dead taps 0  other -  centre -> menu-help
+   drawn tty                      {32,299,206,308}  own taps fire 100.0%  dead taps 0  other -  centre -> tty
+== t_scan_found  (grid step 2 px; 14 actions)
+   region ticker->scan           bbox {0,0,239,23}  240x24   (< 30 px)
+   region wifi-chip-scan         bbox {24,24,83,93}  60x70
+   region scanbot-scan-mix       bbox {78,24,173,151}  96x128
+   region gib-home               bbox {166,50,217,131}  52x82
+   region ble-chip-scan          bbox {24,92,83,161}  60x70
+   region scan-button            bbox {174,158,211,209}  38x52
+   region category               bbox {38,164,171,253}  134x90
+   region more-types             bbox {174,210,211,261}  38x52
+   region deauth-tile            bbox {140,224,171,253}  32x30
+   region crosshair-scan-all     bbox {20,258,91,307}  72x50
+   region list                   bbox {90,258,149,299}  60x42
+   region menu-help              bbox {150,258,217,299}  68x42
+   region backbot-home           bbox {210,290,239,319}  30x30
+   region tty                    bbox {20,300,209,319}  190x20   (< 30 px)
+   drawn wifi-chip-scan           {32,30,74,92}  own taps fire 100.0%  dead taps 0  other -  centre -> wifi-chip-scan
+   drawn ble-chip-scan            {32,93,74,152}  own taps fire 100.0%  dead taps 0  other -  centre -> ble-chip-scan
+   drawn scanbot-scan-mix/scanbot-stop {78,30,165,150}  own taps fire 100.0%  dead taps 0  other -  centre -> scanbot-scan-mix
+   drawn gib-home                 {166,58,208,122}  own taps fire 100.0%  dead taps 0  other -  centre -> gib-home
+   drawn scan-button/stop         {174,165,203,206}  own taps fire 100.0%  dead taps 0  other -  centre -> scan-button
+   drawn more-types/more-rows/detail-hunt {174,210,203,252}  own taps fire 100.0%  dead taps 0  other -  centre -> more-types
+   drawn backbot                  {221,301,239,319}  own taps fire 100.0%  dead taps 0  other -  centre -> backbot-home
+   drawn ticker->scan             {1,1,238,23}  own taps fire 100.0%  dead taps 0  other -  centre -> ticker->scan
+   drawn crosshair-scan-all       {35,286,88,298}  own taps fire 100.0%  dead taps 0  other -  centre -> crosshair-scan-all
+   drawn list                     {93,286,146,298}  own taps fire 100.0%  dead taps 0  other -  centre -> list
+   drawn menu-help                {151,286,204,298}  own taps fire 100.0%  dead taps 0  other -  centre -> menu-help
+   drawn tty                      {32,299,206,308}  own taps fire 100.0%  dead taps 0  other -  centre -> tty
+== t_list  (grid step 2 px; 14 actions)
+   region ticker->scan           bbox {0,0,239,23}  240x24   (< 30 px)
+   region wifi-chip-scan         bbox {24,24,83,93}  60x70
+   region scanbot-scan-mix       bbox {78,24,173,151}  96x128
+   region gib-home               bbox {166,50,217,131}  52x82
+   region ble-chip-scan          bbox {24,92,83,161}  60x70
+   region scan-button            bbox {174,158,211,209}  38x52
+   region row-select             bbox {26,174,215,223}  190x50
+   region more-rows              bbox {174,210,211,261}  38x52
+   region empty-row              bbox {26,224,215,257}  190x34
+   region crosshair-scan-all     bbox {20,258,91,307}  72x50
+   region list                   bbox {90,258,149,299}  60x42
+   region menu-help              bbox {150,258,217,299}  68x42
+   region backbot-list->grid     bbox {210,290,239,319}  30x30
+   region tty                    bbox {20,300,209,319}  190x20   (< 30 px)
+   drawn wifi-chip-scan           {32,30,74,92}  own taps fire 100.0%  dead taps 0  other -  centre -> wifi-chip-scan
+   drawn ble-chip-scan            {32,93,74,152}  own taps fire 100.0%  dead taps 0  other -  centre -> ble-chip-scan
+   drawn scanbot-scan-mix/scanbot-stop {78,30,165,150}  own taps fire 100.0%  dead taps 0  other -  centre -> scanbot-scan-mix
+   drawn gib-home                 {166,58,208,122}  own taps fire 100.0%  dead taps 0  other -  centre -> gib-home
+   drawn scan-button/stop         {174,165,203,206}  own taps fire 100.0%  dead taps 0  other -  centre -> scan-button
+   drawn backbot                  {221,301,239,319}  own taps fire 100.0%  dead taps 0  other -  centre -> backbot-list->grid
+   drawn ticker->scan             {1,1,238,23}  own taps fire 100.0%  dead taps 0  other -  centre -> ticker->scan
+   drawn crosshair-scan-all       {35,286,88,298}  own taps fire 100.0%  dead taps 0  other -  centre -> crosshair-scan-all
+   drawn list                     {93,286,146,298}  own taps fire 100.0%  dead taps 0  other -  centre -> list
+   drawn menu-help                {151,286,204,298}  own taps fire 100.0%  dead taps 0  other -  centre -> menu-help
+   drawn tty                      {32,299,206,308}  own taps fire 100.0%  dead taps 0  other -  centre -> tty
+   drawn more-rows/detail-hunt    {174,210,203,252}  own taps fire 100.0%  dead taps 0  other -  centre -> more-rows
+== t_term  (grid step 2 px; 16 actions)
+   region ticker->scan           bbox {0,0,239,23}  240x24   (< 30 px)
+   region deauth                 bbox {28,24,79,83}  52x60
+   region tty                    bbox {22,24,209,319}  188x296
+   region meta                   bbox {162,24,213,83}  52x60
+   region hack                   bbox {28,84,75,141}  48x58
+   region skimmer                bbox {166,84,213,141}  48x58
+   region flock                  bbox {28,142,79,197}  52x56
+   region flipper                bbox {162,142,213,197}  52x56
+   region airtag                 bbox {76,192,119,259}  44x68
+   region keyfob                 bbox {120,192,165,259}  46x68
+   region drone                  bbox {28,198,75,255}  48x58
+   region samsung                bbox {166,198,213,257}  48x60
+   region term-crosshair-scan    bbox {22,254,91,303}  70x50
+   region term-list              bbox {90,254,149,295}  60x42
+   region term-menu-help         bbox {148,254,215,303}  68x50
+   region backbot-home           bbox {210,290,239,319}  30x30
+   drawn deauth/meta/hack/skimmer/flock/flipper/airtag/keyfob/drone/samsung {35,30,70,80}  own taps fire 100.0%  dead taps 0  other -  centre -> deauth
+   drawn deauth/meta/hack/skimmer/flock/flipper/airtag/keyfob/drone/samsung {170,30,205,80}  own taps fire 100.0%  dead taps 0  other -  centre -> meta
+   drawn deauth/meta/hack/skimmer/flock/flipper/airtag/keyfob/drone/samsung {35,87,70,137}  own taps fire 100.0%  dead taps 0  other -  centre -> hack
+   drawn deauth/meta/hack/skimmer/flock/flipper/airtag/keyfob/drone/samsung {170,87,205,137}  own taps fire 100.0%  dead taps 0  other -  centre -> skimmer
+   drawn deauth/meta/hack/skimmer/flock/flipper/airtag/keyfob/drone/samsung {35,145,70,195}  own taps fire 100.0%  dead taps 0  other -  centre -> flock
+   drawn deauth/meta/hack/skimmer/flock/flipper/airtag/keyfob/drone/samsung {170,145,205,195}  own taps fire 100.0%  dead taps 0  other -  centre -> flipper
+   drawn deauth/meta/hack/skimmer/flock/flipper/airtag/keyfob/drone/samsung {35,200,70,250}  own taps fire 100.0%  dead taps 0  other -  centre -> drone
+   drawn deauth/meta/hack/skimmer/flock/flipper/airtag/keyfob/drone/samsung {80,200,115,250}  own taps fire 100.0%  dead taps 0  other -  centre -> airtag
+   drawn deauth/meta/hack/skimmer/flock/flipper/airtag/keyfob/drone/samsung {124,200,160,250}  own taps fire 100.0%  dead taps 0  other -  centre -> keyfob
+   drawn deauth/meta/hack/skimmer/flock/flipper/airtag/keyfob/drone/samsung {170,200,205,250}  own taps fire 100.0%  dead taps 0  other -  centre -> samsung
+   drawn tty                      {75,30,165,150}  own taps fire 100.0%  dead taps 0  other -  centre -> tty
+   drawn backbot                  {221,301,239,319}  own taps fire 100.0%  dead taps 0  other -  centre -> backbot-home
+   drawn ticker->scan             {1,1,238,23}  own taps fire 100.0%  dead taps 0  other -  centre -> ticker->scan
+   drawn term-crosshair-scan      {36,283,88,295}  own taps fire 100.0%  dead taps 0  other -  centre -> term-crosshair-scan
+   drawn term-list                {93,283,145,295}  own taps fire 100.0%  dead taps 0  other -  centre -> term-list
+   drawn term-menu-help           {150,283,202,295}  own taps fire 100.0%  dead taps 0  other -  centre -> term-menu-help
+   drawn tty                      {34,296,204,305}  own taps fire 100.0%  dead taps 0  other -  centre -> tty
+== t_ctl  (grid step 2 px; 20 actions)
+   region ticker->scan           bbox {0,0,239,23}  240x24   (< 30 px)
+   region theme                  bbox {28,26,121,49}  94x24   (< 30 px)
+   region uptime                 bbox {28,50,121,63}  94x14   (< 30 px)
+   region focus                  bbox {28,64,121,87}  94x24   (< 30 px)
+   region rain                   bbox {158,72,213,131}  56x60
+   region ctl-face-theme         bbox {76,74,165,213}  90x140
+   region mix                    bbox {28,78,75,141}  48x64
+   region rain-mode              bbox {166,128,213,179}  48x52
+   region rain-col               bbox {28,142,75,195}  48x54
+   region multi                  bbox {158,168,215,237}  58x70
+   region mashup                 bbox {28,196,79,253}  52x58
+   region orient                 bbox {82,206,159,259}  78x54
+   region bg-motion              bbox {160,230,217,267}  58x38
+   region go-ble                 bbox {22,254,69,303}  48x50
+   region go-scan                bbox {68,254,103,295}  36x42
+   region ctl-crosshair-scan     bbox {104,260,137,295}  34x36
+   region ctl-list               bbox {138,260,171,295}  34x36
+   region ctl-menu-help          bbox {172,260,215,303}  44x44
+   region backbot-home           bbox {210,290,239,319}  30x30
+   region tty                    bbox {22,296,209,319}  188x24   (< 30 px)
+   drawn theme                    {35,33,113,48}  own taps fire 100.0%  dead taps 0  other -  centre -> theme
+   drawn uptime                   {35,49,113,63}  own taps fire 100.0%  dead taps 0  other -  centre -> uptime
+   drawn focus                    {35,64,113,79}  own taps fire 100.0%  dead taps 0  other -  centre -> focus
+   drawn multi                    {165,175,207,237}  own taps fire 100.0%  dead taps 0  other -  centre -> multi
+   drawn bg-motion                {160,238,208,258}  own taps fire 100.0%  dead taps 0  other -  centre -> bg-motion
+   drawn mix                      {35,85,70,140}  own taps fire 100.0%  dead taps 0  other -  centre -> mix
+   drawn rain-col                 {35,145,70,190}  own taps fire 100.0%  dead taps 0  other -  centre -> rain-col
+   drawn mashup                   {35,195,70,250}  own taps fire 100.0%  dead taps 0  other -  centre -> mashup
+   drawn rain                     {165,80,205,130}  own taps fire 100.0%  dead taps 0  other -  centre -> rain
+   drawn rain-mode                {170,131,205,170}  own taps fire 100.0%  dead taps 0  other -  centre -> rain-mode
+   drawn orient/orientation       {90,212,159,258}  own taps fire 100.0%  dead taps 0  other -  centre -> orient
+   drawn ctl-face-theme           {75,82,164,205}  own taps fire 100.0%  dead taps 0  other -  centre -> ctl-face-theme
+   drawn backbot                  {221,301,239,319}  own taps fire 100.0%  dead taps 0  other -  centre -> backbot-home
+   drawn ticker->scan             {1,1,238,23}  own taps fire 100.0%  dead taps 0  other -  centre -> ticker->scan
+   drawn go-ble                   {36,283,66,295}  own taps fire 100.0%  dead taps 0  other -  centre -> go-ble
+   drawn go-scan                  {70,283,100,295}  own taps fire 100.0%  dead taps 0  other -  centre -> go-scan
+   drawn ctl-crosshair-scan       {104,283,134,295}  own taps fire 100.0%  dead taps 0  other -  centre -> ctl-crosshair-scan
+   drawn ctl-list                 {138,283,168,295}  own taps fire 100.0%  dead taps 0  other -  centre -> ctl-list
+   drawn ctl-menu-help            {172,283,202,295}  own taps fire 100.0%  dead taps 0  other -  centre -> ctl-menu-help
+   drawn tty                      {34,296,204,305}  own taps fire 100.0%  dead taps 0  other -  centre -> tty
+== t_radar  (grid step 2 px; 5 actions)
+   region ticker->scan           bbox {0,0,239,23}  240x24   (< 30 px)
+   region radar-cycle            bbox {0,34,239,287}  240x254
+   region radar-tower            bbox {30,94,193,207}  164x114
+   region radar-term             bbox {0,288,239,319}  240x32
+   region backbot-radar          bbox {210,290,239,319}  30x30
+   drawn backbot                  {221,301,239,319}  own taps fire 100.0%  dead taps 0  other -  centre -> backbot-radar
+== t_radar_lock  (grid step 2 px; 9 actions)
+   region ticker->scan           bbox {0,0,239,23}  240x24   (< 30 px)
+   region radar-unlock           bbox {0,34,239,287}  240x254
+   region radar-locked           bbox {46,94,69,187}  24x94   (< 30 px)
+   region radar-ignore           bbox {0,248,81,269}  82x22   (< 30 px)
+   region radar-watch            bbox {82,248,159,269}  78x22   (< 30 px)
+   region radar-hunt             bbox {160,248,239,269}  80x22   (< 30 px)
+   region radar-panel            bbox {0,270,239,285}  240x16   (< 30 px)
+   region radar-term             bbox {0,288,239,319}  240x32
+   region backbot-radar          bbox {210,290,239,319}  30x30
+   drawn radar-ignore             {5,250,76,260}  own taps fire 100.0%  dead taps 0  other -  centre -> radar-ignore
+   drawn radar-watch/radar-unwatch {84,250,155,260}  own taps fire 100.0%  dead taps 0  other -  centre -> radar-watch
+   drawn radar-hunt/radar-hunt-stop {163,250,234,260}  own taps fire 100.0%  dead taps 0  other -  centre -> radar-hunt
+   drawn backbot                  {221,301,239,319}  own taps fire 100.0%  dead taps 0  other -  centre -> backbot-radar
+== t_tty  (grid step 2 px; 5 actions)
+   region ticker->scan           bbox {0,0,203,23}  204x24   (< 30 px)
+   region backbot-tty            bbox {204,0,239,23}  36x24   (< 30 px)
+   region scroll-up              bbox {2,38,239,97}  238x60
+   region scroll-down            bbox {2,98,239,161}  238x64
+   region key                    bbox {0,174,239,319}  240x146
+   drawn backbot                  {204,0,239,23}  own taps fire 100.0%  dead taps 0  other -  centre -> backbot-tty
+DEAD drawn targets (centre tap does nothing or the wrong thing): 0

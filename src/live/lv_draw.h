@@ -101,8 +101,28 @@ static inline uint16_t lv_mix(uint16_t a, uint16_t b, int k, int n) /* a -> b by
     return (uint16_t)((r << 11) | (g << 5) | bl);
 }
 
+/* Press highlight (hit-list item 5): brighten the element's OWN artwork ~35 % with its hue kept. Pure scale while
+ * the brightest channel has headroom (gold 181,146,82 -> 244,197,111: the ramp stays a ramp, never flattened);
+ * once a channel would clip, scale to full and lift the rest toward white by what is left of the 35 %.
+ * Near-black pixels (board / box background, max channel < 12/63) are left alone, so there is no haze. */
+static inline uint16_t lv_hi(uint16_t c)
+{
+    int r = (c >> 11) << 1, g = (c >> 5) & 63, b = (c & 31) << 1;   /* all on a 0..63 scale */
+    const int mx = r > g ? (r > b ? r : b) : (g > b ? g : b);
+    if (mx < 12) return c;
+    if (mx * 27 <= 63 * 20) { r = r * 27 / 20; g = g * 27 / 20; b = b * 27 / 20; }
+    else {
+        const int rem = mx * 27 - 63 * 20;   /* left-over lift, over 1260 */
+        r = r * 63 / mx; g = g * 63 / mx; b = b * 63 / mx;
+        r += (63 - r) * rem / 1260; g += (63 - g) * rem / 1260; b += (63 - b) * rem / 1260;
+    }
+    r = (r + 1) >> 1; b = (b + 1) >> 1;
+    if (r > 31) r = 31; if (g > 63) g = 63; if (b > 31) b = 31;
+    return (uint16_t)((r << 11) | (g << 5) | b);
+}
+
 /* Press flash: whatever renders inside lv_flash_r (overlays, live-tinted clip art, BACKbot) is lifted toward
- * white for ~140 ms after a tap. No border is ever drawn. */
+ * brightened by lv_hi for ~130 ms after a tap (artwork only, no haze). No border is ever drawn. */
 static LvRect lv_flash_r = {0, 0, -1, -1};
 #define LV_FLASH_LIFT 4
 
@@ -114,7 +134,7 @@ static inline void lv_flash_band(LvBand &B)
     const LvRect &f = lv_flash_r;
     const int x0 = f.x0 > B.x0 ? f.x0 : B.x0, x1 = f.x1 < B.x0 + B.w - 1 ? f.x1 : B.x0 + B.w - 1;
     const int y0 = f.y0 > B.y0 ? f.y0 : B.y0, y1 = f.y1 < B.y0 + B.h - 1 ? f.y1 : B.y0 + B.h - 1;
-    for (int y = y0; y <= y1; ++y) for (int x = x0; x <= x1; ++x) { uint16_t &p = B.px[(y - B.y0) * B.w + (x - B.x0)]; p = lv_lift(p, LV_FLASH_LIFT); }
+    for (int y = y0; y <= y1; ++y) for (int x = x0; x <= x1; ++x) { uint16_t &p = B.px[(y - B.y0) * B.w + (x - B.x0)]; p = lv_hi(p); }
 }
 static inline void lv_render(lv_blit_fn blit, const LvRect &r, lv_scene_fn scene, void *ctx)
 {

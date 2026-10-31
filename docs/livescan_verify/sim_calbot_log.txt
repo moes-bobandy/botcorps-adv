@@ -12,17 +12,17 @@ DUMP calbot_3 scr=7 seg=-1 clipframe=-1 t=7500
 OVL calbot_3
 DUMP calbot_4 scr=7 seg=-1 clipframe=-1 t=10000
 OVL calbot_4
-t=11605 CAL SAVE c0..c7 = 252 261 3817 275 250 3758 3815 3771 (SIM NVS)
-  chip 1 at 52,55 -> lgfx maps to 53,55
-  chip 2 at 187,55 -> lgfx maps to 188,55
-  chip 3 at 187,226 -> lgfx maps to 187,227
-  chip 4 at 52,226 -> lgfx maps to 52,227
-  worst axis error 1 px
+t=11605 CAL SAVE c0..c7 = 207 261 3772 274 205 3758 3770 3771 (SIM NVS)
+  chip 1 at 52,51 -> lgfx maps to 53,47
+  chip 2 at 187,51 -> lgfx maps to 188,47
+  chip 3 at 187,222 -> lgfx maps to 187,219
+  chip 4 at 52,222 -> lgfx maps to 53,219
+  worst axis error 4 px
 DUMP calbot_ok scr=7 seg=-1 clipframe=-1 t=12300
 OVL calbot_ok
 DUMP calbot_then_boot scr=0 seg=0 clipframe=1 t=13000
-OVL calbot_then_boot
+OVL calbot_then_boot t7:76,58,164,182
 DUMP calbot_then_home scr=2 seg=2 clipframe=449 t=19000
-OVL calbot_then_home m:1,1,238,23
-px pushed by overlays: 1115307
-SHADOW peak 28809 of 32768 bytes
+OVL calbot_then_home m:1,1,238,23 m:34,272,204,305 t7:30,45,75,113 t8:170,306,201,310
+px pushed by overlays: 1159634
+SHADOW peak 29817 of 32768 bytes

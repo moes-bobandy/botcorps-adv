@@ -75,8 +75,13 @@ static const uint32_t LV_FRAME[LV_NTHEME] = {0xff25ae, 0xdf00ae, 0x92fd00, 0x00f
  * swatches + counter were already hidden under the old two ticker masks) */
 static const LvRect LV_R_TICK = {1, 1, 238, 23};
 static const LvRect LV_R_SBOX = {33, 153, 206, 256};  /* SCANbot device-emoji grid (old 4 tabs + results box) */
-static const LvRect LV_R_STERM = {32, 275, 182, 308}; /* SCANbot terminal box inner */
-static const LvRect LV_R_TTERM = {34, 272, 181, 305}; /* TERMINALbot terminal box inner */
+/* Small terminal box (item 11): the whole inner box is now overlay - 1 line row, an enlarged button row right above
+ * the prompt, and the prompt. The old 20x12 icon stack hung 5 rows out of the box (spill); those rows are rebuilt from
+ * the clip's own art 12 px to the left (pins / rails repeat every 12 px), see LV_T_SPILL. */
+static const LvRect LV_R_STERM = {32, 275, 206, 308}; /* SCANbot terminal box inner */
+static const LvRect LV_R_TTERM = {34, 272, 204, 305}; /* HOME / TERMINALbot / CONTROLbot terminal box inner */
+static const LvRect LV_R_SPILL_S = {172, 309, 203, 313}, LV_R_SPILL_T = {170, 306, 201, 310};
+static const LvRect &lv_mt_box(void);
 static const LvRect LV_R_CTHEME = {82, 36, 112, 44}, LV_R_CUP = {76, 51, 112, 59}, LV_R_CFOCUS = {82, 66, 112, 74};
 static const LvRect LV_R_CMOTION = {178, 246, 198, 252};
 static const LvRect LV_R_TTY_TICK = {0, 0, 239, 23}; /* full width; BACKbot paints on top in CLOSE slot */
@@ -426,6 +431,13 @@ static void lv_set_theme(int t)
     if (lv_radio->save_theme) lv_radio->save_theme(lv_theme);
     lv_dirty_box = lv_dirty_term = lv_dirty_ctl = lv_dirty_tty = lv_dirty_kbd = true;
 }
+/* item 4: one theme step per 250 ms (a bouncy double contact on the theme bar / CONTROLbot face can't skip a theme or hammer NVS) */
+static uint32_t lv_theme_tap_t = 0; static bool lv_theme_tapped = false;
+static bool lv_theme_bounce(void)
+{
+    if (lv_theme_tapped && (uint32_t)(lv_now - lv_theme_tap_t) < 250) return true;
+    lv_theme_tapped = true; lv_theme_tap_t = lv_now; return false;
+}
 static void lv_sysinfo(void)
 {
     char b[64];
@@ -565,7 +577,10 @@ static LvRect lv_masks[16];
 static int lv_nmask = 0;
 #define LV_SHADOW_CAP 32768
 #define LV_MAXT 24
-enum { LV_TM_RAW = 0, LV_TM_LIT, LV_TM_COLOR, LV_TM_DIM, LV_TM_HUE };
+enum { LV_TM_RAW = 0, LV_TM_LIT, LV_TM_COLOR, LV_TM_DIM, LV_TM_HUE, LV_TM_GREY };
+/* item 7: BOOTbot is black + grey, never white. Exactly two greys: pure white -> L, other near-white -> M. */
+#define LV_BB_GREY_L 0xC618   /* (198,195,198) */
+#define LV_BB_GREY_M 0x9CF3   /* (156,158,156) */
 struct LvTS { uint8_t mode, amt; uint32_t col; uint8_t deco; };   /* deco != 0: the tint's own painter draws over the shadow */
 static bool lv_ts_eq(const LvTS &a, const LvTS &b) { return a.mode == b.mode && a.amt == b.amt && a.col == b.col && a.deco == b.deco; }
 struct LvTint { LvRect r; int off; uint8_t id; };
@@ -597,6 +612,9 @@ static uint16_t lv_tx(const LvTS &s, uint16_t c)
         if (cr > 255) cr = 255; if (cg > 255) cg = 255; if (cb > 255) cb = 255;
         return lv_mix(c, lv_rgb((uint8_t)cr, (uint8_t)cg, (uint8_t)cb), s.amt, 8);
     }
+    case LV_TM_GREY:
+        if ((c >> 11) >= 28 && ((c >> 5) & 63) >= 56 && (c & 31) >= 28) return c == 0xFFFF ? LV_BB_GREY_L : LV_BB_GREY_M;
+        return c;
     case LV_TM_HUE: {                                    /* re-ink the purple (GRAPE) pixels in the theme colour */
         const int mx = R > Bl ? R : Bl;
         if (mx - G < 60 || Bl < 80) return c;
@@ -648,7 +666,7 @@ static void lv_clip_draw(int y, int x, int n, const uint8_t *idx)
             const LvTS s = lv_tint_state(T.id);
             if (s.deco) lv_tdirty[c] = true;          /* painted by its own scene (shadow + decorator) */
             else {
-                for (int k = i; k < j; ++k) { uint16_t v = lv_tx(s, pal[idx[k]]); if (fl && lv_in(lv_flash_r, x + k, y)) v = lv_lift(v, LV_FLASH_LIFT); lb[k - i] = v; }
+                for (int k = i; k < j; ++k) { uint16_t v = lv_tx(s, pal[idx[k]]); if (fl && lv_in(lv_flash_r, x + k, y)) v = lv_hi(v); lb[k - i] = v; }
                 lv_blit(x + i, y, j - i, 1, lb);
             }
         }
@@ -890,20 +908,72 @@ static void lv_scene_box(LvBand &B, void *)
         if (c.alert) b_text35(B, x + 27, y + 2, "!", lv_hex(0xff4040));
     }
 }
-/* the small terminal boxes on SCANbot / TERMINALbot */
+/* the small terminal box on HOME / SCANbot / TERMINALbot / CONTROLbot (item 11).
+ * Rows from the inner top T: T+2 newest log line (SCAN / TERM) or the old separator (HOME / CTL), T+11..T+23 the
+ * button row (same D-grey frame + E-grey icon art as the old 20x12 icons, now 53 / 31 px wide with a themed label),
+ * T+25 the prompt. Buttons stay inside the box; the tap rects (lv_mt_btn) cover the whole column above the prompt. */
+static const char *const LV_MT_ICON[3][10] = {
+    {".....#.....", ".....#.....", "....###....", "...#...#...", "..#.....#..", "###..#..###", "..#.....#..", "...#...#...", "....###....", ".....#....."},
+    {"######......", "############", "#..........#", "#.########.#", "#..........#", "#.########.#", "#..........#", "############", 0, 0},
+    {"##########", "..........", "..........", "##########", "..........", "..........", "##########", 0, 0, 0}};
+#define LV_MT_D 0x29a8   /* (41,52,66) button frame, as the old icons */
+#define LV_MT_E 0x8cd4   /* (140,154,165) icon art, as the old icons */
+static const LvRect &lv_mt_box(void) { return lv_scr == LV_SC_SCAN ? LV_R_STERM : LV_R_TTERM; }
+static int lv_mt_n(void) { return lv_scr == LV_SC_CTL ? 5 : 3; }
+/* drawn rect of button i (frame included) */
+static LvRect lv_mt_btn(int i)
+{
+    const LvRect &b = lv_mt_box(); const int y0 = b.y0 + 11;
+    if (lv_scr == LV_SC_CTL) { const int x = 36 + i * 34; return {(int16_t)x, (int16_t)y0, (int16_t)(x + 30), (int16_t)(y0 + 12)}; }
+    static const int16_t XS[3][2] = {{36, 88}, {93, 145}, {150, 202}}, XSS[3][2] = {{35, 88}, {93, 146}, {151, 204}};
+    const int16_t(*X)[2] = lv_scr == LV_SC_SCAN ? XSS : XS;
+    return {X[i][0], (int16_t)y0, X[i][1], (int16_t)(y0 + 12)};
+}
+/* tap rect of button i: from above the box top (title strip) to the row above the prompt; columns split at the gaps */
+static LvRect lv_mt_tap(int i)
+{
+    const LvRect &b = lv_mt_box(); const int n = lv_mt_n();
+    const LvRect d = lv_mt_btn(i);
+    const int xl = i == 0 ? b.x0 - 4 : (lv_mt_btn(i - 1).x1 + d.x0) / 2 + 1, xr = i == n - 1 ? b.x1 + 2 : (d.x1 + lv_mt_btn(i + 1).x0) / 2;
+    return {(int16_t)xl, (int16_t)(b.y0 - 10), (int16_t)xr, (int16_t)(b.y0 + 23)};
+}
+static LvRect lv_mt_prompt_draw(void) { const LvRect &b = lv_mt_box(); return {b.x0, (int16_t)(b.y0 + 24), b.x1, b.y1}; }
+static LvRect lv_mt_prompt_tap(void)
+{
+    const LvRect &b = lv_mt_box();
+    return {(int16_t)(b.x0 - 4), (int16_t)(b.y0 + 24), (int16_t)(b.x1 + 2), (int16_t)(lv_scr == LV_SC_SCAN ? 316 : 312)};
+}
+static const char *lv_mt_label(int i)
+{
+    if (lv_scr == LV_SC_CTL) { static const char *const L[2] = {"BLE", "SCAN"}; return i < 2 ? L[i] : 0; }
+    static const char *const L[3] = {"SCAN", "LIST", "HELP"}; return L[i];
+}
+static void lv_mt_icon(LvBand &B, int k, int x, int y)
+{
+    for (int r = 0; r < 10 && LV_MT_ICON[k][r]; ++r)
+        for (int c = 0; LV_MT_ICON[k][r][c]; ++c) if (LV_MT_ICON[k][r][c] == '#') b_pix(B, x + c, y + r, LV_MT_E);
+}
 static void lv_scene_minterm(LvBand &B, void *)
 {
-    const bool scan = lv_scr == LV_SC_SCAN;
+    const LvRect &bx = lv_mt_box();
+    const bool log = lv_scr == LV_SC_SCAN || lv_scr == LV_SC_TERM;
     b_fill(B, B.x0, B.y0, B.w, B.h, 0x0000);
-    const int x0 = scan ? 35 : 37, ry = scan ? 279 : 290, py = scan ? 299 : 296;
-    b_fill(B, x0, ry, scan ? 143 : 139, 1, lv_ink(LV_ACCD));
-    const int l1 = scan ? 281 : 273, l2 = scan ? 290 : 281;
-    char a[25], b2[25];
-    snprintf(a, sizeof a, "%s", lv_line_back(1)); snprintf(b2, sizeof b2, "%s", lv_line_back(0));
-    b_text(B, x0, l1, a, lv_hex(0xffffff));
-    b_text(B, x0, l2, b2, lv_hex(0xffffff));
+    const int T = bx.y0, x0 = bx.x0 + 3;
+    if (log) { char a[28]; snprintf(a, sizeof a, "%s", lv_line_back(0)); b_text(B, x0, T + 2, a, lv_hex(0xffffff)); }
+    else b_fill(B, 37, T + 6, 139, 1, lv_ink(LV_ACCD));   /* the clip's separator, kept where it was */
+    static const int IW[3] = {11, 12, 10}, IH[3] = {10, 8, 7};
+    for (int i = 0; i < lv_mt_n(); ++i) {
+        const LvRect r = lv_mt_btn(i); const int w = r.x1 - r.x0 + 1, h = r.y1 - r.y0 + 1;
+        b_fill(B, r.x0, r.y0, w, h, LV_MT_D); b_fill(B, r.x0 + 1, r.y0 + 1, w - 2, h - 2, 0x0000);
+        const char *lab = lv_mt_label(i); const int k = lv_scr == LV_SC_CTL ? i - 2 : i;
+        const int iw = k >= 0 ? IW[k] : 0, lw = lab ? (int)strlen(lab) * 6 - 1 : 0, gap = (iw && lw) ? 3 : 0;
+        int cx = r.x0 + (w - iw - gap - lw) / 2;
+        if (k >= 0) { lv_mt_icon(B, k, cx, r.y0 + 1 + (11 - IH[k]) / 2); cx += iw + gap; }
+        if (lab) b_text(B, cx, r.y0 + 3, lab, lv_ink(LV_ACC));
+    }
+    const int py = T + 25;
     int x = b_text(B, x0, py, LV_PROMPT, lv_hex(LV_PROMPT_INK));
-    const int maxc = (scan ? 182 : 181) - x - 8;
+    const int maxc = bx.x1 - 2 - x - 8;
     const char *in = lv_inb; int len = lv_inlen;
     if (len * 6 > maxc) in += len - maxc / 6;
     x = b_text(B, x, py, in, lv_hex(0xffffff));
@@ -1119,7 +1189,7 @@ static void lv_draw_backbot(LvBand &B, int x0, int y0)
 }
 
 /* ---------- live tints: state per id (item 1 chip colours, CTL face, BACKbot) ---------- */
-enum { LV_T_FLASH = 0, LV_T_SWIFI, LV_T_SBLE, LV_T_SBOT, LV_T_CFACE, LV_T_CLABEL, LV_T_BACK, LV_T_HUNT0 };
+enum { LV_T_FLASH = 0, LV_T_SWIFI, LV_T_SBLE, LV_T_SBOT, LV_T_CFACE, LV_T_CLABEL, LV_T_BACK, LV_T_BGREY, LV_T_SPILL, LV_T_HUNT0 };
 static bool lv_wifi_busy(void) { return lv_job == LV_J_WIFI || (lv_job == LV_J_ALL && lv_job_phase == 0); }
 static bool lv_ble_busy(void) { return lv_job == LV_J_BLE || (lv_job == LV_J_ALL && lv_job_phase == 1); }
 static bool lv_have(int kind) { for (int i = 0; i < lv_nf; ++i) if (lv_f[i].kind == kind) return true; return false; }
@@ -1134,6 +1204,8 @@ static LvTS lv_tint_state(int id)
     case LV_T_CFACE: if (lv_theme) s = {LV_TM_HUE, 0, LV_ACC[lv_theme], 0}; break;
     case LV_T_CLABEL: if (lv_theme) s = {LV_TM_RAW, 0, (uint32_t)lv_theme, 1}; break;
     case LV_T_BACK: s = {LV_TM_RAW, 0, (uint32_t)lv_backbot_face, 1}; break;
+    case LV_T_BGREY: s = {LV_TM_GREY, 0, 0, 0}; break;
+    case LV_T_SPILL: s = {LV_TM_RAW, 0, 0, 1}; break;
     default:
         if (id >= LV_T_HUNT0 && id < LV_T_HUNT0 + LV_NHUNT) {
             const int h = id - LV_T_HUNT0;
@@ -1147,6 +1219,11 @@ static const LvRect LV_R_CLABEL = {90, 188, 150, 198};
 static void lv_tint_deco(LvBand &B, int id, const LvTS &s)
 {
     if (id == LV_T_BACK) { lv_draw_backbot(B, LV_R_BACKBOT.x0, LV_R_BACKBOT.y0); return; }
+    if (id == LV_T_SPILL) {   /* old icon stack below the box: copy the clip's rails / pins from 12 px left (they repeat every 12) */
+        for (int y = B.y0; y < B.y0 + B.h; ++y)
+            for (int x = B.x0 + 12; x < B.x0 + B.w; ++x) B.px[(y - B.y0) * B.w + (x - B.x0)] = B.px[(y - B.y0) * B.w + (x - 12 - B.x0)];
+        return;
+    }
     if (id == LV_T_CLABEL) {   /* CONTROLbot's name plate follows the theme (it was baked as GRAPE) */
         const LvRect &r = LV_R_CLABEL;
         for (int y = r.y0; y <= r.y1; ++y) {
@@ -1158,26 +1235,34 @@ static void lv_tint_deco(LvBand &B, int id, const LvTS &s)
         b_text(B, (r.x0 + r.x1 + 1 - ((int)strlen(t) * 6 - 1)) / 2, r.y0 + 2, t, lv_hex(LV_ACC[s.col]));
     }
 }
+/* BOOTbot footprints (item 7) and the HOME chips as drawn (item 1: tap = drawn rect, padding comes from LV_PAD_HOME) */
+static const LvRect LV_R_BB_BOOT = {76, 58, 164, 182}, LV_R_BB_HOME = {30, 45, 75, 113};
+static const LvRect LV_HOME_CHIP[5] = {{31, 52, 74, 112}, {78, 30, 160, 150}, {165, 51, 208, 110}, {33, 156, 101, 255}, {139, 156, 207, 255}};
 static void lv_tint_setup(void)
 {
     lv_ntint = 0; lv_shadow_used = 0;
     const int s = lv_scr;
+    if (s == LV_SC_BOOT) lv_tint_add(LV_T_BGREY, LV_R_BB_BOOT);           /* item 7: the big BOOTbot */
+    if (s == LV_SC_HOME_INTRO) lv_tint_add(LV_T_BGREY, LV_R_BB_HOME);     /* item 7: the BOOTbot chip */
     if (s == LV_SC_HOME) {
-        static const LvRect R[] = {{18, 22, 50, 62}, {68, 20, 158, 130}, {170, 20, 205, 75}, {18, 135, 105, 215}, {115, 135, 205, 215}, {182, 272, 202, 311}};
-        for (const LvRect &r : R) lv_tint_add(LV_T_FLASH, r);
+        /* item 1: the drawn chips (measured on the home clip; the old rects were the pre-v2 layout, ~13 px left / 29 px up) */
+        lv_tint_add(LV_T_BGREY, LV_R_BB_HOME);   /* BOOTbot chip: grey (item 7) + press flash */
+        for (int i = 1; i < 5; ++i) lv_tint_add(LV_T_FLASH, LV_HOME_CHIP[i]);
+        lv_tint_add(LV_T_SPILL, LV_R_SPILL_T);
     } else if (s == LV_SC_SCAN) {
         lv_tint_add(LV_T_SWIFI, {32, 30, 74, 92}); lv_tint_add(LV_T_SBLE, {32, 93, 74, 152}); lv_tint_add(LV_T_SBOT, {78, 30, 165, 150});
-        lv_tint_add(LV_T_FLASH, {166, 58, 208, 122}); lv_tint_add(LV_T_FLASH, {184, 274, 205, 316});
+        lv_tint_add(LV_T_FLASH, {166, 58, 208, 122}); lv_tint_add(LV_T_SPILL, LV_R_SPILL_S);
     } else if (s == LV_SC_TERM) {
         static const LvRect HOT[LV_NHUNT] = {{35, 30, 70, 80}, {170, 30, 205, 80}, {35, 87, 70, 137}, {170, 87, 205, 137}, {35, 145, 70, 195},
                                              {170, 145, 205, 195}, {35, 200, 70, 250}, {80, 200, 115, 250}, {124, 200, 160, 250}, {170, 200, 205, 250}};
         for (int h = 0; h < LV_NHUNT; ++h) lv_tint_add(LV_T_HUNT0 + h, HOT[h]);
-        lv_tint_add(LV_T_FLASH, {75, 30, 165, 150}); lv_tint_add(LV_T_FLASH, {183, 272, 204, 311});
+        lv_tint_add(LV_T_FLASH, {75, 30, 165, 150}); lv_tint_add(LV_T_SPILL, LV_R_SPILL_T);
     } else if (s == LV_SC_CTL) {
         lv_tint_add(LV_T_CFACE, {95, 103, 145, 160}); lv_tint_add(LV_T_CLABEL, LV_R_CLABEL);
         static const LvRect R[] = {{35, 85, 70, 140}, {35, 145, 70, 190}, {35, 195, 70, 250}, {165, 80, 205, 130}, {170, 131, 205, 170},
-                                   {165, 175, 207, 237}, {90, 212, 160, 258}, {160, 238, 208, 258}, {35, 33, 113, 79}, {183, 272, 204, 311}};
+                                   {165, 175, 207, 237}, {90, 212, 159, 258}, {160, 238, 208, 258}, {35, 33, 113, 79}};
         for (const LvRect &r : R) lv_tint_add(LV_T_FLASH, r);
+        lv_tint_add(LV_T_SPILL, LV_R_SPILL_T);
     }
     if (s == LV_SC_SCAN || s == LV_SC_TERM || s == LV_SC_CTL) lv_tint_add(LV_T_BACK, LV_R_BACKBOT);
 }
@@ -1187,7 +1272,7 @@ static void lv_set_masks(void)
     if (lv_scr == LV_SC_BOOT || lv_scr == LV_SC_HOME_INTRO || lv_scr == LV_SC_CAL || lv_scr == LV_SC_TTY || lv_scr == LV_SC_RADAR) return;
     lv_masks[lv_nmask++] = LV_R_TICK;
     if (lv_scr == LV_SC_SCAN) { lv_masks[lv_nmask++] = LV_R_SBOX; lv_masks[lv_nmask++] = LV_R_STERM; }
-    if (lv_scr == LV_SC_TERM) lv_masks[lv_nmask++] = LV_R_TTERM;
+    if (lv_scr == LV_SC_TERM || lv_scr == LV_SC_HOME || lv_scr == LV_SC_CTL) lv_masks[lv_nmask++] = LV_R_TTERM;
     if (lv_scr == LV_SC_CTL) {
         lv_masks[lv_nmask++] = LV_R_CTHEME; lv_masks[lv_nmask++] = LV_R_CUP; lv_masks[lv_nmask++] = LV_R_CFOCUS; lv_masks[lv_nmask++] = LV_R_CMOTION;
         for (int i = 0; i < 7; ++i) lv_masks[lv_nmask++] = LV_CTL_BADGE[i].r;
@@ -1474,7 +1559,7 @@ static void lv_paint_overlays(bool all)
         if (all || lv_dirty_box) { lv_render(lv_blit, LV_R_SBOX, lv_scene_box, 0); lv_dirty_box = false; }
         if (all || lv_dirty_term) { lv_render(lv_blit, LV_R_STERM, lv_scene_minterm, 0); lv_dirty_term = false; }
     }
-    if (lv_scr == LV_SC_TERM && (all || lv_dirty_term)) { lv_render(lv_blit, LV_R_TTERM, lv_scene_minterm, 0); lv_dirty_term = false; }
+    if ((lv_scr == LV_SC_TERM || lv_scr == LV_SC_HOME || lv_scr == LV_SC_CTL) && (all || lv_dirty_term)) { lv_render(lv_blit, LV_R_TTERM, lv_scene_minterm, 0); lv_dirty_term = false; }
     if (lv_scr == LV_SC_CTL && (all || lv_dirty_ctl)) {
         lv_render(lv_blit, LV_R_CTHEME, lv_scene_ctl, 0); lv_render(lv_blit, LV_R_CUP, lv_scene_ctl, 0);
         lv_render(lv_blit, LV_R_CFOCUS, lv_scene_ctl, 0); lv_render(lv_blit, LV_R_CMOTION, lv_scene_ctl, 0);
@@ -1562,7 +1647,7 @@ static void lv_tick(const LkIo &io, uint32_t now)
     }
     const bool all = lv_enter && (lv_scr == LV_SC_TTY || lv_play.shown >= 0);
     if (all) lv_enter = false;
-    if (lv_scr == LV_SC_TERM && (now / 500) != ((now - 30) / 500)) lv_dirty_term = true;
+    if ((lv_scr == LV_SC_TERM || lv_scr == LV_SC_HOME || lv_scr == LV_SC_CTL) && (now / 500) != ((now - 30) / 500)) lv_dirty_term = true;
     if (lv_scr == LV_SC_TTY && (now / 400) != ((now - 30) / 400)) lv_dirty_tty = true;
     if (lv_scr == LV_SC_TTY && (lv_hunt >= 0 || lv_hunt_last >= 0) && lv_job != LV_J_NONE && (now / 90) != ((now - 30) / 90)) lv_dirty_tty = true; /* banner sweep */
     if (lv_key_hl >= 0 && (int32_t)(now - lv_key_hl_t) > 120) { lv_key_hl = -1; lv_dirty_kbd = true; }
@@ -1603,20 +1688,51 @@ static const char *lv_back(void)
     lv_go_soon(LV_SC_HOME, 0); return "backbot-home";
 }
 #define LV_TAP(R) (lv_in(R, x, y) && (lv_press(R), true))
+#define LV_TAPD(R, D) (lv_in(R, x, y) && (lv_press(D), true))   /* tap rect R, highlight only the drawn element D (item 5) */
+
+/* item 11: the small terminal's button row + prompt. Returns the action name, or 0 if (x,y) is not on them. */
+static const char *lv_mt_hit(int x, int y)
+{
+    int b = -1;
+    for (int i = 0; i < lv_mt_n(); ++i) if (LV_TAPD(lv_mt_tap(i), lv_mt_btn(i))) b = i;
+    if (b < 0) {
+        if (!LV_TAPD(lv_mt_prompt_tap(), lv_mt_prompt_draw())) return 0;
+        lv_go_soon(0, ""); return lv_scr == LV_SC_HOME ? "home-tty" : "tty";
+    }
+    switch (lv_scr) {
+    case LV_SC_HOME:
+        if (b == 0) { lv_scan_mix(); lv_go_soon(LV_SC_SCAN, 0); return "home-crosshair-scan"; }
+        lv_go_soon(0, b == 1 ? "list" : "help"); return b == 1 ? "home-list" : "home-menu-help";
+    case LV_SC_TERM:
+        lv_go_soon(0, b == 0 ? "scan" : b == 1 ? "list" : "help"); return b == 0 ? "term-crosshair-scan" : b == 1 ? "term-list" : "term-menu-help";
+    case LV_SC_SCAN:
+        if (b == 0) { lv_scan_view(0, LV_J_ALL); return "crosshair-scan-all"; }
+        lv_go_soon(0, b == 1 ? "list" : "help"); return b == 1 ? "list" : "menu-help";
+    default:   /* CTL */
+        if (b == 0) { lv_go_soon(0, "go ble"); return "go-ble"; }
+        if (b == 1) { lv_go_soon(LV_SC_SCAN, 0); return "go-scan"; }
+        if (b == 2) { lv_scan_mix(); lv_go_soon(LV_SC_SCAN, 0); return "ctl-crosshair-scan"; }
+        lv_go_soon(0, b == 3 ? "list" : "help"); return b == 3 ? "ctl-list" : "ctl-menu-help";
+    }
+}
 
 /* Touch padding (hit-list item 1): a tap that lands in no target but within LV_TAP_PAD px of one or more is
  * moved onto the target whose centre is nearest, so every target grows ~8 px without any two overlapping.
  * Draw rects are untouched; only the tap point moves. */
 #define LV_TAP_PAD 8
-static const LvRect LV_PAD_HOME[] = {{18, 22, 50, 62}, {68, 20, 158, 130}, {170, 20, 205, 75}, {18, 135, 105, 215}, {115, 135, 205, 215},
-                                     {182, 272, 202, 285}, {182, 286, 202, 298}, {182, 299, 202, 311}, {30, 262, 181, 312}};
+/* the terminal-box rows below mirror lv_mt_tap / lv_mt_prompt_tap (T = 272; SCAN T = 275) */
+static const LvRect LV_PAD_HOME[] = {{31, 52, 74, 112}, {78, 30, 160, 150}, {165, 51, 208, 110}, {33, 156, 101, 255}, {139, 156, 207, 255},
+                                     {30, 262, 90, 295}, {91, 262, 147, 295}, {148, 262, 206, 295}, {30, 296, 206, 312}};
 static const LvRect LV_PAD_CTL[] = {{35, 33, 113, 48}, {35, 49, 113, 63}, {35, 64, 113, 79}, {165, 175, 207, 237}, {160, 238, 208, 258},
                                     {35, 85, 70, 140}, {35, 145, 70, 190}, {35, 195, 70, 250}, {165, 80, 205, 130}, {170, 131, 205, 170},
-                                    {90, 212, 160, 258}, {183, 272, 204, 285}, {183, 286, 204, 297}, {183, 298, 204, 311}, {33, 262, 181, 310},
-                                    {75, 82, 164, 205}};
+                                    {90, 212, 159, 258}, {30, 262, 68, 295}, {69, 262, 102, 295}, {103, 262, 136, 295}, {137, 262, 170, 295},
+                                    {171, 262, 206, 295}, {30, 296, 206, 312}, {75, 82, 164, 205}};
 static const LvRect LV_PAD_TERM[] = {{35, 30, 70, 80}, {170, 30, 205, 80}, {35, 87, 70, 137}, {170, 87, 205, 137}, {35, 145, 70, 195},
                                      {170, 145, 205, 195}, {35, 200, 70, 250}, {80, 200, 115, 250}, {124, 200, 160, 250}, {170, 200, 205, 250},
-                                     {183, 272, 204, 285}, {183, 286, 204, 297}, {183, 298, 204, 311}, {75, 30, 165, 150}, {34, 272, 181, 305}};
+                                     {30, 262, 90, 295}, {91, 262, 147, 295}, {148, 262, 206, 295}, {30, 296, 206, 312}, {75, 30, 165, 150}};
+static const LvRect LV_PAD_SCAN[] = {{32, 30, 74, 92}, {32, 93, 74, 152}, {78, 30, 165, 150}, {166, 58, 208, 122}, {174, 165, 203, 206},
+                                     {174, 210, 203, 252}, {33, 153, 206, 256}, {28, 265, 90, 298}, {91, 265, 148, 298}, {149, 265, 208, 298},
+                                     {28, 299, 208, 316}};
 static void lv_pad_snap(const LvRect *R, int n, int &x, int &y)
 {
     int best = -1; long bd = 0;
@@ -1663,16 +1779,14 @@ static const char *lv_tap(int x, int y)
     if (lv_scr == LV_SC_HOME) LV_PAD(LV_PAD_HOME);
     else if (lv_scr == LV_SC_CTL) LV_PAD(LV_PAD_CTL);
     else if (lv_scr == LV_SC_TERM) LV_PAD(LV_PAD_TERM);
+    else if (lv_scr == LV_SC_SCAN) LV_PAD(LV_PAD_SCAN);
     if (lv_scr == LV_SC_HOME) {
-        if (LV_TAP(((LvRect){18, 22, 50, 62}))) { lv_selftest_pending = true; lv_go_soon(LV_SC_BOOT, 0); return "boot-selftest"; }
-        if (LV_TAP(((LvRect){68, 20, 158, 130}))) { lv_go_soon(LV_SC_RADAR, 0); return "gibson-jackin-radar"; }
-        if (LV_TAP(((LvRect){170, 20, 205, 75}))) { lv_go_soon(LV_SC_CTL, 0); return "ctl"; }
-        if (LV_TAP(((LvRect){18, 135, 105, 215}))) { lv_go_soon(LV_SC_SCAN, 0); return "scan"; }
-        if (LV_TAP(((LvRect){115, 135, 205, 215}))) { lv_go_soon(LV_SC_TERM, 0); return "term"; }
-        if (LV_TAP(((LvRect){182, 272, 202, 285}))) { lv_scan_mix(); lv_go_soon(LV_SC_SCAN, 0); return "home-crosshair-scan"; }
-        if (LV_TAP(((LvRect){182, 286, 202, 298}))) { lv_go_soon(0, "list"); return "home-list"; }
-        if (LV_TAP(((LvRect){182, 299, 202, 311}))) { lv_go_soon(0, "help"); return "home-menu-help"; }
-        if (LV_TAP(((LvRect){30, 262, 181, 312}))) { lv_go_soon(0, ""); return "home-tty"; }
+        if (LV_TAP(LV_HOME_CHIP[0])) { lv_selftest_pending = true; lv_go_soon(LV_SC_BOOT, 0); return "boot-selftest"; }
+        if (LV_TAP(LV_HOME_CHIP[1])) { lv_go_soon(LV_SC_RADAR, 0); return "gibson-jackin-radar"; }
+        if (LV_TAP(LV_HOME_CHIP[2])) { lv_go_soon(LV_SC_CTL, 0); return "ctl"; }
+        if (LV_TAP(LV_HOME_CHIP[3])) { lv_go_soon(LV_SC_SCAN, 0); return "scan"; }
+        if (LV_TAP(LV_HOME_CHIP[4])) { lv_go_soon(LV_SC_TERM, 0); return "term"; }
+        if (const char *a = lv_mt_hit(x, y)) return a;
         return "none";
     }
     if (lv_scr == LV_SC_TERM) {
@@ -1680,10 +1794,8 @@ static const char *lv_tap(int x, int y)
                                              {170, 145, 205, 195}, {35, 200, 70, 250}, {80, 200, 115, 250}, {124, 200, 160, 250}, {170, 200, 205, 250}};
         for (int h = 0; h < LV_NHUNT; ++h)
             if (LV_TAP(HOT[h])) { char c[24]; snprintf(c, sizeof c, "sweep %s", LV_HUNT_NAME[h]); lv_go_soon(0, c); return LV_HUNT_NAME[h]; }
-        if (LV_TAP(((LvRect){183, 272, 204, 285}))) { lv_go_soon(0, "scan"); return "term-crosshair-scan"; }
-        if (LV_TAP(((LvRect){183, 286, 204, 297}))) { lv_go_soon(0, "list"); return "term-list"; }
-        if (LV_TAP(((LvRect){183, 298, 204, 311}))) { lv_go_soon(0, "help"); return "term-menu-help"; }
-        if (LV_TAP(LV_R_TTERM) || LV_TAP(((LvRect){75, 30, 165, 150}))) { lv_go_soon(0, ""); return "tty"; }
+        if (const char *a = lv_mt_hit(x, y)) return a;
+        if (LV_TAP(((LvRect){75, 30, 165, 150}))) { lv_go_soon(0, ""); return "tty"; }
         return "none";
     }
     if (lv_scr == LV_SC_SCAN) {
@@ -1728,15 +1840,12 @@ static const char *lv_tap(int x, int y)
             }
             return "none";
         }
-        if (LV_TAP(((LvRect){184, 274, 205, 290}))) { lv_scan_view(0, LV_J_ALL); return "crosshair-scan-all"; }
-        if (LV_TAP(((LvRect){184, 291, 205, 302}))) { lv_go_soon(0, "list"); return "list"; }
-        if (LV_TAP(((LvRect){184, 303, 205, 316}))) { lv_go_soon(0, "help"); return "menu-help"; }
-        if (LV_TAP(LV_R_STERM)) { lv_go_soon(0, ""); return "tty"; }
+        if (const char *a = lv_mt_hit(x, y)) return a;
         return "none";
     }
     if (lv_scr == LV_SC_CTL) {
         auto ev = [](const char *n, const char *v) { lv_event(false, "%s: %s", n, v); lv_tk_off = 1 << 14; lv_dirty_ctl = true; };
-        if (LV_TAP(((LvRect){35, 33, 113, 48}))) { lv_set_theme(lv_theme + 1); lv_go(LV_SC_CTL); lv_press({35, 33, 113, 48}); ev("THEME", LV_THEME_NAME[lv_theme]); return "theme"; }
+        if (LV_TAP(((LvRect){35, 33, 113, 48}))) { if (lv_theme_bounce()) return "theme-debounce"; lv_set_theme(lv_theme + 1); lv_go(LV_SC_CTL); lv_press({35, 33, 113, 48}); ev("THEME", LV_THEME_NAME[lv_theme]); return "theme"; }
         if (LV_TAP(((LvRect){35, 49, 113, 63}))) { char h[48] = ""; lv_radio->sys(0, h, sizeof h); lv_event(false, "UP %lus  %s", (unsigned long)(lv_now / 1000), h); lv_tk_off = 1 << 14; return "uptime"; }
         if (LV_TAP(((LvRect){35, 64, 113, 79}))) { lv_focus = (lv_focus + 1) % 4; lv_tk_item = 0; ev("TICKER FOCUS", LV_FOCUS_NAME[lv_focus]); return "focus"; }
         if (LV_TAP(((LvRect){165, 175, 207, 237}))) { lv_auto = (lv_auto + 1) % 3; lv_auto_t = lv_now; ev("MULTI AUTO SCAN", LV_AUTO_NAME[lv_auto]); return "multi"; }
@@ -1746,17 +1855,12 @@ static const char *lv_tap(int x, int y)
         if (LV_TAP(((LvRect){35, 195, 70, 250}))) { lv_speed = (lv_speed + 1) % 3; ev("MASHUP TICKER", LV_SPEED_NAME[lv_speed]); return "mashup"; }
         if (LV_TAP(((LvRect){165, 80, 205, 130}))) { lv_rain = !lv_rain; ev("RAIN", LV_ONOFF[lv_rain]); return "rain"; }
         if (LV_TAP(((LvRect){170, 131, 205, 170}))) { lv_rainmode = (lv_rainmode + 1) % 3; ev("RAIN MODE", LV_RAINMODE_NAME[lv_rainmode]); return "rain-mode"; }
-        if (LV_TAP(((LvRect){90, 212, 160, 258}))) {
+        if (LV_TAP(((LvRect){90, 212, 159, 258}))) {
             lv_flip = !lv_flip; if (lv_radio->set_rot) lv_radio->set_rot(lv_flip);
             lv_go(LV_SC_CTL); lv_event(false, "ORIENT: %s", LV_FLIP_NAME[lv_flip]); lv_tk_off = 1 << 14; return "orient";
         }
-        if (LV_TAP(((LvRect){183, 272, 204, 285}))) { lv_scan_mix(); lv_go_soon(LV_SC_SCAN, 0); return "ctl-crosshair-scan"; }
-        if (LV_TAP(((LvRect){183, 286, 204, 297}))) { lv_go_soon(0, "list"); return "ctl-list"; }
-        if (LV_TAP(((LvRect){183, 298, 204, 311}))) { lv_go_soon(0, "help"); return "ctl-menu-help"; }
-        if (LV_TAP(((LvRect){33, 272, 180, 284}))) { lv_go_soon(0, "go ble"); return "go-ble"; }
-        if (LV_TAP(((LvRect){33, 285, 180, 293}))) { lv_go_soon(LV_SC_SCAN, 0); return "go-scan"; }
-        if (LV_TAP(((LvRect){33, 262, 181, 310}))) { lv_go_soon(0, ""); return "tty"; }
-        if (LV_TAP(((LvRect){75, 82, 164, 205}))) { lv_set_theme(lv_theme + 1); lv_go(LV_SC_CTL); lv_press({75, 82, 164, 205}); ev("THEME", LV_THEME_NAME[lv_theme]); return "ctl-face-theme"; }
+        if (const char *a = lv_mt_hit(x, y)) return a;
+        if (LV_TAP(((LvRect){75, 82, 164, 205}))) { if (lv_theme_bounce()) return "theme-debounce"; lv_set_theme(lv_theme + 1); lv_go(LV_SC_CTL); lv_press({75, 82, 164, 205}); ev("THEME", LV_THEME_NAME[lv_theme]); return "ctl-face-theme"; }
         return "none";
     }
     return "none";

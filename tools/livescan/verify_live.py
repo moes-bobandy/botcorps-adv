@@ -14,15 +14,16 @@ def clipfile(seg):
     if c == 4: return [f for f in os.listdir(CACHE) if f.startswith('8cc9946c')][0]
     return CLIP[c] + '.npy'
 TICK = [(24, 1, 127, 23), (164, 1, 236, 23)]
-MASK = {2: TICK, 3: TICK + [(34, 272, 181, 305)], 4: TICK + [(36, 188, 203, 253), (32, 275, 182, 308)],
-        5: TICK + [(82, 36, 112, 44), (76, 51, 112, 59), (82, 66, 112, 74), (178, 246, 198, 252)], 0: [], 1: []}
+TTERM = (34, 272, 204, 305)   # item 11: the small terminal (buttons + prompt) is live on HOME/TERM/CTL; SCAN box below
+MASK = {2: TICK + [TTERM], 3: TICK + [TTERM], 4: TICK + [(36, 188, 203, 253), (32, 275, 206, 308)],
+        5: TICK + [(82, 36, 112, 44), (76, 51, 112, 59), (82, 66, 112, 74), (178, 246, 198, 252), TTERM], 0: [], 1: []}
 OLD_TICK_ONLY = TICK   # strict = the baseline masks above (pre-hitlist overlays only)
 def ovl_rects(out, nm):  # overlay-aware = strict masks + every live overlay the sim reports for that dump (masks, lit tints, BACKbot, press flash)
     m = re.search(r'^OVL %s((?: \S+)*)$' % re.escape(nm), out, re.M)
     if not m: return []
     return [(tok.split(':')[0],) + tuple(int(v) for v in tok.split(':')[1].split(',')) for tok in m.group(1).split()]
 TAG = {'t1': 'WiFi chip lit', 't2': 'BLE chip lit', 't3': 'SCANbot lit', 't4': 'CONTROLbot face theme', 't5': 'CONTROLbot name plate',
-       't6': 'BACKbot', 'f': 'press flash'}
+       't6': 'BACKbot', 't7': 'BOOTbot black+grey (item 7)', 't8': 'terminal pin rail under old icon column (item 11)', 'f': 'press flash'}
 def tagname(t, r):
     if t == 'm':
         return {(1, 1, 238, 23): 'ticker full width (crown+GIBSON icon removed)', (33, 153, 206, 256): 'SCAN emoji grid (4 tabs removed)'}.get(r, 'live value mask %s' % (r,))

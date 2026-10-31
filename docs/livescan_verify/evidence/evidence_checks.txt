@@ -1,0 +1,29 @@
+== item 5 press brighten (after = this tree, before = d9f0461 haze)
+  chip (HOME SCANbot)  drawn (33, 156, 101, 255)  changed px 4666  outside drawn 0  luma x1.32 (x1.35 on px below the white knee)  hue drift mean 1.1 deg max 3.1  distinct colours 16 -> 16  (d9 haze changed 7128 px, bbox (18, 135, 105, 215))
+  list row             drawn (34, 154, 172, 255)  changed px 1659  outside drawn 0  luma x1.20 (x1.35 on px below the white knee)  hue drift mean 1.8 deg max 2.4  distinct colours 12 -> 11  (d9 haze changed 14129 px, bbox (34, 154, 172, 255))
+  CTL toggle RAIN      drawn (165, 80, 205, 130)  changed px 543  outside drawn 0  luma x1.28 (x1.34 on px below the white knee)  hue drift mean 1.7 deg max 4.1  distinct colours 8 -> 8  (d9 haze changed 2095 px, bbox (107, 52, 205, 130))
+  BACKbot              drawn (221, 301, 239, 319)  changed px 253  outside drawn 0  luma x1.20 (x1.35 on px below the white knee)  hue drift mean 1.1 deg max 2.4  distinct colours 10 -> 10  (d9 haze changed 361 px, bbox (221, 301, 239, 319))
+wrote item5_press_before_after_6x.png (3608, 3288)
+wrote item2_tty_backbot_before_after_6x.png (648, 246)
+wrote item3_ctl_toggle_on_off_6x.png (1304, 660)
+wrote item3_ctl_mix_6x.png (1184, 456)
+item3 RAIN on toggle region px differing d9 vs now: 713
+item3 RAIN off toggle region px differing d9 vs now: 914
+item3 now RAIN on->off px changed in toggle: 551 (d9: 278)
+wrote item4_ctl_face_theme_3x.png (2960, 1020)
+item6 SIM_FWPAL=1 (pre-fix cache) vs SIM_FWPAL=2 (fixed) scan_detail: 6839 px differ, bbox (0, 0, 239, 319)
+wrote item6_fwpal_scan_detail_3x.png (1488, 1020)
+== item 7 BOOTbot white->grey
+  boot frame 30: 3005 px changed, bbox (78, 60, 161, 179), before colours [(231, 239, 247), (255, 255, 255)] -> after colours [(156, 158, 156), (198, 195, 198)]
+  intro frame 120: 695 px changed, bbox (32, 51, 73, 110), before colours [(231, 239, 255), (255, 255, 255)] -> after colours [(156, 158, 156), (198, 195, 198)]
+  home frame 300: 312 px changed, bbox (40, 65, 66, 106), before colours [(231, 239, 255), (255, 255, 255)] -> after colours [(156, 158, 156), (198, 195, 198)]
+wrote item7_bootbot_grey_before_after.png (1104, 2380)
+wrote item9_hunt_on_lists_3x.png (2224, 1020)
+item11 home: px changed outside the terminal box 312 (before = aee6495 WIP render)
+item11 term: px changed outside the terminal box 0 (before = aee6495 WIP render)
+item11 scan: px changed outside the terminal box 0 (before = aee6495 WIP render)
+item11 ctl: px changed outside the terminal box 4 (before = aee6495 WIP render)
+wrote item11_terminal_box_before_after_3x.png (1170, 924)
+wrote item11_terminal_box_after_6x.png (1154, 836)
+wrote item11_box_all_themes_3x.png (2324, 697)
+wrote item8_radar_keyframes_3x.png (2960, 2024)

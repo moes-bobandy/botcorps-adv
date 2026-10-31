@@ -1,0 +1,83 @@
+tick 67
+tick 40
+dump e_boot
+tick 150
+dump e_home
+tap 67 205
+dump e_p_chip
+tick 10
+dump e_scan
+tap 187 185
+dump e_p_scanbtn
+tick 260
+dump e_grid
+tap 55 179
+tick 5
+dump e_list
+tap 100 182
+dump e_p_row
+tick 5
+dump e_row_sel
+tap 100 182
+tick 5
+dump e_detail_wifi
+tap 222 296
+dump e_p_backbot
+tick 5
+tap 222 296
+tick 5
+tap 87 179
+tick 5
+tap 100 182
+tick 5
+tap 100 182
+tick 5
+dump e_detail_ble
+tap 222 296
+tick 5
+tap 222 296
+tick 5
+tap 121 179
+tick 5
+tap 100 182
+tick 5
+tap 100 182
+tick 5
+dump e_detail_cat3
+tap 222 296
+tick 5
+tap 222 296
+tick 5
+tap 222 296
+tick 10
+tap 187 80
+tick 10
+dump e_ctl
+tap 185 105
+dump e_p_rain
+tick 10
+dump e_ctl_rain_off
+tap 185 105
+tick 10
+dump e_ctl_rain_on
+tap 120 140
+tick 3
+dump e_ctl_face_theme1
+tap 120 140
+tick 10
+dump e_ctl_after_bounce
+tap 70 40
+tick 3
+dump e_ctl_bar_theme2
+tick 10
+tap 120 140
+tick 10
+dump e_ctl_theme0
+tap 222 296
+tick 10
+tap 120 300
+tick 10
+dump e_tty
+tap 217 10
+tick 10
+log

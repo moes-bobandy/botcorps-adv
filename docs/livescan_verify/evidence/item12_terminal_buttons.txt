@@ -1,0 +1,17 @@
+Item 12/13: small-terminal buttons -> destination (lv_mt_hit, src/live/lv_core.h; tap rects from touch/touch_audit.txt)
+screen  button          tap bbox (px)          action / destination
+HOME    crosshair SCAN  {22,254,91,303} 70x50  lv_scan_mix() -> SCAN screen (mixed WiFi+BLE list)
+HOME    LIST            {90,254,149,295} 60x42 TTY, runs `list` (tracked/target list)
+HOME    HELP            {148,254,215,303} 68x50 TTY, runs `help`
+HOME    prompt row      {22,296,215,319} 194x24 TTY (empty prompt)
+TERM    crosshair SCAN  {22,254,91,303}        TTY, runs `scan`
+TERM    LIST / HELP     as HOME                TTY, runs `list` / `help`
+SCAN    crosshair       {20,258,91,307} 72x50  SCAN view ALL (stays on SCAN)
+SCAN    LIST / HELP     {90,258,149,299}/{150,258,217,299}  TTY `list` / `help`
+CTL     BLE             {22,254,69,303} 48x50  TTY, runs `go ble`
+CTL     SCAN            {68,254,103,295} 36x42 SCAN screen
+CTL     crosshair       {104,260,137,295} 34x36 lv_scan_mix() -> SCAN
+CTL     LIST / HELP     {138,260,171,295} 34x36 / {172,260,215,303} 44x44  TTY `list` / `help`
+CTL     prompt row      {22,296,209,319} 188x24 TTY
+RADAR   terminal row (item 13) {0,288,239,319} 240x32 = read-only radar footer terminal (shows radar/hunt log, tap swallowed); BACKbot {210,290,239,319} 30x30 -> HOME
+All tap rects >= 34x36 except prompt rows (20-24 px tall, full box width). Dead taps inside drawn rects: 0.

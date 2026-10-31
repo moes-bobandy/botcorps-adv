@@ -3,6 +3,6 @@ OVL calbot_recal_1
 DUMP calbot_timeout_kept scr=7 seg=-1 clipframe=-1 t=16600
 OVL calbot_timeout_kept
 DUMP calbot_timeout_then_boot scr=0 seg=0 clipframe=11 t=18000
-OVL calbot_timeout_then_boot
-px pushed by overlays: 637026
-SHADOW peak 0 of 32768 bytes
+OVL calbot_timeout_then_boot t7:76,58,164,182
+px pushed by overlays: 648151
+SHADOW peak 11125 of 32768 bytes

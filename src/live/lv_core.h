@@ -54,6 +54,8 @@ struct LvRadio {
     void (*save_theme)(int t);
     bool (*cal_save)(const uint16_t c8[8]);     /* apply the 8-point matrix + write NVS c0..c7, cv LAST; true = saved */
     void (*set_rot)(int flip);                   /* 0 = normal (setRotation 2, USB at the bottom), 1 = flipped (rot 0); saved */
+    int (*mac_load)(const char *key, uint8_t *out, int max);        /* radar IGNORE / WATCH lists (6 bytes per MAC), NVS */
+    void (*mac_save)(const char *key, const uint8_t *macs, int n);
 };
 
 enum LvScr { LV_SC_BOOT, LV_SC_HOME_INTRO, LV_SC_HOME, LV_SC_TERM, LV_SC_SCAN, LV_SC_CTL, LV_SC_TTY, LV_SC_CAL, LV_SC_RADAR };
@@ -77,7 +79,7 @@ static const LvRect LV_R_STERM = {32, 275, 182, 308}; /* SCANbot terminal box in
 static const LvRect LV_R_TTERM = {34, 272, 181, 305}; /* TERMINALbot terminal box inner */
 static const LvRect LV_R_CTHEME = {82, 36, 112, 44}, LV_R_CUP = {76, 51, 112, 59}, LV_R_CFOCUS = {82, 66, 112, 74};
 static const LvRect LV_R_CMOTION = {178, 246, 198, 252};
-static const LvRect LV_R_TTY_TICK = {0, 0, 203, 23};
+static const LvRect LV_R_TTY_TICK = {0, 0, 239, 23}; /* full width; BACKbot paints on top in CLOSE slot */
 static const LvRect LV_R_TTY_BODY = {0, 24, 239, 173}, LV_R_TTY_OUT = {1, 37, 238, 160};
 static const LvRect LV_R_KBD = {0, 174, 239, 319};
 #define LV_TTY_LINES 13
@@ -335,6 +337,12 @@ static int lv_view(int *idx) /* finds shown in the SCANbot box for lv_mode */
 }
 
 /* ---------- jobs ---------- */
+/* GIBSON radar hunt (lv_radar.h, item 8) */
+static bool lv_rd_is_trk(void);
+static void lv_rd_track_done(void);
+static bool lv_rd_hunt_tk(void);
+static void lv_rd_hunt_open(int i, int from);
+static int lv_rd_unignore(const char *a);
 static const char *lv_job_name(int j) { return j == LV_J_WIFI ? "WIFI" : j == LV_J_BLE ? "BLE" : j == LV_J_ALL ? "WIFI+BLE" : j == LV_J_DEAUTH ? "DEAUTH WATCH" : "-"; }
 static void lv_hunt_report(void);
 static void lv_job_start(int job, int hunt)
@@ -346,7 +354,7 @@ static void lv_job_start(int job, int hunt)
     if (job == LV_J_WIFI || job == LV_J_ALL) { lv_print("> scan wifi: radio on, scanning"); r = lv_radio->wifi_start(); }
     else if (job == LV_J_BLE) { lv_print("> scan ble: NimBLE on, 5 s active scan"); r = lv_radio->ble_start(5000); }
     else if (job == LV_J_DEAUTH) { lv_print("> deauth watch: passive, 10 s, ch hop"); r = lv_radio->deauth_start(10000); lv_deauth_have = false; }
-    if (r != 0) { lv_print("radio start failed (%d)", r); lv_job = LV_J_NONE; lv_event(true, "RADIO START FAILED"); }
+    if (r != 0) { char h[64]; lv_radio->sys(0, h, sizeof h); lv_print("radio start failed (%d) %s", r, h); lv_job = LV_J_NONE; lv_event(true, "RADIO START FAILED (%d)", r); }
     lv_tk_off = 1 << 14; /* show SCANNING now */
     lv_dirty_box = true;
 }
@@ -378,11 +386,12 @@ static void lv_job_tick(void)
     const int r = wifi_phase ? lv_radio->wifi_poll(lv_tmp, LV_MAXF) : lv_radio->ble_poll(lv_tmp, LV_MAXF);
     if (r < 0) return;
     lv_store(wifi_phase ? LV_K_WIFI : LV_K_BLE, lv_tmp, r);
+    if (lv_rd_is_trk()) { lv_job = LV_J_NONE; lv_rd_track_done(); return; }   /* radar hunt re-scan: no SCAN DONE event */
     lv_print("%s: %d found (%lu ms), radio off", wifi_phase ? "wifi" : "ble", r, (unsigned long)(lv_now - lv_job_t0));
     if (lv_job == LV_J_ALL && lv_job_phase == 0) {
         lv_job_phase = 1; lv_job_t0 = lv_now;
         lv_print("> scan ble: NimBLE on, 5 s active scan");
-        if (lv_radio->ble_start(5000) != 0) { lv_print("ble start failed"); lv_job = LV_J_NONE; }
+        if (lv_radio->ble_start(5000) != 0) { char h[64]; lv_radio->sys(0, h, sizeof h); lv_print("ble start failed %s", h); lv_job = LV_J_NONE; lv_event(true, "RADIO START FAILED (BLE)"); }
         lv_dirty_box = true;
         return;
     }
@@ -452,7 +461,9 @@ static void lv_info(int i)
 }
 static const char *const LV_HELP[] = {
     "scan [all|wifi|ble]  wifi  ble  stop",
-    "hunt <dev>   deauth|sniff   stop",
+    "hunt [name|mac|n] radar hunt  stop",
+    "sweep <dev>  deauth|sniff",
+    "ignored  unignore [mac|all]",
     "list [wifi|ble]   info <n>",
     "filter <all|wifi|ble>",
     "go <home|scan|term|ctl|radar|boot|wifi|ble>",
@@ -479,12 +490,36 @@ static void lv_cmd(const char *line)
     else if (IS("ble") || IS("bt")) lv_job_start(LV_J_BLE, -1);
     else if (IS("deauth") || IS("sniff")) lv_job_start(LV_J_DEAUTH, LV_H_DEAUTH);
     else if (IS("stop")) lv_job_stop();
-    else if (IS("hunt")) {
+    else if (IS("hunt")) {   /* item 10: opens the GIBSON radar hunt (was: category sweep, now 'sweep <dev>') */
+        if (!a1) { lv_print("hunt: radar - tap empty = next, hold a tower 1 s = lock"); lv_go(LV_SC_RADAR); }
+        else {
+            const char *q = line; while (*q == ' ') ++q; while (*q && *q != ' ') ++q; while (*q == ' ') ++q;   /* raw arg, keeps ':' */
+            int best = -1;
+            const bool num = a1[0] >= '0' && a1[0] <= '9' && !strchr(a1, ':') && strlen(a1) <= 2;
+            if (num) { const int n = atoi(a1); if (n >= 0 && n < lv_nf) best = n; }   /* 'list' row number */
+            for (int i = 0; best < 0 && i < lv_nf; ++i) {   /* lv_f is strongest-first, so the first match is the best */
+                char m[18], m2[13]; lv_macstr(lv_f[i].mac, m);
+                snprintf(m2, sizeof m2, "%02x%02x%02x%02x%02x%02x", lv_f[i].mac[0], lv_f[i].mac[1], lv_f[i].mac[2], lv_f[i].mac[3], lv_f[i].mac[4], lv_f[i].mac[5]);
+                char l[34]; lv_label(lv_f[i], l, sizeof l);
+                if (lv_has(lv_f[i].name, q) || lv_has(l, q) || lv_has(m, q) || lv_has(m2, q) || lv_has(LV_ICON_NAME[lv_f[i].icon], q)) best = i;
+            }
+            if (best < 0) {
+                lv_print("hunt %s: NO MATCH in %d tracked", q, lv_nf);
+                lv_go(LV_SC_RADAR);
+                lv_event(false, "HUNT %s: NO MATCH (%d TRACKED)", q, lv_nf); lv_tk_off = 1 << 14;
+            } else {
+                char l[34]; lv_label(lv_f[best], l, sizeof l); lv_print("hunt #%d %s %ddBm", best, l, lv_f[best].rssi);
+                lv_rd_hunt_open(best, LV_SC_TTY);
+            }
+        }
+    }
+    else if (IS("sweep")) {   /* the old 'hunt <dev>' category sweep (TERMINALbot tiles use it) */
         int h = -1;
         for (int k = 0; a1 && k < LV_NHUNT; ++k) if (!strcmp(a1, LV_HUNT_NAME[k]) || (!strcmp(a1, "air") && k == LV_H_AIRTAG)) h = k;
-        if (h < 0) { lv_print("hunt what? airtag samsung flipper flock"); lv_print("  drone meta skimmer hack keyfob deauth"); }
-        else { lv_print("hunt %s: %s", LV_HUNT_NAME[h], LV_HUNT_DESC[h]); lv_job_start(LV_HUNT_JOB[h], h); }
+        if (h < 0) { lv_print("sweep what? airtag samsung flipper flock"); lv_print("  drone meta skimmer hack keyfob deauth"); }
+        else { lv_print("sweep %s: %s", LV_HUNT_NAME[h], LV_HUNT_DESC[h]); lv_job_start(LV_HUNT_JOB[h], h); }
     }
+    else if (IS("unignore") || IS("ignored")) { const int n = lv_rd_unignore(IS("ignored") ? "?" : a1); if (n >= 0 && !IS("ignored")) lv_print("unignored %d", n); }
     else if (IS("list") || IS("ls")) lv_list(!a1 ? 0 : !strcmp(a1, "wifi") ? 1 : 2);
     else if (IS("info")) { if (a1) lv_info(atoi(a1)); else lv_sysinfo(); }
     else if (IS("filter")) { lv_mode = !a1 ? 0 : !strcmp(a1, "wifi") ? 1 : (!strcmp(a1, "ble") || !strcmp(a1, "bt")) ? 2 : 0; lv_page = 0; lv_sel = -1; lv_dirty_box = true; lv_print("SCANbot view: %s", lv_mode == 1 ? "WIFI" : lv_mode == 2 ? "BT" : "ALL"); }
@@ -666,6 +701,7 @@ static int lv_matches(void) { int m = 0; for (int i = 0; i < lv_nf; ++i) if (lv_
 static void lv_tk_next(void)
 {
     lv_tk_off = 0;
+    if (lv_rd_hunt_tk()) return;   /* radar HUNT: the target's live line stays on the ticker */
     if (lv_job != LV_J_NONE) {
         lv_tk_alert = false;
         if (lv_hunt >= 0) {       /* D: name the hunter + the target first, then what it is doing */
@@ -791,7 +827,8 @@ static void lv_scene_box(LvBand &B, void *)
         else snprintf(r, sizeof r, "TAP ROW=INFO  2X=DETAIL");
         b_text35(B, 57, 166, r, hdr);
         lv_button(B, LV_R_BTN_SCAN, busy ? "STOP" : "SCAN", true);
-        lv_button(B, LV_R_BTN_MORE, "MORE", nr > 8);
+        if (lv_detail && lv_sel >= 0 && lv_sel < nr) lv_button(B, LV_R_BTN_MORE, "HUNT", true);   /* item 9: detail -> radar hunt */
+        else lv_button(B, LV_R_BTN_MORE, "MORE", nr > 8);
         if (lv_detail && lv_sel >= 0 && lv_sel < nr) {
             const LvFind &f = lv_f[rows[lv_sel]];
             char t[48], m[18]; lv_macstr(f.mac, m);
@@ -876,8 +913,9 @@ static void lv_scene_minterm(LvBand &B, void *)
  * The selected value is always spelled out in white on the theme accent, so the choice can't be missed. */
 struct LvCtlBadge { LvRect r; const char *name; };
 static const LvCtlBadge LV_CTL_BADGE[7] = {
-    {{36, 141, 69, 147}, "MIX"}, {{36, 187, 69, 193}, "RAIN COL"}, {{36, 251, 69, 257}, "MASHUP"},
-    {{166, 132, 204, 138}, "RAIN"}, {{166, 166, 204, 172}, "RAIN MODE"}, {{179, 226, 207, 237}, "MULTI"}, {{96, 247, 160, 256}, "ORIENT"}};
+    /* Taller value strips (was 7 px — owner: toggles showed no visible change). Still inside each chip's foot. */
+    {{36, 134, 69, 147}, "MIX"}, {{36, 180, 69, 193}, "RAIN COL"}, {{36, 244, 69, 257}, "MASHUP"},
+    {{166, 125, 204, 138}, "RAIN"}, {{166, 159, 204, 172}, "RAIN MODE"}, {{166, 220, 207, 237}, "MULTI"}, {{90, 242, 160, 256}, "ORIENT"}};
 static const char *lv_ctl_val(int i)
 {
     switch (i) {
@@ -889,8 +927,9 @@ static const char *lv_ctl_val(int i)
 static void lv_badge(LvBand &B, const LvRect &r, const char *v, bool on)
 {
     const int w = r.x1 - r.x0 + 1, h = r.y1 - r.y0 + 1;
-    b_fill(B, r.x0, r.y0, w, h, on ? lv_hex(LV_ACC[0]) : lv_hex(0x303030));
-    b_text35(B, r.x0 + (w - lv_w35(v)) / 2, r.y0 + 1, v, on ? lv_hex(0xffffff) : lv_hex(0x909090));
+    b_fill(B, r.x0, r.y0, w, h, on ? lv_hex(LV_ACC[lv_theme]) : lv_hex(0x202020));
+    b_frame(B, r.x0, r.y0, w, h, on ? lv_hex(0xffffff) : lv_hex(0x606060));
+    b_text35(B, r.x0 + (w - lv_w35(v)) / 2, r.y0 + (h - 5) / 2, v, on ? lv_hex(0xffffff) : lv_hex(0xb0b0b0));
 }
 static void lv_scene_ctl(LvBand &B, void *)
 {
@@ -902,11 +941,11 @@ static void lv_scene_ctl(LvBand &B, void *)
     else if (lv_in(LV_R_CFOCUS, B.x0, B.y0)) { snprintf(t, sizeof t, "%s", LV_FOCUS_NAME[lv_focus]); b_fill(B, B.x0, B.y0, B.w, B.h, lv_hex(LV_ACC[0])); b_text(B, 112 - (int)strlen(t) * 6 + 1, 67, t, lv_hex(0xffffff)); }
     else if (lv_in(LV_R_CMOTION, B.x0, B.y0)) { b_fill(B, B.x0, B.y0, B.w, B.h, lv_hex(0x000707)); lv_badge(B, {178, 246, 198, 252}, lv_motion ? "ON" : "OFF", lv_motion); }
     else for (int i = 0; i < 7; ++i) if (lv_in(LV_CTL_BADGE[i].r, B.x0, B.y0)) {
-        if (i == 5) {   /* MULTI: the chip's status LED goes green while auto re-scan is on, value beside it */
+        if (i == 5) {   /* MULTI: status LED + value strip spanning the badge rect */
             b_fill(B, B.x0, B.y0, B.w, B.h, 0);
-            b_fill(B, 180, 228, 10, 8, lv_auto ? lv_hex(0x20ff40) : lv_hex(0xff3048));
-            b_frame(B, 180, 228, 10, 8, lv_auto ? lv_hex(0xb0ffb8) : lv_hex(0xff9aa6));
-            lv_badge(B, {192, 228, 207, 235}, lv_ctl_val(5), lv_auto != 0);
+            b_fill(B, 168, 222, 12, 12, lv_auto ? lv_hex(0x20ff40) : lv_hex(0xff3048));
+            b_frame(B, 168, 222, 12, 12, lv_auto ? lv_hex(0xb0ffb8) : lv_hex(0xff9aa6));
+            lv_badge(B, {182, 222, 207, 235}, lv_ctl_val(5), lv_auto != 0);
         } else if (i == 6) {   /* ORIENT: both choices, the active one lit (replaces the old LAND / PORT legend) */
             const LvRect &r = LV_CTL_BADGE[6].r; const int h = r.x0 + (r.x1 - r.x0 + 1) / 2;
             lv_badge(B, {r.x0, r.y0, (int16_t)(h - 1), r.y1}, "PORT", !lv_flip); lv_badge(B, {(int16_t)(h + 1), r.y0, r.x1, r.y1}, "FLIP", lv_flip);
@@ -1170,6 +1209,11 @@ static uint32_t lv_flash_t = 0;
 static int lv_soon_kind = 0, lv_soon_scr = 0; static char lv_soon_cmd[32]; static uint32_t lv_soon_t = 0;
 static void lv_go(int s)
 {
+    const int prev = lv_scr;
+    if (prev == LV_SC_RADAR && s != LV_SC_RADAR) lv_radar_leave();   /* leaving releases a lock and ends a hunt */
+    /* item 14: tear the radio down when heading home so no scan/deauth/hunt is left running across screens */
+    if (prev != s && lv_job != LV_J_NONE && (s == LV_SC_HOME || s == LV_SC_HOME_INTRO || s == LV_SC_BOOT)) lv_job_stop();
+    if (s == LV_SC_RADAR && prev != LV_SC_RADAR) { lv_rd_from = prev; if (prev == LV_SC_SCAN) lv_rd_save_scan(); }
     lv_scr = s; lv_enter = true;
     lv_key_hl = -1; lv_flash_r = {0, 0, -1, -1}; lv_soon_kind = 0;
     switch (s) {
@@ -1182,6 +1226,7 @@ static void lv_go(int s)
     default: lv_play.seg = -1; break;   /* TTY, CAL, RADAR draw themselves */
     }
     if (s == LV_SC_RADAR) lv_radar_enter();
+    if (prev == LV_SC_RADAR && s == LV_SC_SCAN) lv_rd_restore_scan();
     lv_set_masks(); lv_tint_setup();
     lv_dirty_box = lv_dirty_term = lv_dirty_ctl = lv_dirty_tty = lv_dirty_kbd = true;
 }
@@ -1197,7 +1242,7 @@ static int lv_period(void) { return lv_scr == LV_SC_CTL ? 90 : 30; }
  * the mean of the middle 16. The four chip centres are fitted with a least-squares affine screen->raw map and
  * extrapolated to the TRUE corners, so NVS keeps exactly the old 8-point LovyanGFX matrix (botcorps c0..c7, cv). */
 #include "lv_calbot_art.h"
-static const int16_t LV_CAL_PT[4][2] = {{52, 55}, {187, 55}, {187, 226}, {52, 226}};   /* chip centres TL TR BR BL */
+static const int16_t LV_CAL_PT[4][2] = {{52, 51}, {187, 51}, {187, 222}, {52, 222}};   /* face centres TL TR BR BL (match LVC_EL face1..4) */
 static const char *const LV_CAL_NAME[4] = {"TOP LEFT", "TOP RIGHT", "BOTTOM RIGHT", "BOTTOM LEFT"};
 enum { LV_CAL_NVS = 0, LV_CAL_RUN = 1, LV_CAL_OK = 2, LV_CAL_KEPT = 3 };
 #define LV_CAL_NS 32                         /* samples per hold, >= 45 ms apart, hold done at 1.5 s */
@@ -1409,13 +1454,20 @@ static void lv_selftest(void)
     lv_event(false, "SELF TEST OK  %s", LV_VERSION);
 }
 
-static void lv_scene_backbot_tty(LvBand &B, void *) { b_fill(B, B.x0, B.y0, B.w, B.h, 0); lv_draw_backbot(B, LV_R_BACKBOT_TTY.x1 + 1 - BACKBOT_W, LV_R_BACKBOT_TTY.y0 + (24 - BACKBOT_H) / 2); }
+static void lv_scene_backbot_tty(LvBand &B, void *)
+{
+    /* Band is the 19x19 bot footprint only (see paint). Do not black-fill the old 36x24 hit slot — that was the shade. */
+    lv_draw_backbot(B, B.x0, B.y0);
+}
 static void lv_paint_overlays(bool all)
 {
     if (lv_scr == LV_SC_TTY) {
         if (all || lv_dirty_tty) { lv_render(lv_blit, LV_R_TTY_BODY, lv_scene_tty, 0); lv_dirty_tty = false; }
         if (all || lv_dirty_kbd) { lv_render(lv_blit, LV_R_KBD, lv_scene_kbd, 0); lv_dirty_kbd = false; }
-        if (all) lv_render(lv_blit, LV_R_BACKBOT_TTY, lv_scene_backbot_tty, 0);
+        if (all) {
+            const int bx = LV_R_BACKBOT_TTY.x1 + 1 - BACKBOT_W, by = LV_R_BACKBOT_TTY.y0 + (24 - BACKBOT_H) / 2;
+            lv_render(lv_blit, {(int16_t)bx, (int16_t)by, (int16_t)(bx + BACKBOT_W - 1), (int16_t)(by + BACKBOT_H - 1)}, lv_scene_backbot_tty, 0);
+        }
         return;
     }
     if (lv_scr == LV_SC_SCAN) {
@@ -1436,7 +1488,11 @@ static void lv_flash_repaint(const LvRect &r)
 {
     if (lv_scr == LV_SC_RADAR) return;   /* redrawn every frame */
     for (int t = 0; t < lv_ntint; ++t) if (lv_rect_hit(lv_tints[t].r, r)) lv_tint_paint(t);
-    if (lv_scr == LV_SC_TTY) { if (lv_rect_hit(LV_R_BACKBOT_TTY, r)) lv_render(lv_blit, LV_R_BACKBOT_TTY, lv_scene_backbot_tty, 0); }
+    if (lv_scr == LV_SC_TTY) {
+        const int bx = LV_R_BACKBOT_TTY.x1 + 1 - BACKBOT_W, by = LV_R_BACKBOT_TTY.y0 + (24 - BACKBOT_H) / 2;
+        const LvRect br = {(int16_t)bx, (int16_t)by, (int16_t)(bx + BACKBOT_W - 1), (int16_t)(by + BACKBOT_H - 1)};
+        if (lv_rect_hit(br, r)) lv_render(lv_blit, br, lv_scene_backbot_tty, 0);
+    }
     if (lv_rect_hit(LV_R_SBOX, r)) lv_dirty_box = true;
     if (lv_rect_hit(LV_R_STERM, r) || lv_rect_hit(LV_R_TTERM, r)) lv_dirty_term = true;
     if (lv_scr == LV_SC_CTL) lv_dirty_ctl = true;
@@ -1455,7 +1511,7 @@ static void lv_go_soon(int scr, const char *tty_cmd)   /* navigate after the fla
 }
 
 /* public API */
-/* cal_valid: a cv=2 8-point cal is already in NVS (and was applied at display begin). flip: NVS ORIENT setting. */
+/* cal_valid: a cv=3 8-point cal (cv 3: targets moved to face centres, forces one recal) is already in NVS (and was applied at display begin). flip: NVS ORIENT setting. */
 static void lv_begin(const LvRadio *radio, lv_blit_fn blit, lk_draw_fn raw_draw, int theme, uint32_t now, bool cal_valid)
 {
     lv_radio = radio; lv_blit = blit; lv_raw_draw = raw_draw;
@@ -1539,6 +1595,7 @@ static void lv_scan_view(int mode, int job) { lv_mode = mode; lv_cat = LV_CAT_GR
 static const char *lv_back(void)
 {
     if (lv_scr == LV_SC_TTY) { lv_go_soon(lv_tty_from == LV_SC_TTY ? LV_SC_HOME : lv_tty_from, 0); return "backbot-tty"; }
+    if (lv_scr == LV_SC_RADAR) { const int f = lv_rd_from; lv_go_soon(f == LV_SC_RADAR || f == LV_SC_BOOT || f == LV_SC_HOME_INTRO || f == LV_SC_CAL ? LV_SC_HOME : f, 0); return "backbot-radar"; }
     if (lv_scr == LV_SC_SCAN && lv_cat != LV_CAT_GRID) {
         if (lv_detail) { lv_detail = false; lv_dirty_box = true; return "backbot-detail->list"; }
         lv_cat = LV_CAT_GRID; lv_sel = -1; lv_dirty_box = true; return "backbot-list->grid";
@@ -1546,6 +1603,39 @@ static const char *lv_back(void)
     lv_go_soon(LV_SC_HOME, 0); return "backbot-home";
 }
 #define LV_TAP(R) (lv_in(R, x, y) && (lv_press(R), true))
+
+/* Touch padding (hit-list item 1): a tap that lands in no target but within LV_TAP_PAD px of one or more is
+ * moved onto the target whose centre is nearest, so every target grows ~8 px without any two overlapping.
+ * Draw rects are untouched; only the tap point moves. */
+#define LV_TAP_PAD 8
+static const LvRect LV_PAD_HOME[] = {{18, 22, 50, 62}, {68, 20, 158, 130}, {170, 20, 205, 75}, {18, 135, 105, 215}, {115, 135, 205, 215},
+                                     {182, 272, 202, 285}, {182, 286, 202, 298}, {182, 299, 202, 311}, {30, 262, 181, 312}};
+static const LvRect LV_PAD_CTL[] = {{35, 33, 113, 48}, {35, 49, 113, 63}, {35, 64, 113, 79}, {165, 175, 207, 237}, {160, 238, 208, 258},
+                                    {35, 85, 70, 140}, {35, 145, 70, 190}, {35, 195, 70, 250}, {165, 80, 205, 130}, {170, 131, 205, 170},
+                                    {90, 212, 160, 258}, {183, 272, 204, 285}, {183, 286, 204, 297}, {183, 298, 204, 311}, {33, 262, 181, 310},
+                                    {75, 82, 164, 205}};
+static const LvRect LV_PAD_TERM[] = {{35, 30, 70, 80}, {170, 30, 205, 80}, {35, 87, 70, 137}, {170, 87, 205, 137}, {35, 145, 70, 195},
+                                     {170, 145, 205, 195}, {35, 200, 70, 250}, {80, 200, 115, 250}, {124, 200, 160, 250}, {170, 200, 205, 250},
+                                     {183, 272, 204, 285}, {183, 286, 204, 297}, {183, 298, 204, 311}, {75, 30, 165, 150}, {34, 272, 181, 305}};
+static void lv_pad_snap(const LvRect *R, int n, int &x, int &y)
+{
+    int best = -1; long bd = 0;
+    for (int i = 0; i < n; ++i) {
+        if (lv_in(R[i], x, y)) return;   /* direct hit: never moved */
+        const LvRect p = {(int16_t)(R[i].x0 - LV_TAP_PAD), (int16_t)(R[i].y0 - LV_TAP_PAD), (int16_t)(R[i].x1 + LV_TAP_PAD), (int16_t)(R[i].y1 + LV_TAP_PAD)};
+        if (!lv_in(p, x, y)) continue;
+        const long dx = 2 * x - (R[i].x0 + R[i].x1), dy = 2 * y - (R[i].y0 + R[i].y1), d = dx * dx + dy * dy;
+        if (best < 0 || d < bd) { best = i; bd = d; }
+    }
+    if (best < 0) return;
+    const LvRect &r = R[best];
+    x = x < r.x0 ? r.x0 : x > r.x1 ? r.x1 : x;
+    y = y < r.y0 ? r.y0 : y > r.y1 ? r.y1 : y;
+}
+#define LV_PAD(T) lv_pad_snap(T, (int)(sizeof T / sizeof T[0]), x, y)
+
+/* Touch state every loop (portrait coords, down = finger on glass). Only the radar uses it (hold to lock on). */
+static void lv_touch(bool down, int x, int y) { if (lv_scr == LV_SC_RADAR) lv_radar_touch(down, x, y); }
 
 /* Tap at portrait (x,y). Returns a short name of what it did (for logs / the sim). */
 static const char *lv_tap(int x, int y)
@@ -1570,6 +1660,9 @@ static const char *lv_tap(int x, int y)
     if (lv_scr == LV_SC_RADAR && y > 23) return y >= LV_RD_Y0 ? lv_radar_tap(x, y) : "none";
     /* ticker (full width now: crown + GIBSON icon removed) -> SCANbot, all finds */
     if (y <= 23) { lv_press(LV_R_TICK); lv_mode = 0; lv_cat = LV_CAT_GRID; lv_dirty_box = true; if (lv_scr != LV_SC_SCAN) lv_go_soon(LV_SC_SCAN, 0); return "ticker->scan"; }
+    if (lv_scr == LV_SC_HOME) LV_PAD(LV_PAD_HOME);
+    else if (lv_scr == LV_SC_CTL) LV_PAD(LV_PAD_CTL);
+    else if (lv_scr == LV_SC_TERM) LV_PAD(LV_PAD_TERM);
     if (lv_scr == LV_SC_HOME) {
         if (LV_TAP(((LvRect){18, 22, 50, 62}))) { lv_selftest_pending = true; lv_go_soon(LV_SC_BOOT, 0); return "boot-selftest"; }
         if (LV_TAP(((LvRect){68, 20, 158, 130}))) { lv_go_soon(LV_SC_RADAR, 0); return "gibson-jackin-radar"; }
@@ -1579,18 +1672,18 @@ static const char *lv_tap(int x, int y)
         if (LV_TAP(((LvRect){182, 272, 202, 285}))) { lv_scan_mix(); lv_go_soon(LV_SC_SCAN, 0); return "home-crosshair-scan"; }
         if (LV_TAP(((LvRect){182, 286, 202, 298}))) { lv_go_soon(0, "list"); return "home-list"; }
         if (LV_TAP(((LvRect){182, 299, 202, 311}))) { lv_go_soon(0, "help"); return "home-menu-help"; }
-        if (LV_TAP(((LvRect){30, 262, 181, 312}))) { lv_go_soon(0, 0); return "home-tty"; }
+        if (LV_TAP(((LvRect){30, 262, 181, 312}))) { lv_go_soon(0, ""); return "home-tty"; }
         return "none";
     }
     if (lv_scr == LV_SC_TERM) {
         static const LvRect HOT[LV_NHUNT] = {{35, 30, 70, 80}, {170, 30, 205, 80}, {35, 87, 70, 137}, {170, 87, 205, 137}, {35, 145, 70, 195},
                                              {170, 145, 205, 195}, {35, 200, 70, 250}, {80, 200, 115, 250}, {124, 200, 160, 250}, {170, 200, 205, 250}};
         for (int h = 0; h < LV_NHUNT; ++h)
-            if (LV_TAP(HOT[h])) { char c[24]; snprintf(c, sizeof c, "hunt %s", LV_HUNT_NAME[h]); lv_go_soon(0, c); return LV_HUNT_NAME[h]; }
+            if (LV_TAP(HOT[h])) { char c[24]; snprintf(c, sizeof c, "sweep %s", LV_HUNT_NAME[h]); lv_go_soon(0, c); return LV_HUNT_NAME[h]; }
         if (LV_TAP(((LvRect){183, 272, 204, 285}))) { lv_go_soon(0, "scan"); return "term-crosshair-scan"; }
         if (LV_TAP(((LvRect){183, 286, 204, 297}))) { lv_go_soon(0, "list"); return "term-list"; }
         if (LV_TAP(((LvRect){183, 298, 204, 311}))) { lv_go_soon(0, "help"); return "term-menu-help"; }
-        if (LV_TAP(LV_R_TTERM) || LV_TAP(((LvRect){75, 30, 165, 150}))) { lv_go_soon(0, 0); return "tty"; }
+        if (LV_TAP(LV_R_TTERM) || LV_TAP(((LvRect){75, 30, 165, 150}))) { lv_go_soon(0, ""); return "tty"; }
         return "none";
     }
     if (lv_scr == LV_SC_SCAN) {
@@ -1605,6 +1698,7 @@ static const char *lv_tap(int x, int y)
         }
         if (LV_TAP(LV_R_BTN_MORE)) {
             if (lv_cat == LV_CAT_DEAUTH) { lv_cat = LV_CAT_GRID; lv_dirty_box = true; return "deauth-back"; }
+            if (lv_cat >= 0 && lv_detail) { int r[LV_MAXF]; const int n = lv_cat_rows(r); if (lv_sel >= 0 && lv_sel < n) { lv_rd_hunt_open(r[lv_sel], LV_SC_SCAN); return "detail-hunt"; } }
             if (lv_cat >= 0) { int r[LV_MAXF]; const int n = lv_cat_rows(r); lv_cpage = n > 8 ? (lv_cpage + 1) % ((n + 7) / 8) : 0; lv_sel = -1; lv_detail = false; lv_dirty_box = true; return "more-rows"; }
             LvCatInfo c[LV_IC_N]; const int n = lv_cats(c); lv_page = n > 11 ? (lv_page + 1) % ((n + 10) / 11) : 0; lv_dirty_box = true; return "more-types";
         }
@@ -1637,7 +1731,7 @@ static const char *lv_tap(int x, int y)
         if (LV_TAP(((LvRect){184, 274, 205, 290}))) { lv_scan_view(0, LV_J_ALL); return "crosshair-scan-all"; }
         if (LV_TAP(((LvRect){184, 291, 205, 302}))) { lv_go_soon(0, "list"); return "list"; }
         if (LV_TAP(((LvRect){184, 303, 205, 316}))) { lv_go_soon(0, "help"); return "menu-help"; }
-        if (LV_TAP(LV_R_STERM)) { lv_go_soon(0, 0); return "tty"; }
+        if (LV_TAP(LV_R_STERM)) { lv_go_soon(0, ""); return "tty"; }
         return "none";
     }
     if (lv_scr == LV_SC_CTL) {
@@ -1661,8 +1755,8 @@ static const char *lv_tap(int x, int y)
         if (LV_TAP(((LvRect){183, 298, 204, 311}))) { lv_go_soon(0, "help"); return "ctl-menu-help"; }
         if (LV_TAP(((LvRect){33, 272, 180, 284}))) { lv_go_soon(0, "go ble"); return "go-ble"; }
         if (LV_TAP(((LvRect){33, 285, 180, 293}))) { lv_go_soon(LV_SC_SCAN, 0); return "go-scan"; }
-        if (LV_TAP(((LvRect){33, 262, 181, 310}))) { lv_go_soon(0, 0); return "tty"; }
-        if (LV_TAP(((LvRect){75, 82, 164, 205}))) { lv_go_soon(0, "status"); return "ctl-status"; }
+        if (LV_TAP(((LvRect){33, 262, 181, 310}))) { lv_go_soon(0, ""); return "tty"; }
+        if (LV_TAP(((LvRect){75, 82, 164, 205}))) { lv_set_theme(lv_theme + 1); lv_go(LV_SC_CTL); lv_press({75, 82, 164, 205}); ev("THEME", LV_THEME_NAME[lv_theme]); return "ctl-face-theme"; }
         return "none";
     }
     return "none";

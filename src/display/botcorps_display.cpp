@@ -184,7 +184,7 @@ void botcorps_cyd_load_touch_cal(void)
     if (!prefs.begin("botcorps", true)) return;
     if (prefs.getUChar("tcal", 0) != 1) { prefs.end(); return; }
     /* Prefer 8-point if present */
-    if (prefs.isKey("c0") && prefs.getUChar("cv", 0) == 2) {
+    if (prefs.isKey("c0") && prefs.getUChar("cv", 0) == 3) {
         uint16_t cal[8];
         bool ok = true;
         for (int i = 0; i < 8; ++i) {
@@ -221,7 +221,7 @@ bool botcorps_cyd_has_valid_cal(void)
 {
     Preferences prefs;
     if (!prefs.begin("botcorps", true)) return false;
-    if (prefs.getUChar("tcal", 0) != 1 || prefs.getUChar("cv", 0) != 2)
+    if (prefs.getUChar("tcal", 0) != 1 || prefs.getUChar("cv", 0) != 3)
         { prefs.end(); return false; }
     uint16_t vals[8];
     for (int i = 0; i < 8; ++i) {
@@ -362,7 +362,7 @@ bool botcorps_cyd_run_touch_cal(void)
         snprintf(key, sizeof(key), "c%d", i);
         if (!prefs.putUShort(key, cal[i])) ok = false;
     }
-    if (ok && !prefs.putUChar("cv", 2)) ok = false; /* cv LAST so partial can't pass */
+    if (ok && !prefs.putUChar("cv", 3)) ok = false; /* cv LAST so partial can't pass */
     prefs.end();
     if (!ok) {
         Serial.println("[botcorps] cal NVS put failed");

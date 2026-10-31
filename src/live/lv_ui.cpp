@@ -40,17 +40,9 @@ static int lv_infl(const uint8_t *src, uint32_t len, uint8_t *dst, uint32_t cap)
     return st == TINFL_STATUS_DONE ? (int)out : -1;
 }
 
-static void ui_raw_draw(int y, int x, int n, const uint8_t *idx)
-{
-    for (int i = 0; i < n; ++i) s_line[i] = s_pal[idx[i]];
-    g_cyd.pushImage(x, y, n, 1, (const lgfx::swap565_t *)s_line);
-}
-
-static void ui_blit(int x, int y, int w, int h, const uint16_t *px)
-{
-    g_cyd.pushImage(x, y, w, h, (const lgfx::rgb565_t *)px);
-}
-
+/* s_pal mirrors the palette of the clip now playing. lv_go() (also run from inside lv_tick via lv_go_soon)
+ * switches clips mid-tick, so the cache is re-validated on every raw draw, not only before lv_tick/lv_tap:
+ * a stale cache painted the new clip's keyframe with the old clip's palette (home chips "inverted"). */
 static void lv_use_pal(void)
 {
     const int c = lk_clip_of_seg(lv_play.seg);
@@ -63,8 +55,21 @@ static void lv_use_pal(void)
     }
 }
 
+static void ui_raw_draw(int y, int x, int n, const uint8_t *idx)
+{
+    lv_use_pal();
+    for (int i = 0; i < n; ++i) s_line[i] = s_pal[idx[i]];
+    g_cyd.pushImage(x, y, n, 1, (const lgfx::swap565_t *)s_line);
+}
+
+static void ui_blit(int x, int y, int w, int h, const uint16_t *px)
+{
+    g_cyd.pushImage(x, y, w, h, (const lgfx::rgb565_t *)px);
+}
+
 static const LkIo s_io{lk_blob_live, lv_infl, lv_clip_draw, s_buf};
 
+static bool s_tdown = false; static int s_tx = 0, s_ty = 0;   /* live finger state for lv_touch (radar hold-to-lock) */
 static bool lv_read_tap(int *ox, int *oy)
 {
     static bool down_prev = false;
@@ -72,6 +77,7 @@ static bool lv_read_tap(int *ox, int *oy)
     static uint32_t upt = 0;
     int tx, ty;
     const bool down = g_cyd.getTouch(&tx, &ty);
+    s_tdown = down; if (down) { s_tx = tx; s_ty = ty; }
     if (down) {
         if (!down_prev) { down_prev = true; n = 0; }
         px[0] = px[1]; py[0] = py[1]; px[1] = tx; py[1] = ty; ++n; up = 0;
@@ -97,6 +103,21 @@ enum { JOB_NONE, JOB_WIFI, JOB_BLE, JOB_DEAUTH };
 static int s_job = JOB_NONE;
 static uint32_t s_job_end = 0;
 
+/* item 14: every radio start goes through these. Root cause of "RADIO START FAILED" on SCANbot DEAUTH WATCH:
+ * WiFi.disconnect(true, false) = wifioff -> STA.end() turned the STA interface back OFF right after WiFi.mode(WIFI_STA).
+ * scanNetworks() re-enables STA itself (WiFiScan.cpp: WiFi.enableSTA(true)) so scans worked, but the deauth path went
+ * straight to esp_wifi_set_promiscuous(true) on a stopped driver -> error -> -1 -> banner. */
+static void ble_off(void);
+static bool wifi_up(const char *tag)
+{
+    if (NimBLEDevice::isInitialized()) ble_off();   /* one radio at a time (no coex juggling, frees the BLE heap first) */
+    WiFi.persistent(false);
+    if (WiFi.getMode() != WIFI_STA && !WiFi.mode(WIFI_STA)) { Serial.printf("[live] %s: WiFi.mode(STA) failed\n", tag); heap_log(tag); return false; }
+    WiFi.disconnect(false, false);   /* drop any association, keep STA (and the driver) up */
+    wifi_mode_t m = WIFI_MODE_NULL; const esp_err_t e = esp_wifi_get_mode(&m);
+    if (e != ESP_OK || m != WIFI_MODE_STA) { Serial.printf("[live] %s: esp_wifi_get_mode err=0x%x (%s) mode=%d\n", tag, (unsigned)e, esp_err_to_name(e), (int)m); heap_log(tag); return false; }
+    return true;
+}
 static void wifi_off(void)
 {
     esp_wifi_set_promiscuous(false);
@@ -126,10 +147,8 @@ static int r_wifi_start(void)
 {
     if (s_job != JOB_NONE) r_stop();
     heap_log("wifi-pre");
-    WiFi.persistent(false);
-    WiFi.mode(WIFI_STA);
-    WiFi.disconnect(true, false);
-    if (WiFi.scanNetworks(true, true) == WIFI_SCAN_FAILED) { wifi_off(); return -1; }
+    if (!wifi_up("wifi-start")) { wifi_off(); return -2; }
+    if (WiFi.scanNetworks(true, true) == WIFI_SCAN_FAILED) { Serial.println("[live] wifi-start: scanNetworks FAILED"); heap_log("wifi-fail"); wifi_off(); return -1; }
     s_job = JOB_WIFI;
     return 0;
 }
@@ -165,13 +184,14 @@ static int r_ble_start(uint32_t ms)
 {
     if (s_job != JOB_NONE) r_stop();
     heap_log("ble-pre");
-    NimBLEDevice::init("");
+    if (WiFi.getMode() != WIFI_OFF) wifi_off();   /* one radio at a time */
+    if (!NimBLEDevice::isInitialized() && !NimBLEDevice::init("")) { Serial.println("[live] ble-start: NimBLEDevice::init FAILED"); heap_log("ble-fail"); return -2; }
     NimBLEScan *sc = NimBLEDevice::getScan();
     sc->setActiveScan(true);
     sc->setInterval(100);
     sc->setWindow(99);
     sc->setMaxResults(LV_MAXF);
-    if (!sc->start(ms, false, true)) { ble_off(); return -1; }
+    if (!sc->start(ms, false, true)) { Serial.println("[live] ble-start: scan start FAILED"); heap_log("ble-fail"); ble_off(); return -1; }
     s_job = JOB_BLE;
     s_job_end = millis() + ms + 1500;
     return 0;
@@ -235,14 +255,13 @@ static int r_deauth_start(uint32_t ms)
 {
     if (s_job != JOB_NONE) r_stop();
     heap_log("deauth-pre");
-    WiFi.persistent(false);
-    WiFi.mode(WIFI_STA);
-    WiFi.disconnect(true, false);
+    if (!wifi_up("deauth-start")) { wifi_off(); return -2; }
     s_deauth = 0; s_mgmt = 0; s_ch = 1; s_hop = millis() + 250;
     wifi_promiscuous_filter_t flt = {.filter_mask = WIFI_PROMIS_FILTER_MASK_MGMT};
     esp_wifi_set_promiscuous_filter(&flt);
     esp_wifi_set_promiscuous_rx_cb(promisc_cb);
-    if (esp_wifi_set_promiscuous(true) != ESP_OK) { wifi_off(); return -1; }
+    const esp_err_t pe = esp_wifi_set_promiscuous(true);
+    if (pe != ESP_OK) { Serial.printf("[live] deauth-start: esp_wifi_set_promiscuous err=0x%x (%s)\n", (unsigned)pe, esp_err_to_name(pe)); heap_log("deauth-fail"); wifi_off(); return -1; }
     esp_wifi_set_channel(s_ch, WIFI_SECOND_CHAN_NONE);
     s_job = JOB_DEAUTH;
     s_job_end = millis() + ms;
@@ -300,7 +319,7 @@ static void r_save_theme(int t)
 }
 
 /* CALbot result: apply the 8-point matrix now, then persist with the SAME keys and order as
- * botcorps_cyd_run_touch_cal(): remove cv, tcal=1, c0..c7, cv=2 LAST (a partial write can't pass has_valid_cal). */
+ * botcorps_cyd_run_touch_cal(): remove cv, tcal=1, c0..c7, cv=3 LAST (a partial write can't pass has_valid_cal). */
 static bool r_cal_save(const uint16_t c8[8])
 {
     g_cyd.apply_touch_cal8(c8);
@@ -310,7 +329,7 @@ static bool r_cal_save(const uint16_t c8[8])
     prefs.putUChar("tcal", 1);
     bool ok = true;
     for (int i = 0; i < 8; ++i) { char key[4]; snprintf(key, sizeof key, "c%d", i); if (!prefs.putUShort(key, c8[i])) ok = false; }
-    if (ok && !prefs.putUChar("cv", 2)) ok = false;
+    if (ok && !prefs.putUChar("cv", 3)) ok = false;
     prefs.end();
     Serial.printf("[live] CALbot c0..c7 = %u %u %u %u %u %u %u %u -> NVS %s\n", c8[0], c8[1], c8[2], c8[3], c8[4], c8[5], c8[6], c8[7], ok ? "OK" : "FAIL");
     return ok && botcorps_cyd_has_valid_cal();
@@ -327,8 +346,21 @@ static void r_set_rot(int flip)
     Serial.printf("[live] ORIENT %s (setRotation %d)\n", flip ? "FLIP" : "PORT", flip ? 0 : 2);
 }
 
+/* radar IGNORE / WATCH lists: 6-byte MACs back to back in NVS "botcorps" (keys rdign / rdwat) */
+static int r_mac_load(const char *key, uint8_t *out, int max)
+{
+    Preferences prefs; if (!prefs.begin("botcorps", true)) return 0;
+    const size_t n = prefs.isKey(key) ? prefs.getBytes(key, out, (size_t)max * 6) : 0; prefs.end(); return (int)(n / 6);
+}
+static void r_mac_save(const char *key, const uint8_t *macs, int n)
+{
+    Preferences prefs; if (!prefs.begin("botcorps", false)) return;
+    if (n > 0) prefs.putBytes(key, macs, (size_t)n * 6); else prefs.remove(key);
+    prefs.end(); Serial.printf("[live] NVS %s = %d MACs\n", key, n);
+}
+
 static const LvRadio s_radio{r_wifi_start, r_wifi_poll, r_ble_start, r_ble_poll, r_deauth_start, r_deauth_poll,
-                             r_stop, r_sys, r_save_theme, r_cal_save, r_set_rot};
+                             r_stop, r_sys, r_save_theme, r_cal_save, r_set_rot, r_mac_load, r_mac_save};
 
 void lv_ui_begin(void)
 {
@@ -346,7 +378,7 @@ void lv_ui_begin(void)
                   (unsigned)LK_BLOB_SIZE, th, (int)g_cyd.width(), (int)g_cyd.height());
     heap_log("begin");
     const bool cal_ok = botcorps_cyd_has_valid_cal();   /* if true, display begin already applied it from NVS */
-    Serial.printf("[live] CALbot: saved cal %s\n", cal_ok ? "valid (cv=2) - hold 1 s to redo" : "missing - capture 4 corners");
+    Serial.printf("[live] CALbot: saved cal %s\n", cal_ok ? "valid (cv=3) - hold 1 s to redo" : "missing - capture 4 corners");
     lv_begin(&s_radio, ui_blit, ui_raw_draw, th, millis(), cal_ok);
 }
 
@@ -366,6 +398,7 @@ void lv_ui_loop(void)
         g_cyd.endWrite();
         Serial.printf("[live] tap %d,%d scr=%d -> %s\n", x, y, (int)lv_scr, a ? a : "-");
     }
+    if (lv_scr != LV_SC_CAL) lv_touch(s_tdown, s_tx, s_ty);   /* radar: hold a tower ~1 s to lock on */
     const uint32_t now = millis();
     if ((int32_t)(now - next) < 0) { delay(1); return; }
     next = now + 30;

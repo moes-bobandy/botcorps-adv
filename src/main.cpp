@@ -163,7 +163,7 @@ void setup(void)
         while (1) delay(1000);
     }
     if (!botcorps_cyd_has_valid_cal()) {
-        Serial.println("[botcorps] no valid cv=2 cal — auto-entering cal");
+        Serial.println("[botcorps] no valid cv=3 cal — auto-entering cal");
         botcorps_cyd_run_touch_cal();
     } else {
         int x, y, hold = 0;
@@ -205,10 +205,10 @@ void setup(void)
     /* No INT ID-card strip. The compact badge is painted with the terminal. */
     botcorps_ui_mark_dirty();
 
-    /* Auto-cal on first boot (or when no cv=2 8-point exists).
+    /* Auto-cal on first boot (or when no cv=3 8-point exists).
      * Hold-at-boot remains as a forced re-cal if finger is already down. */
     if (!botcorps_cyd_has_valid_cal()) {
-        Serial.println("[botcorps] no valid cv=2 cal — auto-entering cal");
+        Serial.println("[botcorps] no valid cv=3 cal — auto-entering cal");
         botcorps_cyd_run_touch_cal();
     } else {
         int x, y;

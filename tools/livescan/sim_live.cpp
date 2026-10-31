@@ -36,9 +36,16 @@ static int infl(const uint8_t *src, uint32_t len, uint8_t *dst, uint32_t cap)
     int r = inflate(&z, Z_FINISH); int out = (int)z.total_out; inflateEnd(&z);
     return r == Z_STREAM_END ? out : -1;
 }
+/* SIM_FWPAL=1 models the firmware's lv_ui.cpp palette cache exactly: s_pal is refreshed by lv_use_pal() only
+ * before lv_tap() and before lv_tick(), never inside them (pre-fix builds). SIM_FWPAL=2 models the fixed
+ * firmware, where ui_raw_draw() also re-validates the cache on every draw. Default: the palette ui_raw_draw resolves. */
+static int g_fwpal = -1, g_fwpal_clip = -1;
+static void sim_use_pal(void) { if (g_fwpal > 0) g_fwpal_clip = lk_clip_of_seg(lv_play.seg); }
 static void raw_draw(int y, int x, int n, const uint8_t *idx)
 {
-    const uint16_t *pal = LK_CLIP[lk_clip_of_seg(lv_play.seg)].pal;
+    if (g_fwpal < 0) { const char *e = getenv("SIM_FWPAL"); g_fwpal = e && *e == '1' ? 1 : e && *e == '2' ? 2 : 0; }
+    if (g_fwpal == 2) g_fwpal_clip = lk_clip_of_seg(lv_play.seg); /* fixed firmware: ui_raw_draw re-validates s_pal */
+    const uint16_t *pal = LK_CLIP[g_fwpal && g_fwpal_clip >= 0 ? g_fwpal_clip : lk_clip_of_seg(lv_play.seg)].pal;
     for (int i = 0; i < n; ++i) fb[y][x + i] = pal[idx[i]];
 }
 static void blit(int x, int y, int w, int h, const uint16_t *px)
@@ -57,7 +64,8 @@ static LvFind mk(const char *n, int rssi, int ch, int auth, uint16_t mfg, uint8_
 }
 static int fk_overlap = 0, fk_starts = 0;
 static int fk_wifi_start(void) { fk_starts++; if (fk_job) fk_overlap++; fk_job = 1; fk_t0 = t_ms; return 0; }
-static int fk_ble_start(uint32_t) { fk_starts++; if (fk_job) fk_overlap++; fk_job = 2; fk_t0 = t_ms; return 0; }
+static uint32_t fk_ble_ms = 5000; static int fk_ovr_m5 = -1, fk_ovr_rssi = 0, fk_ble_n = 0;
+static int fk_ble_start(uint32_t ms) { fk_ble_ms = ms; fk_ble_n++; fk_starts++; if (fk_job) fk_overlap++; fk_job = 2; fk_t0 = t_ms; return 0; }
 static int fk_deauth_start(uint32_t) { fk_starts++; if (fk_job) fk_overlap++; fk_job = 3; fk_t0 = t_ms; return 0; }
 static int fk_wifi_poll(LvFind *o, int max)
 {
@@ -65,16 +73,20 @@ static int fk_wifi_poll(LvFind *o, int max)
     const LvFind F[] = {mk("HomeNet-5G", -52, 6, 3, 0, 0, 0, 1), mk("Flock-A7F21C", -61, 11, 3, 0, 0, 0, 2), mk("TELLO-5A21B3", -66, 1, 0, 0, 0, 0, 3),
                         mk("xfinitywifi", -70, 1, 0, 0, 0, 0, 4), mk("DIRECT-6B-HP OfficeJet", -73, 6, 3, 0, 0, 0, 5), mk("", -80, 149, 6, 0, 0, 0, 6),
                         mk("Tesla_Model3", -82, 36, 3, 0, 0, 0, 7), mk("NETGEAR42", -84, 9, 4, 0, 0, 0, 8), mk("CoffeeShop Guest", -88, 3, 0, 0, 0, 0, 9)};
-    int n = (int)(sizeof F / sizeof F[0]); if (n > max) n = max; memcpy(o, F, n * sizeof(LvFind)); fk_job = 0; return n;
+    int n = (int)(sizeof F / sizeof F[0]); if (n > max) n = max; memcpy(o, F, n * sizeof(LvFind)); fk_job = 0;
+    for (int i = 0; i < n; ++i) if (o[i].mac[5] == fk_ovr_m5) o[i].rssi = (int8_t)fk_ovr_rssi;   /* 'sig' command: SAMPLE dBm for a hunt test */
+    return n;
 }
 static int fk_ble_poll(LvFind *o, int max)
 {
-    if (t_ms - fk_t0 < 5000) return -1;
+    if (t_ms - fk_t0 < fk_ble_ms) return -1;
     const LvFind F[] = {mk("", -48, 0, 0, 0x004C, 0x12, 0, 10), mk("Flipper Zeph", -58, 0, 0, 0xFFFF, 0, 0, 11), mk("", -63, 0, 0, 0x0075, 0, 0xFD5A, 12),
                         mk("RB Meta 0A1F", -67, 0, 0, 0x01AB, 0, 0, 13), mk("HC-05", -71, 0, 0, 0xFFFF, 0, 0, 14), mk("Galaxy Watch6", -74, 0, 0, 0x0075, 0, 0, 15),
                         mk("Tile", -77, 0, 0, 0xFFFF, 0, 0xFEED, 16), mk("JBL Flip 6", -79, 0, 0, 0xFFFF, 0, 0, 17), mk("", -83, 0, 0, 0x004C, 0x10, 0, 18),
                         mk("[TV] Samsung Q60", -86, 0, 0, 0x0075, 0, 0, 19), mk("", -91, 0, 0, 0xFFFF, 0, 0, 20)};
-    int n = (int)(sizeof F / sizeof F[0]); if (n > max) n = max; memcpy(o, F, n * sizeof(LvFind)); fk_job = 0; return n;
+    int n = (int)(sizeof F / sizeof F[0]); if (n > max) n = max; memcpy(o, F, n * sizeof(LvFind)); fk_job = 0;
+    for (int i = 0; i < n; ++i) if (o[i].mac[5] == fk_ovr_m5) o[i].rssi = (int8_t)fk_ovr_rssi;   /* 'sig' command: SAMPLE dBm for a hunt test */
+    return n;
 }
 static int fk_deauth_poll(uint32_t *d, uint32_t *m, uint8_t *ch)
 {
@@ -91,6 +103,9 @@ static void fk_sys(int w, char *o, int n)
     else if (w == 4) snprintf(o, n, "touch cal: 8-pt matrix OK (SIM)");
 }
 static void fk_save(int) {}
+static uint8_t fk_nvs[2][16 * 6]; static int fk_nvs_n[2] = {0, 0};   /* SIM NVS for radar rdign / rdwat */
+static int fk_mac_load(const char *k, uint8_t *o, int max) { const int w = !strcmp(k, "rdwat"); int n = fk_nvs_n[w] < max ? fk_nvs_n[w] : max; memcpy(o, fk_nvs[w], n * 6); return n; }
+static void fk_mac_save(const char *k, const uint8_t *m, int n) { const int w = !strcmp(k, "rdwat"); fk_nvs_n[w] = n; memcpy(fk_nvs[w], m, n * 6); printf("t=%u NVS %s = %d MACs (SIM)\n", t_ms, k, n); }
 static int fk_rot = 2;   /* the UI's setRotation: 2 = portrait USB at the bottom (default), 0 = ORIENT FLIP */
 /* simulated XPT2046 (CYD-like swapped + flipped axes, +-30 raw noise) and the fake NVS save */
 static TouchModel g_tm = {"swap+flip (CYD-like)", 3820, 0, -11.2, 3760, -14.6, 0, 30, 2};
@@ -109,13 +124,15 @@ static bool fk_cal_save(const uint16_t c[8])
     return true;
 }
 static void fk_set_rot(int flip) { fk_rot = flip ? 0 : 2; printf("[sim] set_rot -> setRotation(%d)\n", fk_rot); }
-static const LvRadio FAKE = {fk_wifi_start, fk_wifi_poll, fk_ble_start, fk_ble_poll, fk_deauth_start, fk_deauth_poll, fk_stop, fk_sys, fk_save, fk_cal_save, fk_set_rot};
+static const LvRadio FAKE = {fk_wifi_start, fk_wifi_poll, fk_ble_start, fk_ble_poll, fk_deauth_start, fk_deauth_poll, fk_stop, fk_sys, fk_save, fk_cal_save, fk_set_rot, fk_mac_load, fk_mac_save};
 static bool g_down = false; static int g_fx, g_fy; static FILE *g_rec = nullptr;
 static void dump(const char *path);
 static void rec_frame(void);
 static void tick1(const LkIo &io)
 {
     for (int k = 0; k < 2; ++k) { t_ms += 15; int rx = 0, ry = 0; if (g_down) g_tm.raw(g_fx, g_fy, &rx, &ry); lv_cal_raw(g_down, rx, ry, t_ms); }
+    sim_use_pal();
+    lv_touch(g_down, g_fx, g_fy);
     lv_tick(io, t_ms);
     rec_frame();
 }
@@ -129,6 +146,7 @@ static void tickto(const LkIo &io, uint32_t T)
     while (t_ms + 30 <= T) tick1(io);
     if (t_ms >= T) return;
     while (t_ms < T) { t_ms = t_ms + 15 <= T ? t_ms + 15 : T; int rx = 0, ry = 0; if (g_down) g_tm.raw(g_fx, g_fy, &rx, &ry); lv_cal_raw(g_down, rx, ry, t_ms); }
+    sim_use_pal();
     lv_tick(io, t_ms);
     rec_frame();
 }
@@ -171,7 +189,15 @@ int main(int argc, char **argv)
         else if (!strcmp(cmd, "up")) { int ms; if (fscanf(sc, "%d", &ms) != 1) return 2; g_down = false; for (int e = 0; e < ms; e += 30) tick1(io); }
         else if (!strcmp(cmd, "recstart")) { char nm[64]; if (fscanf(sc, "%63s", nm) != 1) return 2; char p[512]; snprintf(p, sizeof p, "%s/%s.rgb", argv[2], nm); g_rec = fopen(p, "wb"); }
         else if (!strcmp(cmd, "recstop")) { if (g_rec) fclose(g_rec); g_rec = nullptr; remove("/tmp/.sim_rec_part"); }
-        else if (!strcmp(cmd, "tap")) { int x, y; if (fscanf(sc, "%d %d", &x, &y) != 2) return 2; const char *r = lv_tap(x, y); printf("t=%u tap %d,%d -> %s (scr=%d seg=%d)\n", t_ms, x, y, r, lv_scr, lv_play.seg); }
+        else if (!strcmp(cmd, "tap")) { int x, y; if (fscanf(sc, "%d %d", &x, &y) != 2) return 2; sim_use_pal(); const char *r = lv_tap(x, y); printf("t=%u tap %d,%d -> %s (scr=%d seg=%d)\n", t_ms, x, y, r, lv_scr, lv_play.seg); }
+        else if (!strcmp(cmd, "rhold")) {   /* finger down on (x,y) for ms, then the release-edge tap, as lv_ui.cpp does */
+            int x, y, ms; if (fscanf(sc, "%d %d %d", &x, &y, &ms) != 3) return 2; g_fx = x; g_fy = y; g_down = true;
+            for (int e = 0; e < ms; e += 30) tick1(io);
+            g_down = false; tick1(io); sim_use_pal(); const char *r = lv_tap(x, y); printf("t=%u rhold %d,%d %dms -> %s (scr=%d)\n", t_ms, x, y, ms, r, lv_scr);
+        }
+        else if (!strcmp(cmd, "sig")) { if (fscanf(sc, "%d %d", &fk_ovr_m5, &fk_ovr_rssi) != 2) return 2; }
+        else if (!strcmp(cmd, "towers")) { lv_rd_layout(); for (int n = 0; n < lv_rd_n; ++n) { const LvTower &T = lv_rd_tw[n]; printf("  tower f%d %s %d dBm m5=%d x%d-%d y%d-%d\n", T.i, lv_f[T.i].name, lv_f[T.i].rssi, lv_f[T.i].mac[5], T.x0, T.x1, T.byt, T.yb); } }
+        else if (!strcmp(cmd, "radarstate")) printf("t=%u RADAR sel=%d lock=%d hunt=%d reads=%d trend=%d miss=%d ign=%d wat=%d job=%d tk='%s'\n", t_ms, lv_rd_sel, lv_rd_lock, lv_rd_hunting, lv_rd_reads, lv_rd_trend, lv_rd_miss, lv_rd_nign, lv_rd_nwat, lv_job, lv_tk_msg);
         else if (!strcmp(cmd, "theme")) { int t; if (fscanf(sc, "%d", &t) != 1) return 2; lv_set_theme(t); }
         else if (!strcmp(cmd, "type")) {
             char line[128]; if (!fgets(line, sizeof line, sc)) return 2;

@@ -1,0 +1,20 @@
+CTL chip-selector mock - tap-rect audit (every pixel of the 240x320 screen tested)
+
+Tap rects (x0,y0,x1,y1 inclusive):
+  THEME    [(35, 33, 113, 50), (75, 82, 164, 205)]   choices: GRAPE/MAGENTA/TOXIC/ICE/BLUE/ORANGE/GOLD/SYNTH/AURA/PRISM/GLTCH/ROSE
+  FOCUS    [(35, 66, 113, 81)]   choices: ALL/WIFI/BLE/ALERTS
+  MIX      [(33, 86, 72, 132)]   choices: ALL/WIFI/BLE
+  RAINCOL  [(33, 144, 72, 179)]   choices: GREEN/CYAN/THEME
+  MASHUP   [(33, 197, 72, 247)]   choices: SLOW/MED/FAST
+  RAIN     [(167, 78, 206, 127)]   choices: ON/OFF
+  RMODE    [(167, 134, 210, 162)]   choices: DRIFT/SWEEP/STILL
+  MULTI    [(167, 175, 206, 221)]   choices: OFF/30S/60S
+  ORIENT   [(92, 219, 162, 245)]   choices: PORT/FLIP
+  MOTION   [(165, 236, 213, 255)]   choices: ON/OFF
+  keep ticker               (0, 0, 239, 20) (existing non-selector route, unchanged)
+  keep uptime               (35, 51, 113, 65) (existing non-selector route, unchanged)
+  keep bottom-bar+tty+back  (0, 256, 239, 319) (existing non-selector route, unchanged)
+
+overlapping pixels (hit by >1 rect): 0
+chip-art + chip-body pixels tested: 22012, dead or ambiguous: 0
+removed value rects (now board fill): [('THEME', (82, 36, 112, 44)), ('FOCUS', (82, 66, 112, 74)), ('MIX', (36, 134, 69, 147)), ('RAINCOL', (36, 180, 69, 193)), ('MASHUP', (36, 244, 69, 257)), ('RAIN', (166, 125, 204, 138)), ('RMODE', (166, 159, 204, 172)), ('MULTI', (166, 220, 207, 237)), ('ORIENT', (90, 242, 160, 256)), ('MOTION', (178, 246, 198, 252))]

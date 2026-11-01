@@ -28,3 +28,10 @@ S2b keeps S2's dark graphite body and theme-coloured pins and wave.
 The face panel is back to black, with the crew shading kept in near-black tones: a lighter top and left edge, a dark right and bottom edge, a drop shadow and diagonal shine stripes.
 The shades are round black lenses with a silver rim, bridge and white glint at boot size. At home size the rim and bridge are a dimmer grey, because a bright rim made the lenses look hollow there.
 Files are in `S2b/`. Rebuild with `python3 tool/render_s2b.py`.
+
+## S2c (2026-11-01): S2b with brighter shades on the home board
+
+S2c is S2b with the shades brightened at home-board size only. The boot-size S2b face is unchanged.
+The small lenses get a shaded rim, lit grey at the top-left and dimmer at the bottom-right, plus a brighter bridge.
+The lens centres stay solid black, each with a white glint pixel, so they read as round dark discs rather than hollow rings.
+Files are in `S2c/`. Rebuild with `python3 tool/render_s2c.py`.

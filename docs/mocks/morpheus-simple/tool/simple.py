@@ -6,6 +6,8 @@ from PIL import Image
 def L(p): return np.asarray(Image.open(p).convert('RGB')).copy()
 
 BRONZE = dict(hi=(214, 160, 104), base=(170, 118, 70), dark=(122, 80, 44), top=(240, 204, 156), bot=(96, 62, 36), drop=(26, 18, 12))
+BLACK = dict(hi=(52, 55, 62), base=(30, 32, 36), dark=(16, 17, 20), top=(96, 100, 110), bot=(8, 8, 10), drop=(0, 0, 0))
+BLACK_FRAME, BLACK_FRAME_SMALL, BLACK_LENS = (132, 138, 150), (70, 74, 84), (2, 2, 3)
 FRAME_SMALL = (34, 36, 42)
 FRAME, LENS, GLINT = (64, 68, 76), (6, 6, 8), (252, 252, 252)
 MFRAME, MGLINT = (36, 128, 70), (196, 255, 214)
@@ -24,27 +26,30 @@ GEO = {
               refs=dict(win=[(40, 107)], bev1=[(35, 70)], bev2=[(37, 70)], slant=[(70, 105)])),
 }
 
-def face(g, lvl):
+def face(g, lvl, panel='bronze'):
+    P = BLACK if panel == 'black' else BRONZE
     d = {}; sx0, sy0, sx1, sy1 = g['screen']; x0, y0, x1, y1 = g['panel']; W = x1 - x0
     for y in range(sy0, sy1 + 1):
         for x in range(sx0, sx1 + 1): d[(x, y)] = (0, 0, 0)
     for y in range(y0, y1 + 1):
         for x in range(x0, x1 + 1):
             t = ((x - x0) + (y - y0)) / W
-            c = BRONZE['hi'] if t < 0.45 or 0.85 <= t < 1.02 else BRONZE['dark'] if t >= 1.42 else BRONZE['base']
-            if y == y0 or x == x0: c = BRONZE['top']
-            if y == y1 or x == x1: c = BRONZE['bot']
+            c = P['hi'] if t < 0.45 or 0.85 <= t < 1.02 else P['dark'] if t >= 1.42 else P['base']
+            if y == y0 or x == x0: c = P['top']
+            if y == y1 or x == x1: c = P['bot']
             d[(x, y)] = c
     for y in range(y0 + 1, y1 + 2):
-        if y <= sy1 and x1 + 1 <= sx1: d[(x1 + 1, y)] = BRONZE['drop']
+        if y <= sy1 and x1 + 1 <= sx1: d[(x1 + 1, y)] = P['drop']
     for x in range(x0 + 1, x1 + 2):
-        if y1 + 1 <= sy1 and x <= sx1: d[(x, y1 + 1)] = BRONZE['drop']
+        if y1 + 1 <= sy1 and x <= sx1: d[(x, y1 + 1)] = P['drop']
     n = len(g['lens'])
     fr, gl = (MFRAME, MGLINT) if lvl >= 3 else (FRAME if n > 5 else FRAME_SMALL, GLINT)
+    lens = LENS
+    if panel == 'black': fr, lens = (BLACK_FRAME if n > 5 else BLACK_FRAME_SMALL), BLACK_LENS
     for lcx in g['lc']:
         for r, row in enumerate(g['lens']):
             for k, ch in enumerate(row):
-                if ch != '.': d[(lcx - n // 2 + k, g['ltop'] + r)] = {'F': fr, 'K': LENS, 'G': gl}[ch]
+                if ch != '.': d[(lcx - n // 2 + k, g['ltop'] + r)] = {'F': fr, 'K': lens, 'G': gl}[ch]
     by = g['ltop'] + g['bridge'] + (1 if n > 5 else 0)
     for x in range(g['lc'][0] + n // 2 + 1, g['lc'][1] - n // 2): d[(x, by)] = fr
     return d
@@ -77,10 +82,10 @@ def body(s, g, lvl):
             if best: d[(x, y)] = GRAPH[best[1]]
     return d
 
-def morph(a, gk, lvl, theme=None):
+def morph(a, gk, lvl, theme=None, panel='bronze'):
     g = GEO[gk]; s = s1(a).astype(int); lay = {}
     if theme: lay.update(themed(s, g, theme))
-    lay.update(body(s, g, lvl)); lay.update(face(g, lvl))
+    lay.update(body(s, g, lvl)); lay.update(face(g, lvl, panel))
     x0, y0, x1, y1 = g['chip']
     for (x, y), c in lay.items():
         assert x0 <= x <= x1 and y0 <= y <= y1

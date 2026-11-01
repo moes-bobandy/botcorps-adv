@@ -21,3 +21,10 @@ Everything outside the chip box is pixel-identical; `tool/render.py` asserts thi
 
 Adopting a variant needs a re-render of the locked clips, a re-lock approved by Mobandy, and a lock_blob rebuild.
 lv_core's runtime BOOTbot tint would also need review.
+
+## S2b (2026-11-01): S2 with a black face
+
+S2b keeps S2's dark graphite body and theme-coloured pins and wave.
+The face panel is back to black, with the crew shading kept in near-black tones: a lighter top and left edge, a dark right and bottom edge, a drop shadow and diagonal shine stripes.
+The shades are round black lenses with a silver rim, bridge and white glint at boot size. At home size the rim and bridge are a dimmer grey, because a bright rim made the lenses look hollow there.
+Files are in `S2b/`. Rebuild with `python3 tool/render_s2b.py`.

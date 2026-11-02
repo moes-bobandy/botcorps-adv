@@ -92,5 +92,15 @@
   "SKIMMER": 6,
   "FLIPPER": 6,
   "SAMSUNG": 6
+ },
+ "entry_from_home": {
+  "chip": "MORPHEUSbot",
+  "home_rect_1x_xywh": [
+   31,
+   52,
+   44,
+   60
+  ],
+  "action": "open glossary"
  }
 }

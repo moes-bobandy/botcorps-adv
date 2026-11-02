@@ -1,0 +1,4 @@
+tick 10
+dump calbot_nvs
+tick 60
+dump calbot_nvs_then_boot

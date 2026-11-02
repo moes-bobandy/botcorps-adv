@@ -14,6 +14,7 @@ THEMES = {'green': (FR + '/g200.png', (146, 255, 0)), 'orange': (FR + '/g380.png
 def bm(rows): return [(c, r) for r, row in enumerate(rows) for c, ch in enumerate(row) if ch == '#']
 LOWER = {'b': bm(['#..', '#..', '###', '#.#', '###']), 'o': bm(['...', '...', '###', '#.#', '###']),
          't': bm(['.#.', '###', '.#.', '.#.', '.##'])}   # the clip's own tiny lowercase (BOOTbot/CONTROLbot chip)
+LABEL_INK = (232, 236, 249); LABEL_SHADOW = (24, 24, 26)   # home S2c MORPHEUS chip label ink
 BASE = (0, 7, 7); WHITE = (247, 242, 230); TAN = (180, 144, 82)
 
 def c565(v):
@@ -92,9 +93,11 @@ def draw_chip(a, f, tpl, x0, y0, name):
     ox = fx0 + (fw - n) // 2; oy = fy0 + (fw - n) // 2
     for (x, y), c in px.items(): a[oy + y, ox + x] = c
     lx0 = x0 + LABEL[0] - CH_X0; lw = LABEL[2] - LABEL[0] + 1
-    for word, yy in ((name, 95), ('bot', 101)):
-        w = len(word) * 4 - 1
-        for (x, y) in tiny_pts(word, lx0 + (lw - w + 1) // 2, y0 + yy - CH_Y0, LOWER): a[y, x] = ink
+    # name only (no 'bot'), one line centred in the label band, light ink like the home MORPHEUS/BOOT chip labels
+    w = len(name) * 4 - 1
+    pts = tiny_pts(name, lx0 + (lw - w + 1) // 2, y0 + 98 - CH_Y0)
+    for (x, y) in pts: a[y + 1, x + 1] = LABEL_SHADOW      # 1px drop shadow for contrast on the light grey body
+    for (x, y) in pts: a[y, x] = LABEL_INK
     return (x0, y0, CW, CHH)
 
 def board(f, marks=((105, 175, 245), (36, 92, 148, 204))):

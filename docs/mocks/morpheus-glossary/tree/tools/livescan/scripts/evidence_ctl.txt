@@ -1,0 +1,24 @@
+tick 67
+tick 190
+go 5
+tick 10
+dump c_ctl
+tap 185 105
+dump c_p_rain
+tick 10
+dump c_rain_off
+tap 185 105
+tick 10
+dump c_rain_on
+tap 50 110
+dump c_p_mix
+tick 10
+dump c_mix1
+tap 120 140
+tick 3
+dump c_face_tap
+tick 10
+dump c_face_tap_settled
+go 6
+tick 10
+dump c_tty

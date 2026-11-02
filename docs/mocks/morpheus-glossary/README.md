@@ -63,3 +63,9 @@ The only device descriptions in the repo are the one-line `LV_HUNT_DESC` strings
 - Each description is 5 to 6 lines (three sections of at most 2 lines each) rather than 2 to 4 lines.
 
 Regenerate: `python3 tool/glossary.py [outdir] && python3 tool/sheet_video.py` (needs the reference frames in `/workspace/out/morpheus-rename/frames` and mlib.py).
+
+## Follow-up 2026-11-02 (Mobandy 7:30 AM ET)
+- Chip labels: "bot" removed everywhere (grid chips and the chip on each description page); name is one line, centred, light ink (232,236,249) like the home MORPHEUS chip label, with a 1px dark (24,24,26) drop shadow. Font stays tiny 3x5: GLCD 5x7 would clip BLUETOOTH/SKIMMER/FLIPPER/SAMSUNG/AIR TAG in the 38px label band.
+- Entry: tapping the MORPHEUSbot chip on the home board (1x x31..74, y52..111) opens this glossary. Home board stays exactly as locked.
+- Variant (NOT locked): `variant_big_morpheus/` big MORPHEUS in the GIBSON slot, S2c look, 12 chips re-fitted (2 each side, 2 rows of 4 below); tap rects in `variant_big_morpheus/tap_rects_big_morpheus.json`.
+- Locked: title-version grid (green, orange) + 24 description pages -> cyd-lock-store `LOCKED/ui_glossary/`.

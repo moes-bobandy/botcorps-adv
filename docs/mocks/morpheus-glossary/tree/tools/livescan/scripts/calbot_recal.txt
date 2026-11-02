@@ -1,0 +1,10 @@
+tickto 300
+press 120 160
+tickto 1400
+release
+tickto 1500
+dump calbot_recal_1
+tickto 16600
+dump calbot_timeout_kept
+tickto 18000
+dump calbot_timeout_then_boot

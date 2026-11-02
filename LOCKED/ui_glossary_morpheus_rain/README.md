@@ -1,0 +1,5 @@
+LOCKED. Mobandy 2026-11-02 4:03 PM ET: "Fill the bottom-right gap, then lock it." (MORPHEUSbot glossary screen with chip rain)
+Rain only inside MORPHEUSbot's black chip body (device icons from firmware botcorps_rain DEV_ART/DEV_NEON; lead 80%, trails 65-45%, 30% behind the MORPHEUS label; no partial icons), with a 1px quiet grey outline (84,88,98) holding the board shape.
+Files: grid_big_morpheus_chiprain_black_soft_final_{green,orange}_3x.png (720x960, 3x of 240x320 ESP32-2432S028R portrait), zoom_morpheus_chiprain_black_soft_final_{green,orange}_8x.png, chiprain_black_soft_final_big_morpheus_green.mp4 (74 frames, 8fps, H.264 yuv420p), tap_rects_big_morpheus.json (unchanged copy from LOCKED/ui_glossary_morpheus/).
+Entry: tapping MORPHEUSbot on the home board opens this screen.
+Mock only, not yet in firmware. Source: moes-bobandy/botcorps-adv backup/cyd-livescan-2026-10-30 @ 77f8f86b3a829fe022459a96c658ef9f1a1d59cb, docs/mocks/morpheus-look-final/rain_chip_black_soft_final/. LOCKED/ui_glossary/ and LOCKED/ui_glossary_morpheus/ unchanged.

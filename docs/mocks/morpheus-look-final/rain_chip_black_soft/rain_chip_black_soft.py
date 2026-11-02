@@ -20,12 +20,17 @@ def base(theme):
     a[sy0 - 1, sx0 - 1:sx1 + 2] = SEP; a[sy1 + 1, sx0 - 1:sx1 + 2] = SEP
     a[sy0 - 1:sy1 + 2, sx0 - 1] = SEP; a[sy0 - 1:sy1 + 2, sx1 + 1] = SEP
     mask[sy0 - 1:sy1 + 2, sx0 - 1:sx1 + 2] = False
+    # 1px quiet grey outline on the outer edge of the black body (Mobandy 3:45 PM ET: "slight grey line boarder")
+    from scipy.ndimage import binary_fill_holes, binary_erosion
+    body = np.zeros(mask.shape, bool); body[48:146, 81:162] = (a[48:146, 81:162] == 0).all(2)
+    body = binary_fill_holes(body); edge = body & ~binary_erosion(body)
+    a[edge] = SEP; mask[edge] = False
     return a, mask
 def paint(a, mask, t, seqs, phase):
     for c in range(12):
-        cx = RC.AX + c * 8 if c < 11 else 151           # extra column aligned to the right body strip
+        cx = 82 + c * 8 if c < 11 else 150           # extra column aligned to the right body strip
         for row in range(13):
-            cy = RC.AY + row * 8
+            cy = 49 + row * 8                             # grid moved 1px in so it sits inside the grey outline
             if c == 11 and cy + 8 > 110: continue          # bottom zone already covered by the grid columns (no overlap)
             if mask[cy:cy + 8, cx:cx + 8].mean() < 0.85: continue
             k = (t - row + phase[c]) % len(LEVELS); i = seqs[c][(t - row) % len(seqs[c])]

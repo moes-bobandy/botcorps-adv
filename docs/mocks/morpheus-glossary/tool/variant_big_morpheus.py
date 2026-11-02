@@ -7,7 +7,7 @@ sys.path.insert(0, '/workspace/out/morpheus-simple/tool')
 import numpy as np
 from PIL import Image
 import glossary as G
-from simple import BLACK, BLACK_FRAME, BLACK_LENS, GLINT, GRAPH, LENS_BIG
+from simple import BLACK, BLACK_FRAME, BLACK_LENS, GLINT, GRAPH, LENS_BIG, LENS_SMALL
 GB = (74, 30, 164, 152)                      # GIBSON chip box on the home frame (1x, incl. pins)
 SCREEN = (91, 52, 148, 109); PANEL = (96, 56, 143, 103)
 LAB = (83, 122, 157, 143)                    # GIBSONbot / JACK IN label band
@@ -16,24 +16,27 @@ SIDE = [(29, 28), (29, 91), (167, 28), (167, 91)]                 # flanking chi
 LOW = [(x, y) for y in (158, 228) for x in COLS]                   # 2 rows of 4 under him
 SLOTS = SIDE[:2] + SIDE[2:] + LOW
 
-def big_morpheus(a, f):
-    x0, y0, x1, y1 = GB
+def morpheus_chip(a, f, chip, screen, panel, lens, lcs, ltop, label=None):
+    """THE MORPHEUSbot chip look (Mobandy 2026-11-02 3:24 PM ET: keep it exactly like this, every size):
+    dark grey body, theme pins/wave kept, black screen window, black shaded face square with black border,
+    round solid black shades (lit rim top-left, shaded rim bottom-right, glint) joined by a bridge."""
+    x0, y0, x1, y1 = chip
     for y in range(y0, y1 + 1):
         for x in range(x0, x1 + 1):
             p = f[y, x]
             if G.is_board(p): continue
             r, g, b = (int(v) for v in p)
             grey = abs(r - g) < 30 and abs(g - b) < 30
-            if grey and r > 150: a[y, x] = GRAPH['slant']        # light bevel band
-            elif grey and r > 85: a[y, x] = GRAPH['win']          # grey body -> dark grey
-            else: a[y, x] = p                                     # plate, pins, wave keep theme
-    # wipe GIBSON label, write MORPHEUS in GLCD, light ink
-    lx0, ly0, lx1, ly1 = LAB
-    a[ly0:ly1 + 1, lx0:lx1 + 1] = GRAPH['win']
-    w = 8 * 6 - 1; G.text(a, 'MORPHEUS', 120 - (w + 1) // 2, 129, G.LABEL_INK)
-    # face: black screen, black shaded panel (S2c), big round shades
-    sx0, sy0, sx1, sy1 = SCREEN; a[sy0:sy1 + 1, sx0:sx1 + 1] = 0
-    px0, py0, px1, py1 = PANEL; W = px1 - px0
+            if grey and r >= 220: a[y, x] = p                        # keep light label ink
+            elif grey and r > 150: a[y, x] = GRAPH['slant']
+            elif grey and r > 85: a[y, x] = GRAPH['win']
+            else: a[y, x] = p
+    if label:
+        (lx0, ly0, lx1, ly1), text, ty = label
+        a[ly0:ly1 + 1, lx0:lx1 + 1] = GRAPH['win']
+        w = len(text) * 6 - 1; G.text(a, text, (lx0 + lx1 + 1) // 2 - (w + 1) // 2, ty, G.LABEL_INK)
+    sx0, sy0, sx1, sy1 = screen; a[sy0:sy1 + 1, sx0:sx1 + 1] = 0
+    px0, py0, px1, py1 = panel; W = px1 - px0
     for y in range(py0, py1 + 1):
         for x in range(px0, px1 + 1):
             t = ((x - px0) + (y - py0)) / W
@@ -42,16 +45,24 @@ def big_morpheus(a, f):
             if y == py1 or x == px1: c = BLACK['bot']
             a[y, x] = c
     a[py0 + 1:py1 + 2, px1 + 1] = BLACK['drop']; a[py1 + 1, px0 + 1:px1 + 2] = BLACK['drop']
-    n = len(LENS_BIG); ltop = 68
-    for lcx in (110, 130):
-        for r, row in enumerate(LENS_BIG):
+    n = len(lens); h = n // 2
+    for lcx in lcs:
+        for r, row in enumerate(lens):
             for k, ch in enumerate(row):
                 if ch == '.': continue
                 c = {'F': BLACK_FRAME, 'K': BLACK_LENS, 'G': GLINT}[ch]
-                if ch == 'F' and (r + k) > 9: c = (84, 88, 98)       # lit rim top-left, shaded bottom-right
-                a[ltop + r, lcx - n // 2 + k] = c
-    for x in range(110 + n // 2 + 1, 130 - n // 2): a[ltop + 2, x] = BLACK_FRAME   # bridge
+                if ch == 'F' and (r + k) > n - 2: c = (84, 88, 98)
+                a[ltop + r, lcx - h + k] = c
+    for x in range(lcs[0] + h + 1, lcs[1] - h): a[ltop + max(1, n // 5), x] = BLACK_FRAME
     return (x0, y0, x1 - x0 + 1, y1 - y0 + 1)
+
+SIZES = {   # same look, three sizes
+ 'glossary_big': dict(chip=GB, screen=SCREEN, panel=PANEL, lens=LENS_BIG, lcs=(110, 130), ltop=68, label=(LAB, 'MORPHEUS', 129)),
+ 'home': dict(chip=(31, 52, 74, 111), screen=(42, 66, 64, 86), panel=(43, 67, 63, 85), lens=LENS_SMALL, lcs=(49, 57), ltop=72),
+ 'boot': dict(chip=(76, 58, 163, 183), screen=(96, 87, 143, 132), panel=(98, 89, 141, 130), lens=LENS_BIG, lcs=(110, 130), ltop=100),
+}
+
+def big_morpheus(a, f): return morpheus_chip(a, f, **SIZES['glossary_big'])
 
 def render(theme):
     fp, th = G.THEMES[theme]

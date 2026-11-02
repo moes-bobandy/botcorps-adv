@@ -1,0 +1,6 @@
+# MORPHEUSbot look: what a firmware port would need later (NOT done; mock only)
+Look source: `variant_big_morpheus.py: morpheus_chip()` (one function, sizes in `SIZES`: glossary_big, home, boot).
+1. Draw code (likely spots, confirm before editing): `src/ui/botcorps_cyd_ctlbot.inc:64 cb_face()` (BOOT/CTL chip faces), `src/ui/botcorps_ui.cpp:3234 face_block()` / `:869 chip_mini()` (small chips), `src/ui/botcorps_cyd_intro.inc:329 ib_face_geo()` + intro chip (boot screen), `src/ui/botcorps_cyd_hubbot.inc` (home layout). Needs: GRAPH body palette (win 74,78,76 / slant), BLACK panel palette, BLACK_FRAME rim, LENS_BIG 11x11 and LENS_SMALL 5x5 lens art, bridge row.
+2. Locked clips to re-render and re-lock (Mobandy approval required): `LOCKED/ui_bootbot` (bootbot_bg_v2@3x.mp4) and the GIBSON home clip `LOCKED/ui_gibsonbot` (and check `ui_gibson_radar`). New lock folders, never overwrite.
+3. `src/lock/lock_blob.S` and `src/lock/live/lock_blob_live.S` rebuild (lock_core.h hashes) after the re-lock.
+4. Name strings: `botcorps_cyd_ctlbot.inc:104 {"BOOTBOT","BOOT","BOOT"}`, `botcorps_hubbot_layout.inc:70 HB_SILK1 "BOOT"`, `botcorps_cyd_intro.inc:153 "BOOT"` -> MORPHEUS (the BOOT tact-switch silk "BOOT"/"EN" is the button, leave it).

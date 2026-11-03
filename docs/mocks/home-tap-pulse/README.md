@@ -217,3 +217,47 @@ Files:
 - `home_tap_faceglow_M_steady_3x.png`: frame 21.
 - `home_tap_faceglow_M_faces_4x.png`: the J row above the M row.
 - `home_tap_faceglow_J_vs_M_3x.png`.
+
+## Variant N: C's breathing face glow on today's board (mock only)
+
+Mobandy, replying to the C video: "Use this one but with right bot ui", then "Make sure to use the right morpheus".
+
+N runs variant C's own code and numbers (`tap_faceglow_C.py` is executed unchanged) on the J board (1a24a83):
+
+- Ring alpha is `AMAX*((R+1-d)/R)^2*s` with R = 7 px. AMAX is 0.80, and 0.95 for TERMINAL, as in C.
+- `s` is C's 1.4 s raised-cosine breath.
+- The ring covers dark and grey pixels within 7 px of the face square, inside the chip. It never touches lime or the header strip.
+- Faces get C's midtone lift.
+- Colours are as in C: CONTROL lime (147,254,0), SCAN gold (245,180,73), TERMINAL ice-silver (226,236,250).
+
+What N starts from:
+
+- **The J board.** The base is J's chips with J's own steady (E) face-fill glow turned off. N's breathing glow replaces it, so at the trough (frame 0) every face shows its raw J art.
+- **The right MORPHEUSbot.** He has his locked black face, shades and glint, the dark grey (84,88,98) face bezel, CONTROL-style body, border and label ink, the MORPHEUS and 'bot' label lines, and TERMINAL-style pins. BOOTbot does not appear anywhere.
+- **MORPHEUS's glow.** It uses C's ring formula out from his face square (43,66,62,83), in his shades/glint colour (222,232,252), the same colour as in M. C's midtone lift is applied only to his 17 shades-rim, bridge and glint pixels, so his black face panel never turns grey-blue.
+
+Proof over all 168 frames:
+
+- Regenerated J matched the J frames with 0 mismatches.
+- Changed pixels outside the four tappable chips (GIBSON included): 0.
+- Changed pixels on outlines, pins, lime dashes, labels or header strips: 0.
+- CONTROL, SCAN and TERMINAL glow deltas (frame minus base) are pixel-identical to C's on every frame, with a max channel difference of 0.
+
+Changed pixels against J, summed over 168 frames:
+
+| Bot | Face | Window | Body |
+|---|---|---|---|
+| MORPHEUSbot | 48,924 | 34,828 | 37,772 |
+| CONTROLbot | 58,580 | 27,536 | 41,916 |
+| SCANbot | 241,300 | 111,216 | 49,644 |
+| TERMINALbot | 216,188 | 111,304 | 50,156 |
+
+The face counts include J's E glow being off.
+
+Files:
+
+- `tap_faceglow_N.py` and `tap_faceglow_N_zoom.py`.
+- `home_tap_faceglow_N_3x.mp4`: H.264, yuv420p, faststart, 168 frames, 30 fps, 720x960.
+- `home_tap_faceglow_N_peak_3x.png`: frame 21.
+- `home_tap_faceglow_N_chips_4x.png`: rows for J, N trough and N peak.
+- `home_tap_faceglow_C_vs_N_3x.png`: both at peak.

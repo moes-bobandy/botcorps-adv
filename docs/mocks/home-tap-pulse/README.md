@@ -134,3 +134,21 @@ Brief: "Make their pins like the terminal bot" (MORPHEUS and CONTROLbot).
   bands there is no leftover lime or dark-shade pixel outside the new pins and no missing pin pixel.
 Files: tap_faceglow_J.py, tap_faceglow_J_zoom.py, home_tap_faceglow_J_steady_3x.{mp4,png} (PNG = frame 21),
 home_tap_faceglow_J_pins_before_after_4x.png (I vs J for MORPHEUS/CONTROL sides and bottoms, TERMINAL for reference).
+
+## Variant K: heavy face glow on the four tappable chips (Mobandy, 2026-11-03)
+Brief: J's glow was too subtle ("They did not glow") -> "Heavy glow". K = J with ONLY the face glow changed; GIBSON untouched.
+- Glow is seeded on each bot's own eyes (MORPHEUS: his shades + bridge): w = exp(-max(d-1,0)^2 / 2 sig^2), d = 1x distance to
+  the nearest eye/shade pixel, sig = 0.28 x face width (CONTROL, SCAN, TERMINAL) / 0.14 (MORPHEUS, so his face edges stay black).
+  w = 1 on the pixels touching the eyes. Steady: strength is the same every frame; only the halo size breathes (sig x 0.92..1.08, 1.4 s).
+- Colour = the bot's own face colour brightened ("screen" with a light of that colour, monotonic per channel so ramps keep their
+  order): CONTROL hot pale lime (0.90,1.00,0.85 x 0.97), SCAN bright gold (1.00,0.88,0.55 x 0.88; diagonal metallic ramp kept,
+  not flat yellow), TERMINAL bright silver / white-blue (0.88,0.95,1.00 x 1.0), MORPHEUS additive slate-blue light (110,128,175)
+  round the shades on his black face.
+- Clipped to the face-colour pixels inside each face window (the non-dark region inside the black window frame); eyes,
+  shades, glint and pure-white highlights are excluded, so the border, bezel, outline, pins, label and body cannot change.
+- Verified against J on all 168 frames (J regenerated and checked equal to the J PNG frames, 0 mismatches): 3383 changed
+  px/frame (568,344 total), all inside the four face windows and inside the face-colour masks: 0 outside the windows, 0 on any
+  border/bezel/pin/label/GIBSON pixel. Per bot: MORPHEUS 278, CONTROL 343, SCAN 1423, TERMINAL 1339 px/frame.
+- Note: J's TERMINAL face has two eyes and no ">_" glyph; K keeps it exactly as J (no glyph added).
+Files: tap_faceglow_K.py, tap_faceglow_K_zoom.py, home_tap_faceglow_K_steady_3x.{mp4,png} (PNG = frame 21),
+home_tap_faceglow_K_faces_4x.png (J above / K below, 4x), home_tap_faceglow_J_vs_K_3x.png (J vs K board, 3x).

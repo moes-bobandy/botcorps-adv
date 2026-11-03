@@ -7,9 +7,14 @@
  */
 
 #include "display/botcorps_display.h"
+#ifndef BOTCORPS_ADV_LAND
 #include "probe/botcorps_probe.h"
 #include "ui/botcorps_band.h"
 #include "ui/botcorps_ui.h"
+#endif
+#ifdef BOTCORPS_ADV_LAND
+#include "live/lv_adv.h"
+#endif
 
 #include <esp_heap_caps.h>
 
@@ -27,6 +32,51 @@
 #endif
 
 #ifndef BOTCORPS_CYD
+#ifdef BOTCORPS_ADV_LAND
+/* Landscape dual: CYD livescan behaviour on EXT 320x240, status on INT 240x135.
+ * Keyboard is the Cardputer map (Fn+; . , / arrows, Enter, Fn+`). No touch cal. */
+static void park_ir_led(void)
+{
+    pinMode(44, OUTPUT);
+    digitalWrite(44, HIGH);
+}
+static void park_sd_cs(void)
+{
+    pinMode(BOTCORPS_PIN_SD_CS, OUTPUT);
+    digitalWrite(BOTCORPS_PIN_SD_CS, HIGH);
+}
+void setup(void)
+{
+    park_ir_led();
+    Serial.begin(115200);
+    delay(100);
+    auto cfg = M5.config();
+    M5Cardputer.begin(cfg, true);
+    M5Cardputer.Keyboard.begin(std::make_unique<TCA8418KeyboardReader>());
+    park_ir_led();
+    M5Cardputer.Display.setRotation(1);
+    Serial.printf("\n[botcorps] %s ADV landscape %s\n", BOTCORPS_VERSION, BOTCORPS_BUILD_ID);
+    park_sd_cs();
+    const bool ext = botcorps_dual_begin();
+    botcorps_lcd_resume_after_bus();
+    Serial.printf("[botcorps] dual_flag=%d ext_ok=%d landscape=1\n", BOTCORPS_DUAL_SCREEN, ext ? 1 : 0);
+    if (!ext) {
+        auto &menu = botcorps_menu();
+        menu.fillScreen(0x0000);
+        menu.setFont(&fonts::Font0);
+        menu.setTextSize(2, 2);
+        menu.setTextColor(0xFFFF, 0x0000);
+        menu.setCursor(8, 40);
+        menu.print("EXT fail");
+    }
+    lv_adv_begin();
+}
+void loop(void)
+{
+    M5Cardputer.update();
+    lv_adv_loop();
+}
+#else
 static void park_ir_led(void)
 {
     /* Cardputer IR LED on GPIO44. HIGH keeps it off. */
@@ -127,6 +177,7 @@ void loop(void)
     botcorps_ui_draw();
     delay(10);
 }
+#endif /* BOTCORPS_ADV_LAND */
 #elif defined(BOTCORPS_CYD_LIVESCAN) && BOTCORPS_CYD_LIVESCAN
 #include "live/lv_ui.h"
 

@@ -1,4 +1,4 @@
-# Variant C (Mobandy 2026-11-02 ~10:45 PM ET: "have the bot face glow a bit stronger"). MOCK ONLY.
+# Variant C (Mobandy, 2026-11-02: "have the bot face glow a bit stronger"). MOCK ONLY.
 # ONLY the face square of BOOTbot, CONTROLbot, SCANbot, TERMINALbot glows; B's outer chip halo removed.
 #  - glow: soft breathing halo in the face's own colour radiating OUT from the face-square edge over the surrounding
 #    black face panel / grey bezel, inside the chip only. alpha = AMAX * ((R+1-d)/R)^2 * s, R = 7 px (1x), never on

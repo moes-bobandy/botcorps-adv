@@ -29,7 +29,7 @@ Verified: GIBSONbot rain box (x76-164, y40-155) pixel-identical to locked gaps3 
 locked still PNG; nothing outside the four chip rects (A) / glow rings (B) changes. Note: the locked 3-up crop (x74-167) includes
 BOOTbot's right pin column (x74-75) and CONTROLbot's left pin column (x165-167); those neighbour pixels do pulse/glow by design.
 
-## Variant C — FACE GLOW (Mobandy 2026-11-02 ~10:45 PM ET: "Are you able to just have the bot face glow a bit stronger")
+## Variant C — FACE GLOW (Mobandy, 2026-11-02: "Are you able to just have the bot face glow a bit stronger")
 B's outer chip halo removed. Only the face square of BOOTbot, CONTROLbot, SCANbot, TERMINALbot glows; same 1.4 s in-sync breath.
 - Face squares (1x, incl.): BOOT 40,65-66,91 (white-framed screen), CONTROL 178,65-196,83, SCAN 48,178-86,216, TERMINAL 154,178-192,216.
 - Glow: radiates out from the face edge over the black face panel and grey bezel, inside the chip only, R = 7 px,

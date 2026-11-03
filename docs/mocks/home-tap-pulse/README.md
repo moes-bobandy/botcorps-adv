@@ -119,3 +119,18 @@ Brief: "Add a bot line under MORPHEUS like CONTROLbot."
   (bbox x48..58 y102..106), and in frame 21 the glyph pixels are identical to CONTROL's "bot" ink.
 Files: tap_faceglow_I.py, home_tap_faceglow_I_steady_3x.{mp4,png} (PNG = frame 21),
 home_tap_faceglow_I_morpheus_H_vs_I_vs_control_4x.png (H, I, CONTROLbot).
+
+## Variant J: top-chip pins in TERMINALbot's style (Mobandy, 2026-11-03)
+Brief: "Make their pins like the terminal bot" (MORPHEUS and CONTROLbot).
+- TERMINAL measured (1x): side pins 1 dark shade + 2 lime, 2 tall, 5 px pitch; bottom pins 2 wide x 3 tall, 5 px pitch, no
+  shade. Old top-chip pins: side 1 dark + 1 lime, 2 tall, 3 px pitch (16 per side, rows 62..108); bottom 2x2, 3 px pitch (12).
+- The old pins are erased to the strip/black that was under them and new pins are stamped from TERMINAL's own pixels: 9 per side
+  at rows 65..105 (pitch 5) and 7 on the bottom at pitch 5 (MORPHEUS x37..68, CONTROL x171..202, rows 109..111). Every trace
+  lands on a pin: MORPHEUS right and CONTROL left at rows 95-96, bottom traces at x52-53 / x186-187.
+- Placement: the top chips' pin strips are only 2 px wide, so to stay inside each footprint the 3 px pin is shade on black + 2 lime
+  over the strip, with the lime touching the body. TERMINAL's left pins have 1 strip px between lime and body; his right pins
+  touch the body like these. The header wave and the lime dashes inside the body are not pins (TERMINAL has the same inner dashes) and are kept.
+- Verified against I: 0/168 frames change any pixel outside the two chips' pin bands (changed bbox x31..208 y62..111). In the
+  bands there is no leftover lime or dark-shade pixel outside the new pins and no missing pin pixel.
+Files: tap_faceglow_J.py, tap_faceglow_J_zoom.py, home_tap_faceglow_J_steady_3x.{mp4,png} (PNG = frame 21),
+home_tap_faceglow_J_pins_before_after_4x.png (I vs J for MORPHEUS/CONTROL sides and bottoms, TERMINAL for reference).

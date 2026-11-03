@@ -1,0 +1,74 @@
+{
+ "WIFI": {
+  "what": "Routers and hotspots near you.",
+  "spot": "Networks broadcast their name and lock type.",
+  "protect": "Use WPA2/WPA3. Skip open Wi-Fi or use a VPN.",
+  "source": "draft (no firmware description for WIFIbot)"
+ },
+ "BLUETOOTH": {
+  "what": "Short-range radio in earbuds, watches and tags.",
+  "spot": "Devices send adverts with a name and maker ID.",
+  "protect": "Turn it off when idle. Refuse surprise pairing.",
+  "source": "draft (no firmware description for BLUETOOTHbot)"
+ },
+ "DEAUTH": {
+  "what": "Fake messages that kick you off Wi-Fi.",
+  "spot": "Passive watch for deauth and disassoc floods.",
+  "protect": "Use WPA3 or protected frames (802.11w).",
+  "source": "spot: LV_HUNT_DESC 'passive deauth/disassoc frame watch' (src/live/lv_core.h:302); rest draft"
+ },
+ "HACK": {
+  "what": "Weak Wi-Fi anyone can read.",
+  "spot": "Access points that are OPEN or use WEP.",
+  "protect": "Stay off them. Lock yours with WPA2/WPA3.",
+  "source": "spot: LV_HUNT_DESC 'WiFi: OPEN or WEP access points' (src/live/lv_core.h:302); rest draft"
+ },
+ "FLOCK": {
+  "what": "Flock cameras that read license plates.",
+  "spot": "Flock Wi-Fi names, Penguin/FS Ext Battery.",
+  "protect": "Know where they are. Ask how long data is kept.",
+  "source": "spot: LV_HUNT_DESC 'WiFi+BLE: Flock SSIDs, Penguin/FS Ext Battery' (src/live/lv_core.h:302); rest draft"
+ },
+ "DRONE": {
+  "what": "DJI, Tello, Skydio and Anafi drones.",
+  "spot": "Drone Wi-Fi names, Bluetooth and Remote ID.",
+  "protect": "Note time and place. Report misuse to police.",
+  "source": "spot: LV_HUNT_DESC 'WiFi+BLE: DJI/Tello/Skydio/Anafi, Remote ID' (src/live/lv_core.h:302); rest draft"
+ },
+ "AIR TAG": {
+  "what": "Apple AirTag, a coin-size Find My tracker.",
+  "spot": "Find My adverts (Apple 0x004C, type 0x12).",
+  "protect": "Check bags and car. Heed phone tag alerts.",
+  "source": "spot: LV_HUNT_DESC 'BLE: Apple Find My adverts (0x004C type 0x12)' (src/live/lv_core.h:302); rest draft"
+ },
+ "KEYFOB": {
+  "what": "Keyring trackers like Tile.",
+  "spot": "Tile Bluetooth IDs FEED and FEEC.",
+  "protect": "Scan for tags you do not own.",
+  "source": "spot: LV_HUNT_DESC 'BLE: Tile trackers (FEED/FEEC). No sub-GHz radio' (src/live/lv_core.h:302); rest draft"
+ },
+ "META": {
+  "what": "Meta smart glasses with a camera.",
+  "spot": "Bluetooth company ID 0x01AB or 0x058E.",
+  "protect": "Watch for the capture light. Ask before filming.",
+  "source": "spot: LV_HUNT_DESC 'BLE: Meta glasses (company 0x01AB/0x058E)' (src/live/lv_core.h:302); rest draft"
+ },
+ "SKIMMER": {
+  "what": "Hidden card readers on pumps and ATMs.",
+  "spot": "Serial modules HC-05/06/08 and RNBT.",
+  "protect": "Tap to pay. Wiggle the reader. Cover the keypad.",
+  "source": "spot: LV_HUNT_DESC 'BLE: HC-05/06/08, RNBT serial modules' (src/live/lv_core.h:302); rest draft"
+ },
+ "FLIPPER": {
+  "what": "Flipper Zero, a pocket radio and NFC tool.",
+  "spot": "Bluetooth advert names that say Flipper.",
+  "protect": "Update your phone. Dismiss surprise pop-ups.",
+  "source": "spot: LV_HUNT_DESC 'BLE: Flipper Zero advert names' (src/live/lv_core.h:302); rest draft"
+ },
+ "SAMSUNG": {
+  "what": "Samsung Galaxy SmartTag trackers.",
+  "spot": "SmartTag Bluetooth adverts (FD5A/FD59).",
+  "protect": "Run an unknown tag scan in SmartThings.",
+  "source": "spot: LV_HUNT_DESC 'BLE: Samsung SmartTag (FD5A/FD59)' (src/live/lv_core.h:302); rest draft"
+ }
+}

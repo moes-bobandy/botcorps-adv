@@ -1,0 +1,106 @@
+{
+ "frames": 168,
+ "fps": 30,
+ "src_frames_used": "1..186",
+ "frames_outside_changed": 0,
+ "px_outside_changed": 0,
+ "base_px_changed_outside_tint_rects": 0,
+ "max_ring_px": 11070,
+ "max_lift_px": 12912,
+ "max_abs_delta": 198,
+ "peak_frame": 22,
+ "peak_s": 1.0,
+ "peak_src_frame": 24,
+ "loop_s": 5.6,
+ "loop_phase_jump_s": 0.0,
+ "tints": {
+  "WIFI": {
+   "rect": [
+    32,
+    30,
+    74,
+    92
+   ],
+   "col": "#ff7a00",
+   "amt": "5/8"
+  },
+  "BLE": {
+   "rect": [
+    32,
+    93,
+    74,
+    152
+   ],
+   "col": "#2f6bff",
+   "amt": "5/8"
+  }
+ },
+ "chips": [
+  {
+   "name": "WIFI",
+   "face": [
+    42,
+    44,
+    64,
+    66
+   ],
+   "win": [
+    35,
+    40,
+    71,
+    72
+   ],
+   "colour": [
+    156,
+    101,
+    49
+   ],
+   "ring_px_1x": 538,
+   "lift_px_1x": 497
+  },
+  {
+   "name": "BLE",
+   "face": [
+    42,
+    107,
+    64,
+    129
+   ],
+   "win": [
+    35,
+    103,
+    71,
+    135
+   ],
+   "colour": [
+    66,
+    97,
+    173
+   ],
+   "ring_px_1x": 538,
+   "lift_px_1x": 497
+  },
+  {
+   "name": "GIB",
+   "face": [
+    176,
+    74,
+    198,
+    96
+   ],
+   "win": [
+    169,
+    70,
+    205,
+    102
+   ],
+   "colour": [
+    247,
+    242,
+    230
+   ],
+   "ring_px_1x": 538,
+   "lift_px_1x": 476
+  }
+ ]
+}

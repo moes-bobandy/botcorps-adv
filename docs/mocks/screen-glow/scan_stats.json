@@ -4,35 +4,51 @@
  "src_frames_used": "1..186",
  "frames_outside_changed": 0,
  "px_outside_changed": 0,
- "base_px_changed_outside_tint_rects": 0,
- "max_ring_px": 11070,
+ "base_px_changed_outside_faces": 0,
+ "max_ring_px": 14526,
  "max_lift_px": 12912,
- "max_abs_delta": 198,
+ "max_abs_delta": 204,
  "peak_frame": 22,
  "peak_s": 1.0,
  "peak_src_frame": 24,
  "loop_s": 5.6,
  "loop_phase_jump_s": 0.0,
- "tints": {
+ "face_tint": {
   "WIFI": {
-   "rect": [
-    32,
-    30,
-    74,
-    92
-   ],
    "col": "#ff7a00",
-   "amt": "5/8"
+   "mid": [
+    255,
+    122,
+    0
+   ],
+   "hi": [
+    255,
+    174,
+    0
+   ],
+   "shadow": [
+    112,
+    53,
+    0
+   ]
   },
   "BLE": {
-   "rect": [
-    32,
-    93,
-    74,
-    152
-   ],
    "col": "#2f6bff",
-   "amt": "5/8"
+   "mid": [
+    47,
+    107,
+    255
+   ],
+   "hi": [
+    67,
+    152,
+    255
+   ],
+   "shadow": [
+    21,
+    47,
+    112
+   ]
   }
  },
  "chips": [
@@ -51,9 +67,9 @@
     72
    ],
    "colour": [
-    156,
-    101,
-    49
+    255,
+    122,
+    0
    ],
    "ring_px_1x": 538,
    "lift_px_1x": 497
@@ -73,9 +89,9 @@
     135
    ],
    "colour": [
-    66,
-    97,
-    173
+    47,
+    107,
+    255
    ],
    "ring_px_1x": 538,
    "lift_px_1x": 497

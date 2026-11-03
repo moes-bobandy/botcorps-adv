@@ -84,3 +84,13 @@ to have the bot rain."
   outside chip + pin bands + face fills.
 Files: tap_faceglow_F.py, tap_faceglow_F_zooms.py, home_tap_faceglow_F_steady_3x.{mp4,png} (PNG = frame 21),
 home_tap_faceglow_F_gibson_pins_4x.png (E old vs F new vs SCANbot), home_tap_faceglow_F_morpheus_vs_control_4x.png.
+
+## Variant G: MORPHEUS bezel dark grey (Mobandy, 2026-11-03)
+Brief: "Make that white boarder around him dark grey."
+- The white bezel ring around MORPHEUS's face window (1x x40..66 y65..91 minus the screen/chin x42..64 y66..88; 200 px) is
+  recoloured to the board's existing dark grey SEP (84,88,98), the quiet grey already used for the MORPHEUS outline and lens
+  drop shade (most common dark grey on the board). The face, glints, body, label, pins, glow and the rest of the board are unchanged.
+- Verified against F: 0/168 frames differ outside those 200 bezel pixels, exactly 200 px change in every frame (bbox x40..66
+  y65..91), and the white-bezel pixel set is identical in all 168 frames.
+Files: tap_faceglow_G.py, home_tap_faceglow_G_steady_3x.{mp4,png} (PNG = frame 21),
+home_tap_faceglow_G_morpheus_F_vs_G_vs_control_4x.png (F, G, CONTROLbot).

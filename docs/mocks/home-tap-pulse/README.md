@@ -94,3 +94,18 @@ Brief: "Make that white boarder around him dark grey."
   y65..91), and the white-bezel pixel set is identical in all 168 frames.
 Files: tap_faceglow_G.py, home_tap_faceglow_G_steady_3x.{mp4,png} (PNG = frame 21),
 home_tap_faceglow_G_morpheus_F_vs_G_vs_control_4x.png (F, G, CONTROLbot).
+
+## Variant H: MORPHEUS chip in CONTROLbot's style (Mobandy, 2026-11-03)
+Brief: "make the rest of Morpheus hold the CONTROLbot look for the board like you did for Gibson."
+- The two chips are the same size, so CONTROL's own pixels (1x x165..208, y51..111) are copied onto MORPHEUS (x31..74,
+  dx = -134): neutral grey body with its left highlight and lower-right diagonal, header wave, lime border and inner dashes,
+  'dL'/'Ld' side pins on a 3 px pitch, and bottom pins. Column x75 is kept from G. The right trace (rows 95-96) meets a
+  CONTROL-style pin and the bottom trace (x52-53) meets the bottom pins.
+- Face: G's locked MORPHEUS screen (23x21 with its glow) is moved up 1 px into CONTROL's face-window rows (64..86), with a
+  1 px dark grey (84,88,98) bezel ring at x41..65, y64..86 (his bezel instead of CONTROL's black window).
+- Label: CONTROL's ink is erased to the body. MORPHEUS is drawn in TINY3 (CONTROL's font, 4 px pitch) in CONTROL's ink
+  (23,23,25) on CONTROL's name row (y95..99), at x38..68 centred like CONTROL's label. It ends 2 px before the diagonal.
+- Verified against G: 0/168 frames change any pixel outside the MORPHEUS chip box (x31..75, y51..111). In frame 21 all
+  1734 body pixels outside the face window and label rows are identical to CONTROL's.
+Files: tap_faceglow_H.py, tap_faceglow_H_zoom.py, home_tap_faceglow_H_steady_3x.{mp4,png} (PNG = frame 21),
+home_tap_faceglow_H_morpheus_G_vs_H_vs_control_4x.png (G, H, CONTROLbot).

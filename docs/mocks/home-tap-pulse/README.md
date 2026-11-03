@@ -28,3 +28,19 @@ strip), home_tap_pulse_A_peak_3x.png, home_tap_glow_B_peak_3x.png. MP4s: H.264 M
 Verified: GIBSONbot rain box (x76-164, y40-155) pixel-identical to locked gaps3 on all 168 frames for A and B; frame 0 3x crop ==
 locked still PNG; nothing outside the four chip rects (A) / glow rings (B) changes. Note: the locked 3-up crop (x74-167) includes
 BOOTbot's right pin column (x74-75) and CONTROLbot's left pin column (x165-167); those neighbour pixels do pulse/glow by design.
+
+## Variant C — FACE GLOW (Mobandy 2026-11-02 ~10:45 PM ET: "Are you able to just have the bot face glow a bit stronger")
+B's outer chip halo removed. Only the face square of BOOTbot, CONTROLbot, SCANbot, TERMINALbot glows; same 1.4 s in-sync breath.
+- Face squares (1x, incl.): BOOT 40,65-66,91 (white-framed screen), CONTROL 178,65-196,83, SCAN 48,178-86,216, TERMINAL 154,178-192,216.
+- Glow: radiates out from the face edge over the black face panel and grey bezel, inside the chip only, R = 7 px,
+  alpha = AMAX * ((8-d)/7)^2 * s; AMAX 0.80 (TERMINAL 0.95, colour 226,236,250 from his face highlight so he reads as clearly
+  as the others). Colours: BOOT/CONTROL lime 147,254,0; SCAN gold 245,180,73. Never on lime pin/decor dots, labels,
+  header waveform or outline. Fades to 0 at the trough, so there is no persistent border.
+- Face: mild midtone lift x -> 255*(x/255)^(1/(1+0.15 s)): black and white fixed, so SCAN keeps its bronze-to-pale gold ramp and
+  TERMINAL keeps his shaded silver (no new near-white pixels: 84 -> 84 px >= 240 on all channels).
+- Verified: 0/168 frames change any pixel outside the face-glow regions (7257 px total), so chip bodies, pins, labels, board
+  and the GIBSONbot rain chip match the locked base exactly.
+- Firmware: precompute per face a ring list (~570/461/1047/1047 px, 3-bit alpha) plus a 16-level gamma LUT for the face colours.
+  Per update push face + ring as strips: ~7.3k px = 14.5 KB, ~3-4 ms SPI at 40 MHz; throttled to ~12 Hz that is ~4-5% of the
+  bus budget. Cheaper than A, a bit more than B.
+Files: tap_faceglow_C.py, home_tap_faceglow_C_3x.mp4, home_tap_faceglow_C_peak_3x.png (frame 21), home_tap_sbs_B_C_3x.mp4 (B left, C right).

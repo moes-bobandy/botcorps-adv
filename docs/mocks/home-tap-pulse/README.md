@@ -152,3 +152,36 @@ Brief: J's glow was too subtle ("They did not glow") -> "Heavy glow". K = J with
 - Note: J's TERMINAL face has two eyes and no ">_" glyph; K keeps it exactly as J (no glyph added).
 Files: tap_faceglow_K.py, tap_faceglow_K_zoom.py, home_tap_faceglow_K_steady_3x.{mp4,png} (PNG = frame 21),
 home_tap_faceglow_K_faces_4x.png (J above / K below, 4x), home_tap_faceglow_J_vs_K_3x.png (J vs K board, 3x).
+
+## Variant L: own-colour face glow plus a coloured halo (mock only)
+
+Mobandy rejected K because the faces just whitened. L starts again from the un-glowed J faces, so the E/K white lift is gone. Each face is brightened in HSV in its own hue: saturation is held or raised, and only value goes up. A halo in the bot's colour then fills the black face-window pixels between the face and the bezel. It is strongest next to the face and fades to black.
+
+- CONTROLbot: neon lime. Saturation 1.0, value 255, lime halo (120,255,0).
+- SCANbot: rich gold. The metallic ramp and highlight stripes are kept, with an amber halo (255,170,20).
+- TERMINALbot: saturated ice-blue/cyan. Hue is pulled to 192°, with a cyan halo (40,200,255). He keeps two eyes and no stray pixels.
+- MORPHEUSbot: a deeper, brighter cyan-blue glow around his shades. The lower face stays black, with a blue halo ring (30,150,255).
+- The glow is steady. Only its size breathes gently (`0.92 + 0.16*breath(n)`). The window's mean brightness varies by 3.7% or less over the loop, so there is no brightness pulse.
+- GIBSON, the bezels, chip borders, outlines, pins, labels and body are unchanged. Every changed pixel lies inside the four black face windows.
+
+Diff over all 168 frames, per frame:
+
+| Bot | Face px | Halo px | Other |
+|---|---|---|---|
+| MORPHEUSbot | 242 | 123 | 36 dark lower-panel px, back to base black |
+| CONTROLbot | 343 | 168 | 0 |
+| SCANbot | 1423 (1417–1423 vs J) | 688 | 0 |
+| TERMINALbot | 1339 | 688 | 0 |
+
+Totals and checks:
+
+- Changed pixels outside the face windows: 0 against J and 0 against K.
+- Total changed pixels: 847,896 against J and 848,400 against K.
+
+Files:
+
+- `tap_faceglow_L.py` and `tap_faceglow_L_zoom.py`.
+- `home_tap_faceglow_L_steady_3x.mp4`: H.264, yuv420p, faststart, 168 frames, 30 fps, 720x960.
+- `home_tap_faceglow_L_steady_3x.png`: frame 21.
+- `home_tap_faceglow_L_faces_4x.png`: the K row above the L row.
+- `home_tap_faceglow_K_vs_L_3x.png`.

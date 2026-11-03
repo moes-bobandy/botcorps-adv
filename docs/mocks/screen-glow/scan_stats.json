@@ -1,14 +1,40 @@
 {
- "frames": 300,
+ "frames": 168,
+ "fps": 30,
+ "src_frames_used": "1..186",
  "frames_outside_changed": 0,
  "px_outside_changed": 0,
- "max_ring_px": 12260,
- "max_lift_px": 12937,
+ "base_px_changed_outside_tint_rects": 0,
+ "max_ring_px": 11070,
+ "max_lift_px": 12912,
  "max_abs_delta": 198,
- "peak_frame": 71,
+ "peak_frame": 22,
  "peak_s": 1.0,
- "loop_s": 9.0,
- "loop_phase_jump_s": 0.95,
+ "peak_src_frame": 24,
+ "loop_s": 5.6,
+ "loop_phase_jump_s": 0.0,
+ "tints": {
+  "WIFI": {
+   "rect": [
+    32,
+    30,
+    74,
+    92
+   ],
+   "col": "#ff7a00",
+   "amt": "5/8"
+  },
+  "BLE": {
+   "rect": [
+    32,
+    93,
+    74,
+    152
+   ],
+   "col": "#2f6bff",
+   "amt": "5/8"
+  }
+ },
  "chips": [
   {
    "name": "WIFI",
@@ -25,9 +51,9 @@
     72
    ],
    "colour": [
-    105,
-    119,
-    131
+    156,
+    101,
+    49
    ],
    "ring_px_1x": 538,
    "lift_px_1x": 497
@@ -47,9 +73,9 @@
     135
    ],
    "colour": [
-    105,
-    119,
-    131
+    66,
+    97,
+    173
    ],
    "ring_px_1x": 538,
    "lift_px_1x": 497

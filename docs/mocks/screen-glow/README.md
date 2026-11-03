@@ -72,24 +72,37 @@ Locked source: LOCKED/ui_glossary_morpheus_rain/chiprain_black_soft_final_big_mo
 - Encode check: `morpheus h264,Main,720,960,yuv420p,8/1,74 | moov at byte 36 | frames compared 74 | outside region: mean|d| 2.586, max 69, px>8 2716305 of 42277680 (6.4249%)`
 - Files: `morpheus_glow_3x.mp4`, `morpheus_glow_peak_3x.png`, `morpheus_locked_vs_glow_sbs.png`, `morpheus_stats.json`.
 
-## SCAN
+## SCAN (re-done 2026-11-03 on the CURRENT orange WIFI / blue BLE faces)
 
-Locked source: LOCKED/ui_scanbot/scanbot_bg_themes_v2@3x.mp4 (sha256 a8d2f40c…, 720x960, 100/3 fps, 300 frames; locked 2026-10-29 3:22 PM ET)
+Mobandy, 2026-11-03: "The WiFi and Bluetooth bot don't have grey faces that's old". The first SCAN glow (now `*_old_grey.*`) used the
+LOCKED SCANbot clip as-is, and that clip (locked 2026-10-29 3:22 PM ET) still has the old grey WIFI / BLE faces (105,119,131).
+The orange / blue faces were never re-baked into a LOCKED clip: the firmware adds them at run time.
 
-| chip | face (1x x0,y0,x1,y1) | window | glow colour | ring px 1x | lift px 1x |
+Current source: `src/live/lv_core.h` (commit 156f359, 2026-10-31 12:22 PM ET, unchanged at HEAD): `LV_WIFI_COL 0xff7a00`, `LV_BLE_COL 0x2f6bff`;
+`lv_tint_setup()` on LV_SC_SCAN adds `LV_T_SWIFI` on {32,30,74,92} and `LV_T_SBLE` on {32,93,74,152}; `lv_tint_state()` gives them
+`LV_TM_COLOR` amt 5/8 always (6-7/8 blinking while that radio scans). Before 156f359 these tints were off unless a scan ran (cyan / blue).
+
+Base = LOCKED/ui_scanbot/scanbot_bg_themes_v2@3x.mp4 decoded + that idle tint reproduced bit-for-bit (`glow_scan_current.py`, RGB565, C truncation).
+Check: the host sim (`tools/livescan/sim_live.cpp`, `go 4`) gives WIFI face (156,101,49) and BLE face (66,97,173); the tinted base gives the same.
+Base vs locked: 0 px changed outside the two tint rects. `scan_current_base_3x.png` = the base at the peak frame.
+
+| chip | face (1x) | window | glow colour | ring px 1x | lift px 1x |
 |---|---|---|---|---|---|
-| WIFI | (42, 44, 64, 66) | (35, 40, 71, 72) | (105, 119, 131) | 538 | 497 |
-| BLE | (42, 107, 64, 129) | (35, 103, 71, 135) | (105, 119, 131) | 538 | 497 |
+| WIFI | (42, 44, 64, 66) | (35, 40, 71, 72) | (156, 101, 49) | 538 | 497 |
+| BLE | (42, 107, 64, 129) | (35, 103, 71, 135) | (66, 97, 173) | 538 | 497 |
 | GIB | (176, 74, 198, 96) | (169, 70, 205, 102) | (247, 242, 230) | 538 | 476 |
 
-- Glowed: WIFI and BLE scan chips (face colour grey 105,119,131) and GIB (cream 247,242,230).
-- Not glowed (flag, ask Mobandy): ALL / WIFI / BT / DEAUTH tab buttons, the FINDS tiles and MORE. They have no bot face, so the face glow has nowhere to start.
-- Not glowed: big SCANbot (flag: is it tappable?).
-- Read: GIB glows clearly. The WIFI and BLE faces are grey on a grey bezel, so in their own colour there is no visible coloured halo. At peak the grey fills the 2 px black window, so the face's black frame fades and the face blends into the bezel (it looks washed out, not glowing). If Mobandy wants a visible glow here, it needs a different colour (e.g. the theme accent), which breaks the 'own face colour' rule. Ask him.
-- Diff vs decoded locked frames (PNG, before encode): **0 frames / 0 px changed outside face+window** over 300 frames; max changed ring px per frame 12260, lift px 12937 (3x); max |delta| 198.
-- Peak still: frame 71 (s = 1.000). Loop: 9.00 s clip, 1.4 s breath kept, so the breath jumps at the loop point (s = 0 at the start, s = 0.950 at the wrap).
-- Encode check: `scan h264,Main,720,960,yuv420p,100/3,300 | moov at byte 36 | frames compared 300 | outside region: mean|d| 2.625, max 124, px>8 12510596 of 197469900 (6.3354%)`
-- Files: `scan_glow_3x.mp4`, `scan_glow_peak_3x.png`, `scan_locked_vs_glow_sbs.png`, `scan_stats.json`.
+- Same C glow (AMAX 0.80, RC 7, 1.4 s, gamma 0.15), masks from the untinted locked median exactly as before. Big SCANbot not glowed; tabs / FINDS / MORE not glowed.
+- 168 frames at 30 fps (5.6 s = 4 breaths, breath loops cleanly). Output frame n uses locked frame floor(n*(100/3)/30)+1 (frames 1..186 of 300), so the
+  locked animation (ticker, rain, finds) jumps at the loop point (~11% of px differ between frame 186 and frame 1).
+- Diff vs current base (PNG, before encode): **0 frames / 0 px changed outside face+window** over 168 frames; max ring px 11070, lift px 12912 (3x); max |delta| 198.
+- Peak still: frame 22 (s = 1.000, locked frame 24).
+- Read (honest): WIFI is a muted brown-orange and BLE a steel blue (the firmware's 5/8 luminance tint, not pure #FF7A00 / #2F6BFF); their bezel, pins,
+  label and dash ring are tinted too. Because the bezel is the same tint as the face, the halo in the face's own colour mostly fills the black window
+  frame: at peak the face's black border fades into the bezel and the face looks bigger/softer, not like a bright halo. GIB's cream halo is clear.
+- Encode check (`verify_scan_current.py`): `scan h264,Main,720,960,yuv420p,30/1,168 | moov at byte 36 | frames compared 168 | outside region vs current base: mean|d| 2.777, max 137, px>8 6.6733%` (re-encode noise, as below).
+- Files: `scan_glow_3x.mp4`, `scan_glow_peak_3x.png`, `scan_locked_vs_glow_sbs.png` (current base vs glow), `scan_current_base_3x.png`, `scan_stats.json`.
+  Old grey-face versions kept as `scan_glow_3x_old_grey.mp4`, `scan_glow_peak_3x_old_grey.png`, `scan_locked_vs_glow_sbs_old_grey.png`, `scan_stats_old_grey.json`.
 
 ## Codec note (honest)
 

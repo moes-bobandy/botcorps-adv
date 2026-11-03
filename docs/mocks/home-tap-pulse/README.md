@@ -109,3 +109,13 @@ Brief: "make the rest of Morpheus hold the CONTROLbot look for the board like yo
   1734 body pixels outside the face window and label rows are identical to CONTROL's.
 Files: tap_faceglow_H.py, tap_faceglow_H_zoom.py, home_tap_faceglow_H_steady_3x.{mp4,png} (PNG = frame 21),
 home_tap_faceglow_H_morpheus_G_vs_H_vs_control_4x.png (G, H, CONTROLbot).
+
+## Variant I: "bot" line under MORPHEUS (Mobandy, 2026-11-03)
+Brief: "Add a bot line under MORPHEUS like CONTROLbot."
+- The second label line "bot" is CONTROLbot's own glyph pixels: its 26 ink pixels (rows 102..106) are copied with the same dx = -134
+  as H's body copy, so the ink (23,23,25), the row and the centring relative to the chip all match CONTROL exactly. 1x x48..58,
+  centred on x53 like MORPHEUS above it and well clear of the diagonal.
+- Verified against H: 0/168 frames change any pixel outside those 26 glyph pixels, exactly 26 px change in every frame
+  (bbox x48..58 y102..106), and in frame 21 the glyph pixels are identical to CONTROL's "bot" ink.
+Files: tap_faceglow_I.py, home_tap_faceglow_I_steady_3x.{mp4,png} (PNG = frame 21),
+home_tap_faceglow_I_morpheus_H_vs_I_vs_control_4x.png (H, I, CONTROLbot).

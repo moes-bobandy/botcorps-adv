@@ -65,3 +65,22 @@ bot color right beyond the glasses pulse" -> "Not pulse but glow" (E). D on its 
 Files: tap_faceglow_E.py, home_tap_faceglow_E_steady_3x.{mp4,png}, home_tap_faceglow_E_breathe_3x.{mp4,png} (PNG = frame 21),
 home_tap_faceglow_E_faces_4x.png (top: no glow, bottom: E steady), home_tap_faceglow_E_morpheus_chip_4x.png,
 home_tap_faceglow_E_morpheus_vs_locked.png.
+
+## Variant F: GIBSONbot small pins + MORPHEUS face-only swap (Mobandy, 2026-11-03)
+Briefs: "Make the pin ui for Gibson look like the rest on the page", then "I only wanted you to change the face ui not the board
+to have the bot rain."
+- GIBSONbot pins: the old pins were double size (sides 5 deep x 4 tall on a 6 px pitch, 16 per side; bottom 4 wide x 5 tall,
+  pitch 6, 12 pins). They are erased to the sampled local background (dark strip / black) and redrawn in the SCANbot/TERMINALbot
+  style, stamped from SCANbot's own pixels: sides 2 lime + 1 dark shade, 2 tall, pitch 5 (18 per side, 1x rows 55..141);
+  bottom 2 wide x 3 tall, pitch 5, no shade (14 pins, x86..152). Lime ends 2 px short of the body outline, as on SCANbot.
+  All four traces still land on pins (left/right at rows 95-96, bottom at x112-113 and x126-127). There were no outer top
+  pins (the header wave sits there); the header wave and the small lime dashes inside the outline are kept.
+- MORPHEUS chip: E's black rain body is removed. The base chip body is restored pixel-for-pixel (grey body, header wave,
+  lime border and side pins, white bezel, label position). Only the face window changes: the locked black face
+  square with diagonal shading and small round black shades (lit rim + glint), and the label reads MORPHEUS in the
+  base label ink. E's face-fill glow stays on all four faces (face colour only, never borders).
+- Verified: 0/168 frames differ from E outside the MORPHEUS chip box (1x x31..75 y51..111) and the GIBSON pin bands. Changed
+  bbox outside the chip box is x76..163 y52..151, all in the pin bands. 0/168 frames differ from the locked base board
+  outside chip + pin bands + face fills.
+Files: tap_faceglow_F.py, tap_faceglow_F_zooms.py, home_tap_faceglow_F_steady_3x.{mp4,png} (PNG = frame 21),
+home_tap_faceglow_F_gibson_pins_4x.png (E old vs F new vs SCANbot), home_tap_faceglow_F_morpheus_vs_control_4x.png.

@@ -261,3 +261,24 @@ Files:
 - `home_tap_faceglow_N_peak_3x.png`: frame 21.
 - `home_tap_faceglow_N_chips_4x.png`: rows for J, N trough and N peak.
 - `home_tap_faceglow_C_vs_N_3x.png`: both at peak.
+
+## Variant O (GIBSONbot shaded + C face glow, on N 7917cf7) — mock only
+
+Mobandy on N: "Gibson also" / "He's clickable" / "And make him like the other bots with shade".
+
+- `tap_faceglow_O.py` runs N unchanged (it checks every frame matches N exactly), then changes only GIBSONbot.
+  - **Shading:** his flat cream face square (1x x96..143, y56..103) gets TERMINALbot's own face ramp. The light comes from the top-left: a near-white bevel along the top rows and left column, a light upper-left field, a diagonal light stripe, a mid field, a shadow triangle at the bottom-right, deep shadow at the edge, and a dark edge row and column. The ramp is resampled 39→48 px, and each tone is swapped for the matching cream tone: (255,254,250) / (252,248,238) / (240,233,217) / (208,197,178) / (176,165,147) / (120,111,98). His black shades (224 px) are pixel-identical.
+  - **Glow:** variant C's face glow, with the same alpha (0.80·((8-d)/7)²·s), the same breath and the same 1.4 s phase as the other four chips. It uses his face cream (247,242,230) and spreads outward from the face square. C's midtone lift is applied to the face; the shades are excluded from it.
+  - **Clipping:** the glow only touches the black pixels of his face window, inside its grey (84,88,98) frame at x91..148, y52..109. That leaves room of 5 px on the left and right, 4 px at the top and 6 px at the bottom. No rain pixel enters that area in any of the 168 frames (checked). The frame line, lime dashes, rain lanes, black gaps, label, dim band, pins and border are never touched.
+- `tap_faceglow_O_zoom.py` writes:
+  - `home_tap_faceglow_O_gibson_4x.png`: GIBSON next to SCAN and TERMINAL, for N trough, O trough and O peak.
+  - `home_tap_faceglow_N_vs_O_3x.png`: N and O side by side at peak.
+- Outputs: `home_tap_faceglow_O_3x.mp4` (H.264, yuv420p, faststart, 168 frames, 30 fps, 720x960) and `home_tap_faceglow_O_peak_3x.png`.
+- Diff of O against N, all 168 frames, counted in 1x px (multiply by 9 for 3x px):
+  - 0 changes outside GIBSON's face square and window ring.
+  - 0 changes on the frame line, dashes, rain, gaps, label, band, pins or border.
+  - 0 changes on the shades.
+  - MORPHEUS, CONTROL, SCAN and TERMINAL are identical to N.
+  - Face shading: 2,080 px every frame (349,440 in total).
+  - Glow lift on the face: 0–2,080 px per frame (260,328 in total).
+  - Glow ring: 0–1,054 px per frame (168,648 in total).

@@ -1,13 +1,32 @@
 {
+ "settings": {
+  "AMAX": 1.0,
+  "RC": 9,
+  "period_s": 1.4,
+  "lift": "none",
+  "wide_box": [
+   -9,
+   -9,
+   9,
+   9
+  ],
+  "window": [
+   -7,
+   -4,
+   7,
+   6
+  ]
+ },
+ "face_px_changed": 0,
  "frames": 168,
  "fps": 30,
  "src_frames_used": "1..186",
  "frames_outside_changed": 0,
  "px_outside_changed": 0,
  "base_px_changed_outside_faces": 0,
- "max_ring_px": 14526,
- "max_lift_px": 12912,
- "max_abs_delta": 204,
+ "max_ring_px": 17739,
+ "max_lift_px": 0,
+ "max_abs_delta": 255,
  "peak_frame": 22,
  "peak_s": 1.0,
  "peak_src_frame": 24,
@@ -71,7 +90,8 @@
     122,
     0
    ],
-   "ring_px_1x": 538,
+   "ring_px_1x": 657,
+   "ring_px_outside_window_1x": 87,
    "lift_px_1x": 497
   },
   {
@@ -93,7 +113,8 @@
     107,
     255
    ],
-   "ring_px_1x": 538,
+   "ring_px_1x": 657,
+   "ring_px_outside_window_1x": 87,
    "lift_px_1x": 497
   },
   {
@@ -115,7 +136,8 @@
     242,
     230
    ],
-   "ring_px_1x": 538,
+   "ring_px_1x": 657,
+   "ring_px_outside_window_1x": 87,
    "lift_px_1x": 476
   }
  ]

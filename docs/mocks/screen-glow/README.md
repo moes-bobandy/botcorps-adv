@@ -72,7 +72,28 @@ Locked source: LOCKED/ui_glossary_morpheus_rain/chiprain_black_soft_final_big_mo
 - Encode check: `morpheus h264,Main,720,960,yuv420p,8/1,74 | moov at byte 36 | frames compared 74 | outside region: mean|d| 2.586, max 69, px>8 2716305 of 42277680 (6.4249%)`
 - Files: `morpheus_glow_3x.mp4`, `morpheus_glow_peak_3x.png`, `morpheus_locked_vs_glow_sbs.png`, `morpheus_stats.json`.
 
-## SCAN (re-done 2026-11-03: face-only orange WIFI / blue BLE, grey frames)
+## SCAN v2 (2026-11-03 ~6 PM ET: faces fixed, only a stronger halo breathes)
+
+Mobandy, replying to the offer to keep the face colours fixed with only the halo breathing: "Yeah add a bit more". `glow_scan_current.py` v2:
+
+- Base unchanged from faceonly_v1: the WIFI / BLE faces are tinted orange #ff7a00 and blue #2f6bff (same table below), frames grey, GIB as locked.
+- **No face lift**: WIFI, BLE and GIB face pixels are identical to the base in all 168 frames (checked: 0 px). No brightening, no hue shift.
+- Halo: AMAX **1.00** (was 0.80, +25%), RC **9 px** at 1x (was 7), same 1.4 s raised-cosine, alpha = AMAX*((RC+1-d)/RC)^2*s, a blend toward each
+  face's own dominant colour (WIFI (255,122,0), BLE (47,107,255), GIB (247,242,230)), so never whiter than the face.
+- Halo px per chip 657 at 1x (was 538): the C window (-7,-4,7,6) black/grey px as before, plus 87 px of grey bezel in a (-9,-9,9,9) box. Dark px outside
+  the window are never touched, so the WIFI / BLE / GIB labels, pins and purple dash ring stay locked. Big SCANbot, tabs, FINDS, MORE not glowed.
+- Diff (PNG, before encode): **face px changed 0**, **0 px changed outside face+window+halo**, base vs locked 0 px outside the two face masks. Peak frame 22 (s = 1.000, locked frame 24).
+- Encode check: `scan h264,Main,720,960,yuv420p,30/1,168 | moov at byte 36 | frames compared 168 | outside region vs current base: mean|d| 2.670, max 121, px>8 6.4333%`
+  (re-encode noise; `verify_scan_current.py` uses the C face+window region, so the 87 halo px outside the window count there too).
+- Read (honest): at peak the black border round each face is fully the face colour (WIFI (0,0,0) -> (255,122,0), BLE -> (47,107,255), GIB -> cream), so the face
+  edge merges into the halo, and a soft orange / blue / cream gradient fades over ~2-3 px of grey bezel (e.g. WIFI bezel below the face (105,118,133) -> (112,118,126)).
+  Clearly visible, stronger than v1; labels, pins and dash ring unchanged. GIB's cream halo reads as a pale bloom on the grey.
+- Files: `scan_glow_3x.mp4`, `scan_glow_peak_3x.png`, `scan_current_base_3x.png`, `scan_faceonly_v1_vs_v2_sbs.png` (b00670c peak vs v2 peak), `scan_stats.json`.
+- b00670c (faceonly_v1: lift on, AMAX 0.80, RC 7) kept as `*_faceonly_v1.*`: `glow_scan_faceonly_v1.py`, `scan_glow_3x_faceonly_v1.mp4`, `scan_glow_peak_3x_faceonly_v1.png`,
+  `scan_current_base_3x_faceonly_v1.png`, `scan_wholechip_vs_faceonly_sbs_faceonly_v1.png`, `scan_stats_faceonly_v1.json`.
+
+### SCAN faceonly_v1 (b00670c, superseded)
+
 
 Mobandy, 2026-11-03: "The WiFi and Bluetooth bot don't have grey faces that's old", then picked: "Tint only the WiFi and Bluetooth faces
 orange and blue, keep their frames grey so the glow shows." The LOCKED SCANbot clip (2026-10-29) still has grey faces (105,119,131); the firmware
@@ -101,7 +122,7 @@ Rects (1x): WIFI face (42,44,64,66) window (35,40,71,72); BLE face (42,107,64,12
   The C lift (per-channel gamma) brightens the face a little at peak, WIFI (255,122,0) -> (255,134,0) (hue 28.7 -> 31.5 deg), BLE (47,107,255) -> (59,120,255);
   no whitening.
 - Encode check (`verify_scan_current.py`): `scan h264,Main,720,960,yuv420p,30/1,168 | moov at byte 36 | frames compared 168 | outside region vs current base: mean|d| 2.661, max 121, px>8 6.3822%` (re-encode noise, as below).
-- Files: `scan_glow_3x.mp4`, `scan_glow_peak_3x.png`, `scan_current_base_3x.png`, `scan_wholechip_vs_faceonly_sbs.png` (previous whole-chip peak vs new peak), `scan_stats.json`.
+- Files (now `*_faceonly_v1.*`): mp4, peak, base, wholechip-vs-faceonly sbs, stats.
 - Previous whole-chip firmware-tint version kept as `*_wholechip_tint.*` (`glow_scan_wholechip_tint.py`, `scan_glow_3x_wholechip_tint.mp4`,
   `scan_glow_peak_3x_wholechip_tint.png`, `scan_locked_vs_glow_sbs_wholechip_tint.png`, `scan_current_base_3x_wholechip_tint.png`, `scan_stats_wholechip_tint.json`).
   Old grey-face versions kept as `scan_glow_3x_old_grey.mp4`, `scan_glow_peak_3x_old_grey.png`, `scan_locked_vs_glow_sbs_old_grey.png`, `scan_stats_old_grey.json`.

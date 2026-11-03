@@ -44,3 +44,24 @@ B's outer chip halo removed. Only the face square of BOOTbot, CONTROLbot, SCANbo
   Per update push face + ring as strips: ~7.3k px = 14.5 KB, ~3-4 ms SPI at 40 MHz; throttled to ~12 Hz that is ~4-5% of the
   bus budget. Cheaper than A, a bit more than B.
 Files: tap_faceglow_C.py, home_tap_faceglow_C_3x.mp4, home_tap_faceglow_C_peak_3x.png (frame 21), home_tap_sbs_B_C_3x.mp4 (B left, C right).
+
+## Variant E: locked MORPHEUSbot chip + inner face glow only (Mobandy, 2026-11-03)
+Briefs: "Morpheus needs to be the new Morpheus ui we locked in" (D), then "The boarder around the chip is glowing. Make only the
+bot color right beyond the glasses pulse" -> "Not pulse but glow" (E). D on its own was not rendered; E includes the D chip swap.
+- Top-left chip (old BOOTbot look; MORPHEUSbot's slot, 1x x31..75 y51..111, same place and size) is redrawn in the locked
+  MORPHEUSbot look (LOCKED/ui_glossary_morpheus_rain): black body with a 1px quiet grey outline (84,88,98), a grey ring round the
+  face window, a black shaded face square, small round black shades with a bridge (morpheus_chip() art, LENS_SMALL), and toned-down
+  firmware device rain (DEV_ART/DEV_NEON at half scale, 4x4 icons, lead 80 %, trails 65..45 %, 30 % behind the label,
+  whole icons only, 133 ms/step, seamless over the 5.6 s loop). Pins, header wave and top/bottom lime dashes are kept; the
+  side dashes inside the body are removed so the rain runs down both sides as in the locked chip.
+- Label: the locked chip says "MORPHEUS". "MORPHEUSbot" in the home 3x5 silk font (TERMINALbot's) is 43 px wide; the body
+  is 37 px, so it does not fit. "MORPHEUS" (31 px) is drawn in that font in the locked label ink (232,236,249) with a shadow.
+- No outward glow anywhere. Only the face-fill pixels glow, steadily (E_steady) or breathing gently between 75 and 100 %
+  (E_breathe, 1.4 s cycle): brighter toward the eyes, colour-true. CONTROL: screen blend with a lime light. SCAN: hue-locked
+  gain, max channel <= 250. TERMINAL: hue-locked gain, max channel <= 232 (no new near-white). MORPHEUS: a faint slate light
+  (96,100,110) on his black face round the shades, kept dark so it still reads as a black face. Eyes, glasses, glints and white highlights are unchanged.
+- Verified: D base vs locked board differs only inside the top-left chip footprint (0/168 frames outside it); E vs D base
+  differs only on the face-fill pixels (0/336 frames outside them).
+Files: tap_faceglow_E.py, home_tap_faceglow_E_steady_3x.{mp4,png}, home_tap_faceglow_E_breathe_3x.{mp4,png} (PNG = frame 21),
+home_tap_faceglow_E_faces_4x.png (top: no glow, bottom: E steady), home_tap_faceglow_E_morpheus_chip_4x.png,
+home_tap_faceglow_E_morpheus_vs_locked.png.

@@ -185,3 +185,35 @@ Files:
 - `home_tap_faceglow_L_steady_3x.png`: frame 21.
 - `home_tap_faceglow_L_faces_4x.png`: the K row above the L row.
 - `home_tap_faceglow_K_vs_L_3x.png`.
+
+## Variant M: J faces exactly as they are, glow from a halo only (mock only)
+
+Mobandy rejected L's recolouring ("Try again without changing the color"). M starts from J (1a24a83), not from K or L. Every face pixel keeps exactly its J colour: SCAN's gold ramp, TERMINAL's silver, CONTROL's lime, and MORPHEUS's black face with his shades and glint.
+
+The glow is a heavy halo in each bot's own face colour, sampled from his J face. It fills only the black face-window pixels between the face plate and the bezel. It is strongest next to the face and fades to black: `I(d) = 0.95 * exp(-(d-1)^2 / 2 (hs*sz)^2)`.
+
+Halo colours, fade widths and pixel counts:
+
+| Bot | Halo colour | Source | hs | Ring px/frame |
+|---|---|---|---|---|
+| CONTROLbot | (176,254,32) | median of J face | 1.1 | 168 |
+| SCANbot | (220,176,94) | median of J face | 2.8 | 688 |
+| TERMINALbot | (216,224,232) | median of J face | 2.8 | 688 |
+| MORPHEUSbot | (222,232,252) | J shades-rim colour (132,138,150) lifted to J glint level (252), same hue | 1.1 | 123 |
+
+- Only the halo's size breathes (`sz = 0.92 + 0.16*breath(n)`). The window's mean brightness varies by 1.9% or less, so there is no brightness pulse.
+- Diff against J over all 168 frames:
+  - Face-plate pixels changed: 0.
+  - Pixels changed outside the face windows: 0.
+  - Other in-window pixels changed: 0.
+  - Total changed: 280,056, all of them halo pixels.
+  - Regenerated J matched the J frames with 0 mismatches.
+- The windows for CONTROL and MORPHEUS are only 1 to 3 px wide, so their halos are short bands rather than soft glows.
+
+Files:
+
+- `tap_faceglow_M.py` and `tap_faceglow_M_zoom.py`.
+- `home_tap_faceglow_M_steady_3x.mp4`: H.264, yuv420p, faststart, 168 frames, 30 fps, 720x960.
+- `home_tap_faceglow_M_steady_3x.png`: frame 21.
+- `home_tap_faceglow_M_faces_4x.png`: the J row above the M row.
+- `home_tap_faceglow_J_vs_M_3x.png`.

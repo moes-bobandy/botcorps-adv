@@ -1,0 +1,367 @@
+--- /dev/fd/63	2026-11-04 07:07:13.128185372 -0500
++++ src/live/lv_radar.h	2026-11-04 07:06:26.356754639 -0500
+@@ -152,6 +152,277 @@
+     b_line(B, xa, yb, xa + L, yb, c); b_line(B, xa, yb, xa, yb - L, c);
+     b_line(B, xb, yb, xb - L, yb, c); b_line(B, xb, yb, xb, yb - L, c);
+ }
++
++#ifndef LV_RD_CHARGE
++#define LV_RD_CHARGE 0
++#endif
++#ifndef LV_RD_CG_NODRAW
++#define LV_RD_CG_NODRAW 0
++#endif
++#if LV_RD_CHARGE
++/* MOCK radar-charge (owner 2026-11-04 6:58 / 6:59 AM ET): select a tower (tap it, or tap empty space to cycle), then HOLD the
++ * CHARGE button; a meter fills over 1 s and a current runs from the button along the radar's own grid (a floor line, then a
++ * grid row) to the tower; at full charge the lock fires, the tower lights in its own colour, IGNORE / WATCH / HUNT as today.
++ * A = bar button (HUNT slot) + one PCB trace.  B = ring button (IGNORE slot) + a 3-trace bus.  C = tab gauge on the panel's
++ * top frame + a stream of bot rain glyphs flowing along the grid with electric properties. Let go early: the charge drains. */
++#define LV_RD_CG_MS 1000
++#define LV_RD_CG_YMAX (lv_rd_lock ? 245 : LV_RD_Y1)   /* once locked the panel grows to y247: the current stays above it */
++static bool lv_rd_cg = false; static uint32_t lv_rd_cg_t = 0, lv_rd_cg_rel_t = 0; static float lv_rd_cg_rel = 0;
++#if LV_RD_CHARGE == 1
++static const LvRect LV_RD_CG_BTN = {166, 250, 234, 260}, LV_RD_CG_HIT = {160, 244, 239, 261};
++#elif LV_RD_CHARGE == 2
++static const LvRect LV_RD_CG_BTN = {6, 241, 26, 261}, LV_RD_CG_HIT = {0, 236, 34, 261};
++#else
++static const LvRect LV_RD_CG_BTN = {98, 251, 141, 262}, LV_RD_CG_HIT = {88, 244, 151, 261};
++#endif
++static float lv_rd_cg_level(void)
++{
++    if (lv_rd_lock) return 1.0f;
++    if (lv_rd_cg) { const float u = (lv_now - lv_rd_cg_t) / (float)LV_RD_CG_MS; return u > 1 ? 1 : u < 0 ? 0 : u; }
++    const float u = lv_rd_cg_rel - (lv_now - lv_rd_cg_rel_t) / 300.0f; return u > 0 ? u : 0;
++}
++static bool lv_rd_cg_show(void) { return !lv_rd_lock && lv_rd_sel >= 0 && lv_rd_sel < lv_nf; }
++static uint32_t lv_rd_ch(uint32_t a, uint32_t b) { uint32_t h = a * 2654435761u ^ (b + 0x9e3779b9u) * 2246822519u; h ^= h >> 15; h *= 2654435761u; h ^= h >> 13; return h; }
++/* ---- route along the grid: S -> along a grid row to floor line g -> up floor line g -> along the tower's base row -> tower ---- */
++static int lv_rd_fx_x(int g, int y) { return (int)lroundf(120 + (g * 0.5f - lv_rd_camx) * (y - LV_RD_HOR) / LV_RD_CAMH); }
++#define LV_RD_CG_NP 900
++static int16_t lv_rd_px[LV_RD_CG_NP], lv_rd_py[LV_RD_CG_NP]; static int lv_rd_np = 0;
++static int16_t lv_rd_vx[8], lv_rd_vy[8]; static int lv_rd_nv = 0;   /* corners (vias) */
++static void lv_rd_cg_add(int x, int y) { if (lv_rd_np < LV_RD_CG_NP && (!lv_rd_np || lv_rd_px[lv_rd_np - 1] != x || lv_rd_py[lv_rd_np - 1] != y)) { lv_rd_px[lv_rd_np] = x; lv_rd_py[lv_rd_np] = y; ++lv_rd_np; } }
++static void lv_rd_cg_hseg(int xa, int xb, int y) { const int d = xb >= xa ? 1 : -1; for (int x = xa; x != xb + d; x += d) lv_rd_cg_add(x, y); }
++static bool lv_rd_route(int sx, int sy, int dof, int &hdir1, int &hdir2)   /* dof: bus lane offset (0 = single trace) */
++{
++    lv_rd_np = 0; lv_rd_nv = 0;
++    const LvTower *T = lv_rd_tower_of(lv_f[lv_rd_sel].mac); if (!T) return false;
++    const int yb = T->yb < LV_RD_Y1 ? T->yb : LV_RD_Y1;
++    int bg = 99, bc = 1 << 30;
++    for (int g = -12; g <= 12; ++g) {
++        const int xa = lv_rd_fx_x(g, sy), xb = lv_rd_fx_x(g, yb - 6);
++        if (xa < 4 || xa > 235 || (xb >= T->x0 - 5 && xb <= T->x1 + 5)) continue;
++        const int edge = xb < T->x0 ? T->x0 : T->x1, c = abs(sx - xa) + 2 * abs(xb - edge);
++        if (c < bc) { bc = c; bg = g; }
++    }
++    if (bg == 99) return false;
++    const int xa = lv_rd_fx_x(bg, sy), xb = lv_rd_fx_x(bg, yb - 6);
++    hdir1 = xa >= sx ? 1 : -1; hdir2 = xb < T->x0 ? 1 : -1;
++    const int a = dof < 0 ? -dof : dof;          /* lane: y-offset on the first row, x-offset on the floor line, inner lanes turn first */
++    const int ox = hdir1 * dof; (void)a;   /* upper lane (dof<0) is the inner one at the first corner: it turns first */
++    const int y1 = sy + dof;
++    const int yend = yb - 6 + ox * hdir2;   /* the lane on the tower side turns first at the top corner */
++    lv_rd_cg_hseg(sx, lv_rd_fx_x(bg, y1) + ox, y1);
++    lv_rd_vx[lv_rd_nv] = lv_rd_fx_x(bg, y1) + ox; lv_rd_vy[lv_rd_nv++] = y1;
++    for (int y = y1 - 1; y >= yend; --y) {   /* along the floor line, filling x gaps so the trace stays connected */
++        const int x = lv_rd_fx_x(bg, y) + ox, xp = lv_rd_px[lv_rd_np - 1];
++        if (abs(x - xp) > 1) { const int d = x > xp ? 1 : -1; for (int xx = xp + d; xx != x; xx += d) lv_rd_cg_add(xx, y + 1); }
++        lv_rd_cg_add(x, y);
++    }
++    const int xc = lv_rd_fx_x(bg, yend) + ox; lv_rd_vx[lv_rd_nv] = xc; lv_rd_vy[lv_rd_nv++] = yend;
++    const int xt = hdir2 > 0 ? T->x0 - 1 : T->x1 + 1;
++    lv_rd_cg_hseg(xc, xt, yend);
++    lv_rd_vx[lv_rd_nv] = xt; lv_rd_vy[lv_rd_nv++] = yend;
++    return true;
++}
++#if LV_RD_CHARGE == 3
++/* bot rain glyphs: the firmware's 8x8 device rain art (src/rain/botcorps_rain.cpp DEV_ART / DEV_NEON), copied for the mock */
++static const char LV_RD_DEV[10][8][9] = {
++    { ".cccccc.", "c......c", "..cccc..", ".c....c.", "...cc...", "aaaaaaaa", "abcbbcba", "aaaaaaaa" },
++    { ".aaaaaa.", ".abbbba.", ".abccba.", ".abccba.", ".abccba.", ".abbbba.", ".abaaba.", ".aaaaaa." },
++    { "........", ".aaaaaa.", ".abccba.", ".abccba.", ".abbbba.", ".aaaaaa.", "aabbbbaa", "aaaaaaaa" },
++    { "aaaaaaaa", "abbbbbba", "abccccba", "abcbbbba", "abbbbcba", "abbbbbba", "aaaaaaaa", "..aaaa.." },
++    { ".aaaaaa.", ".abccba.", ".abbbba.", ".abccba.", ".acbbca.", ".abccba.", ".abbbba.", ".aaaaaa." },
++    { "..aaaa..", ".aabbaa.", "aabccbaa", "abcbbcba", "abcbbcba", "aabccbaa", ".aabbaa.", "..aaaa.." },
++    { "..aaaa..", "..abba..", ".aaaaaa.", ".abbcba.", ".abccba.", ".aaaaaa.", "..abba..", "..aaaa.." },
++    { "........", ".aaa....", "aaaaaaaa", "abbbbbca", "abbccbba", "abcbbcba", "abbccbba", "aaaaaaaa" },
++    { "........", "..aaaa..", ".abbbba.", "aaaaaaaa", "acaaaaca", "aaaaaaaa", ".bb..bb.", "........" },
++    { "..cccc..", ".cc..cc.", ".....cc.", "....cc..", "...cc...", "........", "...cc...", "........" },
++};
++static const uint16_t LV_RD_DEVC[10][3] = {
++    {0x079F,0x0208,0x1F9F}, {0x3FE2,0x1220,0x57E6}, {0xCFE0,0x3A20,0xCFE3}, {0x07F5,0x0225,0x1FF6}, {0xFD00,0x4160,0xFD43},
++    {0xFF80,0x4200,0xFF83}, {0xF95A,0x4067,0xFA3B}, {0xB13F,0x3048,0xBA1F}, {0x6BBF,0x1908,0x7C3F}, {0xFC5D,0x4128,0xFCDD},
++};
++static void lv_rd_glyph(LvBand &B, int cx, int cy, int d, int k, bool lead)
++{
++    const uint16_t W = lv_hex(0xffffff), MAG = lv_hex(0xff2ad4);
++    for (int yy = 0; yy < 8; ++yy) for (int xx = 0; xx < 8; ++xx) {
++        const char ch = LV_RD_DEV[d][yy][xx]; if (ch == '.') continue;
++        const int x = cx - 4 + xx, y = cy - 4 + yy; if (y < LV_RD_Y0 || y > LV_RD_CG_YMAX) continue;
++        uint16_t c = LV_RD_DEVC[d][ch == 'a' ? 0 : ch == 'b' ? 1 : 2];
++        if (lead) c = lv_mix(c, W, ch == 'b' ? 3 : 5, 8);   /* the leading glyph runs hot */
++        b_blend(B, x, y, c, k);
++    }
++}
++#endif
++static void lv_rd_cg_log(const char *tag, int x0, int y0, int x1, int y1)
++{
++#ifdef LV_RD_CG_LOG
++    fprintf(stderr, "CG t=%u %s %d %d %d %d\n", (unsigned)lv_now, tag, x0, y0, x1, y1);
++#else
++    (void)tag; (void)x0; (void)y0; (void)x1; (void)y1;
++#endif
++}
++static void lv_rd_cg_logpath(int lane)
++{
++#ifdef LV_RD_CG_LOG
++    fprintf(stderr, "CGP t=%u lane=%d n=%d", (unsigned)lv_now, lane, lv_rd_np);
++    for (int i = 0; i < lv_rd_np; ++i) fprintf(stderr, " %d,%d", lv_rd_px[i], lv_rd_py[i]);
++    fprintf(stderr, "\n");
++#else
++    (void)lane;
++#endif
++}
++/* one PCB trace: dark copper ahead, energized magenta behind the front, bright pulses travelling up it, vias at the corners */
++static void lv_rd_trace(LvBand &B, float lvl, float alpha, int lane)
++{
++    const uint16_t MAG = lv_hex(0xff2ad4), VIO = lv_hex(0x7a1cff), HOT = lv_hex(0xffd8f6), CY = lv_hex(0x00f7ff);
++    const int n = lv_rd_np; if (n < 2) return;
++    const int front = (int)lroundf(lvl * (n - 1));
++    for (int i = 0; i < n; ++i) {
++        const int x = lv_rd_px[i], y = lv_rd_py[i]; if (y < LV_RD_Y0 || y > LV_RD_CG_YMAX) continue;
++        const bool on = i <= front;
++        const int kc = (int)lroundf((on ? 8 : 4) * alpha), kg = (int)lroundf((on ? 3 : 0) * alpha);
++        if (on) b_blend(B, x, y, MAG, kc); else if (i & 1) b_blend(B, x, y, MAG, (int)lroundf(3 * alpha));   /* dark copper ahead: dotted */
++        if (kg) { b_blend(B, x - 1, y, MAG, kg); b_blend(B, x + 1, y, MAG, kg); b_blend(B, x, y - 1, MAG, kg); b_blend(B, x, y + 1, MAG, kg); }
++    }
++    /* travelling pulses: every 26 px a 4 px hot packet moving 0.16 px/ms toward the tower, only on the energized part */
++    const int ph = (int)((lv_now * 16 / 100 + lane * 9) % 26);
++    for (int i = ph; i <= front && i < n; i += 26) for (int t = 0; t < 5; ++t) {
++        const int j = i - t; if (j < 0) break; const int x = lv_rd_px[j], y = lv_rd_py[j];
++        if (y >= LV_RD_Y0 && y <= LV_RD_CG_YMAX) b_blend(B, x, y, t == 0 ? lv_hex(0xffffff) : HOT, (int)lroundf((8 - t * 2) * alpha));
++    }
++    if (front > 0 && front < n - 1 && alpha > 0.5f && lv_rd_py[front] + 2 <= LV_RD_CG_YMAX) {   /* the charge front: a hot spark */
++        const int x = lv_rd_px[front], y = lv_rd_py[front];
++        b_blend(B, x, y, lv_hex(0xffffff), 8); b_blend(B, x - 1, y, HOT, 6); b_blend(B, x + 1, y, HOT, 6); b_blend(B, x, y - 1, HOT, 6); b_blend(B, x, y + 1, HOT, 6);
++        b_blend(B, x - 2, y, MAG, 3); b_blend(B, x + 2, y, MAG, 3); b_blend(B, x, y - 2, MAG, 3); b_blend(B, x, y + 2, MAG, 3);
++    }
++    /* vias / solder pads at each corner: 5x5 ring with a dark drill hole; light once the front passes */
++    for (int v = 0; v < lv_rd_nv; ++v) {
++        int idx = 0; for (int i = 0; i < n; ++i) if (lv_rd_px[i] == lv_rd_vx[v] && lv_rd_py[i] == lv_rd_vy[v]) { idx = i; break; }
++        const bool on = idx <= front; const uint16_t c = on ? (v == lv_rd_nv - 1 ? CY : MAG) : VIO;
++        const int k = (int)lroundf((on ? 8 : 5) * alpha);
++        for (int a = -2; a <= 2; ++a) for (int b = -2; b <= 2; ++b) {
++            if ((a == -2 || a == 2) && (b == -2 || b == 2)) continue;
++            const int x = lv_rd_vx[v] + b, y = lv_rd_vy[v] + a; if (y < LV_RD_Y0 || y > LV_RD_CG_YMAX) continue;
++            if (a == 0 && b == 0) b_blend(B, x, y, lv_hex(0x050010), k); else b_blend(B, x, y, c, k);
++        }
++    }
++    (void)CY;
++}
++/* the lit tower: its own colour, full strength (never white, never hue-shifted) */
++static void lv_rd_cg_lit(LvBand &B)
++{
++    if (!lv_rd_lock) return;
++    const LvTower *T = lv_rd_tower_of(lv_rd_lockmac); if (!T) return;
++    const LvFind &f = lv_f[T->i]; const uint16_t C = lv_rd_col(f, 8, 8);
++    const int pop = (int)(lv_now - lv_rd_lock_t), kf = pop < 150 ? 4 - pop * 2 / 150 : 2;
++    for (int y = T->byt; y <= T->yt; ++y) { if (y < LV_RD_Y0 || y > LV_RD_CG_YMAX) continue; const float u = T->yt == T->byt ? 1.0f : (float)(y - T->byt) / (T->yt - T->byt);
++        const int xa = (int)(T->bx0 + (T->x0 - T->bx0) * u), xb = (int)(T->bx1 + (T->x1 - T->bx1) * u); for (int x = xa; x <= xb; ++x) b_blend(B, x, y, C, kf); }
++    for (int y = T->yt; y <= T->yb; ++y) { if (y < LV_RD_Y0 || y > LV_RD_CG_YMAX) continue; for (int x = T->x0; x <= T->x1; ++x) b_blend(B, x, y, C, kf); }
++    b_line(B, T->x0, T->yt, T->x0, T->yb, C); b_line(B, T->x1, T->yt, T->x1, T->yb, C);
++    b_line(B, T->x0, T->yt, T->x1, T->yt, C); b_line(B, T->x0, T->yb, T->x1, T->yb, C);
++    b_line(B, T->bx0, T->byt, T->bx1, T->byt, C); b_line(B, T->bx0, T->byt, T->x0, T->yt, C); b_line(B, T->bx1, T->byt, T->x1, T->yt, C);
++    if (T->bx1 > T->x1) b_line(B, T->bx1, T->byt, T->bx1, T->byb, C);
++    if (T->bx0 < T->x0) b_line(B, T->bx0, T->byt, T->bx0, T->byb, C);
++    int xa, xb, ya, yb; const int k1 = pop < 150 ? 7 : 4;
++    lv_rd_box(*T, 1, xa, xb, ya, yb); lv_rd_rect_blend(B, xa, ya, xb, yb, C, k1);
++    lv_rd_box(*T, 2, xa, xb, ya, yb); lv_rd_rect_blend(B, xa, ya, xb, yb, C, k1 / 2);
++}
++/* the charge button + the current; drawn after the panel and terminal */
++static void lv_rd_cg_draw(LvBand &B)
++{
++    const uint16_t MAG = lv_hex(0xff2ad4), VIO = lv_hex(0x7a1cff), W = lv_hex(0xffffff), HOT = lv_hex(0xffd8f6);
++    const float lvl = lv_rd_cg_level();
++    float alpha = 1.0f;
++    if (lv_rd_lock) { const int e = (int)(lv_now - lv_rd_lock_t); if (e >= 600) return; alpha = e < 250 ? 1.0f : 1.0f - (e - 250) / 350.0f; }   /* the current holds 250 ms after the lock, then fades by 600 ms */
++    else if (!lv_rd_cg_show()) return;
++    const bool live = lv_rd_cg || lvl > 0 || lv_rd_lock;
++    /* ---- the current ---- */
++    if (live && (lv_rd_lock || lv_rd_sel >= 0)) {
++        const int saved = lv_rd_sel; if (lv_rd_lock) lv_rd_sel = lv_rd_find(lv_rd_lockmac);
++        int h1, h2;
++#if LV_RD_CHARGE == 1
++        if (lv_rd_route(LV_RD_CG_BTN.x0 - 1, 255, 0, h1, h2)) { lv_rd_trace(B, lvl, alpha, 0); lv_rd_cg_logpath(0); }
++#elif LV_RD_CHARGE == 2
++        for (int L = 0; L < 3; ++L) {   /* 3-lane bus, lanes 5 px apart; each lane lights segment by segment (6 px cells) */
++            if (!lv_rd_route(LV_RD_CG_BTN.x1 + 1, 251, (L - 1) * 5, h1, h2)) break;
++            const float q = lvl * 1.0f;   /* lanes fill in step: quantised to whole 6 px segments */
++            const int seg = (int)(q * lv_rd_np) / 6 * 6; lv_rd_trace(B, lv_rd_np > 1 ? (float)seg / (lv_rd_np - 1) : 0, alpha, L); lv_rd_cg_logpath(L);
++            for (int i = 6; i < seg && i < lv_rd_np; i += 6) if (lv_rd_py[i] <= LV_RD_CG_YMAX) b_blend(B, lv_rd_px[i], lv_rd_py[i], W, (int)lroundf(5 * alpha));   /* segment joints */
++        }
++#else
++        if (lv_rd_route((LV_RD_CG_BTN.x0 + LV_RD_CG_BTN.x1) / 2, LV_RD_CG_BTN.y0 - 6, 0, h1, h2)) {
++            lv_rd_cg_logpath(0);
++            const int n = lv_rd_np, front = (int)lroundf(lvl * (n - 1));
++            /* conduit: the grid line it rides, faint violet, energized part faint magenta */
++            for (int i = 0; i < n; ++i) { const int y = lv_rd_py[i]; if (y < LV_RD_Y0 || y > LV_RD_CG_YMAX) continue; b_blend(B, lv_rd_px[i], y, i <= front ? MAG : VIO, (int)lroundf((i <= front ? 4 : 2) * alpha)); }
++            /* bot rain flowing along it: 10 px cells, sparse runs (3-5 lit + 5-7 dark per 10-cell cycle) racing to the tower,
++             * a hot leading glyph, trail 80/65/60/55 %, crackle flicker, sparks between glyphs, brighter as the charge builds */
++            const int cell = 9, step = (int)(lv_now / 60);   /* electric: one cell per 60 ms (main-bot rain falls one per 140 ms); 8-cell cycle, 3-5 lit */
++            const float gain = 0.8f + 0.2f * lvl;
++            for (int c = 0; c * cell < n; ++c) {
++                const int i = c * cell; if (i > front) break;
++                const int rel = ((step - c) % 8 + 8) % 8;             /* position in this cell's 10-step cycle */
++                const int run = 3 + (int)(lv_rd_ch((step - c + 800) / 8, 5) % 3);
++                if (rel >= run) continue;
++                const uint32_t h = lv_rd_ch(step - rel, c * 31 + 7);   /* glyph rides with its run */
++                const int d = (int)(lv_rd_ch(step - rel, 3) % 9 + c) % 9;   /* known device glyphs only (no '?') */
++                const bool lead = rel == 0;
++                static const int TR[5] = {8, 7, 6, 6, 5};   /* 100 / 80 / 65 / 60 / 55 % on the 8-step blend */
++                float k = TR[rel] * gain * alpha; if ((h & 7) == 0) k *= 0.45f;   /* crackle: random dropouts */
++                const int x = lv_rd_px[i], y = lv_rd_py[i]; if (y + 6 > LV_RD_CG_YMAX) continue;
++                if (!lead) lv_rd_rect_blend(B, x - 5, y - 5, x + 4, y + 4, MAG, (int)lroundf(3 * alpha * gain));   /* glow halo */
++                if (lead) { int xa = x - 5, ya = y - 5; lv_rd_rect_blend(B, xa, ya, x + 4, y + 4, MAG, (int)lroundf(6 * alpha * gain)); lv_rd_rect_blend(B, xa - 1, ya - 1, x + 5, y + 5, VIO, (int)lroundf(3 * alpha * gain)); }
++                lv_rd_glyph(B, x, y, d, (int)lroundf(k), lead);
++                /* sparks: 2 hot pixels just ahead of each glyph, re-rolled every frame */
++                for (int sp = 0; sp < 3; ++sp) { const uint32_t r = lv_rd_ch(lv_now / 30, c * 13 + sp); const int j = i + 4 + (int)(r % 5); if (j >= n || j > front) break;
++                    if (lv_rd_py[j] + 3 > LV_RD_CG_YMAX) continue; b_blend(B, lv_rd_px[j] + (int)((r >> 8) % 7) - 3, lv_rd_py[j] + (int)((r >> 12) % 5) - 2, (r >> 16) & 1 ? W : ((r >> 17) & 1 ? lv_hex(0x00f7ff) : HOT), (int)lroundf(8 * alpha * gain)); }
++            }
++            if (front > 0 && front < n - 1 && lv_rd_py[front] + 1 <= LV_RD_CG_YMAX) { const int x = lv_rd_px[front], y = lv_rd_py[front]; b_blend(B, x, y, W, 8); b_blend(B, x - 1, y, HOT, 6); b_blend(B, x + 1, y, HOT, 6); b_blend(B, x, y - 1, HOT, 6); b_blend(B, x, y + 1, HOT, 6); }
++        }
++#endif
++        lv_rd_sel = saved;
++    }
++    if (lv_rd_lock) return;   /* the button gives way to IGNORE / WATCH / HUNT exactly as today */
++    /* ---- the charge button ---- */
++    const LvRect &r = LV_RD_CG_BTN; const int w = r.x1 - r.x0 + 1, h = r.y1 - r.y0 + 1;
++    char pct[12]; snprintf(pct, sizeof pct, "%d%%", (int)lroundf(lvl * 100));
++    lv_rd_cg_log("BTN", r.x0, r.y0, r.x1, r.y1);
++#if LV_RD_CHARGE == 1   /* A: a bar button, battery cells fill left to right */
++    b_fill(B, r.x0, r.y0, w, h, lv_hex(0x000000)); b_frame(B, r.x0, r.y0, w, h, MAG);
++    b_fill(B, r.x1 + 1, r.y0 + 3, 2, h - 6, MAG);                                        /* battery nub */
++    const int cells = 10, cw = (w - 4) / cells, lit = (int)(lvl * cells + 0.001f);
++    for (int c = 0; c < cells; ++c) { const int x = r.x0 + 2 + c * cw; b_fill(B, x, r.y0 + 2, cw - 1, h - 4, c < lit ? lv_mix(MAG, HOT, c * 6 / cells, 8) : lv_dim(VIO, 2, 8)); }
++    const char *lab = lv_rd_cg ? pct : "HOLD TO LOCK";
++    const int lw = lv_w35(lab), lx = r.x0 + (w - lw) / 2;
++    b_fill(B, lx - 2, r.y0 + 2, lw + 3, 7, lv_hex(0x000000));
++    b_text35(B, lx, r.y0 + 3, lab, lv_rd_cg ? W : MAG);
++#elif LV_RD_CHARGE == 2   /* B: a round ring button, the ring fills clockwise from 12 o'clock */
++    const int cx = (r.x0 + r.x1) / 2, cy = (r.y0 + r.y1) / 2;
++    for (int y = r.y0; y <= r.y1; ++y) for (int x = r.x0; x <= r.x1; ++x) {
++        const float dx = x - cx, dy = y - cy, d = sqrtf(dx * dx + dy * dy);
++        if (d > 10.4f) continue;
++        float a = atan2f(dx, -dy); if (a < 0) a += 6.2832f; const bool on = a / 6.2832f < lvl;
++        if (d > 7.6f) b_pix(B, x, y, on ? lv_mix(MAG, HOT, (int)(a / 6.2832f * 6), 8) : lv_dim(VIO, 4, 8));   /* the meter ring */
++        else if (d > 6.6f) b_pix(B, x, y, lv_hex(0x000000));
++        else b_pix(B, x, y, lv_rd_cg ? lv_dim(MAG, 2 + (int)(lvl * 3), 8) : lv_hex(0x0a0018));
++    }
++    /* bolt-free "power" mark: a tiny plug glyph, then the percentage while held */
++    if (lv_rd_cg) b_text35(B, cx - lv_w35(pct) / 2, cy - 2, pct, W);
++    else { b_fill(B, cx - 1, cy - 4, 1, 3, MAG); b_fill(B, cx + 1, cy - 4, 1, 3, MAG); b_fill(B, cx - 2, cy - 1, 5, 3, MAG); b_fill(B, cx, cy + 2, 1, 2, MAG); }
++    b_text35(B, r.x1 + 4, r.y1 - 4, lv_rd_cg ? "" : "HOLD", lv_dim(MAG, 6, 8));
++#else   /* C: a tab on the panel's top frame; the frame itself is the gauge, filling outward from the tab */
++    const LvFind &f = lv_f[lv_rd_sel]; const uint16_t pc = lv_rd_col(f, 8, 8);
++    const int gx0 = 2, gx1 = 237, tc = (r.x0 + r.x1) / 2, reach = (int)lroundf(lvl * (tc - gx0));
++    if (lvl > 0) for (int x = gx0; x <= gx1; ++x) if (abs(x - tc) <= reach) {
++        b_pix(B, x, 262, lv_mix(MAG, HOT, abs(x - tc) >= reach - 3 ? 7 : 2, 8)); b_blend(B, x, 261, MAG, 3); }
++    b_fill(B, r.x0, r.y0, w, h, lv_hex(0x000000));
++    b_line(B, r.x0, r.y1, r.x0, r.y0 + 2, pc); b_line(B, r.x1, r.y1, r.x1, r.y0 + 2, pc);   /* tab, chamfered top corners */
++    b_line(B, r.x0, r.y0 + 2, r.x0 + 2, r.y0, pc); b_line(B, r.x1, r.y0 + 2, r.x1 - 2, r.y0, pc); b_line(B, r.x0 + 2, r.y0, r.x1 - 2, r.y0, pc);
++    if (lvl > 0) b_fill(B, r.x0 + 1, r.y0 + 2, w - 2, h - 2, lv_dim(MAG, 1 + (int)(lvl * 3), 8));
++    const char *lab = lv_rd_cg ? pct : "CHARGE";
++    b_text35(B, tc - lv_w35(lab) / 2 + 1, r.y0 + 3, lab, lv_rd_cg ? W : MAG);
++#endif
++}
++#endif
+ static void lv_rd_fx(LvBand &B)   /* drawn after the towers, before header / panel / footer (the mock's gib_draw hook) */
+ {
+     const uint16_t W = lv_hex(0xffffff), MAG = lv_hex(0xff2ad4);
+@@ -164,6 +435,9 @@
+             lv_rd_box(*T, 2, xa, xb, ya, yb); lv_rd_rect_blend(B, xa, ya, xb, yb, W, k / 2);
+         } else if (e > 300) lv_rd_glow = false;
+     }
++#if LV_RD_CHARGE && !LV_RD_CG_NODRAW
++    lv_rd_cg_lit(B);
++#endif
+     if (lv_rd_holding && !lv_rd_lock) {
+         const LvTower *T = lv_rd_tower_of(lv_rd_holdmac); if (!T) return;
+         float u = (lv_now - lv_rd_hold_t) / 1000.0f; if (u > 1) u = 1; if (u < 0) u = 0;
+@@ -176,7 +450,7 @@
+     const int e = (int)(lv_now - lv_rd_lock_t);
+     const int pulse = 5 + (int)lroundf(3 * (0.5f + 0.5f * sinf(e / 1000.0f * 6.283f * 1.6f)));   /* 5..8 of 8 */
+     int xa, xb, ya, yb; lv_rd_box(*T, 3, xa, xb, ya, yb);
+-    if (e < 200) lv_rd_rect_blend(B, xa - 1, ya - 1, xb + 1, yb + 1, W, 7 - e * 7 / 200);       /* lock snap flash */
++    if (e < 200 && !(LV_RD_CHARGE && !LV_RD_CG_NODRAW)) lv_rd_rect_blend(B, xa - 1, ya - 1, xb + 1, yb + 1, W, 7 - e * 7 / 200);       /* lock snap flash (charge mock: never white) */
+     lv_rd_brackets(B, xa, ya, xb, yb, 4, lv_dim(MAG, pulse, 8));
+     const int cx = (xa + xb) / 2; b_line(B, cx, ya - 1, cx, ya - 3, lv_dim(W, pulse, 8));
+     const char *lab = lv_rd_hunting ? "HUNT" : "LOCK";   /* same 3x5 label, same width (4 chars) */
+@@ -270,7 +544,11 @@
+     for (int n = 0; n < lv_rd_n; ++n) {
+         const LvTower &T = lv_rd_tw[n]; const LvFind &f = lv_f[T.i];
+         const int lev = lv_rd_level(f), br = 3 + lev * 5 / 60;           /* 3..8 of 8 */
+-        const bool sel = T.i == lv_rd_sel;
++        const bool sel = T.i == lv_rd_sel
++#if LV_RD_CHARGE && !LV_RD_CG_NODRAW
++            && !(lv_rd_lock && !memcmp(lv_f[T.i].mac, lv_rd_lockmac, 6))
++#endif
++            ;
+         const uint16_t edge = sel ? lv_hex(0xffffff) : lv_rd_col(f, br, 8), face = lv_rd_col(f, br, 8);
+         int ya = T.byt, yb = T.yb; lv_rd_vclip(B, ya, yb);
+         /* top face (back-top edge to front-top edge) */
+@@ -305,6 +583,13 @@
+     }
+     /* footer (item 13): a 3-line boxed mini terminal that types out live radar info over a >_ prompt, legend folded into the prompt */
+     lv_rd_term(B, hdr);
++#if LV_RD_CHARGE && !LV_RD_CG_NODRAW
++    lv_rd_cg_draw(B);
++#endif
++#if LV_RD_CHARGE && defined(LV_RD_CG_LOG)
++    if (lv_rd_lock) { const LvTower *T = lv_rd_tower_of(lv_rd_lockmac); if (T) { int xa, xb, ya, yb; lv_rd_box(*T, 3, xa, xb, ya, yb); lv_rd_cg_log("TWR", xa, ya - 9, xb, yb); } }
++    else if (lv_rd_sel >= 0) { const LvTower *T = lv_rd_tower_of(lv_f[lv_rd_sel].mac); if (T) { int xa, xb, ya, yb; lv_rd_box(*T, 3, xa, xb, ya, yb); lv_rd_cg_log("TWR", xa, ya - 9, xb, yb); } }
++#endif
+     lv_draw_backbot(B, LV_R_BACKBOT.x0, LV_R_BACKBOT.y0);
+ }
+ /* hunt ticker line: the target's full info + a trend that is ONLY the change of its real dBm (no direction) */
+@@ -368,12 +653,15 @@
+ {
+     lv_rd_hunt_stop();
+     lv_rd_lock = false; lv_rd_holding = false;
++#if LV_RD_CHARGE
++    lv_rd_cg = false; lv_rd_cg_rel = 0;
++#endif
+ }
+ static void lv_radar_enter(void)
+ {
+     lv_rd_lists_load();
+     { int nw = 0; for (int i = 0; i < lv_nf; ++i) nw += lv_f[i].kind == LV_K_WIFI;
+-      lv_rd_log("GIBSON UP  %dW %dB  HEIGHT=DBM", nw, lv_nf - nw); lv_rd_log("ANGLE/DEPTH = MAC HASH, NOT DIRECTION"); lv_rd_log(lv_nf ? "TAP=CYCLE  HOLD 1S=LOCK" : "NO NODES YET - SCANNING"); lv_rd_tl_t = lv_now; }
++      lv_rd_log("GIBSON UP  %dW %dB  HEIGHT=DBM", nw, lv_nf - nw); lv_rd_log("ANGLE/DEPTH = MAC HASH, NOT DIRECTION"); lv_rd_log(lv_nf ? (LV_RD_CHARGE ? "TAP=CYCLE  HOLD CHARGE=LOCK" : "TAP=CYCLE  HOLD 1S=LOCK") : "NO NODES YET - SCANNING"); lv_rd_tl_t = lv_now; }
+     lv_rd_t0 = lv_now; lv_rd_sel = -1; lv_rd_glow = false; lv_rd_holding = false; lv_rd_swallow = false;
+     if (lv_nf == 0 && lv_job == LV_J_NONE) lv_job_start(lv_scanmix == 1 ? LV_J_WIFI : lv_scanmix == 2 ? LV_J_BLE : LV_J_ALL, -1);
+ }
+@@ -411,6 +699,13 @@
+ /* touch state every loop (firmware: lv_ui.cpp; sim: press / rhold). Hold a tower ~1 s -> lock on. */
+ static void lv_radar_touch(bool down, int x, int y)
+ {
++#if LV_RD_CHARGE   /* hold the CHARGE button (not the tower): 1 s to full, then the lock fires; let go early and it drains */
++    const bool in = down && lv_rd_cg_show() && lv_in(LV_RD_CG_HIT, x, y);
++    if (!in) { if (lv_rd_cg) { lv_rd_cg_rel = lv_rd_cg_level(); lv_rd_cg_rel_t = lv_now; lv_rd_cg = false; } return; }
++    if (!lv_rd_cg) { const float l0 = lv_rd_cg_level(); lv_rd_cg = true; lv_rd_cg_t = lv_now - (uint32_t)(l0 * LV_RD_CG_MS); }
++    if ((int32_t)(lv_now - lv_rd_cg_t) >= LV_RD_CG_MS) { lv_rd_cg = false; lv_rd_cg_rel = 0; lv_rd_lock_on(lv_rd_sel); lv_rd_swallow = true; }
++    return;
++#endif
+     if (!down) { lv_rd_holding = false; return; }
+     if (lv_rd_lock || y < LV_RD_Y0 || y > LV_RD_Y1) return;
+     if (!lv_rd_holding) {
+@@ -460,6 +755,9 @@
+         if (i >= 0 && !memcmp(lv_f[i].mac, lv_rd_lockmac, 6)) return "radar-locked";
+         lv_rd_release(); lv_rd_log("RELEASED"); return "radar-unlock";   /* a tap anywhere else releases the lock (and ends a hunt) */
+     }
++#if LV_RD_CHARGE
++    if (lv_rd_cg_show() && lv_in(LV_RD_CG_HIT, x, y)) return "radar-charge-short";   /* released before full: no cycle */
++#endif
+     const int i = lv_rd_hit(x, y);
+     if (i >= 0) { lv_rd_select(i); return "radar-tower"; }
+     const int nx = lv_rd_cycle_next();

@@ -1,0 +1,29 @@
+tick 67
+tick 190
+tap 110 70
+tick 330
+tick 45
+tap 20 215
+tick 3
+tick 30
+tap 20 215
+tick 30
+tap 20 215
+tick 3
+tick 30
+tap 97 140
+tick 20
+dump sel
+press 16 251
+tick 17
+dump mid
+radarstate
+tick 20
+dump full
+radarstate
+tick 2
+release
+tap 16 251
+tick 20
+dump locked
+radarstate

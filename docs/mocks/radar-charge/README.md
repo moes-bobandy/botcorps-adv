@@ -1,4 +1,4 @@
-# radar-charge — hold-to-charge lock, three UI designs (MOCK, stills only)
+# radar-charge — hold-to-charge lock, three UI designs (MOCK, stills + videos)
 
 Owner feedback (2026-11-04, 6:58 and 6:59 AM ET): a CHARGE button you hold. A meter builds up and then the lock fires.
 The current is not a jagged bolt: it is a circuit-style current running parallel to the grid lines.
@@ -36,3 +36,23 @@ Diff (`diff/`, `src/diff_charge.py`): each still is compared with the same run b
 - Allowed mask: the button rect +2, the logged current path dilated by 3 px (C: 7 px, the glyph size), the tower box + label +2, and for C the panel top frame row.
 - Changed pixels outside the mask = 0 in all 9 stills (diff.json).
 - Yellow = changed, red = outside the mask.
+
+## Videos (added 2026-11-04, 7:20 AM ET request)
+
+`video/charge_{A,B,C}_3x.mp4`: 720x960 (3x nearest), 30 fps, H.264 yuv420p, +faststart, 254 frames / 8.47 s each.
+Rendered from the same LV_RD_CHARGE scratch sim (`src/video/video_{A,B,C}.txt`, `src/video/encode.sh`). The sim runs on 30 ms ticks,
+so frame j of the video shows the sim frame at j/30 s (no blending).
+
+Timeline (same in all three):
+- 0.0–1.35 s: base radar, nothing selected.
+- 1.35 / 2.4 / 3.3 s: three tap-to-cycle taps on empty space. The third is part of the same prefix the stills use, which keeps TELLO in the spot where the stills tap it.
+- 4.3 s: tap TELLO-5A21B3. The panel shows it and the CHARGE control appears.
+- 4.9–5.3 s: early hold to about 40% (39%), then let go. The charge drains in roughly 0.12 s: the drain is 300 ms scaled by the level, so it is brief. The release tap does not cycle.
+- 5.85 s: hold again from 0. Mid-charge is around 6.4 s.
+- About 6.85–6.9 s: 100%. The lock fires, TELLO lights in its own cyan (no white flash), the LOCK brackets appear, and so do IGNORE / WATCH / HUNT. The current holds 250 ms and then fades.
+- About 6.9–8.47 s: locked and settled (about 1.5 s).
+
+A colour change (video request): A's unlit "copper ahead" dots were MAG at 3/8 and almost vanished on the violet floor line.
+They are now the pale pink HOT at 4/8 (A only, every other pixel, still dim). Only `stills/A_mid@3x.png` and the A panel of
+`sheet_ABC_mid.png` changed, because the other A stills have no unlit run. `diff/diff.json` is unchanged: 0 outside the mask, all 9.
+B and C are byte-identical.

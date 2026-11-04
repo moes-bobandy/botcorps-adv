@@ -136,7 +136,7 @@ static void lv_rd_trace(LvBand &B, float lvl, float alpha, int lane)
         const int x = lv_rd_px[i], y = lv_rd_py[i]; if (y < LV_RD_Y0 || y > LV_RD_CG_YMAX) continue;
         const bool on = i <= front;
         const int kc = (int)lroundf((on ? 8 : 4) * alpha), kg = (int)lroundf((on ? 3 : 0) * alpha);
-        if (on) b_blend(B, x, y, MAG, kc); else if (i & 1) b_blend(B, x, y, MAG, (int)lroundf(3 * alpha));   /* dark copper ahead: dotted */
+        if (on) b_blend(B, x, y, MAG, kc); else if (i & 1) b_blend(B, x, y, LV_RD_CHARGE == 1 ? HOT : MAG, (int)lroundf((LV_RD_CHARGE == 1 ? 4 : 3) * alpha));   /* dark copper ahead: dotted (A: pale pink 4/8 so it reads against the violet floor line) */
         if (kg) { b_blend(B, x - 1, y, MAG, kg); b_blend(B, x + 1, y, MAG, kg); b_blend(B, x, y - 1, MAG, kg); b_blend(B, x, y + 1, MAG, kg); }
     }
     /* travelling pulses: every 26 px a 4 px hot packet moving 0.16 px/ms toward the tower, only on the energized part */

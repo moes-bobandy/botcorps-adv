@@ -1,0 +1,44 @@
+{
+ "D2_idle": {
+  "t_ms": 22440,
+  "changed": 769,
+  "changed_outside_mask": 0,
+  "mask_px": 2355,
+  "path_px": 0
+ },
+ "D2_mid": {
+  "t_ms": 22950,
+  "changed": 1356,
+  "changed_outside_mask": 0,
+  "mask_px": 5052,
+  "path_px": 141
+ },
+ "D2_full": {
+  "t_ms": 23460,
+  "changed": 1640,
+  "changed_outside_mask": 0,
+  "mask_px": 5155,
+  "path_px": 154
+ },
+ "D2_lockfire": {
+  "t_ms": 23490,
+  "changed": 1524,
+  "changed_outside_mask": 0,
+  "mask_px": 4168,
+  "path_px": 155
+ },
+ "D2_locked": {
+  "t_ms": 24210,
+  "changed": 1424,
+  "changed_outside_mask": 0,
+  "mask_px": 4230,
+  "path_px": 169
+ },
+ "D2_hunting": {
+  "t_ms": 26610,
+  "changed": 1378,
+  "changed_outside_mask": 0,
+  "mask_px": 4209,
+  "path_px": 164
+ }
+}

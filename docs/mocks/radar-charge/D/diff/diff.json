@@ -1,0 +1,37 @@
+{
+ "D_idle": {
+  "t_ms": 22440,
+  "changed": 769,
+  "changed_outside_mask": 0,
+  "mask_px": 2355,
+  "path_px": 0
+ },
+ "D_mid": {
+  "t_ms": 22950,
+  "changed": 1360,
+  "changed_outside_mask": 0,
+  "mask_px": 5052,
+  "path_px": 141
+ },
+ "D_full": {
+  "t_ms": 23550,
+  "changed": 1753,
+  "changed_outside_mask": 0,
+  "mask_px": 4169,
+  "path_px": 156
+ },
+ "D_locked": {
+  "t_ms": 24210,
+  "changed": 1605,
+  "changed_outside_mask": 0,
+  "mask_px": 4230,
+  "path_px": 169
+ },
+ "D_hunting": {
+  "t_ms": 26610,
+  "changed": 1551,
+  "changed_outside_mask": 0,
+  "mask_px": 4209,
+  "path_px": 164
+ }
+}

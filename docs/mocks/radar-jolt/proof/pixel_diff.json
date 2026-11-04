@@ -1,0 +1,48 @@
+{
+ "frames_old": 684,
+ "frames_new": 684,
+ "tick_ms": 30,
+ "pre_tap_frames_0_140_t<=21840_diff_px": 0,
+ "after_ignore_frames_636_683_diff_px": 0,
+ "panel_terminal_differ_until_frame": 196,
+ "panel_terminal_differ_until_t_ms": 23520,
+ "steady_locked_frames": [
+  197,
+  635
+ ],
+ "steady_locked_t_ms": [
+  23550,
+  36690
+ ],
+ "steady_diff_px_per_frame_min_max_mean": [
+  585,
+  756,
+  656.4
+ ],
+ "steady_diff_bbox_max_w_h_px": [
+  18,
+  56
+ ],
+ "steady_diff_y_range": [
+  117,
+  172
+ ],
+ "steady_diff_px_rows_247_319_(panel+buttons+terminal)": 0,
+ "k4_frame": 184,
+ "k4_diff_px_total": 875,
+ "k4_diff_px_scene_rows_0_246": 704,
+ "k4_scene_diff_bbox": [
+  77,
+  117,
+  93,
+  172
+ ],
+ "k4_diff_px_rows_247_319": 171,
+ "k4_lower_diff_bbox": [
+  84,
+  304,
+  182,
+  308
+ ],
+ "k4_vs_locked_key_png_3x_diff_px": 7875
+}

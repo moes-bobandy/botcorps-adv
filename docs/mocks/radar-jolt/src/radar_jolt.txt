@@ -1,0 +1,71 @@
+tick 67
+tick 190
+tap 110 70
+tick 330
+recstart radar_jolt
+tick 45
+dump k1_base
+tap 20 215
+tick 3
+dump k2_cycle_glow
+tick 30
+tap 20 215
+tick 30
+tap 20 215
+tick 3
+dump k3_cycle_3
+tick 30
+radarstate
+tap 97 140
+tick 1
+dump j01
+tick 1
+dump j02
+tick 1
+dump j03
+tick 1
+dump j04
+tick 1
+dump j05
+tick 1
+dump j06
+tick 1
+dump j07
+tick 1
+dump j08
+tick 1
+dump j09
+tick 1
+dump j10
+tick 1
+dump j11
+tick 1
+radarstate
+dump j12
+tick 32
+radarstate
+dump k4_lit
+tick 45
+tap 120 257
+tick 3
+dump k5_watch
+tick 40
+tap 120 257
+tick 30
+tap 200 257
+tick 3
+radarstate
+dump k6_hunt
+tick 200
+radarstate
+dump k7_hunt_ticker
+tick 100
+tap 200 257
+tick 30
+radarstate
+tap 40 257
+tick 3
+radarstate
+dump k8_ignore
+tick 45
+recstop

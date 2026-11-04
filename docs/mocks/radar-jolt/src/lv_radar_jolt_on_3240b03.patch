@@ -1,0 +1,228 @@
+--- a/src/live/lv_radar.h
++++ b/src/live/lv_radar.h
+@@ -152,6 +152,127 @@
+     b_line(B, xa, yb, xa + L, yb, c); b_line(B, xa, yb, xa, yb - L, c);
+     b_line(B, xb, yb, xb - L, yb, c); b_line(B, xb, yb, xb, yb - L, c);
+ }
++
++#ifndef LV_RD_JOLT
++#define LV_RD_JOLT 0
++#endif
++#if LV_RD_JOLT
++/* MOCK radar-jolt (owner 2026-11-04 6:41 AM ET): no hold. Tap a tower (the highlighted one or any other) and a jagged energy
++ * bolt shoots from the mini terminal (the lower control panel) up to the tower base, ~360 ms with crackle frames, in the
++ * radar's magenta / violet neon. The tower lights up in its OWN colour (never white, never hue-shifted) and stays lit while
++ * locked; then the same lock (brackets + LOCK label, IGNORE / WATCH / HUNT) as the hold used to give. */
++#define LV_RD_JOLT_MS 360
++static bool lv_rd_jolt = false; static uint32_t lv_rd_jolt_t = 0; static uint8_t lv_rd_joltmac[6];
++static uint32_t lv_rd_jh(uint32_t a, uint32_t b) { uint32_t h = a * 2654435761u ^ (b + 0x9e3779b9u) * 2246822519u; h ^= h >> 15; h *= 2654435761u; h ^= h >> 13; return h; }
++static bool lv_rd_jtarget(int i)
++{
++    if (i < 0 || i >= lv_nf) return false;
++    return (lv_rd_jolt && !memcmp(lv_f[i].mac, lv_rd_joltmac, 6)) || (lv_rd_lock && !memcmp(lv_f[i].mac, lv_rd_lockmac, 6));
++}
++static float lv_rd_jlit(void)   /* 0 = normal tower, 1 = fully lit */
++{
++    if (lv_rd_lock) return 1.0f;
++    if (!lv_rd_jolt) return 0.0f;
++    const int e = (int)(lv_now - lv_rd_jolt_t); if (e < 150) return 0.0f;
++    float u = (e - 150) / 210.0f; return u > 1 ? 1 : u;
++}
++static void lv_rd_jpix(LvBand &B, int x, int y, int ymin, uint16_t c) { if (y >= ymin && y >= LV_RD_Y0 && y <= LV_RD_Y1) b_pix(B, x, y, c); }
++static void lv_rd_jline(LvBand &B, int x0, int y0, int x1, int y1, int ymin, uint16_t c)   /* b_line, only rows >= ymin */
++{
++    int dx = abs(x1 - x0), sx = x0 < x1 ? 1 : -1, dy = -abs(y1 - y0), sy = y0 < y1 ? 1 : -1, e = dx + dy;
++    for (int n = 0; n < 800; ++n) { lv_rd_jpix(B, x0, y0, ymin, c); if (x0 == x1 && y0 == y1) break; const int e2 = 2 * e; if (e2 >= dy) { e += dy; x0 += sx; } if (e2 <= dx) { e += dx; y0 += sy; } }
++}
++/* the lit tower: its own colour at full strength, filling from the base up while the energy arrives, then held */
++static void lv_rd_jlight(LvBand &B)
++{
++    const float L = lv_rd_jlit(); if (L <= 0) return;
++    const uint8_t *m = lv_rd_lock ? lv_rd_lockmac : lv_rd_joltmac;
++    const LvTower *T = lv_rd_tower_of(m); if (!T) return;
++    const LvFind &f = lv_f[T->i]; const uint16_t C = lv_rd_col(f, 8, 8);
++    const int ylit = L >= 1 ? -9999 : T->yb - (int)lroundf(L * (T->yb - T->byt));   /* rising light line */
++    const int pop = lv_rd_lock ? (int)(lv_now - lv_rd_lock_t) : 9999;               /* short over-bright right after the strike */
++    const int kf = pop < 150 ? 4 - pop * 2 / 150 : 2;                                   /* extra face fill, blend of 8 */
++    for (int y = T->byt; y <= T->yt; ++y) { if (y < ylit || y < LV_RD_Y0 || y > LV_RD_Y1) continue; const float u = T->yt == T->byt ? 1.0f : (float)(y - T->byt) / (T->yt - T->byt);
++        const int xa = (int)(T->bx0 + (T->x0 - T->bx0) * u), xb = (int)(T->bx1 + (T->x1 - T->bx1) * u); for (int x = xa; x <= xb; ++x) b_blend(B, x, y, C, kf); }
++    for (int y = T->yt; y <= T->yb; ++y) { if (y < ylit || y < LV_RD_Y0 || y > LV_RD_Y1) continue; for (int x = T->x0; x <= T->x1; ++x) b_blend(B, x, y, C, kf); }
++    lv_rd_jline(B, T->x0, T->yt, T->x0, T->yb, ylit, C); lv_rd_jline(B, T->x1, T->yt, T->x1, T->yb, ylit, C);
++    lv_rd_jline(B, T->x0, T->yt, T->x1, T->yt, ylit, C); lv_rd_jline(B, T->x0, T->yb, T->x1, T->yb, ylit, C);
++    lv_rd_jline(B, T->bx0, T->byt, T->bx1, T->byt, ylit, C); lv_rd_jline(B, T->bx0, T->byt, T->x0, T->yt, ylit, C); lv_rd_jline(B, T->bx1, T->byt, T->x1, T->yt, ylit, C);
++    if (T->bx1 > T->x1) lv_rd_jline(B, T->bx1, T->byt, T->bx1, T->byb, ylit, C);
++    if (T->bx0 < T->x0) lv_rd_jline(B, T->bx0, T->byt, T->bx0, T->byb, ylit, C);
++    if (L >= 1) {   /* steady own-colour halo, the cycle glow's two rings but in the tower's colour (the LOCK brackets sit at pad 3) */
++        int xa, xb, ya, yb; const int k1 = pop < 150 ? 7 : 4;
++        lv_rd_box(*T, 1, xa, xb, ya, yb); lv_rd_rect_blend(B, xa, ya, xb, yb, C, k1);
++        lv_rd_box(*T, 2, xa, xb, ya, yb); lv_rd_rect_blend(B, xa, ya, xb, yb, C, k1 / 2);
++    }
++}
++/* the bolt: a distance field around a jagged polyline (+ 2 forks + impact sparks), re-jagged every frame (crackle) */
++#define LV_RD_JN 10
++static void lv_rd_jbolt(LvBand &B)
++{
++    if (!lv_rd_jolt) return;
++    const int e = (int)(lv_now - lv_rd_jolt_t); if (e < 0 || e >= LV_RD_JOLT_MS) return;
++    const LvTower *T = lv_rd_tower_of(lv_rd_joltmac); if (!T) return;
++    const uint16_t HOT = lv_hex(0xffd8f6), MAG = lv_hex(0xff2ad4), VIO = lv_hex(0xb040ff);
++    const int fr = e / 30;   /* one sim / firmware frame = 30 ms */
++    /* the lower control panel charges: its frame flares hot pink, fading over the first 150 ms */
++    if (e < 150) { const int k = 7 - e * 6 / 150; lv_rd_rect_blend(B, 1, 287, 218, 319, HOT, k); lv_rd_rect_blend(B, 2, 288, 217, 318, MAG, k / 2); }
++    const float x0 = 110, y0 = 287, x1 = (T->x0 + T->x1) / 2.0f, y1 = (float)(T->yb < LV_RD_Y1 ? T->yb : LV_RD_Y1);
++    const float dxl = x1 - x0, dyl = y1 - y0, len = sqrtf(dxl * dxl + dyl * dyl) + 1e-3f, nx = -dyl / len, ny = dxl / len;
++    float sx[40], sy[40], ex[40], ey[40], sw[40]; int ns = 0;
++    float px[LV_RD_JN + 1], py[LV_RD_JN + 1];
++    for (int k = 0; k <= LV_RD_JN; ++k) {
++        const float t = (float)k / LV_RD_JN, amp = (k == 0 || k == LV_RD_JN) ? 0 : 9.0f * sinf(t * 3.1416f) + 2.0f;
++        const float o = ((int)(lv_rd_jh(fr, k) % 1000) / 500.0f - 1.0f) * amp;
++        px[k] = x0 + dxl * t + nx * o; py[k] = y0 + dyl * t + ny * o;
++    }
++    float grow = e < 60 ? 0.0f : (e - 60) / 90.0f; if (grow > 1) grow = 1;   /* tip races up 60..150 ms */
++    if (grow <= 0) { /* charge frame: only a spark on the panel edge */ }
++    const float reach = grow * LV_RD_JN;
++    for (int k = 0; k < LV_RD_JN && k < reach; ++k) {
++        const float fpart = reach - k < 1 ? reach - k : 1;
++        sx[ns] = px[k]; sy[ns] = py[k]; ex[ns] = px[k] + (px[k + 1] - px[k]) * fpart; ey[ns] = py[k] + (py[k + 1] - py[k]) * fpart; sw[ns++] = 1.0f;
++    }
++    for (int b = 0; b < 2; ++b) {   /* forks off the main bolt */
++        const int at = 3 + b * 3; if (reach < at + 1) continue;
++        const uint32_t h = lv_rd_jh(fr * 7 + b, 99); const float side = (h & 1) ? 1.0f : -1.0f, L1 = 6 + h % 7, L2 = 4 + (h >> 4) % 5;
++        const float ux = dxl / len, uy = dyl / len;
++        const float ax = px[at] + (ux * 0.55f + nx * side * 0.85f) * L1, ay = py[at] + (uy * 0.55f + ny * side * 0.85f) * L1;
++        const float bx = ax + (ux * 0.8f - nx * side * 0.6f) * L2, by = ay + (uy * 0.8f - ny * side * 0.6f) * L2;
++        sx[ns] = px[at]; sy[ns] = py[at]; ex[ns] = ax; ey[ns] = ay; sw[ns++] = 0.6f;
++        sx[ns] = ax; sy[ns] = ay; ex[ns] = bx; ey[ns] = by; sw[ns++] = 0.45f;
++    }
++    const bool hit = grow >= 1;
++    if (hit) for (int r = 0; r < 6; ++r) {   /* impact sparks at the tower base */
++        const uint32_t h = lv_rd_jh(fr * 13 + r, 7); const float a = (h % 628) / 100.0f, l = 3 + (h >> 10) % 5;
++        sx[ns] = x1; sy[ns] = y1; ex[ns] = x1 + cosf(a) * l; ey[ns] = y1 - fabsf(sinf(a)) * l; sw[ns++] = 0.45f;
++    }
++    /* brightness: full while growing, then crackle (flicker) and fade out by 360 ms */
++    static const float FL[12] = {1, 1, 1, 1, 1, 1, 0.65f, 1, 0.8f, 0.95f, 0.5f, 0.35f};
++    const float fk = FL[fr < 12 ? fr : 11];
++    int bx0 = 239, by0 = 319, bx1 = 0, by1 = 0;
++    for (int k = 0; k < ns; ++k) { const float a[4] = {sx[k], ex[k], sy[k], ey[k]};
++        if (a[0] < bx0) bx0 = (int)a[0]; if (a[1] < bx0) bx0 = (int)a[1]; if (a[0] > bx1) bx1 = (int)a[0]; if (a[1] > bx1) bx1 = (int)a[1];
++        if (a[2] < by0) by0 = (int)a[2]; if (a[3] < by0) by0 = (int)a[3]; if (a[2] > by1) by1 = (int)a[2]; if (a[3] > by1) by1 = (int)a[3]; }
++    bx0 -= 6; by0 -= 6; bx1 += 6; by1 += 6; if (bx0 < 0) bx0 = 0; if (bx1 > 239) bx1 = 239;
++    const int ya = by0 > B.y0 ? by0 : B.y0, yb = by1 < B.y0 + B.h - 1 ? by1 : B.y0 + B.h - 1;
++    for (int y = ya; y <= yb && ns; ++y) for (int x = bx0; x <= bx1; ++x) {
++        float dn = 1e9f;
++        for (int k = 0; k < ns; ++k) {
++            const float vx = ex[k] - sx[k], vy = ey[k] - sy[k], wx = x - sx[k], wy = y - sy[k], vv = vx * vx + vy * vy;
++            float t = vv > 0 ? (wx * vx + wy * vy) / vv : 0; t = t < 0 ? 0 : t > 1 ? 1 : t;
++            const float qx = wx - vx * t, qy = wy - vy * t, d = sqrtf(qx * qx + qy * qy) / sw[k]; if (d < dn) dn = d;
++        }
++        uint16_t c; int k;
++        if (dn <= 1.0f) { c = HOT; k = 8; } else if (dn <= 2.0f) { c = MAG; k = 8; } else if (dn <= 3.4f) { c = MAG; k = 4; } else if (dn <= 5.4f) { c = VIO; k = 2; } else continue;
++        k = (int)lroundf(k * fk); if (k > 0) b_blend(B, x, y, c, k);
++    }
++    /* flare where it leaves the panel, flash where it lands */
++    for (int a = -3; a <= 3; ++a) for (int b = -3; b <= 3; ++b) { const int d2 = a * a + b * b; if (d2 > 9) continue;
++        b_blend(B, (int)x0 + b, (int)y0 + a, d2 <= 2 ? HOT : MAG, (int)lroundf((d2 <= 2 ? 8 : 4) * fk));
++        if (hit) b_blend(B, (int)x1 + b, (int)y1 + a, d2 <= 2 ? HOT : MAG, (int)lroundf((d2 <= 2 ? 8 : 3) * fk)); }
++}
++#endif
+ static void lv_rd_fx(LvBand &B)   /* drawn after the towers, before header / panel / footer (the mock's gib_draw hook) */
+ {
+     const uint16_t W = lv_hex(0xffffff), MAG = lv_hex(0xff2ad4);
+@@ -164,6 +285,9 @@
+             lv_rd_box(*T, 2, xa, xb, ya, yb); lv_rd_rect_blend(B, xa, ya, xb, yb, W, k / 2);
+         } else if (e > 300) lv_rd_glow = false;
+     }
++#if LV_RD_JOLT
++    lv_rd_jlight(B);
++#endif
+     if (lv_rd_holding && !lv_rd_lock) {
+         const LvTower *T = lv_rd_tower_of(lv_rd_holdmac); if (!T) return;
+         float u = (lv_now - lv_rd_hold_t) / 1000.0f; if (u > 1) u = 1; if (u < 0) u = 0;
+@@ -176,7 +300,7 @@
+     const int e = (int)(lv_now - lv_rd_lock_t);
+     const int pulse = 5 + (int)lroundf(3 * (0.5f + 0.5f * sinf(e / 1000.0f * 6.283f * 1.6f)));   /* 5..8 of 8 */
+     int xa, xb, ya, yb; lv_rd_box(*T, 3, xa, xb, ya, yb);
+-    if (e < 200) lv_rd_rect_blend(B, xa - 1, ya - 1, xb + 1, yb + 1, W, 7 - e * 7 / 200);       /* lock snap flash */
++    if (e < 200 && !LV_RD_JOLT) lv_rd_rect_blend(B, xa - 1, ya - 1, xb + 1, yb + 1, W, 7 - e * 7 / 200);       /* lock snap flash (jolt: the strike is the flash) */
+     lv_rd_brackets(B, xa, ya, xb, yb, 4, lv_dim(MAG, pulse, 8));
+     const int cx = (xa + xb) / 2; b_line(B, cx, ya - 1, cx, ya - 3, lv_dim(W, pulse, 8));
+     const char *lab = lv_rd_hunting ? "HUNT" : "LOCK";   /* same 3x5 label, same width (4 chars) */
+@@ -270,7 +394,11 @@
+     for (int n = 0; n < lv_rd_n; ++n) {
+         const LvTower &T = lv_rd_tw[n]; const LvFind &f = lv_f[T.i];
+         const int lev = lv_rd_level(f), br = 3 + lev * 5 / 60;           /* 3..8 of 8 */
+-        const bool sel = T.i == lv_rd_sel;
++        const bool sel = T.i == lv_rd_sel
++#if LV_RD_JOLT
++            && !lv_rd_jtarget(T.i)
++#endif
++            ;
+         const uint16_t edge = sel ? lv_hex(0xffffff) : lv_rd_col(f, br, 8), face = lv_rd_col(f, br, 8);
+         int ya = T.byt, yb = T.yb; lv_rd_vclip(B, ya, yb);
+         /* top face (back-top edge to front-top edge) */
+@@ -305,6 +433,9 @@
+     }
+     /* footer (item 13): a 3-line boxed mini terminal that types out live radar info over a >_ prompt, legend folded into the prompt */
+     lv_rd_term(B, hdr);
++#if LV_RD_JOLT
++    lv_rd_jbolt(B);
++#endif
+     lv_draw_backbot(B, LV_R_BACKBOT.x0, LV_R_BACKBOT.y0);
+ }
+ /* hunt ticker line: the target's full info + a trend that is ONLY the change of its real dBm (no direction) */
+@@ -368,18 +499,24 @@
+ {
+     lv_rd_hunt_stop();
+     lv_rd_lock = false; lv_rd_holding = false;
++#if LV_RD_JOLT
++    lv_rd_jolt = false;
++#endif
+ }
+ static void lv_radar_enter(void)
+ {
+     lv_rd_lists_load();
+     { int nw = 0; for (int i = 0; i < lv_nf; ++i) nw += lv_f[i].kind == LV_K_WIFI;
+-      lv_rd_log("GIBSON UP  %dW %dB  HEIGHT=DBM", nw, lv_nf - nw); lv_rd_log("ANGLE/DEPTH = MAC HASH, NOT DIRECTION"); lv_rd_log(lv_nf ? "TAP=CYCLE  HOLD 1S=LOCK" : "NO NODES YET - SCANNING"); lv_rd_tl_t = lv_now; }
++      lv_rd_log("GIBSON UP  %dW %dB  HEIGHT=DBM", nw, lv_nf - nw); lv_rd_log("ANGLE/DEPTH = MAC HASH, NOT DIRECTION"); lv_rd_log(lv_nf ? (LV_RD_JOLT ? "TAP=CYCLE  TAP TOWER=LOCK" : "TAP=CYCLE  HOLD 1S=LOCK") : "NO NODES YET - SCANNING"); lv_rd_tl_t = lv_now; }
+     lv_rd_t0 = lv_now; lv_rd_sel = -1; lv_rd_glow = false; lv_rd_holding = false; lv_rd_swallow = false;
+     if (lv_nf == 0 && lv_job == LV_J_NONE) lv_job_start(lv_scanmix == 1 ? LV_J_WIFI : lv_scanmix == 2 ? LV_J_BLE : LV_J_ALL, -1);
+ }
+ static void lv_radar_leave(void) { if (lv_rd_hunting) lv_tk_off = 1 << 14; lv_rd_release(); lv_rd_sel = -1; }
+ static void lv_radar_frame(void)
+ {
++#if LV_RD_JOLT
++    if (lv_rd_jolt && (int32_t)(lv_now - lv_rd_jolt_t) >= LV_RD_JOLT_MS) { lv_rd_jolt = false; const int i = lv_rd_find(lv_rd_joltmac); if (i >= 0) lv_rd_lock_on(i); }
++#endif
+     if (lv_rd_sel >= 0) { /* keep the selection on the same device across re-sorts */
+         int k = -1; for (int i = 0; i < lv_nf; ++i) if (!memcmp(lv_f[i].mac, lv_rd_selmac, 6)) { k = i; break; }
+         lv_rd_sel = k;
+@@ -411,6 +548,9 @@
+ /* touch state every loop (firmware: lv_ui.cpp; sim: press / rhold). Hold a tower ~1 s -> lock on. */
+ static void lv_radar_touch(bool down, int x, int y)
+ {
++#if LV_RD_JOLT
++    (void)down; (void)x; (void)y; return;   /* jolt mode: no hold-to-lock */
++#endif
+     if (!down) { lv_rd_holding = false; return; }
+     if (lv_rd_lock || y < LV_RD_Y0 || y > LV_RD_Y1) return;
+     if (!lv_rd_holding) {
+@@ -436,6 +576,9 @@
+ static const char *lv_radar_tap(int x, int y)
+ {
+     if (lv_rd_swallow) { lv_rd_swallow = false; return "radar-locked"; }
++#if LV_RD_JOLT
++    if (lv_rd_jolt) return "radar-jolt-busy";   /* taps during the 360 ms strike do nothing */
++#endif
+     if (y > LV_RD_Y1 + 1) return "radar-term";   /* the footer terminal is read-only (BACKbot is handled before this) */
+     if (lv_rd_lock) {
+         for (int k = 0; k < 3; ++k) if (lv_in(LV_RD_BTN_TAP[k], x, y)) {
+@@ -461,6 +604,9 @@
+         lv_rd_release(); lv_rd_log("RELEASED"); return "radar-unlock";   /* a tap anywhere else releases the lock (and ends a hunt) */
+     }
+     const int i = lv_rd_hit(x, y);
++#if LV_RD_JOLT
++    if (i >= 0) { lv_rd_select(i); lv_rd_glow = false; lv_rd_jolt = true; lv_rd_jolt_t = lv_now; memcpy(lv_rd_joltmac, lv_f[i].mac, 6); return "radar-jolt"; }
++#endif
+     if (i >= 0) { lv_rd_select(i); return "radar-tower"; }
+     const int nx = lv_rd_cycle_next();
+     if (nx < 0) return "none";

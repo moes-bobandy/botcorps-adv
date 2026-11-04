@@ -1,0 +1,1281 @@
+{
+ "home_n7": {
+  "owned_base": {
+   "px": 10604,
+   "eq565": 10604,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.0,
+   "max565": 0
+  },
+  "glow_over_clip": {
+   "px": 7012,
+   "eq565": 3687,
+   "gt1": 133,
+   "gt4": 0,
+   "mean_abs565": 0.495,
+   "max565": 3
+  },
+  "outside": {
+   "px": 59184,
+   "eq565": 24426,
+   "gt1": 10762,
+   "gt4": 6824,
+   "mean_abs565": 2.929,
+   "max565": 63
+  }
+ },
+ "home_n14": {
+  "owned_base": {
+   "px": 10604,
+   "eq565": 10604,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.0,
+   "max565": 0
+  },
+  "glow_over_clip": {
+   "px": 7012,
+   "eq565": 5423,
+   "gt1": 110,
+   "gt4": 0,
+   "mean_abs565": 0.244,
+   "max565": 3
+  },
+  "outside": {
+   "px": 59184,
+   "eq565": 24478,
+   "gt1": 10687,
+   "gt4": 6715,
+   "mean_abs565": 2.88,
+   "max565": 63
+  }
+ },
+ "home_n21": {
+  "owned_base": {
+   "px": 10604,
+   "eq565": 10604,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.0,
+   "max565": 0
+  },
+  "glow_over_clip": {
+   "px": 7012,
+   "eq565": 4145,
+   "gt1": 135,
+   "gt4": 0,
+   "mean_abs565": 0.438,
+   "max565": 3
+  },
+  "outside": {
+   "px": 59184,
+   "eq565": 24493,
+   "gt1": 10634,
+   "gt4": 6636,
+   "mean_abs565": 2.894,
+   "max565": 63
+  },
+  "png": "/workspace/out/fw-port-1103/home_n021.png",
+  "fw_png": "/workspace/out/fw-port-1103/home_n021_fw.png",
+  "note": "LOCKED O frame 21 | firmware sim | diff (grey owned, red owned diff, purple diff outside the port)"
+ },
+ "home_n28": {
+  "owned_base": {
+   "px": 10604,
+   "eq565": 10604,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.0,
+   "max565": 0
+  },
+  "glow_over_clip": {
+   "px": 7012,
+   "eq565": 5423,
+   "gt1": 110,
+   "gt4": 0,
+   "mean_abs565": 0.244,
+   "max565": 3
+  },
+  "outside": {
+   "px": 59184,
+   "eq565": 24435,
+   "gt1": 10756,
+   "gt4": 6726,
+   "mean_abs565": 3.054,
+   "max565": 63
+  }
+ },
+ "home_n35": {
+  "owned_base": {
+   "px": 10604,
+   "eq565": 10604,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.0,
+   "max565": 0
+  },
+  "glow_over_clip": {
+   "px": 7012,
+   "eq565": 3687,
+   "gt1": 133,
+   "gt4": 0,
+   "mean_abs565": 0.495,
+   "max565": 3
+  },
+  "outside": {
+   "px": 59184,
+   "eq565": 24426,
+   "gt1": 10802,
+   "gt4": 6755,
+   "mean_abs565": 3.109,
+   "max565": 63
+  }
+ },
+ "home_n42": {
+  "owned_base": {
+   "px": 10604,
+   "eq565": 10604,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.0,
+   "max565": 0
+  },
+  "glow_over_clip": {
+   "px": 7012,
+   "eq565": 5536,
+   "gt1": 84,
+   "gt4": 0,
+   "mean_abs565": 0.226,
+   "max565": 3
+  },
+  "outside": {
+   "px": 59184,
+   "eq565": 24475,
+   "gt1": 10792,
+   "gt4": 6752,
+   "mean_abs565": 3.035,
+   "max565": 63
+  },
+  "png": "/workspace/out/fw-port-1103/home_n042.png",
+  "fw_png": "/workspace/out/fw-port-1103/home_n042_fw.png",
+  "note": "LOCKED O frame 42 | firmware sim | diff (grey owned, red owned diff, purple diff outside the port)"
+ },
+ "home_n63": {
+  "owned_base": {
+   "px": 10604,
+   "eq565": 10604,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.0,
+   "max565": 0
+  },
+  "glow_over_clip": {
+   "px": 7012,
+   "eq565": 4145,
+   "gt1": 135,
+   "gt4": 0,
+   "mean_abs565": 0.438,
+   "max565": 3
+  },
+  "outside": {
+   "px": 59184,
+   "eq565": 24426,
+   "gt1": 10762,
+   "gt4": 6716,
+   "mean_abs565": 3.14,
+   "max565": 63
+  }
+ },
+ "home_n84": {
+  "owned_base": {
+   "px": 10604,
+   "eq565": 10604,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.0,
+   "max565": 0
+  },
+  "glow_over_clip": {
+   "px": 7012,
+   "eq565": 5536,
+   "gt1": 84,
+   "gt4": 0,
+   "mean_abs565": 0.226,
+   "max565": 3
+  },
+  "outside": {
+   "px": 59184,
+   "eq565": 24435,
+   "gt1": 10756,
+   "gt4": 6643,
+   "mean_abs565": 3.252,
+   "max565": 63
+  }
+ },
+ "home_n105": {
+  "owned_base": {
+   "px": 10604,
+   "eq565": 10604,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.0,
+   "max565": 0
+  },
+  "glow_over_clip": {
+   "px": 7012,
+   "eq565": 4145,
+   "gt1": 135,
+   "gt4": 0,
+   "mean_abs565": 0.438,
+   "max565": 3
+  },
+  "outside": {
+   "px": 59184,
+   "eq565": 24475,
+   "gt1": 10886,
+   "gt4": 6620,
+   "mean_abs565": 3.391,
+   "max565": 63
+  },
+  "png": "/workspace/out/fw-port-1103/home_n105.png",
+  "fw_png": "/workspace/out/fw-port-1103/home_n105_fw.png",
+  "note": "LOCKED O frame 105 | firmware sim | diff (grey owned, red owned diff, purple diff outside the port)"
+ },
+ "home_n147": {
+  "owned_base": {
+   "px": 10604,
+   "eq565": 10604,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.0,
+   "max565": 0
+  },
+  "glow_over_clip": {
+   "px": 7012,
+   "eq565": 4145,
+   "gt1": 135,
+   "gt4": 0,
+   "mean_abs565": 0.438,
+   "max565": 3
+  },
+  "outside": {
+   "px": 59184,
+   "eq565": 24426,
+   "gt1": 10802,
+   "gt4": 6753,
+   "mean_abs565": 3.108,
+   "max565": 63
+  }
+ },
+ "scan_green_n3": {
+  "step": 9,
+  "rain_chip_owned": {
+   "px": 4120,
+   "eq565": 4120,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.0,
+   "max565": 0
+  },
+  "rain_px": {
+   "px": 2450,
+   "eq565": 2450,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.0,
+   "max565": 0
+  },
+  "chip_box_not_owned": {
+   "px": 5102,
+   "eq565": 3631,
+   "gt1": 160,
+   "gt4": 0,
+   "mean_abs565": 0.32,
+   "max565": 3
+  }
+ },
+ "scan_green_n6": {
+  "step": 0,
+  "rain_chip_owned": {
+   "px": 4120,
+   "eq565": 4120,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.0,
+   "max565": 0
+  },
+  "rain_px": {
+   "px": 2450,
+   "eq565": 2450,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.0,
+   "max565": 0
+  },
+  "chip_box_not_owned": {
+   "px": 5102,
+   "eq565": 3631,
+   "gt1": 160,
+   "gt4": 0,
+   "mean_abs565": 0.32,
+   "max565": 3
+  }
+ },
+ "scan_green_n9": {
+  "step": 1,
+  "rain_chip_owned": {
+   "px": 4120,
+   "eq565": 4120,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.0,
+   "max565": 0
+  },
+  "rain_px": {
+   "px": 2450,
+   "eq565": 2450,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.0,
+   "max565": 0
+  },
+  "chip_box_not_owned": {
+   "px": 5102,
+   "eq565": 3631,
+   "gt1": 160,
+   "gt4": 0,
+   "mean_abs565": 0.32,
+   "max565": 3
+  }
+ },
+ "scan_green_n12": {
+  "step": 1,
+  "rain_chip_owned": {
+   "px": 4120,
+   "eq565": 4120,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.0,
+   "max565": 0
+  },
+  "rain_px": {
+   "px": 2450,
+   "eq565": 2450,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.0,
+   "max565": 0
+  },
+  "chip_box_not_owned": {
+   "px": 5102,
+   "eq565": 3631,
+   "gt1": 160,
+   "gt4": 0,
+   "mean_abs565": 0.32,
+   "max565": 3
+  }
+ },
+ "scan_green_n15": {
+  "step": 2,
+  "rain_chip_owned": {
+   "px": 4120,
+   "eq565": 4120,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.0,
+   "max565": 0
+  },
+  "rain_px": {
+   "px": 2450,
+   "eq565": 2450,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.0,
+   "max565": 0
+  },
+  "chip_box_not_owned": {
+   "px": 5102,
+   "eq565": 3631,
+   "gt1": 160,
+   "gt4": 0,
+   "mean_abs565": 0.32,
+   "max565": 3
+  }
+ },
+ "scan_green_n18": {
+  "step": 3,
+  "rain_chip_owned": {
+   "px": 4120,
+   "eq565": 4120,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.0,
+   "max565": 0
+  },
+  "rain_px": {
+   "px": 2450,
+   "eq565": 2450,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.0,
+   "max565": 0
+  },
+  "chip_box_not_owned": {
+   "px": 5102,
+   "eq565": 3631,
+   "gt1": 160,
+   "gt4": 0,
+   "mean_abs565": 0.32,
+   "max565": 3
+  }
+ },
+ "scan_green_n21": {
+  "step": 4,
+  "rain_chip_owned": {
+   "px": 4120,
+   "eq565": 4120,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.0,
+   "max565": 0
+  },
+  "rain_px": {
+   "px": 2450,
+   "eq565": 2450,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.0,
+   "max565": 0
+  },
+  "chip_box_not_owned": {
+   "px": 5102,
+   "eq565": 3631,
+   "gt1": 160,
+   "gt4": 0,
+   "mean_abs565": 0.32,
+   "max565": 3
+  },
+  "png": "/workspace/out/fw-port-1103/scan_rain_green_n021.png",
+  "fw_png": "/workspace/out/fw-port-1103/scan_rain_green_n021_fw.png",
+  "note": "LOCKED main-bot-rain gaps3 scan (green) | firmware sim | diff"
+ },
+ "scan_green_n24": {
+  "step": 4,
+  "rain_chip_owned": {
+   "px": 4120,
+   "eq565": 4120,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.0,
+   "max565": 0
+  },
+  "rain_px": {
+   "px": 2450,
+   "eq565": 2450,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.0,
+   "max565": 0
+  },
+  "chip_box_not_owned": {
+   "px": 5102,
+   "eq565": 3631,
+   "gt1": 160,
+   "gt4": 0,
+   "mean_abs565": 0.32,
+   "max565": 3
+  }
+ },
+ "scan_green_n27": {
+  "step": 5,
+  "rain_chip_owned": {
+   "px": 4120,
+   "eq565": 4120,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.0,
+   "max565": 0
+  },
+  "rain_px": {
+   "px": 2450,
+   "eq565": 2450,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.0,
+   "max565": 0
+  },
+  "chip_box_not_owned": {
+   "px": 5102,
+   "eq565": 3631,
+   "gt1": 160,
+   "gt4": 0,
+   "mean_abs565": 0.32,
+   "max565": 3
+  }
+ },
+ "scan_green_n30": {
+  "step": 6,
+  "rain_chip_owned": {
+   "px": 4120,
+   "eq565": 4120,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.0,
+   "max565": 0
+  },
+  "rain_px": {
+   "px": 2450,
+   "eq565": 2450,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.0,
+   "max565": 0
+  },
+  "chip_box_not_owned": {
+   "px": 5102,
+   "eq565": 3631,
+   "gt1": 160,
+   "gt4": 0,
+   "mean_abs565": 0.32,
+   "max565": 3
+  }
+ },
+ "scan_green_n33": {
+  "step": 6,
+  "rain_chip_owned": {
+   "px": 4120,
+   "eq565": 4120,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.0,
+   "max565": 0
+  },
+  "rain_px": {
+   "px": 2450,
+   "eq565": 2450,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.0,
+   "max565": 0
+  },
+  "chip_box_not_owned": {
+   "px": 5102,
+   "eq565": 3631,
+   "gt1": 160,
+   "gt4": 0,
+   "mean_abs565": 0.32,
+   "max565": 3
+  }
+ },
+ "scan_green_n36": {
+  "step": 7,
+  "rain_chip_owned": {
+   "px": 4120,
+   "eq565": 4120,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.0,
+   "max565": 0
+  },
+  "rain_px": {
+   "px": 2450,
+   "eq565": 2450,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.0,
+   "max565": 0
+  },
+  "chip_box_not_owned": {
+   "px": 5102,
+   "eq565": 3631,
+   "gt1": 160,
+   "gt4": 0,
+   "mean_abs565": 0.32,
+   "max565": 3
+  }
+ },
+ "scan_green_n39": {
+  "step": 8,
+  "rain_chip_owned": {
+   "px": 4120,
+   "eq565": 4120,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.0,
+   "max565": 0
+  },
+  "rain_px": {
+   "px": 2450,
+   "eq565": 2450,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.0,
+   "max565": 0
+  },
+  "chip_box_not_owned": {
+   "px": 5102,
+   "eq565": 3631,
+   "gt1": 160,
+   "gt4": 0,
+   "mean_abs565": 0.32,
+   "max565": 3
+  }
+ },
+ "scan_green_n42": {
+  "step": 9,
+  "rain_chip_owned": {
+   "px": 4120,
+   "eq565": 4120,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.0,
+   "max565": 0
+  },
+  "rain_px": {
+   "px": 2450,
+   "eq565": 2450,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.0,
+   "max565": 0
+  },
+  "chip_box_not_owned": {
+   "px": 5102,
+   "eq565": 3631,
+   "gt1": 160,
+   "gt4": 0,
+   "mean_abs565": 0.32,
+   "max565": 3
+  },
+  "png": "/workspace/out/fw-port-1103/scan_rain_green_n042.png",
+  "fw_png": "/workspace/out/fw-port-1103/scan_rain_green_n042_fw.png",
+  "note": "LOCKED main-bot-rain gaps3 scan (green) | firmware sim | diff"
+ },
+ "scan_orange_n21": {
+  "step": 4,
+  "rain_chip_owned": {
+   "px": 4120,
+   "eq565": 4120,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.0,
+   "max565": 0
+  },
+  "rain_px": {
+   "px": 2450,
+   "eq565": 2450,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.0,
+   "max565": 0
+  },
+  "chip_box_not_owned": {
+   "px": 5102,
+   "eq565": 3761,
+   "gt1": 141,
+   "gt4": 0,
+   "mean_abs565": 0.291,
+   "max565": 3
+  },
+  "png": "/workspace/out/fw-port-1103/scan_rain_orange_n021.png",
+  "fw_png": "/workspace/out/fw-port-1103/scan_rain_orange_n021_fw.png",
+  "note": "LOCKED main-bot-rain gaps3 scan (orange) | firmware sim | diff"
+ },
+ "scan_orange_n42": {
+  "step": 9,
+  "rain_chip_owned": {
+   "px": 4120,
+   "eq565": 4120,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.0,
+   "max565": 0
+  },
+  "rain_px": {
+   "px": 2450,
+   "eq565": 2450,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.0,
+   "max565": 0
+  },
+  "chip_box_not_owned": {
+   "px": 5102,
+   "eq565": 3761,
+   "gt1": 141,
+   "gt4": 0,
+   "mean_abs565": 0.291,
+   "max565": 3
+  },
+  "png": "/workspace/out/fw-port-1103/scan_rain_orange_n042.png",
+  "fw_png": "/workspace/out/fw-port-1103/scan_rain_orange_n042_fw.png",
+  "note": "LOCKED main-bot-rain gaps3 scan (orange) | firmware sim | diff"
+ },
+ "term_green_n3": {
+  "step": 9,
+  "rain_chip_owned": {
+   "px": 4120,
+   "eq565": 4120,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.0,
+   "max565": 0
+  },
+  "rain_px": {
+   "px": 2104,
+   "eq565": 2104,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.0,
+   "max565": 0
+  },
+  "chip_box_not_owned": {
+   "px": 5102,
+   "eq565": 3921,
+   "gt1": 90,
+   "gt4": 0,
+   "mean_abs565": 0.25,
+   "max565": 3
+  }
+ },
+ "term_green_n6": {
+  "step": 0,
+  "rain_chip_owned": {
+   "px": 4120,
+   "eq565": 4120,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.0,
+   "max565": 0
+  },
+  "rain_px": {
+   "px": 2104,
+   "eq565": 2104,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.0,
+   "max565": 0
+  },
+  "chip_box_not_owned": {
+   "px": 5102,
+   "eq565": 3921,
+   "gt1": 90,
+   "gt4": 0,
+   "mean_abs565": 0.25,
+   "max565": 3
+  }
+ },
+ "term_green_n9": {
+  "step": 1,
+  "rain_chip_owned": {
+   "px": 4120,
+   "eq565": 4120,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.0,
+   "max565": 0
+  },
+  "rain_px": {
+   "px": 2104,
+   "eq565": 2104,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.0,
+   "max565": 0
+  },
+  "chip_box_not_owned": {
+   "px": 5102,
+   "eq565": 3921,
+   "gt1": 90,
+   "gt4": 0,
+   "mean_abs565": 0.25,
+   "max565": 3
+  }
+ },
+ "term_green_n12": {
+  "step": 1,
+  "rain_chip_owned": {
+   "px": 4120,
+   "eq565": 4120,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.0,
+   "max565": 0
+  },
+  "rain_px": {
+   "px": 2104,
+   "eq565": 2104,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.0,
+   "max565": 0
+  },
+  "chip_box_not_owned": {
+   "px": 5102,
+   "eq565": 3921,
+   "gt1": 90,
+   "gt4": 0,
+   "mean_abs565": 0.25,
+   "max565": 3
+  }
+ },
+ "term_green_n15": {
+  "step": 2,
+  "rain_chip_owned": {
+   "px": 4120,
+   "eq565": 4120,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.0,
+   "max565": 0
+  },
+  "rain_px": {
+   "px": 2104,
+   "eq565": 2104,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.0,
+   "max565": 0
+  },
+  "chip_box_not_owned": {
+   "px": 5102,
+   "eq565": 3921,
+   "gt1": 90,
+   "gt4": 0,
+   "mean_abs565": 0.25,
+   "max565": 3
+  }
+ },
+ "term_green_n18": {
+  "step": 3,
+  "rain_chip_owned": {
+   "px": 4120,
+   "eq565": 4120,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.0,
+   "max565": 0
+  },
+  "rain_px": {
+   "px": 2104,
+   "eq565": 2104,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.0,
+   "max565": 0
+  },
+  "chip_box_not_owned": {
+   "px": 5102,
+   "eq565": 3921,
+   "gt1": 90,
+   "gt4": 0,
+   "mean_abs565": 0.25,
+   "max565": 3
+  }
+ },
+ "term_green_n21": {
+  "step": 4,
+  "rain_chip_owned": {
+   "px": 4120,
+   "eq565": 4120,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.0,
+   "max565": 0
+  },
+  "rain_px": {
+   "px": 2104,
+   "eq565": 2104,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.0,
+   "max565": 0
+  },
+  "chip_box_not_owned": {
+   "px": 5102,
+   "eq565": 3921,
+   "gt1": 90,
+   "gt4": 0,
+   "mean_abs565": 0.25,
+   "max565": 3
+  },
+  "png": "/workspace/out/fw-port-1103/term_rain_green_n021.png",
+  "fw_png": "/workspace/out/fw-port-1103/term_rain_green_n021_fw.png",
+  "note": "LOCKED main-bot-rain gaps3 term (green) | firmware sim | diff"
+ },
+ "term_green_n24": {
+  "step": 4,
+  "rain_chip_owned": {
+   "px": 4120,
+   "eq565": 4120,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.0,
+   "max565": 0
+  },
+  "rain_px": {
+   "px": 2104,
+   "eq565": 2104,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.0,
+   "max565": 0
+  },
+  "chip_box_not_owned": {
+   "px": 5102,
+   "eq565": 3921,
+   "gt1": 90,
+   "gt4": 0,
+   "mean_abs565": 0.25,
+   "max565": 3
+  }
+ },
+ "term_green_n27": {
+  "step": 5,
+  "rain_chip_owned": {
+   "px": 4120,
+   "eq565": 4120,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.0,
+   "max565": 0
+  },
+  "rain_px": {
+   "px": 2104,
+   "eq565": 2104,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.0,
+   "max565": 0
+  },
+  "chip_box_not_owned": {
+   "px": 5102,
+   "eq565": 3921,
+   "gt1": 90,
+   "gt4": 0,
+   "mean_abs565": 0.25,
+   "max565": 3
+  }
+ },
+ "term_green_n30": {
+  "step": 6,
+  "rain_chip_owned": {
+   "px": 4120,
+   "eq565": 4120,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.0,
+   "max565": 0
+  },
+  "rain_px": {
+   "px": 2104,
+   "eq565": 2104,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.0,
+   "max565": 0
+  },
+  "chip_box_not_owned": {
+   "px": 5102,
+   "eq565": 3921,
+   "gt1": 90,
+   "gt4": 0,
+   "mean_abs565": 0.25,
+   "max565": 3
+  }
+ },
+ "term_green_n33": {
+  "step": 6,
+  "rain_chip_owned": {
+   "px": 4120,
+   "eq565": 4120,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.0,
+   "max565": 0
+  },
+  "rain_px": {
+   "px": 2104,
+   "eq565": 2104,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.0,
+   "max565": 0
+  },
+  "chip_box_not_owned": {
+   "px": 5102,
+   "eq565": 3921,
+   "gt1": 90,
+   "gt4": 0,
+   "mean_abs565": 0.25,
+   "max565": 3
+  }
+ },
+ "term_green_n36": {
+  "step": 7,
+  "rain_chip_owned": {
+   "px": 4120,
+   "eq565": 4120,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.0,
+   "max565": 0
+  },
+  "rain_px": {
+   "px": 2104,
+   "eq565": 2104,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.0,
+   "max565": 0
+  },
+  "chip_box_not_owned": {
+   "px": 5102,
+   "eq565": 3921,
+   "gt1": 90,
+   "gt4": 0,
+   "mean_abs565": 0.25,
+   "max565": 3
+  }
+ },
+ "term_green_n39": {
+  "step": 8,
+  "rain_chip_owned": {
+   "px": 4120,
+   "eq565": 4120,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.0,
+   "max565": 0
+  },
+  "rain_px": {
+   "px": 2104,
+   "eq565": 2104,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.0,
+   "max565": 0
+  },
+  "chip_box_not_owned": {
+   "px": 5102,
+   "eq565": 3921,
+   "gt1": 90,
+   "gt4": 0,
+   "mean_abs565": 0.25,
+   "max565": 3
+  }
+ },
+ "term_green_n42": {
+  "step": 9,
+  "rain_chip_owned": {
+   "px": 4120,
+   "eq565": 4120,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.0,
+   "max565": 0
+  },
+  "rain_px": {
+   "px": 2104,
+   "eq565": 2104,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.0,
+   "max565": 0
+  },
+  "chip_box_not_owned": {
+   "px": 5102,
+   "eq565": 3921,
+   "gt1": 90,
+   "gt4": 0,
+   "mean_abs565": 0.25,
+   "max565": 3
+  },
+  "png": "/workspace/out/fw-port-1103/term_rain_green_n042.png",
+  "fw_png": "/workspace/out/fw-port-1103/term_rain_green_n042_fw.png",
+  "note": "LOCKED main-bot-rain gaps3 term (green) | firmware sim | diff"
+ },
+ "term_orange_n21": {
+  "step": 4,
+  "rain_chip_owned": {
+   "px": 4120,
+   "eq565": 4120,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.0,
+   "max565": 0
+  },
+  "rain_px": {
+   "px": 2104,
+   "eq565": 2104,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.0,
+   "max565": 0
+  },
+  "chip_box_not_owned": {
+   "px": 5102,
+   "eq565": 4008,
+   "gt1": 62,
+   "gt4": 0,
+   "mean_abs565": 0.227,
+   "max565": 2
+  },
+  "png": "/workspace/out/fw-port-1103/term_rain_orange_n021.png",
+  "fw_png": "/workspace/out/fw-port-1103/term_rain_orange_n021_fw.png",
+  "note": "LOCKED main-bot-rain gaps3 term (orange) | firmware sim | diff"
+ },
+ "term_orange_n42": {
+  "step": 9,
+  "rain_chip_owned": {
+   "px": 4120,
+   "eq565": 4120,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.0,
+   "max565": 0
+  },
+  "rain_px": {
+   "px": 2104,
+   "eq565": 2104,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.0,
+   "max565": 0
+  },
+  "chip_box_not_owned": {
+   "px": 5102,
+   "eq565": 4008,
+   "gt1": 62,
+   "gt4": 0,
+   "mean_abs565": 0.227,
+   "max565": 2
+  },
+  "png": "/workspace/out/fw-port-1103/term_rain_orange_n042.png",
+  "fw_png": "/workspace/out/fw-port-1103/term_rain_orange_n042_fw.png",
+  "note": "LOCKED main-bot-rain gaps3 term (orange) | firmware sim | diff"
+ },
+ "scanglow_n21": {
+  "WIFI_face": {
+   "px": 529,
+   "eq565": 460,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.13,
+   "max565": 1
+  },
+  "WIFI_halo": {
+   "px": 657,
+   "eq565": 449,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.317,
+   "max565": 1
+  },
+  "BLE_face": {
+   "px": 529,
+   "eq565": 425,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.197,
+   "max565": 1
+  },
+  "BLE_halo": {
+   "px": 657,
+   "eq565": 413,
+   "gt1": 1,
+   "gt4": 0,
+   "mean_abs565": 0.373,
+   "max565": 2
+  },
+  "GIB_face": {
+   "px": 529,
+   "eq565": 418,
+   "gt1": 3,
+   "gt4": 0,
+   "mean_abs565": 0.216,
+   "max565": 2
+  },
+  "GIB_halo": {
+   "px": 657,
+   "eq565": 390,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.406,
+   "max565": 1
+  },
+  "chip_windows_rest": {
+   "px": 438,
+   "eq565": 315,
+   "gt1": 1,
+   "gt4": 0,
+   "mean_abs565": 0.283,
+   "max565": 2
+  },
+  "png": "/workspace/out/fw-port-1103/scan_glow_peak.png",
+  "fw_png": "/workspace/out/fw-port-1103/scan_glow_peak_fw.png",
+  "note": "LOCKED ui_scan_glow peak (1x of 3x) | firmware sim theme 0 | diff"
+ },
+ "scanglow_n42": {
+  "WIFI_face": {
+   "px": 529,
+   "eq565": 460,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.13,
+   "max565": 1
+  },
+  "WIFI_halo": {
+   "px": 657,
+   "eq565": 533,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.189,
+   "max565": 1
+  },
+  "BLE_face": {
+   "px": 529,
+   "eq565": 425,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.197,
+   "max565": 1
+  },
+  "BLE_halo": {
+   "px": 657,
+   "eq565": 527,
+   "gt1": 0,
+   "gt4": 0,
+   "mean_abs565": 0.198,
+   "max565": 1
+  },
+  "GIB_face": {
+   "px": 529,
+   "eq565": 418,
+   "gt1": 3,
+   "gt4": 0,
+   "mean_abs565": 0.216,
+   "max565": 2
+  },
+  "GIB_halo": {
+   "px": 657,
+   "eq565": 562,
+   "gt1": 2,
+   "gt4": 0,
+   "mean_abs565": 0.148,
+   "max565": 2
+  },
+  "chip_windows_rest": {
+   "px": 438,
+   "eq565": 315,
+   "gt1": 1,
+   "gt4": 0,
+   "mean_abs565": 0.283,
+   "max565": 2
+  },
+  "png": "/workspace/out/fw-port-1103/scan_glow_trough.png",
+  "fw_png": "/workspace/out/fw-port-1103/scan_glow_trough_fw.png",
+  "note": "LOCKED ui_scan_glow trough (1x of 3x) | firmware sim theme 0 | diff"
+ }
+}

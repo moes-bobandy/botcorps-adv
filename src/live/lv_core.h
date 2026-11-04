@@ -708,6 +708,7 @@ static uint16_t lv_multi_ink(uint16_t c, int x, int y)
     return lv_rgb((uint8_t)o[0], (uint8_t)o[1], (uint8_t)o[2]);
 }
 static uint16_t lv_pc(const uint16_t *pal, uint8_t i, int x, int y) { return lv_reink_on() ? lv_multi_ink(pal[i], x, y) : pal[i]; }
+#include "lv_port.h"   /* LOCKED mocks ported over the clip: HOME tap glow (O), SCAN glow, main-bot rain */
 static void lv_scene_tint(LvBand &B, void *ctx)
 {
     const int t = *(const int *)ctx;
@@ -716,7 +717,7 @@ static void lv_scene_tint(LvBand &B, void *ctx)
     const uint16_t *pal = lv_pal();
     const int w = T.r.x1 - T.r.x0 + 1;
     for (int y = B.y0; y < B.y0 + B.h; ++y)
-        for (int x = B.x0; x < B.x0 + B.w; ++x) B.px[(y - B.y0) * B.w + (x - B.x0)] = lv_tx(s, lv_pc(pal, lv_shadow[T.off + (y - T.r.y0) * w + (x - T.r.x0)], x, y), x, y);
+        for (int x = B.x0; x < B.x0 + B.w; ++x) B.px[(y - B.y0) * B.w + (x - B.x0)] = lv_tx(s, lv_port_apply(lv_pc(pal, lv_shadow[T.off + (y - T.r.y0) * w + (x - T.r.x0)], x, y), x, y), x, y);
     if (s.deco) lv_tint_deco(B, T.id, s);
 }
 /* Issue 1 (theme-tap flicker): a tint rect may overlap a mask (the CTL FLASH tints contain the value badges, the
@@ -758,8 +759,10 @@ static void lv_clip_draw(int y, int x, int n, const uint8_t *idx)
     static uint16_t lb[240];
     const bool ri = lv_reink_on();
     auto raw = [&](int x0, int m, const uint8_t *ix) {   /* re-inked themes push RGB565, the rest the palette indices */
-        if (!ri) { lv_raw_draw(y, x0, m, ix); return; }
-        for (int k = 0; k < m; ++k) lb[k] = lv_multi_ink(pal[ix[k]], x0 + k, y);
+        const bool po = lv_port_row(y, x0, m);         /* port layer owns pixels on this run: push RGB565 */
+        if (!ri && !po) { lv_raw_draw(y, x0, m, ix); return; }
+        for (int k = 0; k < m; ++k) lb[k] = ri ? lv_multi_ink(pal[ix[k]], x0 + k, y) : pal[ix[k]];
+        if (po) for (int k = 0; k < m; ++k) lb[k] = lv_port_apply(lb[k], x0 + k, y);
         lv_blit(x0, y, m, 1, lb);
     };
     if (!nm && !nt) { raw(x, n, idx); return; }
@@ -781,7 +784,7 @@ static void lv_clip_draw(int y, int x, int n, const uint8_t *idx)
             const LvTS s = lv_tint_state(T.id);
             if (s.deco) lv_tdirty[c] = true;          /* painted by its own scene (shadow + decorator) */
             else {
-                for (int k = i; k < j; ++k) { uint16_t v = lv_tx(s, ri ? lv_multi_ink(pal[idx[k]], x + k, y) : pal[idx[k]], x + k, y); if (fl && lv_in(lv_flash_r, x + k, y)) v = lv_hi(v); lb[k - i] = v; }
+                for (int k = i; k < j; ++k) { uint16_t v = lv_tx(s, lv_port_apply(ri ? lv_multi_ink(pal[idx[k]], x + k, y) : pal[idx[k]], x + k, y), x + k, y); if (fl && lv_in(lv_flash_r, x + k, y)) v = lv_hi(v); lb[k - i] = v; }
                 lv_blit(x + i, y, j - i, 1, lb);
             }
         }
@@ -1487,8 +1490,10 @@ static LvTS lv_tint_state(int id)
     LvTS s = {LV_TM_RAW, 0, 0, 0};
     const bool ph = (lv_now / 400) & 1;
     switch (id) {
-    case LV_T_SWIFI: s = {LV_TM_COLOR, (uint8_t)(lv_wifi_busy() ? (ph ? 7 : 6) : 5), LV_WIFI_COL, 0}; break;
-    case LV_T_SBLE: s = {LV_TM_COLOR, (uint8_t)(lv_ble_busy() ? (ph ? 7 : 6) : 5), LV_BLE_COL, 0}; break;
+    /* idle: LOCKED ui_scan_glow - only the faces are tinted (port layer face tint), bezel / label / pins stay grey;
+     * the busy pulse while that radio scans is unchanged */
+    case LV_T_SWIFI: if (lv_wifi_busy()) s = {LV_TM_COLOR, (uint8_t)(ph ? 7 : 6), LV_WIFI_COL, 0}; break;
+    case LV_T_SBLE: if (lv_ble_busy()) s = {LV_TM_COLOR, (uint8_t)(ph ? 7 : 6), LV_BLE_COL, 0}; break;
     case LV_T_SBOT: if (lv_job != LV_J_NONE) s = {LV_TM_LIT, (uint8_t)(ph ? 3 : 1), 0, 0}; break;
     case LV_T_CFACE: if (lv_theme) s = {LV_TM_HUE, 0, LV_ACC[lv_theme], 0}; break;
     case LV_T_CLABEL: if (lv_theme) s = {LV_TM_RAW, 0, (uint32_t)lv_theme, 1}; break;
@@ -1535,7 +1540,7 @@ static void lv_tint_setup(void)
     if (s == LV_SC_HOME_INTRO) lv_tint_add(LV_T_BGREY, LV_R_BB_HOME);     /* item 7: the BOOTbot chip */
     if (s == LV_SC_HOME) {
         /* item 1: the drawn chips (measured on the home clip; the old rects were the pre-v2 layout, ~13 px left / 29 px up) */
-        lv_tint_add(LV_T_BGREY, LV_R_BB_HOME);   /* BOOTbot chip: grey (item 7) + press flash */
+        lv_tint_add(LV_T_FLASH, LV_R_BB_HOME);   /* MORPHEUS chip (LOCKED ui_home_tap_glow, port layer) replaces the grey BOOTbot chip: press flash */
         for (int i = 1; i < 5; ++i) lv_tint_add(LV_T_FLASH, LV_HOME_CHIP[i]);
         lv_tint_add(LV_T_SPILL, LV_R_SPILL_T);
     } else if (s == LV_SC_SCAN) {
@@ -1610,7 +1615,7 @@ static void lv_go(int s)
     }
     if (s == LV_SC_RADAR) lv_radar_enter();
     if (prev == LV_SC_RADAR && s == LV_SC_SCAN) lv_rd_restore_scan();
-    lv_set_masks(); lv_tint_setup();
+    lv_set_masks(); lv_tint_setup(); lv_port_begin();
     lv_dirty_box = lv_dirty_term = lv_dirty_ctl = lv_dirty_tty = lv_dirty_kbd = true;
 }
 static int lv_period(void) { return lv_scr == LV_SC_CTL ? 90 : 30; }
@@ -1988,7 +1993,7 @@ static void lv_tick(const LkIo &io, uint32_t now)
     if (lv_scr == LV_SC_TTY && (lv_hunt >= 0 || lv_hunt_last >= 0) && lv_job != LV_J_NONE && (now / 90) != ((now - 30) / 90)) lv_dirty_tty = true; /* banner sweep */
     if (lv_key_hl >= 0 && (int32_t)(now - lv_key_hl_t) > 120) { lv_key_hl = -1; lv_dirty_kbd = true; }
     if (lv_scr != LV_SC_BOOT && lv_scr != LV_SC_HOME_INTRO && (lv_scr == LV_SC_TTY || lv_play.shown >= 0)) {
-        if (lv_scr != LV_SC_TTY) lv_paint_tints(false);
+        if (lv_scr != LV_SC_TTY) { lv_paint_tints(false); lv_port_tick(); }
         lv_paint_overlays(all);
         lv_ticker_tick();
     }

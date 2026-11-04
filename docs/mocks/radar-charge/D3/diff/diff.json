@@ -1,0 +1,44 @@
+{
+ "D3_idle": {
+  "t_ms": 22440,
+  "changed": 769,
+  "changed_outside_mask": 0,
+  "mask_px": 2355,
+  "path_px": 0
+ },
+ "D3_mid": {
+  "t_ms": 22950,
+  "changed": 1273,
+  "changed_outside_mask": 0,
+  "mask_px": 5052,
+  "path_px": 141
+ },
+ "D3_full": {
+  "t_ms": 23460,
+  "changed": 1513,
+  "changed_outside_mask": 0,
+  "mask_px": 5155,
+  "path_px": 154
+ },
+ "D3_lockfire": {
+  "t_ms": 23490,
+  "changed": 1357,
+  "changed_outside_mask": 0,
+  "mask_px": 4168,
+  "path_px": 155
+ },
+ "D3_locked": {
+  "t_ms": 24210,
+  "changed": 1270,
+  "changed_outside_mask": 0,
+  "mask_px": 4230,
+  "path_px": 169
+ },
+ "D3_hunting": {
+  "t_ms": 26610,
+  "changed": 1244,
+  "changed_outside_mask": 0,
+  "mask_px": 4209,
+  "path_px": 164
+ }
+}

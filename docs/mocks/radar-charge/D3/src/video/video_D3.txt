@@ -1,0 +1,38 @@
+tick 67
+tick 190
+tap 110 70
+tick 330
+recstart charge
+tick 45
+tap 20 215
+tick 3
+tick 30
+tap 20 215
+tick 30
+tap 20 215
+tick 3
+tick 30
+tap 97 140
+tick 20
+press 200 255
+tick 13
+dump early40
+release
+tap 200 255
+tick 6
+dump drain
+tick 16
+press 200 255
+tick 17
+dump mid
+tick 20
+dump lockfire
+release
+tap 200 255
+tick 50
+dump settled
+tap 198 255
+tick 100
+dump hunting
+recstop
+radarstate

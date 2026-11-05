@@ -1,0 +1,13 @@
+5415e1ec9bee872279abc9a1bbaa6955a7c773739bbae0b4435eadf58f2b25b3  ./LOCK.md
+d3be7dcf0cddfb11b23b345ffd07065134478b736e4af35b696ca5337df7730f  ./compare/current_vs_A_mid@3x.png
+cbbea992ec5d7963a47e54205ee2e7bb0ce9ca36838835dd40c13da8b8a993a7  ./hunt_meter_A_3x.mp4
+1389081b45e03c68bd9631023997b4ec1a97b25f344a787ed45c08c0fefe3b4f  ./sheets/ladder_A@3x.png
+c8bab5cce4dd9ad153401ae8a123c9a1ac028d96ebc8524e36f7d371dd14ed10  ./src/base_hunting@3x.png
+ddb2b1e0fa30fa735b743e4167e85d12881da5bf2443521f9b64f65e708adb41  ./src/render_hunt_meter.py
+ed33eebfc5be307864a565ce1819b96c26a51107c325c832faf55257f79302ea  ./stills/A_full@1x.png
+4dcf908d5009603b46e7ae62ab85f391f1125bcf3199de007e24f0627b1d4c8e  ./stills/A_full@3x.png
+822cd8e83fc32812ab586dfa0f14921a68b929d74de1c22d843cb87a24335dcc  ./stills/A_idle@1x.png
+05908cda812050f4da59b9bccfe6134961cebd13fdb330546d09ee90cc7208ed  ./stills/A_idle@3x.png
+49a86aa78bf0c4a5fc67d8b483abcdd6634f5aafa98a361f1bbe4d7637dea433  ./stills/A_mid@1x.png
+e10c7527e4927c9aff01cad6fe9f38e56ea0f76207f54025645d33e12210de86  ./stills/A_mid@3x.png
+cbbea992ec5d7963a47e54205ee2e7bb0ce9ca36838835dd40c13da8b8a993a7  ./video/hunt_meter_A_3x.mp4

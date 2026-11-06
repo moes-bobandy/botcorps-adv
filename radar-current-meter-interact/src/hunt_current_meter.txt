@@ -1,0 +1,41 @@
+tick 67
+tick 190
+tap 110 70
+tick 330
+tick 45
+tap 20 215
+tick 3
+tick 30
+tap 20 215
+tick 30
+tap 20 215
+tick 3
+tick 30
+tap 97 140
+tick 20
+dump sel
+press 200 255
+tick 17
+dump mid
+radarstate
+tick 17
+dump full
+radarstate
+tick 1
+dump lockfire
+radarstate
+tick 2
+tick 2
+release
+tap 200 255
+tick 20
+dump locked
+radarstate
+tick 30
+tap 198 255
+tick 50
+dump hunting
+recstart hunt
+tick 200
+recstop
+radarstate

@@ -1,0 +1,9 @@
+pwsh: not installed on box
+structure: STRUCTURE_VERIFIED (brace_depth=0, params BinPath/ExpectedSha256/Port/Baud/Flash present)
+merged_bin: /workspace/out/fw-port-1105/cyd-livescan-b29f8ab-merged.bin
+  size=2275312 (within 65536..4194304)
+  magic: PASS (0xE9 at 0x1000 PlatformIO factory layout; 0xAA50 at 0x8000)
+  sha256=09b2ca752fe8ddc8a386b7ee164e55f233ed74824a684a9268c983ab24bfc04c
+launcher_bin: /workspace/out/fw-port-1105/cyd-livescan-b29f8ab-launcher.bin
+  magic: REJECT for 0x0 (0xE9 at 0 only; no bootloader@0x1000 / partition@0x8000) — as intended
+cyd_flash_preflight.ps1 sha256=53c65263f33592f4a3a4449597860159f739942dfd214dd54952994593a2107c

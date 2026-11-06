@@ -1,0 +1,16 @@
+### Deliverable dir
+53c65263f33592f4a3a4449597860159f739942dfd214dd54952994593a2107c  /workspace/out/cyd-daily-advancement-2026-11-06/cyd_flash_preflight.ps1
+
+### fw-port-1105 (already on origin backup/cyd-fw-port-1105)
+09b2ca752fe8ddc8a386b7ee164e55f233ed74824a684a9268c983ab24bfc04c  /workspace/out/fw-port-1105/cyd-livescan-b29f8ab-merged.bin
+ece72d53a6b4f66d45511da080c0f14e55893c65d28fa3762fb45d046dc3b78a  /workspace/out/fw-port-1105/cyd-livescan-b29f8ab-launcher.bin
+ece72d53a6b4f66d45511da080c0f14e55893c65d28fa3762fb45d046dc3b78a  /workspace/out/fw-port-1105/launcher.bin
+
+### cyd-gbc-own (UNBACKED prior to today)
+08bd609bcf201b951d7ff2fbe8fb3e3e00c236e092db9669a5078c0dfdf2ab81  /workspace/out/cyd-gbc-own/gbc-cyd-own-M3.19-factory-0x0.bin
+
+### radar-current-meter-interact (UNBACKED prior to today) — top-level + SHA256SUMS head
+ba3d68e85a2b86dd5dde7c39cb5a61957f69486ca1223771e89eceaec0a17d96  /workspace/out/radar-current-meter-interact/SHA256SUMS
+aa7dabb5b57755f4cae991043634ae92b243981d03ff42d4809d442ca0a1899d  /workspace/out/radar-current-meter-interact/README.md
+ec96deb286209736f51ccd38886960391237c86d883a6f87e70b266dec398a7d  /workspace/out/radar-current-meter-interact/report.json
+4344 /workspace/out/radar-current-meter-interact/SHA256SUMS

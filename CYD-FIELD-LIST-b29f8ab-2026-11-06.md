@@ -1,6 +1,8 @@
 # CYD Field-Test List — `v1019z b29f8ab` (2026-11-06)
 
-Status: **LIST ONLY** (saved verbatim from Mobandy's 2026-11-06 12:05–12:08 PM ET field test on `COM5` MAC `8c:94:df:4e:b8:c8`; do not act on, plan, or mock until Mobandy says go).
+Status: **LIST ONLY** (saved verbatim from Mobandy's 2026-11-06 12:05–12:10 PM ET field test on `COM5` MAC `8c:94:df:4e:b8:c8` — field verdict: *"it looks great!!!"*, *"dont change anything else"*; do not act on, plan, or mock until Mobandy says go).
+
+Scope lock: **Never change anything in `b29f8ab` outside these 7 items.**
 
 1. **Gibson radar `HOLD TO LOCK` touch conflict:** `HOLD TO LOCK` is still hard to do without pressing the screen and changing the tower.
 2. **MORPHEUSbot route & missing glossary:** Tapping `MORPHEUSbot` goes to the old start screen and then loads back to the `GIBSONbot` screen; there is no glossary of devices.
@@ -8,3 +10,4 @@ Status: **LIST ONLY** (saved verbatim from Mobandy's 2026-11-06 12:05–12:08 PM
 4. **Loading screen bot:** The loading screen needs the new `MORPHEUSbot`.
 5. **Scan hiccup / frame freeze & electric pulse:** When scanning, it hiccups and freezes frame every couple seconds, and the electric pulse looks slowed or glitchy.
 6. **Hunting meter in both places:** Keep the hunting meter in the top border alert banner where it used to be AND on the hunted tower — both places at once.
+7. **Maximize RAM for graphics:** Use as much free RAM as safely possible (without starving Wi-Fi + BLE scan heap) to increase graphics quality and frame smoothness.

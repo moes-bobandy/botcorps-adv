@@ -1,0 +1,1 @@
+DMA coalescer: native/wire, ping-pong, source reuse, large blit, gaps, fallback, idle-before-CS PASS (6 DMA strips)

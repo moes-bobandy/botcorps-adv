@@ -1,0 +1,29 @@
+tick 67
+tick 190
+tap 110 70
+tick 330
+tick 45
+tap 20 215
+tick 3
+tick 30
+tap 20 215
+tick 30
+tap 20 215
+tick 3
+tick 30
+tap 97 140
+tick 20
+dump sel
+press 200 255
+tick 4
+release
+tap 200 255
+tick 6
+radarstate
+dump short_charge
+press 200 255
+tick 35
+release
+tick 6
+radarstate
+dump long_charge

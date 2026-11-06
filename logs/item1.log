@@ -1,0 +1,16 @@
+t=7710 tap 110,70 -> gibson-jackin-radar (scr=2 seg=2)
+t=18960 tap 20,215 -> radar-cycle (scr=8 seg=-1)
+t=19950 tap 20,215 -> radar-cycle (scr=8 seg=-1)
+t=20850 tap 20,215 -> radar-cycle (scr=8 seg=-1)
+t=21840 tap 97,140 -> radar-tower (scr=8 seg=-1)
+DUMP sel scr=8 seg=-1 clipframe=-1 t=22440
+OVL sel
+t=22560 tap 200,255 -> radar-charge-short (scr=8 seg=-1)
+t=22740 RADAR sel=5 lock=0 hunt=0 reads=0 trend=0 miss=0 ign=0 wat=0 job=0 tk='WIFI: TELLO-5A21B3  CH1  -66dBm  OPEN  BSSID 3C:84:6A:12:15:03  TYPE DRONE'
+DUMP short_charge scr=8 seg=-1 clipframe=-1 t=22740
+OVL short_charge
+t=23970 RADAR sel=5 lock=1 hunt=0 reads=0 trend=0 miss=0 ign=0 wat=0 job=0 tk='WIFI: TELLO-5A21B3  CH1  -66dBm  OPEN  BSSID 3C:84:6A:12:15:03  TYPE DRONE'
+DUMP long_charge scr=8 seg=-1 clipframe=-1 t=23970
+OVL long_charge
+px pushed by overlays: 43112824
+SHADOW peak 29817 of 32768 bytes

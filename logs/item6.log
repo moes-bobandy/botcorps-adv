@@ -1,0 +1,426 @@
+t=7710 tap 110,70 -> gibson-jackin-radar (scr=2 seg=2)
+t=18960 tap 20,215 -> radar-cycle (scr=8 seg=-1)
+t=19950 tap 20,215 -> radar-cycle (scr=8 seg=-1)
+t=20850 tap 20,215 -> radar-cycle (scr=8 seg=-1)
+t=21840 tap 97,140 -> radar-tower (scr=8 seg=-1)
+DUMP sel scr=8 seg=-1 clipframe=-1 t=22440
+OVL sel
+DUMP mid scr=8 seg=-1 clipframe=-1 t=22950
+OVL mid
+t=22950 RADAR sel=5 lock=0 hunt=0 reads=0 trend=0 miss=0 ign=0 wat=0 job=0 tk='WIFI: TELLO-5A21B3  CH1  -66dBm  OPEN  BSSID 3C:84:6A:12:15:03  TYPE DRONE'
+DUMP full scr=8 seg=-1 clipframe=-1 t=23460
+OVL full
+t=23460 RADAR sel=5 lock=0 hunt=0 reads=0 trend=0 miss=0 ign=0 wat=0 job=0 tk='WIFI: TELLO-5A21B3  CH1  -66dBm  OPEN  BSSID 3C:84:6A:12:15:03  TYPE DRONE'
+DUMP lockfire scr=8 seg=-1 clipframe=-1 t=23490
+OVL lockfire
+t=23490 RADAR sel=5 lock=1 hunt=0 reads=0 trend=0 miss=0 ign=0 wat=0 job=0 tk='WIFI: TELLO-5A21B3  CH1  -66dBm  OPEN  BSSID 3C:84:6A:12:15:03  TYPE DRONE'
+t=23610 tap 200,255 -> radar-locked (scr=8 seg=-1)
+DUMP locked scr=8 seg=-1 clipframe=-1 t=24210
+OVL locked
+t=24210 RADAR sel=5 lock=1 hunt=0 reads=0 trend=0 miss=0 ign=0 wat=0 job=0 tk='WIFI: TELLO-5A21B3  CH1  -66dBm  OPEN  BSSID 3C:84:6A:12:15:03  TYPE DRONE'
+t=25110 tap 198,255 -> radar-hunt (scr=8 seg=-1)
+DUMP hunting scr=8 seg=-1 clipframe=-1 t=26610
+OVL hunting
+DUMP hunt000 scr=8 seg=-1 clipframe=-1 t=26640
+OVL hunt000
+DUMP hunt001 scr=8 seg=-1 clipframe=-1 t=26670
+OVL hunt001
+DUMP hunt002 scr=8 seg=-1 clipframe=-1 t=26700
+OVL hunt002
+DUMP hunt003 scr=8 seg=-1 clipframe=-1 t=26730
+OVL hunt003
+DUMP hunt004 scr=8 seg=-1 clipframe=-1 t=26760
+OVL hunt004
+DUMP hunt005 scr=8 seg=-1 clipframe=-1 t=26790
+OVL hunt005
+DUMP hunt006 scr=8 seg=-1 clipframe=-1 t=26820
+OVL hunt006
+DUMP hunt007 scr=8 seg=-1 clipframe=-1 t=26850
+OVL hunt007
+DUMP hunt008 scr=8 seg=-1 clipframe=-1 t=26880
+OVL hunt008
+DUMP hunt009 scr=8 seg=-1 clipframe=-1 t=26910
+OVL hunt009
+DUMP hunt010 scr=8 seg=-1 clipframe=-1 t=26940
+OVL hunt010
+DUMP hunt011 scr=8 seg=-1 clipframe=-1 t=26970
+OVL hunt011
+DUMP hunt012 scr=8 seg=-1 clipframe=-1 t=27000
+OVL hunt012
+DUMP hunt013 scr=8 seg=-1 clipframe=-1 t=27030
+OVL hunt013
+DUMP hunt014 scr=8 seg=-1 clipframe=-1 t=27060
+OVL hunt014
+DUMP hunt015 scr=8 seg=-1 clipframe=-1 t=27090
+OVL hunt015
+DUMP hunt016 scr=8 seg=-1 clipframe=-1 t=27120
+OVL hunt016
+DUMP hunt017 scr=8 seg=-1 clipframe=-1 t=27150
+OVL hunt017
+DUMP hunt018 scr=8 seg=-1 clipframe=-1 t=27180
+OVL hunt018
+DUMP hunt019 scr=8 seg=-1 clipframe=-1 t=27210
+OVL hunt019
+DUMP hunt020 scr=8 seg=-1 clipframe=-1 t=27240
+OVL hunt020
+DUMP hunt021 scr=8 seg=-1 clipframe=-1 t=27270
+OVL hunt021
+DUMP hunt022 scr=8 seg=-1 clipframe=-1 t=27300
+OVL hunt022
+DUMP hunt023 scr=8 seg=-1 clipframe=-1 t=27330
+OVL hunt023
+DUMP hunt024 scr=8 seg=-1 clipframe=-1 t=27360
+OVL hunt024
+DUMP hunt025 scr=8 seg=-1 clipframe=-1 t=27390
+OVL hunt025
+DUMP hunt026 scr=8 seg=-1 clipframe=-1 t=27420
+OVL hunt026
+DUMP hunt027 scr=8 seg=-1 clipframe=-1 t=27450
+OVL hunt027
+DUMP hunt028 scr=8 seg=-1 clipframe=-1 t=27480
+OVL hunt028
+DUMP hunt029 scr=8 seg=-1 clipframe=-1 t=27510
+OVL hunt029
+DUMP hunt030 scr=8 seg=-1 clipframe=-1 t=27540
+OVL hunt030
+DUMP hunt031 scr=8 seg=-1 clipframe=-1 t=27570
+OVL hunt031
+DUMP hunt032 scr=8 seg=-1 clipframe=-1 t=27600
+OVL hunt032
+DUMP hunt033 scr=8 seg=-1 clipframe=-1 t=27630
+OVL hunt033
+DUMP hunt034 scr=8 seg=-1 clipframe=-1 t=27660
+OVL hunt034
+DUMP hunt035 scr=8 seg=-1 clipframe=-1 t=27690
+OVL hunt035
+DUMP hunt036 scr=8 seg=-1 clipframe=-1 t=27720
+OVL hunt036
+DUMP hunt037 scr=8 seg=-1 clipframe=-1 t=27750
+OVL hunt037
+DUMP hunt038 scr=8 seg=-1 clipframe=-1 t=27780
+OVL hunt038
+DUMP hunt039 scr=8 seg=-1 clipframe=-1 t=27810
+OVL hunt039
+DUMP hunt040 scr=8 seg=-1 clipframe=-1 t=27840
+OVL hunt040
+DUMP hunt041 scr=8 seg=-1 clipframe=-1 t=27870
+OVL hunt041
+DUMP hunt042 scr=8 seg=-1 clipframe=-1 t=27900
+OVL hunt042
+DUMP hunt043 scr=8 seg=-1 clipframe=-1 t=27930
+OVL hunt043
+DUMP hunt044 scr=8 seg=-1 clipframe=-1 t=27960
+OVL hunt044
+DUMP hunt045 scr=8 seg=-1 clipframe=-1 t=27990
+OVL hunt045
+DUMP hunt046 scr=8 seg=-1 clipframe=-1 t=28020
+OVL hunt046
+DUMP hunt047 scr=8 seg=-1 clipframe=-1 t=28050
+OVL hunt047
+DUMP hunt048 scr=8 seg=-1 clipframe=-1 t=28080
+OVL hunt048
+DUMP hunt049 scr=8 seg=-1 clipframe=-1 t=28110
+OVL hunt049
+DUMP hunt050 scr=8 seg=-1 clipframe=-1 t=28140
+OVL hunt050
+DUMP hunt051 scr=8 seg=-1 clipframe=-1 t=28170
+OVL hunt051
+DUMP hunt052 scr=8 seg=-1 clipframe=-1 t=28200
+OVL hunt052
+DUMP hunt053 scr=8 seg=-1 clipframe=-1 t=28230
+OVL hunt053
+DUMP hunt054 scr=8 seg=-1 clipframe=-1 t=28260
+OVL hunt054
+DUMP hunt055 scr=8 seg=-1 clipframe=-1 t=28290
+OVL hunt055
+DUMP hunt056 scr=8 seg=-1 clipframe=-1 t=28320
+OVL hunt056
+DUMP hunt057 scr=8 seg=-1 clipframe=-1 t=28350
+OVL hunt057
+DUMP hunt058 scr=8 seg=-1 clipframe=-1 t=28380
+OVL hunt058
+DUMP hunt059 scr=8 seg=-1 clipframe=-1 t=28410
+OVL hunt059
+DUMP hunt060 scr=8 seg=-1 clipframe=-1 t=28440
+OVL hunt060
+DUMP hunt061 scr=8 seg=-1 clipframe=-1 t=28470
+OVL hunt061
+DUMP hunt062 scr=8 seg=-1 clipframe=-1 t=28500
+OVL hunt062
+DUMP hunt063 scr=8 seg=-1 clipframe=-1 t=28530
+OVL hunt063
+DUMP hunt064 scr=8 seg=-1 clipframe=-1 t=28560
+OVL hunt064
+DUMP hunt065 scr=8 seg=-1 clipframe=-1 t=28590
+OVL hunt065
+DUMP hunt066 scr=8 seg=-1 clipframe=-1 t=28620
+OVL hunt066
+DUMP hunt067 scr=8 seg=-1 clipframe=-1 t=28650
+OVL hunt067
+DUMP hunt068 scr=8 seg=-1 clipframe=-1 t=28680
+OVL hunt068
+DUMP hunt069 scr=8 seg=-1 clipframe=-1 t=28710
+OVL hunt069
+DUMP hunt070 scr=8 seg=-1 clipframe=-1 t=28740
+OVL hunt070
+DUMP hunt071 scr=8 seg=-1 clipframe=-1 t=28770
+OVL hunt071
+DUMP hunt072 scr=8 seg=-1 clipframe=-1 t=28800
+OVL hunt072
+DUMP hunt073 scr=8 seg=-1 clipframe=-1 t=28830
+OVL hunt073
+DUMP hunt074 scr=8 seg=-1 clipframe=-1 t=28860
+OVL hunt074
+DUMP hunt075 scr=8 seg=-1 clipframe=-1 t=28890
+OVL hunt075
+DUMP hunt076 scr=8 seg=-1 clipframe=-1 t=28920
+OVL hunt076
+DUMP hunt077 scr=8 seg=-1 clipframe=-1 t=28950
+OVL hunt077
+DUMP hunt078 scr=8 seg=-1 clipframe=-1 t=28980
+OVL hunt078
+DUMP hunt079 scr=8 seg=-1 clipframe=-1 t=29010
+OVL hunt079
+DUMP hunt080 scr=8 seg=-1 clipframe=-1 t=29040
+OVL hunt080
+DUMP hunt081 scr=8 seg=-1 clipframe=-1 t=29070
+OVL hunt081
+DUMP hunt082 scr=8 seg=-1 clipframe=-1 t=29100
+OVL hunt082
+DUMP hunt083 scr=8 seg=-1 clipframe=-1 t=29130
+OVL hunt083
+DUMP hunt084 scr=8 seg=-1 clipframe=-1 t=29160
+OVL hunt084
+DUMP hunt085 scr=8 seg=-1 clipframe=-1 t=29190
+OVL hunt085
+DUMP hunt086 scr=8 seg=-1 clipframe=-1 t=29220
+OVL hunt086
+DUMP hunt087 scr=8 seg=-1 clipframe=-1 t=29250
+OVL hunt087
+DUMP hunt088 scr=8 seg=-1 clipframe=-1 t=29280
+OVL hunt088
+DUMP hunt089 scr=8 seg=-1 clipframe=-1 t=29310
+OVL hunt089
+DUMP hunt090 scr=8 seg=-1 clipframe=-1 t=29340
+OVL hunt090
+DUMP hunt091 scr=8 seg=-1 clipframe=-1 t=29370
+OVL hunt091
+DUMP hunt092 scr=8 seg=-1 clipframe=-1 t=29400
+OVL hunt092
+DUMP hunt093 scr=8 seg=-1 clipframe=-1 t=29430
+OVL hunt093
+DUMP hunt094 scr=8 seg=-1 clipframe=-1 t=29460
+OVL hunt094
+DUMP hunt095 scr=8 seg=-1 clipframe=-1 t=29490
+OVL hunt095
+DUMP hunt096 scr=8 seg=-1 clipframe=-1 t=29520
+OVL hunt096
+DUMP hunt097 scr=8 seg=-1 clipframe=-1 t=29550
+OVL hunt097
+DUMP hunt098 scr=8 seg=-1 clipframe=-1 t=29580
+OVL hunt098
+DUMP hunt099 scr=8 seg=-1 clipframe=-1 t=29610
+OVL hunt099
+DUMP hunt100 scr=8 seg=-1 clipframe=-1 t=29640
+OVL hunt100
+DUMP hunt101 scr=8 seg=-1 clipframe=-1 t=29670
+OVL hunt101
+DUMP hunt102 scr=8 seg=-1 clipframe=-1 t=29700
+OVL hunt102
+DUMP hunt103 scr=8 seg=-1 clipframe=-1 t=29730
+OVL hunt103
+DUMP hunt104 scr=8 seg=-1 clipframe=-1 t=29760
+OVL hunt104
+DUMP hunt105 scr=8 seg=-1 clipframe=-1 t=29790
+OVL hunt105
+DUMP hunt106 scr=8 seg=-1 clipframe=-1 t=29820
+OVL hunt106
+DUMP hunt107 scr=8 seg=-1 clipframe=-1 t=29850
+OVL hunt107
+DUMP hunt108 scr=8 seg=-1 clipframe=-1 t=29880
+OVL hunt108
+DUMP hunt109 scr=8 seg=-1 clipframe=-1 t=29910
+OVL hunt109
+DUMP hunt110 scr=8 seg=-1 clipframe=-1 t=29940
+OVL hunt110
+DUMP hunt111 scr=8 seg=-1 clipframe=-1 t=29970
+OVL hunt111
+DUMP hunt112 scr=8 seg=-1 clipframe=-1 t=30000
+OVL hunt112
+DUMP hunt113 scr=8 seg=-1 clipframe=-1 t=30030
+OVL hunt113
+DUMP hunt114 scr=8 seg=-1 clipframe=-1 t=30060
+OVL hunt114
+DUMP hunt115 scr=8 seg=-1 clipframe=-1 t=30090
+OVL hunt115
+DUMP hunt116 scr=8 seg=-1 clipframe=-1 t=30120
+OVL hunt116
+DUMP hunt117 scr=8 seg=-1 clipframe=-1 t=30150
+OVL hunt117
+DUMP hunt118 scr=8 seg=-1 clipframe=-1 t=30180
+OVL hunt118
+DUMP hunt119 scr=8 seg=-1 clipframe=-1 t=30210
+OVL hunt119
+DUMP hunt120 scr=8 seg=-1 clipframe=-1 t=30240
+OVL hunt120
+DUMP hunt121 scr=8 seg=-1 clipframe=-1 t=30270
+OVL hunt121
+DUMP hunt122 scr=8 seg=-1 clipframe=-1 t=30300
+OVL hunt122
+DUMP hunt123 scr=8 seg=-1 clipframe=-1 t=30330
+OVL hunt123
+DUMP hunt124 scr=8 seg=-1 clipframe=-1 t=30360
+OVL hunt124
+DUMP hunt125 scr=8 seg=-1 clipframe=-1 t=30390
+OVL hunt125
+DUMP hunt126 scr=8 seg=-1 clipframe=-1 t=30420
+OVL hunt126
+DUMP hunt127 scr=8 seg=-1 clipframe=-1 t=30450
+OVL hunt127
+DUMP hunt128 scr=8 seg=-1 clipframe=-1 t=30480
+OVL hunt128
+DUMP hunt129 scr=8 seg=-1 clipframe=-1 t=30510
+OVL hunt129
+DUMP hunt130 scr=8 seg=-1 clipframe=-1 t=30540
+OVL hunt130
+DUMP hunt131 scr=8 seg=-1 clipframe=-1 t=30570
+OVL hunt131
+DUMP hunt132 scr=8 seg=-1 clipframe=-1 t=30600
+OVL hunt132
+DUMP hunt133 scr=8 seg=-1 clipframe=-1 t=30630
+OVL hunt133
+DUMP hunt134 scr=8 seg=-1 clipframe=-1 t=30660
+OVL hunt134
+DUMP hunt135 scr=8 seg=-1 clipframe=-1 t=30690
+OVL hunt135
+DUMP hunt136 scr=8 seg=-1 clipframe=-1 t=30720
+OVL hunt136
+DUMP hunt137 scr=8 seg=-1 clipframe=-1 t=30750
+OVL hunt137
+DUMP hunt138 scr=8 seg=-1 clipframe=-1 t=30780
+OVL hunt138
+DUMP hunt139 scr=8 seg=-1 clipframe=-1 t=30810
+OVL hunt139
+DUMP hunt140 scr=8 seg=-1 clipframe=-1 t=30840
+OVL hunt140
+DUMP hunt141 scr=8 seg=-1 clipframe=-1 t=30870
+OVL hunt141
+DUMP hunt142 scr=8 seg=-1 clipframe=-1 t=30900
+OVL hunt142
+DUMP hunt143 scr=8 seg=-1 clipframe=-1 t=30930
+OVL hunt143
+DUMP hunt144 scr=8 seg=-1 clipframe=-1 t=30960
+OVL hunt144
+DUMP hunt145 scr=8 seg=-1 clipframe=-1 t=30990
+OVL hunt145
+DUMP hunt146 scr=8 seg=-1 clipframe=-1 t=31020
+OVL hunt146
+DUMP hunt147 scr=8 seg=-1 clipframe=-1 t=31050
+OVL hunt147
+DUMP hunt148 scr=8 seg=-1 clipframe=-1 t=31080
+OVL hunt148
+DUMP hunt149 scr=8 seg=-1 clipframe=-1 t=31110
+OVL hunt149
+DUMP hunt150 scr=8 seg=-1 clipframe=-1 t=31140
+OVL hunt150
+DUMP hunt151 scr=8 seg=-1 clipframe=-1 t=31170
+OVL hunt151
+DUMP hunt152 scr=8 seg=-1 clipframe=-1 t=31200
+OVL hunt152
+DUMP hunt153 scr=8 seg=-1 clipframe=-1 t=31230
+OVL hunt153
+DUMP hunt154 scr=8 seg=-1 clipframe=-1 t=31260
+OVL hunt154
+DUMP hunt155 scr=8 seg=-1 clipframe=-1 t=31290
+OVL hunt155
+DUMP hunt156 scr=8 seg=-1 clipframe=-1 t=31320
+OVL hunt156
+DUMP hunt157 scr=8 seg=-1 clipframe=-1 t=31350
+OVL hunt157
+DUMP hunt158 scr=8 seg=-1 clipframe=-1 t=31380
+OVL hunt158
+DUMP hunt159 scr=8 seg=-1 clipframe=-1 t=31410
+OVL hunt159
+DUMP hunt160 scr=8 seg=-1 clipframe=-1 t=31440
+OVL hunt160
+DUMP hunt161 scr=8 seg=-1 clipframe=-1 t=31470
+OVL hunt161
+DUMP hunt162 scr=8 seg=-1 clipframe=-1 t=31500
+OVL hunt162
+DUMP hunt163 scr=8 seg=-1 clipframe=-1 t=31530
+OVL hunt163
+DUMP hunt164 scr=8 seg=-1 clipframe=-1 t=31560
+OVL hunt164
+DUMP hunt165 scr=8 seg=-1 clipframe=-1 t=31590
+OVL hunt165
+DUMP hunt166 scr=8 seg=-1 clipframe=-1 t=31620
+OVL hunt166
+DUMP hunt167 scr=8 seg=-1 clipframe=-1 t=31650
+OVL hunt167
+DUMP hunt168 scr=8 seg=-1 clipframe=-1 t=31680
+OVL hunt168
+DUMP hunt169 scr=8 seg=-1 clipframe=-1 t=31710
+OVL hunt169
+DUMP hunt170 scr=8 seg=-1 clipframe=-1 t=31740
+OVL hunt170
+DUMP hunt171 scr=8 seg=-1 clipframe=-1 t=31770
+OVL hunt171
+DUMP hunt172 scr=8 seg=-1 clipframe=-1 t=31800
+OVL hunt172
+DUMP hunt173 scr=8 seg=-1 clipframe=-1 t=31830
+OVL hunt173
+DUMP hunt174 scr=8 seg=-1 clipframe=-1 t=31860
+OVL hunt174
+DUMP hunt175 scr=8 seg=-1 clipframe=-1 t=31890
+OVL hunt175
+DUMP hunt176 scr=8 seg=-1 clipframe=-1 t=31920
+OVL hunt176
+DUMP hunt177 scr=8 seg=-1 clipframe=-1 t=31950
+OVL hunt177
+DUMP hunt178 scr=8 seg=-1 clipframe=-1 t=31980
+OVL hunt178
+DUMP hunt179 scr=8 seg=-1 clipframe=-1 t=32010
+OVL hunt179
+DUMP hunt180 scr=8 seg=-1 clipframe=-1 t=32040
+OVL hunt180
+DUMP hunt181 scr=8 seg=-1 clipframe=-1 t=32070
+OVL hunt181
+DUMP hunt182 scr=8 seg=-1 clipframe=-1 t=32100
+OVL hunt182
+DUMP hunt183 scr=8 seg=-1 clipframe=-1 t=32130
+OVL hunt183
+DUMP hunt184 scr=8 seg=-1 clipframe=-1 t=32160
+OVL hunt184
+DUMP hunt185 scr=8 seg=-1 clipframe=-1 t=32190
+OVL hunt185
+DUMP hunt186 scr=8 seg=-1 clipframe=-1 t=32220
+OVL hunt186
+DUMP hunt187 scr=8 seg=-1 clipframe=-1 t=32250
+OVL hunt187
+DUMP hunt188 scr=8 seg=-1 clipframe=-1 t=32280
+OVL hunt188
+DUMP hunt189 scr=8 seg=-1 clipframe=-1 t=32310
+OVL hunt189
+DUMP hunt190 scr=8 seg=-1 clipframe=-1 t=32340
+OVL hunt190
+DUMP hunt191 scr=8 seg=-1 clipframe=-1 t=32370
+OVL hunt191
+DUMP hunt192 scr=8 seg=-1 clipframe=-1 t=32400
+OVL hunt192
+DUMP hunt193 scr=8 seg=-1 clipframe=-1 t=32430
+OVL hunt193
+DUMP hunt194 scr=8 seg=-1 clipframe=-1 t=32460
+OVL hunt194
+DUMP hunt195 scr=8 seg=-1 clipframe=-1 t=32490
+OVL hunt195
+DUMP hunt196 scr=8 seg=-1 clipframe=-1 t=32520
+OVL hunt196
+DUMP hunt197 scr=8 seg=-1 clipframe=-1 t=32550
+OVL hunt197
+DUMP hunt198 scr=8 seg=-1 clipframe=-1 t=32580
+OVL hunt198
+DUMP hunt199 scr=8 seg=-1 clipframe=-1 t=32610
+OVL hunt199
+t=32610 RADAR sel=5 lock=1 hunt=1 reads=7 trend=0 miss=0 ign=0 wat=0 job=1 tk='HUNT: WIFI: TELLO-5A21B3  CH1  -66dBm  OPEN  BSSID 3C:84:6A:12:15:03  TYPE DRONE  STEADY  #7'
+px pushed by overlays: 65148856
+SHADOW peak 29817 of 32768 bytes

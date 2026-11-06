@@ -1,0 +1,14 @@
+diff --git a/src/live/lv_core.h b/src/live/lv_core.h
+index 703d913..43f6432 100644
+--- a/src/live/lv_core.h
++++ b/src/live/lv_core.h
+@@ -431,8 +431,8 @@ static void lv_job_start(int job, int hunt)
+ }
+ static void lv_job_stop(void)
+ {
++    lv_radio->stop(); // STOP also releases a warm worker after the UI has consumed a one-shot scan.
+     if (lv_job == LV_J_NONE) return;
+-    lv_radio->stop();
+     lv_print("stopped %s, radios off", lv_job_name(lv_job));
+     lv_job = LV_J_NONE; lv_hunt = -1; lv_dirty_box = true;
+ }

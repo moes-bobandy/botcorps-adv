@@ -1,0 +1,1 @@
+STOP lifecycle PASS: warm idle and active job both release radio; no extra idle UI log

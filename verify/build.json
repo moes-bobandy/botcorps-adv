@@ -1,0 +1,50 @@
+{
+  "source_commit": "049ff599ca31fcc18c4f41f25e64331e60e37d85",
+  "source_branch": "backup/cyd-livescan-2026-10-30",
+  "build_id": "v1019z 049ff59",
+  "ram_bytes": 110732,
+  "ram_capacity": 327680,
+  "flash_bytes": 2348727,
+  "flash_capacity": 3145728,
+  "headers": {
+    "merged@0x1000": "e9",
+    "merged@0x8000": "aa50",
+    "launcher@0x0": "e9"
+  },
+  "factory_binary_identical": true,
+  "components_identical": true,
+  "binaries": {
+    "cyd-livescan-049ff59-merged.bin": {
+      "bytes": 2414672,
+      "sha256": "c4b24dda5f586f7146d2bf6681097fa33d8b329ff368339eac36ab704253365b"
+    },
+    "cyd-livescan-049ff59-launcher.bin": {
+      "bytes": 2349136,
+      "sha256": "c3ebefd875176cf067b8d2604bc80c5c23ac433f2f3ae27e1030ab697feb3922"
+    }
+  },
+  "heap_policy": {
+    "minimum_reserved_internal_8bit": 107520,
+    "runtime_measured": false,
+    "static_remaining_upper_bound": 216948,
+    "shadow": 32768,
+    "glow_underlay": 19190,
+    "radar_route": 9264,
+    "worker_stack": 6144,
+    "remaining_before_band_and_dma_excluding_rtos_allocator_overhead": 149582,
+    "band_bytes": {
+      "64": 30720,
+      "48": 23040,
+      "32": 15360,
+      "24": 11520
+    },
+    "dual_dma_bytes": {
+      "48": 46080,
+      "32": 30720,
+      "16": 15360
+    },
+    "selection": "Largest band 64/48/32/24 permitting two 16-row strips and 105KiB actual internal heap; then largest 48/32/16 strip pair within same reserve. Synchronous fallback if no safe pair."
+  },
+  "hardware_verified": false,
+  "pushed": false
+}

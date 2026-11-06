@@ -1,0 +1,11 @@
+{
+  "head": "049ff599ca31fcc18c4f41f25e64331e60e37d85",
+  "simulator_rebuilt_after_commit": true,
+  "final_head_full_regression_runs": 68,
+  "final_regression_output_files": 976,
+  "unintended_differences": 0,
+  "glossary_26_zero": true,
+  "boot_85_zero": true,
+  "home_intro_frames": 0,
+  "idle_stop_mock": "PASS"
+}

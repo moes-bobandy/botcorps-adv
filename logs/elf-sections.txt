@@ -1,0 +1,42 @@
+.pio/build/cyd_livescan/firmware.elf  :
+section                    size         addr
+.rtc.text                     0   1074528256
+.rtc.dummy                    0   1073217536
+.rtc.force_fast               0   1073217536
+.rtc_noinit                   0   1342177792
+.rtc.force_slow              32   1342177792
+.rtc_fast_reserved           16   1073225712
+.rtc_slow_reserved           24   1342185448
+.iram0.vectors             1028   1074266112
+.iram0.text              119479   1074267140
+.dram0.data               26468   1073470304
+.ext_ram_noinit               0   1065353216
+.noinit                       0   1073496772
+.ext_ram.bss                  0   1065353216
+.dram0.bss                84264   1073496776
+.flash.appdesc              256   1061158944
+.flash.rodata           1180860   1061159200
+.flash.rodata_noload      23429   1062340060
+.flash.text             1020892   1074593824
+.iram0.text_end               1   1074386619
+.iram0.data                   0   1074386620
+.iram0.bss                    0   1074386620
+.dram0.heap_start             0   1073581040
+.debug_aranges           115152            0
+.debug_info            10054960            0
+.debug_abbrev            822435            0
+.debug_line             5094418            0
+.debug_frame             305240            0
+.debug_str              1388991            0
+.debug_loc              2558935            0
+.debug_ranges            367680            0
+.debug_line_str           16316            0
+.debug_loclists          127471            0
+.debug_rnglists           13288            0
+.comment                    207            0
+.xtensa.info                 56            0
+.xt.prop                  18360            0
+.xt.lit                     304            0
+Total                  23340562
+
+

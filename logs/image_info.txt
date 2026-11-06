@@ -1,0 +1,48 @@
+Warning: DEPRECATED: 'esptool.py' is deprecated. Please use 'esptool' instead. The '.py' suffix will be removed in a future major release.
+esptool v5.2.0
+Image size: 2349136 bytes
+
+ESP32 Image Header
+==================
+Image version: 1
+Entry point: 0x40081c9c
+Segments: 6
+Flash size: 4MB
+Flash freq: 40m
+Flash mode: DIO
+
+ESP32 Extended Image Header
+===========================
+WP pin: 0xee (disabled)
+Flash pins drive settings: clk_drv: 0x0, q_drv: 0x0, d_drv: 0x0, cs0_drv: 0x0, hd_drv: 0x0, wp_drv: 0x0
+Chip ID: 0 (ESP32)
+Minimal chip revision: v0.0, (legacy min_rev = 0)
+Maximal chip revision: v655.35
+
+Segments Information
+====================
+Segment   Length   Load addr   File offs  Memory types
+-------  -------  ----------  ----------  ------------
+      0  0x1205bc  0x3f400020  0x00000018  DROM
+      1  0x06764  0x3ffbdb60  0x001205dc  BYTE_ACCESSIBLE, DRAM
+      2  0x092c8  0x40080000  0x00126d48  IRAM
+      3  0xf93dc  0x400d0020  0x00130018  IROM
+      4  0x143f4  0x400892c8  0x002293fc  IRAM
+      5  0x00020  0x50000200  0x0023d7f8  RTC_DATA
+
+ESP32 Image Footer
+==================
+Checksum: 0xe2 (valid)
+Validation hash: 4d3704cafd8e5f7832b4fb70f1448325b7479bc8c3489a9cacd3dbb47a714ca3 (valid)
+
+Application Information
+=======================
+Project name: arduino-lib-builder
+App version: 14a0af9
+Compile time: Mar 31 2026 11:46:45
+ELF file SHA256: 4b5cbcdf2c8fb57f5cdfdb0004b9eb79e9392e540a4147027368dd609e618267
+ESP-IDF: v5.5.4
+Minimal eFuse block revision: 0.0
+Maximal eFuse block revision: 0.99
+MMU page size: 64 KB
+Secure version: 0

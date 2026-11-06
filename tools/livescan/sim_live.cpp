@@ -5,7 +5,8 @@
  * script lines: hold X Y MS (finger down on screen x,y -> simulated raw) | up MS | recstart NAME | recstop |
  *   tick N | tap X Y | type TEXT (taps the on-screen keys; '~' = ENTER) | dump NAME | theme N | log
  *   press X Y / release (finger down / up NOW: one raw sample at the current time, then the usual 15 ms samples)
- *   tickto T (advance to exactly T ms: 30 ms ticks, then 15 ms raw samples + one lv_tick at T) */
+ *   tickto T (advance to exactly T ms: 30 ms ticks, then 15 ms raw samples + one lv_tick at T)
+ *   hmsched T0 (hunt meter: restart it now, fill from the locked V2 mock schedule relative to T0; 0 = live dBm) */
 #include <zlib.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -17,6 +18,7 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #define BOTCORPS_CYD_LIVESCAN 1
+#define LV_RD_HM_SIM 1   /* hunt meter test hook (hmsched): sim only, never in firmware */
 #include "../../src/live/lv_core.h"
 #include "lgfx_cal_ref.h"
 #include "touch_model.h"
@@ -213,6 +215,12 @@ int main(int argc, char **argv)
             int x, y, ms; if (fscanf(sc, "%d %d %d", &x, &y, &ms) != 3) return 2; g_fx = x; g_fy = y; g_down = true;
             for (int e = 0; e < ms; e += 30) tick1(io);
             g_down = false; tick1(io); sim_use_pal(); const char *r = lv_tap(x, y); printf("t=%u rhold %d,%d %dms -> %s (scr=%d)\n", t_ms, x, y, ms, r, lv_scr);
+        }
+        else if (!strcmp(cmd, "hmsched")) {   /* hmsched T0: restart the hunt meter now and replay the locked V2 mock's fill schedule from T0 (0 = live dBm) */
+            unsigned T; if (fscanf(sc, "%u", &T) != 1) return 2;
+#if LV_RD_CHARGE && LV_RD_HUNT_METER
+            lv_rd_hm_sim_t0 = T; lv_rd_hm_on = false;
+#endif
         }
         else if (!strcmp(cmd, "sig")) { if (fscanf(sc, "%d %d", &fk_ovr_m5, &fk_ovr_rssi) != 2) return 2; }
         else if (!strcmp(cmd, "towers")) { lv_rd_layout(); for (int n = 0; n < lv_rd_n; ++n) { const LvTower &T = lv_rd_tw[n]; printf("  tower f%d %s %d dBm m5=%d x%d-%d y%d-%d\n", T.i, lv_f[T.i].name, lv_f[T.i].rssi, lv_f[T.i].mac[5], T.x0, T.x1, T.byt, T.yb); } }

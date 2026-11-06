@@ -339,14 +339,17 @@ static void lv_rd_hulls(int target)
             {(float)T.bx1, (float)T.byt, (float)T.x1, (float)T.yt}, {(float)T.bx1, (float)T.byt, (float)T.bx1, (float)T.byb},
             {(float)T.bx0, (float)T.byt, (float)T.bx0, (float)T.byb}, {(float)T.bx0, (float)T.byt, (float)T.bx0, (float)T.byt} };
         H.ns = 0; for (int k = 0; k < 10; ++k) { if (k == 7 && !(T.bx1 > T.x1)) continue; if (k == 8 && !(T.bx0 < T.x0)) continue; if (k == 9) continue;
-            for (int c = 0; c < 4; ++c) H.s[H.ns][c] = (int16_t)S[k][c]; ++H.ns; }
+            for (int c = 0; c < 4; ++c) H.s[H.ns][c] = (int16_t)S[k][c];
+            ++H.ns; }
     }
 }
 static float lv_rd_segd2(const int16_t *gi, float x, float y)
 {
     const float g[4] = {(float)gi[0], (float)gi[1], (float)gi[2], (float)gi[3]};
     const float ex = g[2] - g[0], ey = g[3] - g[1], l2 = ex * ex + ey * ey; float u = l2 > 0 ? ((x - g[0]) * ex + (y - g[1]) * ey) / l2 : 0;
-    if (u < 0) u = 0; if (u > 1) u = 1; const float dx = g[0] + u * ex - x, dy = g[1] + u * ey - y; return dx * dx + dy * dy;
+    if (u < 0) u = 0;
+    if (u > 1) u = 1;
+    const float dx = g[0] + u * ex - x, dy = g[1] + u * ey - y; return dx * dx + dy * dy;
 }
 /* 0 = free; 1 = behind a nearer tower's translucent face (drawn dim, as if through its glass); 2 = on that tower's edge line (skip) */
 static int lv_rd_occ(int x, int y)
@@ -369,7 +372,8 @@ static inline int lv_rd_l565(uint16_t c) { const int r = (c >> 11) << 3, g = ((c
 #define LV_RD_GLASS 13  /* /16: what of the stream shows through a nearer tower's face */
 static inline void lv_rd_bly(LvBand &B, int x, int y, uint16_t c, int k, int n, int ymax)   /* fine blend, clipped, occluded */
 {
-    if (k <= 0 || y < LV_RD_Y0 || y > ymax) return; if (k > n) k = n;
+    if (k <= 0 || y < LV_RD_Y0 || y > ymax) return;
+    if (k > n) k = n;
     if (x < B.x0 || x >= B.x0 + B.w || y < B.y0 || y >= B.y0 + B.h) return;
     const int o = lv_rd_occ(x, y); if (o == 2) return; if (o == 1) { if (!lv_rd_glass) return; k = k * LV_RD_GLASS * 2 / n; n = 32; if (k <= 0) return; }
     uint16_t &q = B.px[(y - B.y0) * B.w + (x - B.x0)]; const uint16_t m = lv_mix(q, c, k, n);
@@ -575,6 +579,187 @@ static void lv_rd_cg_draw(LvBand &B)
     b_fill(B, lx - 2, r.y0 + 2, lw + 3, 7, lv_hex(0x000000));
     b_text35(B, lx, r.y0 + 3, lab, lv_rd_cg ? W : MAG);
 }
+#ifndef LV_RD_HUNT_METER
+#define LV_RD_HUNT_METER 1   /* LOCKED ui_gibson_radar_hunt_meter (A, src c83a27e) + ui_gibson_radar_hunt_meter_interact (V2, src 057279f) */
+#endif
+#if LV_RD_HUNT_METER
+/* HUNT METER while hunting (port of the LOCKED mocks, docs/mocks/radar-hunt-meter render_hunt_meter.py draw_A /
+ * clear_top_meter and docs/mocks/radar-current-meter-interact render_interact.py V2): the top banner's 11-bar meter is gone;
+ * 14 thermometer bands stack up the hunted tower's glass, green at the base -> yellow -> red at the top of the fill. The locked
+ * D4 current drives it (V2 ARC): every D4 packet that reaches the contact throws a short stepped ice arc into one of the lowest
+ * three bands and a brightness ripple climbs the lit stack (25 ms / band); 150 ms after the hit the packet lands: one more band
+ * lights while the stack is below the signal (target = real dBm, the same 4..60 level as the tower height), one goes out while
+ * it is above, else the top band flashes. The mocks are drawn at 3x; this draws each 1x pixel exactly as the mock paints its
+ * centre sample (3x+1, 3y+1), so @1x it is the mock's own pixel grid (the locked @1x stills are those centre samples).
+ * Added brightness is capped at 200 luma (below the banner's ~203). All state is static (~120 B), no heap. */
+#ifndef LV_RD_HM_OCC
+#define LV_RD_HM_OCC 0   /* 1 = meter behind nearer towers (13/16 through their glass, their edge lines on top). 0 = as locked: the
+                            * hunted tower is drawn lit in front of every tower (lv_rd_cg_lit), so its meter is too */
+#endif
+#define LV_RD_HM_N 14
+#define LV_RD_HM_NEV 8
+struct LvRdHmEv { uint32_t hit, land; int8_t band; uint8_t isnew, landed; };
+static LvRdHmEv lv_rd_hm_ev[LV_RD_HM_NEV]; static int lv_rd_hm_nev = 0, lv_rd_hm_lit = 0, lv_rd_hm_pd = 99;
+static bool lv_rd_hm_on = false; static uint32_t lv_rd_hm_ft = 0;
+#ifdef LV_RD_HM_SIM
+static uint32_t lv_rd_hm_sim_t0 = 0;   /* sim only (sim_live 'hmsched T0'): replay the locked mock's fill schedule from T0 */
+#endif
+/* draw_A colours per band: color_at_height / glow_at_height / 35 % white highlight at (i + 0.5) / 14 (generated from the mock) */
+static const uint32_t LV_RD_HM_COL[LV_RD_HM_N] = {0x40f858, 0x61ec49, 0x82df39, 0xa3d32a, 0xc3c61b, 0xe4ba0c, 0xffac01, 0xff9c07, 0xff8b0d, 0xff7a13, 0xff6a1a, 0xff5920, 0xff4826, 0xff382c};
+static const uint32_t LV_RD_HM_GLO[LV_RD_HM_N] = {0x207c2c, 0x307624, 0x41701c, 0x516915, 0x62630d, 0x725d06, 0x805600, 0x804e03, 0x804506, 0x803d09, 0x80350d, 0x802c10, 0x802413, 0x801c16};
+static const uint32_t LV_RD_HM_HI[LV_RD_HM_N] = {0x82fa92, 0x98f288, 0xadea7e, 0xc3e274, 0xd8d96a, 0xedd261, 0xffc959, 0xffbe5d, 0xffb361, 0xffa865, 0xff9e6a, 0xff936e, 0xff8871, 0xff7d75};
+#define LV_RD_HM_DIM 0x3a2a34
+static int lv_rd_hm_target(uint32_t t)   /* bands the signal asks for */
+{
+#ifdef LV_RD_HM_SIM
+    if (lv_rd_hm_sim_t0) {   /* render_interact.py target_slots: 22 % -> 55 % -> 100 % */
+        const double tr = (double)(int32_t)(t - lv_rd_hm_sim_t0); double f;
+        if (tr < 1500) f = 0.22; else if (tr < 3500) f = 0.22 + (0.55 - 0.22) * (tr - 1500) / 2000; else if (tr < 4800) f = 0.55 + 0.45 * (tr - 3500) / 1300; else f = 1.0;
+        return (int)nearbyint(f * LV_RD_HM_N);
+    }
+#endif
+    (void)t;
+    if (!lv_rd_tgt_have || lv_rd_miss) return 0;   /* NO SIG: the stack drains, one band per packet */
+    const int s = (lv_rd_level(lv_rd_tgt) * LV_RD_HM_N + 30) / 60;   /* -86 dBm 3 bands (22 %), -66 dBm 8 (55 %), -40 dBm 14 */
+    return s < 1 ? 1 : s > LV_RD_HM_N ? LV_RD_HM_N : s;
+}
+static void lv_rd_hm_frame(int n)   /* once per frame: packet landings, then a new packet at the contact (D4 packet law) */
+{
+    const uint32_t t = lv_now;
+    if (!lv_rd_hm_on) { lv_rd_hm_on = true; lv_rd_hm_lit = 0; lv_rd_hm_nev = 0; lv_rd_hm_pd = 99; }
+    int k = 0;
+    for (int i = 0; i < lv_rd_hm_nev; ++i) if (!(lv_rd_hm_ev[i].landed && (int32_t)(t - lv_rd_hm_ev[i].hit) > 700)) lv_rd_hm_ev[k++] = lv_rd_hm_ev[i];
+    lv_rd_hm_nev = k;
+    for (int i = 0; i < lv_rd_hm_nev; ++i) {
+        LvRdHmEv &e = lv_rd_hm_ev[i]; if (e.landed || (int32_t)(t - e.land) < 0) continue;
+        const int tg = lv_rd_hm_target(e.land);
+        e.isnew = lv_rd_hm_lit < tg; if (e.isnew) ++lv_rd_hm_lit; else if (lv_rd_hm_lit > tg) --lv_rd_hm_lit;
+        e.band = (int8_t)(lv_rd_hm_lit - 1); e.landed = 1;
+    }
+    if (n < 2) { lv_rd_hm_lit = lv_rd_hm_target(t); lv_rd_hm_pd = 99; return; }   /* no current drawn: the meter just shows the signal */
+    /* D4 packets: heads at route index ph + 40 j, ph = now / 5 mod 40. A packet hits when the head nearest the contact comes
+     * within 6 px of it (one 30 ms frame at 0.2 px/ms); once per packet even at faster frame rates */
+    const int ph = (int)(t / 5 % 40), d = ((n - 1 - ph) % 40 + 40) % 40;
+    if (d < 6 && lv_rd_hm_pd >= 6) {
+        if (lv_rd_hm_nev == LV_RD_HM_NEV) { memmove(lv_rd_hm_ev, lv_rd_hm_ev + 1, sizeof lv_rd_hm_ev[0] * (LV_RD_HM_NEV - 1)); --lv_rd_hm_nev; }
+        LvRdHmEv &e = lv_rd_hm_ev[lv_rd_hm_nev++]; e.hit = t; e.land = t + 150; e.band = -1; e.isnew = 0; e.landed = 0;
+    }
+    lv_rd_hm_pd = d;
+}
+static inline void lv_rd_hm_ld(float *c, uint32_t v) { c[0] = (float)(v >> 16 & 255); c[1] = (float)(v >> 8 & 255); c[2] = (float)(v & 255); }
+static inline float lv_rd_hm_y(const float *c) { return 0.299f * c[0] + 0.587f * c[1] + 0.114f * c[2]; }
+/* render_interact.py blend(): mix toward col by k with a luma ceiling (never brighter than max(cap, base)) */
+static void lv_rd_hm_mix(float *b, uint32_t col, float k, float cap, bool &hit)
+{
+    if (!(k > 0)) return;
+    if (k > 1) k = 1;
+    float c[3], m[3]; lv_rd_hm_ld(c, col);
+    for (int i = 0; i < 3; ++i) m[i] = b[i] + (c[i] - b[i]) * k;
+    const float lb = lv_rd_hm_y(b), lm = lv_rd_hm_y(m);
+    if (lm > cap && lm > lb) {
+        const float lim = cap > lb ? cap : lb; float kk = lm - lb > 0 ? (lim - lb) / (lm - lb) : 0;
+        if (kk < 0) kk = 0;
+        if (kk > 1) kk = 1;
+        for (int i = 0; i < 3; ++i) m[i] = b[i] + (m[i] - b[i]) * kk;
+    }
+    for (int i = 0; i < 3; ++i) b[i] = m[i];
+    hit = true;
+}
+static inline bool lv_rd_hm_in(int X, int Y, int x0, int y0, int x1, int y1) { return X >= x0 && X <= x1 && Y >= y0 && Y <= y1; }
+static void lv_rd_hm_draw(LvBand &B)
+{
+    if (!lv_rd_hunting || !lv_rd_lock) { lv_rd_hm_on = false; return; }
+    const LvTower *T = lv_rd_tower_of(lv_rd_lockmac); if (!T) return;
+    const int n = lv_rd_np;   /* the route lv_rd_cg_draw just built for this band (0 = no current) */
+    if (!lv_rd_hm_on || lv_rd_hm_ft != lv_now) { lv_rd_hm_frame(n); lv_rd_hm_ft = lv_now; }
+    const uint32_t t = lv_now; const int lit = lv_rd_hm_lit;
+    /* draw_A geometry (3x): the glass between the tower's outer edge columns, from under its top edge to above its base line */
+    const int L = T->x0 < T->bx0 ? T->x0 : T->bx0, R = T->x1 > T->bx1 ? T->x1 : T->bx1;
+    const int HX0 = 3 * (L + 1), HX1 = 3 * R, HYT = 3 * ((T->yt < T->byt ? T->yt : T->byt) + 1), HYB = 3 * (T->yb - 1);
+    const double sh = (HYB - HYT) / (double)LV_RD_HM_N;
+    int y1[LV_RD_HM_N], y0[LV_RD_HM_N];
+    for (int i = 0; i < LV_RD_HM_N; ++i) { y1[i] = (int)(HYB - (i + 1) * sh) + 1; y0[i] = (int)(HYB - i * sh) - 1; }
+#ifdef LV_RD_CG_LOG
+    if (B.y0 == LV_R_RADAR.y0 || (B.y0 <= T->yb && T->yb < B.y0 + B.h)) fprintf(stderr, "HM t=%u y0=%d L=%d R=%d x0=%d x1=%d bx0=%d bx1=%d yt=%d byt=%d yb=%d lit=%d nev=%d n=%d\n", (unsigned)lv_now, B.y0, L, R, T->x0, T->x1, T->bx0, T->bx1, T->yt, T->byt, T->yb, lit, lv_rd_hm_nev, n);
+#endif
+    const uint32_t C = lv_rd_col(lv_f[T->i], 8, 8);   /* RGB565 tower colour (orange for WiFi, as in the mock) */
+    const uint32_t C8 = (uint32_t)((((C >> 11) & 31) << 3 | ((C >> 11) & 31) >> 2) << 16 | (((C >> 5) & 63) << 2 | ((C >> 5) & 63) >> 4) << 8 | ((C & 31) << 3 | (C & 31) >> 2));
+    /* V2 inputs: contact, breathing, bump, arcs */
+    const bool cur = n >= 2; const int cx = cur ? lv_rd_px[n - 1] : 0, cy = cur ? lv_rd_py[n - 1] : 0;
+    const float brt = 1 + (2.0f / 32) * sinf(6.2831853f * (float)(t % 2400) / 2400);
+    float bump = 0; for (int i = 0; i < lv_rd_hm_nev; ++i) { const int dt = (int)(t - lv_rd_hm_ev[i].hit); if (dt >= 0 && dt < 200 && 1 - dt / 200.0f > bump) bump = 1 - dt / 200.0f; }
+    int16_t ax[96], ay[96]; int as[LV_RD_HM_NEV], an[LV_RD_HM_NEV], na = 0;
+    int bxa = L, bxb = R, bya = HYT / 3 - 1, byb = T->yb;
+    for (int i = 0; i < lv_rd_hm_nev; ++i) {
+        as[i] = na; an[i] = 0;
+        const int dt = (int)(t - lv_rd_hm_ev[i].hit); if (!cur || dt < 0 || dt >= 120 || !lit) continue;
+        const uint32_t h = lv_rd_ch(lv_rd_hm_ev[i].hit / 120, 7); const int tb = (int)(h % (uint32_t)(lit < 3 ? lit : 3));
+        const int bx0 = HX0 + 2, by0 = y1[tb] + 1, by1 = y0[tb] - 1;
+        const int ex = (bx0 + 3) / 3, ey = (by0 + by1) / 6, dx = cx > ex ? -1 : 1;   /* mock: contact right of the glass (dx -1) */
+        int x = cx, y = cy, step = 0;
+        while ((dx < 0 ? x > ex : x < ex) && na < 94) {
+            ax[na] = (int16_t)x; ay[na++] = (int16_t)y; x += dx; ++step;
+            if ((step == 2 || step == 4) && y != ey) { y += ey > y ? 1 : -1; ax[na] = (int16_t)x; ay[na++] = (int16_t)y; }
+        }
+        ax[na] = (int16_t)ex; ay[na++] = (int16_t)ey; an[i] = na - as[i];
+    }
+    for (int j = 0; j < na; ++j) { bxa = ax[j] < bxa ? ax[j] : bxa; bxb = ax[j] > bxb ? ax[j] : bxb; bya = ay[j] - 1 < bya ? ay[j] - 1 : bya; byb = ay[j] + 1 > byb ? ay[j] + 1 : byb; }
+    if (cur) { bxa = cx - 2 < bxa ? cx - 2 : bxa; bxb = cx + 2 > bxb ? cx + 2 : bxb; bya = cy - 2 < bya ? cy - 2 : bya; byb = cy + 2 > byb ? cy + 2 : byb; }
+    bya = bya > B.y0 ? bya : B.y0; byb = byb < B.y0 + B.h - 1 ? byb : B.y0 + B.h - 1;
+    bya = bya > LV_RD_Y0 ? bya : LV_RD_Y0; byb = byb < LV_RD_CG_YMAX ? byb : LV_RD_CG_YMAX;
+    bxa = bxa > B.x0 ? bxa : B.x0; bxb = bxb < B.x0 + B.w - 1 ? bxb : B.x0 + B.w - 1;
+    if (bya > byb || bxa > bxb) return;
+    if (lv_rd_cgb) lv_rd_hulls(T->i);
+    const uint32_t PK = 0xc4eaff, ICE2 = 0xa8dcff, ICE3 = 0x8ccaff;
+    const float CAP = 200;
+    for (int y = bya; y <= byb; ++y) for (int x = bxa; x <= bxb; ++x) {
+        const int X = 3 * x + 1, Y = 3 * y + 1;
+        uint16_t &q = B.px[(y - B.y0) * B.w + (x - B.x0)];
+        /* ---- A: thermometer bands (opaque, draw_A paint order) ---- */
+        uint32_t a = 0xffffffffu;
+        for (int i = 0; i < LV_RD_HM_N; ++i) {
+            if (y0[i] <= y1[i]) continue;
+            if (i < lit) {
+                if (lv_rd_hm_in(X, Y, HX0 + 1, y1[i], HX1 - 1, y0[i])) a = LV_RD_HM_GLO[i];
+                if (lv_rd_hm_in(X, Y, HX0 + 2, y1[i] + 1, HX1 - 2, y0[i] - 1)) a = LV_RD_HM_COL[i];
+                if (lv_rd_hm_in(X, Y, HX0 + 2, y1[i] + 1, HX1 - 2, y1[i] + 2)) a = LV_RD_HM_HI[i];
+            } else if (lv_rd_hm_in(X, Y, HX0 + 2, y1[i] + 2, HX1 - 2, y0[i] - 2)) a = LV_RD_HM_DIM;
+        }
+        if (lv_rd_hm_in(X, Y, HX0 - 3, HYT, HX0 - 1, HYB) || lv_rd_hm_in(X, Y, HX1 + 1, HYT, HX1 + 3, HYB) || lv_rd_hm_in(X, Y, HX0 - 3, HYB, HX1 + 3, HYB + 2)) a = C8;
+        bool hit = a != 0xffffffffu; float c[3];
+        if (hit) lv_rd_hm_ld(c, a);
+        else { const int r5 = q >> 11 & 31, g6 = q >> 5 & 63, b5 = q & 31; c[0] = (float)(r5 << 3 | r5 >> 2); c[1] = (float)(g6 << 2 | g6 >> 4); c[2] = (float)(b5 << 3 | b5 >> 2); }
+        /* ---- V2: band flashes on landing, ripple + arc per packet, contact port ---- */
+        for (int i = 0; i < lv_rd_hm_nev; ++i) {
+            const LvRdHmEv &e = lv_rd_hm_ev[i]; const int dt = (int)(t - e.land);
+            if (!e.landed || dt < 0 || dt >= 300 || e.band < 0 || e.band >= lit) continue;
+            if (lv_rd_hm_in(X, Y, HX0 + 2, y1[e.band] + 1, HX1 - 2, y0[e.band] - 1)) lv_rd_hm_mix(c, PK, (e.isnew ? 0.85f : 0.50f) * powf(1 - dt / 300.0f, 1.2f), CAP, hit);
+        }
+        for (int i = 0; i < lv_rd_hm_nev; ++i) {
+            const int dt = (int)(t - lv_rd_hm_ev[i].hit); if (dt < 0) continue;
+            for (int b = 0; b < lit; ++b) { const int db = dt - 25 * b; if (db < 0 || db >= 220) continue;
+                if (lv_rd_hm_in(X, Y, HX0 + 2, y1[b] + 1, HX1 - 2, y0[b] - 1)) lv_rd_hm_mix(c, PK, (b < 3 ? 0.80f : 0.55f - 0.015f * b) * powf(1 - db / 220.0f, 1.6f), CAP, hit); }
+            if (!an[i]) continue;
+            const float kf = 1 - dt / 150.0f;
+            for (int j = as[i]; j < as[i] + an[i]; ++j) { if (ax[j] != x) continue;
+                if (ay[j] == y) lv_rd_hm_mix(c, PK, 0.95f * kf, CAP, hit);
+                if (ay[j] - 1 == y) lv_rd_hm_mix(c, ICE3, 0.6f * kf, CAP, hit);
+                if (ay[j] + 1 == y) lv_rd_hm_mix(c, ICE3, 0.6f * kf, CAP, hit); }
+        }
+        if (cur) {
+            const float ddx = (float)(X - (3 * cx + 1)), ddy = (float)(Y - (3 * cy + 1)), dd = sqrtf(ddx * ddx + ddy * ddy);
+            if (dd < 8) { const float u = 1 - dd / 8; lv_rd_hm_mix(c, ICE2, (0.42f * brt + 0.35f * bump) * u * u, CAP, hit); }
+            if (x == cx && y == cy) lv_rd_hm_mix(c, PK, 0.55f + 0.3f * bump, CAP, hit);
+        }
+        if (!hit) continue;
+        int o = 0; if (LV_RD_HM_OCC && lv_rd_cgb) { lv_rd_gy = T->yb; o = lv_rd_occ(x, y); }
+        if (o == 2) continue;   /* a nearer tower's edge line stays on top */
+        int v[3]; for (int i = 0; i < 3; ++i) { const int r = (int)(c[i] + 0.5f); v[i] = r < 0 ? 0 : r > 255 ? 255 : r; }
+        const uint16_t m = lv_rgb((uint8_t)v[0], (uint8_t)v[1], (uint8_t)v[2]);
+        q = o == 1 ? lv_mix(q, m, LV_RD_GLASS, 16) : m;   /* behind a nearer tower: through its glass */
+    }
+}
+#endif
 #endif
 static void lv_rd_fx(LvBand &B)   /* drawn after the towers, before header / panel / footer (the mock's gib_draw hook) */
 {
@@ -743,6 +928,9 @@ static void lv_scene_radar(LvBand &B, void *)
     lv_rd_term(B, hdr);
 #if LV_RD_CHARGE && !LV_RD_CG_NODRAW
     lv_rd_cg_draw(B);
+#if LV_RD_HUNT_METER
+    lv_rd_hm_draw(B);   /* after the current: the bands sit in the glass over the contact glow, as in the mock */
+#endif
 #endif
 #if LV_RD_CHARGE && defined(LV_RD_CG_LOG)
     if (lv_rd_lock) { const LvTower *T = lv_rd_tower_of(lv_rd_lockmac); if (T) { int xa, xb, ya, yb; lv_rd_box(*T, 3, xa, xb, ya, yb); lv_rd_cg_log("TWR", xa, ya - 9, xb, yb); } }
@@ -753,6 +941,13 @@ static void lv_scene_radar(LvBand &B, void *)
 /* issue 5 (MOCK): while hunting on GIBSON the top banner (ticker rect, inside the gold rim) is a FIXED bar:
  * HUNT + MAC tail / name | a signal meter from the real dBm (lv_rd_level) | live dBm | WARMER / COLDER / STEADY = only the
  * change of the real dBm between two reads (+-2 dB = STEADY). No arrow, compass or bearing: nothing implies direction. */
+#if LV_RD_CHARGE && LV_RD_HUNT_METER
+static void lv_rd_r3(LvBand &B, int X0, int Y0, int X1, int Y1, uint16_t c)   /* a 3x mock rect at 1x: the pixels whose centre (3x+1) it covers */
+{
+    const int xa = (X0 + 1) / 3, xb = (X1 - 1) / 3, ya = (Y0 + 1) / 3, yb = (Y1 - 1) / 3;
+    if (xb >= xa && yb >= ya) b_fill(B, xa, ya, xb - xa + 1, yb - ya + 1, c);
+}
+#endif
 static bool lv_hunt_bar_on(void) { return lv_rd_hunting && lv_rd_tgt_have && lv_scr == LV_SC_RADAR; }
 static void lv_hunt_bar(LvBand &B)
 {
@@ -766,13 +961,23 @@ static void lv_hunt_bar(LvBand &B)
     if (f.name[0]) snprintf(l, sizeof l, "%.13s", f.name); else snprintf(l, sizeof l, "%s %.8s", f.kind == LV_K_WIFI ? "WIFI" : "BLE", LV_ICON_NAME[f.icon]);   /* no name: kind + type, the MAC tail is on the line above */
     snprintf(t, sizeof t, "HUNT ..%s", m + 9);
     b_text35(B, 3, 5, t, MAG); b_text(B, 3, 12, l, lv_hex(0xffffff));
+    const int miss = lv_rd_miss > 0;
+#if LV_RD_CHARGE && LV_RD_HUNT_METER
+    /* LOCKED ui_gibson_radar_hunt_meter (clear_top_meter): the meter lives on the hunted tower now; its slot is banner bg with
+     * a small tower glyph (not a meter). Mock rects are 3x; each 1x pixel takes the mock's centre sample (3x+1, 3y+1). */
+    lv_rd_r3(B, 250, 18, 445, 66, lv_hex(0x1a0012));
+    lv_rd_r3(B, 329, 54, 365, 58, lv_hex(0x604050)); lv_rd_r3(B, 343, 28, 351, 54, lv_hex(0x604050));
+    { static const uint32_t MK[3] = {0x308040, 0x806020, 0x803030};
+      for (int i = 0; i < 3; ++i) { const int y = 50 - i * 8; lv_rd_r3(B, 337, y, 341, y + 3, lv_hex(MK[i])); lv_rd_r3(B, 353, y, 357, y + 3, lv_hex(MK[i])); } }
+#else
     /* signal meter: 11 rising bars, lit count from the real dBm (-96..-40 -> 1..11) */
-    const int lit = (lv_rd_level(f) - 4) * 11 / 56 + 1, miss = lv_rd_miss > 0;
+    const int lit = (lv_rd_level(f) - 4) * 11 / 56 + 1;
     for (int i = 0; i < 11; ++i) {
         const int x = 84 + i * 6, h = 5 + i, y = 20 - h + 1;
         const uint32_t on = i < 3 ? 0xff3030 : i < 7 ? 0xffb000 : 0x30ff60;
         b_fill(B, x, y, 5, h, i < lit && !miss ? lv_hex(on) : lv_hex(0x3a2a34));
     }
+#endif
     snprintf(t, sizeof t, "%d", f.rssi);
     const uint16_t num = miss ? lv_hex(0x808080) : lv_hex(0xffffff);
     b_text(B, 190 - (int)strlen(t) * 12, 6, t, num, 2); b_text35(B, 191, 15, "DB", num);

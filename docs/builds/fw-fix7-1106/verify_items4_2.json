@@ -1,0 +1,699 @@
+{
+ "item4": {
+  "frames_vs_target_px": {
+   "0": 0,
+   "1": 0,
+   "2": 0,
+   "3": 0,
+   "4": 0,
+   "5": 0,
+   "6": 0,
+   "7": 0,
+   "8": 0,
+   "9": 0,
+   "10": 0,
+   "11": 0,
+   "12": 0,
+   "13": 0,
+   "14": 0,
+   "15": 0,
+   "16": 0,
+   "17": 0,
+   "18": 0,
+   "19": 0,
+   "20": 0,
+   "21": 0,
+   "22": 0,
+   "23": 0,
+   "24": 0,
+   "25": 0,
+   "26": 0,
+   "27": 0,
+   "28": 0,
+   "29": 0,
+   "30": 0,
+   "31": 0,
+   "32": 0,
+   "33": 0,
+   "34": 0,
+   "35": 0,
+   "36": 0,
+   "37": 0,
+   "38": 0,
+   "39": 0,
+   "40": 0,
+   "41": 0,
+   "42": 0,
+   "43": 0,
+   "44": 0,
+   "45": 0,
+   "46": 0,
+   "47": 0,
+   "48": 0,
+   "49": 0,
+   "50": 0,
+   "51": 0,
+   "52": 0,
+   "53": 0,
+   "54": 0,
+   "55": 0,
+   "56": 0,
+   "57": 0,
+   "58": 0,
+   "59": 0,
+   "60": 0,
+   "61": 0,
+   "62": 0,
+   "63": 0,
+   "64": 0,
+   "65": 0,
+   "66": 0,
+   "67": 0,
+   "68": 0,
+   "69": 0,
+   "70": 0,
+   "71": 0,
+   "72": 0,
+   "73": 0,
+   "74": 0,
+   "75": 0,
+   "76": 0,
+   "77": 0,
+   "78": 0,
+   "79": 0,
+   "80": 0,
+   "81": 0,
+   "82": 0,
+   "83": 0,
+   "84": 0
+  },
+  "frames_all_zero": true,
+  "screens_seen": [
+   0,
+   2
+  ],
+  "home_intro_frames": 0,
+  "boot_frames": 85,
+  "first_home_dump": {
+   "b086": {
+    "scr": 2,
+    "seg": 7,
+    "cf": 360,
+    "t": 2610
+   }
+  },
+  "home_frame0_seg": 7,
+  "home_frame0_vs_direct_theme5_home_px": 0,
+  "home_frame0_equals_direct_theme5_home": true,
+  "between_last_boot_and_home0": [
+   {
+    "scr": 0,
+    "seg": 0,
+    "cf": 84,
+    "t": 2550
+   },
+   {
+    "scr": 2,
+    "seg": 7,
+    "cf": -1,
+    "t": 2580
+   },
+   {
+    "scr": 2,
+    "seg": 7,
+    "cf": 360,
+    "t": 2610
+   }
+  ],
+  "png": {
+   "boot_f015": "docs/builds/fw-fix7-1106/item4/boot_f015_3x.png",
+   "boot_f070": "docs/builds/fw-fix7-1106/item4/boot_f070_3x.png",
+   "boot_last": "docs/builds/fw-fix7-1106/item4/boot_last_3x.png",
+   "boot_to_home_orange": "docs/builds/fw-fix7-1106/item4/boot_to_home_orange_3x.png",
+   "boot_wipe_f072_f080": "docs/builds/fw-fix7-1106/item4/boot_wipe_f072_f080_3x.png"
+  }
+ },
+ "item2_pixel_diff": {
+  "grid_green": {
+   "scr": 9,
+   "diff": 0,
+   "rim_row0_diff": 0
+  },
+  "desc_wifi_green": {
+   "scr": 10,
+   "diff": 0,
+   "rim_row0_diff": 0
+  },
+  "desc_bluetooth_green": {
+   "scr": 10,
+   "diff": 0,
+   "rim_row0_diff": 0
+  },
+  "desc_deauth_green": {
+   "scr": 10,
+   "diff": 0,
+   "rim_row0_diff": 0
+  },
+  "desc_hack_green": {
+   "scr": 10,
+   "diff": 0,
+   "rim_row0_diff": 0
+  },
+  "desc_flock_green": {
+   "scr": 10,
+   "diff": 0,
+   "rim_row0_diff": 0
+  },
+  "desc_drone_green": {
+   "scr": 10,
+   "diff": 0,
+   "rim_row0_diff": 0
+  },
+  "desc_air_tag_green": {
+   "scr": 10,
+   "diff": 0,
+   "rim_row0_diff": 0
+  },
+  "desc_keyfob_green": {
+   "scr": 10,
+   "diff": 0,
+   "rim_row0_diff": 0
+  },
+  "desc_meta_green": {
+   "scr": 10,
+   "diff": 0,
+   "rim_row0_diff": 0
+  },
+  "desc_skimmer_green": {
+   "scr": 10,
+   "diff": 0,
+   "rim_row0_diff": 0
+  },
+  "desc_flipper_green": {
+   "scr": 10,
+   "diff": 0,
+   "rim_row0_diff": 0
+  },
+  "desc_samsung_green": {
+   "scr": 10,
+   "diff": 0,
+   "rim_row0_diff": 0
+  },
+  "grid_orange": {
+   "scr": 9,
+   "diff": 0,
+   "rim_row0_diff": 0
+  },
+  "desc_wifi_orange": {
+   "scr": 10,
+   "diff": 0,
+   "rim_row0_diff": 0
+  },
+  "desc_bluetooth_orange": {
+   "scr": 10,
+   "diff": 0,
+   "rim_row0_diff": 0
+  },
+  "desc_deauth_orange": {
+   "scr": 10,
+   "diff": 0,
+   "rim_row0_diff": 0
+  },
+  "desc_hack_orange": {
+   "scr": 10,
+   "diff": 0,
+   "rim_row0_diff": 0
+  },
+  "desc_flock_orange": {
+   "scr": 10,
+   "diff": 0,
+   "rim_row0_diff": 0
+  },
+  "desc_drone_orange": {
+   "scr": 10,
+   "diff": 0,
+   "rim_row0_diff": 0
+  },
+  "desc_air_tag_orange": {
+   "scr": 10,
+   "diff": 0,
+   "rim_row0_diff": 0
+  },
+  "desc_keyfob_orange": {
+   "scr": 10,
+   "diff": 0,
+   "rim_row0_diff": 0
+  },
+  "desc_meta_orange": {
+   "scr": 10,
+   "diff": 0,
+   "rim_row0_diff": 0
+  },
+  "desc_skimmer_orange": {
+   "scr": 10,
+   "diff": 0,
+   "rim_row0_diff": 0
+  },
+  "desc_flipper_orange": {
+   "scr": 10,
+   "diff": 0,
+   "rim_row0_diff": 0
+  },
+  "desc_samsung_orange": {
+   "scr": 10,
+   "diff": 0,
+   "rim_row0_diff": 0
+  }
+ },
+ "item2_all_26_zero": true,
+ "item2_multi_theme8_px_differ_from_ice": null,
+ "item2_tour": {
+  "home_scr": 2,
+  "tap_morpheus": "morpheus-glossary",
+  "gloss_scr": 9,
+  "home_press_px_changed": 1802,
+  "rain_motion_on": [
+   {
+    "rain_px_changed": 2567,
+    "other_px_changed": 0,
+    "t": 630
+   },
+   {
+    "rain_px_changed": 2551,
+    "other_px_changed": 0,
+    "t": 780
+   },
+   {
+    "rain_px_changed": 2553,
+    "other_px_changed": 0,
+    "t": 930
+   },
+   {
+    "rain_px_changed": 2516,
+    "other_px_changed": 0,
+    "t": 1080
+   },
+   {
+    "rain_px_changed": 2509,
+    "other_px_changed": 0,
+    "t": 1230
+   }
+  ],
+  "rain_motion_off": [
+   {
+    "rain_px_changed": 0,
+    "other_px_changed": 0
+   },
+   {
+    "rain_px_changed": 0,
+    "other_px_changed": 0
+   },
+   {
+    "rain_px_changed": 0,
+    "other_px_changed": 0
+   },
+   {
+    "rain_px_changed": 0,
+    "other_px_changed": 0
+   },
+   {
+    "rain_px_changed": 0,
+    "other_px_changed": 0
+   }
+  ],
+  "devices": [
+   {
+    "device": "WIFI",
+    "tap_result": "WIFI",
+    "press_px_brightened_in_chip": 1670,
+    "press_px_changed_outside_chip_rain_ticker": 0,
+    "desc_scr": 10,
+    "desc_diff_vs_lock": 0,
+    "backbot_press_px_in_backbot": 253,
+    "backbot_press_px_outside": 0,
+    "back_scr": 9
+   },
+   {
+    "device": "BLUETOOTH",
+    "tap_result": "BLUETOOTH",
+    "press_px_brightened_in_chip": 1649,
+    "press_px_changed_outside_chip_rain_ticker": 0,
+    "desc_scr": 10,
+    "desc_diff_vs_lock": 0,
+    "backbot_press_px_in_backbot": 253,
+    "backbot_press_px_outside": 0,
+    "back_scr": 9
+   },
+   {
+    "device": "DEAUTH",
+    "tap_result": "DEAUTH",
+    "press_px_brightened_in_chip": 1604,
+    "press_px_changed_outside_chip_rain_ticker": 0,
+    "desc_scr": 10,
+    "desc_diff_vs_lock": 0,
+    "backbot_press_px_in_backbot": 253,
+    "backbot_press_px_outside": 0,
+    "back_scr": 9
+   },
+   {
+    "device": "HACK",
+    "tap_result": "HACK",
+    "press_px_brightened_in_chip": 1657,
+    "press_px_changed_outside_chip_rain_ticker": 0,
+    "desc_scr": 10,
+    "desc_diff_vs_lock": 0,
+    "backbot_press_px_in_backbot": 253,
+    "backbot_press_px_outside": 0,
+    "back_scr": 9
+   },
+   {
+    "device": "FLOCK",
+    "tap_result": "FLOCK",
+    "press_px_brightened_in_chip": 1652,
+    "press_px_changed_outside_chip_rain_ticker": 0,
+    "desc_scr": 10,
+    "desc_diff_vs_lock": 0,
+    "backbot_press_px_in_backbot": 253,
+    "backbot_press_px_outside": 0,
+    "back_scr": 9
+   },
+   {
+    "device": "DRONE",
+    "tap_result": "DRONE",
+    "press_px_brightened_in_chip": 1613,
+    "press_px_changed_outside_chip_rain_ticker": 0,
+    "desc_scr": 10,
+    "desc_diff_vs_lock": 0,
+    "backbot_press_px_in_backbot": 253,
+    "backbot_press_px_outside": 0,
+    "back_scr": 9
+   },
+   {
+    "device": "AIR TAG",
+    "tap_result": "AIR TAG",
+    "press_px_brightened_in_chip": 1612,
+    "press_px_changed_outside_chip_rain_ticker": 0,
+    "desc_scr": 10,
+    "desc_diff_vs_lock": 0,
+    "backbot_press_px_in_backbot": 253,
+    "backbot_press_px_outside": 0,
+    "back_scr": 9
+   },
+   {
+    "device": "KEYFOB",
+    "tap_result": "KEYFOB",
+    "press_px_brightened_in_chip": 1635,
+    "press_px_changed_outside_chip_rain_ticker": 0,
+    "desc_scr": 10,
+    "desc_diff_vs_lock": 0,
+    "backbot_press_px_in_backbot": 253,
+    "backbot_press_px_outside": 0,
+    "back_scr": 9
+   },
+   {
+    "device": "META",
+    "tap_result": "META",
+    "press_px_brightened_in_chip": 1635,
+    "press_px_changed_outside_chip_rain_ticker": 0,
+    "desc_scr": 10,
+    "desc_diff_vs_lock": 0,
+    "backbot_press_px_in_backbot": 253,
+    "backbot_press_px_outside": 0,
+    "back_scr": 9
+   },
+   {
+    "device": "SKIMMER",
+    "tap_result": "SKIMMER",
+    "press_px_brightened_in_chip": 1650,
+    "press_px_changed_outside_chip_rain_ticker": 0,
+    "desc_scr": 10,
+    "desc_diff_vs_lock": 0,
+    "backbot_press_px_in_backbot": 253,
+    "backbot_press_px_outside": 0,
+    "back_scr": 9
+   },
+   {
+    "device": "FLIPPER",
+    "tap_result": "FLIPPER",
+    "press_px_brightened_in_chip": 1634,
+    "press_px_changed_outside_chip_rain_ticker": 0,
+    "desc_scr": 10,
+    "desc_diff_vs_lock": 0,
+    "backbot_press_px_in_backbot": 253,
+    "backbot_press_px_outside": 0,
+    "back_scr": 9
+   },
+   {
+    "device": "SAMSUNG",
+    "tap_result": "SAMSUNG",
+    "press_px_brightened_in_chip": 1697,
+    "press_px_changed_outside_chip_rain_ticker": 0,
+    "desc_scr": 10,
+    "desc_diff_vs_lock": 0,
+    "backbot_press_px_in_backbot": 253,
+    "backbot_press_px_outside": 0,
+    "back_scr": 9
+   }
+  ],
+  "final_back_scr": 2,
+  "ticker_from_gloss_scr": 4,
+  "ticker_from_desc_scr": 4,
+  "taps": [
+   [
+    300,
+    52,
+    82,
+    "morpheus-glossary",
+    2
+   ],
+   [
+    1230,
+    51,
+    58,
+    "WIFI",
+    9
+   ],
+   [
+    1410,
+    230,
+    310,
+    "backbot-gloss",
+    10
+   ],
+   [
+    1590,
+    51,
+    121,
+    "BLUETOOTH",
+    9
+   ],
+   [
+    1770,
+    230,
+    310,
+    "backbot-gloss",
+    10
+   ],
+   [
+    1950,
+    189,
+    58,
+    "DEAUTH",
+    9
+   ],
+   [
+    2130,
+    230,
+    310,
+    "backbot-gloss",
+    10
+   ],
+   [
+    2310,
+    189,
+    121,
+    "HACK",
+    9
+   ],
+   [
+    2490,
+    230,
+    310,
+    "backbot-gloss",
+    10
+   ],
+   [
+    2670,
+    51,
+    188,
+    "FLOCK",
+    9
+   ],
+   [
+    2850,
+    230,
+    310,
+    "backbot-gloss",
+    10
+   ],
+   [
+    3030,
+    97,
+    188,
+    "DRONE",
+    9
+   ],
+   [
+    3210,
+    230,
+    310,
+    "backbot-gloss",
+    10
+   ],
+   [
+    3390,
+    143,
+    188,
+    "AIR TAG",
+    9
+   ],
+   [
+    3570,
+    230,
+    310,
+    "backbot-gloss",
+    10
+   ],
+   [
+    3750,
+    189,
+    188,
+    "KEYFOB",
+    9
+   ],
+   [
+    3930,
+    230,
+    310,
+    "backbot-gloss",
+    10
+   ],
+   [
+    4110,
+    51,
+    258,
+    "META",
+    9
+   ],
+   [
+    4290,
+    230,
+    310,
+    "backbot-gloss",
+    10
+   ],
+   [
+    4470,
+    97,
+    258,
+    "SKIMMER",
+    9
+   ],
+   [
+    4650,
+    230,
+    310,
+    "backbot-gloss",
+    10
+   ],
+   [
+    4830,
+    143,
+    258,
+    "FLIPPER",
+    9
+   ],
+   [
+    5010,
+    230,
+    310,
+    "backbot-gloss",
+    10
+   ],
+   [
+    5190,
+    189,
+    258,
+    "SAMSUNG",
+    9
+   ],
+   [
+    5370,
+    230,
+    310,
+    "backbot-gloss",
+    10
+   ],
+   [
+    5550,
+    230,
+    310,
+    "backbot-home",
+    9
+   ],
+   [
+    5730,
+    52,
+    82,
+    "morpheus-glossary",
+    2
+   ],
+   [
+    6660,
+    120,
+    10,
+    "ticker->scan",
+    9
+   ],
+   [
+    6840,
+    230,
+    310,
+    "backbot-home",
+    4
+   ],
+   [
+    7020,
+    52,
+    82,
+    "morpheus-glossary",
+    2
+   ],
+   [
+    7200,
+    51,
+    258,
+    "META",
+    9
+   ],
+   [
+    7380,
+    120,
+    10,
+    "ticker->scan",
+    10
+   ]
+  ]
+ },
+ "item2_png": {
+  "gloss_grid_green": "docs/builds/fw-fix7-1106/item2/gloss_grid_green_3x.png",
+  "gloss_grid_orange": "docs/builds/fw-fix7-1106/item2/gloss_grid_orange_3x.png",
+  "desc_air_tag_green": "docs/builds/fw-fix7-1106/item2/desc_air_tag_green_3x.png",
+  "desc_wifi_orange": "docs/builds/fw-fix7-1106/item2/desc_wifi_orange_3x.png",
+  "desc_bluetooth_green": "docs/builds/fw-fix7-1106/item2/desc_bluetooth_green_3x.png",
+  "gloss_grid_multi": "docs/builds/fw-fix7-1106/item2/gloss_grid_multi_3x.png",
+  "desc_air_tag_multi": "docs/builds/fw-fix7-1106/item2/desc_air_tag_multi_3x.png",
+  "gloss_grid_grape": "docs/builds/fw-fix7-1106/item2/gloss_grid_grape_3x.png",
+  "gloss_rain_steps_green": "docs/builds/fw-fix7-1106/item2/gloss_rain_steps_green_3x.png"
+ }
+}

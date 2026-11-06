@@ -3,11 +3,11 @@
  * CYD glue for the live-scan build (env cyd_livescan). Same clip path as lock_ui.cpp
  * (ROM tinfl, swapped palette, pushImage, release-fired taps, NVS theme) over the
  * non-game clip blob lk_blob_live, plus the real radios behind LvRadio:
- *   WiFi : esp_wifi async scan (WiFi.scanNetworks), results copied, scanDelete, WIFI_OFF.
- *   BLE  : NimBLE active scan for N ms, results copied, clearResults, deinit(true).
+ *   WiFi : warm async scanning on Core 0, epoch-tagged result handoff.
+ *   BLE  : warm NimBLE async scanning on Core 0; no driver calls on the UI core.
  *   DEAUTH watch: passive promiscuous mgmt filter, channel hop 1-13, counts 0xC0/0xA0
  *          subtypes. Receive only, nothing is transmitted.
- * Only one radio job runs at a time; each job releases its stack before the next starts.
+ * Only one stack is initialized; same-mode scans reuse it until STOP or a mode switch.
  */
 #include <Arduino.h>
 #include <Preferences.h>
@@ -55,16 +55,51 @@ static void lv_use_pal(void)
     }
 }
 
+/* Store wire-order RGB565 so LovyanGFX can DMA without a colour-conversion copy. */
+static uint16_t *s_dma_buf[2] = {nullptr, nullptr};
+static int s_dma_rows = 0, s_dma_cur = 0, s_dma_x = 0, s_dma_y = 0, s_dma_w = 0, s_dma_h = 0;
+static void ui_dma_flush(void)
+{
+    if (!s_dma_h) return;
+    g_cyd.waitDisplay(); g_cyd.waitDMA();
+    g_cyd.pushImageDMA(s_dma_x, s_dma_y, s_dma_w, s_dma_h,
+                       (const lgfx::swap565_t *)s_dma_buf[s_dma_cur]);
+    s_dma_cur ^= 1; s_dma_h = 0;
+}
+static void ui_live_end(void)
+{
+    ui_dma_flush();
+    g_cyd.waitDisplay(); g_cyd.waitDMA(); // HSPI must be idle before CS15 release and VSPI touch polling.
+    g_cyd.endWrite();
+}
+static void ui_dma_draw(int x, int y, int w, int h, const uint16_t *px, bool wire)
+{
+    if (!s_dma_rows || h > s_dma_rows || w > 240) {
+        ui_dma_flush(); g_cyd.waitDisplay(); g_cyd.waitDMA();
+        if (wire) g_cyd.pushImage(x, y, w, h, (const lgfx::swap565_t *)px);
+        else g_cyd.pushImage(x, y, w, h, (const lgfx::rgb565_t *)px);
+        g_cyd.waitDisplay(); g_cyd.waitDMA(); // the caller may immediately reuse px
+        return;
+    }
+    if (s_dma_h && (x != s_dma_x || w != s_dma_w || y != s_dma_y + s_dma_h || s_dma_h + h > s_dma_rows)) ui_dma_flush();
+    if (!s_dma_h) { s_dma_x = x; s_dma_y = y; s_dma_w = w; }
+    uint16_t *dst = s_dma_buf[s_dma_cur] + s_dma_h * w;
+    if (wire) memcpy(dst, px, w * h * sizeof(uint16_t));
+    else for (int i = 0; i < w * h; ++i) dst[i] = (uint16_t)((px[i] >> 8) | (px[i] << 8));
+    s_dma_h += h;
+    if (s_dma_h == s_dma_rows) ui_dma_flush();
+}
+
 static void ui_raw_draw(int y, int x, int n, const uint8_t *idx)
 {
     lv_use_pal();
     for (int i = 0; i < n; ++i) s_line[i] = s_pal[idx[i]];
-    g_cyd.pushImage(x, y, n, 1, (const lgfx::swap565_t *)s_line);
+    ui_dma_draw(x, y, n, 1, s_line, true);
 }
 
 static void ui_blit(int x, int y, int w, int h, const uint16_t *px)
 {
-    g_cyd.pushImage(x, y, w, h, (const lgfx::rgb565_t *)px);
+    ui_dma_draw(x, y, w, h, px, false);
 }
 
 static const LkIo s_io{lk_blob_live, lv_infl, lv_clip_draw, s_buf};
@@ -98,66 +133,89 @@ static void heap_log(const char *tag)
                   (unsigned)ESP.getMinFreeHeap(), (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL));
 }
 
-/* ---------------- radio jobs (one at a time) ---------------- */
-enum { JOB_NONE, JOB_WIFI, JOB_BLE, JOB_DEAUTH };
-static int s_job = JOB_NONE;
-static uint32_t s_job_end = 0;
+/* The UI owns requests; only this Core 0 task owns either radio driver. */
+enum { LV_RK_NONE, LV_RK_WIFI, LV_RK_BLE, LV_RK_DEAUTH };
+static TaskHandle_t s_radio_task = nullptr;
+static portMUX_TYPE s_radio_mux = portMUX_INITIALIZER_UNLOCKED;
+struct RadioRequest { int kind; uint32_t epoch, ms; };
+static RadioRequest s_request = {LV_RK_NONE, 0, 0};
+static LvFind s_radio_batch[LV_MAXF], s_radio_work[LV_MAXF];
+static uint32_t s_batch_epoch = 0;
+static int s_batch_n = 0;
+static bool s_batch_ready = false;
+static uint32_t s_deauth = 0, s_mgmt = 0;
+static uint8_t s_ch = 1;
+static bool s_deauth_done = false;
 
-/* item 14: every radio start goes through these. Root cause of "RADIO START FAILED" on SCANbot DEAUTH WATCH:
- * WiFi.disconnect(true, false) = wifioff -> STA.end() turned the STA interface back OFF right after WiFi.mode(WIFI_STA).
- * scanNetworks() re-enables STA itself (WiFiScan.cpp: WiFi.enableSTA(true)) so scans worked, but the deauth path went
- * straight to esp_wifi_set_promiscuous(true) on a stopped driver -> error -> -1 -> banner. */
-static void ble_off(void);
-static bool wifi_up(const char *tag)
+static RadioRequest radio_request(void)
 {
-    if (NimBLEDevice::isInitialized()) ble_off();   /* one radio at a time (no coex juggling, frees the BLE heap first) */
-    WiFi.persistent(false);
-    if (WiFi.getMode() != WIFI_STA && !WiFi.mode(WIFI_STA)) { Serial.printf("[live] %s: WiFi.mode(STA) failed\n", tag); heap_log(tag); return false; }
-    WiFi.disconnect(false, false);   /* drop any association, keep STA (and the driver) up */
-    wifi_mode_t m = WIFI_MODE_NULL; const esp_err_t e = esp_wifi_get_mode(&m);
-    if (e != ESP_OK || m != WIFI_MODE_STA) { Serial.printf("[live] %s: esp_wifi_get_mode err=0x%x (%s) mode=%d\n", tag, (unsigned)e, esp_err_to_name(e), (int)m); heap_log(tag); return false; }
-    return true;
+    portENTER_CRITICAL(&s_radio_mux);
+    const RadioRequest r = s_request;
+    portEXIT_CRITICAL(&s_radio_mux);
+    return r;
+}
+static int r_request(int kind, uint32_t ms)
+{
+    if (!s_radio_task) return -2;
+    portENTER_CRITICAL(&s_radio_mux);
+    s_request.kind = kind; ++s_request.epoch; s_request.ms = ms;
+    s_batch_ready = false; s_batch_n = 0;
+    s_deauth_done = false;
+    if (kind == LV_RK_DEAUTH) { s_deauth = s_mgmt = 0; s_ch = 1; }
+    portEXIT_CRITICAL(&s_radio_mux);
+    xTaskNotifyGive(s_radio_task);
+    return 0;
+}
+static void r_stop(void) { (void)r_request(LV_RK_NONE, 0); }
+static int r_wifi_start(void) { return r_request(LV_RK_WIFI, 0); }
+static int r_ble_start(uint32_t ms) { return r_request(LV_RK_BLE, ms); }
+static int r_deauth_start(uint32_t ms) { return r_request(LV_RK_DEAUTH, ms); }
+static int r_poll(int kind, LvFind *out, int max)
+{
+    int n = -1;
+    portENTER_CRITICAL(&s_radio_mux);
+    if (s_request.kind == kind && s_batch_ready && s_batch_epoch == s_request.epoch) {
+        n = s_batch_n < max ? s_batch_n : max;
+        if (n > 0) memcpy(out, s_radio_batch, n * sizeof(LvFind));
+        s_batch_ready = false;
+    }
+    portEXIT_CRITICAL(&s_radio_mux);
+    return n;
+}
+static int r_wifi_poll(LvFind *out, int max) { return r_poll(LV_RK_WIFI, out, max); }
+static int r_ble_poll(LvFind *out, int max) { return r_poll(LV_RK_BLE, out, max); }
+static int r_deauth_poll(uint32_t *d, uint32_t *m, uint8_t *ch)
+{
+    portENTER_CRITICAL(&s_radio_mux);
+    *d = s_deauth; *m = s_mgmt; *ch = s_ch;
+    const bool done = s_deauth_done;
+    const bool failed = s_batch_ready && s_batch_epoch == s_request.epoch && s_batch_n < -1;
+    portEXIT_CRITICAL(&s_radio_mux);
+    return failed ? -2 : done ? 0 : -1;
+}
+static void radio_publish(const RadioRequest &r, int n)
+{
+    portENTER_CRITICAL(&s_radio_mux);
+    if (r.epoch == s_request.epoch && r.kind == s_request.kind) {
+        if (n > 0) memcpy(s_radio_batch, s_radio_work, n * sizeof(LvFind));
+        s_batch_n = n; s_batch_epoch = r.epoch; s_batch_ready = true;
+    }
+    portEXIT_CRITICAL(&s_radio_mux);
 }
 static void wifi_off(void)
 {
     esp_wifi_set_promiscuous(false);
-    WiFi.scanDelete();
-    WiFi.mode(WIFI_OFF);
+    esp_wifi_scan_stop(); WiFi.scanDelete(); WiFi.mode(WIFI_OFF);
 }
-
 static void ble_off(void)
 {
-    if (NimBLEDevice::isInitialized()) {
-        NimBLEScan *sc = NimBLEDevice::getScan();
-        if (sc->isScanning()) sc->stop();
-        sc->clearResults();
-        NimBLEDevice::deinit(true);
-    }
+    if (!NimBLEDevice::isInitialized()) return;
+    NimBLEScan *sc = NimBLEDevice::getScan();
+    if (sc->isScanning()) sc->stop();
+    sc->clearResults(); NimBLEDevice::deinit(true);
 }
-
-static void r_stop(void)
+static int radio_wifi_results(LvFind *out, int max, int sc)
 {
-    if (s_job == JOB_WIFI || s_job == JOB_DEAUTH) wifi_off();
-    if (s_job == JOB_BLE) ble_off();
-    s_job = JOB_NONE;
-    heap_log("stop");
-}
-
-static int r_wifi_start(void)
-{
-    if (s_job != JOB_NONE) r_stop();
-    heap_log("wifi-pre");
-    if (!wifi_up("wifi-start")) { wifi_off(); return -2; }
-    if (WiFi.scanNetworks(true, true) == WIFI_SCAN_FAILED) { Serial.println("[live] wifi-start: scanNetworks FAILED"); heap_log("wifi-fail"); wifi_off(); return -1; }
-    s_job = JOB_WIFI;
-    return 0;
-}
-
-static int r_wifi_poll(LvFind *out, int max)
-{
-    if (s_job != JOB_WIFI) return 0;
-    const int sc = WiFi.scanComplete();
-    if (sc == WIFI_SCAN_RUNNING) return -1;
     int n = 0;
     for (int i = 0; i < sc && n < max; ++i) {
         LvFind &f = out[n];
@@ -173,38 +231,11 @@ static int r_wifi_poll(LvFind *out, int max)
         f.mfg = 0xFFFF;
         ++n;
     }
-    Serial.printf("[live] wifi scan done rc=%d kept=%d\n", sc, n);
-    wifi_off();
-    s_job = JOB_NONE;
-    heap_log("wifi-post");
     return n;
 }
-
-static int r_ble_start(uint32_t ms)
-{
-    if (s_job != JOB_NONE) r_stop();
-    heap_log("ble-pre");
-    if (WiFi.getMode() != WIFI_OFF) wifi_off();   /* one radio at a time */
-    if (!NimBLEDevice::isInitialized() && !NimBLEDevice::init("")) { Serial.println("[live] ble-start: NimBLEDevice::init FAILED"); heap_log("ble-fail"); return -2; }
-    NimBLEScan *sc = NimBLEDevice::getScan();
-    sc->setActiveScan(true);
-    sc->setInterval(100);
-    sc->setWindow(99);
-    sc->setMaxResults(LV_MAXF);
-    if (!sc->start(ms, false, true)) { Serial.println("[live] ble-start: scan start FAILED"); heap_log("ble-fail"); ble_off(); return -1; }
-    s_job = JOB_BLE;
-    s_job_end = millis() + ms + 1500;
-    return 0;
-}
-
 static const uint16_t BLE_SVC16[] = {0xFD5A, 0xFEED, 0xFFFA, 0xFD44, 0xFE2C, 0xFD6F, 0xFE9F, 0x180F, 0x1812};
-
-static int r_ble_poll(LvFind *out, int max)
+static int radio_ble_results(LvFind *out, int max, NimBLEScan *sc)
 {
-    if (s_job != JOB_BLE) return 0;
-    NimBLEScan *sc = NimBLEDevice::getScan();
-    if (sc->isScanning() && (int32_t)(millis() - s_job_end) < 0) return -1;
-    if (sc->isScanning()) sc->stop();
     NimBLEScanResults r = sc->getResults();
     int n = 0;
     for (int i = 0; i < r.getCount() && n < max; ++i) {
@@ -231,59 +262,98 @@ static int r_ble_poll(LvFind *out, int max)
         }
         ++n;
     }
-    Serial.printf("[live] ble scan done seen=%d kept=%d\n", (int)r.getCount(), n);
-    ble_off();
-    s_job = JOB_NONE;
-    heap_log("ble-post");
     return n;
 }
-
-static volatile uint32_t s_deauth = 0, s_mgmt = 0;
-static uint8_t s_ch = 1;
-static uint32_t s_hop = 0;
-
 static void IRAM_ATTR promisc_cb(void *buf, wifi_promiscuous_pkt_type_t type)
 {
     if (type != WIFI_PKT_MGMT) return;
     const wifi_promiscuous_pkt_t *p = (const wifi_promiscuous_pkt_t *)buf;
-    s_mgmt = s_mgmt + 1;
-    const uint8_t fc = p->payload[0];
-    if (fc == 0xC0 || fc == 0xA0) s_deauth = s_deauth + 1;
+    if (p->rx_ctrl.sig_len < 2) return;
+    portENTER_CRITICAL(&s_radio_mux);
+    ++s_mgmt;
+    if (p->payload[0] == 0xC0 || p->payload[0] == 0xA0) ++s_deauth;
+    portEXIT_CRITICAL(&s_radio_mux);
 }
-
-static int r_deauth_start(uint32_t ms)
+static void lv_radio_task(void *)
 {
-    if (s_job != JOB_NONE) r_stop();
-    heap_log("deauth-pre");
-    if (!wifi_up("deauth-start")) { wifi_off(); return -2; }
-    s_deauth = 0; s_mgmt = 0; s_ch = 1; s_hop = millis() + 250;
-    wifi_promiscuous_filter_t flt = {.filter_mask = WIFI_PROMIS_FILTER_MASK_MGMT};
-    esp_wifi_set_promiscuous_filter(&flt);
-    esp_wifi_set_promiscuous_rx_cb(promisc_cb);
-    const esp_err_t pe = esp_wifi_set_promiscuous(true);
-    if (pe != ESP_OK) { Serial.printf("[live] deauth-start: esp_wifi_set_promiscuous err=0x%x (%s)\n", (unsigned)pe, esp_err_to_name(pe)); heap_log("deauth-fail"); wifi_off(); return -1; }
-    esp_wifi_set_channel(s_ch, WIFI_SECOND_CHAN_NONE);
-    s_job = JOB_DEAUTH;
-    s_job_end = millis() + ms;
-    return 0;
-}
-
-static int r_deauth_poll(uint32_t *d, uint32_t *m, uint8_t *ch)
-{
-    if (s_job != JOB_DEAUTH) { *d = s_deauth; *m = s_mgmt; *ch = s_ch; return 0; }
-    const uint32_t now = millis();
-    if ((int32_t)(now - s_hop) >= 0) {
-        s_ch = s_ch >= 13 ? 1 : s_ch + 1;
-        esp_wifi_set_channel(s_ch, WIFI_SECOND_CHAN_NONE);
-        s_hop = now + 250;
+    int warm = LV_RK_NONE;
+    uint32_t epoch = 0, end = 0, hop = 0;
+    bool scanning = false, failed = false;
+    for (;;) {
+        const RadioRequest r = radio_request();
+        if (r.kind != warm || r.epoch != epoch) {
+            if (warm != r.kind || failed) {
+                if (warm == LV_RK_BLE) ble_off();
+                else if (warm != LV_RK_NONE) wifi_off();
+                warm = LV_RK_NONE; failed = false;
+                // The previous stack is fully deinitialized before the other can be initialized.
+                if (r.kind == LV_RK_BLE) {
+                    failed = !NimBLEDevice::init("");
+                    if (!failed) {
+                        NimBLEScan *sc = NimBLEDevice::getScan();
+                        sc->setActiveScan(true); sc->setInterval(100); sc->setWindow(99); sc->setMaxResults(LV_MAXF);
+                    }
+                } else if (r.kind != LV_RK_NONE) {
+                    WiFi.persistent(false); failed = !WiFi.mode(WIFI_STA);
+                    if (!failed) WiFi.disconnect(false, false);
+                }
+                warm = r.kind;
+            } else if (scanning) {
+                if (warm == LV_RK_WIFI) { esp_wifi_scan_stop(); WiFi.scanDelete(); }
+                if (warm == LV_RK_BLE) { NimBLEDevice::getScan()->stop(); NimBLEDevice::getScan()->clearResults(); }
+            }
+            epoch = r.epoch; scanning = false;
+            end = millis() + r.ms; hop = millis();
+            if (warm == LV_RK_DEAUTH && !failed) {
+                wifi_promiscuous_filter_t flt = {.filter_mask = WIFI_PROMIS_FILTER_MASK_MGMT};
+                esp_wifi_set_promiscuous_filter(&flt); esp_wifi_set_promiscuous_rx_cb(promisc_cb);
+                failed = esp_wifi_set_promiscuous(true) != ESP_OK;
+            }
+            if (failed) { Serial.printf("[live] radio mode %d init failed\n", warm); radio_publish(r, -2); }
+        }
+        if (warm == LV_RK_NONE || failed) { ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(200)); continue; }
+        if (warm == LV_RK_WIFI) {
+            if (!scanning) {
+                scanning = WiFi.scanNetworks(true, true) != WIFI_SCAN_FAILED;
+                if (!scanning) { failed = true; radio_publish(r, -2); }
+            } else {
+                const int n = WiFi.scanComplete();
+                if (n != WIFI_SCAN_RUNNING) {
+                    if (n < 0) { failed = true; radio_publish(r, -2); }
+                    else radio_publish(r, radio_wifi_results(s_radio_work, LV_MAXF, n));
+                    WiFi.scanDelete(); scanning = false;
+                }
+            }
+        } else if (warm == LV_RK_BLE) {
+            NimBLEScan *sc = NimBLEDevice::getScan();
+            if (!scanning) {
+                // Installed NimBLE 2.x: duration is milliseconds; start is non-blocking.
+                scanning = sc->start(r.ms ? r.ms : 5000, false, true);
+                end = millis() + (r.ms ? r.ms : 5000) + 500;
+                if (!scanning) { failed = true; radio_publish(r, -2); }
+            } else if (!sc->isScanning() || (int32_t)(millis() - end) >= 0) {
+                if (sc->isScanning()) sc->stop();
+                radio_publish(r, radio_ble_results(s_radio_work, LV_MAXF, sc));
+                sc->clearResults(); scanning = false;
+            }
+        } else {
+            const uint32_t now = millis();
+            if ((int32_t)(now - hop) >= 0) {
+                portENTER_CRITICAL(&s_radio_mux);
+                const uint8_t ch = s_ch = s_ch >= 13 ? 1 : s_ch + 1;
+                portEXIT_CRITICAL(&s_radio_mux);
+                esp_wifi_set_channel(ch, WIFI_SECOND_CHAN_NONE); hop = now + 120;
+            }
+            if ((int32_t)(now - end) >= 0) {
+                wifi_off(); warm = LV_RK_NONE;
+                portENTER_CRITICAL(&s_radio_mux);
+                if (r.epoch == s_request.epoch) { s_request.kind = LV_RK_NONE; s_deauth_done = true; }
+                portEXIT_CRITICAL(&s_radio_mux);
+            }
+        }
+        // Notification interrupts this wait on STOP/mode changes; never block the UI core.
+        ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(20));
     }
-    *d = s_deauth; *m = s_mgmt; *ch = s_ch;
-    if ((int32_t)(now - s_job_end) < 0) return -1;
-    Serial.printf("[live] deauth watch done deauth=%u mgmt=%u\n", (unsigned)s_deauth, (unsigned)s_mgmt);
-    wifi_off();
-    s_job = JOB_NONE;
-    heap_log("deauth-post");
-    return 0;
 }
 
 static void r_sys(int what, char *out, int n)
@@ -339,6 +409,7 @@ static bool r_cal_save(const uint16_t c8[8])
  * Touch follows the panel rotation inside LovyanGFX; the native-order c0..c7 cal stays valid either way. */
 static void r_set_rot(int flip)
 {
+    ui_dma_flush(); g_cyd.waitDisplay(); g_cyd.waitDMA();
     g_cyd.setRotation(flip ? 0 : 2);
     g_cyd.fillScreen(0x0000);
     Preferences prefs;
@@ -376,11 +447,52 @@ static const LvRadio s_radio{r_wifi_start, r_wifi_poll, r_ble_start, r_ble_poll,
 #endif
                              };
 
+static void ui_live_init(void)
+{
+    static bool initialized = false;
+    if (initialized) return;
+    initialized = true;
+    // Account for every persistent UI allocation BEFORE reserving graphics headroom.
+    if (!lv_shadow) lv_shadow = (uint8_t *)malloc(LV_SHADOW_CAP);
+    if (!lv_port_under) lv_port_under = (uint16_t *)malloc(LV_PORT_MAXGLOW * sizeof(uint16_t));
+#if LV_RD_CHARGE
+    if (!lv_rd_cgb) {
+        lv_rd_cgb = (LvRdCgBuf *)malloc(sizeof(LvRdCgBuf));
+        if (lv_rd_cgb) { lv_rd_px = lv_rd_cgb->px; lv_rd_py = lv_rd_cgb->py; }
+    }
+#endif
+    if (!s_radio_task && xTaskCreatePinnedToCore(lv_radio_task, "lv_radio", 6144, nullptr, 1, &s_radio_task, 0) != pdPASS)
+        Serial.println("[live] radio worker allocation FAILED");
+    const uint32_t caps = MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT;
+    const size_t reserve = 105 * 1024;
+    // A 24-row fallback is mandatory. Grow to 64 only while leaving space for two 16-row DMA strips.
+    lv_band_rows = 24;
+    for (const int rows : {64, 48, 32}) {
+        if (heap_caps_get_free_size(caps) >= reserve + (rows + 32) * 240 * 2 + 512) { lv_band_rows = rows; break; }
+    }
+    lv_bandbuf = (uint16_t *)heap_caps_malloc(LV_BAND_PX * sizeof(uint16_t), caps);
+    if (!lv_bandbuf) { Serial.println("[live] render buffer allocation FAILED"); abort(); }
+    for (const int rows : {48, 32, 16}) {
+        const size_t bytes = 240 * rows * sizeof(uint16_t);
+        if (heap_caps_get_free_size(caps) < reserve + 2 * bytes + 512) continue;
+        s_dma_buf[0] = (uint16_t *)heap_caps_malloc(bytes, MALLOC_CAP_DMA | MALLOC_CAP_8BIT);
+        s_dma_buf[1] = (uint16_t *)heap_caps_malloc(bytes, MALLOC_CAP_DMA | MALLOC_CAP_8BIT);
+        if (s_dma_buf[0] && s_dma_buf[1]) { s_dma_rows = rows; break; }
+        heap_caps_free(s_dma_buf[0]); heap_caps_free(s_dma_buf[1]);
+        s_dma_buf[0] = s_dma_buf[1] = nullptr;
+    }
+    Serial.printf("[GFX-RAM] dma_rows=%d dma_bytes=%u band_rows=%d band_bytes=%u heap=%u 8bit=%u dma=%u internal8=%u\n",
+                  s_dma_rows, (unsigned)(2 * 240 * s_dma_rows * sizeof(uint16_t)), lv_band_rows,
+                  (unsigned)(LV_BAND_PX * sizeof(uint16_t)), (unsigned)ESP.getFreeHeap(),
+                  (unsigned)heap_caps_get_free_size(MALLOC_CAP_8BIT), (unsigned)heap_caps_get_free_size(MALLOC_CAP_DMA),
+                  (unsigned)heap_caps_get_free_size(caps));
+}
+
 void lv_ui_begin(void)
 {
+    g_cyd.setBrightness(0);   /* item 3: panel dark until the themed first frame is in GRAM (no black/legacy flash at power-on) */
     botcorps_cyd_orient = 1;
     botcorps_cyd_apply_rotation(); /* rot 2: portrait 240x320, USB at the bottom */
-    WiFi.mode(WIFI_OFF);
     Preferences prefs;
 #if LV_BG_ENGINE
     int th = 0, rot = 0, bgs = 0, bgc = 0;
@@ -394,12 +506,20 @@ void lv_ui_begin(void)
     if (lv_flip) g_cyd.setRotation(0);   /* CONTROLbot ORIENT = FLIP */
     g_cyd.fillScreen(0x0000);
     if (th < 0 || th >= LV_NTHEME) th = 0;
+    ui_live_init(); // NVS/display startup allocations are now included in the heap budget.
     Serial.printf("[live] blob=%u (expect %u) theme=%d %dx%d\n", (unsigned)(lk_blob_live_end - lk_blob_live),
                   (unsigned)LK_BLOB_SIZE, th, (int)g_cyd.width(), (int)g_cyd.height());
     heap_log("begin");
     const bool cal_ok = botcorps_cyd_has_valid_cal();   /* if true, display begin already applied it from NVS */
     Serial.printf("[live] CALbot: saved cal %s\n", cal_ok ? "valid (cv=3) - hold 1 s to redo" : "missing - capture 4 corners");
     lv_begin(&s_radio, ui_blit, ui_raw_draw, th, millis(), cal_ok);
+    /* item 3: draw frame 0 of the real (themed) first screen, THEN raise the backlight, so the panel turns on
+     * already showing the correct themed frame instead of a black fill or a legacy/unthemed intro. */
+    lv_use_pal();
+    g_cyd.startWrite();
+    lv_tick(s_io, millis());
+    ui_live_end();
+    g_cyd.setBrightness(255);
 }
 
 void lv_ui_loop(void)
@@ -415,18 +535,20 @@ void lv_ui_loop(void)
         lv_use_pal();
         g_cyd.startWrite();
         const char *a = lv_tap(x, y);
-        g_cyd.endWrite();
+        ui_live_end();
         Serial.printf("[live] tap %d,%d scr=%d -> %s\n", x, y, (int)lv_scr, a ? a : "-");
     }
     if (lv_scr != LV_SC_CAL) lv_touch(s_tdown, s_tx, s_ty);   /* radar: hold a tower ~1 s to lock on */
     const uint32_t now = millis();
     if ((int32_t)(now - next) < 0) { delay(1); return; }
-    next = now + 30;
+    // Advance the deadline, not completion time; bound catch-up after a slow frame.
+    if ((int32_t)(now - next) >= 30) next = now;
+    next += 30;
     lv_use_pal();
     g_cyd.startWrite();
     const uint32_t t_us = micros();
     lv_tick(s_io, now);
-    g_cyd.endWrite();
+    ui_live_end();
     if (lv_scr == LV_SC_RADAR) {   /* field fps proof for the radar: render + SPI per tick, logged every 5 s */
         static uint32_t acc = 0, n = 0, mx = 0, t_log = 0;
         const uint32_t d = micros() - t_us; acc += d; ++n; if (d > mx) mx = d;

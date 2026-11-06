@@ -140,6 +140,7 @@ void setup(void)
         Serial.println("[botcorps] display fail");
         while (1) delay(1000);
     }
+    g_cyd.setBrightness(0);   /* item 3: keep the panel dark through lv_ui_begin until the themed first frame is pushed */
     /* Touch cal is the CALbot screen (first screen of lv_ui): CALbot -> BOOTbot -> GIBSONbot home. */
     lv_ui_begin();
 }

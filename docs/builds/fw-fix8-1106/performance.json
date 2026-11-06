@@ -1,0 +1,35 @@
+{
+  "gate": {
+    "render_pass": 1042,
+    "render_total": 1057,
+    "render_fail": 15,
+    "na": 4,
+    "baseline": "1042/1057",
+    "unchanged": true,
+    "exit_code": 19,
+    "extra_failures": "4 unrelated Cardputer RAM ELF inputs absent"
+  },
+  "shadow_peak": 29943,
+  "shadow_capacity": 32768,
+  "lut_entries": 10752,
+  "lut_byte_mismatches": 0,
+  "dma_mock": "PASS: native/wire order, ping-pong, source reuse, large direct blit, gaps, no-buffer fallback, DMA idle before CS release",
+  "runtime_policy": {
+    "internal_heap_reserve": 107520,
+    "band_rows_try": [
+      64,
+      48,
+      32,
+      24
+    ],
+    "dma_rows_try": [
+      48,
+      32,
+      16
+    ],
+    "radio_task_stack": 6144,
+    "radio_core": 0,
+    "ui_core": 1
+  },
+  "hardware_limitations": "No CYD attached to this box: runtime heap line, real scan timing, RF mode switching and hardware FPS remain for COM5 validation by parent."
+}

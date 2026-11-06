@@ -258,6 +258,13 @@ static void lv_rd_brackets(LvBand &B, int xa, int ya, int xb, int yb, int L, uin
 #define LV_RD_CG_YMAX (lv_rd_lock ? 245 : LV_RD_Y1)   /* once locked the panel grows to y247: the current stays above it */
 static bool lv_rd_cg = false; static uint32_t lv_rd_cg_t = 0, lv_rd_cg_rel_t = 0; static float lv_rd_cg_rel = 0;
 static const LvRect LV_RD_CG_BTN = {166, 250, 234, 260}, LV_RD_CG_HIT = {160, 244, 239, 261};
+/* item 1 (Mobandy 2026-11-06 "hold to lock is still hard ... without pressing the screen and changing the tower"):
+ * a generous arming zone around the HOLD TO LOCK bar (full bar width + pad above and below to y271, clear of BACKbot
+ * {221,301,239,319} and the footer terminal at y287+), a touch-owner latch + 350 ms post-release guard so an aborted
+ * hold / finger drift / release never cycles or re-picks a tower, and XPT2046 dropout tolerance (<=140 ms) while charging. */
+static const LvRect LV_RD_CG_ARM = {144, 234, 239, 271};
+static bool lv_rd_cg_owned = false, lv_rd_cg_dropping = false; static uint32_t lv_rd_cg_guard_until = 0, lv_rd_cg_drop_t = 0;
+static inline bool lv_rd_in_pad(const LvRect &r, int x, int y, int pad) { return x >= r.x0 - pad && x <= r.x1 + pad && y >= r.y0 - pad && y <= r.y1 + pad; }
 static float lv_rd_cg_level(void)
 {
     if (lv_rd_lock) return 1.0f;
@@ -941,13 +948,7 @@ static void lv_scene_radar(LvBand &B, void *)
 /* issue 5 (MOCK): while hunting on GIBSON the top banner (ticker rect, inside the gold rim) is a FIXED bar:
  * HUNT + MAC tail / name | a signal meter from the real dBm (lv_rd_level) | live dBm | WARMER / COLDER / STEADY = only the
  * change of the real dBm between two reads (+-2 dB = STEADY). No arrow, compass or bearing: nothing implies direction. */
-#if LV_RD_CHARGE && LV_RD_HUNT_METER
-static void lv_rd_r3(LvBand &B, int X0, int Y0, int X1, int Y1, uint16_t c)   /* a 3x mock rect at 1x: the pixels whose centre (3x+1) it covers */
-{
-    const int xa = (X0 + 1) / 3, xb = (X1 - 1) / 3, ya = (Y0 + 1) / 3, yb = (Y1 - 1) / 3;
-    if (xb >= xa && yb >= ya) b_fill(B, xa, ya, xb - xa + 1, yb - ya + 1, c);
-}
-#endif
+/* item 6: the top-banner 11-bar meter is restored below, so the 3x clear_top_meter glyph helper (lv_rd_r3) is gone. */
 static bool lv_hunt_bar_on(void) { return lv_rd_hunting && lv_rd_tgt_have && lv_scr == LV_SC_RADAR; }
 static void lv_hunt_bar(LvBand &B)
 {
@@ -962,22 +963,16 @@ static void lv_hunt_bar(LvBand &B)
     snprintf(t, sizeof t, "HUNT ..%s", m + 9);
     b_text35(B, 3, 5, t, MAG); b_text(B, 3, 12, l, lv_hex(0xffffff));
     const int miss = lv_rd_miss > 0;
-#if LV_RD_CHARGE && LV_RD_HUNT_METER
-    /* LOCKED ui_gibson_radar_hunt_meter (clear_top_meter): the meter lives on the hunted tower now; its slot is banner bg with
-     * a small tower glyph (not a meter). Mock rects are 3x; each 1x pixel takes the mock's centre sample (3x+1, 3y+1). */
-    lv_rd_r3(B, 250, 18, 445, 66, lv_hex(0x1a0012));
-    lv_rd_r3(B, 329, 54, 365, 58, lv_hex(0x604050)); lv_rd_r3(B, 343, 28, 351, 54, lv_hex(0x604050));
-    { static const uint32_t MK[3] = {0x308040, 0x806020, 0x803030};
-      for (int i = 0; i < 3; ++i) { const int y = 50 - i * 8; lv_rd_r3(B, 337, y, 341, y + 3, lv_hex(MK[i])); lv_rd_r3(B, 353, y, 357, y + 3, lv_hex(MK[i])); } }
-#else
-    /* signal meter: 11 rising bars, lit count from the real dBm (-96..-40 -> 1..11) */
+    /* item 6 (Mobandy 2026-11-06, "keep the meter for hunter on the top also ... the boarder alert ... both places"):
+     * the top border-alert banner keeps the original 11-bar signal meter right where it used to be (3240b03 / 3b8b3de),
+     * AND the hunted tower keeps the LOCKED A thermometer bands + V2 base arc / ripple (drawn by lv_rd_hm_draw). Both
+     * read the same live target dBm (lv_rd_level). This supersedes the b29f8ab clear_top_meter glyph in the banner. */
     const int lit = (lv_rd_level(f) - 4) * 11 / 56 + 1;
     for (int i = 0; i < 11; ++i) {
         const int x = 84 + i * 6, h = 5 + i, y = 20 - h + 1;
         const uint32_t on = i < 3 ? 0xff3030 : i < 7 ? 0xffb000 : 0x30ff60;
         b_fill(B, x, y, 5, h, i < lit && !miss ? lv_hex(on) : lv_hex(0x3a2a34));
     }
-#endif
     snprintf(t, sizeof t, "%d", f.rssi);
     const uint16_t num = miss ? lv_hex(0x808080) : lv_hex(0xffffff);
     b_text(B, 190 - (int)strlen(t) * 12, 6, t, num, 2); b_text35(B, 191, 15, "DB", num);
@@ -1053,7 +1048,7 @@ static void lv_rd_release(void)
     lv_rd_hunt_stop();
     lv_rd_lock = false; lv_rd_holding = false;
 #if LV_RD_CHARGE
-    lv_rd_cg = false; lv_rd_cg_rel = 0;
+    lv_rd_cg = false; lv_rd_cg_rel = 0; lv_rd_cg_owned = false; lv_rd_cg_dropping = false;
 #endif
 }
 static void lv_radar_enter(void)
@@ -1062,6 +1057,9 @@ static void lv_radar_enter(void)
     { int nw = 0; for (int i = 0; i < lv_nf; ++i) nw += lv_f[i].kind == LV_K_WIFI;
       lv_rd_log("GIBSON UP  %dW %dB  HEIGHT=DBM", nw, lv_nf - nw); lv_rd_log("ANGLE/DEPTH = MAC HASH, NOT DIRECTION"); lv_rd_log(lv_nf ? (LV_RD_CHARGE ? "TAP=CYCLE  HOLD CHARGE=LOCK" : "TAP=CYCLE  HOLD 1S=LOCK") : "NO NODES YET - SCANNING"); lv_rd_tl_t = lv_now; }
     lv_rd_t0 = lv_now; lv_rd_sel = -1; lv_rd_glow = false; lv_rd_holding = false; lv_rd_swallow = false;
+#if LV_RD_CHARGE
+    lv_rd_cg = false; lv_rd_cg_owned = false; lv_rd_cg_dropping = false; lv_rd_cg_guard_until = 0;
+#endif
     if (lv_nf == 0 && lv_job == LV_J_NONE) lv_job_start(lv_scanmix == 1 ? LV_J_WIFI : lv_scanmix == 2 ? LV_J_BLE : LV_J_ALL, -1);
 }
 static void lv_radar_leave(void) { if (lv_rd_hunting) lv_tk_off = 1 << 14; lv_rd_release(); lv_rd_sel = -1; }
@@ -1099,10 +1097,23 @@ static void lv_rd_select(int i)   /* what a tower tap always did: select + its f
 static void lv_radar_touch(bool down, int x, int y)
 {
 #if LV_RD_CHARGE   /* hold the CHARGE button (not the tower): 1 s to full, then the lock fires; let go early and it drains */
-    const bool in = down && lv_rd_cg_show() && lv_in(LV_RD_CG_HIT, x, y);
-    if (!in) { if (lv_rd_cg) { lv_rd_cg_rel = lv_rd_cg_level(); lv_rd_cg_rel_t = lv_now; lv_rd_cg = false; } return; }
-    if (!lv_rd_cg) { const float l0 = lv_rd_cg_level(); lv_rd_cg = true; lv_rd_cg_t = lv_now - (uint32_t)(l0 * LV_RD_CG_MS); }
-    if ((int32_t)(lv_now - lv_rd_cg_t) >= LV_RD_CG_MS) { lv_rd_cg = false; lv_rd_cg_rel = 0; lv_rd_lock_on(lv_rd_sel); lv_rd_swallow = true; }
+    const bool show = lv_rd_cg_show();
+    if (lv_rd_cg) {
+        if (!down) {   /* c) resistive dropout: hold the charge through a brief (<=140 ms) lost-contact blip */
+            if (!lv_rd_cg_dropping) { lv_rd_cg_dropping = true; lv_rd_cg_drop_t = lv_now; }
+            if ((int32_t)(lv_now - lv_rd_cg_drop_t) <= 140) return;
+            lv_rd_cg_rel = lv_rd_cg_level(); lv_rd_cg_rel_t = lv_now; lv_rd_cg = false; lv_rd_cg_dropping = false; lv_rd_cg_guard_until = lv_now + 350;
+            return;
+        }
+        lv_rd_cg_dropping = false;
+        /* b) wide keep zone: the finger may wobble within ARM padded by 24 px without cancelling the charge */
+        if (!(show && lv_rd_in_pad(LV_RD_CG_ARM, x, y, 24))) { lv_rd_cg_rel = lv_rd_cg_level(); lv_rd_cg_rel_t = lv_now; lv_rd_cg = false; lv_rd_cg_guard_until = lv_now + 350; return; }
+        if ((int32_t)(lv_now - lv_rd_cg_t) >= LV_RD_CG_MS) { lv_rd_cg = false; lv_rd_cg_rel = 0; lv_rd_cg_guard_until = lv_now + 350; lv_rd_lock_on(lv_rd_sel); lv_rd_swallow = true; }
+        return;
+    }
+    if (!(down && show && lv_in(LV_RD_CG_ARM, x, y))) return;   /* a) arm only from inside the (widened) HOLD TO LOCK zone */
+    { const float l0 = lv_rd_cg_level(); lv_rd_cg = true; lv_rd_cg_t = lv_now - (uint32_t)(l0 * LV_RD_CG_MS); lv_rd_cg_owned = true; lv_rd_cg_dropping = false; }
+    if ((int32_t)(lv_now - lv_rd_cg_t) >= LV_RD_CG_MS) { lv_rd_cg = false; lv_rd_cg_rel = 0; lv_rd_cg_guard_until = lv_now + 350; lv_rd_lock_on(lv_rd_sel); lv_rd_swallow = true; }
     return;
 #endif
     if (!down) { lv_rd_holding = false; return; }
@@ -1155,7 +1166,8 @@ static const char *lv_radar_tap(int x, int y)
         lv_rd_release(); lv_rd_log("RELEASED"); return "radar-unlock";   /* a tap anywhere else releases the lock (and ends a hunt) */
     }
 #if LV_RD_CHARGE
-    if (lv_rd_cg_show() && lv_in(LV_RD_CG_HIT, x, y)) return "radar-charge-short";   /* released before full: no cycle */
+    /* item 1: touch-owner latch + 350 ms post-release guard + widened arm zone -> a hold / abort / drift / release NEVER cycles or re-picks a tower */
+    if (lv_rd_cg_owned || (int32_t)(lv_now - lv_rd_cg_guard_until) < 0 || (lv_rd_cg_show() && lv_in(LV_RD_CG_ARM, x, y))) { lv_rd_cg_owned = false; return "radar-charge-short"; }
 #endif
     const int i = lv_rd_hit(x, y);
     if (i >= 0) { lv_rd_select(i); return "radar-tower"; }

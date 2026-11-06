@@ -6,7 +6,8 @@
  *   tick N | tap X Y | type TEXT (taps the on-screen keys; '~' = ENTER) | dump NAME | theme N | log
  *   press X Y / release (finger down / up NOW: one raw sample at the current time, then the usual 15 ms samples)
  *   tickto T (advance to exactly T ms: 30 ms ticks, then 15 ms raw samples + one lv_tick at T)
- *   hmsched T0 (hunt meter: restart it now, fill from the locked V2 mock schedule relative to T0; 0 = live dBm) */
+ *   hmsched T0 (hunt meter: restart it now, fill from the locked V2 mock schedule relative to T0; 0 = live dBm)
+ *   motion 0|1 (BG MOTION off / on, as the CONTROLbot chip sets it) */
 #include <zlib.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -231,6 +232,7 @@ int main(int argc, char **argv)
 #endif
         else if (!strcmp(cmd, "radarstate")) printf("t=%u RADAR sel=%d lock=%d hunt=%d reads=%d trend=%d miss=%d ign=%d wat=%d job=%d tk='%s'\n", t_ms, lv_rd_sel, lv_rd_lock, lv_rd_hunting, lv_rd_reads, lv_rd_trend, lv_rd_miss, lv_rd_nign, lv_rd_nwat, lv_job, lv_tk_msg);
         else if (!strcmp(cmd, "theme")) { int t; if (fscanf(sc, "%d", &t) != 1) return 2; lv_set_theme(t); }
+        else if (!strcmp(cmd, "motion")) { int m; if (fscanf(sc, "%d", &m) != 1) return 2; lv_motion = m != 0; }   /* BG MOTION (CONTROLbot chip) without the CTL tap */
         else if (!strcmp(cmd, "type")) {
             char line[128]; if (!fgets(line, sizeof line, sc)) return 2;
             char *s = line; while (*s == ' ') ++s;

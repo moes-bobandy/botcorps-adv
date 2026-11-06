@@ -1,0 +1,46 @@
+diff --git a/src/live/lv_radar.h b/src/live/lv_radar.h
+index 232ac02..08f459e 100644
+--- a/src/live/lv_radar.h
++++ b/src/live/lv_radar.h
+@@ -941,13 +941,7 @@ static void lv_scene_radar(LvBand &B, void *)
+ /* issue 5 (MOCK): while hunting on GIBSON the top banner (ticker rect, inside the gold rim) is a FIXED bar:
+  * HUNT + MAC tail / name | a signal meter from the real dBm (lv_rd_level) | live dBm | WARMER / COLDER / STEADY = only the
+  * change of the real dBm between two reads (+-2 dB = STEADY). No arrow, compass or bearing: nothing implies direction. */
+-#if LV_RD_CHARGE && LV_RD_HUNT_METER
+-static void lv_rd_r3(LvBand &B, int X0, int Y0, int X1, int Y1, uint16_t c)   /* a 3x mock rect at 1x: the pixels whose centre (3x+1) it covers */
+-{
+-    const int xa = (X0 + 1) / 3, xb = (X1 - 1) / 3, ya = (Y0 + 1) / 3, yb = (Y1 - 1) / 3;
+-    if (xb >= xa && yb >= ya) b_fill(B, xa, ya, xb - xa + 1, yb - ya + 1, c);
+-}
+-#endif
++/* item 6: the top-banner 11-bar meter is restored below, so the 3x clear_top_meter glyph helper (lv_rd_r3) is gone. */
+ static bool lv_hunt_bar_on(void) { return lv_rd_hunting && lv_rd_tgt_have && lv_scr == LV_SC_RADAR; }
+ static void lv_hunt_bar(LvBand &B)
+ {
+@@ -962,22 +956,16 @@ static void lv_hunt_bar(LvBand &B)
+     snprintf(t, sizeof t, "HUNT ..%s", m + 9);
+     b_text35(B, 3, 5, t, MAG); b_text(B, 3, 12, l, lv_hex(0xffffff));
+     const int miss = lv_rd_miss > 0;
+-#if LV_RD_CHARGE && LV_RD_HUNT_METER
+-    /* LOCKED ui_gibson_radar_hunt_meter (clear_top_meter): the meter lives on the hunted tower now; its slot is banner bg with
+-     * a small tower glyph (not a meter). Mock rects are 3x; each 1x pixel takes the mock's centre sample (3x+1, 3y+1). */
+-    lv_rd_r3(B, 250, 18, 445, 66, lv_hex(0x1a0012));
+-    lv_rd_r3(B, 329, 54, 365, 58, lv_hex(0x604050)); lv_rd_r3(B, 343, 28, 351, 54, lv_hex(0x604050));
+-    { static const uint32_t MK[3] = {0x308040, 0x806020, 0x803030};
+-      for (int i = 0; i < 3; ++i) { const int y = 50 - i * 8; lv_rd_r3(B, 337, y, 341, y + 3, lv_hex(MK[i])); lv_rd_r3(B, 353, y, 357, y + 3, lv_hex(MK[i])); } }
+-#else
+-    /* signal meter: 11 rising bars, lit count from the real dBm (-96..-40 -> 1..11) */
++    /* item 6 (Mobandy 2026-11-06, "keep the meter for hunter on the top also ... the boarder alert ... both places"):
++     * the top border-alert banner keeps the original 11-bar signal meter right where it used to be (3240b03 / 3b8b3de),
++     * AND the hunted tower keeps the LOCKED A thermometer bands + V2 base arc / ripple (drawn by lv_rd_hm_draw). Both
++     * read the same live target dBm (lv_rd_level). This supersedes the b29f8ab clear_top_meter glyph in the banner. */
+     const int lit = (lv_rd_level(f) - 4) * 11 / 56 + 1;
+     for (int i = 0; i < 11; ++i) {
+         const int x = 84 + i * 6, h = 5 + i, y = 20 - h + 1;
+         const uint32_t on = i < 3 ? 0xff3030 : i < 7 ? 0xffb000 : 0x30ff60;
+         b_fill(B, x, y, 5, h, i < lit && !miss ? lv_hex(on) : lv_hex(0x3a2a34));
+     }
+-#endif
+     snprintf(t, sizeof t, "%d", f.rssi);
+     const uint16_t num = miss ? lv_hex(0x808080) : lv_hex(0xffffff);
+     b_text(B, 190 - (int)strlen(t) * 12, 6, t, num, 2); b_text35(B, 191, 15, "DB", num);

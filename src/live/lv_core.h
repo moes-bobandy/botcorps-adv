@@ -86,7 +86,8 @@ struct LvRadio {
 #endif
 };
 
-enum LvScr { LV_SC_BOOT, LV_SC_HOME_INTRO, LV_SC_HOME, LV_SC_TERM, LV_SC_SCAN, LV_SC_CTL, LV_SC_TTY, LV_SC_CAL, LV_SC_RADAR };
+enum LvScr { LV_SC_BOOT, LV_SC_HOME_INTRO, LV_SC_HOME, LV_SC_TERM, LV_SC_SCAN, LV_SC_CTL, LV_SC_TTY, LV_SC_CAL, LV_SC_RADAR,
+             LV_SC_GLOSS, LV_SC_GLOSS_DESC };   /* item 2: MORPHEUSbot Device Glossary grid + the 12 description pages (lv_glossary.h) */
 #define LV_NTHEME 12
 /* Issue 2: the full original CYD THEMES[11] (src/ui/botcorps_ui.cpp) on the live screens. 0..5 keep their NVS
  * meaning (lktheme) and their LOCKED clips: GRAPE = NEON GRAPE, MAGENTA = HOT PINK, TOXIC = TOXIC, ICE = ICE,
@@ -158,11 +159,15 @@ static const LvRect LV_R_KBD = {0, 174, 239, 319};
 /* ---------- state ---------- */
 static const LvRadio *lv_radio;
 static lv_blit_fn lv_blit;
+static lv_blit_fn lv_blit_hw;   /* the panel itself: final colours (lv_blit = lv_blit_theme in front of it) */
 static LkPlay lv_play;
 static int lv_scr = LV_SC_BOOT, lv_theme = 0;
 static bool lv_motion = true, lv_enter = true;
 static uint32_t lv_now, lv_clip_t, lv_boot_ms;
 static bool lv_selftest_pending = false;
+static int lv_gloss_dev = 0;        /* item 2: device on LV_SC_GLOSS_DESC, 0..11 (LV_GLOSS_NAME order) */
+static int lv_gloss_step = 9;       /* item 2: glossary chip-rain step on the panel (9 = the locked still) */
+static uint32_t lv_gloss_t0 = 0;
 
 static LvFind lv_f[LV_MAXF];
 static int lv_nf = 0;
@@ -426,8 +431,8 @@ static void lv_job_start(int job, int hunt)
 }
 static void lv_job_stop(void)
 {
+    lv_radio->stop(); // STOP also releases a warm worker after the UI has consumed a one-shot scan.
     if (lv_job == LV_J_NONE) return;
-    lv_radio->stop();
     lv_print("stopped %s, radios off", lv_job_name(lv_job));
     lv_job = LV_J_NONE; lv_hunt = -1; lv_dirty_box = true;
 }
@@ -437,6 +442,7 @@ static void lv_job_tick(void)
     if (lv_job == LV_J_DEAUTH) {
         uint32_t d = 0, m = 0; uint8_t ch = 0;
         const int r = lv_radio->deauth_poll(&d, &m, &ch);
+        if (r < -1) { lv_radio->stop(); lv_job = LV_J_NONE; lv_hunt = -1; lv_dirty_box = true; lv_event(true, "RADIO START FAILED (DEAUTH)"); return; }
         if (d != lv_deauth_n || ch != lv_deauth_ch) lv_dirty_box = true;
         lv_deauth_n = d; lv_mgmt_n = m; lv_deauth_ch = ch; lv_deauth_have = true;
         if (r >= 0) {
@@ -450,6 +456,7 @@ static void lv_job_tick(void)
     }
     const bool wifi_phase = (lv_job == LV_J_WIFI) || (lv_job == LV_J_ALL && lv_job_phase == 0);
     const int r = wifi_phase ? lv_radio->wifi_poll(lv_tmp, LV_MAXF) : lv_radio->ble_poll(lv_tmp, LV_MAXF);
+    if (r < -1) { lv_radio->stop(); lv_job = LV_J_NONE; lv_hunt = -1; lv_dirty_box = true; lv_event(true, "RADIO SCAN FAILED"); return; }
     if (r < 0) return;
     lv_store(wifi_phase ? LV_K_WIFI : LV_K_BLE, lv_tmp, r);
     if (lv_rd_is_trk()) { lv_job = LV_J_NONE; lv_rd_track_done(); return; }   /* radar hunt re-scan: no SCAN DONE event */
@@ -539,7 +546,7 @@ static const char *const LV_HELP[] = {
     "ignored  unignore [mac|all]",
     "list [wifi|ble]   info <n>",
     "filter <all|wifi|ble>",
-    "go <home|scan|term|ctl|radar|boot|wifi|ble>",
+    "go <home|scan|term|ctl|radar|boot|glossary|wifi|ble>",
     "theme [next|name|1-12]  history  clear",
     "status heap uptime version about bots",
     "help cmds  home  back|exit|close",
@@ -615,13 +622,14 @@ static void lv_cmd(const char *line)
     else if (IS("about")) { lv_print("BOTCORPS CYD live scan. WiFi + BLE"); lv_print("scans are passive/defensive, one radio"); lv_print("at a time. Games removed."); }
     else if (IS("bots")) { lv_print("GIBSONbot home   SCANbot scan"); lv_print("TERMINALbot term CONTROLbot ctl"); lv_print("BOOTbot boot (self test)"); }
     else if (IS("go")) {
-        if (!a1) lv_print("go where? home scan term ctl boot wifi ble");
+        if (!a1) lv_print("go where? home scan term ctl boot glossary wifi ble");
         else if (!strcmp(a1, "home")) lv_go(LV_SC_HOME);
         else if (!strcmp(a1, "scan")) lv_go(LV_SC_SCAN);
         else if (!strcmp(a1, "term")) lv_go(LV_SC_TERM);
         else if (!strcmp(a1, "ctl")) lv_go(LV_SC_CTL);
         else if (!strcmp(a1, "radar") || !strcmp(a1, "gibson")) lv_go(LV_SC_RADAR);
         else if (!strcmp(a1, "boot")) { lv_selftest_pending = true; lv_go(LV_SC_BOOT); }
+        else if (!strcmp(a1, "glossary") || !strcmp(a1, "gloss") || !strcmp(a1, "morpheus")) lv_go(LV_SC_GLOSS);   /* item 2 */
         else if (!strcmp(a1, "wifi")) lv_job_start(LV_J_WIFI, -1);
         else if (!strcmp(a1, "ble") || !strcmp(a1, "bt")) lv_job_start(LV_J_BLE, -1);
         else lv_print("go: unknown '%s'", a1);
@@ -695,7 +703,7 @@ static uint16_t lv_tx(const LvTS &s, uint16_t c, int px = 0, int py = 0)
 /* Issue 2: themes 6..11 play the ICE clip; its cyan accent pixels (R well under G and B, G ~ B) take the theme ink at
  * their screen position, keeping the clip's shading (max(G,B)) and its white lift (R). Everything else - black,
  * greys, silver TERMINALbot, gold SCANbot, pink BACKbot, the green / red status art - is not cyan and stays. */
-static bool lv_reink_on(void) { return lv_theme >= LV_THEME_ORIG && (lv_scr == LV_SC_HOME || lv_scr == LV_SC_TERM || lv_scr == LV_SC_SCAN); }
+static bool lv_reink_on(void) { return lv_theme >= LV_THEME_ORIG && (lv_scr == LV_SC_HOME || lv_scr == LV_SC_TERM || lv_scr == LV_SC_SCAN || lv_scr == LV_SC_GLOSS || lv_scr == LV_SC_GLOSS_DESC); }
 static uint16_t lv_multi_ink(uint16_t c, int x, int y)
 {
     const int R = (c >> 11) << 3, G = ((c >> 5) & 63) << 2, Bl = (c & 31) << 3;
@@ -709,6 +717,45 @@ static uint16_t lv_multi_ink(uint16_t c, int x, int y)
 }
 static uint16_t lv_pc(const uint16_t *pal, uint8_t i, int x, int y) { return lv_reink_on() ? lv_multi_ink(pal[i], x, y) : pal[i]; }
 #include "lv_port.h"   /* LOCKED mocks ported over the clip: HOME tap glow (O), SCAN glow, main-bot rain */
+#include "lv_glossary_data.h"   /* item 2: LOCKED MORPHEUSbot glossary pixels (flash); runtime in lv_glossary.h */
+/* item 4 (fw-fix7-1106): the MORPHEUSbot look on the BOOT chip. LK_S_BOOT keeps playing from the locked blob; the rows it
+ * pushes over the chip / the bottom-right silk go out as RGB565 with each clip colour the generator learnt swapped for the
+ * MORPHEUSbot art (tools/port/gen_boot_morpheus.py: morpheus_chip(SIZES['boot']), "MORPHEUSbot", "MORPHEUS REV C"). A row
+ * gives the art up at the clip frame its own wipe reaches it (LV_BM_LEAVE), and the few pixels the wipe does not push are
+ * repainted then (LV_BM_FIX), so the exit wipe looks exactly like the original. Board, pins, wave, BOOTING: untouched. */
+#ifndef LV_BOOT_MORPHEUS
+#define LV_BOOT_MORPHEUS 1
+#endif
+#if LV_BOOT_MORPHEUS
+#include "lv_boot_morpheus.h"
+static inline bool lv_bm_row(int y) { return lv_scr == LV_SC_BOOT && y >= LV_BM_Y0 && y <= LV_BM_Y1 && lv_play.k < LV_BM_LEAVE[y - LV_BM_Y0]; }
+static void lv_bm_apply(int y, int x0, int m, const uint8_t *ix, const uint16_t *pal, uint16_t *lb)
+{
+    const int r = y - LV_BM_Y0;
+    for (int t = LV_BM_ROW[r]; t < LV_BM_ROW[r + 1]; ++t) {
+        const LvBmTok &T = LV_BM_TOK[t];
+        if (T.x >= x0 + m) break;
+        if (T.x + T.n <= x0) continue;
+        const uint16_t e = LV_BM_E[T.e], o = LV_BM_O[T.o];
+        const int a = T.x > x0 ? T.x : x0, b = T.x + T.n < x0 + m ? T.x + T.n : x0 + m;
+        for (int x = a; x < b; ++x) if (pal[ix[x - x0]] == e) lb[x - x0] = o;
+    }
+}
+static void lv_bm_fix(int f)   /* after clip frame f: the pixels its wipe left showing MORPHEUSbot art */
+{
+    uint16_t *const lb = lv_bandbuf;   /* called between frames, never inside a render: no static RAM */
+    for (int i = 0; i < LV_BM_NFIX; ++i) {
+        const LvBmFix &F = LV_BM_FIX[i];
+        if (F.f != f) continue;
+        for (int k = 0; k < F.n; ++k) lb[k] = LV_BM_FC[F.c];
+        lv_blit_hw(F.x, LV_BM_Y0 + F.dy, F.n, 1, lb);
+    }
+}
+#else
+static inline bool lv_bm_row(int) { return false; }
+static inline void lv_bm_apply(int, int, int, const uint8_t *, const uint16_t *, uint16_t *) {}
+static inline void lv_bm_fix(int) {}
+#endif
 static void lv_scene_tint(LvBand &B, void *ctx)
 {
     const int t = *(const int *)ctx;
@@ -760,9 +807,11 @@ static void lv_clip_draw(int y, int x, int n, const uint8_t *idx)
     const bool ri = lv_reink_on();
     auto raw = [&](int x0, int m, const uint8_t *ix) {   /* re-inked themes push RGB565, the rest the palette indices */
         const bool po = lv_port_row(y, x0, m);         /* port layer owns pixels on this run: push RGB565 */
-        if (!ri && !po) { lv_raw_draw(y, x0, m, ix); return; }
+        const bool bm = lv_bm_row(y);                  /* item 4: MORPHEUSbot boot chip row */
+        if (!ri && !po && !bm) { lv_raw_draw(y, x0, m, ix); return; }
         for (int k = 0; k < m; ++k) lb[k] = ri ? lv_multi_ink(pal[ix[k]], x0 + k, y) : pal[ix[k]];
         if (po) for (int k = 0; k < m; ++k) lb[k] = lv_port_apply(lb[k], x0 + k, y);
+        if (bm) { lv_bm_apply(y, x0, m, ix, pal, lb); lv_blit_hw(x0, y, m, 1, lb); return; }   /* final colours: no theme re-ink */
         lv_blit(x0, y, m, 1, lb);
     };
     if (!nm && !nt) { raw(x, n, idx); return; }
@@ -1193,11 +1242,13 @@ static const LvCs LV_CS[] = {
 #define LV_CS_HDR 26   /* header band: BACK | PREV | NEXT */
 #define LV_CS_RH 24
 static bool lv_cs_open = false; static int lv_cs_page = 0, lv_cs_hl = -1;
+static void lv_draw_backbot(LvBand &B, int x0, int y0);   /* item 8: defined with the BACKbot art below; the keyboard scene draws the corner BACKbot */
 static LvRect lv_key_rect(int k)
 {
     if (k < 40) { const int r = k / 10, c = k % 10; const int x = c * LV_KBD_PITCH_X + 1, y = LV_KBD_Y + r * LV_KBD_PITCH_Y + 1; return {(int16_t)x, (int16_t)y, (int16_t)(x + LV_KEY_W - 1), (int16_t)(y + LV_KEY_H - 1)}; }
     const int y = LV_KBD_Y + 4 * LV_KBD_PITCH_Y + 1;
-    static const int X0[5] = {0, 48, 144, 192, 112}, X1[5] = {47, 111, 191, 239, 143};   /* SPACE 48-111, CMDS 112-143 */
+    /* item 8: i = k-40 -> 0 SHIFT, 1 SPACE, 2 DEL, 3 ENTER, 4 CMDS. ENTER ends at x215 so x216..239 stays clear for the corner BACKbot. */
+    static const int X0[5] = {0, 42, 136, 174, 100}, X1[5] = {41, 99, 173, 215, 135};   /* SHIFT 0-41, SPACE 42-99, CMDS 100-135, DEL 136-173, ENTER 174-215 */
     const int i = k - 40;
     return {(int16_t)(X0[i] + 1), (int16_t)y, (int16_t)(X1[i] - 1), (int16_t)(y + LV_KEY_H - 1)};
 }
@@ -1206,10 +1257,10 @@ static int lv_key_at(int x, int y)
     if (y < LV_KBD_Y) return -1;
     const int r = (y - LV_KBD_Y) / LV_KBD_PITCH_Y;
     if (r < 4) { int c = x / LV_KBD_PITCH_X; if (c > 9) c = 9; return r * 10 + c; }
-    if (x < 48) return LV_KEY_SHIFT;
-    if (x < 112) return LV_KEY_SPACE;
-    if (x < 144) return LV_KEY_CMDS;
-    if (x < 192) return LV_KEY_DEL;
+    if (x < 42) return LV_KEY_SHIFT;   /* item 8 */
+    if (x < 100) return LV_KEY_SPACE;
+    if (x < 136) return LV_KEY_CMDS;
+    if (x < 174) return LV_KEY_DEL;
     return LV_KEY_ENTER;
 }
 static int lv_cs_npage(void) { return (LV_NCS + LV_CS_ROWS - 1) / LV_CS_ROWS; }
@@ -1242,16 +1293,17 @@ static void lv_scene_cs(LvBand &B)   /* overlay on the keyboard rect; TERMINALbo
         const int n = lv_cs_first() + r, y = y0 + LV_CS_HDR + r * LV_CS_RH;
         if (n >= LV_NCS) break;
         const bool hl = lv_cs_hl == n;
-        b_fill(B, 1, y + 1, 238, LV_CS_RH - 2, hl ? lv_hex(0xffffff) : lv_hex(0x141414));
-        b_frame(B, 1, y + 1, 238, LV_CS_RH - 2, fr);
+        const int rw = (r == LV_CS_ROWS - 1) ? 214 : 238, hx = (r == LV_CS_ROWS - 1) ? 210 : 232;   /* item 8: last row stops at x214 so x216..239 stays clean for the corner BACKbot even with CMDS open */
+        b_fill(B, 1, y + 1, rw, LV_CS_RH - 2, hl ? lv_hex(0xffffff) : lv_hex(0x141414));
+        b_frame(B, 1, y + 1, rw, LV_CS_RH - 2, fr);
         b_text(B, 7, y + 5, LV_CS[n].cmd, hl ? lv_hex(0x000000) : lv_hex(0xffffff), 2);
         const int hw = (int)strlen(LV_CS[n].hint) * 6 - 1;
-        if (hw > 0) b_text(B, 232 - hw, y + 9, LV_CS[n].hint, hl ? lv_hex(0x000000) : LV_CS[n].arg ? hdr : acc);
+        if (hw > 0) b_text(B, hx - hw, y + 9, LV_CS[n].hint, hl ? lv_hex(0x000000) : LV_CS[n].arg ? hdr : acc);
     }
 }
 static void lv_scene_kbd(LvBand &B, void *)
 {
-    if (lv_cs_open) { lv_scene_cs(B); return; }
+    if (lv_cs_open) { lv_scene_cs(B); lv_draw_backbot(B, 221, 301); return; }   /* item 8: corner BACKbot drawn on top of the CMDS overlay */
     b_fill(B, B.x0, B.y0, B.w, B.h, lv_hex(0x050505));
     const uint16_t acc = lv_ink(LV_ACC), fr = lv_ink(LV_FRAME);
     for (int k = 0; k < LV_NKEY; ++k) {
@@ -1268,6 +1320,7 @@ static void lv_scene_kbd(LvBand &B, void *)
         if (k < 40) b_text(B, r.x0 + (w - 10) / 2, r.y0 + (h - 14) / 2, t, ink, 2);
         else b_text(B, r.x0 + (w - (int)strlen(t) * 6 + 1) / 2, r.y0 + (h - 7) / 2, t, ink);
     }
+    lv_draw_backbot(B, 221, 301);   /* item 8: corner BACKbot {221,301,239,319}, same as every other non-home screen (literal origin: LV_R_BACKBOT is declared below) */
 }
 /* TTY text area: rejoin print() segments that were wrapped at 38 cols (lv_tcont) so a long line never splits a word
  * across the scroll edge, then lay them out bottom-up in nrows rows from ry0. */
@@ -1364,7 +1417,7 @@ static int lv_backbot_face = BACKBOT_FACE_SEL;
 #define BACKBOT_H (BACKBOT_FS + 4)
 static const LvRect LV_R_BACKBOT = {240 - BACKBOT_W, 320 - BACKBOT_H, 239, 319}; /* {221,301,239,319}: bottom-right corner, over the hole ring */
 static const LvRect LV_R_BACKBOT_HIT = {210, 289, 239, 319}; /* finger target incl. slop (30x31); corner buttons end x205 */
-static const LvRect LV_R_BACKBOT_TTY = {204, 0, 239, 23};    /* TTY: the keyboard owns the bottom row, BACKbot takes CLOSE's slot */
+static const LvRect LV_R_BACKBOT_TTY_HIT = {216, 290, 239, 319}; /* item 8: TTY BACKbot shares the bottom-right corner {221,301,239,319}; this is its finger target (clean of ENTER x<=215) */
 static void lv_draw_backbot(LvBand &B, int x0, int y0)
 {
     const uint16_t gold = lv_hex(0xc8a24a), gold_hi = lv_hex(0xf0d080);
@@ -1536,7 +1589,7 @@ static void lv_tint_setup(void)
 {
     lv_ntint = 0; lv_shadow_used = 0;
     const int s = lv_scr;
-    if (s == LV_SC_BOOT) lv_tint_add(LV_T_BGREY, LV_R_BB_BOOT);           /* item 7: the big BOOTbot */
+    /* item 4 (fw-fix7-1106): no BGREY tint on LV_SC_BOOT any more - the MORPHEUSbot boot chip overlay (lv_boot_morpheus.h) owns that chip */
     if (s == LV_SC_HOME_INTRO) lv_tint_add(LV_T_BGREY, LV_R_BB_HOME);     /* item 7: the BOOTbot chip */
     if (s == LV_SC_HOME) {
         /* item 1: the drawn chips (measured on the home clip; the old rects were the pre-v2 layout, ~13 px left / 29 px up) */
@@ -1563,7 +1616,7 @@ static void lv_tint_setup(void)
 static void lv_set_masks(void)
 {
     lv_nmask = 0;
-    if (lv_scr == LV_SC_BOOT || lv_scr == LV_SC_HOME_INTRO || lv_scr == LV_SC_CAL || lv_scr == LV_SC_TTY || lv_scr == LV_SC_RADAR) return;
+    if (lv_scr == LV_SC_BOOT || lv_scr == LV_SC_HOME_INTRO || lv_scr == LV_SC_CAL || lv_scr == LV_SC_TTY || lv_scr == LV_SC_RADAR || lv_scr == LV_SC_GLOSS || lv_scr == LV_SC_GLOSS_DESC) return;
     lv_masks[lv_nmask++] = LV_R_TICK;
     if (lv_scr == LV_SC_SCAN) { lv_masks[lv_nmask++] = LV_R_SBOX; lv_masks[lv_nmask++] = LV_R_STERM; }
     if (lv_scr == LV_SC_TERM || lv_scr == LV_SC_HOME || lv_scr == LV_SC_CTL) lv_masks[lv_nmask++] = LV_R_TTERM;
@@ -1611,8 +1664,9 @@ static void lv_go(int s)
     case LV_SC_TERM: lv_play.start(lv_theme_seg(LK_S_TERM_T0)); break;
     case LV_SC_SCAN: lv_play.start(lv_theme_seg(LK_S_SCAN_T0)); break;
     case LV_SC_CTL: lv_play.start(LK_S_CTL); break;
-    default: lv_play.seg = -1; break;   /* TTY, CAL, RADAR draw themselves */
+    default: lv_play.seg = -1; break;   /* TTY, CAL, RADAR, GLOSS, GLOSS_DESC draw themselves */
     }
+    if (s == LV_SC_GLOSS || s == LV_SC_GLOSS_DESC) { lv_gloss_t0 = lv_now; lv_gloss_step = LV_GL_T_STILL; }   /* item 2: rain restarts on the locked still */
     if (s == LV_SC_RADAR) lv_radar_enter();
     if (prev == LV_SC_RADAR && s == LV_SC_SCAN) lv_rd_restore_scan();
     lv_set_masks(); lv_tint_setup(); lv_port_begin();
@@ -1842,20 +1896,11 @@ static void lv_selftest(void)
     lv_event(false, "SELF TEST OK  %s", LV_VERSION);
 }
 
-static void lv_scene_backbot_tty(LvBand &B, void *)
-{
-    /* Band is the 19x19 bot footprint only (see paint). Do not black-fill the old 36x24 hit slot — that was the shade. */
-    lv_draw_backbot(B, B.x0, B.y0);
-}
 static void lv_paint_overlays(bool all)
 {
     if (lv_scr == LV_SC_TTY) {
         if (all || lv_dirty_tty) { lv_render(lv_blit, LV_R_TTY_BODY, lv_scene_tty, 0); lv_dirty_tty = false; }
-        if (all || lv_dirty_kbd) { lv_render(lv_blit, LV_R_KBD, lv_scene_kbd, 0); lv_dirty_kbd = false; }
-        if (all) {
-            const int bx = LV_R_BACKBOT_TTY.x1 + 1 - BACKBOT_W, by = LV_R_BACKBOT_TTY.y0 + (24 - BACKBOT_H) / 2;
-            lv_render(lv_blit, {(int16_t)bx, (int16_t)by, (int16_t)(bx + BACKBOT_W - 1), (int16_t)(by + BACKBOT_H - 1)}, lv_scene_backbot_tty, 0);
-        }
+        if (all || lv_dirty_kbd) { lv_render(lv_blit, LV_R_KBD, lv_scene_kbd, 0); lv_dirty_kbd = false; }   /* item 8: lv_scene_kbd draws the corner BACKbot itself */
         return;
     }
     if (lv_scr == LV_SC_SCAN) {
@@ -1879,15 +1924,13 @@ static void lv_paint_overlays(bool all)
     }
 }
 /* item 2: brief brighten flash on whatever was pressed (clip art via its tint, overlays via their scene) */
+static void lv_gloss_paint(const LvRect &r);   /* item 2: lv_glossary.h */
 static void lv_flash_repaint(const LvRect &r)
 {
     if (lv_scr == LV_SC_RADAR) return;   /* redrawn every frame */
+    if (lv_scr == LV_SC_GLOSS || lv_scr == LV_SC_GLOSS_DESC) { lv_gloss_paint(r); return; }   /* item 2 */
     for (int t = 0; t < lv_ntint; ++t) if (lv_rect_hit(lv_tints[t].r, r)) lv_tint_paint(t);
-    if (lv_scr == LV_SC_TTY) {
-        const int bx = LV_R_BACKBOT_TTY.x1 + 1 - BACKBOT_W, by = LV_R_BACKBOT_TTY.y0 + (24 - BACKBOT_H) / 2;
-        const LvRect br = {(int16_t)bx, (int16_t)by, (int16_t)(bx + BACKBOT_W - 1), (int16_t)(by + BACKBOT_H - 1)};
-        if (lv_rect_hit(br, r)) lv_render(lv_blit, br, lv_scene_backbot_tty, 0);
-    }
+    if (lv_scr == LV_SC_TTY && lv_rect_hit(LV_R_BACKBOT, r)) lv_dirty_kbd = true;   /* item 8: corner BACKbot repaints with the keyboard band */
     if (lv_rect_hit(LV_R_SBOX, r)) lv_dirty_box = true;
     if (lv_rect_hit(LV_R_STERM, r) || lv_rect_hit(LV_R_TTERM, r)) lv_dirty_term = true;
     if (lv_scr == LV_SC_CTL) lv_dirty_ctl = true;
@@ -1922,7 +1965,6 @@ static void lv_go_soon(int scr, const char *tty_cmd)   /* navigate after the fla
 /* Issue 2: on the multi themes (SYNTHWAVE / AURORA / PRISM / GLITCH) every overlay pixel drawn in the theme's
  * LV_ACC / LV_FRAME / LV_HDR / LV_ACCD sentinel takes the theme ink at its screen position on the way out. The
  * pixels are always lv_bandbuf or a line buffer of ours, consumed by this one blit, so they are re-inked in place. */
-static lv_blit_fn lv_blit_hw;
 static void lv_blit_theme(int x, int y, int w, int h, const uint16_t *px)
 {
     if (lv_multi_theme(lv_theme)) {
@@ -1938,6 +1980,7 @@ static void lv_blit_theme(int x, int y, int w, int h, const uint16_t *px)
     }
     lv_blit_hw(x, y, w, h, px);
 }
+#include "lv_glossary.h"   /* item 2: glossary screens (after lv_blit_hw / lv_draw_backbot / lv_ticker) */
 static void lv_begin(const LvRadio *radio, lv_blit_fn blit, lk_draw_fn raw_draw, int theme, uint32_t now, bool cal_valid)
 {
     lv_radio = radio; lv_blit_hw = blit; lv_blit = lv_blit_theme; lv_raw_draw = raw_draw;
@@ -1968,8 +2011,13 @@ static void lv_tick(const LkIo &io, uint32_t now)
         if (k == 1) lv_go(lv_soon_scr);
         else lv_open_tty(lv_soon_cmd[0] ? lv_soon_cmd : 0);
     }
+    if (lv_scr == LV_SC_GLOSS || lv_scr == LV_SC_GLOSS_DESC) { lv_gloss_tick(); lv_ticker_tick(); return; }   /* item 2 */
     if (lv_scr == LV_SC_RADAR) {
-        if ((int32_t)(now - lv_clip_t) >= 30) { lv_clip_t = now; lv_radar_frame(); }   /* every 30 ms loop tick: <= 33 fps, SPI-bound ~28 ms */
+#if defined(BOTCORPS_CYD) && !defined(LV_HOST)
+        { lv_clip_t = now; lv_radar_frame(); } // firmware loop already owns the frame deadline
+#else
+        if ((int32_t)(now - lv_clip_t) >= 30) { lv_clip_t = now; lv_radar_frame(); }
+#endif
         if (lv_enter) { lv_enter = false; LvRect e = {0, 0, 239, 0}; lv_render(lv_blit, e, [](LvBand &B, void *) { b_fill(B, B.x0, B.y0, B.w, B.h, 0); }, 0);
             lv_render(lv_blit, {0, 0, 0, 23}, [](LvBand &B, void *) { b_fill(B, B.x0, B.y0, B.w, B.h, 0); }, 0); lv_render(lv_blit, {239, 0, 239, 23}, [](LvBand &B, void *) { b_fill(B, B.x0, B.y0, B.w, B.h, 0); }, 0); }
         lv_ticker_tick();
@@ -1978,12 +2026,17 @@ static void lv_tick(const LkIo &io, uint32_t now)
     if (lv_scr != LV_SC_TTY && (int32_t)(now - lv_clip_t) >= lv_period()) {
         lv_clip_t = now;
         const bool first = lv_play.shown < 0;
-        if (lv_motion || first || lv_scr == LV_SC_BOOT || lv_scr == LV_SC_HOME_INTRO) lv_play.step(io);
+        if (lv_motion || first || lv_scr == LV_SC_BOOT || lv_scr == LV_SC_HOME_INTRO) {
+            const bool drew = lv_play.step(io);
+            if (drew && lv_scr == LV_SC_BOOT) lv_bm_fix(lv_play.shown);   /* item 4: MORPHEUSbot leaves with the clip's wipe */
+        }
         if (lv_play.done && lv_scr == LV_SC_BOOT) {
-            lv_go(LV_SC_HOME_INTRO);
+            /* item 3 (Mobandy 2026-11-06 "for a second the original ui loads and then it flashes and the new ui ... appears"):
+             * go straight BOOT -> HOME. LV_SC_HOME_INTRO (LK_S_HOME_INTRO) replayed the ~1 s legacy/unthemed green UI, then
+             * flashed into the themed LV_SC_HOME + port layer. Skipping it removes that flash; HOME_INTRO is now never entered. */
+            lv_go(LV_SC_HOME);
             if (lv_selftest_pending) { lv_selftest_pending = false; lv_selftest(); }
         }
-        else if (lv_play.done && lv_scr == LV_SC_HOME_INTRO) lv_go(LV_SC_HOME);
         if (lv_scr == LV_SC_CTL) lv_dirty_ctl = true; /* uptime */
     }
     const bool all = lv_enter && (lv_scr == LV_SC_TTY || lv_play.shown >= 0);
@@ -2027,6 +2080,7 @@ static const char *lv_back(void)
         if (lv_detail) { lv_detail = false; lv_dirty_box = true; return "backbot-detail->list"; }
         lv_cat = LV_CAT_GRID; lv_sel = -1; lv_dirty_box = true; return "backbot-list->grid";
     }
+    if (lv_scr == LV_SC_GLOSS_DESC) { lv_go_soon(LV_SC_GLOSS, 0); return "backbot-gloss"; }   /* item 2: description -> glossary grid */
     lv_go_soon(LV_SC_HOME, 0); return "backbot-home";
 }
 #define LV_TAP(R) (lv_in(R, x, y) && (lv_press(R), true))
@@ -2102,7 +2156,7 @@ static const char *lv_tap(int x, int y)
     if (lv_scr == LV_SC_BOOT || lv_scr == LV_SC_HOME_INTRO) { lv_go(LV_SC_HOME); if (lv_selftest_pending) { lv_selftest_pending = false; lv_selftest(); } return "skip-intro"; }
     if (lv_soon_kind) return "busy-nav";
     if (lv_scr == LV_SC_TTY) {
-        if (LV_TAP(LV_R_BACKBOT_TTY)) return lv_back();
+        if (LV_TAPD(LV_R_BACKBOT_TTY_HIT, LV_R_BACKBOT)) return lv_back();   /* item 8: corner BACKbot, works whether CMDS is open or not */
         if (lv_in(LV_R_TTY_TICK, x, y)) { lv_go(LV_SC_SCAN); return "ticker->scan"; }
         if (y >= LV_KBD_Y && lv_cs_open) {   /* every pixel of the overlay is a button: header thirds, rows full width */
             lv_dirty_kbd = true;
@@ -2129,6 +2183,14 @@ static const char *lv_tap(int x, int y)
         }
         return "none";
     }
+    if (lv_scr == LV_SC_GLOSS || lv_scr == LV_SC_GLOSS_DESC) {   /* item 2 */
+        if (LV_TAPD(LV_R_BACKBOT_HIT, LV_R_BACKBOT)) return lv_back();
+        if (y <= 23) { lv_press(LV_R_TICK); lv_mode = 0; lv_cat = LV_CAT_GRID; lv_dirty_box = true; lv_go_soon(LV_SC_SCAN, 0); return "ticker->scan"; }
+        if (lv_scr == LV_SC_GLOSS_DESC) return "none";
+        LV_PAD(LV_GL_CHIP);
+        for (int d = 0; d < 12; ++d) if (LV_TAP(LV_GL_CHIP[d])) { lv_gloss_dev = d; lv_go_soon(LV_SC_GLOSS_DESC, 0); return LV_GLOSS_NAME[d]; }
+        return "none";
+    }
     if (lv_scr != LV_SC_HOME && LV_TAP(LV_R_BACKBOT_HIT)) return lv_back();
     if (lv_scr == LV_SC_RADAR && y > 23) return y >= LV_RD_Y0 ? lv_radar_tap(x, y) : "none";
     /* ticker (full width now: crown + GIBSON icon removed) -> SCANbot, all finds */
@@ -2138,7 +2200,7 @@ static const char *lv_tap(int x, int y)
     else if (lv_scr == LV_SC_TERM) LV_PAD(LV_PAD_TERM);
     else if (lv_scr == LV_SC_SCAN) LV_PAD(LV_PAD_SCAN);
     if (lv_scr == LV_SC_HOME) {
-        if (LV_TAP(LV_HOME_CHIP[0])) { lv_selftest_pending = true; lv_go_soon(LV_SC_BOOT, 0); return "boot-selftest"; }
+        if (LV_TAP(LV_HOME_CHIP[0])) { lv_go_soon(LV_SC_GLOSS, 0); return "morpheus-glossary"; }   /* item 2: MORPHEUSbot opens the Device Glossary ("go boot" still replays BOOT) */
         if (LV_TAP(LV_HOME_CHIP[1])) { lv_go_soon(LV_SC_RADAR, 0); return "gibson-jackin-radar"; }
         if (LV_TAP(LV_HOME_CHIP[2])) { lv_go_soon(LV_SC_CTL, 0); return "ctl"; }
         if (LV_TAP(LV_HOME_CHIP[3])) { lv_go_soon(LV_SC_SCAN, 0); return "scan"; }

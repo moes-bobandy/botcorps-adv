@@ -19,6 +19,7 @@ struct LvPortRun { uint16_t y; uint8_t x, n; };
 struct LvPortScr { const LvPortReg *reg; uint8_t nreg; const uint16_t (*rain)[10]; const LvPortGlow *glow; uint16_t nglow;
                    const LvPortRun *rr; uint16_t nrr; const LvPortRun *gr; uint16_t ngr; };
 #include "lv_port_data.h"
+#include "lv_port_luts.h"
 static int lv_port_sc = -1;                       /* LV_PORT_SCR index for the current screen, -1 none */
 static uint32_t lv_port_t0 = 0;                   /* screen entry: rain + glow clock */
 static int lv_port_n = 0, lv_port_step = LV_PORT_RAIN_T0 % 10;   /* glow phase / rain step currently on the panel */
@@ -58,8 +59,7 @@ static void lv_port_mklut(void)
 {
     if (lv_port_lutn == lv_port_n) return;
     lv_port_lutn = lv_port_n;
-    const float e = 1.f / (1.f + LV_PORT_GAMMA * LV_PORT_S[lv_port_n]);
-    for (int v = 0; v < 256; ++v) { const float o = rintf(255.f * powf((float)v / 255.f, e)); lv_port_lut[v] = (uint8_t)(o < 0 ? 0 : o > 255 ? 255 : o); }
+    memcpy(lv_port_lut, LV_PORT_LUTS[lv_port_n], sizeof lv_port_lut);
 }
 static uint16_t lv_port_glow(const LvPortGlow &G, uint32_t c, int x, int y)
 {

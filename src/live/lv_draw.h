@@ -12,7 +12,15 @@
 
 typedef void (*lv_blit_fn)(int x, int y, int w, int h, const uint16_t *px);
 
-#define LV_BAND_PX (240 * 24)
+#if defined(BOTCORPS_CYD) && !defined(LV_HOST)
+static int lv_band_rows = 24;
+#define LV_BAND_PX (240 * lv_band_rows)
+#else
+#ifndef LV_HOST_BAND_ROWS
+#define LV_HOST_BAND_ROWS 24
+#endif
+#define LV_BAND_PX (240 * LV_HOST_BAND_ROWS)
+#endif
 struct LvBand { uint16_t *px; int x0, y0, w, h; };
 
 static inline uint16_t lv_rgb(uint8_t r, uint8_t g, uint8_t b) { return (uint16_t)(((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3)); }
@@ -128,7 +136,11 @@ static LvRect lv_flash_r = {0, 0, -1, -1};
 
 /* Render region r band by band through scene(B, ctx). */
 typedef void (*lv_scene_fn)(LvBand &B, void *ctx);
+#if defined(BOTCORPS_CYD) && !defined(LV_HOST)
+static uint16_t *lv_bandbuf = nullptr; // allocated once before the first render
+#else
 static uint16_t lv_bandbuf[LV_BAND_PX];
+#endif
 static inline void lv_flash_band(LvBand &B)
 {
     const LvRect &f = lv_flash_r;

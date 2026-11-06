@@ -37,3 +37,7 @@ Sharper standard vs yesterday's manual PowerShell checks:
 ## Next GREEN leverage (not done today)
 - When CYD data COM appears on BOTcorps: run preflight read-only, then await Mobandy `-Flash` unlock.
 - Keep digest baseline current after each Launcher/Marauder/etc. ping.
+
+## Backup proof
+
+`origin/backup/cyd-daily-advancement-2026-11-06` = `27523ab8f0ec9dc2ded7b3cabcfc3d7adb6826ae`

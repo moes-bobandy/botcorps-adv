@@ -1,0 +1,86 @@
+== b29f8ab
+/tmp/hm/firmware_1105.elf  :
+section                    size         addr
+.rtc.text                     0   1074528256
+.rtc.dummy                    0   1073217536
+.rtc.force_fast               0   1073217536
+.rtc_noinit                   0   1342177792
+.rtc.force_slow              32   1342177792
+.rtc_fast_reserved           16   1073225712
+.rtc_slow_reserved           24   1342185448
+.iram0.vectors             1028   1074266112
+.iram0.text              119463   1074267140
+.dram0.data               26452   1073470304
+.ext_ram_noinit               0   1065353216
+.noinit                       0   1073496756
+.ext_ram.bss                  0   1065353216
+.dram0.bss                90720   1073496760
+.flash.appdesc              256   1061158944
+.flash.rodata           1045028   1061159200
+.flash.rodata_noload      23429   1062204228
+.flash.text             1017404   1074593824
+.iram0.text_end               1   1074386603
+.iram0.data                   0   1074386604
+.iram0.bss                    0   1074386604
+.dram0.heap_start             0   1073587480
+.debug_aranges           115072            0
+.debug_info            10044909            0
+.debug_abbrev            822271            0
+.debug_line             5084458            0
+.debug_frame             305000            0
+.debug_str              1387664            0
+.debug_loc              2553399            0
+.debug_ranges            366464            0
+.debug_line_str           16316            0
+.debug_loclists          127471            0
+.debug_rnglists           13288            0
+.comment                    207            0
+.xtensa.info                 56            0
+.xt.prop                  18324            0
+.xt.lit                     312            0
+Total                  23179064
+
+
+== 3b8b3de
+/tmp/hm/fwbase/.pio/build/cyd_livescan/firmware.elf  :
+section                    size         addr
+.rtc.text                     0   1074528256
+.rtc.dummy                    0   1073217536
+.rtc.force_fast               0   1073217536
+.rtc_noinit                   0   1342177792
+.rtc.force_slow              32   1342177792
+.rtc_fast_reserved           16   1073225712
+.rtc_slow_reserved           24   1342185448
+.iram0.vectors             1028   1074266112
+.iram0.text              119463   1074267140
+.dram0.data               26452   1073470304
+.ext_ram_noinit               0   1065353216
+.noinit                       0   1073496756
+.ext_ram.bss                  0   1065353216
+.dram0.bss                90608   1073496760
+.flash.appdesc              256   1061158944
+.flash.rodata           1044864   1061159200
+.flash.rodata_noload      23429   1062204064
+.flash.text             1013688   1074593824
+.iram0.text_end               1   1074386603
+.iram0.data                   0   1074386604
+.iram0.bss                    0   1074386604
+.dram0.heap_start             0   1073587368
+.debug_aranges           115056            0
+.debug_info            10040602            0
+.debug_abbrev            822366            0
+.debug_line             5078115            0
+.debug_frame             304952            0
+.debug_str              1387583            0
+.debug_loc              2547877            0
+.debug_ranges            365504            0
+.debug_line_str           16316            0
+.debug_loclists          127471            0
+.debug_rnglists           13288            0
+.comment                    207            0
+.xtensa.info                 56            0
+.xt.prop                  18324            0
+.xt.lit                     312            0
+Total                  23157890
+
+

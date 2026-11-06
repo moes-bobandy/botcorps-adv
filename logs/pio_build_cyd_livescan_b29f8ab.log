@@ -1,0 +1,1080 @@
+Processing cyd_livescan (platform: https://github.com/pioarduino/platform-espressif32/releases/download/55.03.38/platform-espressif32.zip; board: esp32dev; framework: arduino)
+--------------------------------------------------------------------------------
+Verbose mode can be enabled via `-v, --verbose` option
+[botcorps] BOTCORPS_BUILD_ID = v1019z b29f8ab
+CONFIGURATION: https://docs.platformio.org/page/boards/espressif32/esp32dev.html
+PLATFORM: Espressif 32 (55.3.38) > Espressif ESP32 Dev Module
+HARDWARE: ESP32 240MHz, 320KB RAM, 4MB Flash
+DEBUG: Current (cmsis-dap) External (cmsis-dap, esp-bridge, esp-prog, esp-prog-2, iot-bus-jtag, jlink, minimodule, olimex-arm-usb-ocd, olimex-arm-usb-ocd-h, olimex-arm-usb-tiny-h, olimex-jtag-tiny, tumpa)
+PACKAGES: 
+ - contrib-piohome @ 3.4.4 
+ - framework-arduinoespressif32 @ 3.3.8 
+ - framework-arduinoespressif32-libs @ 5.5.4+sha.735507283d 
+ - tool-esptoolpy @ 5.2.0 
+ - tool-xtensa-esp-elf-gdb @ 16.3.0+20250913 
+ - toolchain-xtensa-esp-elf @ 14.2.0+20260121
+LDF: Library Dependency Finder -> https://bit.ly/configure-pio-ldf
+LDF Modes: Finder ~ chain, Compatibility ~ soft
+Found 46 compatible libraries
+Scanning dependencies...
+Dependency Graph
+|-- NimBLE-Arduino @ 2.3.9
+|-- LovyanGFX @ 1.2.36
+|-- Preferences @ 3.3.8
+|-- WiFi @ 3.3.8
+|-- SD @ 3.3.8
+|-- SPI @ 3.3.8
+Building in release mode
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/NimBLE2904.cpp.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/NimBLEAddress.cpp.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/NimBLEAdvertisedDevice.cpp.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/NimBLEAdvertisementData.cpp.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/NimBLEAdvertising.cpp.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/NimBLEAttValue.cpp.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/NimBLEBeacon.cpp.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/NimBLECharacteristic.cpp.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/NimBLEClient.cpp.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/NimBLEDescriptor.cpp.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/NimBLEDevice.cpp.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/NimBLEEddystoneTLM.cpp.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/NimBLEExtAdvertising.cpp.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/NimBLEHIDDevice.cpp.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/NimBLEL2CAPChannel.cpp.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/NimBLEL2CAPServer.cpp.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/NimBLERemoteCharacteristic.cpp.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/NimBLERemoteDescriptor.cpp.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/NimBLERemoteService.cpp.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/NimBLERemoteValueAttribute.cpp.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/NimBLEScan.cpp.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/NimBLEServer.cpp.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/NimBLEService.cpp.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/NimBLEUUID.cpp.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/NimBLEUtils.cpp.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/esp_port/esp-hci/src/esp_nimble_hci.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/esp_port/esp-hci/src/na_hci_driver.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/esp_port/esp-hci/src/na_hci_transport.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/esp_port/port/src/exp_nimble_mem.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/ext/tinycrypt/src/aes_decrypt.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/ext/tinycrypt/src/aes_encrypt.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/ext/tinycrypt/src/cbc_mode.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/ext/tinycrypt/src/ccm_mode.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/ext/tinycrypt/src/cmac_mode.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/ext/tinycrypt/src/ctr_mode.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/ext/tinycrypt/src/ctr_prng.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/ext/tinycrypt/src/ecc.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/ext/tinycrypt/src/ecc_dh.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/ext/tinycrypt/src/ecc_dsa.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/ext/tinycrypt/src/ecc_platform_specific.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/ext/tinycrypt/src/hmac.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/ext/tinycrypt/src/hmac_prng.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/ext/tinycrypt/src/sha256.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/ext/tinycrypt/src/utils.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/controller/src/ble_ll.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/controller/src/ble_ll_adv.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/controller/src/ble_ll_conn.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/controller/src/ble_ll_conn_hci.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/controller/src/ble_ll_crypto.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/controller/src/ble_ll_ctrl.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/controller/src/ble_ll_dtm.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/controller/src/ble_ll_hci.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/controller/src/ble_ll_hci_ev.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/controller/src/ble_ll_hci_supp_cmd.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/controller/src/ble_ll_hci_vs.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/controller/src/ble_ll_iso.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/controller/src/ble_ll_iso_big.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/controller/src/ble_ll_isoal.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/controller/src/ble_ll_pdu.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/controller/src/ble_ll_rand.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/controller/src/ble_ll_resolv.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/controller/src/ble_ll_rfmgmt.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/controller/src/ble_ll_scan.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/controller/src/ble_ll_scan_aux.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/controller/src/ble_ll_sched.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/controller/src/ble_ll_sync.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/controller/src/ble_ll_trace.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/controller/src/ble_ll_utils.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/controller/src/ble_ll_whitelist.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/drivers/nrf51/src/ble_hw.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/drivers/nrf51/src/ble_phy.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/drivers/nrf5x/src/ble_hw.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/drivers/nrf5x/src/ble_phy.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/drivers/nrf5x/src/ble_phy_trace.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/drivers/nrf5x/src/nrf52/phy.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/drivers/nrf5x/src/nrf53/phy.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/mesh/src/access.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/mesh/src/adv.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/mesh/src/adv_ext.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/mesh/src/adv_legacy.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/mesh/src/aes-ccm.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/mesh/src/app_keys.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/mesh/src/beacon.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/mesh/src/cdb.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/mesh/src/cfg.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/mesh/src/cfg_cli.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/mesh/src/cfg_srv.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/mesh/src/crypto.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/mesh/src/friend.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/mesh/src/glue.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/mesh/src/health_cli.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/mesh/src/health_srv.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/mesh/src/heartbeat.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/mesh/src/light_model.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/mesh/src/lpn.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/mesh/src/mesh.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/mesh/src/model_cli.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/mesh/src/model_srv.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/mesh/src/msg.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/mesh/src/net.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/mesh/src/pb_adv.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/mesh/src/pb_gatt.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/mesh/src/pb_gatt_srv.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/mesh/src/prov.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/mesh/src/prov_device.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/mesh/src/provisioner.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/mesh/src/proxy.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/mesh/src/proxy_msg.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/mesh/src/proxy_srv.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/mesh/src/rpl.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/mesh/src/settings.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/mesh/src/shell.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/mesh/src/subnet.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/mesh/src/testing.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/mesh/src/transport.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/services/gap/src/ble_svc_gap.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/services/gatt/src/ble_svc_gatt.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/src/ble_aes_ccm.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/src/ble_att.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/src/ble_att_clt.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/src/ble_att_cmd.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/src/ble_att_svr.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/src/ble_dtm.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/src/ble_ead.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/src/ble_eatt.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/src/ble_eddystone.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/src/ble_gap.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/src/ble_gattc.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/src/ble_gattc_cache.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/src/ble_gattc_cache_conn.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/src/ble_gatts.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/src/ble_gatts_lcl.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/src/ble_hs.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/src/ble_hs_adv.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/src/ble_hs_atomic.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/src/ble_hs_cfg.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/src/ble_hs_conn.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/src/ble_hs_flow.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/src/ble_hs_hci.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/src/ble_hs_hci_cmd.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/src/ble_hs_hci_evt.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/src/ble_hs_hci_util.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/src/ble_hs_id.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/src/ble_hs_log.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/src/ble_hs_mbuf.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/src/ble_hs_misc.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/src/ble_hs_mqueue.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/src/ble_hs_periodic_sync.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/src/ble_hs_pvcy.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/src/ble_hs_resolv.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/src/ble_hs_shutdown.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/src/ble_hs_startup.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/src/ble_hs_stop.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/src/ble_ibeacon.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/src/ble_l2cap.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/src/ble_l2cap_coc.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/src/ble_l2cap_sig.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/src/ble_l2cap_sig_cmd.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/src/ble_sm.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/src/ble_sm_alg.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/src/ble_sm_cmd.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/src/ble_sm_lgcy.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/src/ble_sm_sc.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/src/ble_store.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/src/ble_store_util.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/src/ble_uuid.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/store/config/src/ble_store_config.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/store/config/src/ble_store_config_conf.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/store/config/src/ble_store_nvs.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/store/ram/src/ble_store_ram.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/host/util/src/addr.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/transport/common/hci_h4/src/hci_h4.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/transport/common/hci_ipc/src/hci_ipc.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/transport/esp_ipc/src/hci_esp_ipc.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/transport/esp_ipc_legacy/src/hci_esp_ipc_legacy.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/transport/nrf5340/src/nrf5340_ble_hci.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/nimble/transport/src/transport.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/porting/nimble/src/endian.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/porting/nimble/src/hal_timer.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/porting/nimble/src/mem.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/porting/nimble/src/nimble_port.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/porting/nimble/src/os_cputime.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/porting/nimble/src/os_cputime_pwr2.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/porting/nimble/src/os_mbuf.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/porting/nimble/src/os_mempool.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/porting/nimble/src/os_msys_init.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/porting/npl/freertos/src/nimble_port_freertos.c.o
+Compiling .pio/build/cyd_livescan/lib305/NimBLE-Arduino/nimble/porting/npl/freertos/src/npl_os_freertos.c.o
+Compiling .pio/build/cyd_livescan/lib660/SPI/SPI.cpp.o
+Compiling .pio/build/cyd_livescan/lib3b5/Wire/Wire.cpp.o
+Compiling .pio/build/cyd_livescan/liba3f/LovyanGFX/lgfx/Fonts/IPA/lgfx_font_japan.c.o
+Compiling .pio/build/cyd_livescan/liba3f/LovyanGFX/lgfx/Fonts/efont/lgfx_efont_cn.c.o
+Compiling .pio/build/cyd_livescan/liba3f/LovyanGFX/lgfx/Fonts/efont/lgfx_efont_ja.c.o
+Compiling .pio/build/cyd_livescan/liba3f/LovyanGFX/lgfx/Fonts/efont/lgfx_efont_kr.c.o
+Compiling .pio/build/cyd_livescan/liba3f/LovyanGFX/lgfx/Fonts/efont/lgfx_efont_tw.c.o
+Compiling .pio/build/cyd_livescan/liba3f/LovyanGFX/lgfx/utility/lgfx_miniz.c.o
+Compiling .pio/build/cyd_livescan/liba3f/LovyanGFX/lgfx/utility/lgfx_pngle.c.o
+Compiling .pio/build/cyd_livescan/liba3f/LovyanGFX/lgfx/utility/lgfx_qoi.c.o
+Compiling .pio/build/cyd_livescan/liba3f/LovyanGFX/lgfx/utility/lgfx_qrcode.c.o
+Compiling .pio/build/cyd_livescan/liba3f/LovyanGFX/lgfx/utility/lgfx_tjpgd.c.o
+Compiling .pio/build/cyd_livescan/liba3f/LovyanGFX/lgfx/v1/LGFXBase.cpp.o
+Compiling .pio/build/cyd_livescan/liba3f/LovyanGFX/lgfx/v1/lgfx_fonts.cpp.o
+Compiling .pio/build/cyd_livescan/liba3f/LovyanGFX/lgfx/v1/lgfx_v1.cpp.o
+Compiling .pio/build/cyd_livescan/liba3f/LovyanGFX/lgfx/v1/lgfx_v1_panel.cpp.o
+Compiling .pio/build/cyd_livescan/liba3f/LovyanGFX/lgfx/v1/lgfx_v1_platforms.cpp.o
+Compiling .pio/build/cyd_livescan/liba3f/LovyanGFX/lgfx/v1/lgfx_v1_touch.cpp.o
+Compiling .pio/build/cyd_livescan/liba3f/LovyanGFX/lgfx/v1/panel/Panel_M5HDMI.cpp.o
+Compiling .pio/build/cyd_livescan/liba3f/LovyanGFX/lgfx/v1/touch/Touch_GSLx680.cpp.o
+Compiling .pio/build/cyd_livescan/lib175/Preferences/Preferences.cpp.o
+Compiling .pio/build/cyd_livescan/lib302/Network/NetworkClient.cpp.o
+Compiling .pio/build/cyd_livescan/lib302/Network/NetworkEvents.cpp.o
+Compiling .pio/build/cyd_livescan/lib302/Network/NetworkInterface.cpp.o
+Compiling .pio/build/cyd_livescan/lib302/Network/NetworkManager.cpp.o
+Compiling .pio/build/cyd_livescan/lib302/Network/NetworkServer.cpp.o
+Compiling .pio/build/cyd_livescan/lib302/Network/NetworkUdp.cpp.o
+Compiling .pio/build/cyd_livescan/lib58c/WiFi/AP.cpp.o
+Compiling .pio/build/cyd_livescan/lib58c/WiFi/STA.cpp.o
+Compiling .pio/build/cyd_livescan/lib58c/WiFi/WiFi.cpp.o
+Compiling .pio/build/cyd_livescan/lib58c/WiFi/WiFiAP.cpp.o
+Compiling .pio/build/cyd_livescan/lib58c/WiFi/WiFiGeneric.cpp.o
+Compiling .pio/build/cyd_livescan/lib58c/WiFi/WiFiMulti.cpp.o
+Compiling .pio/build/cyd_livescan/lib58c/WiFi/WiFiSTA.cpp.o
+Compiling .pio/build/cyd_livescan/lib58c/WiFi/WiFiScan.cpp.o
+Compiling .pio/build/cyd_livescan/lib7e2/FS/FS.cpp.o
+Compiling .pio/build/cyd_livescan/lib7e2/FS/vfs_api.cpp.o
+Compiling .pio/build/cyd_livescan/lib830/SD/SD.cpp.o
+Compiling .pio/build/cyd_livescan/lib830/SD/sd_diskio.cpp.o
+Compiling .pio/build/cyd_livescan/lib830/SD/sd_diskio_crc.c.o
+Compiling .pio/build/cyd_livescan/src/display/botcorps_display.cpp.o
+Compiling .pio/build/cyd_livescan/src/live/lv_ui.cpp.o
+Compiling .pio/build/cyd_livescan/src/lock/live/lock_blob_live.S.o
+Compiling .pio/build/cyd_livescan/src/lock/lock_blob.S.o
+Compiling .pio/build/cyd_livescan/src/lock/lock_ui.cpp.o
+Compiling .pio/build/cyd_livescan/src/main.cpp.o
+Compiling .pio/build/cyd_livescan/src/probe/botcorps_icons.cpp.o
+Compiling .pio/build/cyd_livescan/src/probe/botcorps_probe.cpp.o
+Compiling .pio/build/cyd_livescan/src/probe/botcorps_tier0.cpp.o
+Compiling .pio/build/cyd_livescan/src/rain/botcorps_rain.cpp.o
+Compiling .pio/build/cyd_livescan/src/sd/botcorps_sd.cpp.o
+Compiling .pio/build/cyd_livescan/src/ui/botcorps_band.cpp.o
+Compiling .pio/build/cyd_livescan/src/ui/botcorps_bots.cpp.o
+Compiling .pio/build/cyd_livescan/src/ui/botcorps_glyph.cpp.o
+In file included from src/ui/botcorps_band.h:6,
+                 from src/ui/botcorps_glyph.cpp:4:
+src/ui/botcorps_frame_cfg.h:17:44: note: '#pragma message: BOTCORPS_FRAME_MODE=BANDS'
+   17 | #pragma message("BOTCORPS_FRAME_MODE=BANDS")
+      |                                            ^
+src/ui/botcorps_band.h: In member function 'void Gfx::setFont(const F*)':
+src/ui/botcorps_band.h:37:33: warning: invalid use of incomplete type 'class lgfx::v1::LovyanGFX'
+   37 |     void setFont(const F *f) { p->setFont(f); }
+      |                                 ^~
+In file included from src/ui/botcorps_glyph.cpp:1:
+src/ui/botcorps_glyph.h:6:46: note: forward declaration of 'class lgfx::v1::LovyanGFX'
+    6 | namespace lgfx { inline namespace v1 { class LovyanGFX; } }
+      |                                              ^~~~~~~~~
+Compiling .pio/build/cyd_livescan/src/ui/botcorps_id.cpp.o
+In file included from src/ui/botcorps_band.h:6,
+                 from src/ui/botcorps_band.cpp:1:
+src/ui/botcorps_frame_cfg.h:17:44: note: '#pragma message: BOTCORPS_FRAME_MODE=BANDS'
+   17 | #pragma message("BOTCORPS_FRAME_MODE=BANDS")
+      |                                            ^
+src/display/botcorps_display.cpp: In lambda function:
+src/display/botcorps_display.cpp:237:9: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+  237 |         if (b < mn) mn = b; if (b > mx) mx = b;
+      |         ^~
+src/display/botcorps_display.cpp:237:29: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+  237 |         if (b < mn) mn = b; if (b > mx) mx = b;
+      |                             ^~
+src/display/botcorps_display.cpp:238:9: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+  238 |         if (c < mn) mn = c; if (c > mx) mx = c;
+      |         ^~
+src/display/botcorps_display.cpp:238:29: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+  238 |         if (c < mn) mn = c; if (c > mx) mx = c;
+      |                             ^~
+src/display/botcorps_display.cpp:239:9: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+  239 |         if (d < mn) mn = d; if (d > mx) mx = d;
+      |         ^~
+src/display/botcorps_display.cpp:239:29: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+  239 |         if (d < mn) mn = d; if (d > mx) mx = d;
+      |                             ^~
+src/ui/botcorps_band.h: In member function 'void Gfx::setFont(const F*)':
+src/ui/botcorps_band.h:37:33: warning: invalid use of incomplete type 'class lgfx::v1::LovyanGFX'
+   37 |     void setFont(const F *f) { p->setFont(f); }
+      |                                 ^~
+src/ui/botcorps_band.h:9:46: note: forward declaration of 'class lgfx::v1::LovyanGFX'
+    9 | namespace lgfx { inline namespace v1 { class LovyanGFX; } }
+      |                                              ^~~~~~~~~
+In file included from src/ui/botcorps_band.h:6,
+                 from src/main.cpp:11:
+src/ui/botcorps_frame_cfg.h:17:44: note: '#pragma message: BOTCORPS_FRAME_MODE=BANDS'
+   17 | #pragma message("BOTCORPS_FRAME_MODE=BANDS")
+      |                                            ^
+In file included from src/ui/botcorps_band.h:6,
+                 from src/ui/botcorps_id.h:3,
+                 from src/ui/botcorps_id.cpp:1:
+src/ui/botcorps_frame_cfg.h:17:44: note: '#pragma message: BOTCORPS_FRAME_MODE=BANDS'
+   17 | #pragma message("BOTCORPS_FRAME_MODE=BANDS")
+      |                                            ^
+src/ui/botcorps_band.h: In member function 'void Gfx::setFont(const F*)':
+src/ui/botcorps_band.h:37:33: warning: invalid use of incomplete type 'class lgfx::v1::LovyanGFX'
+   37 |     void setFont(const F *f) { p->setFont(f); }
+      |                                 ^~
+src/ui/botcorps_band.h:9:46: note: forward declaration of 'class lgfx::v1::LovyanGFX'
+    9 | namespace lgfx { inline namespace v1 { class LovyanGFX; } }
+      |                                              ^~~~~~~~~
+Compiling .pio/build/cyd_livescan/src/ui/botcorps_sprite.cpp.o
+In file included from src/ui/botcorps_band.h:6,
+                 from src/ui/botcorps_sprite.cpp:3:
+src/ui/botcorps_frame_cfg.h:17:44: note: '#pragma message: BOTCORPS_FRAME_MODE=BANDS'
+   17 | #pragma message("BOTCORPS_FRAME_MODE=BANDS")
+      |                                            ^
+src/ui/botcorps_band.h: In member function 'void Gfx::setFont(const F*)':
+src/ui/botcorps_band.h:37:33: warning: invalid use of incomplete type 'class lgfx::v1::LovyanGFX'
+   37 |     void setFont(const F *f) { p->setFont(f); }
+      |                                 ^~
+In file included from src/ui/botcorps_sprite.cpp:1:
+src/ui/botcorps_sprite.h:6:46: note: forward declaration of 'class lgfx::v1::LovyanGFX'
+    6 | namespace lgfx { inline namespace v1 { class LovyanGFX; } }
+      |                                              ^~~~~~~~~
+In file included from src/live/lv_core.h:19,
+                 from src/live/lv_ui.cpp:21:
+src/live/lv_draw.h: In function 'uint16_t lv_boost(uint16_t, int, int)':
+src/live/lv_draw.h:94:5: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+   94 |     if (r > 31) r = 31; if (g > 63) g = 63; if (b > 31) b = 31;
+      |     ^~
+src/live/lv_draw.h:94:25: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+   94 |     if (r > 31) r = 31; if (g > 63) g = 63; if (b > 31) b = 31;
+      |                         ^~
+src/live/lv_draw.h: In function 'uint16_t lv_hi(uint16_t)':
+src/live/lv_draw.h:120:5: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+  120 |     if (r > 31) r = 31; if (g > 63) g = 63; if (b > 31) b = 31;
+      |     ^~
+src/live/lv_draw.h:120:25: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+  120 |     if (r > 31) r = 31; if (g > 63) g = 63; if (b > 31) b = 31;
+      |                         ^~
+src/live/lv_core.h: In function 'uint16_t lv_tx(const LvTS&, uint16_t, int, int)':
+src/live/lv_core.h:677:9: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+  677 |         if (cr > 255) cr = 255; if (cg > 255) cg = 255; if (cb > 255) cb = 255;
+      |         ^~
+src/live/lv_core.h:677:33: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+  677 |         if (cr > 255) cr = 255; if (cg > 255) cg = 255; if (cb > 255) cb = 255;
+      |                                 ^~
+Compiling .pio/build/cyd_livescan/src/ui/botcorps_ui.cpp.o
+Building .pio/build/cyd_livescan/bootloader.bin
+In file included from src/ui/botcorps_band.h:6,
+                 from src/rain/botcorps_rain.cpp:9:
+src/ui/botcorps_frame_cfg.h:17:44: note: '#pragma message: BOTCORPS_FRAME_MODE=BANDS'
+   17 | #pragma message("BOTCORPS_FRAME_MODE=BANDS")
+      |                                            ^
+esptool v5.2.0
+Creating ESP32 image...
+Merged 2 ELF sections.
+Successfully created ESP32 image.
+In file included from src/rain/botcorps_rain.cpp:561:
+src/rain/botcorps_bg.inc: In function 'void bg_sim()':
+src/rain/botcorps_bg.inc:245:13: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+  245 |             if (b.x < 16 * FP) b.x = 16 * FP; if (b.x > (BG_W - 16) * FP) b.x = (int16_t)((BG_W - 16) * FP);
+      |             ^~
+src/rain/botcorps_bg.inc:245:47: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+  245 |             if (b.x < 16 * FP) b.x = 16 * FP; if (b.x > (BG_W - 16) * FP) b.x = (int16_t)((BG_W - 16) * FP);
+      |                                               ^~
+src/rain/botcorps_bg.inc:246:13: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+  246 |             if (b.y < 24 * FP) b.y = 24 * FP; if (b.y > (BG_H - 34) * FP) b.y = (int16_t)((BG_H - 34) * FP);
+      |             ^~
+src/rain/botcorps_bg.inc:246:47: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+  246 |             if (b.y < 24 * FP) b.y = 24 * FP; if (b.y > (BG_H - 34) * FP) b.y = (int16_t)((BG_H - 34) * FP);
+      |                                               ^~
+src/rain/botcorps_bg.inc:255:21: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+  255 |                     if (ay < 24 * FP) ay = 24 * FP; if (ay > (BG_H - 34) * FP) ay = (BG_H - 34) * FP;
+      |                     ^~
+src/rain/botcorps_bg.inc:255:53: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+  255 |                     if (ay < 24 * FP) ay = 24 * FP; if (ay > (BG_H - 34) * FP) ay = (BG_H - 34) * FP;
+      |                                                     ^~
+src/rain/botcorps_bg.inc:256:21: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+  256 |                     if (cy < 24 * FP) cy = 24 * FP; if (cy > (BG_H - 34) * FP) cy = (BG_H - 34) * FP;
+      |                     ^~
+src/rain/botcorps_bg.inc:256:53: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+  256 |                     if (cy < 24 * FP) cy = 24 * FP; if (cy > (BG_H - 34) * FP) cy = (BG_H - 34) * FP;
+      |                                                     ^~
+src/rain/botcorps_bg.inc:289:13: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+  289 |             if (s_bs.bn.x < w2 * FP) s_bs.bn.x = (int16_t)(w2 * FP); if (s_bs.bn.x > (BG_W - w2) * FP) s_bs.bn.x = (int16_t)((BG_W - w2) * FP);
+      |             ^~
+src/rain/botcorps_bg.inc:289:70: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+  289 |             if (s_bs.bn.x < w2 * FP) s_bs.bn.x = (int16_t)(w2 * FP); if (s_bs.bn.x > (BG_W - w2) * FP) s_bs.bn.x = (int16_t)((BG_W - w2) * FP);
+      |                                                                      ^~
+src/rain/botcorps_bg.inc:290:13: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+  290 |             if (s_bs.bn.y < h2 * FP) s_bs.bn.y = (int16_t)(h2 * FP); if (s_bs.bn.y > (BG_H - h2) * FP) s_bs.bn.y = (int16_t)((BG_H - h2) * FP);
+      |             ^~
+src/rain/botcorps_bg.inc:290:70: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+  290 |             if (s_bs.bn.y < h2 * FP) s_bs.bn.y = (int16_t)(h2 * FP); if (s_bs.bn.y > (BG_H - h2) * FP) s_bs.bn.y = (int16_t)((BG_H - h2) * FP);
+      |                                                                      ^~
+src/live/lv_core.h: In function 'LvTS lv_tint_state(int)':
+src/live/lv_core.h:1504:49: warning: arithmetic between different enumeration types '<unnamed enum>' and '<unnamed enum>' is deprecated [-Wdeprecated-enum-enum-conversion]
+ 1504 |         if (id >= LV_T_HUNT0 && id < LV_T_HUNT0 + LV_NHUNT) {
+      |                                      ~~~~~~~~~~~^~~~~~~~~~
+Generating partitions .pio/build/cyd_livescan/partitions.bin
+Compiling .pio/build/cyd_livescan/FrameworkArduino/ColorFormat.c.o
+src/live/lv_core.h: In function 'void lv_cal_solve(const uint16_t (*)[2], uint16_t*, int)':
+src/live/lv_core.h:1671:13: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+ 1671 |             if (v < 0) v = 0; if (v > 4095) v = 4095;
+      |             ^~
+src/live/lv_core.h:1671:31: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+ 1671 |             if (v < 0) v = 0; if (v > 4095) v = 4095;
+      |                               ^~
+src/live/lv_core.h: In function 'const char* lv_tap(int, int)':
+src/live/lv_core.h:2113:17: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+ 2113 |                 if (lv_cs_page < np - 1) ++lv_cs_page; return "cmds-next";
+      |                 ^~
+src/live/lv_core.h:2113:56: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+ 2113 |                 if (lv_cs_page < np - 1) ++lv_cs_page; return "cmds-next";
+      |                                                        ^~~~~~
+src/rain/botcorps_rain.cpp: At global scope:
+src/rain/botcorps_rain.cpp:644:13: warning: 'bool icon_pixel_ok(int, int)' defined but not used [-Wunused-function]
+  644 | static bool icon_pixel_ok(int x, int y)
+      |             ^~~~~~~~~~~~~
+src/rain/botcorps_rain.cpp:184:13: warning: 'void spawn(uint8_t*, int, bool)' defined but not used [-Wunused-function]
+  184 | static void spawn(uint8_t *c, int d, bool scatter)
+      |             ^~~~~
+src/probe/botcorps_probe.cpp: In function 'void botcorps_probe_paint(lgfx::v1::LovyanGFX&)':
+src/probe/botcorps_probe.cpp:242:47: warning: '%s' directive output may be truncated writing up to 51 bytes into a region of size 16 [-Wformat-truncation=]
+  242 |         case 5: snprintf(tail, sizeof(tail), "%s %d", p->nim_b, p->nim_b_rc); break;
+      |                                               ^~
+src/probe/botcorps_probe.cpp:242:25: note: 'snprintf' output between 3 and 64 bytes into a destination of size 16
+  242 |         case 5: snprintf(tail, sizeof(tail), "%s %d", p->nim_b, p->nim_b_rc); break;
+      |                 ~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+src/probe/botcorps_probe.cpp:246:47: warning: '%s' directive output may be truncated writing up to 43 bytes into a region of size 16 [-Wformat-truncation=]
+  246 |         case 9: snprintf(tail, sizeof(tail), "%s %d", p->nim_2, p->nim_2_rc); break;
+      |                                               ^~
+src/probe/botcorps_probe.cpp:246:25: note: 'snprintf' output between 3 and 56 bytes into a destination of size 16
+  246 |         case 9: snprintf(tail, sizeof(tail), "%s %d", p->nim_2, p->nim_2_rc); break;
+      |                 ~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+src/probe/botcorps_probe.cpp:240:47: warning: '%s' directive output may be truncated writing up to 59 bytes into a region of size 16 [-Wformat-truncation=]
+  240 |         case 3: snprintf(tail, sizeof(tail), "%s %d", p->nim_a, p->nim_a_rc); break;
+      |                                               ^~
+src/probe/botcorps_probe.cpp:240:25: note: 'snprintf' output between 3 and 72 bytes into a destination of size 16
+  240 |         case 3: snprintf(tail, sizeof(tail), "%s %d", p->nim_a, p->nim_a_rc); break;
+      |                 ~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+src/probe/botcorps_probe.cpp:238:47: warning: '%s' directive output may be truncated writing up to 65 bytes into a region of size 16 [-Wformat-truncation=]
+  238 |         case 1: snprintf(tail, sizeof(tail), "%s", p->ext_st); break;
+      |                                               ^~
+src/probe/botcorps_probe.cpp:238:25: note: 'snprintf' output between 1 and 66 bytes into a destination of size 16
+  238 |         case 1: snprintf(tail, sizeof(tail), "%s", p->ext_st); break;
+      |                 ~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Compiling .pio/build/cyd_livescan/FrameworkArduino/Esp.cpp.o
+Compiling .pio/build/cyd_livescan/FrameworkArduino/FirmwareMSC.cpp.o
+Compiling .pio/build/cyd_livescan/FrameworkArduino/FunctionalInterrupt.cpp.o
+In file included from src/ui/botcorps_ui.cpp:7:
+src/ui/botcorps_frame_cfg.h:17:44: note: '#pragma message: BOTCORPS_FRAME_MODE=BANDS'
+   17 | #pragma message("BOTCORPS_FRAME_MODE=BANDS")
+      |                                            ^
+In file included from src/ui/botcorps_ui.cpp:12:
+src/ui/botcorps_band.h: In member function 'void Gfx::setFont(const F*)':
+src/ui/botcorps_band.h:37:33: warning: invalid use of incomplete type 'class lgfx::v1::LovyanGFX'
+   37 |     void setFont(const F *f) { p->setFont(f); }
+      |                                 ^~
+src/ui/botcorps_band.h:9:46: note: forward declaration of 'class lgfx::v1::LovyanGFX'
+    9 | namespace lgfx { inline namespace v1 { class LovyanGFX; } }
+      |                                              ^~~~~~~~~
+src/live/lv_core.h: At global scope:
+src/live/lv_core.h:1487:13: warning: 'bool lv_have(int)' defined but not used [-Wunused-function]
+ 1487 | static bool lv_have(int kind) { for (int i = 0; i < lv_nf; ++i) if (lv_f[i].kind == kind) return true; return false; }
+      |             ^~~~~~~
+src/live/lv_core.h:1398:13: warning: 'void lv_draw_chipbot(LvBand&, int, int, int, const uint32_t*)' defined but not used [-Wunused-function]
+ 1398 | static void lv_draw_chipbot(LvBand &B, int x0, int y0, int S, const uint32_t F[4])
+      |             ^~~~~~~~~~~~~~~
+src/ui/botcorps_id.cpp: In function 'uint16_t pack565(int, int, int)':
+src/ui/botcorps_id.cpp:825:5: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+  825 |     if (r < 0) r = 0; if (g < 0) g = 0; if (b < 0) b = 0;
+      |     ^~
+src/ui/botcorps_id.cpp:825:23: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+  825 |     if (r < 0) r = 0; if (g < 0) g = 0; if (b < 0) b = 0;
+      |                       ^~
+src/ui/botcorps_id.cpp:826:5: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+  826 |     if (r > 255) r = 255; if (g > 255) g = 255; if (b > 255) b = 255;
+      |     ^~
+src/ui/botcorps_id.cpp:826:27: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+  826 |     if (r > 255) r = 255; if (g > 255) g = 255; if (b > 255) b = 255;
+      |                           ^~
+src/ui/botcorps_id.cpp: In function 'void board(Gfx, int, int, bool, uint8_t, const char*, const char*)':
+src/ui/botcorps_id.cpp:1052:9: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+ 1052 |         if (a < 0) a = 0; if (b < 0) b = 0; if (b > sw) b = sw;
+      |         ^~
+src/ui/botcorps_id.cpp:1052:27: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+ 1052 |         if (a < 0) a = 0; if (b < 0) b = 0; if (b > sw) b = sw;
+      |                           ^~
+Compiling .pio/build/cyd_livescan/FrameworkArduino/HEXBuilder.cpp.o
+Compiling .pio/build/cyd_livescan/FrameworkArduino/HWCDC.cpp.o
+Compiling .pio/build/cyd_livescan/FrameworkArduino/HardwareSerial.cpp.o
+Compiling .pio/build/cyd_livescan/FrameworkArduino/HashBuilder.cpp.o
+Compiling .pio/build/cyd_livescan/FrameworkArduino/IPAddress.cpp.o
+src/ui/botcorps_ui.cpp: In function 'void paint_cands(Gfx)':
+src/ui/botcorps_ui.cpp:2640:9: warning: variable 'idx' set but not used [-Wunused-but-set-variable]
+ 2640 |     int idx[8];
+      |         ^~~
+Compiling .pio/build/cyd_livescan/FrameworkArduino/MD5Builder.cpp.o
+src/ui/botcorps_ui.cpp: In function 'void sb_board(Gfx, bool)':
+src/ui/botcorps_ui.cpp:4451:10: warning: unused variable 'nmb' [-Wunused-variable]
+ 4451 |     char nmb[16];
+      |          ^~~
+src/ui/botcorps_ui.cpp: In function 'void dual_run(Gfx, int, int, int, int, int, const char*)':
+src/ui/botcorps_ui.cpp:4958:15: warning: unused variable 'ya' [-Wunused-variable]
+ 4958 |     const int ya = y0 < jog ? y0 : jog, yb = y0 > jog ? y0 : jog;
+      |               ^~
+src/ui/botcorps_ui.cpp:4958:41: warning: unused variable 'yb' [-Wunused-variable]
+ 4958 |     const int ya = y0 < jog ? y0 : jog, yb = y0 > jog ? y0 : jog;
+      |                                         ^~
+src/ui/botcorps_ui.cpp:4959:15: warning: unused variable 'yc' [-Wunused-variable]
+ 4959 |     const int yc = jog < y1 ? jog : y1, yd = jog > y1 ? jog : y1;
+      |               ^~
+src/ui/botcorps_ui.cpp:4959:41: warning: unused variable 'yd' [-Wunused-variable]
+ 4959 |     const int yc = jog < y1 ? jog : y1, yd = jog > y1 ? jog : y1;
+      |                                         ^~
+src/ui/botcorps_ui.cpp:4960:15: warning: unused variable 'xa' [-Wunused-variable]
+ 4960 |     const int xa = x0 < x1 ? x0 : x1, xb = x0 > x1 ? x0 : x1;
+      |               ^~
+src/ui/botcorps_ui.cpp:4960:39: warning: unused variable 'xb' [-Wunused-variable]
+ 4960 |     const int xa = x0 < x1 ? x0 : x1, xb = x0 > x1 ? x0 : x1;
+      |                                       ^~
+In file included from src/ui/botcorps_cyd_portrait.inc:4,
+                 from src/ui/botcorps_ui.cpp:7804:
+src/ui/botcorps_cyd_ctlbot.inc: In function 'void drawBotChipK(Gfx, int, int, bool, int, int, const char*, bool, const char*, int)':
+src/ui/botcorps_cyd_ctlbot.inc:347:19: warning: unused variable 'lh' [-Wunused-variable]
+  347 |         const int lh = mb_blk(lab);
+      |                   ^~
+In file included from src/ui/botcorps_cyd_portrait.inc:110:
+src/ui/botcorps_cyd_edge.inc: In function 'void e_gold_face(Gfx, int, int, int)':
+src/ui/botcorps_cyd_edge.inc:41:17: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+   41 |                 if (c2 != c) break; ++run;
+      |                 ^~
+src/ui/botcorps_cyd_edge.inc:41:37: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+   41 |                 if (c2 != c) break; ++run;
+      |                                     ^~
+Compiling .pio/build/cyd_livescan/FrameworkArduino/MacAddress.cpp.o
+Compiling .pio/build/cyd_livescan/FrameworkArduino/Print.cpp.o
+Compiling .pio/build/cyd_livescan/FrameworkArduino/Stream.cpp.o
+Compiling .pio/build/cyd_livescan/FrameworkArduino/StreamString.cpp.o
+In file included from src/live/lv_core.h:1591:
+src/live/lv_radar.h: In function 'void lv_rd_log(const char*, ...)':
+src/live/lv_radar.h:818:107: warning: '%s' directive output may be truncated writing up to 95 bytes into a region of size 53 [-Wformat-truncation=]
+  818 |     memmove(lv_rd_tl[0], lv_rd_tl[1], 2 * sizeof lv_rd_tl[0]); snprintf(lv_rd_tl[2], sizeof lv_rd_tl[2], "%s", t); lv_rd_tl_t = lv_now;
+      |                                                                                                           ^~   ~
+src/live/lv_radar.h:818:72: note: 'snprintf' output between 1 and 96 bytes into a destination of size 53
+  818 |     memmove(lv_rd_tl[0], lv_rd_tl[1], 2 * sizeof lv_rd_tl[0]); snprintf(lv_rd_tl[2], sizeof lv_rd_tl[2], "%s", t); lv_rd_tl_t = lv_now;
+      |                                                                ~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Compiling .pio/build/cyd_livescan/FrameworkArduino/StringUtils.cpp.o
+In file included from src/ui/botcorps_ui.cpp:13125:
+src/ui/botcorps_livescan.inc: At global scope:
+src/ui/botcorps_livescan.inc:921:13: warning: 'void ls_tag_set(int, int, int)' defined but not used [-Wunused-function]
+  921 | static void ls_tag_set(int, int, int) {}
+      |             ^~~~~~~~~~
+src/ui/botcorps_livescan.inc:911:12: warning: 'int ls_fa_ty()' defined but not used [-Wunused-function]
+  911 | static int ls_fa_ty(void) { return 0; }
+      |            ^~~~~~~~
+src/ui/botcorps_livescan.inc:904:13: warning: 'void ls_toggle_arm()' defined but not used [-Wunused-function]
+  904 | static void ls_toggle_arm(void) {}
+      |             ^~~~~~~~~~~~~
+src/ui/botcorps_livescan.inc:897:13: warning: 'bool ls_armed()' defined but not used [-Wunused-function]
+  897 | static bool ls_armed(void) { return false; }
+      |             ^~~~~~~~
+src/ui/botcorps_livescan.inc:895:13: warning: 'bool ls_t3_band()' defined but not used [-Wunused-function]
+  895 | static bool ls_t3_band(void) { return false; }
+      |             ^~~~~~~~~~
+src/ui/botcorps_livescan.inc:894:13: warning: 'bool ls_live_screen()' defined but not used [-Wunused-function]
+  894 | static bool ls_live_screen(void) { (void)ls_owned_band; return false; }
+      |             ^~~~~~~~~~~~~~
+In file included from src/ui/botcorps_ui.cpp:10057:
+src/ui/botcorps_cyd_term.inc:292:12: warning: 'int cyd_pop_touch(int, int)' defined but not used [-Wunused-function]
+  292 | static int cyd_pop_touch(int tx, int ty)
+      |            ^~~~~~~~~~~~~
+In file included from src/ui/botcorps_ui.cpp:9832:
+src/ui/botcorps_defend.inc:44:13: warning: 'void dex_open()' defined but not used [-Wunused-function]
+   44 | static void dex_open(void) {}
+      |             ^~~~~~~~
+src/ui/botcorps_defend.inc:38:13: warning: 'bool dg_play_n(int)' defined but not used [-Wunused-function]
+   38 | static bool dg_play_n(int) { return false; }
+      |             ^~~~~~~~~
+src/ui/botcorps_defend.inc:37:13: warning: 'void dg_rank()' defined but not used [-Wunused-function]
+   37 | static void dg_rank(void) {}
+      |             ^~~~~~~
+src/ui/botcorps_defend.inc:36:13: warning: 'void dg_loadout(int)' defined but not used [-Wunused-function]
+   36 | static void dg_loadout(int) {}
+      |             ^~~~~~~~~~
+src/ui/botcorps_defend.inc:35:13: warning: 'void dg_scores_bot(int)' defined but not used [-Wunused-function]
+   35 | static void dg_scores_bot(int) {}
+      |             ^~~~~~~~~~~~~
+src/ui/botcorps_defend.inc:34:13: warning: 'void dg_scores()' defined but not used [-Wunused-function]
+   34 | static void dg_scores(void) {}
+      |             ^~~~~~~~~
+src/ui/botcorps_defend.inc:33:13: warning: 'void dg_lobby()' defined but not used [-Wunused-function]
+   33 | static void dg_lobby(void) {}
+      |             ^~~~~~~~
+src/ui/botcorps_defend.inc:32:13: warning: 'void dg_note()' defined but not used [-Wunused-function]
+   32 | static void dg_note(void) {}
+      |             ^~~~~~~
+src/ui/botcorps_defend.inc:31:13: warning: 'void dg_ai()' defined but not used [-Wunused-function]
+   31 | static void dg_ai(void) {}
+      |             ^~~~~
+src/ui/botcorps_defend.inc:26:13: warning: 'bool dg_repeat_ok()' defined but not used [-Wunused-function]
+   26 | static bool dg_repeat_ok(void) { return false; }
+      |             ^~~~~~~~~~~~
+src/ui/botcorps_defend.inc:24:13: warning: 'void dg_step(uint32_t)' defined but not used [-Wunused-function]
+   24 | static void dg_step(uint32_t) {}
+      |             ^~~~~~~
+src/ui/botcorps_defend.inc:22:13: warning: 'void dg_start_game(int, int)' defined but not used [-Wunused-function]
+   22 | static void dg_start_game(int, int) {}
+      |             ^~~~~~~~~~~~~
+src/ui/botcorps_defend.inc:21:13: warning: 'void dg_start_own(int)' defined but not used [-Wunused-function]
+   21 | static void dg_start_own(int) {}
+      |             ^~~~~~~~~~~~
+src/ui/botcorps_defend.inc:20:13: warning: 'void dg_start(int)' defined but not used [-Wunused-function]
+   20 | static void dg_start(int) {}
+      |             ^~~~~~~~
+src/ui/botcorps_ui.cpp:8756:12: warning: 'int sheet_top_for(int)' defined but not used [-Wunused-function]
+ 8756 | static int sheet_top_for(int index)
+      |            ^~~~~~~~~~~~~
+src/ui/botcorps_ui.cpp:8730:13: warning: 'void partial_sheet_row(int, int)' defined but not used [-Wunused-function]
+ 8730 | static void partial_sheet_row(int index, int top)
+      |             ^~~~~~~~~~~~~~~~~
+src/ui/botcorps_ui.cpp:8708:13: warning: 'void restore_under_sheet()' defined but not used [-Wunused-function]
+ 8708 | static void restore_under_sheet(void)
+      |             ^~~~~~~~~~~~~~~~~~~
+src/ui/botcorps_ui.cpp:8683:13: warning: 'void partial_sheet()' defined but not used [-Wunused-function]
+ 8683 | static void partial_sheet(void)
+      |             ^~~~~~~~~~~~~
+src/ui/botcorps_ui.cpp:7956:13: warning: 'void tick_int_live(lgfx::v1::LGFX_Device&)' defined but not used [-Wunused-function]
+ 7956 | static void tick_int_live(lgfx::LGFX_Device &menu)
+      |             ^~~~~~~~~~~~~
+src/ui/botcorps_ui.cpp:7913:13: warning: 'void paint_int(lgfx::v1::LGFX_Device&)' defined but not used [-Wunused-function]
+ 7913 | static void paint_int(lgfx::LGFX_Device &menu)
+      |             ^~~~~~~~~
+src/ui/botcorps_ui.cpp:7906:13: warning: 'void paint_bars(Gfx, int, int, int, int, uint8_t)' defined but not used [-Wunused-function]
+ 7906 | static void paint_bars(Gfx g, int x, int y, int lit, int n, uint8_t col)
+      |             ^~~~~~~~~~
+In file included from src/ui/botcorps_cyd_portrait.inc:931:
+src/ui/botcorps_cyd_hubbot.inc:298:13: warning: 'bool hb_hit_box(int, int*, int*, int*, int*)' defined but not used [-Wunused-function]
+  298 | static bool hb_hit_box(int i, int *x, int *y, int *w, int *h)
+      |             ^~~~~~~~~~
+src/ui/botcorps_cyd_portrait.inc:480:12: warning: 'int scanbot_band()' defined but not used [-Wunused-function]
+  480 | static int scanbot_band(void) { return scanbot_active() == SB_BLE ? 1 : 0; }  /* gibson leads Wi-Fi band 0 */
+      |            ^~~~~~~~~~~~
+src/ui/botcorps_cyd_portrait.inc:434:13: warning: 'void e_bot_panel(Gfx, int, uint8_t)' defined but not used [-Wunused-function]
+  434 | static void e_bot_panel(Gfx g, int bot, uint8_t ink)
+      |             ^~~~~~~~~~~
+src/ui/botcorps_cyd_portrait.inc:389:13: warning: 'void e_peri_fan(Gfx, uint8_t)' defined but not used [-Wunused-function]
+  389 | static void e_peri_fan(Gfx g, uint8_t tr)
+      |             ^~~~~~~~~~
+src/ui/botcorps_cyd_portrait.inc:379:13: warning: 'void e_scan_silk(Gfx, const char*, const char*, const char*, uint8_t)' defined but not used [-Wunused-function]
+  379 | static void e_scan_silk(Gfx g, const char *nm, const char *l3, const char *lab, uint8_t ink)
+      |             ^~~~~~~~~~~
+src/ui/botcorps_cyd_portrait.inc:249:13: warning: 'void paint_gibson_accordion_p(Gfx)' defined but not used [-Wunused-function]
+  249 | static void paint_gibson_accordion_p(Gfx g)
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~
+src/ui/botcorps_cyd_portrait.inc:181:13: warning: 'void paint_scanb_peri_p(Gfx, int, uint8_t, uint8_t, uint8_t)' defined but not used [-Wunused-function]
+  181 | static void paint_scanb_peri_p(Gfx g, int kind, uint8_t rim, uint8_t tooth, uint8_t tr)
+      |             ^~~~~~~~~~~~~~~~~~
+src/ui/botcorps_cyd_portrait.inc:114:13: warning: 'void port_seed_scan_logs(bool, bool, bool, int)' defined but not used [-Wunused-function]
+  114 | static void port_seed_scan_logs(bool wifi, bool ble, bool gib, int bot)
+      |             ^~~~~~~~~~~~~~~~~~~
+src/ui/botcorps_cyd_edge.inc:396:12: warning: 'int e_plate_h()' defined but not used [-Wunused-function]
+  396 | static int e_plate_h(void) { return 49; }
+      |            ^~~~~~~~~
+src/ui/botcorps_cyd_edge.inc:349:13: warning: 'void e_log_line(Gfx, const char*, int, int, int)' defined but not used [-Wunused-function]
+  349 | static void e_log_line(Gfx g, const char *ln, int lx, int ly, int w)
+      |             ^~~~~~~~~~
+src/ui/botcorps_cyd_edge.inc:316:13: warning: 'void e_trace(Gfx, const Pt*, int)' defined but not used [-Wunused-function]
+  316 | static void e_trace(Gfx g, const Pt *p, int n)
+      |             ^~~~~~~
+In file included from src/ui/botcorps_cyd_edge.inc:216:
+src/ui/botcorps_cyd_adv_plate.inc:182:13: warning: 'void cyd_adv_paint_cands(Gfx)' defined but not used [-Wunused-function]
+  182 | static void cyd_adv_paint_cands(Gfx g)
+      |             ^~~~~~~~~~~~~~~~~~~
+src/ui/botcorps_cyd_portrait.inc:31:27: warning: 'const char* const* pt_list(int*)' defined but not used [-Wunused-function]
+   31 | static const char *const *pt_list(int *n)
+      |                           ^~~~~~~
+src/ui/botcorps_cyd_portrait.inc:26:20: warning: 'const char* pt_pfx()' defined but not used [-Wunused-function]
+   26 | static const char *pt_pfx(void)
+      |                    ^~~~~~
+src/ui/botcorps_cyd_portrait.inc:14:12: warning: 's_pt_sel' defined but not used [-Wunused-variable]
+   14 | static int s_pt_sel = 0;
+      |            ^~~~~~~~
+src/ui/botcorps_cyd_portrait.inc:13:12: warning: 's_pt_top' defined but not used [-Wunused-variable]
+   13 | static int s_pt_top = 0;
+      |            ^~~~~~~~
+src/ui/botcorps_cyd_portrait.inc:12:13: warning: 's_pt_sym' defined but not used [-Wunused-variable]
+   12 | static bool s_pt_sym = false;
+      |             ^~~~~~~~
+src/ui/botcorps_cyd_portrait.inc:8:13: warning: 'bool cp_ctlbot_on()' defined but not used [-Wunused-function]
+    8 | static bool cp_ctlbot_on(void) { return true; }
+      |             ^~~~~~~~~~~~
+src/ui/botcorps_cyd_ctlbot.inc:756:13: warning: 'void cb_power(Gfx, const int (*)[3], const int (*)[2], const int*)' defined but not used [-Wunused-function]
+  756 | static void cb_power(Gfx g, const int (*PW)[3], const int (*T)[2], const int *SER)
+      |             ^~~~~~~~
+src/ui/botcorps_cyd_ctlbot.inc:646:12: warning: 'int cb_tip()' defined but not used [-Wunused-function]
+  646 | static int cb_tip(void) { return (int)((millis() / 400u) % 12u); }
+      |            ^~~~~~
+src/ui/botcorps_cyd_ctlbot.inc:645:13: warning: 'bool cb_lit_r(int)' defined but not used [-Wunused-function]
+  645 | static bool cb_lit_r(int k) { return k == 5 || k == 6 || k == 7 || k == 10 || k == 11; }
+      |             ^~~~~~~~
+src/ui/botcorps_cyd_ctlbot.inc:214:13: warning: 'void mb_label_rect(bool, int*, int*, int*, int*)' defined but not used [-Wunused-function]
+  214 | static void mb_label_rect(bool P, int *x, int *y, int *w, int *h)
+      |             ^~~~~~~~~~~~~
+src/ui/botcorps_cyd_ctlbot.inc:212:13: warning: 'void mb_face_rect(bool, int*, int*, int*, int*)' defined but not used [-Wunused-function]
+  212 | static void mb_face_rect(bool P, int *x, int *y, int *w, int *h)
+      |             ^~~~~~~~~~~~
+src/ui/botcorps_ui.cpp:4629:13: warning: 'void sb_scouts(Gfx)' defined but not used [-Wunused-function]
+ 4629 | static void sb_scouts(Gfx g)
+      |             ^~~~~~~~~
+src/ui/botcorps_ui.cpp:4285:13: warning: 'void sb_bot_square(Gfx, int, int, int, uint8_t)' defined but not used [-Wunused-function]
+ 4285 | static void sb_bot_square(Gfx g, int x, int y, int s, uint8_t col)
+      |             ^~~~~~~~~~~~~
+src/ui/botcorps_ui.cpp:3630:13: warning: 'void bot_block(Gfx, int, int, int, uint8_t, bool)' defined but not used [-Wunused-function]
+ 3630 | static void bot_block(Gfx g, int cx, int cy, int s, uint8_t col, bool blink)
+      |             ^~~~~~~~~
+src/ui/botcorps_ui.cpp:3302:13: warning: 'void gib_block(Gfx, int, int, int)' defined but not used [-Wunused-function]
+ 3302 | static void gib_block(Gfx g, int cx, int cy, int s) { face_block(g, cx, cy, s, PAL_IVORY, true, false); }
+      |             ^~~~~~~~~
+src/ui/botcorps_ui.cpp:2588:20: warning: 'const char* cand_ghost()' defined but not used [-Wunused-function]
+ 2588 | static const char *cand_ghost(void)
+      |                    ^~~~~~~~~~
+src/ui/botcorps_ui.cpp:2251:13: warning: 'void stroke_round(Gfx, int, int, int, int, uint8_t)' defined but not used [-Wunused-function]
+ 2251 | static void stroke_round(Gfx g, int x, int y, int w, int h, uint8_t c)
+      |             ^~~~~~~~~~~~
+src/ui/botcorps_ui.cpp:2240:13: warning: 'void frame_rect(Gfx, int, int, int, int)' defined but not used [-Wunused-function]
+ 2240 | static void frame_rect(Gfx g, int x, int y, int w, int h)
+      |             ^~~~~~~~~~
+src/ui/botcorps_ui.cpp:2208:13: warning: 'void glow_rect(Gfx, int, int, int, int)' defined but not used [-Wunused-function]
+ 2208 | static void glow_rect(Gfx g, int x, int y, int w, int h)
+      |             ^~~~~~~~~
+src/ui/botcorps_ui.cpp:1832:16: warning: 'uint8_t idx_rgb_inv(uint8_t)' defined but not used [-Wunused-function]
+ 1832 | static uint8_t idx_rgb_inv(uint8_t idx)
+      |                ^~~~~~~~~~~
+src/ui/botcorps_ui.cpp:668:16: warning: 'uint8_t dg_wire()' defined but not used [-Wunused-function]
+  668 | static uint8_t dg_wire(void) { return theme_ix(s_color) == 0 ? (uint8_t)PAL_WIRE_C : th_wire(); }
+      |                ^~~~~~~
+src/ui/botcorps_ui.cpp:667:16: warning: 'uint8_t dg_ac()' defined but not used [-Wunused-function]
+  667 | static uint8_t dg_ac(void) { return theme_ix(s_color) == 0 ? (uint8_t)PAL_CYAN : accent(); }
+      |                ^~~~~
+src/ui/botcorps_ui.cpp:617:16: warning: 'uint8_t th_sel()' defined but not used [-Wunused-function]
+  617 | static uint8_t th_sel(void) { return theme().sel; }
+      |                ^~~~~~
+src/ui/botcorps_ui.cpp:614:16: warning: 'uint8_t accent2()' defined but not used [-Wunused-function]
+  614 | static uint8_t accent2(void) { return theme().ac2; }
+      |                ^~~~~~~
+src/ui/botcorps_ui.cpp:236:13: warning: 'bool sprite_blink(int)' defined but not used [-Wunused-function]
+  236 | static bool sprite_blink(int i)
+      |             ^~~~~~~~~~~~
+Compiling .pio/build/cyd_livescan/FrameworkArduino/Tone.cpp.o
+Compiling .pio/build/cyd_livescan/FrameworkArduino/USB.cpp.o
+src/live/lv_core.h: In function 'void lv_scene_box(LvBand&, void*)':
+src/live/lv_core.h:1017:53: warning: '%d' directive output may be truncated writing between 1 and 11 bytes into a region of size between 7 and 15 [-Wformat-truncation=]
+ 1017 |     if (pages > 1) snprintf(r, sizeof r, "%d TYPES P%d/%d", nc, lv_page + 1, pages); else snprintf(r, sizeof r, "%d TYPES", nc);
+      |                                                     ^~
+src/live/lv_core.h:1017:42: note: directive argument in the range [-2147483647, 2147483647]
+ 1017 |     if (pages > 1) snprintf(r, sizeof r, "%d TYPES P%d/%d", nc, lv_page + 1, pages); else snprintf(r, sizeof r, "%d TYPES", nc);
+      |                                          ^~~~~~~~~~~~~~~~~
+src/live/lv_core.h:1017:42: note: directive argument in the range [2, 24403224]
+src/live/lv_core.h:1017:28: note: 'snprintf' output between 13 and 38 bytes into a destination of size 24
+ 1017 |     if (pages > 1) snprintf(r, sizeof r, "%d TYPES P%d/%d", nc, lv_page + 1, pages); else snprintf(r, sizeof r, "%d TYPES", nc);
+      |                    ~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+src/live/lv_core.h:979:58: warning: '  TAP ROW=INFO' directive output may be truncated writing 14 bytes into a region of size between 2 and 20 [-Wformat-truncation=]
+  979 |         else if (pages > 1) snprintf(r, sizeof r, "P%d/%d  TAP ROW=INFO", lv_cpage + 1, pages);
+      |                                                          ^~~~~~~~~~~~~~
+src/live/lv_core.h:979:37: note: 'snprintf' output between 19 and 37 bytes into a destination of size 24
+  979 |         else if (pages > 1) snprintf(r, sizeof r, "P%d/%d  TAP ROW=INFO", lv_cpage + 1, pages);
+      |                             ~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Compiling .pio/build/cyd_livescan/FrameworkArduino/USBCDC.cpp.o
+Compiling .pio/build/cyd_livescan/FrameworkArduino/USBMSC.cpp.o
+Compiling .pio/build/cyd_livescan/FrameworkArduino/WMath.cpp.o
+src/live/lv_core.h: In function 'void lv_scene_tty(LvBand&, void*)':
+src/live/lv_core.h:1324:145: warning: 'snprintf' output may be truncated before the last format character [-Wformat-truncation=]
+ 1324 |         char c[16]; if (hu == LV_H_DEAUTH) snprintf(c, sizeof c, "%lu DEAUTH", (unsigned long)lv_deauth_n); else snprintf(c, sizeof c, "%d FOUND", m);
+      |                                                                                                                                                 ^
+In function 'void lv_tty_banner(LvBand&, int)',
+    inlined from 'void lv_scene_tty(LvBand&, void*)' at src/live/lv_core.h:1339:59:
+src/live/lv_core.h:1324:122: note: 'snprintf' output between 8 and 17 bytes into a destination of size 16
+ 1324 |         char c[16]; if (hu == LV_H_DEAUTH) snprintf(c, sizeof c, "%lu DEAUTH", (unsigned long)lv_deauth_n); else snprintf(c, sizeof c, "%d FOUND", m);
+      |                                                                                                                  ~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Compiling .pio/build/cyd_livescan/FrameworkArduino/WString.cpp.o
+Compiling .pio/build/cyd_livescan/FrameworkArduino/base64.cpp.o
+Compiling .pio/build/cyd_livescan/FrameworkArduino/cbuf.cpp.o
+src/live/lv_core.h: In function 'void lv_scene_kbd(LvBand&, void*)':
+src/live/lv_core.h:1235:47: warning: '%d' directive output may be truncated writing between 1 and 11 bytes into a region of size 8 [-Wformat-truncation=]
+ 1235 |             char t[8]; snprintf(t, sizeof t, "%d/%d", lv_cs_page + 1, np);
+      |                                               ^~
+In function 'void lv_scene_cs(LvBand&)',
+    inlined from 'void lv_scene_kbd(LvBand&, void*)' at src/live/lv_core.h:1254:34:
+src/live/lv_core.h:1235:46: note: directive argument in the range [-2147483647, 2147483647]
+ 1235 |             char t[8]; snprintf(t, sizeof t, "%d/%d", lv_cs_page + 1, np);
+      |                                              ^~~~~~~
+src/live/lv_core.h:1235:32: note: 'snprintf' output between 4 and 14 bytes into a destination of size 8
+ 1235 |             char t[8]; snprintf(t, sizeof t, "%d/%d", lv_cs_page + 1, np);
+      |                        ~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Compiling .pio/build/cyd_livescan/FrameworkArduino/chip-debug-report.cpp.o
+Compiling .pio/build/cyd_livescan/FrameworkArduino/esp32-hal-adc.c.o
+src/live/lv_radar.h: In function 'void lv_scene_radar(LvBand&, void*)':
+src/live/lv_radar.h:826:54: warning: '%s' directive output may be truncated writing up to 158 bytes into a region of size 53 [-Wformat-truncation=]
+  826 |         char t[LV_RD_TW + 1]; snprintf(t, sizeof t, "%s", lv_rd_tl[l]);
+      |                                                      ^~
+In function 'void lv_rd_term(LvBand&, uint16_t)',
+    inlined from 'void lv_scene_radar(LvBand&, void*)' at src/live/lv_radar.h:928:15:
+src/live/lv_radar.h:826:39: note: 'snprintf' output between 1 and 159 bytes into a destination of size 53
+  826 |         char t[LV_RD_TW + 1]; snprintf(t, sizeof t, "%s", lv_rd_tl[l]);
+      |                               ~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Compiling .pio/build/cyd_livescan/FrameworkArduino/esp32-hal-bt.c.o
+Compiling .pio/build/cyd_livescan/FrameworkArduino/esp32-hal-cpu.c.o
+Compiling .pio/build/cyd_livescan/FrameworkArduino/esp32-hal-dac.c.o
+Compiling .pio/build/cyd_livescan/FrameworkArduino/esp32-hal-gpio.c.o
+src/live/lv_core.h: In function 'void lv_full_line(const LvFind&, int, int, char*, int)':
+src/live/lv_core.h:358:165: warning: '%d' directive output may be truncated writing between 1 and 10 bytes into a region of size between 4 and 29 [-Wformat-truncation=]
+  358 |     if (m && lv_hunt_last >= 0) { char up[16]; snprintf(up, sizeof up, "%s", LV_HUNT_NAME[lv_hunt_last]); lv_upcase(up); snprintf(tail, sizeof tail, "  %s MATCH %d/%d  %d SEEN", up, k, m, lv_nf); }
+      |                                                                                                                                                                     ^~
+src/live/lv_core.h:358:150: note: directive argument in the range [1, 2147483647]
+  358 |     if (m && lv_hunt_last >= 0) { char up[16]; snprintf(up, sizeof up, "%s", LV_HUNT_NAME[lv_hunt_last]); lv_upcase(up); snprintf(tail, sizeof tail, "  %s MATCH %d/%d  %d SEEN", up, k, m, lv_nf); }
+      |                                                                                                                                                      ^~~~~~~~~~~~~~~~~~~~~~~~~~~
+src/live/lv_core.h:358:130: note: 'snprintf' output between 21 and 65 bytes into a destination of size 40
+  358 |     if (m && lv_hunt_last >= 0) { char up[16]; snprintf(up, sizeof up, "%s", LV_HUNT_NAME[lv_hunt_last]); lv_upcase(up); snprintf(tail, sizeof tail, "  %s MATCH %d/%d  %d SEEN", up, k, m, lv_nf); }
+      |                                                                                                                          ~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+src/live/lv_radar.h: In function 'void lv_rd_hunt_line()':
+src/live/lv_radar.h:1000:55: warning: '%s' directive output may be truncated writing up to 199 bytes into a region of size 194 [-Wformat-truncation=]
+ 1000 |     else snprintf(lv_tk_msg, sizeof lv_tk_msg, "HUNT: %s  %s%s  #%d", l, tr, d, lv_rd_reads);
+      |                                                       ^~              ~
+In function 'void lv_rd_hunt_line()',
+    inlined from 'void lv_rd_hunt_line()' at src/live/lv_radar.h:993:13:
+src/live/lv_radar.h:1000:18: note: 'snprintf' output between 19 and 255 bytes into a destination of size 200
+ 1000 |     else snprintf(lv_tk_msg, sizeof lv_tk_msg, "HUNT: %s  %s%s  #%d", l, tr, d, lv_rd_reads);
+      |          ~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+src/live/lv_radar.h: In function 'void lv_rd_hunt_line()':
+src/live/lv_radar.h:999:94: warning: '%s' directive output may be truncated writing up to 199 bytes into a region of size between 155 and 168 [-Wformat-truncation=]
+  999 |     if (lv_rd_miss) snprintf(lv_tk_msg, sizeof lv_tk_msg, "HUNT: NO SIGNAL x%d (LAST %ddBm)  %s", lv_rd_miss, lv_rd_tgt.rssi, l);
+      |                                                                                              ^~                               ~
+In function 'void lv_rd_hunt_line()',
+    inlined from 'void lv_rd_hunt_line()' at src/live/lv_radar.h:993:13:
+src/live/lv_radar.h:999:29: note: 'snprintf' output between 33 and 245 bytes into a destination of size 200
+  999 |     if (lv_rd_miss) snprintf(lv_tk_msg, sizeof lv_tk_msg, "HUNT: NO SIGNAL x%d (LAST %ddBm)  %s", lv_rd_miss, lv_rd_tgt.rssi, l);
+      |                     ~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Compiling .pio/build/cyd_livescan/FrameworkArduino/esp32-hal-hosted.c.o
+Compiling .pio/build/cyd_livescan/FrameworkArduino/esp32-hal-i2c-ng.c.o
+Compiling .pio/build/cyd_livescan/FrameworkArduino/esp32-hal-i2c-slave.c.o
+Compiling .pio/build/cyd_livescan/FrameworkArduino/esp32-hal-i2c.c.o
+Compiling .pio/build/cyd_livescan/FrameworkArduino/esp32-hal-ledc.c.o
+Compiling .pio/build/cyd_livescan/FrameworkArduino/esp32-hal-log-wrapper.c.o
+Compiling .pio/build/cyd_livescan/FrameworkArduino/esp32-hal-matrix.c.o
+Compiling .pio/build/cyd_livescan/FrameworkArduino/esp32-hal-misc.c.o
+Compiling .pio/build/cyd_livescan/FrameworkArduino/esp32-hal-periman.c.o
+Compiling .pio/build/cyd_livescan/FrameworkArduino/esp32-hal-psram.c.o
+Compiling .pio/build/cyd_livescan/FrameworkArduino/esp32-hal-rgb-led.c.o
+Compiling .pio/build/cyd_livescan/FrameworkArduino/esp32-hal-rmt.c.o
+Compiling .pio/build/cyd_livescan/FrameworkArduino/esp32-hal-sigmadelta.c.o
+Compiling .pio/build/cyd_livescan/FrameworkArduino/esp32-hal-spi.c.o
+Compiling .pio/build/cyd_livescan/FrameworkArduino/esp32-hal-time.c.o
+Compiling .pio/build/cyd_livescan/FrameworkArduino/esp32-hal-timer.c.o
+Compiling .pio/build/cyd_livescan/FrameworkArduino/esp32-hal-tinyusb.c.o
+Compiling .pio/build/cyd_livescan/FrameworkArduino/esp32-hal-touch-ng.c.o
+Compiling .pio/build/cyd_livescan/FrameworkArduino/esp32-hal-touch.c.o
+Compiling .pio/build/cyd_livescan/FrameworkArduino/esp32-hal-uart.c.o
+Compiling .pio/build/cyd_livescan/FrameworkArduino/firmware_msc_fat.c.o
+Compiling .pio/build/cyd_livescan/FrameworkArduino/freertos_stats.cpp.o
+src/ui/botcorps_cyd_adv_plate.inc: In function 'void cyd_cl_paint(Gfx)':
+src/ui/botcorps_cyd_adv_plate.inc:914:44: warning: '%d' directive output may be truncated writing between 1 and 11 bytes into a region of size between 0 and 12 [-Wformat-truncation=]
+  914 |             snprintf(pg, sizeof pg, "%d-%d/%d", top + 1, top + G.vis, c.n);
+      |                                            ^~
+src/ui/botcorps_cyd_adv_plate.inc:914:37: note: directive argument in the range [-2147483647, 2147483647]
+  914 |             snprintf(pg, sizeof pg, "%d-%d/%d", top + 1, top + G.vis, c.n);
+      |                                     ^~~~~~~~~~
+src/ui/botcorps_cyd_adv_plate.inc:914:21: note: 'snprintf' output between 6 and 35 bytes into a destination of size 16
+  914 |             snprintf(pg, sizeof pg, "%d-%d/%d", top + 1, top + G.vis, c.n);
+      |             ~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Compiling .pio/build/cyd_livescan/FrameworkArduino/idf_openthread_mpool_wrapper.c.o
+Compiling .pio/build/cyd_livescan/FrameworkArduino/libb64/cdecode.c.o
+Compiling .pio/build/cyd_livescan/FrameworkArduino/libb64/cencode.c.o
+Compiling .pio/build/cyd_livescan/FrameworkArduino/main.cpp.o
+Compiling .pio/build/cyd_livescan/FrameworkArduino/stdlib_noniso.c.o
+Compiling .pio/build/cyd_livescan/FrameworkArduino/wiring_pulse.c.o
+Compiling .pio/build/cyd_livescan/FrameworkArduino/wiring_shift.c.o
+src/ui/botcorps_defend.inc: In function 'bool zap_try_cmd(const char*)':
+src/ui/botcorps_defend.inc:499:59: warning: '%s' directive output may be truncated writing up to 7 bytes into a region of size between 3 and 38 [-Wformat-truncation=]
+  499 |     if (su[0]) snprintf(row, sizeof row, "[ !! ] %s %s %s %s", vu, nmu, su, tail);
+      |                                                           ^~                ~~~~
+src/ui/botcorps_defend.inc:499:24: note: 'snprintf' output between 11 and 53 bytes into a destination of size 48
+  499 |     if (su[0]) snprintf(row, sizeof row, "[ !! ] %s %s %s %s", vu, nmu, su, tail);
+      |                ~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Archiving .pio/build/cyd_livescan/libFrameworkArduino.a
+Indexing .pio/build/cyd_livescan/libFrameworkArduino.a
+src/ui/botcorps_ui.cpp: In function 'void sb_board(Gfx, bool)':
+src/ui/botcorps_ui.cpp:4390:42: warning: array subscript -1 is below array bounds of 'const bot_t [12]' [-Warray-bounds=]
+ 4390 |         else { sb_upper(nmb, 16, BOTS[bot].short_name, 12); if (strlen(nmb) <= 9) strcat(nmb, "BOT"); nm = nmb; }
+      |                                  ~~~~~~~~^
+src/ui/botcorps_ui.cpp:190:20: note: while referencing 'BOTS'
+  190 | static const bot_t BOTS[12] = {
+      |                    ^~~~
+src/ui/botcorps_ui.cpp: In function 'void paint_sbox(Gfx, bool)':
+src/ui/botcorps_ui.cpp:5586:36: warning: '%d' directive output may be truncated writing between 1 and 10 bytes into a region of size 8 [-Wformat-truncation=]
+ 5586 |     else snprintf(db, sizeof(db), "%d", r);
+      |                                    ^~
+In function 'void sb_hunt(Gfx, int)',
+    inlined from 'void paint_sbox(Gfx, bool)' at src/ui/botcorps_ui.cpp:5734:16:
+src/ui/botcorps_ui.cpp:5586:35: note: directive argument in the range [-89, 2147483647]
+ 5586 |     else snprintf(db, sizeof(db), "%d", r);
+      |                                   ^~~~
+src/ui/botcorps_ui.cpp:5586:18: note: 'snprintf' output between 2 and 11 bytes into a destination of size 8
+ 5586 |     else snprintf(db, sizeof(db), "%d", r);
+      |          ~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~
+src/ui/botcorps_cyd_portrait.inc: In function 'void paint_scan_e(Gfx)':
+src/ui/botcorps_cyd_portrait.inc:690:55: warning: 'snprintf' output may be truncated before the last format character [-Wformat-truncation=]
+  690 |         char hd[16]; snprintf(hd, sizeof hd, "FINDS %d", finds);
+      |                                                       ^
+In function 'void sb_bay(Gfx, int, int, int, int, int)',
+    inlined from 'void paint_scan_e(Gfx)' at src/ui/botcorps_cyd_portrait.inc:772:11:
+src/ui/botcorps_cyd_portrait.inc:690:30: note: 'snprintf' output between 8 and 17 bytes into a destination of size 16
+  690 |         char hd[16]; snprintf(hd, sizeof hd, "FINDS %d", finds);
+      |                      ~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+src/ui/botcorps_ui.cpp: In function 'void run_cmd(const char*)':
+src/ui/botcorps_ui.cpp:1445:37: warning: '%s' directive output may be truncated writing up to 79 bytes into a region of size 78 [-Wformat-truncation=]
+ 1445 |     snprintf(echo, sizeof(echo), "> %s%s%s", cmd, arg ? " " : "", arg ? arg : "");
+      |                                     ^~
+src/ui/botcorps_ui.cpp:1445:13: note: 'snprintf' output between 3 and 83 bytes into a destination of size 80
+ 1445 |     snprintf(echo, sizeof(echo), "> %s%s%s", cmd, arg ? " " : "", arg ? arg : "");
+      |     ~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+src/ui/botcorps_ui.cpp:1701:41: warning: '%s' directive output may be truncated writing up to 79 bytes into a region of size 40 [-Wformat-truncation=]
+ 1701 |             snprintf(row, sizeof(row), "%s <bot>: name a bot", cmd);   /* v1019: was the bare command name */
+      |                                         ^~
+src/ui/botcorps_ui.cpp:1701:21: note: 'snprintf' output between 19 and 98 bytes into a destination of size 40
+ 1701 |             snprintf(row, sizeof(row), "%s <bot>: name a bot", cmd);   /* v1019: was the bare command name */
+      |             ~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+src/ui/botcorps_ui.cpp:1642:63: warning: '%s' directive output may be truncated writing up to 335 bytes into a region of size 28 [-Wformat-truncation=]
+ 1642 |                 snprintf(s_track_name, sizeof(s_track_name), "%s", name);
+      |                                                               ^~
+src/ui/botcorps_ui.cpp:1642:25: note: 'snprintf' output between 1 and 336 bytes into a destination of size 28
+ 1642 |                 snprintf(s_track_name, sizeof(s_track_name), "%s", name);
+      |                 ~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+src/ui/botcorps_ui.cpp:1644:54: warning: '%s' directive output may be truncated writing up to 335 bytes into a region of size 71 [-Wformat-truncation=]
+ 1644 |                 snprintf(row, sizeof(row), "tracking %s", name);
+      |                                                      ^~
+src/ui/botcorps_ui.cpp:1644:25: note: 'snprintf' output between 10 and 345 bytes into a destination of size 80
+ 1644 |                 snprintf(row, sizeof(row), "tracking %s", name);
+      |                 ~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+src/ui/botcorps_ui.cpp:1639:45: warning: '%s' directive output may be truncated writing up to 335 bytes into a region of size 80 [-Wformat-truncation=]
+ 1639 |                 snprintf(row, sizeof(row), "%s heard", name);
+      |                                             ^~
+src/ui/botcorps_ui.cpp:1639:25: note: 'snprintf' output between 7 and 342 bytes into a destination of size 80
+ 1639 |                 snprintf(row, sizeof(row), "%s heard", name);
+      |                 ~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+src/ui/botcorps_ui.cpp:1635:50: warning: '%s' directive output may be truncated writing up to 335 bytes into a region of size 75 [-Wformat-truncation=]
+ 1635 |                 snprintf(row, sizeof(row), "pong %s", name);
+      |                                                  ^~
+src/ui/botcorps_ui.cpp:1635:25: note: 'snprintf' output between 6 and 341 bytes into a destination of size 80
+ 1635 |                 snprintf(row, sizeof(row), "pong %s", name);
+      |                 ~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+src/ui/botcorps_ui.cpp: In function 'void gp_run(const char*)':
+src/ui/botcorps_ui.cpp:10500:37: warning: '%s' directive output may be truncated writing up to 39 bytes into a region of size 26 [-Wformat-truncation=]
+10500 |     snprintf(echo, sizeof(echo), "> %s", cmd);
+      |                                     ^~
+src/ui/botcorps_ui.cpp:10500:13: note: 'snprintf' output between 3 and 42 bytes into a destination of size 28
+10500 |     snprintf(echo, sizeof(echo), "> %s", cmd);
+      |     ~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+src/ui/botcorps_ui.cpp:10520:43: warning: '%s' directive output may be truncated writing up to 39 bytes into a region of size 32 [-Wformat-truncation=]
+10520 |             snprintf(s_gp_buf, GP_BUF_N, "%s ", cmd);
+      |                                           ^~
+src/ui/botcorps_ui.cpp:10520:21: note: 'snprintf' output between 2 and 41 bytes into a destination of size 32
+10520 |             snprintf(s_gp_buf, GP_BUF_N, "%s ", cmd);
+      |             ~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+src/ui/botcorps_ui.cpp: In function 'void botcorps_ui_input()':
+src/ui/botcorps_ui.cpp:10708:43: warning: '%s' directive output may be truncated writing up to 2367 bytes into a region of size 32 [-Wformat-truncation=]
+10708 |             snprintf(line, sizeof(line), "%s", s_gp_buf);
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~
+In function 'void ui_dispatch(int, char)',
+    inlined from 'void botcorps_ui_input()' at src/ui/botcorps_ui.cpp:10598:16:
+src/ui/botcorps_ui.cpp:10708:21: note: 'snprintf' output between 1 and 2368 bytes into a destination of size 32
+10708 |             snprintf(line, sizeof(line), "%s", s_gp_buf);
+      |             ~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+src/ui/botcorps_ui.cpp: In function 'void botcorps_ui_input()':
+src/ui/botcorps_ui.cpp:10731:39: warning: '%s' directive output may be truncated writing up to 2367 bytes into a region of size 28 [-Wformat-truncation=]
+10731 |         snprintf(line, sizeof(line), "%s", s_gp_buf);
+      |         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~
+In function 'void ui_dispatch(int, char)',
+    inlined from 'void botcorps_ui_input()' at src/ui/botcorps_ui.cpp:10598:16:
+src/ui/botcorps_ui.cpp:10731:17: note: 'snprintf' output between 1 and 2368 bytes into a destination of size 28
+10731 |         snprintf(line, sizeof(line), "%s", s_gp_buf);
+      |         ~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+src/ui/botcorps_ui.cpp: In function 'void botcorps_ui_input()':
+src/ui/botcorps_ui.cpp:8148:43: warning: '%s' directive output may be truncated writing up to 2367 bytes into a region of size 28 [-Wformat-truncation=]
+ 8148 |             snprintf(line, sizeof(line), "%s", s_gp_buf);
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~
+In function 'void activate()',
+    inlined from 'void on_ok()' at src/ui/botcorps_ui.cpp:9293:13,
+    inlined from 'void ui_dispatch(int, char)' at src/ui/botcorps_ui.cpp:10737:32,
+    inlined from 'void botcorps_ui_input()' at src/ui/botcorps_ui.cpp:10598:16:
+src/ui/botcorps_ui.cpp:8148:21: note: 'snprintf' output between 1 and 2368 bytes into a destination of size 28
+ 8148 |             snprintf(line, sizeof(line), "%s", s_gp_buf);
+      |             ~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+src/ui/botcorps_ui.cpp: In function 'void botcorps_ui_input()':
+src/ui/botcorps_ui.cpp:10639:39: warning: '%s' directive output may be truncated writing up to 2367 bytes into a region of size 28 [-Wformat-truncation=]
+10639 |         snprintf(line, sizeof(line), "%s", s_gp_buf);
+      |         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~
+In function 'bool dg_prompt_key(int, char)',
+    inlined from 'void ui_dispatch(int, char)' at src/ui/botcorps_ui.cpp:10690:27,
+    inlined from 'void botcorps_ui_input()' at src/ui/botcorps_ui.cpp:10598:16:
+src/ui/botcorps_ui.cpp:10639:17: note: 'snprintf' output between 1 and 2368 bytes into a destination of size 28
+10639 |         snprintf(line, sizeof(line), "%s", s_gp_buf);
+      |         ~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+src/ui/botcorps_ui.cpp: In function 'void botcorps_ui_input()':
+src/ui/botcorps_ui.cpp:10652:76: warning: '[ ?? ] try wifi/cam/bt/drone...' directive output truncated writing 40 bytes into a region of size 36 [-Wformat-truncation=]
+10652 |                 snprintf(b, sizeof b, "[ ?? ] try wifi/cam/bt/drone/flock/tower");
+      |                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~
+In function 'bool dg_prompt_key(int, char)',
+    inlined from 'void ui_dispatch(int, char)' at src/ui/botcorps_ui.cpp:10690:27,
+    inlined from 'void botcorps_ui_input()' at src/ui/botcorps_ui.cpp:10598:16:
+src/ui/botcorps_ui.cpp:10652:25: note: 'snprintf' output 41 bytes into a destination of size 36
+10652 |                 snprintf(b, sizeof b, "[ ?? ] try wifi/cam/bt/drone/flock/tower");
+      |                 ~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Linking .pio/build/cyd_livescan/firmware.elf
+Memory Type Usage Summary
+┏━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┓
+┃ Memory Type/Section ┃ Used [bytes] ┃ Used [%] ┃ Remain [bytes] ┃ Total [bytes] ┃
+┡━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━┩
+│ Flash Data          │      1045284 │          │                │               │
+│    .rodata          │      1045028 │          │                │               │
+│    .appdesc         │          256 │          │                │               │
+│ Flash Code          │      1017404 │          │                │               │
+│    .text            │      1017404 │          │                │               │
+│ IRAM                │       120491 │    91.93 │          10581 │        131072 │
+│    .text            │       119463 │    91.14 │                │               │
+│    .vectors         │         1028 │     0.78 │                │               │
+│ DRAM                │       117172 │    94.05 │           7408 │        124580 │
+│    .bss             │        90720 │    72.82 │                │               │
+│    .data            │        26452 │    21.23 │                │               │
+└─────────────────────┴──────────────┴──────────┴────────────────┴───────────────┘
+Total image size: 2209631 bytes (.bin may be padded larger)
+Note: The reported total sizes may be smaller than those in the technical reference manual due to reserved memory and application configuration. The total flash size available for the application is not included by default, as it cannot be reliably determined due to the presence of other data like the bootloader, partition table, and application partition size.
+Retrieving maximum program size .pio/build/cyd_livescan/firmware.elf
+Checking size .pio/build/cyd_livescan/firmware.elf
+Advanced Memory Usage is available via "PlatformIO Home > Project Inspect"
+RAM:   [====      ]  35.8% (used 117172 bytes from 327680 bytes)
+Flash: [=======   ]  70.2% (used 2209375 bytes from 3145728 bytes)
+Building .pio/build/cyd_livescan/firmware.bin
+esptool v5.2.0
+Creating ESP32 image...
+Merged 2 ELF sections.
+Successfully created ESP32 image.
+Creating binary "firmware.factory.bin" with:
+    Offset   | File
+ -  0x1000   | bootloader.bin
+ -  0x8000   | partitions.bin
+ -  0xe000   | boot_app0.bin
+ -  0x10000  | firmware.bin
+Successfully created combined binary image.
+========================= [SUCCESS] Took 43.99 seconds =========================
+
+Environment    Status    Duration
+-------------  --------  ------------
+cyd_livescan   SUCCESS   00:00:43.989
+========================= 1 succeeded in 00:00:43.989 =========================
+exit=0

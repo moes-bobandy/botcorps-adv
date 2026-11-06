@@ -1,0 +1,88 @@
+{
+ "prehunt_vs_3b8b3de_px": {
+  "sel": 0,
+  "mid": 0,
+  "full": 0,
+  "lockfire": 0,
+  "locked": 0
+ },
+ "stills": {
+  "idle": {
+   "sim_frame": 40,
+   "t_ms": 1200,
+   "lit": 3,
+   "locked3x_vs_mock_render_px": 0,
+   "locked1x_is_centre_sample": true,
+   "fw_vs_locked_1x_rgb565_px": 0,
+   "of_which_nearer_tower_edge_kept_px": 0,
+   "fw3x_vs_locked_3x_rgb565_subpx": 1287,
+   "fw3x_vs_locked_3x_subpx_where_1x_centre_matches": 1287
+  },
+  "mid": {
+   "sim_frame": 120,
+   "t_ms": 3600,
+   "lit": 8,
+   "locked3x_vs_mock_render_px": 0,
+   "locked1x_is_centre_sample": true,
+   "fw_vs_locked_1x_rgb565_px": 0,
+   "of_which_nearer_tower_edge_kept_px": 0,
+   "fw3x_vs_locked_3x_rgb565_subpx": 1505,
+   "fw3x_vs_locked_3x_subpx_where_1x_centre_matches": 1505
+  },
+  "full": {
+   "sim_frame": 183,
+   "t_ms": 5490,
+   "lit": 14,
+   "locked3x_vs_mock_render_px": 0,
+   "locked1x_is_centre_sample": true,
+   "fw_vs_locked_1x_rgb565_px": 0,
+   "of_which_nearer_tower_edge_kept_px": 0,
+   "fw3x_vs_locked_3x_rgb565_subpx": 1726,
+   "fw3x_vs_locked_3x_subpx_where_1x_centre_matches": 1726
+  },
+  "pulse": {
+   "sim_frame": 119,
+   "t_ms": 3570,
+   "lit": 8,
+   "locked3x_vs_mock_render_px": 0,
+   "locked1x_is_centre_sample": true,
+   "fw_vs_locked_1x_rgb565_px": 0,
+   "of_which_nearer_tower_edge_kept_px": 0,
+   "fw3x_vs_locked_3x_rgb565_subpx": 1498,
+   "fw3x_vs_locked_3x_subpx_where_1x_centre_matches": 1498
+  }
+ },
+ "flag_off_LV_RD_HUNT_METER0_vs_3b8b3de_px": {
+  "sel": 0,
+  "mid": 0,
+  "full": 0,
+  "lockfire": 0,
+  "locked": 0,
+  "hunting": 0,
+  "hunt": 0
+ },
+ "flag_off_LV_RD_CHARGE0_vs_3b8b3de_px": {
+  "sel": 0,
+  "mid": 0,
+  "full": 0,
+  "lockfire": 0,
+  "locked": 0,
+  "hunting": 0,
+  "hunt": 0
+ },
+ "other_locked_screens": {
+  "renders": 56,
+  "sim_runs": 18,
+  "identical": 56,
+  "diff_px_total": 0
+ }
+}
+{
+ "fw_vs_mock_1x_rgb565_px": 0,
+ "frames_with_diff": 0,
+ "optin_LV_RD_HM_OCC1_vs_mock_1x_rgb565_px": 8549,
+ "optin_occ_nearer_edge_kept_px": 3620,
+ "changed_px_outside_mask": 0,
+ "max_luma_changed_px_outside_glass_fw": 204.3,
+ "max_luma_changed_px_outside_glass_mock_same_rgb565": 204.3
+}

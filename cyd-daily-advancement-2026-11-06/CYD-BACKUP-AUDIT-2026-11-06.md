@@ -49,3 +49,11 @@ All three are packaged into orphan branch `backup/cyd-daily-advancement-2026-11-
 - Tree: `6b0c9f7545209d413fce5b0044d7981394aebfa8`
 - Confirmed: `git ls-remote origin refs/heads/backup/cyd-daily-advancement-2026-11-06` → `27523ab8f0ec9dc2ded7b3cabcfc3d7adb6826ae`
 - Portrait HEAD remained `b29f8abf17aa4c8ea0542dad9b574844e4e62807` (clean); lock-store remained `20faf173e801fbda4b8c487f3b9e9d9039372b8f` (worktree not touched).
+
+## Orphan backup result
+
+- Ref: 
+- Tip commit:  (parent orphan root )
+- Tip tree: 
+- Confirmed:  → 
+- Portrait HEAD remained  (clean); lock-store remained  (worktree not touched).

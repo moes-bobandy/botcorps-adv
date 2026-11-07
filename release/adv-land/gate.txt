@@ -1,0 +1,62 @@
+host sim 2026-11-03T23:12:56Z
+ADV_GATE PASS boot-open scr=0
+DUMP boot scr=0 slots=1 overlap=0
+ADV_GATE PASS boot slot geometry
+DUMP intro scr=1 slots=1 overlap=0
+ADV_GATE PASS intro slot geometry
+ADV_GATE PASS home-open scr=2
+DUMP home scr=2 slots=9 overlap=0
+ADV_GATE PASS home slot geometry
+ADV_GATE PASS home-focus move 0->1 (focus)
+ADV_GATE PASS home-boot-chip scr=0
+ADV_GATE PASS home-scan-chip scr=4
+DUMP scan scr=4 slots=8 overlap=0
+ADV_GATE PASS scan slot geometry
+ADV_GATE PASS scan-back-home scr=2
+DUMP term scr=3 slots=14 overlap=0
+ADV_GATE PASS term slot geometry
+ADV_GATE PASS term-deauth-opens scr=6
+DUMP ctl scr=5 slots=15 overlap=0
+ADV_GATE PASS ctl slot geometry
+ADV_GATE PASS ctl-theme 0->1
+DUMP tty scr=6 slots=2 overlap=0
+ADV_GATE PASS tty slot geometry
+ADV_GATE PASS tty-help lines=22
+DUMP radar scr=8 slots=1 overlap=0
+ADV_GATE PASS radar slot geometry
+ADV_GATE PASS radar-open scr=8
+ADV_GATE done fails=0
+ADV_PX PASS boot 1:1 slots px checked=48000 mismatches=0
+ADV_PX PASS intro 1:1 slots px checked=52800 mismatches=0
+ADV_PX PASS home 1:1 slots px checked=50821 mismatches=0
+ADV_PX PASS home boot size (44, 61) canon (44, 61)
+ADV_PX PASS home gibson size (83, 121) canon (83, 121)
+ADV_PX PASS home control size (44, 60) canon (44, 60)
+ADV_PX PASS home scan size (69, 100) canon (69, 100)
+ADV_PX PASS home terminal size (69, 100) canon (69, 100)
+ADV_PX PASS home tbox size (171, 34) canon (171, 34)
+ADV_PX PASS scan 1:1 slots px checked=48899 mismatches=0
+ADV_PX PASS scan wifi size (43, 63) canon (43, 63)
+ADV_PX PASS scan ble size (43, 60) canon (43, 60)
+ADV_PX PASS scan scanbot size (88, 121) canon (88, 121)
+ADV_PX PASS scan sbox size (174, 104) canon (174, 104)
+ADV_PX PASS term 1:1 slots px checked=41357 mismatches=0
+ADV_PX PASS term terminalbot size (91, 121) canon (91, 121)
+ADV_PX PASS term deauth size (36, 51) canon (36, 51)
+ADV_PX PASS term samsung size (36, 51) canon (36, 51)
+ADV_PX PASS term tbox size (171, 34) canon (171, 34)
+ADV_PX PASS ctl 1:1 slots px checked=43055 mismatches=0
+ADV_PX PASS ctl face size (90, 124) canon (90, 124)
+ADV_PX PASS ctl mix size (36, 56) canon (36, 56)
+ADV_PX PASS ctl rain size (41, 51) canon (41, 51)
+ADV_PX PASS tty 1:1 slots px checked=41760 mismatches=0
+ADV_PX PASS radar 1:1 slots px checked=57600 mismatches=0
+ADV_PX PASS scan wifi orange px=1303
+ADV_PX PASS scan ble blue px=1761
+ADV_PX PASS home row y=80 spans 180px (landscape content, not a 240-wide column)
+ADV_PX done fails=0
+
+# pio run (host, not a field PASS, not flashed)
+cardputer-adv-dual SUCCESS RAM 114040/327680 (34.8%) Flash 1799139/8257536 (21.8%)
+cardputer-adv-dual-launcher SUCCESS RAM 114040/327680 (34.8%) Flash 1799299/6815744 (26.4%) app at 0x170000
+cyd SUCCESS RAM 74172/327680 (22.6%) Flash 1496067/3145728 (47.6%)

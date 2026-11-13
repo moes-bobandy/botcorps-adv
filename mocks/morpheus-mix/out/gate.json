@@ -1,0 +1,508 @@
+{
+ "mock": "morpheus-mix 2026-11-13 (mock only: no flash, no merge, no firmware commit)",
+ "passed": 18,
+ "total": 21,
+ "style_heights": {
+  "T1": 1.05,
+  "T3": 1.0,
+  "T2": 0.95
+ },
+ "htune_sim": {
+  "grid": [
+   {
+    "h1": 1.05,
+    "h2": 0.85,
+    "vis_frac_mean": 0.7954,
+    "vis_frac_worst": 0.2596,
+    "vis_px_min": 0.0,
+    "vis_px_mean": 92.8,
+    "tap_p10_mean": 19.69,
+    "score": 0.9251
+   },
+   {
+    "h1": 1.05,
+    "h2": 0.9,
+    "vis_frac_mean": 0.8026,
+    "vis_frac_worst": 0.2596,
+    "vis_px_min": 0.0,
+    "vis_px_mean": 93.5,
+    "tap_p10_mean": 19.59,
+    "score": 0.9324
+   },
+   {
+    "h1": 1.05,
+    "h2": 0.95,
+    "vis_frac_mean": 0.8096,
+    "vis_frac_worst": 0.2596,
+    "vis_px_min": 0.0,
+    "vis_px_mean": 94.3,
+    "tap_p10_mean": 19.58,
+    "score": 0.9393
+   },
+   {
+    "h1": 1.1,
+    "h2": 0.85,
+    "vis_frac_mean": 0.797,
+    "vis_frac_worst": 0.2308,
+    "vis_px_min": 0.0,
+    "vis_px_mean": 92.9,
+    "tap_p10_mean": 20.7,
+    "score": 0.9124
+   },
+   {
+    "h1": 1.1,
+    "h2": 0.9,
+    "vis_frac_mean": 0.8028,
+    "vis_frac_worst": 0.2596,
+    "vis_px_min": 0.0,
+    "vis_px_mean": 93.4,
+    "tap_p10_mean": 20.69,
+    "score": 0.9326
+   },
+   {
+    "h1": 1.1,
+    "h2": 0.95,
+    "vis_frac_mean": 0.8084,
+    "vis_frac_worst": 0.2596,
+    "vis_px_min": 0.0,
+    "vis_px_mean": 94.0,
+    "tap_p10_mean": 20.59,
+    "score": 0.9382
+   },
+   {
+    "h1": 1.15,
+    "h2": 0.85,
+    "vis_frac_mean": 0.7968,
+    "vis_frac_worst": 0.2112,
+    "vis_px_min": 0.0,
+    "vis_px_mean": 92.9,
+    "tap_p10_mean": 20.9,
+    "score": 0.9023
+   },
+   {
+    "h1": 1.15,
+    "h2": 0.9,
+    "vis_frac_mean": 0.8031,
+    "vis_frac_worst": 0.2425,
+    "vis_px_min": 0.0,
+    "vis_px_mean": 93.3,
+    "tap_p10_mean": 20.9,
+    "score": 0.9243
+   },
+   {
+    "h1": 1.15,
+    "h2": 0.95,
+    "vis_frac_mean": 0.8074,
+    "vis_frac_worst": 0.2596,
+    "vis_px_min": 0.0,
+    "vis_px_mean": 93.8,
+    "tap_p10_mean": 20.9,
+    "score": 0.9372
+   }
+  ],
+  "best": {
+   "h1": 1.05,
+   "h2": 0.95,
+   "vis_frac_mean": 0.8096,
+   "vis_frac_worst": 0.2596,
+   "vis_px_min": 0.0,
+   "vis_px_mean": 94.3,
+   "tap_p10_mean": 19.58,
+   "score": 0.9393
+  }
+ },
+ "gates": [
+  {
+   "name": "presence: 20 pillars placed in idle",
+   "pass": true,
+   "n": 20
+  },
+  {
+   "name": "assignment (sim read-back): look = threat table for all 20",
+   "pass": true
+  },
+  {
+   "name": "assignment (pixels): unoccluded face colour class = look",
+   "pass": true,
+   "matched": 20,
+   "misses": [],
+   "unclassifiable_hidden": [],
+   "note": "idle still; faces with < 15 unoccluded px are not classified"
+  },
+  {
+   "name": "motion: original 12 X/Z/drift/breathing identical to v13.1, H ratio = style factor",
+   "pass": true,
+   "max_xz_err": 0,
+   "max_h_ratio_err": 0.00013,
+   "samples": 320
+  },
+  {
+   "name": "motion: new 8 follow the identical v11 drift law (dx, dz recomputed from the tables)",
+   "pass": true,
+   "max_err": 5e-05,
+   "style_height_changes_xz": 0
+  },
+  {
+   "name": "heights: per-style mean H ordered T1 > T3 > T2",
+   "pass": true,
+   "mean_H": {
+    "T1_code_glass": 1.5823,
+    "T2_construct_light": 0.99,
+    "T3_sentinel_post": 1.2191
+   }
+  },
+  {
+   "name": "heights: style factors slight (T1 1.05..1.15, T3 1.00, T2 0.85..0.95)",
+   "pass": true,
+   "h1": 1.05,
+   "h3": 1.0,
+   "h2": 0.95
+  },
+  {
+   "name": "emblem visibility (idle still): every pillar shows emblem pixels",
+   "pass": true,
+   "px": {
+    "WIFI": 100,
+    "BLUETOOTH": 76,
+    "DEAUTH": 256,
+    "HACK": 64,
+    "FLOCK": 64,
+    "DRONE": 32,
+    "AIR TAG": 256,
+    "KEYFOB": 100,
+    "META": 64,
+    "SKIMMER": 100,
+    "FLIPPER": 64,
+    "SAMSUNG": 100,
+    "AXON": 64,
+    "RAVEN": 100,
+    "ALPR": 100,
+    "CAMERA": 64,
+    "RING": 256,
+    "GOOGLE TAG": 100,
+    "EVIL TWIN": 60,
+    "IBEACON": 60
+   },
+   "min": 32,
+   "mean": 104.0
+  },
+  {
+   "name": "emblem visibility (320 idle samples): every pillar mean visible fraction >= 0.5",
+   "pass": false,
+   "px_min": 0.0,
+   "px_mean": 94.3,
+   "frac_mean": 0.81,
+   "worst": "AIR TAG",
+   "worst_frac": 0.26,
+   "per_pillar": {
+    "WIFI": {
+     "frac": 1.0,
+     "px_mean": 100.0,
+     "px_min": 100
+    },
+    "BLUETOOTH": {
+     "frac": 0.691,
+     "px_mean": 66.3,
+     "px_min": 0
+    },
+    "DEAUTH": {
+     "frac": 0.88,
+     "px_mean": 225.4,
+     "px_min": 0
+    },
+    "HACK": {
+     "frac": 0.897,
+     "px_mean": 57.4,
+     "px_min": 0
+    },
+    "FLOCK": {
+     "frac": 0.955,
+     "px_mean": 61.1,
+     "px_min": 24
+    },
+    "DRONE": {
+     "frac": 0.736,
+     "px_mean": 47.1,
+     "px_min": 0
+    },
+    "AIR TAG": {
+     "frac": 0.26,
+     "px_mean": 66.5,
+     "px_min": 0
+    },
+    "KEYFOB": {
+     "frac": 0.975,
+     "px_mean": 91.0,
+     "px_min": 30
+    },
+    "META": {
+     "frac": 0.31,
+     "px_mean": 26.7,
+     "px_min": 0
+    },
+    "SKIMMER": {
+     "frac": 0.976,
+     "px_mean": 97.6,
+     "px_min": 10
+    },
+    "FLIPPER": {
+     "frac": 0.688,
+     "px_mean": 53.1,
+     "px_min": 0
+    },
+    "SAMSUNG": {
+     "frac": 0.915,
+     "px_mean": 150.8,
+     "px_min": 0
+    },
+    "AXON": {
+     "frac": 0.671,
+     "px_mean": 49.3,
+     "px_min": 0
+    },
+    "RAVEN": {
+     "frac": 0.581,
+     "px_mean": 58.1,
+     "px_min": 0
+    },
+    "ALPR": {
+     "frac": 0.999,
+     "px_mean": 168.1,
+     "px_min": 98
+    },
+    "CAMERA": {
+     "frac": 0.887,
+     "px_mean": 74.9,
+     "px_min": 0
+    },
+    "RING": {
+     "frac": 1.0,
+     "px_mean": 256.0,
+     "px_min": 256
+    },
+    "GOOGLE TAG": {
+     "frac": 0.941,
+     "px_mean": 83.5,
+     "px_min": 0
+    },
+    "EVIL TWIN": {
+     "frac": 0.955,
+     "px_mean": 65.2,
+     "px_min": 24
+    },
+    "IBEACON": {
+     "frac": 0.874,
+     "px_mean": 87.4,
+     "px_min": 10
+    }
+   },
+   "without_style_heights": {
+    "frac_mean": 0.814,
+    "worst_frac": 0.26,
+    "px_mean": 95.0
+   }
+  },
+  {
+   "name": "tap: every pillar keeps a tap cell in every idle sample",
+   "pass": false,
+   "zero_cell": [
+    "BLUETOOTH",
+    "DRONE",
+    "AIR TAG",
+    "META",
+    "FLIPPER",
+    "AXON",
+    "GOOGLE TAG"
+   ],
+   "zero_frac": {
+    "BLUETOOTH": 0.013,
+    "DRONE": 0.006,
+    "AIR TAG": 0.016,
+    "META": 0.013,
+    "FLIPPER": 0.009,
+    "AXON": 0.009,
+    "GOOGLE TAG": 0.006
+   }
+  },
+  {
+   "name": "tap: p10 largest square >= 20 px for every pillar",
+   "pass": false,
+   "p10": {
+    "WIFI": 9.0,
+    "BLUETOOTH": 9.0,
+    "DEAUTH": 35.0,
+    "HACK": 38.800000000000004,
+    "FLOCK": 15.0,
+    "DRONE": 9.0,
+    "AIR TAG": 9.0,
+    "KEYFOB": 9.0,
+    "META": 11.0,
+    "SKIMMER": 32.800000000000004,
+    "FLIPPER": 21.0,
+    "SAMSUNG": 33.0,
+    "AXON": 13.0,
+    "RAVEN": 9.0,
+    "ALPR": 19.0,
+    "CAMERA": 19.0,
+    "RING": 57.0,
+    "GOOGLE TAG": 11.0,
+    "EVIL TWIN": 19.0,
+    "IBEACON": 13.0
+   },
+   "below_20": [
+    "WIFI",
+    "BLUETOOTH",
+    "FLOCK",
+    "DRONE",
+    "AIR TAG",
+    "KEYFOB",
+    "META",
+    "AXON",
+    "RAVEN",
+    "ALPR",
+    "CAMERA",
+    "GOOGLE TAG",
+    "EVIL TWIN",
+    "IBEACON"
+   ],
+   "median": {
+    "WIFI": 13.0,
+    "BLUETOOTH": 15.0,
+    "DEAUTH": 53.0,
+    "HACK": 51.0,
+    "FLOCK": 19.0,
+    "DRONE": 13.0,
+    "AIR TAG": 17.0,
+    "KEYFOB": 15.0,
+    "META": 21.0,
+    "SKIMMER": 49.0,
+    "FLIPPER": 49.0,
+    "SAMSUNG": 49.0,
+    "AXON": 19.0,
+    "RAVEN": 13.0,
+    "ALPR": 27.0,
+    "CAMERA": 27.0,
+    "RING": 63.0,
+    "GOOGLE TAG": 17.0,
+    "EVIL TWIN": 23.0,
+    "IBEACON": 17.0
+   }
+  },
+  {
+   "name": "emblems: anti-aliased (partial-coverage edge pixels on every 40 px emblem)",
+   "pass": true,
+   "min_partial_frac": 0.196
+  },
+  {
+   "name": "emblems: unique silhouettes (max pairwise IoU at 32 px < 0.75)",
+   "pass": true,
+   "max_iou": 0.64,
+   "pair": [
+    "AXON",
+    "IBEACON"
+   ]
+  },
+  {
+   "name": "close-ups: pillar >= 50 px wide, 3 folders landed, 40 px emblem drawn",
+   "pass": true,
+   "closeups": [
+    {
+     "dev": "DEAUTH",
+     "fw": 55,
+     "nland": 3,
+     "emb_S": 40,
+     "ok": true
+    },
+    {
+     "dev": "AIR TAG",
+     "fw": 54,
+     "nland": 3,
+     "emb_S": 40,
+     "ok": true
+    },
+    {
+     "dev": "WIFI",
+     "fw": 54,
+     "nland": 3,
+     "emb_S": 40,
+     "ok": true
+    },
+    {
+     "dev": "RAVEN",
+     "fw": 54,
+     "nland": 3,
+     "emb_S": 40,
+     "ok": true
+    }
+   ]
+  },
+  {
+   "name": "threat text: small text in the terminal status line; LOW lines identical, HIGH / MEDIUM / LOW differ",
+   "pass": true,
+   "note": "line reads \"PILLAR OPEN  THREAT: <LEVEL>  EX.DATA\"; no new widget"
+  },
+  {
+   "name": "no red pill (no saturated red pixels in the field on any close-up frame)",
+   "pass": true,
+   "red_px": 0
+  },
+  {
+   "name": "text audit: every audited text line inside its box",
+   "pass": true,
+   "lines": 13742,
+   "bad": 0
+  },
+  {
+   "name": "files keep scrolling inside the tower (file-list edges move between open and later frames)",
+   "pass": true,
+   "checks": [
+    {
+     "dev": "DEAUTH",
+     "same_pos_match": 0.728,
+     "best_shift_match": 0.979,
+     "moved": true
+    },
+    {
+     "dev": "AIR TAG",
+     "same_pos_match": 0.751,
+     "best_shift_match": 0.999,
+     "moved": true
+    },
+    {
+     "dev": "WIFI",
+     "same_pos_match": 0.708,
+     "best_shift_match": 0.994,
+     "moved": true
+    },
+    {
+     "dev": "RAVEN",
+     "same_pos_match": 0.689,
+     "best_shift_match": 0.993,
+     "moved": true
+    }
+   ]
+  },
+  {
+   "name": "video: no frozen (identical consecutive) frames",
+   "pass": true,
+   "frames": 708,
+   "frozen": 0
+  },
+  {
+   "name": "video: h264 yuv420p 720x960 @3x",
+   "pass": true,
+   "codec": "h264",
+   "pix_fmt": "yuv420p",
+   "size": [
+    720,
+    960
+   ],
+   "frames": "708",
+   "seconds": "21.240000"
+  },
+  {
+   "name": "stills: idle @1x 240x320, idle + 4 close-ups @3x 720x960",
+   "pass": true
+  }
+ ]
+}

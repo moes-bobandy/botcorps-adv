@@ -1,4 +1,27 @@
-# MORPHEUSbot v13 "Dojo Construct" (MOCK ONLY)
+# MORPHEUSbot v13.1 "Dojo Construct" (MOCK ONLY)
+
+## v13.1 fixes (FWQAbot visual QA, 2026-11-13)
+The v13 outputs were moved to `_withdrawn/v13/`.
+1. **Footer:** now reads `TAP A PILLAR = OPEN IT`.
+   - The no-red-pill gate now covers:
+     - Every full frame, checked for pill-ink pixels.
+     - Rows 24..319, checked for red blobs. The locked ticker and the locked BACKbot chip are excluded.
+     - Every v13 text string, checked for PILL.
+   - `PILLAR n/12 LOCKED` and the pink chip are left as they are.
+2. **Idle faces:**
+   - The coarse 3-column blocks are replaced by a finer shoji grid. Panes are about 4-8 px, each with a 1 px lit top and left edge, two-tone inner shading and a dark sill.
+   - The front has a 2 px bevel.
+   - The side faces are graded from a lit corner to dark at the back.
+   - Far pillars (too narrow for an icon) get a crisp 3x5 kind glyph: N, C, T or B.
+   - Motion is unchanged, and the MOTW read-back still matches v11.
+3. **Close-up:**
+   - The pillar is deepened along its own receding edges (x2.4 at full push), so the side face is about 25 px wide.
+   - The side is graded timber with a lit corner edge, perspective ribs and 2 posts.
+   - There is a top cap with an inset panel and a bevelled front.
+   - To make room, the close-up sits at Z 0.72, column 38 (front face about 54 px, icon 32 px).
+4. **Folders:** each gets an ink outline (top, left, tab, lip) and a soft drop shadow.
+
+
 
 This is a simulator mock only. Nothing was merged or flashed. Every frame comes from the `sim_live` real C++ renderer (240x320 RGB565, zig c++). The v12 outputs were moved to `_withdrawn/v12/`. Nothing was deleted.
 
@@ -34,5 +57,3 @@ Both fails come from the v11 idle motion, which this version had to keep (Moband
 - `gate.json`, `touch_targets.json` and `morpheus_v13.patch`. The patch is checked against the v12-state tree and reproduces both files.
 - `src/`: the header, generator inputs and gate tooling.
 
-## Known
-The idle footer still reads "TAP A PILLAR = TAKE THE RED PILL". That is locked v11 chrome text, left unchanged.

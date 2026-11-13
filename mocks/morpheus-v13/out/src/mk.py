@@ -29,6 +29,14 @@ rep('itw_mo_phase = el < MO_PILL_MS ? 1 : el < MO12_DROP0 + 3 * MO12_GAP + MO12_
 a=s.index('    b_text35(B, x + 5, y - 6, MO12_TAB[j]'); b=s.index('\n}',a)
 s=s[:a]+Path('/tmp/morpheus_v13/fold.inc').read_text()+s[b:]
 rep('h = MO12_FH, tw = lv_w35(MO12_TAB[j]) + 12','h = MO12_FH, tw = 60')
+rep('#define MO12_ZC 0.60f','#define MO12_ZC 0.72f'); rep('#define MO12_SX 46.0f','#define MO12_SX 38.0f')
+rep('const int xl = MO12_FX - 4,','const int xl = MO12_FX - 3,')
+rep('snprintf(a, sizeof a, "RED PILL TAKEN  EX.DATA");','snprintf(a, sizeof a, "PILLAR OPEN  EX.DATA");')
+rep('"TAP A PILLAR = TAKE THE RED PILL"','"TAP A PILLAR = OPEN IT"')
+rep('    if (solid) mo12_rect(B, x + 3, y + 2, w, h, lip, 236);   /* 3D lip block */',
+ '    if (solid) { mo12_rect(B, x + 6, y + 5, w, h, lv_hex(0x1e1a16), 110); mo12_rect(B, x + 2, y - 6, 60, 4, lv_hex(0x1e1a16), 70); }   /* v13.1 drop shadow */\n    if (solid) mo12_rect(B, x + 3, y + 2, w, h, lip, 236);   /* 3D lip block */')
+rep('    if (!solid) return;\n    mo12_rect(B, x + 1, y + 2, 2, h - 4, g, 230);','    if (!solid) return;\n    { const uint16_t ol = lv_hex(0x1e1a16);   /* v13.1 ink outline (top / left / tab), separates the folder from the parchment wall */\n      mo12_line(B, x - 1, y - 9, x + tw - 4, y - 9, ol); mo12_line(B, x + tw - 4, y - 9, x + tw + 1, y - 4, ol); mo12_line(B, x + tw + 1, y - 4, x + tw + 1, y - 1, ol);\n      mo12_line(B, x + tw + 1, y - 1, x + w, y - 1, ol); mo12_line(B, x - 1, y - 9, x - 1, y + h, ol); mo12_line(B, x - 1, y + h, x + 3, y + h, ol); }\n    mo12_rect(B, x + 1, y + 2, 2, h - 4, g, 230);')
+rep('mo12_line(B, x + w, y + 2, x + w + 3, y + 5, tim); mo12_line(B, x + w + 3, y + 5, x + w + 3, y + h + 1, tim); mo12_line(B, x + 3, y + h + 1, x + w + 3, y + h + 1, tim);','{ const uint16_t ol = lv_hex(0x1e1a16); mo12_line(B, x + w, y + 2, x + w + 3, y + 5, ol); mo12_line(B, x + w + 3, y + 5, x + w + 3, y + h + 1, ol); mo12_line(B, x + 3, y + h + 1, x + w + 3, y + h + 1, ol); }')
 Path(L+'lv_morpheus_v13.h').write_text(s)
 p=Path(L+'lv_inside_towers.h'); t=p.read_text(); assert ('lv_morpheus_v12.h' in t) or ('#include "lv_morpheus_v13.h"' in t)
 p.write_text(t.replace('#include "lv_morpheus_v12.h"','#include "lv_morpheus_v13.h"'))

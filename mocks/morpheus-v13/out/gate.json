@@ -1,5 +1,5 @@
 {
- "what": "MORPHEUSbot v13 gate (mock only). Numbers are read back from sim_live output, written files or source.",
+ "what": "MORPHEUSbot v13.1 gate (mock only). Numbers are read back from sim_live output, written files or source.",
  "checks": [
   {
    "name": "source: lv_radar.h byte-identical to the v11-state tree (engine, camera law, place/clamp untouched)",
@@ -119,7 +119,7 @@
    ]
   },
   {
-   "name": "close-up: every fully-open pillar is big on the LEFT (front face >= 58 px, centre 34..58, top 50..70)",
+   "name": "close-up: every fully-open pillar is big on the LEFT (front face >= 50 px, centre 26..50, top 50..70; v13.1 deeper side face)",
    "PASS": true,
    "count": 47
   },
@@ -160,9 +160,11 @@
    "why": []
   },
   {
-   "name": "no red pill anywhere in the playthrough field (rows 35..246)",
+   "name": "no red pill anywhere: 0 pill-ink pixels in every full frame, 0 red-blob pixels rows 24..319 (ticker rows 0..23 + locked BACKbot chip excluded: locked shared chrome), and no PILL string in any v13 text",
    "PASS": true,
-   "red_px": 0
+   "pill_ink_px": 0,
+   "red_px": 0,
+   "pill_strings": []
   },
   {
    "name": "motion: 0 frozen frames in the playthrough",
@@ -173,13 +175,14 @@
   {
    "name": "crisp: close-up icon plate + icon uses <= 10 distinct colours (no blur / dither smear)",
    "PASS": true,
-   "colours": 6,
+   "colours": 3,
    "box": [
-    10,
+    16,
     63,
-    73,
-    114
-   ]
+    51,
+    98
+   ],
+   "icon_px": 32
   },
   {
    "name": "@3x stills are exact 3x nearest-neighbour of @1x",

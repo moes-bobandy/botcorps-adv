@@ -5,7 +5,7 @@ from PIL import Image,ImageDraw,ImageFont
 D='/workspace/out/morpheus-1112'; W='/tmp/morpheus_v13'; FR=240*320*3; TREE='/workspace/cyd-morpheus-v6-wt'; LIVE=TREE+'/src/live'; V11=   '/tmp/morpheus_v12/v11tree/src/live'
 F=ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',22)
 NAMES=['WIFI','BLUETOOTH','DEAUTH','HACK','FLOCK','DRONE','AIR TAG','KEYFOB','META','SKIMMER','FLIPPER','SAMSUNG']
-gate={'what':'MORPHEUSbot v13 gate (mock only). Numbers are read back from sim_live output, written files or source.','checks':[]}
+gate={'what':'MORPHEUSbot v13.1 gate (mock only). Numbers are read back from sim_live output, written files or source.','checks':[]}
 def chk(n,ok,**kw): gate['checks'].append(dict(name=n,PASS=bool(ok),**kw)); print('PASS' if ok else 'FAIL',n[:120],flush=True)
 def blocks(p): return open(p).read().split('ITW scr=')[1:]
 def sha(p): return hashlib.sha256(open(p,'rb').read()).hexdigest()
@@ -49,19 +49,28 @@ ab=open(W+'/all12/out.txt').read(); hits=re.findall(r'tap \d+,\d+ -> ([A-Za-z -]
 chk('touch: each of the 12 pillars opens its device and < TOWERS closes it',[x for x in hits if not x.startswith('mo-')]==NAMES and hits.count('mo-towers')==12,taps=hits)
 # ---- open state
 cu=[tuple(map(int,m.groups())) for m in re.finditer(r'MOCU \d+ p=1.000 f=\[(-?\d+),(-?\d+),(-?\d+),(-?\d+)\]',ab+open(W+'/play/out.txt').read())]
-chk('close-up: every fully-open pillar is big on the LEFT (front face >= 58 px, centre 34..58, top 50..70)',len(cu)>=24 and all(x1-x0>=58 and 34<=(x0+x1)//2<=58 and 50<=yt<=70 for x0,x1,yt,yb in cu),count=len(cu))
+chk('close-up: every fully-open pillar is big on the LEFT (front face >= 50 px, centre 26..50, top 50..70; v13.1 deeper side face)',len(cu)>=24 and all(x1-x0>=50 and 26<=(x0+x1)//2<=50 and 50<=yt<=70 for x0,x1,yt,yb in cu),count=len(cu))
 fo=[x for x,y in re.findall(r'MOFOLD nland=(\d) typed=\d+ ys=(\S+)',ab) if '-999' not in y]; chk('folders: all 3 folders landed at y 60/122/184 in every rendered open-state read-back (all12, 1.2 s and 3 s after each tap)',len(fo)==24 and all(x=='3' for x in fo),nland=fo)
 bad=0;why=[]
 for f in ('play','all12'):
     for b in blocks(W+f'/{f}/out.txt'): bad=max(bad,mocam(b)['bad_all']); why+=re.findall(r'MOWHY (.*)',b)
 chk('text: 0 clipped lines (every text line audited every rendered frame)',bad==0 and not why,bad=bad,why=why[:5])
 A=np.fromfile(W+'/play/playthrough.rgb',np.uint8).reshape(-1,320,240,3); n=len(A)
-red=int(((A[:,35:247,:,0]>170)&(A[:,35:247,:,1]<70)&(A[:,35:247,:,2]<70)).sum())
-chk('no red pill anywhere in the playthrough field (rows 35..246)',red==0,red_px=red)
+import itertools
+def q565(c): r,g,b=(c>>16)&255,(c>>8)&255,c&255; return ((r>>3)<<3|(r>>5), (g>>2)<<2|(g>>6), (b>>3)<<3|(b>>5))
+PILL=[0xe4121f,0xff8a8a,0xa00818,0xffe0e0]   # the v11/v12 pill inks
+allA=A.reshape(-1,3); pill_px=0
+for c in PILL:
+    r,g,b=q565(c); pill_px+=int(((allA[:,0]==r)&(allA[:,1]==g)&(allA[:,2]==b)).sum())
+# broad red-blob test over the whole frame below the locked ticker (rows 24..319), excluding the locked BACKbot chip (x >= 219, y >= 287)
+M=(A[:,24:,:,0]>170)&(A[:,24:,:,1]<70)&(A[:,24:,:,2]<70); M[:,287-24:,219:]=False; red=int(M.sum())
+strs=re.findall(r'"([^"\n]*)"',h); rp=[x for x in strs if re.search(r'\bPILL\b',x.upper()) and not x.startswith('close-up')]
+chk('no red pill anywhere: 0 pill-ink pixels in every full frame, 0 red-blob pixels rows 24..319 (ticker rows 0..23 + locked BACKbot chip excluded: locked shared chrome), and no PILL string in any v13 text',
+    pill_px==0 and red==0 and not rp,pill_ink_px=pill_px,red_px=red,pill_strings=rp)
 fz=sum(1 for k in range(1,n) if np.array_equal(A[k],A[k-1])); chk('motion: 0 frozen frames in the playthrough',fz==0,frozen=fz,frames=n)
 p8=np.array(Image.open(W+'/play/p08_open_airtag.png')); m=re.search(r'DUMP p08.*?MOCU \d+ p=[\d.]+ f=\[(-?\d+),(-?\d+),(-?\d+),(-?\d+)\]',open(W+'/play/out.txt').read(),re.S)
-x0,x1,yt,yb=map(int,m.groups()); pl=p8[yt+3:yt+3+52,x0+1:x1]; nc=len({tuple(c) for c in pl.reshape(-1,3)})
-chk('crisp: close-up icon plate + icon uses <= 10 distinct colours (no blur / dither smear)',nc<=10,colours=nc,box=[x0+1,yt+3,x1-1,yt+54])
+x0,x1,yt,yb=map(int,m.groups()); fw=x1-x0; S=48 if fw>=60 else 32 if fw>=38 else 16; px0=(x0+x1)//2-S//2-2; pl=p8[yt+3:yt+3+S+4,px0:px0+S+4]; nc=len({tuple(c) for c in pl.reshape(-1,3)})
+chk('crisp: close-up icon plate + icon uses <= 10 distinct colours (no blur / dither smear)',nc<=10,colours=nc,box=[px0,yt+3,px0+S+3,yt+S+6],icon_px=S)
 # ---- outputs
 for f in os.listdir(D):
     if f!='_withdrawn': raise SystemExit('out dir not clean: '+f)
@@ -79,8 +88,8 @@ def lab(im,t):
     c=Image.new('RGB',(im.width,im.height+40),(20,18,16)); c.paste(im,(0,40)); ImageDraw.Draw(c).text((8,8),t,fill=(232,222,200),font=F); return c
 def side(a,b,ta,tb,out):
     A_=lab(a.resize((720,960),Image.NEAREST),ta); B_=lab(b.resize((720,960),Image.NEAREST),tb); c=Image.new('RGB',(1460,1000),(20,18,16)); c.paste(A_,(0,0)); c.paste(B_,(740,0)); c.save(out)
-side(Image.open('/workspace/out/hackbot-game-1112/stills/17_size_3_files_L1@1x.png'),Image.open(W+'/play/p08_open_airtag.png'),'HACKbot DOWNLOAD open (3 files)','v13 AIR TAG open',D+'/compare_hackbot_vs_v13_open.png')
-side(Image.fromarray(idl['v12']['rgb'][150]),Image.fromarray(idl['v13']['rgb'][150]),'v12 idle (frame 150)','v13 idle (frame 150, same motion)',D+'/compare_v12_vs_v13_idle.png')
+side(Image.open('/workspace/out/hackbot-game-1112/stills/17_size_3_files_L1@1x.png'),Image.open(W+'/play/p08_open_airtag.png'),'HACKbot DOWNLOAD open (3 files)','v13.1 AIR TAG open',D+'/compare_hackbot_vs_v13_open.png')
+side(Image.fromarray(idl['v12']['rgb'][150]),Image.fromarray(idl['v13']['rgb'][150]),'v12 idle (frame 150)','v13.1 idle (frame 150, same motion)',D+'/compare_v12_vs_v13_idle.png')
 cols=4; rows=(len(names)+cols-1)//cols; sh=Image.new('RGB',(cols*490,rows*690),(20,18,16))
 for k,nm in enumerate(names): sh.paste(lab(Image.open(W+f'/play/{nm}.png').resize((480,640),Image.NEAREST),'%02d %s'%(k+1,nm[4:])),((k%cols)*490,(k//cols)*690))
 sh.save(D+'/contact_sheet.png')

@@ -1,0 +1,68 @@
+tick 67
+tick 190
+go 13
+tick 2
+recstart playthrough
+tick 50
+dump p01_idle_a
+itwstate
+tick 50
+dump p02_idle_b
+itwstate
+tick 50
+dump p03_idle_c
+itwstate
+tap 154 162
+itwstate
+tick 5
+dump p04_tap_push
+itwstate
+tick 7
+dump p05_push_in
+itwstate
+tick 7
+dump p06_close_up_left
+itwstate
+tick 6
+dump p07_folders_drop
+itwstate
+tick 15
+dump p08_open_airtag
+itwstate
+tick 50
+dump p09_open_airtag_later
+itwstate
+tap 204 266
+itwstate
+tick 7
+dump p10_towers_return
+itwstate
+tick 33
+dump p11_back_idle
+itwstate
+tap 105 110
+itwstate
+tick 40
+dump p12_open_drone_far
+itwstate
+tick 30
+itwstate
+tap 204 266
+itwstate
+tick 40
+itwstate
+tap 143 251
+itwstate
+tick 50
+dump p13_open_wifi
+itwstate
+tick 25
+itwstate
+tap 204 266
+itwstate
+tick 40
+dump p14_back_idle_end
+itwstate
+tick 40
+itwstate
+recstop

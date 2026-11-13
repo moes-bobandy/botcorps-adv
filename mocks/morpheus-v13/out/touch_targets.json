@@ -1,0 +1,74 @@
+{
+ "what": "v11 touch targets, read back from sim_live itwstate (320 idle samples every 90 ms = 28.8 s, two full Gibson sways, with every pillar drifting).\nHit rule = mo_hit: every point of the field rows 35..285 belongs to the pillar whose centre line (its front-face centre column,\nfrom lv_rd_box pad 3 top to bottom) is nearest, front-first on ties. Reported: per pillar the side of the largest square it owns, worst / 10th pct / median over all samples.",
+ "samples": 320,
+ "square_px_worst": {
+  "WIFI": 28,
+  "BLUETOOTH": 18,
+  "DEAUTH": 27,
+  "HACK": 36,
+  "FLOCK": 21,
+  "DRONE": 24,
+  "AIR TAG": 0,
+  "KEYFOB": 21,
+  "META": 0,
+  "SKIMMER": 37,
+  "FLIPPER": 48,
+  "SAMSUNG": 48
+ },
+ "square_px_p10": {
+  "WIFI": 33,
+  "BLUETOOTH": 24,
+  "DEAUTH": 31,
+  "HACK": 42,
+  "FLOCK": 24,
+  "DRONE": 28,
+  "AIR TAG": 23,
+  "KEYFOB": 24,
+  "META": 27,
+  "SKIMMER": 45,
+  "FLIPPER": 51,
+  "SAMSUNG": 52
+ },
+ "square_px_median": {
+  "WIFI": 46,
+  "BLUETOOTH": 33,
+  "DEAUTH": 52,
+  "HACK": 49,
+  "FLOCK": 33,
+  "DRONE": 31,
+  "AIR TAG": 31,
+  "KEYFOB": 29,
+  "META": 37,
+  "SKIMMER": 59,
+  "FLIPPER": 58,
+  "SAMSUNG": 61
+ },
+ "min_worst": 0,
+ "face_centre_tap_hits_own_pillar": {
+  "WIFI": "319/320",
+  "BLUETOOTH": "318/320",
+  "DEAUTH": "245/246",
+  "HACK": "309/320",
+  "FLOCK": "314/320",
+  "DRONE": "312/320",
+  "AIR TAG": "316/320",
+  "KEYFOB": "317/320",
+  "META": "316/320",
+  "SKIMMER": "299/301",
+  "FLIPPER": "308/320",
+  "SAMSUNG": "320/320"
+ },
+ "face_centre_hit_rate_min": 0.963,
+ "samples_all_ge_36": 0,
+ "towers_btn": {
+  "rect": [
+   170,
+   247,
+   239,
+   285
+  ],
+  "w": 70,
+  "h": 39
+ },
+ "every_tower_tappable_every_sample": false
+}

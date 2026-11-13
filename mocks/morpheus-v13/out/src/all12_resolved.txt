@@ -1,0 +1,127 @@
+tick 67
+tick 190
+go 13
+tick 30
+tap 115 212
+itwstate
+tick 30
+itwstate
+tick 60
+dump open_WIFI
+itwstate
+tap 204 266
+itwstate
+tick 30
+tap 127 138
+itwstate
+tick 30
+itwstate
+tick 60
+dump open_BLUETOOTH
+itwstate
+tap 204 266
+itwstate
+tick 30
+tap 215 261
+itwstate
+tick 30
+itwstate
+tick 60
+dump open_DEAUTH
+itwstate
+tap 204 266
+itwstate
+tick 30
+tap 214 58
+itwstate
+tick 30
+itwstate
+tick 60
+dump open_HACK
+itwstate
+tap 204 266
+itwstate
+tick 30
+tap 169 118
+itwstate
+tick 30
+itwstate
+tick 60
+dump open_FLOCK
+itwstate
+tap 204 266
+itwstate
+tick 30
+tap 77 116
+itwstate
+tick 30
+itwstate
+tick 60
+dump open_DRONE
+itwstate
+tap 204 266
+itwstate
+tick 30
+tick 3
+tick 3
+tap 207 193
+itwstate
+tick 30
+itwstate
+tick 60
+dump open_AIR_TAG
+itwstate
+tap 204 266
+itwstate
+tick 30
+tap 96 192
+itwstate
+tick 30
+itwstate
+tick 60
+dump open_KEYFOB
+itwstate
+tap 204 266
+itwstate
+tick 30
+tap 47 138
+itwstate
+tick 30
+itwstate
+tick 60
+dump open_META
+itwstate
+tap 204 266
+itwstate
+tick 30
+tap 28 63
+itwstate
+tick 30
+itwstate
+tick 60
+dump open_SKIMMER
+itwstate
+tap 204 266
+itwstate
+tick 30
+tap 150 65
+itwstate
+tick 30
+itwstate
+tick 60
+dump open_FLIPPER
+itwstate
+tap 204 266
+itwstate
+tick 30
+tap 32 252
+itwstate
+tick 30
+itwstate
+tick 60
+dump open_SAMSUNG
+itwstate
+tap 204 266
+itwstate
+tick 30
+itwstate

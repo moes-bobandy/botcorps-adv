@@ -1,0 +1,205 @@
+{
+ "what": "MORPHEUSbot v13 gate (mock only). Numbers are read back from sim_live output, written files or source.",
+ "checks": [
+  {
+   "name": "source: lv_radar.h byte-identical to the v11-state tree (engine, camera law, place/clamp untouched)",
+   "PASS": true
+  },
+  {
+   "name": "source: lv_morpheus_v11.h and v12.h unchanged on disk (v11 = v11-state tree, v12 = the withdrawn v12 src copy); lv_inside_towers.h includes v13",
+   "PASS": true
+  },
+  {
+   "name": "source: drift tables + hooks verbatim from v12 (MO11_SX/Z0/RSSI/AX/WX/AZ/WZ/WH, mo11_drift, mo11_layout)",
+   "PASS": true
+  },
+  {
+   "name": "source: no select effect (no mo_brackets / mo_pill call, no flood) and no HACKbot neon literals",
+   "PASS": true
+  },
+  {
+   "name": "source: 3 folders with the DOWNLOAD drop timing (DROP0 300 ms, GAP 110, DROP 380)",
+   "PASS": true
+  },
+  {
+   "name": "idle motion: per-pillar MOTW read-back (X, Z, H, front/back corners, drift dx/dz/hk) + camera identical to v11 over the 600-frame idle recording",
+   "PASS": true,
+   "lines": 26
+  },
+  {
+   "name": "idle skin: v13 idle frames differ from v11 (new pillar skin)",
+   "PASS": true,
+   "frames_differ": 600,
+   "of": 600
+  },
+  {
+   "name": "idle camera keeps Gibson 0.5*sin(0.45 t) (max residual <= 0.0005)",
+   "PASS": true,
+   "max_residual": 5e-05
+  },
+  {
+   "name": "touch: < TOWERS 70x39 (>= 36 px)",
+   "PASS": true,
+   "rect": {
+    "rect": [
+     170,
+     247,
+     239,
+     285
+    ],
+    "w": 70,
+    "h": 39
+   }
+  },
+  {
+   "name": "touch: every pillar keeps a tap cell in every idle sample (inherited v11 motion)",
+   "PASS": false,
+   "worst": {
+    "WIFI": 28,
+    "BLUETOOTH": 18,
+    "DEAUTH": 27,
+    "HACK": 36,
+    "FLOCK": 21,
+    "DRONE": 24,
+    "AIR TAG": 0,
+    "KEYFOB": 21,
+    "META": 0,
+    "SKIMMER": 37,
+    "FLIPPER": 48,
+    "SAMSUNG": 48
+   }
+  },
+  {
+   "name": "touch: >= 36 px idle tap cell for every pillar in every sample (inherited v11 motion; unchanged because positions must stay v11)",
+   "PASS": false,
+   "min_worst": 0,
+   "median": {
+    "WIFI": 46,
+    "BLUETOOTH": 33,
+    "DEAUTH": 52,
+    "HACK": 49,
+    "FLOCK": 33,
+    "DRONE": 31,
+    "AIR TAG": 31,
+    "KEYFOB": 29,
+    "META": 37,
+    "SKIMMER": 59,
+    "FLIPPER": 58,
+    "SAMSUNG": 61
+   }
+  },
+  {
+   "name": "touch: each of the 12 pillars opens its device and < TOWERS closes it",
+   "PASS": true,
+   "taps": [
+    "WIFI",
+    "mo-towers",
+    "BLUETOOTH",
+    "mo-towers",
+    "DEAUTH",
+    "mo-towers",
+    "HACK",
+    "mo-towers",
+    "FLOCK",
+    "mo-towers",
+    "DRONE",
+    "mo-towers",
+    "AIR TAG",
+    "mo-towers",
+    "KEYFOB",
+    "mo-towers",
+    "META",
+    "mo-towers",
+    "SKIMMER",
+    "mo-towers",
+    "FLIPPER",
+    "mo-towers",
+    "SAMSUNG",
+    "mo-towers"
+   ]
+  },
+  {
+   "name": "close-up: every fully-open pillar is big on the LEFT (front face >= 58 px, centre 34..58, top 50..70)",
+   "PASS": true,
+   "count": 47
+  },
+  {
+   "name": "folders: all 3 folders landed at y 60/122/184 in every rendered open-state read-back (all12, 1.2 s and 3 s after each tap)",
+   "PASS": true,
+   "nland": [
+    "3",
+    "3",
+    "3",
+    "3",
+    "3",
+    "3",
+    "3",
+    "3",
+    "3",
+    "3",
+    "3",
+    "3",
+    "3",
+    "3",
+    "3",
+    "3",
+    "3",
+    "3",
+    "3",
+    "3",
+    "3",
+    "3",
+    "3",
+    "3"
+   ]
+  },
+  {
+   "name": "text: 0 clipped lines (every text line audited every rendered frame)",
+   "PASS": true,
+   "bad": 0,
+   "why": []
+  },
+  {
+   "name": "no red pill anywhere in the playthrough field (rows 35..246)",
+   "PASS": true,
+   "red_px": 0
+  },
+  {
+   "name": "motion: 0 frozen frames in the playthrough",
+   "PASS": true,
+   "frozen": 0,
+   "frames": 545
+  },
+  {
+   "name": "crisp: close-up icon plate + icon uses <= 10 distinct colours (no blur / dither smear)",
+   "PASS": true,
+   "colours": 6,
+   "box": [
+    10,
+    63,
+    73,
+    114
+   ]
+  },
+  {
+   "name": "@3x stills are exact 3x nearest-neighbour of @1x",
+   "PASS": true
+  },
+  {
+   "name": "video: @3x 720x960 h264 yuv420p, every frame",
+   "PASS": true,
+   "probe": {
+    "codec_name": "h264",
+    "width": 720,
+    "height": 960,
+    "pix_fmt": "yuv420p",
+    "nb_read_frames": "545"
+   }
+  }
+ ],
+ "score": "18/20",
+ "failures": [
+  "touch: every pillar keeps a tap cell in every idle sample (inherited v11 motion)",
+  "touch: >= 36 px idle tap cell for every pillar in every sample (inherited v11 motion; unchanged because positions must stay v11)"
+ ]
+}

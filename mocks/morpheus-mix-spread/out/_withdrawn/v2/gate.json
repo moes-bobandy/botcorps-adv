@@ -1,0 +1,429 @@
+{
+ "mock": "morpheus-mix SPREAD 2026-11-14 (mock only: no flash, no merge, no firmware commit)",
+ "passed": 21,
+ "total": 22,
+ "devices": [
+  "DEAUTH",
+  "HACK",
+  "FLOCK",
+  "DRONE",
+  "AIR TAG",
+  "KEYFOB",
+  "META",
+  "SKIMMER",
+  "FLIPPER",
+  "SAMSUNG",
+  "AXON",
+  "RAVEN",
+  "ALPR",
+  "CAMERA",
+  "RING",
+  "GOOGLE TAG",
+  "EVIL TWIN",
+  "IBEACON"
+ ],
+ "fixed_heights_world": {
+  "T1_code_glass": 2.47,
+  "T3_sentinel_lantern": 1.16,
+  "T2_white_light": 0.58
+ },
+ "idle_still": {
+  "sample_index": 251,
+  "of": 320,
+  "rule": "median of per-sample quality (mean emblem visible fraction + mean tap square/60); not the best sample",
+  "quality": 1.5074,
+  "quality_min": 1.394,
+  "quality_median": 1.5074,
+  "quality_max": 1.5833
+ },
+ "gates": [
+  {
+   "name": "presence: 18 pillars placed in idle (WIFI + BLUETOOTH removed)",
+   "pass": true,
+   "n": 18
+  },
+  {
+   "name": "assignment (sim read-back): look = threat table for all 18",
+   "pass": true
+  },
+  {
+   "name": "assignment (pixels): unoccluded face colour class = look",
+   "pass": true,
+   "matched": 18,
+   "misses": [],
+   "unclassifiable_hidden": [],
+   "note": "idle still; faces with < 15 unoccluded px are not classified"
+  },
+  {
+   "name": "motion: all 18 follow the identical v11 drift law (dx, dz, X, Z recomputed from the tables)",
+   "pass": true,
+   "max_dxdz_err": 5e-05,
+   "max_xz_err": 5e-05,
+   "samples": 320
+  },
+  {
+   "name": "heights: exactly THREE distinct pillar heights over all 320 idle samples, one per style",
+   "pass": true,
+   "distinct": [
+    0.58,
+    1.16,
+    2.47
+   ],
+   "per_style": {
+    "T1_code_glass": [
+     2.47
+    ],
+    "T2_construct_light": [
+     0.58
+    ],
+    "T3_sentinel_post": [
+     1.16
+    ]
+   }
+  },
+  {
+   "name": "heights: T1 code glass tallest > T3 lantern > T2 white light shortest",
+   "pass": true,
+   "H": {
+    "T1_code_glass": 2.47,
+    "T2_construct_light": 0.58,
+    "T3_sentinel_post": 1.16
+   }
+  },
+  {
+   "name": "heights: no idle height breathing (hk = 1 on every pillar, every sample)",
+   "pass": true
+  },
+  {
+   "name": "emblem visibility (idle still): every pillar shows emblem pixels",
+   "pass": true,
+   "px": {
+    "DEAUTH": 64,
+    "HACK": 64,
+    "FLOCK": 256,
+    "DRONE": 100,
+    "AIR TAG": 64,
+    "KEYFOB": 64,
+    "META": 64,
+    "SKIMMER": 64,
+    "FLIPPER": 100,
+    "SAMSUNG": 64,
+    "AXON": 100,
+    "RAVEN": 256,
+    "ALPR": 100,
+    "CAMERA": 100,
+    "RING": 30,
+    "GOOGLE TAG": 100,
+    "EVIL TWIN": 64,
+    "IBEACON": 256
+   },
+   "min": 30,
+   "mean": 106.1
+  },
+  {
+   "name": "emblem visibility (320 idle samples): every pillar mean visible fraction >= 0.5",
+   "pass": true,
+   "px_min": 0.0,
+   "px_mean": 107.0,
+   "frac_mean": 0.959,
+   "worst": "RAVEN",
+   "worst_frac": 0.877,
+   "per_pillar": {
+    "DEAUTH": {
+     "frac": 0.934,
+     "px_mean": 59.8,
+     "px_min": 0
+    },
+    "HACK": {
+     "frac": 1.0,
+     "px_mean": 64.0,
+     "px_min": 64
+    },
+    "FLOCK": {
+     "frac": 0.983,
+     "px_mean": 251.6,
+     "px_min": 80
+    },
+    "DRONE": {
+     "frac": 0.973,
+     "px_mean": 97.3,
+     "px_min": 0
+    },
+    "AIR TAG": {
+     "frac": 0.974,
+     "px_mean": 81.4,
+     "px_min": 0
+    },
+    "KEYFOB": {
+     "frac": 0.891,
+     "px_mean": 78.2,
+     "px_min": 0
+    },
+    "META": {
+     "frac": 0.947,
+     "px_mean": 85.6,
+     "px_min": 0
+    },
+    "SKIMMER": {
+     "frac": 1.0,
+     "px_mean": 64.7,
+     "px_min": 64
+    },
+    "FLIPPER": {
+     "frac": 0.975,
+     "px_mean": 69.2,
+     "px_min": 0
+    },
+    "SAMSUNG": {
+     "frac": 1.0,
+     "px_mean": 87.4,
+     "px_min": 64
+    },
+    "AXON": {
+     "frac": 0.986,
+     "px_mean": 90.5,
+     "px_min": 32
+    },
+    "RAVEN": {
+     "frac": 0.877,
+     "px_mean": 222.7,
+     "px_min": 0
+    },
+    "ALPR": {
+     "frac": 0.911,
+     "px_mean": 91.1,
+     "px_min": 0
+    },
+    "CAMERA": {
+     "frac": 0.968,
+     "px_mean": 82.9,
+     "px_min": 0
+    },
+    "RING": {
+     "frac": 0.9,
+     "px_mean": 91.2,
+     "px_min": 0
+    },
+    "GOOGLE TAG": {
+     "frac": 0.943,
+     "px_mean": 87.2,
+     "px_min": 0
+    },
+    "EVIL TWIN": {
+     "frac": 1.0,
+     "px_mean": 64.8,
+     "px_min": 64
+    },
+    "IBEACON": {
+     "frac": 1.0,
+     "px_mean": 256.0,
+     "px_min": 256
+    }
+   }
+  },
+  {
+   "name": "tap: every pillar keeps a tap cell in every idle sample (100%)",
+   "pass": true,
+   "zero_cell": [],
+   "zero_frac": {},
+   "min_square": {
+    "DEAUTH": 17,
+    "HACK": 37,
+    "FLOCK": 15,
+    "DRONE": 19,
+    "AIR TAG": 5,
+    "KEYFOB": 3,
+    "META": 5,
+    "SKIMMER": 41,
+    "FLIPPER": 15,
+    "SAMSUNG": 11,
+    "AXON": 9,
+    "RAVEN": 11,
+    "ALPR": 7,
+    "CAMERA": 7,
+    "RING": 9,
+    "GOOGLE TAG": 11,
+    "EVIL TWIN": 25,
+    "IBEACON": 31
+   }
+  },
+  {
+   "name": "tap: p10 largest square >= 20 px for every pillar",
+   "pass": false,
+   "p10": {
+    "DEAUTH": 34.800000000000004,
+    "HACK": 41.0,
+    "FLOCK": 39.0,
+    "DRONE": 29.0,
+    "AIR TAG": 13.0,
+    "KEYFOB": 10.800000000000004,
+    "META": 13.0,
+    "SKIMMER": 43.0,
+    "FLIPPER": 29.0,
+    "SAMSUNG": 15.0,
+    "AXON": 13.0,
+    "RAVEN": 21.0,
+    "ALPR": 13.0,
+    "CAMERA": 9.0,
+    "RING": 15.0,
+    "GOOGLE TAG": 13.0,
+    "EVIL TWIN": 29.0,
+    "IBEACON": 49.0
+   },
+   "below_20": [
+    "AIR TAG",
+    "KEYFOB",
+    "META",
+    "SAMSUNG",
+    "AXON",
+    "ALPR",
+    "CAMERA",
+    "RING",
+    "GOOGLE TAG"
+   ],
+   "median": {
+    "DEAUTH": 47.0,
+    "HACK": 49.0,
+    "FLOCK": 53.0,
+    "DRONE": 43.0,
+    "AIR TAG": 21.0,
+    "KEYFOB": 19.0,
+    "META": 19.0,
+    "SKIMMER": 49.0,
+    "FLIPPER": 49.0,
+    "SAMSUNG": 19.0,
+    "AXON": 17.0,
+    "RAVEN": 27.0,
+    "ALPR": 17.0,
+    "CAMERA": 13.0,
+    "RING": 25.0,
+    "GOOGLE TAG": 19.0,
+    "EVIL TWIN": 35.0,
+    "IBEACON": 57.0
+   }
+  },
+  {
+   "name": "emblems: anti-aliased (partial-coverage edge pixels on every 40 px emblem)",
+   "pass": true,
+   "min_partial_frac": 0.196
+  },
+  {
+   "name": "emblems: unique silhouettes (max pairwise IoU at 32 px < 0.75)",
+   "pass": true,
+   "max_iou": 0.64,
+   "pair": [
+    "AXON",
+    "IBEACON"
+   ]
+  },
+  {
+   "name": "close-ups: pillar >= 50 px wide, 3 folders landed, 40 px emblem drawn",
+   "pass": true,
+   "closeups": [
+    {
+     "dev": "DEAUTH",
+     "fw": 53,
+     "nland": 3,
+     "emb_S": 40,
+     "ok": true
+    },
+    {
+     "dev": "AIR TAG",
+     "fw": 54,
+     "nland": 3,
+     "emb_S": 40,
+     "ok": true
+    },
+    {
+     "dev": "FLOCK",
+     "fw": 55,
+     "nland": 3,
+     "emb_S": 40,
+     "ok": true
+    },
+    {
+     "dev": "RAVEN",
+     "fw": 54,
+     "nland": 3,
+     "emb_S": 40,
+     "ok": true
+    }
+   ]
+  },
+  {
+   "name": "threat text: small text in the terminal status line; LOW lines identical, HIGH / MEDIUM / LOW differ",
+   "pass": true,
+   "note": "line reads \"PILLAR OPEN  THREAT: <LEVEL>  EX.DATA\"; no new widget"
+  },
+  {
+   "name": "no red pill (no saturated red pixels in the field on any close-up frame)",
+   "pass": true,
+   "red_px": 0
+  },
+  {
+   "name": "text audit: every audited text line inside its box",
+   "pass": true,
+   "lines": 22942,
+   "bad": 0
+  },
+  {
+   "name": "files keep scrolling inside the tower (file-list edges move between open and later frames)",
+   "pass": true,
+   "checks": [
+    {
+     "dev": "DEAUTH",
+     "same_pos_match": 0.723,
+     "best_shift_match": 0.988,
+     "moved": true
+    },
+    {
+     "dev": "AIR TAG",
+     "same_pos_match": 0.814,
+     "best_shift_match": 0.996,
+     "moved": true
+    },
+    {
+     "dev": "FLOCK",
+     "same_pos_match": 0.677,
+     "best_shift_match": 0.992,
+     "moved": true
+    },
+    {
+     "dev": "RAVEN",
+     "same_pos_match": 0.683,
+     "best_shift_match": 0.992,
+     "moved": true
+    }
+   ]
+  },
+  {
+   "name": "determinism: two identical runs give byte-identical framebuffers (all dumps + video)",
+   "pass": true,
+   "dumps": 14,
+   "identical": 14,
+   "video_sha256": "af9f08cf827e8307"
+  },
+  {
+   "name": "video: no frozen (identical consecutive) frames",
+   "pass": true,
+   "frames": 708,
+   "frozen": 0
+  },
+  {
+   "name": "video: h264 yuv420p 720x960 @3x",
+   "pass": true,
+   "codec": "h264",
+   "pix_fmt": "yuv420p",
+   "size": [
+    720,
+    960
+   ],
+   "frames": "708",
+   "seconds": "21.240000"
+  },
+  {
+   "name": "stills: idle @1x 240x320, idle + 4 close-ups @3x 720x960",
+   "pass": true
+  }
+ ]
+}

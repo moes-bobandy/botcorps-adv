@@ -91,6 +91,8 @@ rep('T.byt, T.byb, mo_hn[i], mo11_dxv[i]', 'T.byt, T.byb, i < 12 ? mo_hn[i] : 0,
 rep('''    if (mo_txt_bad) printf("  MOWHY %s\\n", mo_txt_why);''', '''    for (int i = 0; i < MO_N; ++i) if (mo11_have[i]) printf("  MOEMB %d look=%d threat=%s hs=%.3f e=[%d,%d,%d]\\n", i, MO_LOOKOF[i], MO_TNAME[MO_THREAT[i]], MO_HFIX[MO_LOOKOF[i]], mo_ex[i], mo_ey[i], mo_eS[i]);
     if (mo_txt_bad) printf("  MOWHY %s\\n", mo_txt_why);''')
 assert 'mo11_tower_fx(LvBand &B, const LvTower &T)\n{' not in s
+if J.get('tw', 1.35) != 1.35:   # v4 (Mobandy 9:27 AM ET: bigger emblems need wider faces): pillar width scale from layout18.json
+    rep('#define MO11_TW 1.35f    /* lv_rd_skin_tw: pillars a little broader than Gibson\'s needles (touch) */', '#define MO11_TW %gf    /* lv_rd_skin_tw (v4 2026-11-14: was 1.35; wider faces so the idle emblems can be ~20-28 px) */' % J['tw'])
 open(TREE + '/src/live/lv_morpheus_v13.h', 'w').write(s)
 # lv_inside_towers.h: 16 -> 24 slots
 n0 = t.count('[16]'); t = t.replace('[16][14]', '[24][14]').replace('[16]', '[24]')

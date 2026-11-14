@@ -1,0 +1,1 @@
+v3 = 9:22 AM ET renders (H 1.26, factors 1.00/0.90/0.80, seed-36 layout, real folder text). Gate 22/25. REJECTED by Mobandy 9:27 AM ET (short boxes, weak emblems, flicker).

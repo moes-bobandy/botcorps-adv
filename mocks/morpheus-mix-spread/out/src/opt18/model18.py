@@ -6,7 +6,8 @@ front first). The gate re-measures everything on the real sim (touch20.py)."""
 import numpy as np
 from scipy.ndimage import distance_transform_cdt
 F, HOR, CAMH, FY0, FY1 = 120.0, 138, 0.9, 35, 285
-W = 0.12 * 1.35; D = 0.24
+import os as _os
+W = 0.12 * float(_os.environ.get("MO_TW", "1.35")); D = 0.24   # v4: MO_TW=1.8 (wider pillar faces for bigger emblems)
 NAMES = ["DEAUTH","HACK","FLOCK","DRONE","AIR TAG","KEYFOB","META","SKIMMER","FLIPPER","SAMSUNG","AXON","RAVEN","ALPR","CAMERA","RING","GOOGLE TAG","EVIL TWIN","IBEACON"]
 THREAT = [0,0,2,2,1,1,1,0,0,1, 1,2,2,1,2,1,0,2]          # 0 HIGH 1 MEDIUM 2 LOW
 LOOKOF = [{0:1,1:3,2:2}[t] for t in THREAT]                # 1 T1 code glass, 3 T3 lantern, 2 T2 white light

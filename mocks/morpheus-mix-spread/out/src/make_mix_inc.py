@@ -115,15 +115,15 @@ s = s[:a] + """    } else {
         const float k = 0.5f + 0.5f * g; return mo3_mx(0x9a6232, 0x3a2010, 0.25f + 0.6f * (1 - k) * (0.6f + 0.4f * u)); };
     auto side = [&](int xf, int xbk) { const int dir = xbk > xf ? 1 : -1, n = abs(xbk - xf); if (n < 1) return;
         for (int s = 0; s <= n; ++s) { const int x = xf + dir * s; const float u = s / (float)n; const int top = (int)lroundf(yt + (byt - yt) * u), bot = (int)lroundf(yb + (byb - yb) * u);
-            for (int y = top; y <= bot; ++y) mo13_px(B, x, y, mo3_mx(0x6a4020, 0x2a160a, u), a * 150 / 256); }
+            for (int y = top; y <= bot; ++y) mo13_px(B, x, y, mo3_mx(0x6a4020, 0x2a160a, u), a * 105 / 256); }
         mo13_line(B, xbk, byt, xbk, byb, lv_hex(0x8a5a2a), a * 200 / 256); mo13_line(B, xf, yt, xbk, byt, lv_hex(0xd8aa52), a); };
     if (bx1 > x1) side(x1, bx1);
     if (bx0 < x0) side(x0, bx0);
-    if (byt < yt) { const float X[4] = {(float)x0, (float)bx0, (float)bx1, (float)x1}, Y[4] = {(float)yt, (float)byt, (float)byt, (float)yt}; mo_quad(B, X, Y, lv_hex(0xb08a3a), a * 190 / 256); mo13_line(B, bx0, byt, bx1, byt, lv_hex(0xfff0b0), a); }
-    /* translucent wood front: grain at ~55% so the room / rain behind shows through, a soft sheen near the lit edge, a faint warm inner light */
+    if (byt < yt) { const float X[4] = {(float)x0, (float)bx0, (float)bx1, (float)x1}, Y[4] = {(float)yt, (float)byt, (float)byt, (float)yt}; mo_quad(B, X, Y, lv_hex(0xb08a3a), a * 150 / 256); mo13_line(B, bx0, byt, bx1, byt, lv_hex(0xfff0b0), a); }
+    /* translucent wood front: grain at ~38% (v3; v2 was 55%) so the room / rain behind shows through, a soft sheen near the lit edge, a faint warm inner light */
     for (int y = yt; y <= yv; ++y) { const float v = (y - yt) / (float)(yb - yt + 1);
         for (int x = x0; x <= x1; ++x) { const float u = (x - x0) / (float)fw, sh = expf(-((u - 0.2f) * (u - 0.2f)) / 0.012f);
-            mo13_px(B, x, y, grain(x, y, u), a * 140 / 256);
+            mo13_px(B, x, y, grain(x, y, u), a * 96 / 256);   /* v3: ~38% wood so the room shows through at idle too */
             if (sh > 0.05f) mo13_px(B, x, y, lv_hex(0xffe0a8), (int)(a * 46 * sh / 256));
             const float w = 1 - fabsf(u - 0.5f) * 2; if (w > 0) mo13_px(B, x, y, lv_hex(0xffc860), (int)(a * 26 * w * (1 - 0.5f * v) / 256)); } }
     /* thin brass bands with a green trim line (the pillar's frame) */
@@ -143,5 +143,121 @@ s = s[:a] + """    } else {
     mo13_line(B, x0, yt, x0, yv, lv_hex(0xd8aa52), a); mo13_line(B, x1, yt, x1, yv, lv_hex(0x3a2010), a); mo13_line(B, x0, yt, x1, yt, lv_hex(0xfff0b0), a); mo13_line(B, x0, yb, x1, yb, lv_hex(0x3a2010), a);
     if (fw >= 10) { mo13_line(B, x0 + 1, bt0 + bh + 1, x0 + 1, bb0 - 2, lv_hex(MO11_G), a * 140 / 256); }
 """ + s[b:]
+
+# ---- 2026-11-14 (Mobandy 9:06 AM ET): REAL folder text from folders18.py; text only, same folder / line-item layout ----
+import subprocess as _sp, sys as _sys
+_sp.run([_sys.executable, D + '/folders18.py'], check=True)
+_FT = open(D + '/folders18.inc').read()
+def rep2(a, b):
+    global s
+    assert s.count(a) == 1, a[:80]
+    s = s.replace(a, b)
+rep2('static void mo3_size(const char *nm, char *out)', _FT + 'static void mo3_size(const char *nm, char *out)')
+rep2('const int e = (base + k) % 8; const char *nm = MO3_FN[i][e];', 'const int e = (base + k) % 8; const char *nm = MO_ITEM_K[i][e];   /* real KEY (was a made-up file name) */')
+rep2('char sz[12]; mo3_size(nm, sz); mo3_t35(B, x0 + 9, y + 7, sz, sc, a, ylo, yhi, x1);', 'char sz[12]; snprintf(sz, sizeof sz, "%s", MO_ITEM_V[i][e]); mo3_t35(B, x0 + 9, y + 7, sz, sc, a, ylo, yhi, x1);   /* real VALUE (was a fake KB size) */')
+rep2('mo3_t35(B, x0 + 8, y, nm, tc, a, ylo, yhi, x1); }', 'mo3_t35(B, x0 + 8, y, MO_ITEM_V[i][e], tc, a, ylo, yhi, x1); }   /* one-line rows: the VALUE (the fact) */')
+rep2('const char *nm = MO13_FN[i][j]; b_text(B, x + 17, y + 7, nm, ink);', 'const char *nm = MO_FOLD_NAME[i][j]; b_text(B, x + 17, y + 7, nm, ink);   /* real folder name: ID / DETECT / ACTION */')
+i0 = s.index('    const char *src = j == 0 ? MO_DEV[i].what'); i1 = s.index('b_text(B, sx, y + 20, sz, lv_hex(SIZE));')
+s = s[:i0] + '    const char *sz = MO_FOLD_TAG[i][j]; const int sw = (int)strlen(sz) * 6 - 1, sx = x + w - 6 - sw;   /* right tag: threat / radio / DO (was a fake KB size) */\n    ' + s[i1:]
+rep2('b_text35(B, x + 6, y + 22, MO13_ACT[j], lv_hex(ACT));', 'b_text35(B, x + 6, y + 22, MO_FOLD_ACT[i][j], lv_hex(ACT));')
+rep2('lv_w35(MO13_ACT[j]), 5, x + 2, y + 18, sx - 3, y + 30, "fact");', 'lv_w35(MO_FOLD_ACT[i][j]), 5, x + 2, y + 18, sx - 3, y + 30, "fact");')
+
+# ---- v4 2026-11-14 (Mobandy 9:27-9:29 AM ET): crisp + stable + opaque UI; white T2 see-through shell; bigger idle emblems ----
+rep2('static int mo_ex[MO_N], mo_ey[MO_N], mo_eS[MO_N];   /* this frame\'s drawn emblem rect per pillar (dump / gate) */',
+     """static int mo_ex[MO_N], mo_ey[MO_N], mo_eS[MO_N];   /* this frame's drawn emblem rect per pillar (dump / gate) */
+/* v4: opaque-UI audit. Every emblem / on-tower folder / file-line pixel goes through mo_ui_px; a pixel drawn below the pillar's own
+ * alpha (fade-out while another pillar is open) would be a translucent UI pixel. Counts are printed at exit (MOUI) for the gate. */
+static long mo_ui_tot, mo_ui_part; static int mo_ui_a = 256, mo_ui_cnt = 1;   /* mo_ui_cnt = 0 while the T1 code rain (not UI) borrows the 3x5 text routine */
+static inline void mo_ui_px(LvBand &B, int x, int y, uint16_t c, int al) { if (mo_ui_cnt) { ++mo_ui_tot; if (al < mo_ui_a) ++mo_ui_part; } mo13_px(B, x, y, c, al); }
+struct MoUiRep { ~MoUiRep() { printf("MOUI tot=%ld part=%ld\\n", mo_ui_tot, mo_ui_part); fflush(stdout); } };
+static MoUiRep mo_ui_rep;
+static int mo_txt_oc = -1;   /* v4: 1 px opaque outline colour behind on-tower text (-1 none) */""")
+# emblem: binary masks drawn fully opaque (halo outline, body, detail); no alpha ramps
+rep2("if (ha > 0) for (int y = 0; y < H; ++y) { if (y0 - 1 + y > yhi) break; for (int x = 0; x < H; ++x) { const int k = E->halo[y * H + x]; if (k) mo13_px(B, x0 - 1 + x, y0 - 1 + y, HC, ha * k / 255); } }",
+     "if (ha > 0) for (int y = 0; y < H; ++y) { if (y0 - 1 + y > yhi) break; for (int x = 0; x < H; ++x) { const int k = E->halo[y * H + x]; if (k) mo_ui_px(B, x0 - 1 + x, y0 - 1 + y, HC, a); } }   /* v4: opaque outline */")
+rep2("if (kb) mo13_px(B, x0 + x, y0 + y, BC, a * kb / 255); if (kd) mo13_px(B, x0 + x, y0 + y, DC, a * kd / 255); } }",
+     "if (kb) mo_ui_px(B, x0 + x, y0 + y, BC, a); if (kd) mo_ui_px(B, x0 + x, y0 + y, DC, a); } }   /* v4: binary masks, opaque */")
+rep2("static inline int mo_embS(int fw) { return fw >= 50 ? 40 : fw >= 44 ? 32 : fw >= 20 ? 16 : fw >= 12 ? 10 : fw >= 8 ? 8 : 0; }   /* idle steps (stable, no size jitter); close-up 40 px */",
+     """static inline int mo_embS(int fw) { return fw >= 50 ? 40 : fw >= 44 ? 32 : fw >= 20 ? 16 : fw >= 12 ? 10 : fw >= 8 ? 8 : 0; }   /* v3 steps (kept for reference) */
+/* v4: idle emblem as large as the face allows (face interior = fw - 1 px), in 2 px steps with hysteresis so a drifting pillar does not
+ * flip sizes frame to frame; close-up 40 px. Returns 0 when the face is too narrow (< 7 px). */
+static int mo_eS_last[MO_N];
+static int mo_embS4(int i, int fw)
+{
+    if (fw >= 50) return mo_eS_last[i] = 40;
+    int fit = fw - 1; if (fit > 36) fit = 36; if (fit < 6) { mo_eS_last[i] = 0; return 0; }
+    int &L = mo_eS_last[i]; if (L == 40 || L == 0 || L > fit || L < fit - 3) L = fit & ~1; if (L > fit) L = fit; return L;
+}""")
+# on-tower text + file pixels: hard clip (no fade ramp), opaque, optional 1 px outline
+rep2("""            const int f = mo3_cl((yy - ylo) * 64, 0, 256) < mo3_cl((yhi - yy) * 64, 0, 256) ? mo3_cl((yy - ylo) * 64, 0, 256) : mo3_cl((yhi - yy) * 64, 0, 256);
+            mo13_px(B, x + k % 3, yy, c, a * f / 256); } }""",
+     """            if (mo_txt_oc >= 0) for (int dy = -1; dy <= 1; ++dy) for (int dx = -1; dx <= 1; ++dx) { const int oy = yy + dy; if (oy < ylo || oy > yhi) continue;
+                const int r2 = k / 3 + dy, c2 = k % 3 + dx; if (r2 >= 0 && r2 < 5 && c2 >= 0 && c2 < 3 && (g >> (14 - (r2 * 3 + c2)) & 1)) continue; mo_ui_px(B, x + c2, oy, lv_hex((uint32_t)mo_txt_oc), a); }
+            mo_ui_px(B, x + k % 3, yy, c, a); } }   /* v4: hard clip, opaque (was a 4-row alpha fade) */""")
+rep2("""static void mo3_pxc(LvBand &B, int x, int y, uint16_t c, int a, int ylo, int yhi) { if (y < ylo || y > yhi) return;
+    const int f = mo3_cl((y - ylo) * 64, 0, 256) < mo3_cl((yhi - y) * 64, 0, 256) ? mo3_cl((y - ylo) * 64, 0, 256) : mo3_cl((yhi - y) * 64, 0, 256); mo13_px(B, x, y, c, a * f / 256); }""",
+     """static void mo3_pxc(LvBand &B, int x, int y, uint16_t c, int a, int ylo, int yhi) { if (y < ylo || y > yhi) return; mo_ui_px(B, x, y, c, a); }   /* v4: hard clip, opaque */""")
+rep2("for (int q = 0; q < bw; ++q) mo3_pxc(B, x0 + 9 + lv_w35(sz) + 3 + q, y + 9, q < fl ? ic : sc, q < fl ? a : a / 3, ylo, yhi); }",
+     "for (int q = 0; q < bw; ++q) if (q < fl || (q & 1) == 0) mo3_pxc(B, x0 + 9 + lv_w35(sz) + 3 + q, y + 9, q < fl ? ic : sc, a, ylo, yhi); }   /* v4: opaque (unfilled = dotted, was 1/3 alpha) */")
+rep2("for (int q = 0; q < L; ++q) mo3_pxc(B, x0 + 3 + q, y + 1, tc, a * 3 / 4, ylo, yhi); } }",
+     "for (int q = 0; q < L; ++q) mo3_pxc(B, x0 + 3 + q, y + 1, tc, a, ylo, yhi); } }")
+# tower: this frame's alpha for the audit, v4 emblem size
+rep2("    const int S = mo_embS(fw);\n    const int L = MO_LOOKOF[i];", "    const int S = mo_embS4(i, fw); mo_ui_a = a;\n    const int L = MO_LOOKOF[i];")
+# ---- T1: sharpen (no soft outer glow, opaque glass, crisp 1 px highlight instead of a blurred band), no emblem bob, opaque files panel
+rep2("    for (int r = 1; r <= 2; ++r) for (int y = yt - r; y <= yb; ++y) { mo13_px(B, x0 - r, y, lv_hex(MO11_GH), a * (r == 1 ? 70 : 28) / 256); mo13_px(B, (bx1 > x1 ? bx1 : x1) + r, y, lv_hex(MO11_GH), a * (r == 1 ? 70 : 28) / 256); }\n",
+     "    /* v4: no soft outer glow (it muddied the edges) */\n")
+rep2("for (int x = x0; x <= x1; ++x) { const float u = (x - x0) / (float)fw, rb = expf(-((u - 0.22f) * (u - 0.22f)) / 0.006f); mo13_px(B, x, y, base, a * 245 / 256); if (rb > 0.05f) mo13_px(B, x, y, lv_hex(0xbfffd8), (int)(a * 34 * rb / 256)); } }",
+     "const int hx = x0 + 1 + fw / 5; for (int x = x0; x <= x1; ++x) mo13_px(B, x, y, x == hx ? mo3_mx(0x0b3320, 0x5ac080, 0.45f - 0.3f * v) : base, a); }   /* v4: opaque glass + one crisp highlight column */")
+rep2("    const int iy = yt + (S >= 32 ? 6 : 3) + (int)lroundf(sinf(t * 1.6f + i) * (S >= 16 ? 1.0f : 0.0f));\n    if (S) { const int ix = (x0 + x1) / 2 - S / 2; mo_emb_draw(B, i, ix, iy, S, 0xd8ffe6, MO11_GH, 0x010805, a, a * 210 / 256); }",
+     "    const int iy = yt + (S >= 32 ? 6 : 3);   /* v4: no bob */\n    if (S) { const int ix = x0 + 1 + (fw - 1 - S) / 2; mo_emb_draw(B, i, ix, iy, S, 0xd8ffe6, MO11_GH, 0x010805, a, a); }")
+rep2("    if (big) { for (int y = ly0 - 3; y <= ly1 + 1; ++y) mo13_span(B, y, x0 + 2, x1 - 2, lv_hex(0x010604), a * 170 / 256);",
+     "    if (big) { for (int y = ly0 - 3; y <= ly1 + 1; ++y) mo13_span(B, y, x0 + 2, x1 - 2, lv_hex(0x010604), a);")
+rep2("    mo3_files(B, i, x0 + 2, x1 - 2, ly0, ly1, lv_hex(MO11_GH), lv_hex(big ? 0xd8ffe6 : 0x7dffb0), lv_hex(0x3a9a60), a, big ? 9.0f : 6.0f);",
+     "    mo_txt_oc = 0x010805; mo3_files(B, i, x0 + 2, x1 - 2, ly0, ly1, lv_hex(MO11_GH), lv_hex(big ? 0xd8ffe6 : 0x7dffb0), lv_hex(0x5ac080), a, big ? 9.0f : 6.0f); mo_txt_oc = -1;")
+# ---- T2: SEE-THROUGH WHITE LIGHT shell (Mobandy 9:28 AM): translucent flat white front / sides / cap, crisp opaque green edges; no soft glow, no rising band, no bob
+rep2("""    if (cp < 0.3f) { mo3_shadow(B, x0, x1, yb, 0x5a5448, a * 120 / 256);
+        for (int y = yt - 2; y <= yb; ++y) for (int r = 1; r <= 2; ++r) { mo13_px(B, x0 - r, y, lv_hex(0xffffff), a * (r == 1 ? 140 : 60) / 256); } }""",
+     "    if (cp < 0.3f) mo3_shadow(B, x0, x1, yb, 0x5a5448, a * 120 / 256);   /* v4: no soft white outer glow */")
+rep2("for (int y = top; y <= bot; ++y) mo13_px(B, x, y, mo3_mx(0xd2dad6, 0x9aa49f, u * 0.75f + 0.25f * (y - top) / (float)(bot - top + 1)), a); }\n        mo13_line(B, xbk, byt, xbk, byb, lv_hex(MO11_G), a);",
+     "for (int y = top; y <= bot; ++y) mo13_px(B, x, y, lv_hex(0xc4ccc8), a * 150 / 256); }   /* v4: see-through side */\n        mo13_line(B, xbk, byt, xbk, byb, lv_hex(MO11_G), a);")
+rep2("mo_quad(B, X, Y, lv_hex(0xffffff), a); mo13_line(B, bx0, byt, bx1, byt, lv_hex(MO11_G), a); }\n    for (int y = yt; y <= yv; ++y) { const float v = (y - yt) / (float)(yb - yt + 1);\n        for (int x = x0; x <= x1; ++x) { const float u = (x - x0) / (float)fw; mo13_px(B, x, y, mo3_mx(0xffffff, 0xd9e2dd, 0.55f * u * u + 0.35f * v), a); } }",
+     "mo_quad(B, X, Y, lv_hex(0xffffff), a * 170 / 256); mo13_line(B, bx0, byt, bx1, byt, lv_hex(MO11_G), a); }\n    for (int y = yt; y <= yv; ++y) mo13_span(B, y, x0, x1, lv_hex(0xf4f8f6), a * 120 / 256);   /* v4: SEE-THROUGH white light front (~47%), flat = crisp; the room / pillars behind show through */")
+i0 = s.index("    /* a soft light band rising slowly through the slab (the Construct loading light) */"); i1 = s.index("    const bool big = fw >= 40;\n    const int iy = yt + (S >= 32 ? 7 : 3)")
+s = s[:i0] + "    /* v4: the soft rising light band removed (alpha shimmer) */\n" + s[i1:]
+rep2("    const int iy = yt + (S >= 32 ? 7 : 3) + (int)lroundf(sinf(t * 1.4f + i) * (S >= 16 ? 1.0f : 0.0f));\n    if (S) { const int ix = (x0 + x1) / 2 - S / 2;",
+     "    const int iy = yt + (S >= 32 ? 7 : 3);   /* v4: no bob */\n    if (S) { const int ix = x0 + 1 + (fw - 1 - S) / 2;")
+rep2("        mo_emb_draw(B, i, ix, iy, S, 0x006a26, 0x00b843, 0xffffff, a, a * 220 / 256); }", "        mo_emb_draw(B, i, ix, iy, S, 0x005a20, 0x00b843, 0xffffff, a, a); }")
+rep2("    mo3_files(B, i, x0 + 2, x1 - 2, ly0, ly1, lv_hex(MO11_G), lv_hex(big ? 0x1e2a24 : 0x6a7a70), lv_hex(0x7a8a82), a, big ? 9.0f : 6.0f);",
+     "    mo_txt_oc = 0xffffff; mo3_files(B, i, x0 + 2, x1 - 2, ly0, ly1, lv_hex(0x008a32), lv_hex(0x1e2a24), lv_hex(0x2e4a3a), a, big ? 9.0f : 6.0f); mo_txt_oc = -1;   /* v4: dark text, white outline, opaque */")
+# ---- T3: sharpen the see-through wood (two-tone grain, no blurred sheen / glow), opaque trim; emblem bigger + opaque; outlined text
+rep2("        const float k = 0.5f + 0.5f * g; return mo3_mx(0x9a6232, 0x3a2010, 0.25f + 0.6f * (1 - k) * (0.6f + 0.4f * u)); };",
+     "        (void)u; return lv_hex(g > 0.15f ? 0x8a5428 : 0x4a2a12); };   /* v4: two-tone grain (crisp streaks, no ramp) */")
+rep2("""            if (sh > 0.05f) mo13_px(B, x, y, lv_hex(0xffe0a8), (int)(a * 46 * sh / 256));
+            const float w = 1 - fabsf(u - 0.5f) * 2; if (w > 0) mo13_px(B, x, y, lv_hex(0xffc860), (int)(a * 26 * w * (1 - 0.5f * v) / 256)); } }""",
+     "            (void)sh; (void)v; } }   /* v4: blurred sheen + warm glow removed (muddy) */")
+rep2("if (fw >= 8) { mo13_span(B, bt0 + bh, x0 + 1, x1 - 1, lv_hex(MO11_G), a * 200 / 256); mo13_span(B, bb0 - 1, x0 + 1, x1 - 1, lv_hex(MO11_G), a * 200 / 256); }",
+     "if (fw >= 8) { mo13_span(B, bt0 + bh, x0 + 1, x1 - 1, lv_hex(MO11_G), a); mo13_span(B, bb0 - 1, x0 + 1, x1 - 1, lv_hex(MO11_G), a); }")
+rep2("const bool big = fw >= 40; const int pw = px1 - px0 + 1, Sl = big ? (pw >= 44 ? 40 : 32) : pw >= 16 ? 16 : pw >= 10 ? 10 : pw >= 8 ? 8 : 0;",
+     "const bool big = fw >= 40; const int Sl = S;   /* v4: same big idle emblem rule as T1 / T2 */")
+rep2("if (Sl) { const int ix = (px0 + px1 + 1) / 2 - Sl / 2; mo_emb_draw(B, i, ix, iy, Sl, 0xfff0c8, MO11_GH, 0x1c120c, a, a * 190 / 256, py1); }",
+     "if (Sl) { const int ix = x0 + 1 + (fw - 1 - Sl) / 2; mo_emb_draw(B, i, ix, iy, Sl, 0xfff0c8, MO11_GH, 0x1c120c, a, a, py1); }")
+rep2("if (big) mo13_line(B, px0 + 2, ly0 - 4, px1 - 2, ly0 - 4, lv_hex(0xd8aa52), a * 200 / 256);", "if (big) mo13_line(B, px0 + 2, ly0 - 4, px1 - 2, ly0 - 4, lv_hex(0xd8aa52), a);")
+rep2("mo3_files(B, i, px0 + 1, px1 - 1, ly0, ly1, lv_hex(MO11_GH), lv_hex(big ? 0xfff0c8 : 0xe8c890), lv_hex(0xd8aa52), a, big ? 9.0f : 6.0f);",
+     "mo_txt_oc = 0x1c120c; mo3_files(B, i, px0 + 1, px1 - 1, ly0, ly1, lv_hex(MO11_GH), lv_hex(0xfff0c8), lv_hex(0xffd878), a, big ? 9.0f : 6.0f); mo_txt_oc = -1;   /* v4: cream text, dark outline, opaque */")
+rep2("if (fw >= 10) { mo13_line(B, x0 + 1, bt0 + bh + 1, x0 + 1, bb0 - 2, lv_hex(MO11_G), a * 140 / 256); }", "if (fw >= 10) { mo13_line(B, x0 + 1, bt0 + bh + 1, x0 + 1, bb0 - 2, lv_hex(MO11_G), a); }")
+rep2("mo3_t35(B, cx - 1, gy, gl, c, al, yt + 1, yv - 1, x1 - 1); }", "mo_ui_cnt = 0; mo3_t35(B, cx - 1, gy, gl, c, al, yt + 1, yv - 1, x1 - 1); mo_ui_cnt = 1; }   /* code rain: decoration, not audited UI */")
+# v4 stability: the emblem is drawn again AFTER the pillar's edge lines / rails, so a 1 px change of the face width can never let an edge
+# line cut into the emblem's outline (that was the frame-to-frame flicker on the emblem edge columns)
+rep2("    mo13_line(B, x0, yt, x0, yv, lv_hex(0x7dffb0), a); mo13_line(B, x1, yt, x1, yv, lv_hex(MO11_GH), a); mo13_line(B, x0, yt, x1, yt, lv_hex(0xd8ffe6), a); mo13_line(B, x0, yb, x1, yb, lv_hex(0x0a6a30), a);\n",
+     "    mo13_line(B, x0, yt, x0, yv, lv_hex(0x7dffb0), a); mo13_line(B, x1, yt, x1, yv, lv_hex(MO11_GH), a); mo13_line(B, x0, yt, x1, yt, lv_hex(0xd8ffe6), a); mo13_line(B, x0, yb, x1, yb, lv_hex(0x0a6a30), a);\n    if (S) mo_emb_draw(B, i, x0 + 1 + (fw - 1 - S) / 2, iy, S, 0xd8ffe6, MO11_GH, 0x010805, a, a);   /* v4: emblem on top of the edges */\n")
+rep2("    mo13_line(B, x0, yt, x0, yv, lv_hex(MO11_G), a); mo13_line(B, x1, yt, x1, yv, lv_hex(MO11_G), a); mo13_line(B, x0, yt, x1, yt, lv_hex(MO11_GH), a); mo13_line(B, x0, yb, x1, yb, lv_hex(MO11_G), a);\n",
+     "    mo13_line(B, x0, yt, x0, yv, lv_hex(MO11_G), a); mo13_line(B, x1, yt, x1, yv, lv_hex(MO11_G), a); mo13_line(B, x0, yt, x1, yt, lv_hex(MO11_GH), a); mo13_line(B, x0, yb, x1, yb, lv_hex(MO11_G), a);\n    if (S) mo_emb_draw(B, i, x0 + 1 + (fw - 1 - S) / 2, iy, S, 0x005a20, 0x00b843, 0xffffff, a, a);   /* v4: emblem on top of the edges */\n")
+rep2("    if (fw >= 10) { mo13_line(B, x0 + 1, bt0 + bh + 1, x0 + 1, bb0 - 2, lv_hex(MO11_G), a); }\n",
+     "    if (fw >= 10) { mo13_line(B, x0 + 1, bt0 + bh + 1, x0 + 1, bb0 - 2, lv_hex(MO11_G), a); }\n    if (S && px1 - px0 >= 2 && py1 - py0 >= 4) mo_emb_draw(B, i, x0 + 1 + (fw - 1 - S) / 2, py0 + (fw >= 40 ? 4 : 2), S, 0xfff0c8, MO11_GH, 0x1c120c, a, a, py1);   /* v4: emblem on top of the edges */\n")
+# ---- right-hand folder pull-down: 100% opaque body / header / drop outline / tab (Mobandy 9:28 AM)
+rep2("        mo_hspan(B, yy, xl(yy), xr(yy), c, MO_LOOK == 1 ? 242 : 256); }", "        mo_hspan(B, yy, xl(yy), xr(yy), c, 256); }   /* v4: opaque */")
+rep2("mo_hspan(B, yy, xl(yy) + 3, xr(yy) - 3, lv_hex(HEAD), MO_LOOK == 2 ? 256 : 200);", "mo_hspan(B, yy, xl(yy) + 3, xr(yy) - 3, lv_hex(HEAD), 256);")
+rep2("if (!solid) { mo_bl(B, xl(yy), yy, lv_hex(OUT), 200); mo_bl(B, xr(yy), yy, lv_hex(OUT), 200); continue; }", "if (!solid) { mo_bl(B, xl(yy), yy, lv_hex(OUT), 256); mo_bl(B, xr(yy), yy, lv_hex(OUT), 256); continue; }")
+rep2("lv_hex(TAB), solid ? 256 : 120);", "lv_hex(TAB), 256);")
 assert not any(l.lstrip().startswith('#') for l in s.splitlines()), [l for l in s.splitlines() if l.lstrip().startswith('#')]
 open(D+'/mo_mix.inc','w').write(s); print('mo_mix.inc written')

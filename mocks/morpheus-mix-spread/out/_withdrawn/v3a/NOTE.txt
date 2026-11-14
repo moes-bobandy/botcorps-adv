@@ -1,0 +1,1 @@
+v3a = first 1.00/0.90/0.80 run (seed-15 layout, old filler folder text), never delivered; superseded by v3b. Gate 20/24.

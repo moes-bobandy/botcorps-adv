@@ -1,7 +1,7 @@
 #pragma once
 /* MOCK 2026-11-13 morpheus-mix: crisp vector device emblems (replaces the 16x16 nearest-neighbour icon art on the pillars).
- * Each emblem is a few geometric primitives on a 16x16 canvas; rasterised by coverage (6x6 supersamples per pixel) into 3 alpha
- * masks: body, detail and a 1 px halo, then alpha-blended into RGB565 by the caller. Built once per (device, size) and cached. */
+ * Each emblem is a few geometric primitives on a 16x16 canvas; rasterised (6x6 supersamples per pixel, majority vote) into 3 BINARY
+ * masks at the final size: body, detail and a 1 px halo (v4 2026-11-14: no anti-aliasing, no blur, no shimmer), drawn opaque by the caller. Built once per (device, size) and cached. */
 #include <math.h>
 #include <stdint.h>
 #include <string.h>
@@ -16,9 +16,9 @@ static const MoEP MO_EMB[MO_EMB_N][MO_EMB_MAXP] = {
  /* DEAUTH: Wi-Fi fan struck by an X */
  {{'+','C',6.5f,13.4f,1.5f},{'+','A',6.5f,13.4f,3.8f,1.7f,40,140,1},{'+','A',6.5f,13.4f,6.8f,1.7f,40,140,1},{'+','A',6.5f,13.4f,9.8f,1.7f,52,128,1},
   {'-','C',12.4f,11.2f,3.6f},{'d','L',10.2f,9.0f,14.6f,13.4f,1.8f},{'d','L',14.6f,9.0f,10.2f,13.4f,1.8f}},
- /* HACK: open padlock */
- {{'+','B',2.6f,7.4f,13.4f,15.0f,1.6f},{'+','A',8.6f,4.8f,3.4f,1.8f,0,180,1},{'+','L',5.2f,4.8f,5.2f,7.6f,1.8f},{'+','L',12.0f,4.8f,12.0f,5.4f,1.8f},
-  {'-','C',8,10.4f,1.45f},{'-','L',8,10.4f,8,13.2f,1.2f}},
+ /* HACK: skull (v4 2026-11-14: was an open padlock) - round cranium, two big eye holes, nose notch, jaw with teeth gaps */
+ {{'+','C',8,6.8f,6.2f},{'+','B',4.4f,9.6f,11.6f,15.2f,1.4f},{'-','C',5.5f,7.4f,1.9f},{'-','C',10.5f,7.4f,1.9f},{'-','T',8,9.4f,6.8f,11.6f,9.2f,11.6f},
+  {'-','L',6.3f,13.2f,6.3f,15.6f,0.9f},{'-','L',8,13.2f,8,15.6f,0.9f},{'-','L',9.7f,13.2f,9.7f,15.6f,0.9f}},
  /* FLOCK: pole-mounted plate camera */
  {{'+','L',3.6f,6.4f,3.6f,15.0f,1.6f},{'+','L',1.6f,15.0f,6.2f,15.0f,1.4f},{'+','L',3.6f,6.4f,6.8f,6.4f,1.4f},{'+','B',6.0f,3.4f,14.6f,8.8f,1.4f},{'+','L',5.6f,2.6f,15.2f,2.6f,1.0f},
   {'-','C',12.2f,6.1f,1.9f},{'d','C',12.2f,6.1f,1.1f},{'d','A',12.2f,6.1f,4.6f,1.0f,-60,-20,1},{'d','A',12.2f,6.1f,6.8f,1.0f,-58,-24,1}},
@@ -27,15 +27,17 @@ static const MoEP MO_EMB[MO_EMB_N][MO_EMB_MAXP] = {
   {'+','B',5.8f,5.8f,10.2f,10.2f,1.3f},{'d','C',8,8,1.0f}},
  /* AIR TAG: disc with a rim gap and an inner ring */
  {{'+','C',8,8,7.2f},{'-','R',8,8,5.7f,0.8f},{'d','R',8,8,3.0f,1.1f},{'d','C',8,8,1.0f}},
- /* KEYFOB (Tile): rounded square, corner hole + key ring, T mark */
- {{'+','B',4.2f,4.2f,15.0f,15.0f,3.0f},{'+','R',3.8f,3.8f,3.0f,1.2f},{'-','C',6.8f,6.8f,1.35f},{'d','L',8.6f,9.4f,12.8f,9.4f,1.3f},{'d','L',10.7f,9.4f,10.7f,12.8f,1.3f}},
+ /* KEYFOB: car key fob (v4: was a Tile square) - fat fob body, two buttons, a flip-key blade with teeth, key ring */
+ {{'+','B',1.4f,7.6f,11.4f,15.4f,2.8f},{'+','B',9.4f,1.0f,12.4f,8.4f,0.6f},{'-','B',11.2f,2.4f,13.0f,3.4f,0},{'-','B',11.2f,4.8f,13.0f,5.8f,0},
+  {'+','R',3.4f,4.6f,2.6f,1.5f},{'-','C',4.6f,11.4f,1.6f},{'-','C',8.4f,11.4f,1.6f}},
  /* META: smart glasses, capture LED */
  {{'+','R',4.4f,9.2f,3.2f,1.6f},{'+','R',11.6f,9.2f,3.2f,1.6f},{'+','A',8,9.6f,1.5f,1.2f,20,160,0},{'+','L',0.9f,7.4f,0.9f,10.6f,1.3f},{'+','L',15.1f,7.4f,15.1f,10.6f,1.3f},
   {'+','L',0.9f,7.4f,15.1f,7.4f,1.2f},{'d','C',13.9f,4.6f,1.1f},{'d','R',13.9f,4.6f,2.3f,0.6f}},
  /* SKIMMER: card with stripe, chip and a radio wave */
  {{'+','B',0.8f,3.4f,15.2f,13.2f,1.6f},{'-','B',0.0f,5.4f,16.0f,7.4f,0},{'d','B',2.6f,9.0f,6.4f,11.8f,0.6f},{'d','A',9.4f,10.4f,1.9f,1.0f,-55,55,1},{'d','A',9.4f,10.4f,3.8f,1.0f,-50,50,1}},
- /* FLIPPER: pocket tool, screen + d-pad */
- {{'+','B',0.6f,4.0f,15.4f,12.6f,3.4f},{'-','B',2.6f,5.8f,8.8f,10.8f,0.7f},{'d','B',3.6f,6.8f,7.8f,9.8f,0.4f},{'-','R',11.9f,8.3f,2.0f,0.7f},{'d','C',11.9f,8.3f,1.0f},{'+','L',13.0f,4.0f,14.2f,1.4f,1.0f}},
+ /* FLIPPER: dolphin (the Flipper Zero mascot; v4: was the pocket tool) - arched body, beak, dorsal fin, tail fluke, eye */
+ {{'+','L',3.2f,10.6f,7.0f,7.8f,3.6f},{'+','L',7.0f,7.8f,11.6f,7.6f,3.8f},{'+','L',11.6f,7.6f,15.4f,9.2f,1.7f},{'+','T',6.4f,6.6f,9.6f,6.4f,6.6f,2.4f},
+  {'+','T',0.4f,9.0f,3.6f,10.8f,2.0f,14.8f},{'+','T',1.6f,13.6f,5.0f,15.2f,3.0f,11.2f},{'-','L',8.6f,9.9f,13.6f,9.4f,0.7f},{'d','C',12.0f,7.1f,0.8f}},
  /* SAMSUNG SmartTag: tall rounded tag, top hole, button ring */
  {{'+','B',3.0f,1.6f,13.0f,14.8f,4.2f},{'-','C',8,4.4f,1.45f},{'-','R',8,10.0f,2.6f,0.8f},{'d','C',8,10.0f,1.4f}},
  /* AXON: body camera with clip, lens and record dot */
@@ -93,7 +95,8 @@ static const MoEmb *mo_emb_get(int i, int S)
         for (int a = 0; a < Q; ++a) for (int b = 0; b < Q; ++b) { const float u = (x + (b + 0.5f) / Q) * k, v = (y + (a + 0.5f) / Q) * k; bool B = false, D = false;
             for (int p = 0; p < MO_EMB_MAXP && MO_EMB[i][p].op; ++p) { const MoEP &P = MO_EMB[i][p]; if (!mo_e_in(P, u, v)) continue; if (P.op == '+') B = true; else if (P.op == '-') B = false; else D = true; }
             nb += B && !D; nd += D; }
-        E->body[y * S + x] = (uint8_t)(nb * 255 / (Q * Q)); E->det[y * S + x] = (uint8_t)(nd * 255 / (Q * Q)); }
+        const bool on = 2 * (nb + nd) >= Q * Q;   /* v4: binary (crisp, pixel-aligned at the final size): majority vote, then body vs detail */
+        E->body[y * S + x] = on && nb > nd ? 255 : 0; E->det[y * S + x] = on && nd >= nb ? 255 : 0; }
     /* halo: max coverage in the 3x3 neighbourhood (1 px dilation of body + detail), on an (S+2)^2 grid offset by -1 */
     const int H = S + 2;
     for (int y = 0; y < H; ++y) for (int x = 0; x < H; ++x) { int m = 0;

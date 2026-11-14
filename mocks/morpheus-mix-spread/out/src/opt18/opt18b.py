@@ -7,17 +7,20 @@ Usage: opt18b.py SEED ITERS OUT.json"""
 import json, sys, random, math, numpy as np
 sys.path.insert(0, __file__.rsplit('/', 1)[0]); import model18 as M
 seed = int(sys.argv[1]); iters = int(sys.argv[2]); outp = sys.argv[3]; rng = random.Random(seed)
+HFIX = [float(x) for x in sys.argv[4].split(",")] if len(sys.argv) > 4 else None   # fixed [T1, T3, T2] (v3: 1.00 / 0.90 / 0.80 x base)
 ts = np.linspace(9.0, 9.0 + 0.3 * 319, 40); STEP = 2
 def score(p):
     sq, vf = M.evaluate(p['sx'], p['z0'], {1: p['H'][0], 3: p['H'][1], 2: p['H'][2]}, ts, STEP)
     p10 = np.percentile(sq, 10, axis=0); vm = vf.mean(0); zero = (sq == 0).sum()
     return min(p10.min(), 28) * 3 + np.minimum(p10, 34).mean() * 0.5 + min(vm.min(), 0.9) * 40 + vm.mean() * 10 - zero * 5, p10, vm, zero
-TIER = {1: (4.15, 0.15), 3: (2.7, 0.3), 2: (1.72, 0.06)}
+TIER = {1: (4.15, 0.15), 3: (2.7, 0.3), 2: (1.72, 0.06)} if not HFIX else {1: (rng.uniform(1.8, 3.8), 1.0), 3: (rng.uniform(1.8, 3.8), 1.0), 2: (rng.uniform(1.8, 3.8), 1.0)}
 sx = [0.0] * M.N; z0 = [0.0] * M.N
 for l in (1, 3, 2):
     ids = [i for i in range(M.N) if M.LOOKOF[i] == l]; rng.shuffle(ids); n = len(ids); off = rng.uniform(-6, 6)
     for k, i in enumerate(ids): sx[i] = 30 + 180 * (k + 0.5) / n + off; z0[i] = TIER[l][0] + rng.uniform(-TIER[l][1], TIER[l][1])
-p = dict(sx=sx, z0=z0, H=[rng.uniform(2.1, 2.4), rng.uniform(1.0, 1.25), rng.uniform(0.32, 0.45)]); cur = score(p); best = (cur, p)
+import os
+if os.environ.get('INIT'): _I = json.load(open(os.environ['INIT'])); sx = [x + rng.gauss(0, 4) for x in _I['sx']]; z0 = [min(4.35, max(1.65, z + rng.gauss(0, 0.08))) for z in _I['z0']]
+p = dict(sx=sx, z0=z0, H=HFIX if HFIX else [rng.uniform(2.1, 2.4), rng.uniform(1.0, 1.25), rng.uniform(0.32, 0.45)]); cur = score(p); best = (cur, p)
 print('start', round(cur[0], 2), cur[1].min(), round(cur[2].min(), 3), cur[3], flush=True)
 for it in range(iters):
     T = 0.6 * (1 - it / iters) + 0.02
@@ -26,6 +29,7 @@ for it in range(iters):
     elif r < 0.8: i = rng.randrange(M.N); q['z0'][i] = min(4.35, max(1.65, q['z0'][i] + rng.gauss(0, 0.15)))
     elif r < 0.9:
         l = rng.choice((1, 3, 2)); ids = [i for i in range(M.N) if M.LOOKOF[i] == l]; i, j = rng.sample(ids, 2); q['sx'][i], q['sx'][j] = q['sx'][j], q['sx'][i]
+    elif HFIX: continue
     else:
         k = rng.randrange(3); q['H'][k] += rng.gauss(0, 0.06)
         if not (q['H'][0] >= 1.2 * q['H'][1] and q['H'][1] >= 1.2 * q['H'][2] and q['H'][2] >= 0.28 and q['H'][0] <= 2.6): continue

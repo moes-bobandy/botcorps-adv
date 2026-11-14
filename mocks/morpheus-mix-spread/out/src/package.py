@@ -22,9 +22,11 @@ def samp(sim, cwd, tag):
 # ---------- 0. 320 idle samples (0.3 s apart) on the real sim, then the representative idle still = the MEDIAN sample
 SM = samp(W + '/sim', R + '/tree', 'main'); sq, vp, vf = T.analyse(SM)
 qual = vf.mean(1) + np.minimum(sq, 60).mean(1) / 60.0          # per sample: mean emblem visible fraction + mean tap square (capped)
-order = np.argsort(qual, kind='stable'); KREP = int(order[len(order) // 2])   # the median sample (not the best)
+CLEAN = np.where((vf.min(1) > 0) & (sq.min(1) > 0))[0]          # v3b: samples where every pillar shows some emblem and keeps a tap cell
+POOL = CLEAN if len(CLEAN) >= 32 else np.arange(len(qual))
+order = POOL[np.argsort(qual[POOL], kind='stable')]; KREP = int(order[len(order) // 2])   # the median sample of that pool (not the best)
 steps = json.load(open(SRC + '/mix.json')); assert steps[4] == 'tick 552' and steps[6] == 'tick 128'
-assert KREP >= 12; steps[4] = 'tick %d' % (10 * (KREP + 1) - 128); json.dump(steps, open(W + '/mix_run.json', 'w'))   # idle dump lands on sample KREP's time
+PRE = min(128, 10 * (KREP + 1) - 1); steps[4] = 'tick %d' % (10 * (KREP + 1) - PRE); steps[6] = 'tick %d' % PRE   # video pre-roll before the idle still: up to 128 ticks; json.dump(steps, open(W + '/mix_run.json', 'w'))   # idle dump lands on sample KREP's time
 print('representative idle sample', KREP, 'of', len(SM), 'quality', round(float(qual[KREP]), 4), 'range', round(float(qual.min()), 4), round(float(qual.max()), 4), flush=True)
 # ---------- 1. main run (+ an identical second run for the determinism gate)
 for d in ('run', 'run2'):
@@ -47,6 +49,7 @@ IT = motw(idle_blk); IE = moemb(idle_blk)
 gate('presence: 18 pillars placed in idle (WIFI + BLUETOOTH removed)', len(IT) == NP and len(IE) == NP and 'WIFI' not in NAMES and 'BLUETOOTH' not in NAMES, n=len(IT))
 gate('assignment (sim read-back): look = threat table for all 18', all(IE[i]['look'] == LOOK[i] and IE[i]['threat'] == TN[THREAT[i]] for i in range(NP)))
 # pixel look classifier on the idle frames (best of the idle still + two touch-run frames): face pixels outside the emblem rect
+def x565(c): r, g, b = c >> 19 & 31, c >> 10 & 63, c >> 3 & 31; return ((r << 3) | (r >> 2), (g << 2) | (g >> 4), (b << 3) | (b >> 2))
 def classify(a, i, IT, ordr):
     """median colour of pillar i's front face pixels that no nearer pillar's box covers (None if < 15 such pixels)"""
     x0, x1, yt, yb = IT[i]['f']; m = np.zeros((320, 240), bool); m[max(yt + 2, 36):min(yb - 1, 284), max(x0 + 2, 0):min(x1 - 1, 239) + 1] = True
@@ -58,9 +61,17 @@ def classify(a, i, IT, ordr):
     # wood-grain / brass pixels (warm r > g > b, >= 25% of the unoccluded face) instead of the face median; T1 green glass and T2 white light have none
     wood = ((reg[:, 0] > reg[:, 1]) & (reg[:, 1] > reg[:, 2]) & (reg[:, 0] - reg[:, 2] >= 20) & (reg.sum(1) < 600)).mean()   # warm wood / brass pixels
     if wood >= 0.25: return 3, len(reg)
+    # v4: T2 white and T3 wood are both SEE-THROUGH, so a face shows whatever stands behind it. Identify each pillar by its OWN opaque
+    # pixels: the 1 px outline of its file text has an exact per-look colour (T1 0x010805, T2 0xffffff, T3 0x1c120c)
+    oc = {k: int((reg == np.array(x565(c))).all(1).sum()) for k, c in ((1, 0x010805), (2, 0xffffff), (3, 0x1c120c))}
+    kb = max(oc, key=oc.get)
+    if oc[kb] >= 6 and oc[kb] >= 3 * max(v for k, v in oc.items() if k != kb): return kb, len(reg)
     r, g, b = np.median(reg, 0); lum = (r + g + b) / 3
-    if lum > 170 and abs(r - g) < 40: return 2, len(reg)
     if g > r and g >= b and lum < 110: return 1, len(reg)
+    # v4: T2 is SEE-THROUGH white light too: its translucent white front lifts whatever is behind toward white, and its file text
+    # carries an opaque pure-white outline, so >= 15 % near-white pixels (min channel > 200) identify it
+    if lum > 170 and abs(r - g) < 40: return 2, len(reg)
+    if (reg.min(1) > 200).mean() >= 0.15: return 2, len(reg)
     if r > g: return 3, len(reg)
     return 0, len(reg)
 # ---------- 2. look / motion / heights / tap / emblem gates on the 320 idle samples
@@ -88,6 +99,17 @@ gate('heights: exactly THREE distinct pillar heights over all 320 idle samples, 
      distinct=sorted(allH), per_style={LN[k]: sorted(v) for k, v in Hs.items()})
 mH = {LN[k]: max(v) for k, v in Hs.items()}
 gate('heights: T1 code glass tallest > T3 lantern > T2 white light shortest', mH['T1_code_glass'] > mH['T3_sentinel_post'] > mH['T2_construct_light'], H=mH)
+base = HF[1]; fac = {k: round(HF[k] / base, 4) for k in (1, 3, 2)}
+gate('heights: factors on ONE base height H = green T1 1.00 / wood T3 0.80 / white T2 0.62 (Mobandy 9:27 AM ET: bigger steps, no stumps)', abs(fac[1] - 1.0) < 1e-3 and abs(fac[3] - 0.80) < 1e-3 and abs(fac[2] - 0.62) < 1e-3,
+     base_H=base, factors={'T1_code_glass': fac[1], 'T3_see_through_wood': fac[3], 'T2_white_light': fac[2]})
+mr = min(min(v) for v in Hs.values()) / max(max(v) for v in Hs.values())
+gate('heights: min / max height ratio >= 0.60 (no stumps: white 0.62 x green)', mr >= 0.60 - 1e-6, min_ratio=round(mr, 4))
+HV3 = {1: 1.26, 3: 1.134, 2: 1.008}   # the rejected 9:22 AM ET heights (_withdrawn/v3)
+tall = {LN[k]: round(HF[k] / HV3[k], 3) for k in (1, 3, 2)}
+fh = {LN[k]: float(np.median([a['tw'][i]['yb'] - a['tw'][i]['yt'] for a in SM for i in range(NP) if LOOK[i] == k])) for k in (1, 3, 2)}
+fw_med = {LN[k]: float(np.median([a['tw'][i]['x1'] - a['tw'][i]['x0'] for a in SM for i in range(NP) if LOOK[i] == k])) for k in (1, 3, 2)}
+gate('heights: every style 1.6 - 2.1 x taller than the rejected 9:22 AM version (same projection, so on-screen height scales the same at equal depth)', all(1.595 <= v <= 2.1 + 1e-3 for v in tall.values()),
+     x_v3=tall, H_now={LN[k]: HF[k] for k in (1, 3, 2)}, H_v3={LN[k]: HV3[k] for k in (1, 3, 2)}, median_front_face_h_px=fh, median_front_face_w_px=fw_med)
 gate('heights: no idle height breathing (hk = 1 on every pillar, every sample)', all(abs(a['tw'][i]['hk'] - 1.0) < 1e-6 for a in SM for i in range(NP)))
 idle_vis = {}
 for i in range(NP):
@@ -113,8 +135,9 @@ for i in range(NP):
 OLD = [np.frombuffer(raw[off + k * 256: off + (k + 1) * 256], np.uint8).reshape(16, 16) for k in range(10)]
 aa = []
 for i in range(NP):
-    c = EMB[i, 40][0].astype(int) + EMB[i, 40][1].astype(int); part = ((c > 0) & (c < 255)).sum(); full = (c >= 250).sum(); aa.append(part / max(1, part + full))
-gate('emblems: anti-aliased (partial-coverage edge pixels on every 40 px emblem)', min(aa) > 0.1, min_partial_frac=round(min(aa), 3))
+    for S in (16, 32, 40):
+        for m in EMB[i, S]: aa.append(int(((m > 0) & (m < 255)).sum()))
+gate('emblems: crisp (v4: binary masks drawn pixel-aligned at the final size; zero partial-coverage / blurred pixels at 16 / 32 / 40 px)', max(aa) == 0, partial_px_total=int(sum(aa)))
 sil = [(EMB[i, 32][0].astype(int) + EMB[i, 32][1] > 127) for i in range(NP)]; mi = 0; pair = None
 for a in range(NP):
     for b in range(a + 1, NP):
@@ -160,6 +183,77 @@ for k, _, _ in CU:
 gate('no red pill (no saturated red pixels in the field on any close-up frame)', red == 0, red_px=red)
 txt_bad = int(re.findall(r'txt_bad_all=(\d+)', log)[-1]); txt_all = int(re.findall(r'txt_lines_all=(\d+)', log)[-1])
 gate('text audit: every audited text line inside its box', txt_bad == 0, lines=txt_all, bad=txt_bad)
+# 2026-11-14 (Mobandy 9:06 AM ET): real folder text, no placeholders, nothing shared across devices, every string fits its UI slot
+import importlib.util as _ilu
+_sp = _ilu.spec_from_file_location('folders18', SRC + '/folders18.py'); F18 = _ilu.module_from_spec(_sp); _sp.loader.exec_module(F18)
+_ferr = F18.check(); _inc = open(SRC + '/mo_mix.inc').read()
+_wired = all(k in _inc for k in ('MO_FOLD_NAME[i][j]', 'MO_FOLD_ACT[i][j]', 'MO_FOLD_TAG[i][j]', 'MO_ITEM_K[i][e]', 'MO_ITEM_V[i][e]')) and 'mo3_size(nm, sz)' not in _inc and 'MO13_ACT[j]' not in _inc and '"%d.%dKB"' not in _inc.split('MO_FOLD_TAG[i][j]')[1][:4000]
+_allfold = [f for d in F18.DEV for f in d[3]]; _alltxt = [t for f in _allfold for t in f] + [t for d in F18.DEV for kv in d[4] for t in kv]
+_ph = [t for t in _alltxt if F18.BAD.search(t) or 'EX.DATA' in t or 'LOREM' in t]
+_dupf = len(set(f[0] for f in _allfold)) != len(_allfold) or len(set(f[1] for f in _allfold)) != len(_allfold)
+_dupi = len(set(tuple(d[4]) for d in F18.DEV)) != len(F18.DEV)
+_fp = {k: hashlib.sha256(np.ascontiguousarray(fr['later_' + k][60:240, 92:235]).tobytes()).hexdigest()[:12] for k, _, _ in CU}
+gate('folder content: all 18 devices have real text (3 folders ID / DETECT / ACTION + 8 KEY / VALUE line-items); no EX.DATA / lorem / fake KB sizes; no folder name, detail line or line-item block shared across devices; every string fits its slot; tables wired into the renderer; close-up folder panels all differ',
+     not _ferr and _wired and not _ph and not _dupf and not _dupi and len(set(_fp.values())) == len(_fp),
+     devices=len(F18.DEV), folders=len(_allfold), items=sum(len(d[4]) for d in F18.DEV), errors=_ferr, placeholders=_ph, dup_folder_text=_dupf, dup_item_block=_dupi, wired=_wired, closeup_panel_hash=_fp,
+     note='scope: the folder + line-item text tables. Chrome text (card / terminal line, incl. its EX.DATA word) is unchanged by order "do not change the chrome text".')
+# ---------- v4 (Mobandy 9:27 - 9:29 AM ET): opaque UI, big idle emblems, temporal stability
+mui = re.findall(r'MOUI tot=(\d+) part=(\d+)', log)
+_src_ui = _inc[_inc.index('static void mo3_t35'):_inc.index('/* device icon with a per-look ink map')] + _inc[_inc.index('static void mo_emb_draw'):_inc.index('static inline int mo_embS(')]
+_fold = _inc[_inc.index('static void mo12_folder'):]; _fold = _fold[:_fold.index('/* content (positions')]
+_alpha_src = re.findall(r'a \* (?:f|kb|kd|k|3) / (?:256|255|4)|a / 3|ha \* k', _src_ui) + re.findall(r'MO_LOOK == 1 \? 242|solid \? 256 : 120|lv_hex\(OUT\), 200\)|lv_hex\(HEAD\), MO_LOOK == 2 \? 256 : 200', _fold)
+gate('opaque UI: every emblem / on-tower folder glyph / file-line pixel and the folder pull-down drawn at 100% (no alpha blending) in every frame of the run',
+     bool(mui) and int(mui[-1][1]) == 0 and not _alpha_src, ui_px_drawn=int(mui[-1][0]) if mui else None, ui_px_translucent=int(mui[-1][1]) if mui else None, alpha_terms_in_ui_source=_alpha_src,
+     note='MOUI counts every UI pixel call in the sim (mo_ui_px) whose alpha is below its pillar alpha; the pull-down body / header / tab / drop outline are 256 in source')
+esz = {}; front = []
+for i in range(NP):
+    x0, x1, yt, yb = IT[i]['f']; fit = min(36, x1 - x0 - 1); S_ = IE[i]['e'][2]
+    esz[NAMES[i]] = dict(S=S_, face_w=x1 - x0, fit=fit, ok=bool(fit < 6 or fit - 3 <= S_ <= fit))
+zi = sorted(range(NP), key=lambda i: IT[i]['Z'])[:6]
+gate('emblems: idle emblem as large as the face allows (S within 3 px of face width - 1, 2 px steps with hysteresis; was 8 / 10 / 16 px steps)', all(v['ok'] for v in esz.values()), per_pillar=esz,
+     front6={NAMES[i]: esz[NAMES[i]]['S'] for i in zi}, median_S=float(np.median([v['S'] for v in esz.values()])))
+# temporal stability: 40 consecutive idle frames (1 tick apart); per pillar, emblem ink pixels compared frame to frame after the
+# emblem rect's own integer move; pairs where the rect moved <= 1 px and kept its size, and no nearer pillar overlaps it
+STAB = W + '/stab'
+if not (REUSE and os.path.exists(STAB + '/run.log')):
+    st_steps = json.load(open(SRC + '/mix.json'))[:4] + ['tick 300']
+    for k in range(40): st_steps += ['tick 1', 'dump st%02d' % k, 'itwstate']
+    json.dump(st_steps, open(W + '/stab.json', 'w')); subprocess.run([sys.executable, SRC + '/drive.py', W + '/stab.json', STAB], check=True)
+slog = open(STAB + '/run.log').read(); sblk = slog.split('MOCAM')[1:][-40:]
+PAL = {1: [0xd8ffe6, 0x10d858, 0x010805], 2: [0x005a20, 0x00b843, 0xffffff], 3: [0xfff0c8, 0x10d858, 0x1c120c]}
+SF = [rgb(STAB + '/st%02d.rgb' % k)[0].astype(int) for k in range(40)]; lumf = lambda a: 0.299 * a[..., 0] + 0.587 * a[..., 1] + 0.114 * a[..., 2]
+_MC = {}
+def MASK(i, S):
+    if S not in _MC:
+        raw_ = subprocess.run([W + '/emb_sheet', str(S)], capture_output=True, check=True).stdout; o = 0; L_ = []
+        for _ in range(NP):
+            b_ = np.frombuffer(raw_[o:o + S * S], np.uint8).reshape(S, S); o += S * S; d_ = np.frombuffer(raw_[o:o + S * S], np.uint8).reshape(S, S); o += S * S
+            h_ = np.frombuffer(raw_[o:o + (S + 2) ** 2], np.uint8).reshape(S + 2, S + 2); o += (S + 2) ** 2
+            m_ = h_ > 0; m_[1:-1, 1:-1] |= (b_ > 0) | (d_ > 0); L_.append(m_)
+        _MC[S] = L_
+    return _MC[S][i]
+pairs = 0; dmean = []; dmax = 0.0; worst = None; pops = {n: 0 for n in NAMES}
+for k in range(39):
+    TA, TB = motw(sblk[k]), motw(sblk[k + 1]); EA, EB = moemb(sblk[k]), moemb(sblk[k + 1]); OA = [int(x) for x in re.search(r'ord=([\d,]+)', sblk[k]).group(1).split(',')]
+    for i in range(NP):
+        (ax, ay, aS), (bx, by, bS) = EA[i]['e'], EB[i]['e']
+        if aS != bS: pops[NAMES[i]] += 1; continue
+        if aS < 6 or abs(bx - ax) > 1 or abs(by - ay) > 1: continue
+        occ = False
+        for j in OA[OA.index(i) + 1:]:
+            for TT in (TA, TB):
+                U = TT[j]; jx0, jx1 = min(U['f'][0], U['b'][0]), max(U['f'][1], U['b'][1]); jy0, jy1 = U['b'][2], U['f'][3]
+                if jx0 <= ax + aS + 1 and jx1 >= ax - 1 and jy0 <= ay + aS + 1 and jy1 >= ay - 1: occ = True
+        if occ: continue
+        A = SF[k][ay - 1:ay + aS + 1, ax - 1:ax + aS + 1]; Bm = SF[k + 1][by - 1:by + bS + 1, bx - 1:bx + bS + 1]
+        if A.shape != Bm.shape or A.size == 0: continue
+        ink = MASK(i, aS)   # the emblem's own outline + body + detail pixels (from mo_emblem.h at this size)
+        if ink.sum() < 8: continue
+        d = np.abs(lumf(A) - lumf(Bm))[ink]; pairs += 1; dmean.append(float(d.mean()))
+        if d.mean() > dmax: dmax, worst = float(d.mean()), (NAMES[i], k)
+gate('temporal stability: emblem ink luminance frame-to-frame delta ~0 when the pillar barely moves (40 consecutive idle frames)', pairs >= 100 and dmax <= 4.0 and float(np.mean(dmean)) <= 1.0,
+     pairs=pairs, mean_abs_dY=round(float(np.mean(dmean)), 3) if dmean else None, worst_pair_mean_dY=round(dmax, 2), worst=worst, size_changes_in_40_frames=pops,
+     rule='pairs where the emblem rect moved <= 1 px (compensated), same size, no nearer pillar overlapping; ink = the emblem mask (outline + body + detail) at its drawn size')
 scr = []
 for k, nm, _ in CU:
     i = NAMES.index(nm); bl = [b for b in cub if re.search(r'MOCU %d ' % i, b)]
@@ -187,7 +281,7 @@ gate('stills: idle @1x 240x320, idle + 4 close-ups @3x 720x960', st)
 npass = sum(g['pass_'] for g in G)
 json.dump(dict(mock='morpheus-mix SPREAD 2026-11-14 (mock only: no flash, no merge, no firmware commit)', passed=npass, total=len(G),
                devices=NAMES, fixed_heights_world=dict(T1_code_glass=HF[1], T3_sentinel_lantern=HF[3], T2_white_light=HF[2]),
-               idle_still=dict(sample_index=KREP, of=len(SM), rule='median of per-sample quality (mean emblem visible fraction + mean tap square/60); not the best sample',
+               idle_still=dict(sample_index=KREP, of=len(SM), rule='median of per-sample quality (mean emblem visible fraction + mean tap square/60) over the samples where all 18 pillars show some emblem and keep a tap cell; not the best sample', clean_pool=int(len(POOL)),
                                quality=round(float(qual[KREP]), 4), quality_min=round(float(qual.min()), 4), quality_median=round(float(np.median(qual)), 4), quality_max=round(float(qual.max()), 4)),
                gates=[{('pass' if k == 'pass_' else k): v for k, v in g.items()} for g in G]),
           open(R + '/gate.json', 'w'), indent=1, default=lambda o: o.item() if hasattr(o, 'item') else str(o))

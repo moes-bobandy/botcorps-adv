@@ -1,0 +1,2 @@
+v5e = commit d0fbab7d135475932a5b182f194e1a8770609fb5 (3:47 PM ET), gate 25/32.
+Superseded 3:48 PM ET: folder squares still text rows + a meaningless progress bar (missed the 3:24 PM digital-instrument redesign); rain on the black towers barely visible at idle.

@@ -1,14 +1,12 @@
-My own look (v5e, 3:48 PM ET). I checked idle_3x and the 4 DEAUTH open frames; I did not step through the whole video.
+My own look (v5f, 4:02 PM ET).
 
-**Idle (idle_3x)**
-- The wood towers are solid again.
-- HACK is on screen at the near left, a black Matrix tower with its skull emblem.
-- At idle size the rain on the black towers shows only as thin green streaks; it is easier to see in the close-up.
-- Emblems sit inside their faces at one fixed size each, so far towers carry small emblems.
+**Idle and video.** I stepped through idle_then_open_3x.mp4 (8 frames 12 video frames apart, cropped to the towers).
+- In every frame the emblems (HACK skull, FLIPPER dolphin, SKIMMER, FLOCK and the others) stay on their own tower's top face. They keep the same size and move with the tower. None floats off or changes size.
+- The wood towers are solid.
+- The 5 black towers now show visible green rain streaks with bright heads. At idle size they still read mostly black with green streaks, not a dense curtain.
 
-**Open sequence (DEAUTH)**
-- 0.18 s: camera push.
-- 0.54 s: the Morpheus search bar types "DEAUT_", shows 0/3 SCROLLS, and no scrolls are on screen.
-- 1.8 s: three green Morpheus scrolls have landed beside the tower.
-- 3.15 s: all three scrolls are LOADED.
-- No HACKbot overlay, chips, meters or strips remain.
+**Open screen (sim preview: DEAUTH, FLOCK, AIR TAG).**
+- SCROLL 1: 7-segment dBm readout (DEAUTH -79), a 10-LED signal meter lit to that level, and the threat as a warning triangle plus 3 red segments for HIGH (FLOCK LOW = 1 lit, AIR TAG MEDIUM = 2 lit, amber).
+- SCROLL 2: lit WIFI and 2.4G badges plus SUBTYPE 12 and DISASOC 10 as 7-segment digits for DEAUTH. FLOCK shows a WI+BT badge and OUI 49. AIR TAG shows a BLE badge and TYPE 12.
+- SCROLL 3: shield-check icon with DO THIS under the action header.
+- No progress bars or strips remain. The 7-segment digits keep their unlit segments dim, which looks like a real LED display but reads slightly busy at 1x.

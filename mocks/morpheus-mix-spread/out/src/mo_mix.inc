@@ -239,11 +239,11 @@ static void mo11_tower_fx(LvBand &B, const LvTower &T)
         const int hx = x0 + 1 + fw / 5; for (int x = x0; x <= x1; ++x) mo13_px(B, x, y, x == hx ? mo3_mx(0x03120a, 0x3a8a58, 0.45f - 0.3f * v) : base, a); }   /* v4: opaque glass + one crisp highlight column */
     const bool big = fw >= 40;
     /* v5e: Matrix rain = lv_radar.h's CYD code streaks (field rain law, same constants + colours), mapped into this tower's face */
-    { const int W_ = fw - 3, H_ = yv - yt - 1, ns = fw >= 40 ? 18 : (fw / 3 > 2 ? fw / 3 : 2);
+    { const int W_ = fw - 3, H_ = yv - yt - 1, ns = fw >= 40 ? 18 : (fw / 2 > 3 ? fw / 2 : 3);   /* v5f: denser */
       if (W_ > 0 && H_ > 4) for (int s_ = 0; s_ < ns; ++s_) {
         const int x = x0 + 2 + (s_ * 53 + 17 + i * 7) % W_, len = 10 + (s_ * 7) % 18, sp = 40 + (s_ * 29) % 70;
         const int head = yt + 1 + (int)(lv_now / 1000.0f * sp + s_ * 37 + i * 11) % (H_ + len);
-        for (int k = 0; k < len; k += 2) { const int y = head - k; if (y > yt && y < yv) mo13_px(B, x, y, lv_hex(k == 0 ? 0x10d858 : 0x00a83c), a * (k == 0 ? 8 : 6 - k * 5 / len) / 8); } } }
+        for (int k = 0; k < len; ++k) { const int y = head - k; if (y > yt && y < yv) mo13_px(B, x, y, lv_hex(k < 2 ? 0xd8ffe6 : k < len / 2 ? 0x10d858 : 0x00a83c), k < len / 2 ? a : a * (8 - (k - len / 2) * 7 / (len - len / 2)) / 8); } } }   /* v5f: bright head + continuous fading trail */
     /* hologram device in the core */
     const int iy = yt + (S >= 32 ? 6 : 3);   /* v4: no bob */
     if (S) { const int ix = x0 + 1 + (fw - 1 - S) / 2; mo_emb_draw(B, i, ix, iy, S, MO_EMB_COL[i], MO_EMB_DET[i], 0x010805, a, a); }
@@ -345,7 +345,7 @@ const int MO_LOOK = MO_LOOKOF[i];   /* the opened pillar's own look */
     /* drop shadow */
     if (solid) for (int yy = y - 4; yy < y + h + 4; ++yy) mo_hspan(B, yy, x + 4, x + w + 3, lv_hex(SHAD), MO_LOOK == 2 ? 50 : 100);
     /* active glow: the folder loading now, or a slow cycle once all are loaded */
-    const bool act = (tl >= 0 && tl < MO12_LOAD_MS) || (tl >= MO12_LOAD_MS && ((int)(lv_now / 1400) % 3) == j && mo12_nland == 3);
+    const bool act = false;   /* v5f: no decorative glow cycle */
     const int ga = act ? (int)(70 + 50 * sinf(t * 6.0f)) : 26;
     if (solid) for (int r = 3; r >= 1; --r) { const int al = ga * (4 - r) / 3; mo_hspan(B, y - 9 - r, x - r, x + tw + r, lv_hex(GLOW), al); mo_hspan(B, y - 1 - r, x + tw, x + w + r - 1, lv_hex(GLOW), al);
         mo_hspan(B, y + h + r - 1, x - r, x + w + r - 1, lv_hex(GLOW), al); for (int yy = y - 9 - r; yy < y + h + r; ++yy) { mo_bl(B, x - r, yy, lv_hex(GLOW), al); mo_bl(B, x + w - 1 + r, yy, lv_hex(GLOW), al); } }
@@ -382,27 +382,40 @@ const int MO_LOOK = MO_LOOKOF[i];   /* the opened pillar's own look */
     if (B.y0 == 0) mo12_aud(x + 5, y - 6, lv_w35(tab), 5, x + 1, y - 7, x + tw - 5, y - 1, "tab");
     mo_emb_draw(B, i, x + 5, y + 5, 10, IK, IB, 0, 256, 0);   /* device emblem (vector, 10 px) in the header strip */
     const char *nm = MO_FOLD_NAME[i][j]; b_text(B, x + 17, y + 7, nm, ink);   /* real folder name: ID / DETECT / ACTION */
-    const char *sz = MO_FOLD_TAG[i][j]; const int sw = (int)strlen(sz) * 6 - 1, sx = x + w - 6 - sw;   /* right tag: threat / radio / DO (was a fake KB size) */
-    b_text(B, sx, y + 20, sz, lv_hex(SIZE));
-    b_text35(B, x + 6, y + 22, MO_FOLD_ACT[i][j], lv_hex(ACT));
-    const int bw = 70, fill = (bw - 4) * (tl < 0 ? 0 : tl > MO12_LOAD_MS ? MO12_LOAD_MS : tl) / MO12_LOAD_MS;
-    mo12_rect(B, x + 6, y + 35, bw - 4, 3, lv_hex(BARB), 256); b_frame(B, x + 4, y + 33, bw, 7, lv_hex(BARF));
-    for (int q = 0; q < fill; ++q) { const uint16_t c = mo3_mx(MO_LOOK == 3 ? 0x00a83c : 0x0a8a3a, MO_LOOK == 1 ? 0xb8ffd0 : 0x10d858, q / 66.0f); mo12_rect(B, x + 6 + q, y + 35, 1, 3, c, 256); }
-    char st[16]; if (tl >= MO12_LOAD_MS) snprintf(st, sizeof st, "LOADED"); else snprintf(st, sizeof st, "%d%%", tl < 0 ? 0 : 100 * tl / MO12_LOAD_MS);
-    b_text35(B, x + w - 6 - lv_w35(st), y + 34, st, lv_hex(ACT));
-    /* landing: a bright trace runs the outline (T1), a light sheen sweeps the face (T2), a gold glint runs the brass (T3) */
-    if (tl >= -MO12_DROP_MS * 35 / 100 && tl < 700) { const float u = (tl + MO12_DROP_MS * 35 / 100) / (700.0f + MO12_DROP_MS * 35 / 100);
-        if (MO_LOOK == 2) {
-        const int sx0 = x - 20 + (int)(u * (w + 40));
-        for (int yy = y + 1; yy < y + h - 1; ++yy) for (int d = -4; d <= 4; ++d) { const int xx = sx0 + d - (yy - y) / 2; if (xx > xl(yy) + 1 && xx < xr(yy) - 1) mo_bl(B, xx, yy, lv_hex(0xffffff), 150 - abs(d) * 30); }
-        } else {
-        const int P = 2 * (w + h); const int hp = (int)(u * P * 1.05f);
-        for (int d = 0; d < 26; ++d) { int px, py; mo3_perim(x - 1, y - 1, w + 1, h + 1, hp - d, px, py); const int al = 255 * (26 - d) / 26;
-            mo_bl(B, px, py, lv_hex(MO_LOOK == 1 ? 0xeafff1 : 0xfff8d8), al); mo_bl(B, px + 1, py, lv_hex(MO_LOOK == 1 ? 0xeafff1 : 0xfff8d8), al / 2); mo_bl(B, px, py + 1, lv_hex(MO_LOOK == 1 ? 0xeafff1 : 0xfff8d8), al / 2); }
-        }
+    /* v5f (Mobandy 3:24 / 3:48 PM ET): digital instruments, every element = a real value (folders18 + EX.DATA rssi + threat table) */
+    auto seg7 = [&](int sx_, int sy_, char ch, uint16_t on, uint16_t off) {   /* 5x9 seven-segment digit, unlit segments dim */
+        static const char *const D7 = "0123456789-ABCDEF"; static const uint8_t M7[17] = {0x3f,0x06,0x5b,0x4f,0x66,0x6d,0x7d,0x07,0x7f,0x6f,0x40,0x77,0x7c,0x39,0x5e,0x79,0x71};
+        const char *p_ = strchr(D7, ch); const uint8_t m = p_ ? M7[p_ - D7] : 0;
+        auto sg = [&](int k, int rx, int ry, int rw, int rh) { mo12_rect(B, sx_ + rx, sy_ + ry, rw, rh, (m >> k) & 1 ? on : off, 256); };
+        sg(0, 1, 0, 3, 1); sg(1, 4, 1, 1, 3); sg(2, 4, 5, 1, 3); sg(3, 1, 8, 3, 1); sg(4, 0, 5, 1, 3); sg(5, 0, 1, 1, 3); sg(6, 1, 4, 3, 1); };
+    auto seg7s = [&](int sx_, int sy_, const char *s_, uint16_t on, uint16_t off) { for (int k = 0; s_[k]; ++k) seg7(sx_ + k * 7, sy_, s_[k], on, off); return sx_ + (int)strlen(s_) * 7; };
+    const uint16_t LIT = lv_hex(MO_LOOK == 2 ? 0x00a83c : 0x30ff90), DIM = lv_hex(MO_LOOK == 2 ? 0xcfe8d8 : MO_LOOK == 3 ? 0x3a2414 : 0x0a3a20), LBL = lv_hex(ACT);
+    const int th = MO_THREAT[i]; const uint16_t TC = lv_hex(th == 0 ? 0xff385c : th == 1 ? 0xffb000 : 0x30c060);
+    b_text35(B, x + 6, y + 19, MO_FOLD_ACT[i][j], lv_hex(ACT));   /* the folder's real fact line */
+    const int iy0 = y + 27, iy = y + 34;   /* instrument labels / instruments */
+    if (j == 0) {   /* WHAT IT IS: signal (EX.DATA dBm, 7-seg + 10-LED meter) + threat level (3 segments + warning icon) */
+        char db[8]; snprintf(db, sizeof db, "%d", (int)MO11_RSSI[i]); b_text35(B, x + 6, iy0, "DBM", LBL); seg7s(x + 6, iy, db, LIT, DIM);
+        int lev = MO11_RSSI[i] + 100; if (lev < 4) lev = 4; if (lev > 60) lev = 60; const int nl = (lev * 10 + 30) / 60;   /* lv_rd_level -> 10 LEDs */
+        b_text35(B, x + 40, iy0, "SIGNAL", LBL);
+        for (int k = 0; k < 10; ++k) { const int bh_ = 2 + k * 7 / 9; mo12_rect(B, x + 40 + k * 5, iy + 9 - bh_, 4, bh_, k < nl ? LIT : DIM, 256); }
+        b_text35(B, x + 96, iy0, "THREAT", LBL);
+        for (int r = 0; r < 8; ++r) mo_hspan(B, iy + r, x + 100 - r / 2, x + 100 + r / 2, TC, 256);   /* warning triangle */
+        mo12_rect(B, x + 100, iy + 2, 1, 3, lv_hex(0x000000), 256); mo12_rect(B, x + 100, iy + 6, 1, 1, lv_hex(0x000000), 256);
+        for (int k = 0; k < 3; ++k) mo12_rect(B, x + 107 + k * 9, iy + 2, 7, 5, k < 3 - th ? TC : DIM, 256);
+    } else if (j == 1) {   /* HOW SPOTTED: radio badge (lit), band badge from the BAND / GHZ item, numeric items as 7-seg digits */
+        auto badge = [&](int bx, const char *s_) { const int bw_ = (int)strlen(s_) * 4 + 5; mo12_rect(B, bx, iy - 1, bw_, 9, LIT, 256); b_text35(B, bx + 3, iy + 1, s_, lv_hex(MO_LOOK == 2 ? 0xffffff : 0x03140b)); return bx + bw_ + 3; };
+        b_text35(B, x + 6, iy0, "RADIO", LBL); int bx = badge(x + 6, MO_FOLD_TAG[i][1]);
+        for (int e = 0; e < 8; ++e) { const char *v = MO_ITEM_V[i][e]; const char *g_ = strstr(v, "GHZ"); if (g_) { char bb[8]; snprintf(bb, sizeof bb, "%.*sG", (int)(g_ - v > 4 ? 4 : g_ - v), v); for (char *q = bb; *q; ++q) if (*q == ' ') memmove(q, q + 1, strlen(q)); bx = badge(bx, bb); break; } }
+        int nx = x + w - 6, cnt = 0;
+        for (int e = 7; e >= 0 && cnt < 2; --e) { const char *v = MO_ITEM_V[i][e]; const int L_ = (int)strlen(v); bool num = L_ > 0 && L_ <= 3; for (int k = 0; k < L_; ++k) if (v[k] < '0' || v[k] > '9') num = false;
+            if (!num) continue; const char *kk = MO_ITEM_K[i][e]; char k7[8]; snprintf(k7, sizeof k7, "%.7s", kk); const int ww = L_ * 7 > lv_w35(k7) ? L_ * 7 : lv_w35(k7);
+            if (nx - ww < bx + 2) break; nx -= ww; b_text35(B, nx, iy0, k7, LBL); seg7s(nx, iy, v, LIT, DIM); nx -= 6; ++cnt; }
+    } else {   /* PROTECT: shield + check icon + DO THIS: marks the header line as the action to take */
+        for (int r = 0; r < 10; ++r) { const int hw = r < 6 ? 4 : 4 - (r - 5); mo_hspan(B, iy + r - 1, x + 10 - hw, x + 10 + hw, LIT, 256); }
+        const uint16_t dk = lv_hex(MO_LOOK == 2 ? 0xffffff : 0x03140b); mo12_rect(B, x + 8, iy + 4, 1, 1, dk, 256); mo12_rect(B, x + 9, iy + 5, 1, 1, dk, 256); for (int k = 0; k < 3; ++k) mo12_rect(B, x + 10 + k, iy + 4 - k, 1, 1, dk, 256);
+        b_text(B, x + 18, iy + 1, "DO THIS", lv_hex(NAME));   /* the action itself is the header line */
     }
+    (void)tl; (void)BARF; (void)BARB; (void)SIZE;
     if (B.y0 == 0) { mo12_aud(x + 17, y + 7, (int)strlen(nm) * 6 - 1, 7, x + 16, y + 3, x + w - 4, y + 17, "fname");
-                     mo12_aud(sx, y + 20, sw, 7, x + 60, y + 18, x + w - 4, y + 30, "fsize");
-                     mo12_aud(x + 6, y + 22, lv_w35(MO_FOLD_ACT[i][j]), 5, x + 2, y + 18, sx - 3, y + 30, "fact");
-                     mo12_aud(x + w - 6 - lv_w35(st), y + 34, lv_w35(st), 5, x + bw + 6, y + 32, x + w - 3, y + h - 2, "fst"); }
+                     mo12_aud(x + 6, y + 19, lv_w35(MO_FOLD_ACT[i][j]), 5, x + 2, y + 18, x + w - 4, y + 25, "fact"); }
 }

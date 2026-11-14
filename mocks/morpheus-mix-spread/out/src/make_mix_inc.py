@@ -306,4 +306,16 @@ s = s[:_a] + """    const bool big = fw >= 40;
 rep2("static int mo_embS4(int i, int fw)\n{\n    if (fw >= 50) return mo_eS_last[i] = 40;",
      "static const int MO_EMB_SFIX[MO_N] = {%s};   /* v5e: fixed idle emblem size per tower */\nstatic int mo_embS4(int i, int fw)\n{\n    if (fw >= 50) return mo_eS_last[i] = 40;\n    { int S = MO_EMB_SFIX[i], lim = fw - 3; if (S > lim) S = lim < 4 ? 0 : lim; return mo_eS_last[i] = S; }   /* v5e: fixed, inset >= 1 px */" % ', '.join(map(str, json.load(open(D + '/emb_fix_v5e.json'))['S'])))
 
+# ---- v5f (Mobandy 3:24 / 3:48 PM ET): folder squares = digital instruments (every element a real value); no progress bar, no landing sweep, no idle glow cycle
+_a = s.index("    const char *sz = MO_FOLD_TAG[i][j]; const int sw = (int)strlen(sz) * 6 - 1, sx = x + w - 6 - sw;")
+_b = s.index('"fst"); }\n}\n', _a) + len('"fst"); }\n}\n')
+s = s[:_a] + open(D + '/v5f_folder.inc.txt').read() + s[_b:]
+rep2("    const bool act = (tl >= 0 && tl < MO12_LOAD_MS) || (tl >= MO12_LOAD_MS && ((int)(lv_now / 1400) % 3) == j && mo12_nland == 3);", "    const bool act = false;   /* v5f: no decorative glow cycle */")
+
+# v5f: the black towers' rain brightened to read at idle size (same lv_radar.h streak law: x / len / speed / head; denser streams,
+# continuous trail instead of every 2nd px, a bright 0xd8ffe6 head pixel pair, trail 0x10d858 -> 0x00a83c at full strength for its first half)
+rep2("    { const int W_ = fw - 3, H_ = yv - yt - 1, ns = fw >= 40 ? 18 : (fw / 3 > 2 ? fw / 3 : 2);", "    { const int W_ = fw - 3, H_ = yv - yt - 1, ns = fw >= 40 ? 18 : (fw / 2 > 3 ? fw / 2 : 3);   /* v5f: denser */")
+rep2("        for (int k = 0; k < len; k += 2) { const int y = head - k; if (y > yt && y < yv) mo13_px(B, x, y, lv_hex(k == 0 ? 0x10d858 : 0x00a83c), a * (k == 0 ? 8 : 6 - k * 5 / len) / 8); } } }",
+     "        for (int k = 0; k < len; ++k) { const int y = head - k; if (y > yt && y < yv) mo13_px(B, x, y, lv_hex(k < 2 ? 0xd8ffe6 : k < len / 2 ? 0x10d858 : 0x00a83c), k < len / 2 ? a : a * (8 - (k - len / 2) * 7 / (len - len / 2)) / 8); } } }   /* v5f: bright head + continuous fading trail */")
+
 open(D+'/mo_mix.inc','w').write(s); print('mo_mix.inc written')

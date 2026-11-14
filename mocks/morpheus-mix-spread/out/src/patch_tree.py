@@ -142,3 +142,7 @@ _a = "#define MO12_DROP0 300      /* folders: DOWNLOAD's eased stagger (110 ms a
 if _a in s:
     s = s.replace(_a, "#define MO12_DROP0 (MO12_BAR0 + MO12_WIPE_MS + (itw_mo_sel >= 0 ? (int)strlen(MO_DEV[itw_mo_sel].name) : 0) * MO12_TYPE_MS + 200)   /* v5e: folders drop 200 ms after the search finished typing the device (DOWNLOAD's eased stagger kept) */")
     open(TREE + '/src/live/lv_morpheus_v13.h', 'w').write(s); print('v5e: search then files')
+# ---- v5f: folder squares 50 px tall (room for the instrument row under the fact line); stagger pitch unchanged (62)
+s = open(TREE + '/src/live/lv_morpheus_v13.h').read()
+if 'MO12_FDY = 62, MO12_FH = 46;' in s:
+    s = s.replace('MO12_FDY = 62, MO12_FH = 46;', 'MO12_FDY = 62, MO12_FH = 50;'); open(TREE + '/src/live/lv_morpheus_v13.h', 'w').write(s); print('v5f: folder h 50')

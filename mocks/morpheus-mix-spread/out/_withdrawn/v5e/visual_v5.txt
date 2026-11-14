@@ -1,0 +1,14 @@
+My own look (v5e, 3:48 PM ET). I checked idle_3x and the 4 DEAUTH open frames; I did not step through the whole video.
+
+**Idle (idle_3x)**
+- The wood towers are solid again.
+- HACK is on screen at the near left, a black Matrix tower with its skull emblem.
+- At idle size the rain on the black towers shows only as thin green streaks; it is easier to see in the close-up.
+- Emblems sit inside their faces at one fixed size each, so far towers carry small emblems.
+
+**Open sequence (DEAUTH)**
+- 0.18 s: camera push.
+- 0.54 s: the Morpheus search bar types "DEAUT_", shows 0/3 SCROLLS, and no scrolls are on screen.
+- 1.8 s: three green Morpheus scrolls have landed beside the tower.
+- 3.15 s: all three scrolls are LOADED.
+- No HACKbot overlay, chips, meters or strips remain.

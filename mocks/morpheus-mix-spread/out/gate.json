@@ -1,6 +1,6 @@
 {
  "mock": "morpheus-mix SPREAD 2026-11-14 (mock only: no flash, no merge, no firmware commit)",
- "passed": 25,
+ "passed": 24,
  "total": 32,
  "devices": [
   "DEAUTH",
@@ -939,12 +939,12 @@
   {
    "name": "text audit: every audited text line inside its box",
    "pass": true,
-   "lines": 22517,
+   "lines": 20879,
    "bad": 0
   },
   {
    "name": "folder content: all 18 devices have real text (3 folders ID / DETECT / ACTION + 8 KEY / VALUE line-items); no EX.DATA / lorem / fake KB sizes; no folder name, detail line or line-item block shared across devices; every string fits its slot; tables wired into the renderer; close-up folder panels all differ",
-   "pass": true,
+   "pass": false,
    "devices": 18,
    "folders": 54,
    "items": 144,
@@ -952,12 +952,12 @@
    "placeholders": [],
    "dup_folder_text": false,
    "dup_item_block": false,
-   "wired": true,
+   "wired": false,
    "closeup_panel_hash": {
-    "deauth": "c7b367de1801",
-    "airtag": "895fe57aca6c",
-    "flock": "d395ba8ad83d",
-    "raven": "944af9a47329"
+    "deauth": "326fbd5de75c",
+    "airtag": "11218dea1be2",
+    "flock": "6ef2b315f43c",
+    "raven": "0ee38eb825f2"
    },
    "note": "scope: the folder + line-item text tables. Chrome text (card / terminal line, incl. its EX.DATA word) is unchanged by order \"do not change the chrome text\"."
   },
@@ -1159,7 +1159,7 @@
    "pass": true,
    "dumps": 18,
    "identical": 18,
-   "video_sha256": "e853dbfb3e67c432"
+   "video_sha256": "383958e611fe416c"
   },
   {
    "name": "video: no frozen (identical consecutive) frames",

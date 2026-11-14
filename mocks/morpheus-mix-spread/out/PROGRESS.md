@@ -35,3 +35,5 @@
 - 3:23 PM: committed + pushed bf90bda4122fecffd10c09d4ec918153a72534ef to backup/morpheus-mix-spread-2026-11-14 (ls-remote verified). v5d delivered at gate 23/31.
 - 3:28 PM: v5d withdrawn (_withdrawn/v5d, NOTE). v5e: v5c open state restored (v5d open sections off), solid wood, CYD code-streak rain on the 5 black towers, fixed per-tower emblem size inset in the face, scrolls drop after the search typed the device; package launched
 - 3:47 PM: v5e packaged, gate 25/32; README, SHA256SUMS written; committing
+- 3:50 PM: v5e withdrawn (_withdrawn/v5e, NOTE). v5f: digital folder instruments (7-seg dBm, 10-LED signal, 3-seg threat + warning icon, radio/band badges, numeric items as 7-seg, shield action), brighter CYD rain on black towers, folder h 50; package launched
+- 4:12 PM: v5f packaged, gate 24/32; video stepped (emblems attached); README + SHA256SUMS; committing

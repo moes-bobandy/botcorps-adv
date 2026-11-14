@@ -154,8 +154,8 @@ static const char *const MO_ITEM_V[MO_N][8] = {
     {"APPLE", "4C000215", "UUID", "MAJ+MIN", "RETAIL", "LOCATION", "OFF", "APP PERM"},
 };
 static void mo3_size(const char *nm, char *out) { unsigned h = 7; for (const char *q = nm; *q; ++q) h = h * 31 + (unsigned char)*q; const int k = 6 + (int)(h % 94); snprintf(out, 12, "%d.%dKB", k / 10, k % 10); }
-static const uint32_t MO_EMB_COL[MO_N] = {0x78cc5c, 0x26ffc9, 0x0033cc, 0xff4000, 0x0080ff, 0x00bfff, 0xccc35c, 0x0000ff, 0xff9500, 0xff00ff, 0xffd400, 0xff0055, 0xb95ccc, 0x3dcccc, 0xff00aa, 0xace600, 0x00ff6a, 0xcc5c6a};   /* v5: per-device emblem colour (src/emb_colors.py) */
-static const uint32_t MO_EMB_DET[MO_N] = {0x1c120c, 0x1c120c, 0xffffff, 0xffffff, 0xffffff, 0x1c120c, 0x1c120c, 0xffffff, 0x1c120c, 0xffffff, 0x1c120c, 0xffffff, 0xffffff, 0x1c120c, 0xffffff, 0x1c120c, 0x1c120c, 0xffffff};
+static const uint32_t MO_EMB_COL[MO_N] = {0x0033cc, 0xace600, 0xff0055, 0xff9500, 0xff00ff, 0xcc5c6a, 0x00ff6a, 0xff00aa, 0xb95ccc, 0x0080ff, 0x3dcccc, 0xff4000, 0x00bfff, 0xffd400, 0x0000ff, 0xccc35c, 0x26ffc9, 0x78cc5c};   /* v5: per-device emblem colour (src/emb_colors.py) */
+static const uint32_t MO_EMB_DET[MO_N] = {0xffffff, 0x1c120c, 0xffffff, 0x1c120c, 0xffffff, 0xffffff, 0x1c120c, 0xffffff, 0xffffff, 0xffffff, 0x1c120c, 0xffffff, 0x1c120c, 0x1c120c, 0xffffff, 0x1c120c, 0x1c120c, 0x1c120c};
 static inline int mo3_cl(int v, int lo, int hi) { return v < lo ? lo : v > hi ? hi : v; }
 static inline uint16_t mo3_mx(uint32_t a, uint32_t b, float u) { const int k = (int)lroundf((u < 0 ? 0 : u > 1 ? 1 : u) * 64); return lv_mix(lv_hex(a), lv_hex(b), k, 64); }
 /* clipped 3x5 text (rows ylo..yhi, columns <= xhi), soft fade over the window's top / bottom 4 rows */

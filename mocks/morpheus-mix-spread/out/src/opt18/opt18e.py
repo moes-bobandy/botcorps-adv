@@ -33,8 +33,8 @@ for l in (1, 3, 2):
     ids = [i for i in range(M.N) if M.LOOKOF[i] == l]; rng.shuffle(ids); n = len(ids); off = rng.uniform(-6, 6)
     for k, i in enumerate(ids): sx[i] = 30 + 180 * (k + 0.5) / n + off; z0[i] = TIER[l][0] + rng.uniform(-TIER[l][1], TIER[l][1])
 import os
-if os.environ.get('INIT'): _I = json.load(open(os.environ['INIT'])); sx = [x + rng.gauss(0, 4) for x in _I['sx']]; z0 = [min(4.35, max(1.65, z + rng.gauss(0, 0.08))) for z in _I['z0']]
-for _i in range(M.N):
+if os.environ.get('INIT'): _I = json.load(open(os.environ['INIT'])); sx = [x + rng.gauss(0, 4) for x in _I['sx']]; z0 = list(_I['z0']) if os.environ.get('ZFIX') else [min(4.35, max(1.65, z + rng.gauss(0, 0.08))) for z in _I['z0']]
+for _i in range(M.N if not os.environ.get('ZFIX') else 0):
     while M.LOOKOF[_i] == 1 and z0[_i] * (1 - M.AZ[_i] / 3) < M.F * (HFIX[0] - M.CAMH) / (M.HOR - 38): z0[_i] += 0.05
 p = dict(sx=sx, z0=z0, H=HFIX if HFIX else [rng.uniform(2.1, 2.4), rng.uniform(1.0, 1.25), rng.uniform(0.32, 0.45)]); cur = score(p); best = (cur, p)
 print('start', round(cur[0], 2), cur[1].min(), round(cur[2].min(), 3), cur[3], round(cur[4], 1), flush=True)
@@ -42,6 +42,7 @@ for it in range(iters):
     T = 0.25 * (1 - it / iters) + 0.01
     q = json.loads(json.dumps(p)); r = rng.random()
     if r < 0.45: i = rng.randrange(M.N); q['sx'][i] = min(float(os.environ.get('SXMAX', '215')), max(float(os.environ.get('SXMIN', '25')), q['sx'][i] + rng.gauss(0, 6)))   # v5b: SXMIN/SXMAX env (8..232 lets towers stand at the screen edges)
+    elif r < 0.8 and os.environ.get('ZFIX'): continue   # v5c: depth fixed by the Gibson mapping of the example rssi
     elif r < 0.8: i = rng.randrange(M.N); q['z0'][i] = min(4.35, max({1: 2.1, 3: 1.45, 2: 0.95}[M.LOOKOF[i]], q['z0'][i] + rng.gauss(0, 0.2)))
     elif r < 0.9:
         l = rng.choice((1, 3, 2)); ids = [i for i in range(M.N) if M.LOOKOF[i] == l]; i, j = rng.sample(ids, 2); q['sx'][i], q['sx'][j] = q['sx'][j], q['sx'][i]

@@ -18,13 +18,19 @@ AZ = [0.30,0.32,0.24,0.34,0.18,0.28,0.31,0.27,0.33,0.25, 0.335,0.22,0.21,0.19,0.
 WZ = [0.51,0.26,0.37,0.58,0.32,0.47,0.61,0.35,0.53,0.40, 0.55,0.49,0.34,0.45,0.31,0.27,0.39,0.59]
 WH = [0.62,0.94,0.77,0.66,0.88,0.59,0.98,0.74,0.69,0.91, 0.73,0.96,0.68,0.8,0.61,0.64,0.9,0.86]
 N = 18
+import json as _json
+_L = _json.load(open(_os.environ.get('MO_LAYOUT', _os.path.dirname(_os.path.abspath(__file__)) + '/../layout18.json')))
+V5C = _L.get('drift_law') == 'v5c'   # v5c (2:05 PM ET): every tower its own phase / speed / amplitude in X, Z + a lateral sway
+if V5C:
+    AX, WX, AZ, WZ = _L['ax'], _L['wx'], _L['az'], _L['wz']; PX, PZ, AS, WS, PS = _L['px'], _L['pz'], _L['as'], _L['ws'], _L['ps']
 def embS(fw): return 40 if fw >= 50 else 32 if fw >= 44 else 16 if fw >= 20 else 10 if fw >= 12 else 8 if fw >= 8 else 0
 def place(sx, z0, H, t):
     cam = 0.5 * np.sin(0.45 * t); out = []
     r = lambda v: int(np.floor(v + 0.5)) if v >= 0 else -int(np.floor(-v + 0.5))
     for i in range(N):
         Z0 = z0[i]; X0 = (sx[i] - 120) * Z0 / F
-        dx = AX[i] * (Z0 / 2) * np.sin(WX[i] * t + i * 2.399); dz = AZ[i] * (Z0 / 3) * np.sin(WZ[i] * t + i * 1.713 + 0.9)
+        if V5C: dx = AX[i] * (Z0 / 2) * np.sin(WX[i] * t + PX[i]) + AS[i] * Z0 * np.sin(WS[i] * t + PS[i]); dz = AZ[i] * (Z0 / 3) * np.sin(WZ[i] * t + PZ[i])
+        else: dx = AX[i] * (Z0 / 2) * np.sin(WX[i] * t + i * 2.399); dz = AZ[i] * (Z0 / 3) * np.sin(WZ[i] * t + i * 1.713 + 0.9)
         X = X0 + dx; Z = Z0 + dz; h = H[LOOKOF[i]]
         px = lambda X_, Z_: r(120 + F * (X_ - cam) / Z_); py = lambda Y_, Z_: r(HOR + F * (CAMH - Y_) / Z_)
         out.append(dict(i=i, Z=Z, x0=px(X - W, Z), x1=px(X + W, Z), yt=py(h, Z), yb=py(0, Z), bx0=px(X - W, Z + D), bx1=px(X + W, Z + D), byt=py(h, Z + D)))

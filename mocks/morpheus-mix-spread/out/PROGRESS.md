@@ -13,3 +13,9 @@
 - RUNNING 1:58 PM: package run #2 (layout W_3 seed 803, neighbour-aware colours); run #1 outputs moved to /tmp/m18/v5b_run1; log /tmp/m18/pkg.log
 - DONE 2:10 PM: package run #2 GATE 26/31 (fails: idle emblem px SAMSUNG 0, tap x2, floor, colour drawn-count)
 - DONE 2:16 PM: README, visual_v5.txt, tree_patch, SHA256SUMS. NEXT: commit+push
+- DONE 2:18 PM: committed + pushed 512fbb3 to backup/morpheus-mix-spread-2026-11-14 (verified ls-remote). Task complete; spread remains structurally unsolved under the locks.
+- 2:05 PM steering: independent per-tower drift (phase/speed/amp in X, Z, sway) + motion-independence gate. IN PROGRESS
+- 2:06 PM steering: depth from example RSSI via the real Gibson scan mapping (lv_radar.h / lv_scene_radar). IN PROGRESS
+- 2:20 PM: gibson_depth_drift.py applied to layout18.json (z0 from EX.DATA rssi, new v5c drift tables; v5b layout saved /tmp/m18/layout18_v5b.json); RUNNING sx-only opt X_0..7 (sx 34..206)
+- RUNNING 2:33 PM: package run v5c (layout X_4 seed 904, Gibson depth, v5c drift); v5b outputs -> _withdrawn/v5b; log /tmp/m18/pkg.log
+- 2:47 PM: v5c run1 GATE 25/32 (old v11 law gate stale); fixed law gate, re-gating with REUSE=1

@@ -68,14 +68,14 @@ static const char *const MO_SEC[3] = {"WHAT IT IS", "HOW IT IS SPOTTED", "HOW TO
 #define MO11_GH    0x10d858   /* Matrix green highlight */
 /* ---- world: 12 pillars, each its OWN independent 3D drift (X, Z, breathing H) on top of a scattered base layout ---- */
 /* base (picked offline for touch: tools opt2.py, segment-Voronoi tap cells over 30 drifting samples): screen column at camera 0, depth Z (12 steps 1.65 .. 4.35) and example rssi (12 distinct, -42 .. -92: Gibson's rssi -> level -> H law) */
-static const float MO11_SX[MO_N] = {217.269f, 25.167f, 87.903f, 154.412f, 178.289f, 73.354f, 128.774f, 182.007f, 51.612f, 101.861f, 203.239f, 55.529f, 16.027f, 151.89f, 194.628f, 39.0f, 105.597f, 119.777f};
-static const float MO11_Z0[MO_N] = {2.4499f, 2.4967f, 1.7444f, 1.9448f, 2.1472f, 2.2023f, 1.8574f, 2.4314f, 2.4599f, 1.9891f, 2.1495f, 2.0609f, 1.5769f, 2.1437f, 1.6462f, 2.0752f, 2.3154f, 1.3729f};
+static const float MO11_SX[MO_N] = {205.716f, 25.251f, 72.046f, 59.254f, 74.785f, 186.891f, 116.344f, 182.177f, 54.025f, 100.011f, 199.299f, 172.771f, 34.0f, 150.418f, 117.703f, 55.443f, 112.617f, 204.414f};
+static const float MO11_Z0[MO_N] = {3.8286f, 2.2112f, 2.6286f, 2.4f, 4.1714f, 3.5429f, 2.8571f, 2.2809f, 2.2633f, 4.5714f, 2.0571f, 3.4286f, 4.0f, 1.8286f, 4.3429f, 2.2857f, 2.9714f, 3.7143f};
 static const int8_t MO11_RSSI[MO_N] = {-79, -42, -58, -54, -85, -74, -62, -50, -46, -92, -48, -72, -82, -44, -88, -52, -64, -77};   /* EX.DATA */
 /* independent drift: amplitude + rate (rad/s, all distinct) + phase per pillar and per axis */
-static const float MO11_AX[MO_N] = {0.2f, 0.12f, 0.15f, 0.18f, 0.1f, 0.17f, 0.14f, 0.11f, 0.19f, 0.16f, 0.135f, 0.165f, 0.125f, 0.185f, 0.155f, 0.175f, 0.105f, 0.145f};
-static const float MO11_WX[MO_N] = {0.33f, 0.69f, 0.47f, 0.36f, 0.62f, 0.52f, 0.44f, 0.73f, 0.38f, 0.55f, 0.54f, 0.39f, 0.35f, 0.71f, 0.65f, 0.42f, 0.49f, 0.59f};
-static const float MO11_AZ[MO_N] = {0.3f, 0.32f, 0.24f, 0.34f, 0.18f, 0.28f, 0.31f, 0.27f, 0.33f, 0.25f, 0.335f, 0.22f, 0.21f, 0.19f, 0.23f, 0.305f, 0.315f, 0.29f};
-static const float MO11_WZ[MO_N] = {0.51f, 0.26f, 0.37f, 0.58f, 0.32f, 0.47f, 0.61f, 0.35f, 0.53f, 0.4f, 0.55f, 0.49f, 0.34f, 0.45f, 0.31f, 0.27f, 0.39f, 0.59f};
+static const float MO11_AX[MO_N] = {0.281f, 0.282f, 0.276f, 0.31f, 0.244f, 0.31f, 0.231f, 0.329f, 0.269f, 0.248f, 0.279f, 0.237f, 0.353f, 0.329f, 0.33f, 0.22f, 0.238f, 0.282f};
+static const float MO11_WX[MO_N] = {0.323f, 0.587f, 0.247f, 0.278f, 0.801f, 0.899f, 0.855f, 0.726f, 0.539f, 0.195f, 0.927f, 0.167f, 0.678f, 0.776f, 0.627f, 0.368f, 0.829f, 0.652f};
+static const float MO11_AZ[MO_N] = {0.261f, 0.226f, 0.293f, 0.333f, 0.328f, 0.317f, 0.273f, 0.311f, 0.29f, 0.242f, 0.333f, 0.283f, 0.25f, 0.186f, 0.314f, 0.2f, 0.234f, 0.315f};
+static const float MO11_WZ[MO_N] = {0.613f, 0.262f, 0.201f, 0.311f, 0.353f, 0.239f, 0.181f, 0.54f, 0.728f, 0.673f, 0.59f, 0.128f, 0.373f, 0.639f, 0.698f, 0.56f, 0.285f, 0.151f};
 static const float MO11_WH[MO_N] = {0.62f, 0.94f, 0.77f, 0.66f, 0.88f, 0.59f, 0.98f, 0.74f, 0.69f, 0.91f, 0.73f, 0.96f, 0.68f, 0.8f, 0.61f, 0.64f, 0.9f, 0.86f};
 #define MO11_AH 0.06f    /* breathing: H * (1 + 0.06 sin) */
 #define MO11_TW 1.35f    /* lv_rd_skin_tw: pillars a little broader than Gibson's needles (touch) */
@@ -192,9 +192,14 @@ static float mo12_cam(float t) { return mo12_camc + MO12_CAMA * sinf(t * 0.45f);
 
 /* ---- independent drift (lv_rd_place hook, skin 1): every pillar its own X / Z / H path; the sort in lv_rd_place re-orders far -> near ---- */
 static float mo11_k(int i) { (void)i; return 1.0f; }    /* v12: every pillar keeps its full idle drift; the close-up is a blend on top */
-static float mo11_dx(int i, float t) { return mo11_k(i) * MO11_AX[i] * (MO11_Z0[i] / 2.0f) * sinf(MO11_WX[i] * t + i * 2.399f); }   /* amplitude grows with depth: far pillars visibly travel too */
+static const float MO11_PX[MO_N] = {4.974f, 0.836f, 0.518f, 5.273f, 0.932f, 3.105f, 0.22f, 5.384f, 2.198f, 4.591f, 3.912f, 3.58f, 0.577f, 4.965f, 1.645f, 1.769f, 5.765f, 0.14f};
+static const float MO11_PZ[MO_N] = {5.122f, 2.672f, 0.408f, 4.291f, 0.204f, 5.359f, 2.034f, 2.391f, 3.717f, 4.919f, 1.292f, 1.043f, 4.811f, 5.31f, 3.69f, 0.426f, 6.153f, 1.889f};
+static const float MO11_AS[MO_N] = {0.051f, 0.058f, 0.05f, 0.04f, 0.059f, 0.052f, 0.037f, 0.049f, 0.068f, 0.068f, 0.04f, 0.06f, 0.048f, 0.05f, 0.054f, 0.064f, 0.048f, 0.036f};
+static const float MO11_WS[MO_N] = {1.958f, 1.053f, 1.308f, 1.249f, 1.984f, 1.166f, 0.999f, 1.723f, 1.852f, 1.801f, 1.087f, 1.527f, 1.417f, 1.91f, 1.636f, 1.591f, 0.956f, 1.487f};
+static const float MO11_PS[MO_N] = {1.912f, 3.194f, 4.48f, 4.229f, 4.51f, 1.918f, 5.198f, 0.913f, 1.143f, 5.049f, 1.627f, 2.121f, 5.394f, 3.06f, 1.851f, 2.074f, 1.554f, 2.251f};
+static float mo11_dx(int i, float t) { return mo11_k(i) * (MO11_AX[i] * (MO11_Z0[i] / 2.0f) * sinf(MO11_WX[i] * t + MO11_PX[i]) + MO11_AS[i] * MO11_Z0[i] * sinf(MO11_WS[i] * t + MO11_PS[i])); }   /* v5c: own phase + lateral sway */   /* amplitude grows with depth: far pillars visibly travel too */
 static float mo11_kz(int i) { (void)i; return 1.0f; }
-static float mo11_dz(int i, float t) { return mo11_kz(i) * MO11_AZ[i] * (MO11_Z0[i] / 3.0f) * sinf(MO11_WZ[i] * t + i * 1.713f + 0.9f); }
+static float mo11_dz(int i, float t) { return mo11_kz(i) * MO11_AZ[i] * (MO11_Z0[i] / 3.0f) * sinf(MO11_WZ[i] * t + MO11_PZ[i]); }   /* v5c: own phase; depth from the Gibson map of the EX.DATA rssi */
 static void mo11_drift(LvTower &T)
 {
     const int i = T.i; if (i < 0 || i >= MO_N) return; const float t = mo_t();

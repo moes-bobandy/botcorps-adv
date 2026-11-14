@@ -1,0 +1,1 @@
+v5b (renders ~2:10 PM ET, commit 512fbb3), gate 26/31. Superseded 2:05/2:06 PM ET: Mobandy asked for independent per-tower motion (towers moved in lockstep: raw screen-motion mean |r| 0.853) and Gibson-scan depth (closer devices closer).

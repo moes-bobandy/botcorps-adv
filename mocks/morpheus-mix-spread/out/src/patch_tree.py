@@ -56,6 +56,12 @@ static const float MO_HFIX[4] = {1.0f, %.3ff, %.3ff, %.3ff};''' % (', '.join(map
 for k, nm in (('sx','MO11_SX'),('z0','MO11_Z0'),('ax','MO11_AX'),('wx','MO11_WX'),('az','MO11_AZ'),('wz','MO11_WZ'),('wh','MO11_WH')):
     m = re.search(r'static const float %s\[12\] = \{([^}]*)\};' % nm, s); assert m, nm; assert len(J[k]) == 18, k
     s = s.replace(m.group(0), 'static const float %s[MO_N] = {%s};' % (nm, f(J[k])))
+if J.get('drift_law') == 'v5c':   # v5c (Mobandy 2:05 PM ET 'not locked in movement'): own phase / speed / amplitude in X, Z + a lateral sway per tower (src/gibson_depth_drift.py)
+    tabs = '\n'.join('static const float %s[MO_N] = {%s};' % (nm, f(J[k])) for k, nm in (('px','MO11_PX'),('pz','MO11_PZ'),('as','MO11_AS'),('ws','MO11_WS'),('ps','MO11_PS')))
+    rep('static float mo11_dx(int i, float t) { return mo11_k(i) * MO11_AX[i] * (MO11_Z0[i] / 2.0f) * sinf(MO11_WX[i] * t + i * 2.399f); }',
+        tabs + '\nstatic float mo11_dx(int i, float t) { return mo11_k(i) * (MO11_AX[i] * (MO11_Z0[i] / 2.0f) * sinf(MO11_WX[i] * t + MO11_PX[i]) + MO11_AS[i] * MO11_Z0[i] * sinf(MO11_WS[i] * t + MO11_PS[i])); }   /* v5c: own phase + lateral sway */')
+    rep('static float mo11_dz(int i, float t) { return mo11_kz(i) * MO11_AZ[i] * (MO11_Z0[i] / 3.0f) * sinf(MO11_WZ[i] * t + i * 1.713f + 0.9f); }',
+        'static float mo11_dz(int i, float t) { return mo11_kz(i) * MO11_AZ[i] * (MO11_Z0[i] / 3.0f) * sinf(MO11_WZ[i] * t + MO11_PZ[i]); }   /* v5c: own phase; depth from the Gibson map of the EX.DATA rssi */')
 m = re.search(r'static const int8_t MO11_RSSI\[12\] = \{([^}]*)\};', s)
 s = s.replace(m.group(0), 'static const int8_t MO11_RSSI[MO_N] = {%s};' % ', '.join(map(str, J['rssi'])))
 rep('static LvTower mo11_tw[12]; static bool mo11_have[12]; static float mo11_cam = 0; static int MO_ORD[12], mo11_nord = 0;',

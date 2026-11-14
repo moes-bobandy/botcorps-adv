@@ -90,9 +90,11 @@ for a in SM:
     t = a['t']
     for i in range(NP):
         Z0 = J['z0'][i]; X0 = (J['sx'][i] - 120) * Z0 / 120.0
-        dx = J['ax'][i] * (Z0 / 2) * math.sin(J['wx'][i] * t + i * 2.399); dz = J['az'][i] * (Z0 / 3) * math.sin(J['wz'][i] * t + i * 1.713 + 0.9)
+        if J.get('drift_law') == 'v5c':   # v5c: each tower its own phase / speed / amplitude in X, Z + lateral sway (src/gibson_depth_drift.py)
+            dx = J['ax'][i] * (Z0 / 2) * math.sin(J['wx'][i] * t + J['px'][i]) + J['as'][i] * Z0 * math.sin(J['ws'][i] * t + J['ps'][i]); dz = J['az'][i] * (Z0 / 3) * math.sin(J['wz'][i] * t + J['pz'][i])
+        else: dx = J['ax'][i] * (Z0 / 2) * math.sin(J['wx'][i] * t + i * 2.399); dz = J['az'][i] * (Z0 / 3) * math.sin(J['wz'][i] * t + i * 1.713 + 0.9)
         lawerr = max(lawerr, abs(a['tw'][i]['dx'] - dx), abs(a['tw'][i]['dz'] - dz)); xzerr = max(xzerr, abs(a['tw'][i]['X'] - X0 - dx), abs(a['tw'][i]['Z'] - Z0 - dz))
-gate('motion: all 18 follow the identical v11 drift law (dx, dz, X, Z recomputed from the tables)', lawerr < 2e-3 and xzerr < 2e-3, max_dxdz_err=round(lawerr, 5), max_xz_err=round(xzerr, 5), samples=len(SM))
+gate('motion: all 18 follow their own drift law exactly (v5c: own phase / speed / amplitude + sway per tower; dx, dz, X, Z recomputed from the tables)', lawerr < 2e-3 and xzerr < 2e-3, max_dxdz_err=round(lawerr, 5), max_xz_err=round(xzerr, 5), samples=len(SM))
 Hs = {1: set(), 2: set(), 3: set()}; allH = set()
 for a in SM:
     for i in range(NP): h = round(a['tw'][i]['H'], 4); Hs[LOOK[i]].add(h); allH.add(h)
@@ -146,6 +148,12 @@ gate('floor coverage: largest empty standable-floor square <= 60 px (idle + 320-
      whole_floor_idle_px=emp_idle, whole_floor_median_px=float(np.median(emp_s)), whole_floor_max_px=int(max(emp_s)),
      standable_floor_idle_px=st_idle, standable_floor_median_px=float(np.median(st_s)), standable_floor_max_px=int(max(st_s)),
      bases_per_third_LMR=thirds, front_row_bases_per_third_LMR=front_thirds, v4_idle_whole_floor_px=107, v5a_idle_whole_floor_px=71, v5a_idle_standable_floor_px=43, v5a_idle_bases_per_third_LMR=[6, 8, 4])
+# v5c (Mobandy 2:05 PM ET 'they should not be locked in movement with one another'): pairwise motion independence, src/motion_gate.py
+import motion_gate as MG
+MOT = MG.motion(SM, NP); MOT['own_drift_max_pair'] = [NAMES[k] for k in MOT['own_drift_max_pair']]
+MOT['v5b_before'] = dict(raw_screen_mean_abs_r=0.853, raw_screen_max_abs_r=0.959, own_drift_mean_abs_r=0.147, own_drift_max_abs_r=0.805, depth_max_abs_r=0.839)
+gate('motion independence: per-tower motion correlation over 153 pairs - own drift mean |r| <= 0.15 and max <= 0.6, depth mean |r| <= 0.15, raw screen motion (incl. the shared camera sway) mean |r| <= 0.4, >= 90% of pairs change camera-free spacing by >= 8 px (v5b: raw mean 0.853)',
+     MOT['own_drift_mean_abs_r'] <= 0.15 and MOT['own_drift_max_abs_r'] <= 0.6 and MOT['depth_mean_abs_r'] <= 0.15 and MOT['raw_screen_mean_abs_r'] <= 0.4 and MOT['spacing_pairs_changing_8px'] >= 0.9 * MOT['pairs'], **MOT)
 # ---------- 3. emblems
 raw = subprocess.run([W + '/emb_sheet'], capture_output=True, check=True).stdout; off = 0; EMB = {}
 for i in range(NP):

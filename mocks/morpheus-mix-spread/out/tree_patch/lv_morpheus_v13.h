@@ -68,8 +68,8 @@ static const char *const MO_SEC[3] = {"WHAT IT IS", "HOW IT IS SPOTTED", "HOW TO
 #define MO11_GH    0x10d858   /* Matrix green highlight */
 /* ---- world: 12 pillars, each its OWN independent 3D drift (X, Z, breathing H) on top of a scattered base layout ---- */
 /* base (picked offline for touch: tools opt2.py, segment-Voronoi tap cells over 30 drifting samples): screen column at camera 0, depth Z (12 steps 1.65 .. 4.35) and example rssi (12 distinct, -42 .. -92: Gibson's rssi -> level -> H law) */
-static const float MO11_SX[MO_N] = {205.716f, 25.251f, 72.046f, 59.254f, 74.785f, 186.891f, 116.344f, 182.177f, 54.025f, 100.011f, 199.299f, 172.771f, 34.0f, 150.418f, 117.703f, 55.443f, 112.617f, 204.414f};
-static const float MO11_Z0[MO_N] = {3.8286f, 2.2112f, 2.6286f, 2.4f, 4.1714f, 3.5429f, 2.8571f, 2.2809f, 2.2633f, 4.5714f, 2.0571f, 3.4286f, 4.0f, 1.8286f, 4.3429f, 2.2857f, 2.9714f, 3.7143f};
+static const float MO11_SX[MO_N] = {186.939f, 34.0f, 95.95f, 60.277f, 68.763f, 187.367f, 116.303f, 194.246f, 132.717f, 127.64f, 202.545f, 164.832f, 36.175f, 141.927f, 77.046f, 69.091f, 52.057f, 206.0f};
+static const float MO11_Z0[MO_N] = {3.8286f, 1.7143f, 2.6286f, 2.4f, 4.1714f, 3.5429f, 2.8571f, 2.1714f, 1.9429f, 4.5714f, 2.0571f, 3.4286f, 4.0f, 1.8286f, 4.3429f, 2.2857f, 2.9714f, 3.7143f};
 static const int8_t MO11_RSSI[MO_N] = {-79, -42, -58, -54, -85, -74, -62, -50, -46, -92, -48, -72, -82, -44, -88, -52, -64, -77};   /* EX.DATA */
 /* independent drift: amplitude + rate (rad/s, all distinct) + phase per pillar and per axis */
 static const float MO11_AX[MO_N] = {0.281f, 0.282f, 0.276f, 0.31f, 0.244f, 0.31f, 0.231f, 0.329f, 0.269f, 0.248f, 0.279f, 0.237f, 0.353f, 0.329f, 0.33f, 0.22f, 0.238f, 0.282f};
@@ -170,14 +170,16 @@ static float mo_t(void) { return (lv_now - mo_tw0) / 1000.0f; }
 #define MO12_SX 38.0f        /* close-up front-face centre column (the DOWNLOAD game parks its tower at x 50) */
 #define MO12_YT 60.0f        /* close-up front-top row (the search bar sits above it, rows 38..52) */
 #define MO12_CAMA 0.02f      /* open camera: Gibson's sway law, smaller */
-#define MO12_BAR0 120       /* search bar wipes in, then types the device */
+#define MO12_LOCK_MS 1000    /* v5d: Gibson lock - hold brackets close in for 1 s (lv_rd_cg_brackets), then the snap */
+#define MO12_SWEEP_FR 3      /* v5d: HACKbot tower meter, one band per 3 frames (30 fps) */
+#define MO12_BAR0 1200      /* v5d: HACKbot search bar after the lock snap (was 120) */
 #define MO12_WIPE_MS 180
 #define MO12_TYPE_MS 45
-#define MO12_DROP0 300      /* folders: DOWNLOAD's eased stagger (110 ms apart, 380 ms each) */
-#define MO12_GAP 110
-#define MO12_DROP_MS 380
+#define MO12_DROP0 mo12_drop0()   /* v5d: folders only after the search is done (src/v5d_open.inc.txt) */
+#define MO12_GAP 700        /* v5d: HACKbot stagger 21 frames */
+#define MO12_DROP_MS 867    /* v5d: HACKbot drop 26 frames */
 #define MO12_LOAD_MS 500     /* a landed folder's LOADING bar */
-static const int MO12_FX = 92, MO12_FW = 143, MO12_FY0 = 60, MO12_FDY = 62, MO12_FH = 46;   /* folder j: tab top FY0 + j*FDY, body 8 below, 36 tall */
+static const int MO12_FX = 90, MO12_FW = 145, MO12_FY0 = 78, MO12_FDY = 50, MO12_FH = 40;   /* v5d: HACKbot folder x 90 w 145, first at 78; 40 tall, 50 apart */   /* folder j: tab top FY0 + j*FDY, body 8 below, 36 tall */
 static const int MO12_BX = 8, MO12_BY = 38, MO12_BW = 229, MO12_BH = 15;                      /* search bar 229x15 at (8,38) */
 static float mo12_camc = 0;   /* open camera centre (picked at tap) */
 static LvBand *mo12_B = nullptr;   /* the band being drawn (for the room wash inside the tower loop) */
@@ -199,11 +201,13 @@ static const float MO11_WS[MO_N] = {1.958f, 1.053f, 1.308f, 1.249f, 1.984f, 1.16
 static const float MO11_PS[MO_N] = {1.912f, 3.194f, 4.48f, 4.229f, 4.51f, 1.918f, 5.198f, 0.913f, 1.143f, 5.049f, 1.627f, 2.121f, 5.394f, 3.06f, 1.851f, 2.074f, 1.554f, 2.251f};
 static float mo11_dx(int i, float t) { return mo11_k(i) * (MO11_AX[i] * (MO11_Z0[i] / 2.0f) * sinf(MO11_WX[i] * t + MO11_PX[i]) + MO11_AS[i] * MO11_Z0[i] * sinf(MO11_WS[i] * t + MO11_PS[i])); }   /* v5c: own phase + lateral sway */   /* amplitude grows with depth: far pillars visibly travel too */
 static float mo11_kz(int i) { (void)i; return 1.0f; }
+static const float MO11_HK[MO_N] = {1.0677f, 0.6022f, 0.7461f, 0.6937f, 1.1396f, 0.995f, 0.805f, 0.6506f, 0.6192f, 1.1913f, 0.6332f, 0.9639f, 1.1062f, 0.6087f, 1.1668f, 0.6708f, 0.8361f, 1.0397f};   /* v5d depth height factor */
 static float mo11_dz(int i, float t) { return mo11_kz(i) * MO11_AZ[i] * (MO11_Z0[i] / 3.0f) * sinf(MO11_WZ[i] * t + MO11_PZ[i]); }   /* v5c: own phase; depth from the Gibson map of the EX.DATA rssi */
 static void mo11_drift(LvTower &T)
 {
     const int i = T.i; if (i < 0 || i >= MO_N) return; const float t = mo_t();
-    T.H = MO_HFIX[MO_LOOKOF[i]];   /* morpheus-mix spread: one fixed height per style (three heights total) */
+static_assert(MO_N == 18, "hk table");
+    T.H = MO_HFIX[MO_LOOKOF[i]] * MO11_HK[i];   /* v5d: group height x a fixed depth factor (near towers shorter), no breathing */
     const float Z0 = MO11_Z0[i], X0 = (MO11_SX[i] - 120) * Z0 / LV_RD_F;
     const float dx = mo11_dx(i, t), dz = mo11_dz(i, t), hk = 1.0f;   /* spread: no idle height breathing (heights stay exactly three) */
     T.X = X0 + dx; T.Z = Z0 + dz; T.H *= hk;
@@ -535,33 +539,44 @@ static void mo13_folder_v131(LvBand &B, int i, int j, int ys, float ph, int tl) 
 }
 #include "../../../src/mo_mix.inc"
 /* ---- v12 line-item search bar across the top of the tower + its index line down to the folders ---- */
+static int mo12_lit = 0;   /* v5d dump: HACKbot tower-meter bands lit */
 static void mo12_search(LvBand &B, const LvTower &T, int i, int el)
 {
-    const int t = el - MO12_BAR0; if (t < 0) return;
-    const uint16_t ch = lv_hex(MO11_CHAR), tim = lv_hex(MO11_BEAM), g = lv_hex(MO11_G), gh = lv_hex(MO11_GH), pap = lv_hex(0xe8dec8);
-    const int x0 = MO12_BX, y0 = MO12_BY, w = MO12_BW, h = MO12_BH;
-    const int wv = (int)(w * mo_ease(t / (float)MO12_WIPE_MS));
-    /* hanger: timber posts from the bar to the pillar's front-top corners + a green pointer at its seam */
-    if (t >= MO12_WIPE_MS) { const int cx = (T.x0 + T.x1) / 2, yt = T.yt;
-        if (yt > y0 + h) { mo_aline(B, (float)T.x0 + 4, (float)(y0 + h), (float)T.x0 + 4, (float)yt, tim, 220); mo_aline(B, (float)T.x1 - 4, (float)(y0 + h), (float)T.x1 - 4, (float)yt, tim, 220);
-            for (int r = 0; r < 4; ++r) mo_hspan(B, y0 + h + r, cx - 3 + r, cx + 3 - r, g, 240); } }
-    mo12_rect(B, x0, y0, wv, h, ch, 256);
-    if (wv < w) { mo12_rect(B, x0 + wv - 2, y0, 2, h, gh, 256); return; }
-    b_frame(B, x0, y0, w, h, tim); mo_hspan(B, y0 + 1, x0 + 1, x0 + w - 2, ((lv_now / 500) & 1) ? g : lv_hex(0x2e5a34), 256); mo_hspan(B, y0 + h - 2, x0 + 1, x0 + w - 2, lv_hex(0x3a3228), 256);
-    const char *nm = MO_DEV[i].name; const int L = (int)strlen(nm), ty = t - MO12_WIPE_MS;
-    int typed = ty < 0 ? 0 : ty / MO12_TYPE_MS; if (typed > L) typed = L; mo12_typed = typed;
-    int x = b_text35(B, x0 + 5, y0 + 5, "SEARCH", gh); x = b_text35(B, x + 3, y0 + 5, "//", lv_hex(0x8a7a5a));
-    char q[24]; snprintf(q, sizeof q, "%.*s", typed, nm); const int nx = x + 4, ne = b_text(B, nx, y0 + 4, q, pap);
-    if (typed < L || ((lv_now / 400) & 1)) mo12_rect(B, ne + 1, y0 + 4, 5, 7, gh, 256);   /* blinking green block cursor (solid while typing) */
-    char r[24]; snprintf(r, sizeof r, "%d/3 SCROLLS", mo12_nland); const int rx = x0 + w - 5 - lv_w35(r); b_text35(B, rx, y0 + 5, r, lv_hex(0xbfb294));
-    if (B.y0 == 0) { mo12_aud(x0 + 5, y0 + 5, x - 4 - (x0 + 5), 5, x0 + 2, y0 + 2, x0 + w - 3, y0 + h - 3, "sbarL"); mo12_aud(nx, y0 + 4, L * 6 + 6, 7, x0 + 2, y0 + 2, rx - 4, y0 + h - 3, "sbarQ");
-                     mo12_aud(rx, y0 + 5, lv_w35(r), 5, nx + L * 6 + 8, y0 + 2, x0 + w - 3, y0 + h - 3, "sbarR"); }
+    /* 1) Gibson lock on the opened tower = the hold / lock bracket branch of lv_radar.h lv_rd_fx, line for line (holding: brackets
+     *    close in from pad 15 to 3 and brighten over 1 s; locked: magenta brackets pulsing at 1.6 Hz, tick + LOCK label; the 200 ms
+     *    white snap flash under the same LV_RD_CHARGE condition as Gibson, so with the shipped charge lock it is never white),
+     *    calling the real lv_rd_box / lv_rd_brackets / lv_rd_rect_blend / lv_dim / b_text35; the hold is driven by the time since
+     *    the tap instead of a held finger (Morpheus has no HOLD TO LOCK bar). */
+    { const uint16_t MAG = lv_hex(0xff2ad4), W = lv_hex(0xffffff); int xa, xb, ya, yb;
+      if (el < MO12_LOCK_MS) { float u = el / (float)MO12_LOCK_MS; if (u > 1) u = 1; if (u < 0) u = 0;
+          const int pad = 3 + (int)lroundf((1 - u) * 12); lv_rd_box(T, pad, xa, xb, ya, yb); lv_rd_brackets(B, xa, ya, xb, yb, 4, lv_dim(MAG, 4 + (int)(u * 4), 8)); }
+      else { const int e = el - MO12_LOCK_MS;
+          const int pulse = 5 + (int)lroundf(3 * (0.5f + 0.5f * sinf(e / 1000.0f * 6.283f * 1.6f)));
+          lv_rd_box(T, 3, xa, xb, ya, yb);
+          if (e < 200 && !(LV_RD_CHARGE && !LV_RD_CG_NODRAW)) lv_rd_rect_blend(B, xa - 1, ya - 1, xb + 1, yb + 1, W, 7 - e * 7 / 200);
+          lv_rd_brackets(B, xa, ya, xb, yb, 4, lv_dim(MAG, pulse, 8));
+          const int cx = (xa + xb) / 2; b_line(B, cx, ya - 1, cx, ya - 3, lv_dim(W, pulse, 8));
+          const char *lab = "LOCK"; int ly = ya - 9; if (ly < LV_RD_Y0 + 1) ly = LV_RD_Y0 + 1;
+          if (el < MO12_BAR0) b_text35(B, cx - lv_w35(lab) / 2, ly, lab, lv_dim(MAG, pulse, 8)); } }
+    /* 2) HACKbot search = lv_scanbot_download.h lv_dl_drop's key bar (dark fill, amber / cyan blinking frame, cyan underline, amber 3x5
+     *    text) typing the device, then its 11-band tower meter (lvi_band inks, 238 - k*18 rows) lighting band by band up the tower */
+    const int t = el - MO12_BAR0; mo12_lit = 0; if (t < 0) return;
+    const int x0 = MO12_BX, y0 = MO12_BY, w = MO12_BW, h = MO12_BH, f = t * 3 / 100;
+    const char *nm = MO_DEV[i].name; const int L = (int)strlen(nm);
+    int typed = t / MO12_TYPE_MS; if (typed > L) typed = L; mo12_typed = typed;
+    const int tdone = L * MO12_TYPE_MS, fs = t < tdone ? -1 : (t - tdone) * 3 / 100;
+    int lit = fs < 0 ? 0 : 1 + fs / MO12_SWEEP_FR; if (lit > 11) lit = 11; mo12_lit = lit;
+    lvi_rect(B, x0, y0, w, h, 0x05101c); lvi_box(B, x0, y0, w, h, f % 30 < 15 ? 0xffb000 : 0x59cddc); lvi_line(B, x0 + 6, y0 + h + 1, x0 + w - 1, y0 + h + 1, 0x81efff);
+    char q[48]; snprintf(q, sizeof q, "[SEARCH // %.*s%s // %d/11]", typed, nm, typed < L ? "_" : "", lit);
+    lvi_txt(B, x0 + 4, y0 + 5, q, 0xffc34a);
+    { const int fx0 = T.x0, fw = T.x1 - T.x0; if (fw > 12) for (int k = 0; k < 11; ++k) { const int yy = 238 - k * 18; if (yy - 6 < T.yt + 2 || yy > 246) continue;
+        const unsigned co = k < lit ? lvi_band(k, f) : 0x12313a; lvi_rect(B, fx0 + 4, yy - 4, fw - 8, 5, co); lvi_rect(B, fx0 + 5, yy - 6, fw - 10, 1, k < lit ? co : 0x17323d); } }
+    if (B.y0 == 0) mo12_aud(x0 + 4, y0 + 5, lv_w35(q), 5, x0 + 2, y0 + 2, x0 + w - 3, y0 + h - 2, "sbarQ");
 }
-static void mo12_index(LvBand &B, int nland, const int *ys)   /* the line items: a green index line from the bar down the folder column, a tick + node per landed folder */
+static void mo12_index(LvBand &B, int nland, const int *ys)   /* v5d: HACKbot lv_dl_drop folder rail: cyan lines at x 84 / 86 from the key bar down */
 {
-    if (nland <= 0) return; const uint16_t g = lv_hex(MO11_G); const int xl = MO12_FX - 3, yb = ys[nland - 1] + 12;
-    for (int y = MO12_BY + MO12_BH; y <= yb; ++y) mo_bl(B, xl, y, g, 230);
-    for (int j = 0; j < nland; ++j) { const int yy = ys[j] + 12; mo_hspan(B, yy, xl, MO12_FX - 1, g, 230); mo12_rect(B, xl - 1, yy - 1, 3, 3, lv_hex(MO11_GH), 256); }
+    if (nland <= 0) return; const int yb = ys[nland - 1] + 12;
+    lvi_line(B, 84, MO12_BY + MO12_BH + 2, 84, yb, 0x2ca5b5); lvi_line(B, 86, MO12_BY + MO12_BH + 2, 86, yb, 0x124d61);
 }
 
 /* ---- per frame: the Gibson layout on the Morpheus world (called while swapped, skin 1 set so lv_rd_place runs mo11_drift) ---- */
@@ -600,7 +615,7 @@ static void mo11_overlay(LvBand &B)   /* skin-1 hook: called by lv_scene_radar a
         /* v13: red pill removed */
         int ys[4], nland = 0; float ph[4];
         for (int j = 0; j < 3; ++j) { const int tt = (int)el - MO12_DROP0 - j * MO12_GAP; const float u = tt / (float)MO12_DROP_MS; ph[j] = u;
-            const int end = MO12_FY0 + j * MO12_FDY, start = LV_RD_Y0 - 50; ys[j] = start + (int)((end - start) * mo_ease(u)); if (tt >= 0 && u >= 0.65f) nland = j + 1; }
+            const float uu = u < 0 ? 0 : u > 1 ? 1 : u; const int end = MO12_FY0 + j * MO12_FDY, start = j == 0 ? MO12_FY0 - 16 : MO12_FY0 + (j - 1) * MO12_FDY + 6; ys[j] = start + (int)((end - start) * (1.f - (1.f - uu) * (1.f - uu) * (1.f - uu)));   /* v5d: HACKbot lv_dl_drop ease */ if (tt >= 0 && u >= 0.65f) nland = j + 1; }
         mo12_nland = nland;
         mo12_index(B, nland, ys);
         for (int j = 2; j >= 0; --j) { const int tt = (int)el - MO12_DROP0 - j * MO12_GAP; if (tt < 0) continue;
@@ -681,6 +696,6 @@ static void mo_dump(void)
     for (int i = 0; i < MO_N; ++i) if (mo11_have[i]) printf("  MOEMB %d look=%d threat=%s hs=%.3f e=[%d,%d,%d]\n", i, MO_LOOKOF[i], MO_TNAME[MO_THREAT[i]], MO_HFIX[MO_LOOKOF[i]], mo_ex[i], mo_ey[i], mo_eS[i]);
     if (mo_txt_bad) printf("  MOWHY %s\n", mo_txt_why);
     if (cu >= 0 && mo11_have[cu]) { const LvTower &T = mo11_tw[cu]; printf("  MOCU %d p=%.3f f=[%d,%d,%d,%d] b=[%d,%d,%d,%d] fw=%d\n", cu, mo12_p(cu), T.x0, T.x1, T.yt, T.yb, T.bx0, T.bx1, T.byt, T.byb, T.x1 - T.x0); }
-    if (itw_mo_sel >= 0) { printf("  MOFOLD nland=%d typed=%d ys=", mo12_nland, mo12_typed); for (int j = 0; j < 3; ++j) printf("%d/%d%s", mo12_fys[j], mo12_fph100[j], j < 2 ? "," : "\n"); }
+    if (itw_mo_sel >= 0) { printf("  MOFOLD nland=%d typed=%d lit=%d drop0=%d ys=", mo12_nland, mo12_typed, mo12_lit, mo12_drop0()); for (int j = 0; j < 3; ++j) printf("%d/%d%s", mo12_fys[j], mo12_fph100[j], j < 2 ? "," : "\n"); }
 }
 #endif

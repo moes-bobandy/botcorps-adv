@@ -26,14 +26,15 @@ CLEAN = np.where((vf.min(1) > 0) & (sq.min(1) > 0))[0]          # v3b: samples w
 POOL = CLEAN if len(CLEAN) >= 32 else np.arange(len(qual))
 order = POOL[np.argsort(qual[POOL], kind='stable')]; KREP = int(order[len(order) // 2])   # the median sample of that pool (not the best)
 steps = json.load(open(SRC + '/mix.json')); assert steps[4] == 'tick 552' and steps[6] == 'tick 128'
-PRE = min(128, 10 * (KREP + 1) - 1); steps[4] = 'tick %d' % (10 * (KREP + 1) - PRE); steps[6] = 'tick %d' % PRE   # video pre-roll before the idle still: up to 128 ticks; json.dump(steps, open(W + '/mix_run.json', 'w'))   # idle dump lands on sample KREP's time
+PRE = min(128, 10 * (KREP + 1) - 1); steps[4] = 'tick %d' % (10 * (KREP + 1) - PRE); steps[6] = 'tick %d' % PRE   # video pre-roll before the idle still: up to 128 ticks
+json.dump(steps, open(W + '/mix_run.json', 'w'))   # idle dump lands on sample KREP's time (v5d fix: this write had been swallowed by the comment above since 8:22 AM ET, so v4 - v5c always ran the stale 08:22 file = sample 251)
 print('representative idle sample', KREP, 'of', len(SM), 'quality', round(float(qual[KREP]), 4), 'range', round(float(qual.min()), 4), round(float(qual.max()), 4), flush=True)
 # ---------- 1. main run (+ an identical second run for the determinism gate)
 for d in ('run', 'run2'):
     if not (REUSE and os.path.exists(W + '/%s/run.log' % d)):
         subprocess.run([sys.executable, SRC + '/drive.py', W + '/mix_run.json', W + '/' + d], check=True)
 log = open(W + '/run/run.log').read()
-fr = {n: rgb(W + '/run/%s.rgb' % n)[0] for n in ['idle'] + ['%s_%s' % (a, b) for b in ('deauth','airtag','flock','raven') for a in ('push','open','later')]}
+fr = {n: rgb(W + '/run/%s.rgb' % n)[0] for n in ['idle'] + ['%s_%s' % (a, b) for b in ('deauth','airtag','flock','raven') for a in ('push','search','open','later')]}
 png(fr['idle'], R + '/idle_1x.png', 1); png(fr['idle'], R + '/idle_3x.png', 3)
 CU = [('deauth', 'DEAUTH', 'high'), ('airtag', 'AIR TAG', 'medium'), ('flock', 'FLOCK', 'low'), ('raven', 'RAVEN', 'new')]
 for k, nm, tag in CU:
@@ -80,9 +81,12 @@ ok_px = 0; bad = []; unc = []; IORD = [int(x) for x in re.search(r'ord=([\d,]+)'
 for i in range(NP):
     c, n = classify(fr['idle'], i, IT, IORD)
     if c is None: unc.append(NAMES[i])
-    elif c == 3: ok_px += 1   # v5: every body is see-through wood
+    elif c == (1 if LOOK[i] == 1 else 3): ok_px += 1   # v5d: the 5 HIGH towers = T1 black Matrix code glass, the other 13 = see-through wood
     else: bad.append((NAMES[i], c, n))
-gate('all bodies wood (v5): every classifiable pillar face reads as see-through wood (sim look forced to T3 for all 18; pixel class from its own opaque wood-outline pixels)', not bad and ok_px >= 14 and 'const int L = 3;' in open(SRC + '/mo_mix.inc').read(), matched=ok_px, misses=bad, unclassifiable_hidden=unc, note='idle still; faces with < 15 unoccluded px are not classified')
+_blk = [NAMES[i] for i in range(NP) if LOOK[i] == 1]
+gate('bodies (v5d): the 5 HIGH towers (%s) read as black Matrix code glass (T1), the other 13 as see-through wood (T3); pixel class from each face\'s own opaque outline / median pixels' % ', '.join(_blk),
+     not bad and ok_px >= 14 and len(_blk) == 5 and 'const int L = MO_LOOKOF[i] == 1 ? 1 : 3;' in open(SRC + '/mo_mix.inc').read() and 'mo3_mx(0x03120a, 0x000201, v)' in open(SRC + '/mo_mix.inc').read(),
+     black_matrix=_blk, matched=ok_px, misses=bad, unclassifiable_hidden=unc, note='idle still; faces with < 15 unoccluded px are not classified')
 # motion: every pillar follows the identical v11 drift law (dx, dz recomputed from the tables), X = X0 + dx, Z = Z0 + dz
 import math
 lawerr = 0; xzerr = 0
@@ -95,25 +99,21 @@ for a in SM:
         else: dx = J['ax'][i] * (Z0 / 2) * math.sin(J['wx'][i] * t + i * 2.399); dz = J['az'][i] * (Z0 / 3) * math.sin(J['wz'][i] * t + i * 1.713 + 0.9)
         lawerr = max(lawerr, abs(a['tw'][i]['dx'] - dx), abs(a['tw'][i]['dz'] - dz)); xzerr = max(xzerr, abs(a['tw'][i]['X'] - X0 - dx), abs(a['tw'][i]['Z'] - Z0 - dz))
 gate('motion: all 18 follow their own drift law exactly (v5c: own phase / speed / amplitude + sway per tower; dx, dz, X, Z recomputed from the tables)', lawerr < 2e-3 and xzerr < 2e-3, max_dxdz_err=round(lawerr, 5), max_xz_err=round(xzerr, 5), samples=len(SM))
-Hs = {1: set(), 2: set(), 3: set()}; allH = set()
-for a in SM:
-    for i in range(NP): h = round(a['tw'][i]['H'], 4); Hs[LOOK[i]].add(h); allH.add(h)
-gate('heights: exactly THREE distinct pillar heights over all 320 idle samples, one per style', len(allH) == 3 and all(len(v) == 1 for v in Hs.values()),
-     distinct=sorted(allH), per_style={LN[k]: sorted(v) for k, v in Hs.items()})
-mH = {LN[k]: max(v) for k, v in Hs.items()}
-gate('heights: T1 code glass tallest > T3 lantern > T2 white light shortest', mH['T1_code_glass'] > mH['T3_sentinel_post'] > mH['T2_construct_light'], H=mH)
-base = HF[1]; fac = {k: round(HF[k] / base, 4) for k in (1, 3, 2)}
-gate('heights: factors on ONE base height H = green T1 1.00 / wood T3 0.80 / white T2 0.62 (Mobandy 9:27 AM ET: bigger steps, no stumps)', abs(fac[1] - 1.0) < 1e-3 and abs(fac[3] - 0.80) < 1e-3 and abs(fac[2] - 0.62) < 1e-3,
-     base_H=base, factors={'T1_code_glass': fac[1], 'T3_see_through_wood': fac[3], 'T2_white_light': fac[2]})
-mr = min(min(v) for v in Hs.values()) / max(max(v) for v in Hs.values())
-gate('heights: min / max height ratio >= 0.60 (no stumps: white 0.62 x green)', mr >= 0.60 - 1e-6, min_ratio=round(mr, 4))
-HV3 = {1: 1.26, 3: 1.134, 2: 1.008}   # the rejected 9:22 AM ET heights (_withdrawn/v3)
-tall = {LN[k]: round(HF[k] / HV3[k], 3) for k in (1, 3, 2)}
-fh = {LN[k]: float(np.median([a['tw'][i]['yb'] - a['tw'][i]['yt'] for a in SM for i in range(NP) if LOOK[i] == k])) for k in (1, 3, 2)}
-fw_med = {LN[k]: float(np.median([a['tw'][i]['x1'] - a['tw'][i]['x0'] for a in SM for i in range(NP) if LOOK[i] == k])) for k in (1, 3, 2)}
-gate('heights: every style 1.6 - 2.1 x taller than the rejected 9:22 AM version (same projection, so on-screen height scales the same at equal depth)', all(1.595 <= v <= 2.1 + 1e-3 for v in tall.values()),
-     x_v3=tall, H_now={LN[k]: HF[k] for k in (1, 3, 2)}, H_v3={LN[k]: HV3[k] for k in (1, 3, 2)}, median_front_face_h_px=fh, median_front_face_w_px=fw_med)
-gate('heights: no idle height breathing (hk = 1 on every pillar, every sample)', all(abs(a['tw'][i]['hk'] - 1.0) < 1e-6 for a in SM for i in range(NP)))
+# v5d (Mobandy 2:34 PM ET 'Shorten the near towers'): world height = group height x a fixed per-tower depth factor hk (src/v5d_heights.py)
+sys.path.insert(0, SRC); import v5d_heights as VH
+HK = J['hk']; herr = max(abs(a['tw'][i]['H'] - HF[LOOK[i]] * HK[i]) for a in SM for i in range(NP))
+gate('heights (v5d): every tower H = its group height (1.00 / 0.80 / 0.62 x 2.6) x its fixed depth factor hk, in every sample (no breathing)', herr < 2e-3 and all(abs(a['tw'][i]['hk'] - 1.0) < 1e-6 for a in SM for i in range(NP)),
+     max_err=round(herr, 5), hk={NAMES[i]: HK[i] for i in range(NP)}, H={NAMES[i]: round(HF[LOOK[i]] * HK[i], 3) for i in range(NP)})
+_zs = sorted(range(NP), key=lambda i: J['z0'][i]); _ok = all(HK[_zs[k]] <= HK[_zs[k + 1]] + 1e-9 for k in range(NP - 1))
+gate('heights (v5d): the depth factor never grows toward the camera (nearer tower -> smaller or equal hk); group ratios 1.00 / 0.80 / 0.62 kept at every depth', _ok and abs(HF[3] / HF[1] - 0.80) < 1e-3 and abs(HF[2] / HF[1] - 0.62) < 1e-3,
+     near_to_far=[(NAMES[i], J['z0'][i], HK[i]) for i in _zs])
+hs_med = {i: float(np.median([a['tw'][i]['yb'] - a['tw'][i]['yt'] for a in SM])) for i in range(NP)}; hmax = max(hs_med.values())
+gate('no stumps (v5d): every tower\'s median on-screen height >= 45% of the tallest on-screen tower (320 samples)', min(hs_med.values()) >= 0.45 * hmax,
+     min_pct=round(100 * min(hs_med.values()) / hmax, 1), shortest=NAMES[min(hs_med, key=hs_med.get)], per_tower_px={NAMES[i]: hs_med[i] for i in range(NP)})
+_rows = {}
+for i in range(NP):
+    v = IT[i]; T_ = dict(x0=v['f'][0], x1=v['f'][1], yt=v['f'][2], yb=v['f'][3]); _rows[NAMES[i]] = VH.rows(T_, IE[i]['e'][2])
+gate('folder rows (v5d): every tower shows its emblem plus >= 6 on-tower folder rows in the idle still (mo_mix.inc T3 geometry, idle row pitch)', min(_rows.values()) >= 6, rows=_rows)
 idle_vis = {}
 for i in range(NP):
     s = dict(ord=[int(x) for x in re.search(r'ord=([\d,]+)', idle_blk).group(1).split(',')], tw={k: dict(x0=v['f'][0], x1=v['f'][1], yt=v['f'][2], yb=v['f'][3], bx0=v['b'][0], bx1=v['b'][1], byt=v['b'][2], byb=v['b'][3]) for k, v in IT.items()},
@@ -219,6 +219,21 @@ for k, nm, tag in CU:
     fw = int(re.search(r'MOCU %d .*fw=(\d+)' % i, b).group(1)); nl = int(re.search(r'MOFOLD nland=(\d)', b).group(1)); e = moemb(b).get(i, {}).get('e', [0, 0, 0])
     cu_ok.append(dict(dev=nm, fw=fw, nland=nl, emb_S=e[2], ok=fw >= 50 and nl == 3 and e[2] == 40))
 gate('close-ups: pillar >= 50 px wide, 3 folders landed, 40 px emblem drawn', all(c['ok'] for c in cu_ok), closeups=cu_ok)
+# v5d (Mobandy 2:36 - 2:38 PM ET): open order = Gibson lock -> HACKbot search (bar types the device, 11-band meter sweeps the tower) -> folders.
+# Each tower's itwstate after its search dump (1.8 s) and after its open dump (5.16 s): MOFOLD nland / typed / lit / drop0
+sr = []
+for k, nm, tag in CU:
+    i = NAMES.index(nm); bl = [b for b in cub if re.search(r'MOCU %d ' % i, b)]
+    m = [re.search(r'MOFOLD nland=(\d) typed=(\d+) lit=(\d+) drop0=(\d+)', b).groups() for b in bl]
+    a_, b_ = [int(v) for v in m[0]], [int(v) for v in m[1]]
+    sr.append(dict(dev=nm, search=dict(nland=a_[0], typed=a_[1], lit=a_[2]), open=dict(nland=b_[0], typed=b_[1], lit=b_[2]), folders_drop_at_ms=a_[3],
+                   ok=a_[0] == 0 and a_[1] > 0 and a_[3] > 1800 and b_[0] == 3 and b_[2] == 11 and b_[1] == len(nm)))
+gate('open order (v5d): HACKbot search first (search frame: device typed, 0 folders), folders only after the 11-band sweep (open frame: 3 folders, 11/11 lit)', all(x['ok'] for x in sr), towers=sr)
+from PIL import Image as _Im
+_seq = _Im.new('RGB', (720 * 4, 960))
+for k_, nm_ in enumerate(('push_deauth', 'search_deauth', 'open_deauth', 'later_deauth')): _seq.paste(_Im.fromarray(fr[nm_]).resize((720, 960), _Im.NEAREST), (720 * k_, 0))
+_seq.save(R + '/open_sequence_deauth_3x.png')   # 0.18 s lock brackets | 1.8 s HACKbot search, no folders | 5.16 s folders landed | 6.5 s
+subprocess.run([sys.executable, SRC + '/pullup_compare.py', R + '/pullup_gibson_vs_morpheus_2x.png'], check=True)   # v5d 2:38 PM: real Gibson charge lock vs the Morpheus open, same ms since the touch
 term = {k: fr['later_' + k][287 + 4:287 + 10, 5:200] for k, _, _ in CU}
 gate('threat text: small text in the terminal status line; LOW lines identical, HIGH / MEDIUM / LOW differ', (term['flock'] == term['raven']).all() and not (term['deauth'] == term['airtag']).all() and not (term['deauth'] == term['flock']).all() and not (term['airtag'] == term['flock']).all(),
      note='line reads "PILLAR OPEN  THREAT: <LEVEL>  EX.DATA"; no new widget')
@@ -248,7 +263,7 @@ gate('folder content: all 18 devices have real text (3 folders ID / DETECT / ACT
 # ---------- v4 (Mobandy 9:27 - 9:29 AM ET): opaque UI, big idle emblems, temporal stability
 mui = re.findall(r'MOUI tot=(\d+) part=(\d+)', log)
 _src_ui = _inc[_inc.index('static void mo3_t35'):_inc.index('/* device icon with a per-look ink map')] + _inc[_inc.index('static void mo_emb_draw'):_inc.index('static inline int mo_embS(')]
-_fold = _inc[_inc.index('static void mo12_folder'):]; _fold = _fold[:_fold.index('/* content (positions')]
+_fold = _inc[_inc.index('static void mo12_folder'):]; _fold = _fold[:_fold.index('static int mo12_drop0')]   # v5d: the HACKbot lv_dl_drop folder (lvi_* helpers, all opaque fills)
 _alpha_src = re.findall(r'a \* (?:f|kb|kd|k|3) / (?:256|255|4)|a / 3|ha \* k', _src_ui) + re.findall(r'MO_LOOK == 1 \? 242|solid \? 256 : 120|lv_hex\(OUT\), 200\)|lv_hex\(HEAD\), MO_LOOK == 2 \? 256 : 200', _fold)
 gate('opaque UI: every emblem / on-tower folder glyph / file-line pixel and the folder pull-down drawn at 100% (no alpha blending) in every frame of the run',
      bool(mui) and int(mui[-1][1]) == 0 and not _alpha_src, ui_px_drawn=int(mui[-1][0]) if mui else None, ui_px_translucent=int(mui[-1][1]) if mui else None, alpha_terms_in_ui_source=_alpha_src,

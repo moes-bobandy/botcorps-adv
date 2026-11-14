@@ -23,6 +23,7 @@ _L = _json.load(open(_os.environ.get('MO_LAYOUT', _os.path.dirname(_os.path.absp
 V5C = _L.get('drift_law') == 'v5c'   # v5c (2:05 PM ET): every tower its own phase / speed / amplitude in X, Z + a lateral sway
 if V5C:
     AX, WX, AZ, WZ = _L['ax'], _L['wx'], _L['az'], _L['wz']; PX, PZ, AS, WS, PS = _L['px'], _L['pz'], _L['as'], _L['ws'], _L['ps']
+HK = list(_L.get('hk', [1.0] * 18))   # v5d (2:34 PM ET 'shorten the near towers'): per-tower depth height factor, fixed
 def embS(fw): return 40 if fw >= 50 else 32 if fw >= 44 else 16 if fw >= 20 else 10 if fw >= 12 else 8 if fw >= 8 else 0
 def place(sx, z0, H, t):
     cam = 0.5 * np.sin(0.45 * t); out = []
@@ -31,7 +32,7 @@ def place(sx, z0, H, t):
         Z0 = z0[i]; X0 = (sx[i] - 120) * Z0 / F
         if V5C: dx = AX[i] * (Z0 / 2) * np.sin(WX[i] * t + PX[i]) + AS[i] * Z0 * np.sin(WS[i] * t + PS[i]); dz = AZ[i] * (Z0 / 3) * np.sin(WZ[i] * t + PZ[i])
         else: dx = AX[i] * (Z0 / 2) * np.sin(WX[i] * t + i * 2.399); dz = AZ[i] * (Z0 / 3) * np.sin(WZ[i] * t + i * 1.713 + 0.9)
-        X = X0 + dx; Z = Z0 + dz; h = H[LOOKOF[i]]
+        X = X0 + dx; Z = Z0 + dz; h = H[LOOKOF[i]] * HK[i]
         px = lambda X_, Z_: r(120 + F * (X_ - cam) / Z_); py = lambda Y_, Z_: r(HOR + F * (CAMH - Y_) / Z_)
         out.append(dict(i=i, Z=Z, x0=px(X - W, Z), x1=px(X + W, Z), yt=py(h, Z), yb=py(0, Z), bx0=px(X - W, Z + D), bx1=px(X + W, Z + D), byt=py(h, Z + D)))
     out.sort(key=lambda T: -T['Z']); return out

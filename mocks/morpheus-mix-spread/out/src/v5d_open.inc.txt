@@ -1,0 +1,48 @@
+static void mo12_folder(LvBand &B, int i, int j, int ys, float ph, int tl)
+{
+    /* v5d (Mobandy 2:36-2:38 PM ET): the tapped-open folder IS HACKbot DOWNLOAD's folder (lv_scanbot_download.h lv_dl_drop: the same
+     * lvi_* outline lines, slanted tab, drop shadow, 4-px scanline body, neon inks, FOLDER n.m tab text, lvi_icon, 85x6 bar + status),
+     * body 40 px tall (HACKbot 32) so one more text row fits. Every field is real device data from folders18 (MO_FOLD_NAME / MO_FOLD_TAG /
+     * MO_FOLD_ACT), the device's threat level (MO_LOOKOF) and its EXAMPLE signal (MO11_RSSI, EX.DATA) through Gibson's own
+     * lv_rd_level 11-step strength formula. Opaque (lvi_rect / lvi_line / lvi_txt write solid pixels). */
+    static const unsigned neon[4] = {0x30e8ff, 0xff2ad4, 0xffb000, 0x30ff90};
+    const int x = MO12_FX, y = ys, H = MO12_FH; const bool got = tl >= MO12_LOAD_MS; const unsigned c = got ? 0x30ff90 : neon[j];
+    lvi_line(B, 84, y + 12, 89, y + 12, c);
+    if (ph >= 0.65f) lvi_rect(B, x + 3, y + 2, 145, H, 0x061321);
+    lvi_line(B, x + 145, y + 2, x + 148, y + 5, c); lvi_line(B, x + 148, y + 5, x + 148, y + H, c); lvi_line(B, x + 3, y + H + 1, x + 148, y + H + 1, c);
+    if (ph >= 0.65f) { lvi_rect(B, x, y, 145, H, got ? 0x06200f : 0x050c16); for (int yy = y + 2; yy < y + H - 1; yy += 4) lvi_rect(B, x + 1, yy, 143, 1, 0x081422); }
+    if (ph >= 0.65f) lvi_rect(B, x, y - 7, 88, 8, 0x050c16);
+    lvi_line(B, x, y - 8, x + 83, y - 8, c); lvi_line(B, x + 83, y - 8, x + 88, y - 3, c); lvi_line(B, x + 88, y - 3, x + 88, y, c); lvi_line(B, x, y - 8, x, y + H - 1, c);
+    lvi_line(B, x + 88, y, x + 144, y, c); lvi_line(B, x + 144, y, x + 144, y + H - 1, c); lvi_line(B, x, y + H - 1, x + 144, y + H - 1, c);
+    if (ph < 0.65f) return;
+    char t[48];
+    snprintf(t, sizeof t, "FOLDER %d.%d", i + 1, j + 1); lvi_txt(B, x + 4, y - 6, t, c);
+    /* row 1: detection icon (lvi_icon: 0 ID card, 2 radio, 3 shield; 1 = alert triangle on a HIGH device's ID) + real folder name + risk chip */
+    const int lk = MO_LOOKOF[i]; const char *rk = lk == 1 ? "HIGH" : lk == 3 ? "MED" : "LOW"; const unsigned rc = lk == 1 ? 0xff385c : lk == 3 ? 0xffb000 : 0x30ff90;
+    lvi_icon(B, x + 3, y + 3, j == 0 ? (lk == 1 ? 1 : 0) : j == 1 ? 2 : 3, c);
+    const char *nm = MO_FOLD_NAME[i][j]; lvi_txt(B, x + 14, y + 5, nm, c);
+    const int cw = lv_w35(rk) + 6, cx = x + 141 - cw; lvi_rect(B, cx, y + 3, cw, 9, rc); lvi_txt(B, cx + 3, y + 5, rk, 0x050c16);
+    /* row 2: the real tag (threat / radio / DO) + the EX.DATA signal: dBm and Gibson's 11-step strength meter (lvi_band inks) */
+    const char *sz = MO_FOLD_TAG[i][j]; lvi_txt(B, x + 4, y + 14, sz, 0x9fb8c8);
+    const int lev = MO11_RSSI[i] + 100 < 4 ? 4 : MO11_RSSI[i] + 100 > 60 ? 60 : MO11_RSSI[i] + 100, sl = (lev - 4) * 11 / 56 + 1;
+    char db[16]; snprintf(db, sizeof db, "%dDBM EX", MO11_RSSI[i]); const int mx = x + 141 - 11 * 3, dx = mx - 3 - lv_w35(db);
+    lvi_txt(B, dx, y + 14, db, 0x6a8090);
+    for (int k = 0; k < 11; ++k) { const unsigned bc = k < sl ? (k < 6 ? 0x30ff90 : k < 9 ? 0xffb000 : 0xff385c) : 0x12313a; lvi_rect(B, mx + k * 3, y + 19 - (k * 5) / 10, 2, 1 + (k * 5) / 10, bc); }
+    /* row 3: the real detail / action line */
+    lvi_txt(B, x + 4, y + 23, MO_FOLD_ACT[i][j], c == 0x30ff90 ? 0xb8ffd0 : 0xd8e8f0);
+    /* row 4: HACKbot's 85x6 pull bar = this folder's load, status, and a mock-clock timestamp (seconds since the tap) */
+    const int fill = 81 * (tl < 0 ? 0 : tl > MO12_LOAD_MS ? MO12_LOAD_MS : tl) / MO12_LOAD_MS;
+    lvi_box(B, x + 4, y + 31, 85, 6, c); lvi_rect(B, x + 6, y + 33, fill, 2, c);
+    if (got) snprintf(t, sizeof t, "GOT"); else snprintf(t, sizeof t, "%d%%", 100 * (tl < 0 ? 0 : tl) / MO12_LOAD_MS);   /* HACKbot GOT / PULL n% (short form so the timestamp fits) */
+    lvi_txt(B, x + 94, y + 32, t, got ? c : 0x6a8090);
+    { const int ms = (int)(lv_now - itw_mo_t0); char ts[12]; snprintf(ts, sizeof ts, "T+%d.%dS", ms / 1000, (ms / 100) % 10); lvi_txt(B, x + 141 - lv_w35(ts), y + 32, ts, 0x6a8090); }
+    if (B.y0 == 0) { mo12_aud(x + 14, y + 5, lv_w35(nm), 5, x + 13, y + 2, cx - 2, y + 12, "fname");
+                     mo12_aud(x + 4, y + 14, lv_w35(sz), 5, x + 2, y + 13, dx - 2, y + 20, "fsize");
+                     mo12_aud(x + 4, y + 23, lv_w35(MO_FOLD_ACT[i][j]), 5, x + 2, y + 22, x + 142, y + 29, "fact");
+                     mo12_aud(x + 94, y + 32, lv_w35(t), 5, x + 90, y + 30, x + 120, y + 38, "fst"); }
+}
+static int mo12_drop0(void)   /* v5d: the folders drop only after the search is done: lock 1 s, search bar types the device, the 11-band sweep, +100 ms */
+{
+    const int L = itw_mo_sel >= 0 && itw_mo_sel < MO_N ? (int)strlen(MO_DEV[itw_mo_sel].name) : 6;
+    return MO12_BAR0 + L * MO12_TYPE_MS + 11 * MO12_SWEEP_FR * 100 / 3 + 100;
+}

@@ -1,0 +1,39 @@
+static int mo12_lit = 0;   /* v5d dump: HACKbot tower-meter bands lit */
+static void mo12_search(LvBand &B, const LvTower &T, int i, int el)
+{
+    /* 1) Gibson lock on the opened tower = the hold / lock bracket branch of lv_radar.h lv_rd_fx, line for line (holding: brackets
+     *    close in from pad 15 to 3 and brighten over 1 s; locked: magenta brackets pulsing at 1.6 Hz, tick + LOCK label; the 200 ms
+     *    white snap flash under the same LV_RD_CHARGE condition as Gibson, so with the shipped charge lock it is never white),
+     *    calling the real lv_rd_box / lv_rd_brackets / lv_rd_rect_blend / lv_dim / b_text35; the hold is driven by the time since
+     *    the tap instead of a held finger (Morpheus has no HOLD TO LOCK bar). */
+    { const uint16_t MAG = lv_hex(0xff2ad4), W = lv_hex(0xffffff); int xa, xb, ya, yb;
+      if (el < MO12_LOCK_MS) { float u = el / (float)MO12_LOCK_MS; if (u > 1) u = 1; if (u < 0) u = 0;
+          const int pad = 3 + (int)lroundf((1 - u) * 12); lv_rd_box(T, pad, xa, xb, ya, yb); lv_rd_brackets(B, xa, ya, xb, yb, 4, lv_dim(MAG, 4 + (int)(u * 4), 8)); }
+      else { const int e = el - MO12_LOCK_MS;
+          const int pulse = 5 + (int)lroundf(3 * (0.5f + 0.5f * sinf(e / 1000.0f * 6.283f * 1.6f)));
+          lv_rd_box(T, 3, xa, xb, ya, yb);
+          if (e < 200 && !(LV_RD_CHARGE && !LV_RD_CG_NODRAW)) lv_rd_rect_blend(B, xa - 1, ya - 1, xb + 1, yb + 1, W, 7 - e * 7 / 200);
+          lv_rd_brackets(B, xa, ya, xb, yb, 4, lv_dim(MAG, pulse, 8));
+          const int cx = (xa + xb) / 2; b_line(B, cx, ya - 1, cx, ya - 3, lv_dim(W, pulse, 8));
+          const char *lab = "LOCK"; int ly = ya - 9; if (ly < LV_RD_Y0 + 1) ly = LV_RD_Y0 + 1;
+          if (el < MO12_BAR0) b_text35(B, cx - lv_w35(lab) / 2, ly, lab, lv_dim(MAG, pulse, 8)); } }
+    /* 2) HACKbot search = lv_scanbot_download.h lv_dl_drop's key bar (dark fill, amber / cyan blinking frame, cyan underline, amber 3x5
+     *    text) typing the device, then its 11-band tower meter (lvi_band inks, 238 - k*18 rows) lighting band by band up the tower */
+    const int t = el - MO12_BAR0; mo12_lit = 0; if (t < 0) return;
+    const int x0 = MO12_BX, y0 = MO12_BY, w = MO12_BW, h = MO12_BH, f = t * 3 / 100;
+    const char *nm = MO_DEV[i].name; const int L = (int)strlen(nm);
+    int typed = t / MO12_TYPE_MS; if (typed > L) typed = L; mo12_typed = typed;
+    const int tdone = L * MO12_TYPE_MS, fs = t < tdone ? -1 : (t - tdone) * 3 / 100;
+    int lit = fs < 0 ? 0 : 1 + fs / MO12_SWEEP_FR; if (lit > 11) lit = 11; mo12_lit = lit;
+    lvi_rect(B, x0, y0, w, h, 0x05101c); lvi_box(B, x0, y0, w, h, f % 30 < 15 ? 0xffb000 : 0x59cddc); lvi_line(B, x0 + 6, y0 + h + 1, x0 + w - 1, y0 + h + 1, 0x81efff);
+    char q[48]; snprintf(q, sizeof q, "[SEARCH // %.*s%s // %d/11]", typed, nm, typed < L ? "_" : "", lit);
+    lvi_txt(B, x0 + 4, y0 + 5, q, 0xffc34a);
+    { const int fx0 = T.x0, fw = T.x1 - T.x0; if (fw > 12) for (int k = 0; k < 11; ++k) { const int yy = 238 - k * 18; if (yy - 6 < T.yt + 2 || yy > 246) continue;
+        const unsigned co = k < lit ? lvi_band(k, f) : 0x12313a; lvi_rect(B, fx0 + 4, yy - 4, fw - 8, 5, co); lvi_rect(B, fx0 + 5, yy - 6, fw - 10, 1, k < lit ? co : 0x17323d); } }
+    if (B.y0 == 0) mo12_aud(x0 + 4, y0 + 5, lv_w35(q), 5, x0 + 2, y0 + 2, x0 + w - 3, y0 + h - 2, "sbarQ");
+}
+static void mo12_index(LvBand &B, int nland, const int *ys)   /* v5d: HACKbot lv_dl_drop folder rail: cyan lines at x 84 / 86 from the key bar down */
+{
+    if (nland <= 0) return; const int yb = ys[nland - 1] + 12;
+    lvi_line(B, 84, MO12_BY + MO12_BH + 2, 84, yb, 0x2ca5b5); lvi_line(B, 86, MO12_BY + MO12_BH + 2, 86, yb, 0x124d61);
+}

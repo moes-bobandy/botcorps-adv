@@ -268,4 +268,18 @@ rep2("    const int L = MO_LOOKOF[i];\n    if (L == 1) {", "    const int L = 3;
 rep2("mo_emb_draw(B, i, ix, iy, Sl, 0xfff0c8, MO11_GH, 0x1c120c, a, a, py1); }", "mo_emb_draw(B, i, ix, iy, Sl, MO_EMB_COL[i], MO_EMB_DET[i], 0x1c120c, a, a, py1); }   /* v5: per-device colour */")
 rep2("S, 0xfff0c8, MO11_GH, 0x1c120c, a, a, py1);   /* v4: emblem on top of the edges */", "S, MO_EMB_COL[i], MO_EMB_DET[i], 0x1c120c, a, a, py1);   /* v4: emblem on top of the edges; v5 per-device colour */")
 assert not any(l.lstrip().startswith('#') for l in s.splitlines()), [l for l in s.splitlines() if l.lstrip().startswith('#')]
+# ---- v5d (Mobandy 2:35 PM ET 'make a portion of them the black matrix tower'): the 5 HIGH-threat towers (MO_LOOKOF 1: DEAUTH, HACK,
+# SKIMMER, FLIPPER, EVIL TWIN) use the existing T1 code-glass branch of mo11_tower_fx (the v4 green-group path: opaque glass + green Matrix
+# code rain + glowing edges); only its body base is darkened toward black; the code rain, edges and folder rows are unchanged. Emblems use the
+# per-device colours (MO_EMB_COL / MO_EMB_DET) like the 13 wood towers.
+rep2("    const int L = 3;   /* v5: EVERY pillar body is see-through wood (T3); MO_LOOKOF[i] still picks the height group (MO_HFIX) */",
+     "    const int L = MO_LOOKOF[i] == 1 ? 1 : 3;   /* v5d: the 5 HIGH towers = T1 black Matrix code glass, the other 13 = see-through wood (T3) */")
+rep2("mo3_mx(0x0b3320, 0x010805, v)", "mo3_mx(0x03120a, 0x000201, v)")   # v5d: front glass base darkened toward black (was dark green 0x0b3320 -> 0x010805)
+rep2("mo3_mx(0x0e3a22, 0x020c07", "mo3_mx(0x05160d, 0x000201")       # v5d: side glass darkened the same way
+rep2("mo3_mx(0x0b3320, 0x5ac080", "mo3_mx(0x03120a, 0x3a8a58")       # v5d: highlight column keeps a faint green glint on black
+assert s.count("0xd8ffe6, MO11_GH, 0x010805, a, a)") == 2
+s = s.replace("0xd8ffe6, MO11_GH, 0x010805, a, a)", "MO_EMB_COL[i], MO_EMB_DET[i], 0x010805, a, a)")   # v5d: T1 emblems in the per-device colour
+# ---- v5d open state (Mobandy 2:36 - 2:38 PM ET): mo12_folder = HACKbot DOWNLOAD's folder (lv_dl_drop) with richer real info; mo12_drop0 (search first)
+_a = s.index('static void mo12_folder(LvBand &B, int i, int j, int ys, float ph, int tl)\n{'); _b = s.index('\n}\n', _a) + 3
+s = s[:_a] + open(D + '/v5d_open.inc.txt').read() + s[_b:]
 open(D+'/mo_mix.inc','w').write(s); print('mo_mix.inc written')

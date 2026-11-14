@@ -106,3 +106,32 @@ for a in ('for (int i = 0; i < 16; ++i) { itw_seen[i] = false; itw_lseen[i] = fa
     assert t.count(a) == 1, a; t = t.replace(a, a.replace('< 16', '< 24'))
 open(TREE + '/src/live/lv_inside_towers.h', 'w').write(t)
 print('patched', TREE, 'H T1/T3/T2 =', HF, '[16] arrays ->24:', n0)
+# ---- v5d (Mobandy 2:34 PM ET 'Shorten the near towers'): per-tower fixed depth height factor MO11_HK (layout18.json hk, src/v5d_heights.py)
+if 'hk' in J:
+    s = open(TREE + '/src/live/lv_morpheus_v13.h').read()
+    a = '    T.H = MO_HFIX[MO_LOOKOF[i]];   /* morpheus-mix spread: one fixed height per style (three heights total) */'
+    assert s.count(a) == 1
+    s = s.replace(a, 'static_assert(MO_N == 18, "hk table");\n    T.H = MO_HFIX[MO_LOOKOF[i]] * MO11_HK[i];   /* v5d: group height x a fixed depth factor (near towers shorter), no breathing */')
+    a = 'static float mo11_dz(int i, float t)'
+    assert s.count(a) == 1
+    s = s.replace(a, 'static const float MO11_HK[MO_N] = {%s};   /* v5d depth height factor */\n' % f(J['hk']) + a)
+    open(TREE + '/src/live/lv_morpheus_v13.h', 'w').write(s); print('v5d: MO11_HK applied')
+# ---- v5d open sequence (Mobandy 2:36 - 2:38 PM ET): Gibson lock (lv_radar.h lv_rd_cg_brackets timing + lv_rd_box / lv_rd_brackets /
+# lv_rd_rect_blend called directly), then the HACKbot search (lv_dl_drop key bar + 11-band tower meter, lvi_* calls), then the HACKbot
+# folder drop (lv_dl_drop geometry + cubic ease + 21-frame stagger, 26-frame drop); folders only after the search is done.
+if 'hk' in J:
+    s = open(TREE + '/src/live/lv_morpheus_v13.h').read()
+    def r1(a, b):
+        global s
+        assert s.count(a) == 1, a[:60]; s = s.replace(a, b)
+    r1('#define MO12_BAR0 120       /* search bar wipes in, then types the device */', '#define MO12_LOCK_MS 1000    /* v5d: Gibson lock - hold brackets close in for 1 s (lv_rd_cg_brackets), then the snap */\n#define MO12_SWEEP_FR 3      /* v5d: HACKbot tower meter, one band per 3 frames (30 fps) */\n#define MO12_BAR0 1200      /* v5d: HACKbot search bar after the lock snap (was 120) */')
+    r1('#define MO12_DROP0 300      /* folders: DOWNLOAD\'s eased stagger (110 ms apart, 380 ms each) */', '#define MO12_DROP0 mo12_drop0()   /* v5d: folders only after the search is done (src/v5d_open.inc.txt) */')
+    r1('#define MO12_GAP 110', '#define MO12_GAP 700        /* v5d: HACKbot stagger 21 frames */')
+    r1('#define MO12_DROP_MS 380', '#define MO12_DROP_MS 867    /* v5d: HACKbot drop 26 frames */')
+    r1('static const int MO12_FX = 92, MO12_FW = 143, MO12_FY0 = 60, MO12_FDY = 62, MO12_FH = 46;', 'static const int MO12_FX = 90, MO12_FW = 145, MO12_FY0 = 78, MO12_FDY = 50, MO12_FH = 40;   /* v5d: HACKbot folder x 90 w 145, first at 78; 40 tall, 50 apart */')
+    a = s.index('static void mo12_search(LvBand &B, const LvTower &T, int i, int el)'); b = s.index('\n/* ---- per frame: the Gibson layout on the Morpheus world')
+    s = s[:a] + open(D + '/v5d_search.inc.txt').read() + s[b:]
+    r1('const int end = MO12_FY0 + j * MO12_FDY, start = LV_RD_Y0 - 50; ys[j] = start + (int)((end - start) * mo_ease(u));',
+       'const float uu = u < 0 ? 0 : u > 1 ? 1 : u; const int end = MO12_FY0 + j * MO12_FDY, start = j == 0 ? MO12_FY0 - 16 : MO12_FY0 + (j - 1) * MO12_FDY + 6; ys[j] = start + (int)((end - start) * (1.f - (1.f - uu) * (1.f - uu) * (1.f - uu)));   /* v5d: HACKbot lv_dl_drop ease */')
+    r1('printf("  MOFOLD nland=%d typed=%d ys=", mo12_nland, mo12_typed);', 'printf("  MOFOLD nland=%d typed=%d lit=%d drop0=%d ys=", mo12_nland, mo12_typed, mo12_lit, mo12_drop0());')
+    open(TREE + '/src/live/lv_morpheus_v13.h', 'w').write(s); print('v5d: open sequence applied')

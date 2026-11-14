@@ -12,7 +12,7 @@ seed = int(sys.argv[1]); iters = int(sys.argv[2]); outp = sys.argv[3]; rng = ran
 HFIX = [float(x) for x in sys.argv[4].split(",")] if len(sys.argv) > 4 else None   # fixed [T1, T3, T2] (v3: 1.00 / 0.90 / 0.80 x base)
 ts = np.linspace(9.0, 9.0 + 0.3 * 319, int(os.environ.get('NTS', '96'))); STEP = 2
 def topok(p):
-    return all(p['z0'][i] * (1 - M.AZ[i] / 3) >= M.F * ({1: p['H'][0], 3: p['H'][1], 2: p['H'][2]}[M.LOOKOF[i]] - M.CAMH) / (M.HOR - 38) for i in range(M.N))
+    return all(p['z0'][i] * (1 - M.AZ[i] / 3) >= M.F * ({1: p['H'][0], 3: p['H'][1], 2: p['H'][2]}[M.LOOKOF[i]] * M.HK[i] - M.CAMH) / (M.HOR - 38) for i in range(M.N))
 def score(p):
     if not topok(p): return (-1e9, np.zeros(M.N), np.zeros(M.N), 0, 999)
     sq, vf = M.evaluate(p['sx'], p['z0'], {1: p['H'][0], 3: p['H'][1], 2: p['H'][2]}, ts, STEP)
@@ -26,6 +26,8 @@ def score(p):
         fr = [sum(1 for x, y in cx if lo <= x < hi and y >= 200) for lo, hi in ((-999, 80), (80, 160), (160, 999))]
         bal += sum(max(5 - n, 0) + max(n - 7, 0) for n in th) + sum(1 for n in fr if n == 0)
     emp += float(os.environ.get('BALW', '0')) * bal / len(_pl)
+    off = sum(max(0, -T['x0']) + max(0, T['x1'] - 239) for tw in _pl for T in tw) / len(_pl)   # v5d: px of pillar faces off the 240 px screen (drift at the screen edges hid HACK / AXON emblems)
+    emp += float(os.environ.get('OFFW', '0')) * off
     return min(p10.min(), 28) * 3 + np.minimum(p10, 34).mean() * 0.5 + min(vm.min(), 0.9) * 40 + vm.mean() * 10 - zero * 25 - float(os.environ.get('FLW', '0.6')) * max(emp - 40, 0) - float(os.environ.get('VMW', '0')) * max(float(os.environ.get('VMIN', '0.5')) - vm.min(), 0), p10, vm, zero, emp
 TIER = {1: (4.15, 0.15), 3: (2.7, 0.3), 2: (1.72, 0.06)} if not HFIX else {1: (rng.uniform(1.8, 3.8), 1.0), 3: (rng.uniform(1.8, 3.8), 1.0), 2: (rng.uniform(1.8, 3.8), 1.0)}
 sx = [0.0] * M.N; z0 = [0.0] * M.N

@@ -19,3 +19,16 @@
 - 2:20 PM: gibson_depth_drift.py applied to layout18.json (z0 from EX.DATA rssi, new v5c drift tables; v5b layout saved /tmp/m18/layout18_v5b.json); RUNNING sx-only opt X_0..7 (sx 34..206)
 - RUNNING 2:33 PM: package run v5c (layout X_4 seed 904, Gibson depth, v5c drift); v5b outputs -> _withdrawn/v5b; log /tmp/m18/pkg.log
 - 2:47 PM: v5c run1 GATE 25/32 (old v11 law gate stale); fixed law gate, re-gating with REUSE=1
+- DONE ~2:55 PM: v5c committed + pushed (see git log)
+- 2:34 PM: v5d started (shorten near towers by depth factor). Step 1: move v5c to _withdrawn/v5c
+- 2:35 PM steering: 5 HIGH towers (DEAUTH HACK SKIMMER FLIPPER EVIL TWIN) get the T1 black Matrix code-glass body; gate 5 black + 13 wood
+- 2:50 PM: make_mix_inc v5d section (T1 black matrix for 5 HIGH); layout18.json hk (kn 0.6, kf 1.2) + z0 = true Gibson depths. NEXT: patch_tree MO11_HK, sx re-opt, package gates
+- 2:37 PM steering: richer tapped-open folder info UI after the search sequence (open state only). TODO after heights
+- 2:37 PM steering: open-state info must reuse the HACKbot download-style folder UI (same code path), no new styling
+- 2:38 PM steering: open pull-up must clone Gibson tower pull-up (lv_radar.h), then HACKbot search, then HACKbot folder drop; side-by-side frames
+- (time unverified, before 2:44 PM; earlier '2:55 PM' was not from the clock): v5d open sequence written (src/v5d_open.inc.txt folder, src/v5d_search.inc.txt lock+search), patch_tree applied; building
+- ~2:44 PM (corrected from a wrong '3:00 PM'; file mtime): layout sx from Y_2 (seed 952); rebuilt; preview run /tmp/m18/prev5d
+- ~2:50 PM (corrected from a wrong '3:24 PM'): package.py v5d gates (bodies 5 black/13 wood, heights hk, stumps, rows, search-then-reveal, pullup compare) launched -> /tmp/m18/pkg.log
+- 2:49 PM (corrected from a wrong '3:30 PM'; file mtime): write_readme5.py + src/v5d_readme.md written for v5d; waiting on package
+- ~2:58 PM (corrected from a wrong '3:42 PM'): fixed mix_run.json write (swallowed by a comment since 08:22; v4-v5c idle still was always sample 251); package relaunched
+- 3:22 PM: v5d package (REUSE re-gate) finished 3:11 PM: gate 23/31. 3:12-3:21 PM an edge-clamp sx optimizer (Z_*, OFFW) was started; stopped at 3:22 PM per Mobandy, NOT applied (layout18.json = the 3:11 PM outputs). Committing as is.

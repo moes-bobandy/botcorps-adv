@@ -68,8 +68,8 @@ static const char *const MO_SEC[3] = {"WHAT IT IS", "HOW IT IS SPOTTED", "HOW TO
 #define MO11_GH    0x10d858   /* Matrix green highlight */
 /* ---- world: 12 pillars, each its OWN independent 3D drift (X, Z, breathing H) on top of a scattered base layout ---- */
 /* base (picked offline for touch: tools opt2.py, segment-Voronoi tap cells over 30 drifting samples): screen column at camera 0, depth Z (12 steps 1.65 .. 4.35) and example rssi (12 distinct, -42 .. -92: Gibson's rssi -> level -> H law) */
-static const float MO11_SX[MO_N] = {113.238f, 152.592f, 36.9862f, 81.8574f, 85.2082f, 214.868f, 110.304f, 212.178f, 76.5988f, 18.4684f, 143.889f, 113.536f, 168.561f, 51.966f, 203.71f, 177.938f, 25.7936f, 142.342f};
-static const float MO11_Z0[MO_N] = {4.19823f, 3.86099f, 3.44661f, 3.04414f, 3.60497f, 3.39384f, 3.77299f, 3.91246f, 3.93416f, 3.82338f, 3.2566f, 3.30684f, 3.29976f, 4.00476f, 2.95832f, 3.86027f, 4.35f, 2.8015f};
+static const float MO11_SX[MO_N] = {217.269f, 25.167f, 87.903f, 154.412f, 178.289f, 73.354f, 128.774f, 182.007f, 51.612f, 101.861f, 203.239f, 55.529f, 16.027f, 151.89f, 194.628f, 39.0f, 105.597f, 119.777f};
+static const float MO11_Z0[MO_N] = {2.4499f, 2.4967f, 1.7444f, 1.9448f, 2.1472f, 2.2023f, 1.8574f, 2.4314f, 2.4599f, 1.9891f, 2.1495f, 2.0609f, 1.5769f, 2.1437f, 1.6462f, 2.0752f, 2.3154f, 1.3729f};
 static const int8_t MO11_RSSI[MO_N] = {-79, -42, -58, -54, -85, -74, -62, -50, -46, -92, -48, -72, -82, -44, -88, -52, -64, -77};   /* EX.DATA */
 /* independent drift: amplitude + rate (rad/s, all distinct) + phase per pillar and per axis */
 static const float MO11_AX[MO_N] = {0.2f, 0.12f, 0.15f, 0.18f, 0.1f, 0.17f, 0.14f, 0.11f, 0.19f, 0.16f, 0.135f, 0.165f, 0.125f, 0.185f, 0.155f, 0.175f, 0.105f, 0.145f};
@@ -78,7 +78,7 @@ static const float MO11_AZ[MO_N] = {0.3f, 0.32f, 0.24f, 0.34f, 0.18f, 0.28f, 0.3
 static const float MO11_WZ[MO_N] = {0.51f, 0.26f, 0.37f, 0.58f, 0.32f, 0.47f, 0.61f, 0.35f, 0.53f, 0.4f, 0.55f, 0.49f, 0.34f, 0.45f, 0.31f, 0.27f, 0.39f, 0.59f};
 static const float MO11_WH[MO_N] = {0.62f, 0.94f, 0.77f, 0.66f, 0.88f, 0.59f, 0.98f, 0.74f, 0.69f, 0.91f, 0.73f, 0.96f, 0.68f, 0.8f, 0.61f, 0.64f, 0.9f, 0.86f};
 #define MO11_AH 0.06f    /* breathing: H * (1 + 0.06 sin) */
-#define MO11_TW 2.2f    /* lv_rd_skin_tw (v4 2026-11-14: was 1.35; wider faces so the idle emblems can be ~20-28 px) */
+#define MO11_TW 1.35f    /* lv_rd_skin_tw: pillars a little broader than Gibson's needles (touch) */
 #define MO11_TH 1.0f     /* lv_rd_skin_th: Gibson's own height law */
 #define MO11_FA 4        /* lv_rd_skin_fa: lacquer face blend 4/8 */
 #define MO_CAM_MS 520

@@ -1,0 +1,15 @@
+# morpheus-mix v5b progress (ET)
+- DONE ~12:55 PM: occlusion box-top fix (min(front top, back top)) in src/touch20.py vis, src/package.py stability + classify, opt18/model18.py, opt18/floor18.py
+- DONE: emblem size hysteresis (make_mix_inc.py: shrink only when L > fit+1); emblem-size gate allows fit+1
+- DONE: palette rose cc5c81 (340 deg) -> cc5c6a (352.5 deg); 18 distinct hues, colour gate requires distinct hues + min step >= 5 deg
+- DONE: floor gate rewritten (whole floor rows 140..285, standable rows 140..251, bases per screen third)
+- DONE ~1:20 PM: layout re-optimized (corrected model), picked /tmp/m18/optl/T_3.json (seed 503) -> src/layout18.json; patch_tree + make_mix_inc + sim rebuilt
+- DONE: v5a outputs moved to _withdrawn/v5a (NOTE.txt)
+- RUNNING (started ~1:22 PM): nohup python3 src/package.py > /tmp/m18/pkg.log  (survived the 1:27 interruption)
+- TODO: look at idle_3x + emblem_colors; src/visual_v5.txt; write_readme5.py; SHA256SUMS; commit+push via /tmp/m18/wt
+- DONE 1:40 PM: package run #1 (layout T_3) GATE 25/31. stability PASS (mean dY 0.0, worst 0.0); hue gate part OK (min step 5) but colour gate FAIL on screen-adjacent dE 36.4 (META/SKIMMER); KEYFOB 0 px idle; META vis 0.474; floor whole idle 71 / median 79, standable idle 51 / median 47, thirds 7/7/4; tap gates fail (structural). Visual: front floor + right edge still empty -> NOT good enough.
+- NEXT: widen sx clamp 25..215 -> 8..232 in opt18e.py, re-opt; fix colour dealing for screen adjacency.
+- RUNNING 1:50 PM: opt W_0..7 (sx 8..232, VMIN 0.6, whole floor) -> /tmp/m18/optl/W_*.json, logs wlog_*; emb_colors.colors now neighbour-aware swap search
+- RUNNING 1:58 PM: package run #2 (layout W_3 seed 803, neighbour-aware colours); run #1 outputs moved to /tmp/m18/v5b_run1; log /tmp/m18/pkg.log
+- DONE 2:10 PM: package run #2 GATE 26/31 (fails: idle emblem px SAMSUNG 0, tap x2, floor, colour drawn-count)
+- DONE 2:16 PM: README, visual_v5.txt, tree_patch, SHA256SUMS. NEXT: commit+push

@@ -39,7 +39,7 @@ def vis(s, i):
     k = s['ord'].index(i)
     for j in s['ord'][k + 1:]:
         U = s['tw'][j]; ux0 = min(U['x0'], U['bx0']); ux1 = max(U['x1'], U['bx1'])
-        m &= ~((xx >= ux0) & (xx <= ux1) & (yy >= U['byt']) & (yy <= U['yb']))
+        m &= ~((xx >= ux0) & (xx <= ux1) & (yy >= min(U['yt'], U['byt'])) & (yy <= U['yb']))   # v5 fix: box top = min(front top, back top); was byt only (missed the front face top for tall pillars)
     return int(m.sum()), S * S
 def analyse(S, n=18):
     sq = np.zeros((len(S), n)); vp = np.zeros((len(S), n)); vf = np.zeros((len(S), n))

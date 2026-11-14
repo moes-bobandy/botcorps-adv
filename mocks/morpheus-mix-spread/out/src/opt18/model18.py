@@ -45,10 +45,12 @@ def squares(lab, step=2):
 def vis(tw):
     res = np.zeros(N)
     for k, T in enumerate(tw):
-        S = embS(T['x1'] - T['x0']) or 6; ex0 = (T['x0'] + T['x1']) // 2 - S // 2; ey0 = T['yt'] + 3
+        fw_ = T['x1'] - T['x0']
+        if _os.environ.get('MO_EMB_V5'): S = max(6, min(36, fw_ - 1)); ex0 = T['x0'] + 1; ey0 = T['yt'] + 2 + max(1, fw_ // 14) + 2   # v4/v5 renderer: emblem = face width - 1, under the top brass band
+        else: S = embS(fw_) or 6; ex0 = (T['x0'] + T['x1']) // 2 - S // 2; ey0 = T['yt'] + 3
         yy, xx = np.mgrid[ey0:ey0 + S, ex0:ex0 + S]; m = (xx >= 0) & (xx <= 239) & (yy >= 35) & (yy <= 285)
         for U in tw[k + 1:]:
-            m &= ~((xx >= min(U['x0'], U['bx0'])) & (xx <= max(U['x1'], U['bx1'])) & (yy >= U['byt']) & (yy <= U['yb']))
+            m &= ~((xx >= min(U['x0'], U['bx0'])) & (xx <= max(U['x1'], U['bx1'])) & (yy >= min(U['yt'], U['byt'])) & (yy <= U['yb']))   # v5 fix: the box top is min(front top, back top)
         res[T['i']] = m.mean()
     return res
 def evaluate(sx, z0, H, ts, step=2):

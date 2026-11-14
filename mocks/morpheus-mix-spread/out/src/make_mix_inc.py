@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import sys
 """morpheus-mix: towers3_mo_looks.inc (compile-time MO_LOOK) -> mo_mix.inc (look chosen per device at run time by threat level, 18 devices (WIFI + BLUETOOTH removed 2026-11-14),
 vector emblems). Only switches / tables / emblem calls change; every look's drawing code is towers-3's."""
 import os
@@ -186,7 +187,7 @@ static int mo_embS4(int i, int fw)
 {
     if (fw >= 50) return mo_eS_last[i] = 40;
     int fit = fw - 1; if (fit > 36) fit = 36; if (fit < 6) { mo_eS_last[i] = 0; return 0; }
-    int &L = mo_eS_last[i]; if (L == 40 || L == 0 || L > fit || L < fit - 3) L = fit & ~1; if (L > fit) L = fit; return L;
+    int &L = mo_eS_last[i]; if (L == 40 || L == 0 || L > fit + 1 || L < fit - 3) L = fit & ~1; return L;   /* v5: shrink only when the face is 2+ px too narrow (a 1 px overhang onto the edge line is drawn over it), so a +-1 px face wobble never flips the size */
 }""")
 # on-tower text + file pixels: hard clip (no fade ramp), opaque, optional 1 px outline
 rep2("""            const int f = mo3_cl((yy - ylo) * 64, 0, 256) < mo3_cl((yhi - yy) * 64, 0, 256) ? mo3_cl((yy - ylo) * 64, 0, 256) : mo3_cl((yhi - yy) * 64, 0, 256);
@@ -259,5 +260,12 @@ rep2("        mo_hspan(B, yy, xl(yy), xr(yy), c, MO_LOOK == 1 ? 242 : 256); }", 
 rep2("mo_hspan(B, yy, xl(yy) + 3, xr(yy) - 3, lv_hex(HEAD), MO_LOOK == 2 ? 256 : 200);", "mo_hspan(B, yy, xl(yy) + 3, xr(yy) - 3, lv_hex(HEAD), 256);")
 rep2("if (!solid) { mo_bl(B, xl(yy), yy, lv_hex(OUT), 200); mo_bl(B, xr(yy), yy, lv_hex(OUT), 200); continue; }", "if (!solid) { mo_bl(B, xl(yy), yy, lv_hex(OUT), 256); mo_bl(B, xr(yy), yy, lv_hex(OUT), 256); continue; }")
 rep2("lv_hex(TAB), solid ? 256 : 120);", "lv_hex(TAB), 256);")
+
+# ---- v5 2026-11-14 (Mobandy 11:51 AM ET "Go back to all wood with different colored device emblem") ----
+sys.path.insert(0, D); import emb_colors as _EC
+rep2("static inline int mo3_cl(int v, int lo, int hi)", _EC.c_tables(_EC.colors()) + "static inline int mo3_cl(int v, int lo, int hi)")
+rep2("    const int L = MO_LOOKOF[i];\n    if (L == 1) {", "    const int L = 3;   /* v5: EVERY pillar body is see-through wood (T3); MO_LOOKOF[i] still picks the height group (MO_HFIX) */\n    if (L == 1) {")
+rep2("mo_emb_draw(B, i, ix, iy, Sl, 0xfff0c8, MO11_GH, 0x1c120c, a, a, py1); }", "mo_emb_draw(B, i, ix, iy, Sl, MO_EMB_COL[i], MO_EMB_DET[i], 0x1c120c, a, a, py1); }   /* v5: per-device colour */")
+rep2("S, 0xfff0c8, MO11_GH, 0x1c120c, a, a, py1);   /* v4: emblem on top of the edges */", "S, MO_EMB_COL[i], MO_EMB_DET[i], 0x1c120c, a, a, py1);   /* v4: emblem on top of the edges; v5 per-device colour */")
 assert not any(l.lstrip().startswith('#') for l in s.splitlines()), [l for l in s.splitlines() if l.lstrip().startswith('#')]
 open(D+'/mo_mix.inc','w').write(s); print('mo_mix.inc written')

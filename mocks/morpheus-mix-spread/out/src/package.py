@@ -36,7 +36,8 @@ log = open(W + '/run/run.log').read()
 fr = {n: rgb(W + '/run/%s.rgb' % n)[0] for n in ['idle'] + ['%s_%s' % (a, b) for b in ('deauth','airtag','flock','raven') for a in ('push','open','later')]}
 png(fr['idle'], R + '/idle_1x.png', 1); png(fr['idle'], R + '/idle_3x.png', 3)
 CU = [('deauth', 'DEAUTH', 'high'), ('airtag', 'AIR TAG', 'medium'), ('flock', 'FLOCK', 'low'), ('raven', 'RAVEN', 'new')]
-for k, nm, tag in CU: png(fr['later_' + k], R + '/closeup_%s_%s_3x.png' % (k, tag), 3)
+for k, nm, tag in CU:
+    if k != 'raven': png(fr['later_' + k], R + '/closeup_%s_%s_3x.png' % (k, tag), 3)   # v5: one close-up per height group (RAVEN stays in the run / video)
 blocks = log.split('MOCAM')[1:]
 idle_blk = blocks[0]
 def motw(blk):
@@ -54,7 +55,7 @@ def classify(a, i, IT, ordr):
     """median colour of pillar i's front face pixels that no nearer pillar's box covers (None if < 15 such pixels)"""
     x0, x1, yt, yb = IT[i]['f']; m = np.zeros((320, 240), bool); m[max(yt + 2, 36):min(yb - 1, 284), max(x0 + 2, 0):min(x1 - 1, 239) + 1] = True
     for j in ordr[ordr.index(i) + 1:]:
-        U = IT[j]; m[max(U['b'][2], 0):U['f'][3] + 1, max(min(U['f'][0], U['b'][0]), 0):max(U['f'][1], U['b'][1]) + 1] = False
+        U = IT[j]; m[max(min(U['f'][2], U['b'][2]), 0):U['f'][3] + 1, max(min(U['f'][0], U['b'][0]), 0):max(U['f'][1], U['b'][1]) + 1] = False
     reg = a[m].astype(int)
     if len(reg) < 15: return None, len(reg)
     # T3 is SEE-THROUGH wood since 2026-11-14 (whatever stands behind shows through the face), so it is identified by its own opaque
@@ -79,9 +80,9 @@ ok_px = 0; bad = []; unc = []; IORD = [int(x) for x in re.search(r'ord=([\d,]+)'
 for i in range(NP):
     c, n = classify(fr['idle'], i, IT, IORD)
     if c is None: unc.append(NAMES[i])
-    elif c == LOOK[i]: ok_px += 1
+    elif c == 3: ok_px += 1   # v5: every body is see-through wood
     else: bad.append((NAMES[i], c, n))
-gate('assignment (pixels): unoccluded face colour class = look', not bad and ok_px >= 14, matched=ok_px, misses=bad, unclassifiable_hidden=unc, note='idle still; faces with < 15 unoccluded px are not classified')
+gate('all bodies wood (v5): every classifiable pillar face reads as see-through wood (sim look forced to T3 for all 18; pixel class from its own opaque wood-outline pixels)', not bad and ok_px >= 14 and 'const int L = 3;' in open(SRC + '/mo_mix.inc').read(), matched=ok_px, misses=bad, unclassifiable_hidden=unc, note='idle still; faces with < 15 unoccluded px are not classified')
 # motion: every pillar follows the identical v11 drift law (dx, dz recomputed from the tables), X = X0 + dx, Z = Z0 + dz
 import math
 lawerr = 0; xzerr = 0
@@ -126,6 +127,25 @@ gate('tap: every pillar keeps a tap cell in every idle sample (100%)', sq.min() 
      zero_frac={NAMES[i]: round(float((sq[:, i] == 0).mean()), 3) for i in range(NP) if sq[:, i].min() == 0}, min_square={NAMES[i]: int(sq[:, i].min()) for i in range(NP)})
 gate('tap: p10 largest square >= 20 px for every pillar', p10.min() >= 20, p10={NAMES[i]: float(p10[i]) for i in range(NP)}, below_20=[NAMES[i] for i in range(NP) if p10[i] < 20],
      median={NAMES[i]: float(np.median(sq[:, i])) for i in range(NP)})
+# v5 (Mobandy 11:52 AM ET): no large empty floor patch. Largest empty floor square (pillar boxes + 2 px shadow, box top = min(front, back top))
+# in the idle still and over the 320 samples. Two floors are reported: the whole visible floor (rows 140..285) and the standable floor
+# (rows 140..251): a base lower than y 251 needs z0 < 0.95, which pushes the tower top off the field (top-clip rule), so rows 252..285 stay bare.
+# v5b (12:42 PM ET 'lower-right and front floor empty, left and middle packed'): + base spread: pillar bases per screen-x third and per depth band.
+sys.path.insert(0, SRC + '/opt18'); import floor18 as FL
+def _emp(boxes, y1):
+    o = FL.FY1; FL.FY1 = y1; r = FL.empty_square(boxes); FL.FY1 = o; return r
+_bi = [(min(v['f'][0], v['b'][0]), max(v['f'][1], v['b'][1]), min(v['f'][2], v['b'][2]), v['f'][3]) for v in IT.values()]
+_bs = [[(min(T_['x0'], T_['bx0']), max(T_['x1'], T_['bx1']), min(T_['yt'], T_['byt']), T_['yb']) for T_ in a_['tw'].values()] for a_ in SM]
+emp_idle = _emp(_bi, 285); emp_s = [_emp(b, 285) for b in _bs]; st_idle = _emp(_bi, 251); st_s = [_emp(b, 251) for b in _bs]
+_cx = [(v['f'][0] + v['f'][1]) / 2 for v in IT.values()]; _yb = [v['f'][3] for v in IT.values()]
+thirds = [sum(1 for x in _cx if x < 80), sum(1 for x in _cx if 80 <= x < 160), sum(1 for x in _cx if x >= 160)]
+_fr = [x for x, y in zip(_cx, _yb) if y >= 200]
+front_thirds = [sum(1 for x in _fr if x < 80), sum(1 for x in _fr if 80 <= x < 160), sum(1 for x in _fr if x >= 160)]
+gate('floor coverage: largest empty standable-floor square <= 60 px (idle + 320-sample median), whole floor <= 75 px, 5-7 bases per screen third and >= 1 front-row base (y >= 200) in each third (v4 107 px, v5a 71 px whole floor)',
+     st_idle <= 60 and float(np.median(st_s)) <= 60 and emp_idle <= 75 and float(np.median(emp_s)) <= 75 and all(5 <= n <= 7 for n in thirds) and min(front_thirds) >= 1,
+     whole_floor_idle_px=emp_idle, whole_floor_median_px=float(np.median(emp_s)), whole_floor_max_px=int(max(emp_s)),
+     standable_floor_idle_px=st_idle, standable_floor_median_px=float(np.median(st_s)), standable_floor_max_px=int(max(st_s)),
+     bases_per_third_LMR=thirds, front_row_bases_per_third_LMR=front_thirds, v4_idle_whole_floor_px=107, v5a_idle_whole_floor_px=71, v5a_idle_standable_floor_px=43, v5a_idle_bases_per_third_LMR=[6, 8, 4])
 # ---------- 3. emblems
 raw = subprocess.run([W + '/emb_sheet'], capture_output=True, check=True).stdout; off = 0; EMB = {}
 for i in range(NP):
@@ -144,28 +164,46 @@ for a in range(NP):
         iou = (sil[a] & sil[b]).sum() / max(1, (sil[a] | sil[b]).sum())
         if iou > mi: mi, pair = iou, (NAMES[a], NAMES[b])
 gate('emblems: unique silhouettes (max pairwise IoU at 32 px < 0.75)', mi < 0.75, max_iou=round(float(mi), 3), pair=pair)
-# sheet
-font = ImageFont.load_default(); CW, CH = 300, 150; sheet = Image.new('RGB', (CW * 4, CH * 5 + 40), (30, 26, 22)); dr = ImageDraw.Draw(sheet)   # 18 cells (4 x 5 grid, last two empty)
-dr.text((10, 10), 'MORPHEUS MIX SPREAD (18, WIFI + BLUETOOTH removed): device emblems, OLD 16x16 art (x3, nearest) vs NEW vector (16 px x3, 40 px x2), body parchment / detail green / halo', fill=(232, 222, 200), font=font)
-def comp(i, S, k, bg=(30, 26, 22)):
-    b, d, h = EMB[i, S]; im = np.zeros((S + 2, S + 2, 3), float) + bg
-    for m, col in ((h, (1, 8, 5)), (np.pad(b, 1), (232, 222, 200)), (np.pad(d, 1), (16, 216, 88))):
-        al = m[..., None] / 255.0; im = im * (1 - al) + np.array(col) * al
-    return Image.fromarray(im.astype(np.uint8)).resize(((S + 2) * k, (S + 2) * k), Image.NEAREST)
-OC = {'k': (30, 26, 22), 'a': (232, 222, 200), 'b': (184, 164, 124), 'c': (255, 255, 255), 'g': (0, 168, 60)}
+# v5: emblem COLOUR sheet + colour gates
+sys.path.insert(0, SRC); import emb_colors as EC
+COLS = EC.colors(J); RGBC = [tuple(int(c['body'][k:k + 2], 16) for k in (0, 2, 4)) for c in COLS]; RGBD = [tuple(int(c['detail'][k:k + 2], 16) for k in (0, 2, 4)) for c in COLS]
+def lab(c):
+    v = [x / 255.0 for x in c]; v = [((x + 0.055) / 1.055) ** 2.4 if x > 0.04045 else x / 12.92 for x in v]
+    X = (0.4124 * v[0] + 0.3576 * v[1] + 0.1805 * v[2]) / 0.95047; Y = 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2]; Z = (0.0193 * v[0] + 0.1192 * v[1] + 0.9505 * v[2]) / 1.08883
+    f = lambda t: t ** (1 / 3) if t > 0.008856 else 7.787 * t + 16 / 116
+    return np.array([116 * f(Y) - 16, 500 * (f(X) - f(Y)), 200 * (f(Y) - f(Z))])
+LB = [lab(c) for c in RGBC]; dE = np.array([[np.linalg.norm(LB[a] - LB[b]) for b in range(NP)] for a in range(NP)]); np.fill_diagonal(dE, 999)
+ma, mb = np.unravel_index(dE.argmin(), dE.shape); hues = sorted(c['hue_deg'] for c in COLS); dh = min((hues[(k + 1) % 18] - hues[k]) % 360 for k in range(18))
+scr = sorted(range(NP), key=lambda i: (IT[i]['f'][0] + IT[i]['f'][1]) / 2); adj = min(dE[scr[k], scr[k + 1]] for k in range(NP - 1))
+ka = min(range(NP - 1), key=lambda k: dE[scr[k], scr[k + 1]])
+WOODS = [lab(c) for c in ((0x8a, 0x54, 0x28), (0x4a, 0x2a, 0x12))]; wmin = min(np.linalg.norm(l - w) for l in LB for w in WOODS)
+drawn = {}
 for i in range(NP):
-    x, y = (i % 4) * CW, 40 + (i // 4) * CH; dr.rectangle([x + 2, y + 2, x + CW - 3, y + CH - 3], outline=(92, 74, 50))
-    dr.text((x + 8, y + 6), '%s  [%s -> %s]%s' % (NAMES[i], TN[THREAT[i]], LN[LOOK[i]][:2], '  NEW' if NAMES[i] in NEWSET else ''), fill=(16, 216, 88) if NAMES[i] in NEWSET else (232, 222, 200), font=font)
-    if i < 10:
-        o = np.zeros((16, 16, 3), np.uint8) + 60
-        for r in range(16):
-            for c in range(16):
-                ch = chr(OLD[i][r, c]); o[r, c] = OC.get(ch, (0, 168, 60)) if ch != '.' else (60, 54, 46)
-        sheet.paste(Image.fromarray(o).resize((48, 48), Image.NEAREST), (x + 10, y + 40)); dr.text((x + 10, y + 92), 'OLD 16', fill=(191, 178, 148), font=font)
-    else: dr.text((x + 10, y + 56), '(no old\n art)', fill=(191, 178, 148), font=font)
-    sheet.paste(comp(i, 16, 3), (x + 80, y + 40)); dr.text((x + 80, y + 98), 'NEW 16', fill=(191, 178, 148), font=font)
-    sheet.paste(comp(i, 40, 2), (x + 150, y + 28)); dr.text((x + 150, y + 116), 'NEW 40', fill=(191, 178, 148), font=font)
-sheet.save(R + '/emblems_old_vs_new.png')
+    ex, ey, eS = IE[i]['e']; blk_ = fr['idle'][max(ey, 0):ey + eS, max(ex, 0):ex + eS].reshape(-1, 3)
+    drawn[NAMES[i]] = int((blk_ == np.array(x565(int(COLS[i]['body'], 16)))).all(1).sum())
+gate('emblem colours: 18 distinct saturated colours with 18 distinct hues (min hue step >= 5 deg), min pairwise CIE76 deltaE >= 30, screen-adjacent towers deltaE >= 40, every colour deltaE >= 30 from the wood tones, >= 16 of 18 drawn in the idle still',
+     len(set(c['body'] for c in COLS)) == 18 and len(set(c['hue_deg'] for c in COLS)) == 18 and dh >= 5 and dE.min() >= 30 and adj >= 40 and wmin >= 30 and sum(1 for v in drawn.values() if v > 0) >= 16,
+     min_pair_deltaE=round(float(dE.min()), 1), min_pair=(NAMES[ma], NAMES[mb]), min_hue_step_deg=dh, min_screen_adjacent_deltaE=round(float(adj), 1), adjacent_pair=(NAMES[scr[ka]], NAMES[scr[ka + 1]]),
+     min_deltaE_to_wood=round(float(wmin), 1), body_colour_px_in_idle=drawn, colours={c['device']: dict(hex='#' + c['body'], hue=c['hue_deg'], name=c['name']) for c in COLS})
+raw24 = subprocess.run([W + '/emb_sheet', '24'], capture_output=True, check=True).stdout; E24 = {}; o_ = 0
+for i in range(NP):
+    b_ = np.frombuffer(raw24[o_:o_ + 576], np.uint8).reshape(24, 24); o_ += 576; d_ = np.frombuffer(raw24[o_:o_ + 576], np.uint8).reshape(24, 24); o_ += 576
+    h_ = np.frombuffer(raw24[o_:o_ + 676], np.uint8).reshape(26, 26); o_ += 676; E24[i] = (b_, d_, h_)
+font = ImageFont.load_default(); CW, CH = 300, 150; sheet = Image.new('RGB', (CW * 3, CH * 6 + 40), (30, 26, 22)); dr = ImageDraw.Draw(sheet)
+dr.text((10, 10), 'MORPHEUS MIX v5: 18 device emblem colours on see-through wood (crisp binary masks; 16 / 24 / 40 px shown x3 / x3 / x2, nearest)', fill=(232, 222, 200), font=font)
+def wood(w, h):
+    a = np.zeros((h, w, 3), np.uint8); xs = np.arange(w)
+    for y in range(h): a[y] = np.where(np.sin(xs * 0.9 + 1.6 * np.sin(y * 0.11)) > 0.15, 1, 0)[:, None] * np.array([0x8a, 0x54, 0x28]) + np.where(np.sin(xs * 0.9 + 1.6 * np.sin(y * 0.11)) > 0.15, 0, 1)[:, None] * np.array([0x4a, 0x2a, 0x12])
+    return a
+def comp2(i, m3, k):
+    b, d, h = m3; S = b.shape[0]; im = wood(S + 6, S + 6); sub = im[2:S + 4, 2:S + 4]
+    sub[h > 0] = (0x1c, 0x12, 0x0c); sub[1:-1, 1:-1][b > 0] = RGBC[i]; sub[1:-1, 1:-1][d > 0] = RGBD[i]
+    return Image.fromarray(im).resize(((S + 6) * k, (S + 6) * k), Image.NEAREST)
+for i in range(NP):
+    x = (i % 3) * CW; y = 40 + (i // 3) * CH; dr.rectangle([x + 4, y + 4, x + CW - 4, y + CH - 4], outline=(90, 80, 66))
+    c = COLS[i]; dr.text((x + 10, y + 8), '%s  #%s  %s (%d deg)  [%s]' % (NAMES[i], c['body'], c['name'], c['hue_deg'], TN[THREAT[i]]), fill=RGBC[i], font=font)
+    sheet.paste(comp2(i, EMB[i, 16], 3), (x + 10, y + 30)); sheet.paste(comp2(i, E24[i], 3), (x + 80, y + 30)); sheet.paste(comp2(i, EMB[i, 40], 2), (x + 186, y + 30))
+sheet.save(R + '/emblem_colors.png')
 # close-ups: 40 px emblem on the open pillar, folders landed, pillar >= 50 px wide; threat text; no red pill; scrolling files
 cub = [b for b in blocks if 'MOFOLD' in b]; cu_ok = []; 
 for k, nm, tag in CU:
@@ -179,7 +217,9 @@ gate('threat text: small text in the terminal status line; LOW lines identical, 
 red = 0
 for k, _, _ in CU:
     for ph in ('push', 'open', 'later'):
-        a = fr['%s_%s' % (ph, k)][35:247].astype(int); red += int(((a[..., 0] > 180) & (a[..., 1] < 70) & (a[..., 2] < 70)).sum())
+        a = fr['%s_%s' % (ph, k)][35:247].astype(int); em_ = np.zeros(a.shape[:2], bool)
+        for c_ in COLS: em_ |= (a == np.array(x565(int(c_['body'], 16)))).all(2)   # v5: the red-orange / crimson EMBLEM colours are not a pill
+        red += int(((a[..., 0] > 180) & (a[..., 1] < 70) & (a[..., 2] < 70) & ~em_).sum())
 gate('no red pill (no saturated red pixels in the field on any close-up frame)', red == 0, red_px=red)
 txt_bad = int(re.findall(r'txt_bad_all=(\d+)', log)[-1]); txt_all = int(re.findall(r'txt_lines_all=(\d+)', log)[-1])
 gate('text audit: every audited text line inside its box', txt_bad == 0, lines=txt_all, bad=txt_bad)
@@ -208,9 +248,9 @@ gate('opaque UI: every emblem / on-tower folder glyph / file-line pixel and the 
 esz = {}; front = []
 for i in range(NP):
     x0, x1, yt, yb = IT[i]['f']; fit = min(36, x1 - x0 - 1); S_ = IE[i]['e'][2]
-    esz[NAMES[i]] = dict(S=S_, face_w=x1 - x0, fit=fit, ok=bool(fit < 6 or fit - 3 <= S_ <= fit))
+    esz[NAMES[i]] = dict(S=S_, face_w=x1 - x0, fit=fit, ok=bool(fit < 6 or fit - 3 <= S_ <= fit + 1))
 zi = sorted(range(NP), key=lambda i: IT[i]['Z'])[:6]
-gate('emblems: idle emblem as large as the face allows (S within 3 px of face width - 1, 2 px steps with hysteresis; was 8 / 10 / 16 px steps)', all(v['ok'] for v in esz.values()), per_pillar=esz,
+gate('emblems: idle emblem as large as the face allows (S from face width - 4 to face width, 2 px steps with hysteresis; was 8 / 10 / 16 px steps)', all(v['ok'] for v in esz.values()), per_pillar=esz,
      front6={NAMES[i]: esz[NAMES[i]]['S'] for i in zi}, median_S=float(np.median([v['S'] for v in esz.values()])))
 # temporal stability: 40 consecutive idle frames (1 tick apart); per pillar, emblem ink pixels compared frame to frame after the
 # emblem rect's own integer move; pairs where the rect moved <= 1 px and kept its size, and no nearer pillar overlaps it
@@ -242,9 +282,10 @@ for k in range(39):
         occ = False
         for j in OA[OA.index(i) + 1:]:
             for TT in (TA, TB):
-                U = TT[j]; jx0, jx1 = min(U['f'][0], U['b'][0]), max(U['f'][1], U['b'][1]); jy0, jy1 = U['b'][2], U['f'][3]
+                U = TT[j]; jx0, jx1 = min(U['f'][0], U['b'][0]), max(U['f'][1], U['b'][1]); jy0, jy1 = min(U['f'][2], U['b'][2]), U['f'][3]   # v5 fix: box top = min(front top, back top)
                 if jx0 <= ax + aS + 1 and jx1 >= ax - 1 and jy0 <= ay + aS + 1 and jy1 >= ay - 1: occ = True
         if occ: continue
+        if min(ax, ay, bx, by) < 1 or max(ax, bx) + aS + 1 > 240 or max(ay, by) + aS + 1 > 320: continue   # emblem touching the screen edge: skip
         A = SF[k][ay - 1:ay + aS + 1, ax - 1:ax + aS + 1]; Bm = SF[k + 1][by - 1:by + bS + 1, bx - 1:bx + bS + 1]
         if A.shape != Bm.shape or A.size == 0: continue
         ink = MASK(i, aS)   # the emblem's own outline + body + detail pixels (from mo_emblem.h at this size)

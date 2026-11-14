@@ -1,0 +1,6 @@
+v5a (first all-wood + coloured-emblem render, ~12:30 PM ET 2026-11-14), gate 25/31, never packaged (no README / SHA256SUMS / backup).
+REJECTED 12:42 PM ET: emblem flicker in the temporal gate (mean dY 3.17, worst 118 - FLIPPER pair 25, a nearer pillar's front-face top
+sliding over the emblem that the gate's occlusion box missed), floor spread not done (front / lower-right empty, left + middle packed),
+KEYFOB 0 emblem px in the idle still, CAMERA 0.436 visible, two emblem colours shared hue 340 deg (crimson ff0055, rose cc5c81).
+Floor (box top = min(front, back top)): idle whole floor (rows 140..285) largest empty square 71 px, standable floor (rows 140..251) 43 px,
+320-sample median 71 / 49 px; idle bases per screen third L/M/R 6/8/4.

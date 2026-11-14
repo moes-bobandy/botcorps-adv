@@ -1,7 +1,7 @@
 {
  "mock": "morpheus-mix SPREAD 2026-11-14 (mock only: no flash, no merge, no firmware commit)",
- "passed": 23,
- "total": 31,
+ "passed": 25,
+ "total": 32,
  "devices": [
   "DEAUTH",
   "HACK",
@@ -28,14 +28,14 @@
   "T2_white_light": 1.612
  },
  "idle_still": {
-  "sample_index": 202,
+  "sample_index": 261,
   "of": 320,
   "rule": "median of per-sample quality (mean emblem visible fraction + mean tap square/60) over the samples where all 18 pillars show some emblem and keep a tap cell; not the best sample",
   "clean_pool": 320,
-  "quality": 1.0887,
-  "quality_min": 0.8822,
-  "quality_median": 1.0882,
-  "quality_max": 1.3222
+  "quality": 1.1031,
+  "quality_min": 0.8839,
+  "quality_median": 1.1031,
+  "quality_max": 1.3335
  },
  "gates": [
   {
@@ -49,7 +49,7 @@
   },
   {
    "name": "bodies (v5d): the 5 HIGH towers (DEAUTH, HACK, SKIMMER, FLIPPER, EVIL TWIN) read as black Matrix code glass (T1), the other 13 as see-through wood (T3); pixel class from each face's own opaque outline / median pixels",
-   "pass": false,
+   "pass": true,
    "black_matrix": [
     "DEAUTH",
     "HACK",
@@ -57,23 +57,13 @@
     "FLIPPER",
     "EVIL TWIN"
    ],
-   "matched": 13,
-   "misses": [
-    [
-     "HACK",
-     3,
-     25488
-    ],
-    [
-     "SKIMMER",
-     3,
-     323
-    ]
-   ],
+   "matched": 14,
+   "misses": [],
    "unclassifiable_hidden": [
-    "META",
-    "SAMSUNG",
-    "RAVEN"
+    "AIR TAG",
+    "KEYFOB",
+    "RAVEN",
+    "RING"
    ],
    "note": "idle still; faces with < 15 unoccluded px are not classified"
   },
@@ -252,152 +242,286 @@
    }
   },
   {
+   "name": "emblems attached (v5e): in every one of the 320 idle samples each emblem rect lies inside its own tower face (>= 1 px inset left / right), its centre-to-face-centre x offset and its top-to-face-top y offset vary by <= 1 px, one fixed size per tower",
+   "pass": true,
+   "violations": 0,
+   "first": [],
+   "per_tower": {
+    "DEAUTH": {
+     "dx_range": 0.5,
+     "dy_range": 0,
+     "S": [
+      6
+     ]
+    },
+    "HACK": {
+     "dx_range": 0.5,
+     "dy_range": 0,
+     "S": [
+      18
+     ]
+    },
+    "FLOCK": {
+     "dx_range": 0.5,
+     "dy_range": 1,
+     "S": [
+      10
+     ]
+    },
+    "DRONE": {
+     "dx_range": 0.5,
+     "dy_range": 0,
+     "S": [
+      11
+     ]
+    },
+    "AIR TAG": {
+     "dx_range": 0.5,
+     "dy_range": 0,
+     "S": [
+      5
+     ]
+    },
+    "KEYFOB": {
+     "dx_range": 0.5,
+     "dy_range": 0,
+     "S": [
+      6
+     ]
+    },
+    "META": {
+     "dx_range": 0.5,
+     "dy_range": 1,
+     "S": [
+      9
+     ]
+    },
+    "SKIMMER": {
+     "dx_range": 0.5,
+     "dy_range": 0,
+     "S": [
+      13
+     ]
+    },
+    "FLIPPER": {
+     "dx_range": 0.5,
+     "dy_range": 0,
+     "S": [
+      15
+     ]
+    },
+    "SAMSUNG": {
+     "dx_range": 0.5,
+     "dy_range": 0,
+     "S": [
+      4
+     ]
+    },
+    "AXON": {
+     "dx_range": 0.5,
+     "dy_range": 0,
+     "S": [
+      14
+     ]
+    },
+    "RAVEN": {
+     "dx_range": 0.5,
+     "dy_range": 0,
+     "S": [
+      7
+     ]
+    },
+    "ALPR": {
+     "dx_range": 0.5,
+     "dy_range": 0,
+     "S": [
+      6
+     ]
+    },
+    "CAMERA": {
+     "dx_range": 0.5,
+     "dy_range": 0,
+     "S": [
+      17
+     ]
+    },
+    "RING": {
+     "dx_range": 0.5,
+     "dy_range": 0,
+     "S": [
+      5
+     ]
+    },
+    "GOOGLE TAG": {
+     "dx_range": 0.5,
+     "dy_range": 0,
+     "S": [
+      13
+     ]
+    },
+    "EVIL TWIN": {
+     "dx_range": 0.5,
+     "dy_range": 0,
+     "S": [
+      9
+     ]
+    },
+    "IBEACON": {
+     "dx_range": 0.5,
+     "dy_range": 0,
+     "S": [
+      6
+     ]
+    }
+   }
+  },
+  {
    "name": "folder rows (v5d): every tower shows its emblem plus >= 6 on-tower folder rows in the idle still (mo_mix.inc T3 geometry, idle row pitch)",
    "pass": true,
    "rows": {
-    "DEAUTH": 18,
-    "HACK": 18,
-    "FLOCK": 6,
-    "DRONE": 7,
+    "DEAUTH": 16,
+    "HACK": 21,
+    "FLOCK": 8,
+    "DRONE": 8,
     "AIR TAG": 11,
-    "KEYFOB": 10,
-    "META": 10,
-    "SKIMMER": 17,
-    "FLIPPER": 18,
+    "KEYFOB": 14,
+    "META": 12,
+    "SKIMMER": 14,
+    "FLIPPER": 19,
     "SAMSUNG": 10,
-    "AXON": 11,
-    "RAVEN": 7,
-    "ALPR": 7,
-    "CAMERA": 11,
-    "RING": 6,
+    "AXON": 13,
+    "RAVEN": 9,
+    "ALPR": 8,
+    "CAMERA": 13,
+    "RING": 7,
     "GOOGLE TAG": 10,
     "EVIL TWIN": 16,
-    "IBEACON": 9
+    "IBEACON": 7
    }
   },
   {
    "name": "emblem visibility (idle still): every pillar shows emblem pixels",
    "pass": false,
    "px": {
-    "DEAUTH": 64,
-    "HACK": 0,
-    "FLOCK": 196,
-    "DRONE": 324,
-    "AIR TAG": 64,
-    "KEYFOB": 40,
-    "META": 0,
-    "SKIMMER": 256,
-    "FLIPPER": 324,
-    "SAMSUNG": 0,
-    "AXON": 324,
+    "DEAUTH": 36,
+    "HACK": 324,
+    "FLOCK": 100,
+    "DRONE": 121,
+    "AIR TAG": 0,
+    "KEYFOB": 0,
+    "META": 81,
+    "SKIMMER": 169,
+    "FLIPPER": 225,
+    "SAMSUNG": 16,
+    "AXON": 28,
     "RAVEN": 0,
-    "ALPR": 8,
-    "CAMERA": 400,
-    "RING": 36,
-    "GOOGLE TAG": 96,
-    "EVIL TWIN": 144,
-    "IBEACON": 64
+    "ALPR": 24,
+    "CAMERA": 289,
+    "RING": 0,
+    "GOOGLE TAG": 129,
+    "EVIL TWIN": 81,
+    "IBEACON": 12
    },
    "min": 0,
-   "mean": 130.0
+   "mean": 90.8
   },
   {
    "name": "emblem visibility (320 idle samples): every pillar mean visible fraction >= 0.5",
    "pass": false,
    "px_min": 0.0,
-   "px_mean": 133.8,
-   "frac_mean": 0.628,
-   "worst": "RING",
-   "worst_frac": 0.32,
+   "px_mean": 85.9,
+   "frac_mean": 0.644,
+   "worst": "ALPR",
+   "worst_frac": 0.335,
    "per_pillar": {
     "DEAUTH": {
-     "frac": 0.967,
-     "px_mean": 62.8,
-     "px_min": 16
+     "frac": 0.986,
+     "px_mean": 35.5,
+     "px_min": 12
     },
     "HACK": {
-     "frac": 0.862,
-     "px_mean": 393.3,
+     "frac": 0.858,
+     "px_mean": 277.9,
      "px_min": 0
     },
     "FLOCK": {
-     "frac": 0.623,
-     "px_mean": 114.6,
+     "frac": 0.637,
+     "px_mean": 63.7,
      "px_min": 0
     },
     "DRONE": {
-     "frac": 0.549,
-     "px_mean": 124.0,
+     "frac": 0.544,
+     "px_mean": 65.9,
      "px_min": 0
     },
     "AIR TAG": {
-     "frac": 0.511,
-     "px_mean": 32.7,
+     "frac": 0.553,
+     "px_mean": 13.8,
      "px_min": 0
     },
     "KEYFOB": {
-     "frac": 0.431,
-     "px_mean": 40.1,
+     "frac": 0.465,
+     "px_mean": 16.8,
      "px_min": 0
     },
     "META": {
-     "frac": 0.549,
-     "px_mean": 83.5,
+     "frac": 0.565,
+     "px_mean": 45.7,
      "px_min": 0
     },
     "SKIMMER": {
-     "frac": 0.932,
-     "px_mean": 238.7,
+     "frac": 0.955,
+     "px_mean": 161.5,
      "px_min": 0
     },
     "FLIPPER": {
-     "frac": 0.95,
-     "px_mean": 336.1,
-     "px_min": 198
+     "frac": 0.985,
+     "px_mean": 221.7,
+     "px_min": 165
     },
     "SAMSUNG": {
-     "frac": 0.556,
-     "px_mean": 20.5,
+     "frac": 0.574,
+     "px_mean": 9.2,
      "px_min": 0
     },
     "AXON": {
      "frac": 0.729,
-     "px_mean": 232.4,
+     "px_mean": 142.8,
      "px_min": 0
     },
     "RAVEN": {
-     "frac": 0.364,
-     "px_mean": 34.6,
+     "frac": 0.367,
+     "px_mean": 18.0,
      "px_min": 0
     },
     "ALPR": {
-     "frac": 0.328,
-     "px_mean": 21.2,
+     "frac": 0.335,
+     "px_mean": 12.1,
      "px_min": 0
     },
     "CAMERA": {
-     "frac": 0.918,
-     "px_mean": 367.2,
+     "frac": 0.916,
+     "px_mean": 264.6,
      "px_min": 0
     },
     "RING": {
-     "frac": 0.32,
-     "px_mean": 20.5,
+     "frac": 0.359,
+     "px_mean": 9.0,
      "px_min": 0
     },
     "GOOGLE TAG": {
-     "frac": 0.7,
-     "px_mean": 168.9,
+     "frac": 0.704,
+     "px_mean": 118.9,
      "px_min": 0
     },
     "EVIL TWIN": {
-     "frac": 0.658,
-     "px_mean": 94.7,
+     "frac": 0.693,
+     "px_mean": 56.1,
      "px_min": 0
     },
     "IBEACON": {
-     "frac": 0.365,
-     "px_mean": 23.4,
+     "frac": 0.368,
+     "px_mean": 13.3,
      "px_min": 0
     }
    }
@@ -510,21 +634,21 @@
   {
    "name": "floor coverage: largest empty standable-floor square <= 60 px (idle + 320-sample median), whole floor <= 75 px, 5-7 bases per screen third and >= 1 front-row base (y >= 200) in each third (v4 107 px, v5a 71 px whole floor)",
    "pass": false,
-   "whole_floor_idle_px": 89,
+   "whole_floor_idle_px": 83,
    "whole_floor_median_px": 87.0,
    "whole_floor_max_px": 97,
-   "standable_floor_idle_px": 61,
+   "standable_floor_idle_px": 63,
    "standable_floor_median_px": 61.0,
    "standable_floor_max_px": 73,
    "bases_per_third_LMR": [
-    6,
-    6,
-    6
+    2,
+    8,
+    8
    ],
    "front_row_bases_per_third_LMR": [
     1,
     0,
-    0
+    1
    ],
    "v4_idle_whole_floor_px": 107,
    "v5a_idle_whole_floor_px": 71,
@@ -583,31 +707,31 @@
     "IBEACON"
    ],
    "min_hue_step_deg": 5,
-   "min_screen_adjacent_deltaE": 48.0,
+   "min_screen_adjacent_deltaE": 58.0,
    "adjacent_pair": [
-    "DRONE",
-    "EVIL TWIN"
+    "SAMSUNG",
+    "CAMERA"
    ],
    "min_deltaE_to_wood": 36.3,
    "body_colour_px_in_idle": {
-    "DEAUTH": 13,
-    "HACK": 0,
-    "FLOCK": 58,
-    "DRONE": 152,
-    "AIR TAG": 36,
-    "KEYFOB": 10,
-    "META": 0,
-    "SKIMMER": 87,
-    "FLIPPER": 81,
-    "SAMSUNG": 0,
-    "AXON": 98,
+    "DEAUTH": 8,
+    "HACK": 142,
+    "FLOCK": 33,
+    "DRONE": 56,
+    "AIR TAG": 0,
+    "KEYFOB": 0,
+    "META": 25,
+    "SKIMMER": 47,
+    "FLIPPER": 56,
+    "SAMSUNG": 6,
+    "AXON": 0,
     "RAVEN": 0,
-    "ALPR": 3,
-    "CAMERA": 118,
-    "RING": 14,
-    "GOOGLE TAG": 36,
-    "EVIL TWIN": 25,
-    "IBEACON": 30
+    "ALPR": 4,
+    "CAMERA": 83,
+    "RING": 0,
+    "GOOGLE TAG": 50,
+    "EVIL TWIN": 16,
+    "IBEACON": 4
    },
    "colours": {
     "DEAUTH": {
@@ -715,21 +839,21 @@
     },
     {
      "dev": "AIR TAG",
-     "fw": 53,
+     "fw": 54,
      "nland": 3,
      "emb_S": 40,
      "ok": true
     },
     {
      "dev": "FLOCK",
-     "fw": 53,
+     "fw": 54,
      "nland": 3,
      "emb_S": 40,
      "ok": true
     },
     {
      "dev": "RAVEN",
-     "fw": 55,
+     "fw": 53,
      "nland": 3,
      "emb_S": 40,
      "ok": true
@@ -737,37 +861,37 @@
    ]
   },
   {
-   "name": "open order (v5d): HACKbot search first (search frame: device typed, 0 folders), folders only after the 11-band sweep (open frame: 3 folders, 11/11 lit)",
+   "name": "open order (v5e): search first (0.54 s frame: device being typed, 0 scrolls), scrolls only after the device is fully typed (1.8 s frame: 3 scrolls, full name)",
    "pass": true,
    "towers": [
     {
      "dev": "DEAUTH",
      "search": {
       "nland": 0,
-      "typed": 6,
-      "lit": 4
+      "typed": 5,
+      "lit": 11
      },
      "open": {
       "nland": 3,
       "typed": 6,
       "lit": 11
      },
-     "folders_drop_at_ms": 2670,
+     "folders_drop_at_ms": 0,
      "ok": true
     },
     {
      "dev": "AIR TAG",
      "search": {
       "nland": 0,
-      "typed": 7,
-      "lit": 3
+      "typed": 5,
+      "lit": 11
      },
      "open": {
       "nland": 3,
       "typed": 7,
       "lit": 11
      },
-     "folders_drop_at_ms": 2715,
+     "folders_drop_at_ms": 0,
      "ok": true
     },
     {
@@ -775,14 +899,14 @@
      "search": {
       "nland": 0,
       "typed": 5,
-      "lit": 4
+      "lit": 11
      },
      "open": {
       "nland": 3,
       "typed": 5,
       "lit": 11
      },
-     "folders_drop_at_ms": 2625,
+     "folders_drop_at_ms": 0,
      "ok": true
     },
     {
@@ -790,14 +914,14 @@
      "search": {
       "nland": 0,
       "typed": 5,
-      "lit": 4
+      "lit": 11
      },
      "open": {
       "nland": 3,
       "typed": 5,
       "lit": 11
      },
-     "folders_drop_at_ms": 2625,
+     "folders_drop_at_ms": 0,
      "ok": true
     }
    ]
@@ -815,7 +939,7 @@
   {
    "name": "text audit: every audited text line inside its box",
    "pass": true,
-   "lines": 22784,
+   "lines": 22517,
    "bad": 0
   },
   {
@@ -830,168 +954,171 @@
    "dup_item_block": false,
    "wired": true,
    "closeup_panel_hash": {
-    "deauth": "89c5c2194fb2",
-    "airtag": "50b138f75231",
-    "flock": "d32ea5e5c46f",
-    "raven": "f3a7c3305324"
+    "deauth": "c7b367de1801",
+    "airtag": "895fe57aca6c",
+    "flock": "d395ba8ad83d",
+    "raven": "944af9a47329"
    },
    "note": "scope: the folder + line-item text tables. Chrome text (card / terminal line, incl. its EX.DATA word) is unchanged by order \"do not change the chrome text\"."
   },
   {
    "name": "opaque UI: every emblem / on-tower folder glyph / file-line pixel and the folder pull-down drawn at 100% (no alpha blending) in every frame of the run",
    "pass": true,
-   "ui_px_drawn": 478575846,
+   "ui_px_drawn": 330972208,
    "ui_px_translucent": 0,
    "alpha_terms_in_ui_source": [],
    "note": "MOUI counts every UI pixel call in the sim (mo_ui_px) whose alpha is below its pillar alpha; the pull-down body / header / tab / drop outline are 256 in source"
   },
   {
    "name": "emblems: idle emblem as large as the face allows (S from face width - 4 to face width, 2 px steps with hysteresis; was 8 / 10 / 16 px steps)",
-   "pass": true,
+   "pass": false,
    "per_pillar": {
     "DEAUTH": {
-     "S": 8,
-     "face_w": 11,
-     "fit": 10,
+     "S": 6,
+     "face_w": 10,
+     "fit": 9,
      "ok": true
     },
     "HACK": {
-     "S": 22,
-     "face_w": 24,
-     "fit": 23,
-     "ok": true
+     "S": 18,
+     "face_w": 25,
+     "fit": 24,
+     "ok": false
     },
     "FLOCK": {
-     "S": 14,
-     "face_w": 14,
-     "fit": 13,
-     "ok": true
+     "S": 10,
+     "face_w": 15,
+     "fit": 14,
+     "ok": false
     },
     "DRONE": {
-     "S": 18,
-     "face_w": 19,
-     "fit": 18,
-     "ok": true
+     "S": 11,
+     "face_w": 17,
+     "fit": 16,
+     "ok": false
     },
     "AIR TAG": {
-     "S": 8,
+     "S": 5,
      "face_w": 9,
      "fit": 8,
      "ok": true
     },
     "KEYFOB": {
-     "S": 10,
-     "face_w": 10,
-     "fit": 9,
-     "ok": true
+     "S": 6,
+     "face_w": 12,
+     "fit": 11,
+     "ok": false
     },
     "META": {
-     "S": 12,
-     "face_w": 13,
-     "fit": 12,
-     "ok": true
+     "S": 9,
+     "face_w": 14,
+     "fit": 13,
+     "ok": false
     },
     "SKIMMER": {
-     "S": 16,
-     "face_w": 19,
-     "fit": 18,
+     "S": 13,
+     "face_w": 17,
+     "fit": 16,
      "ok": true
     },
     "FLIPPER": {
-     "S": 18,
-     "face_w": 21,
-     "fit": 20,
-     "ok": true
+     "S": 15,
+     "face_w": 22,
+     "fit": 21,
+     "ok": false
     },
     "SAMSUNG": {
-     "S": 6,
+     "S": 4,
      "face_w": 8,
      "fit": 7,
      "ok": true
     },
     "AXON": {
-     "S": 18,
+     "S": 14,
      "face_w": 20,
      "fit": 19,
-     "ok": true
+     "ok": false
     },
     "RAVEN": {
-     "S": 10,
-     "face_w": 11,
-     "fit": 10,
-     "ok": true
+     "S": 7,
+     "face_w": 12,
+     "fit": 11,
+     "ok": false
     },
     "ALPR": {
-     "S": 8,
-     "face_w": 10,
-     "fit": 9,
+     "S": 6,
+     "face_w": 9,
+     "fit": 8,
      "ok": true
     },
     "CAMERA": {
-     "S": 20,
-     "face_w": 21,
-     "fit": 20,
-     "ok": true
+     "S": 17,
+     "face_w": 22,
+     "fit": 21,
+     "ok": false
     },
     "RING": {
-     "S": 8,
+     "S": 5,
      "face_w": 8,
      "fit": 7,
      "ok": true
     },
     "GOOGLE TAG": {
-     "S": 16,
-     "face_w": 17,
-     "fit": 16,
+     "S": 13,
+     "face_w": 16,
+     "fit": 15,
      "ok": true
     },
     "EVIL TWIN": {
-     "S": 12,
-     "face_w": 14,
-     "fit": 13,
+     "S": 9,
+     "face_w": 13,
+     "fit": 12,
      "ok": true
     },
     "IBEACON": {
-     "S": 8,
-     "face_w": 12,
-     "fit": 11,
+     "S": 6,
+     "face_w": 10,
+     "fit": 9,
      "ok": true
     }
    },
    "front6": {
-    "HACK": 22,
-    "FLIPPER": 18,
-    "CAMERA": 20,
-    "AXON": 18,
-    "SKIMMER": 16,
-    "DRONE": 18
+    "HACK": 18,
+    "CAMERA": 17,
+    "FLIPPER": 15,
+    "AXON": 14,
+    "DRONE": 11,
+    "SKIMMER": 13
    },
-   "median_S": 12.0
+   "median_S": 9.0
   },
   {
    "name": "temporal stability: emblem ink luminance frame-to-frame delta ~0 when the pillar barely moves (40 consecutive idle frames)",
    "pass": true,
-   "pairs": 243,
-   "mean_abs_dY": 0.0,
-   "worst_pair_mean_dY": 0.0,
-   "worst": null,
+   "pairs": 256,
+   "mean_abs_dY": 0.011,
+   "worst_pair_mean_dY": 2.8,
+   "worst": [
+    "DRONE",
+    28
+   ],
    "size_changes_in_40_frames": {
     "DEAUTH": 0,
     "HACK": 0,
     "FLOCK": 0,
     "DRONE": 0,
     "AIR TAG": 0,
-    "KEYFOB": 1,
+    "KEYFOB": 0,
     "META": 0,
     "SKIMMER": 0,
-    "FLIPPER": 1,
+    "FLIPPER": 0,
     "SAMSUNG": 0,
-    "AXON": 1,
+    "AXON": 0,
     "RAVEN": 0,
     "ALPR": 0,
     "CAMERA": 0,
     "RING": 0,
-    "GOOGLE TAG": 1,
+    "GOOGLE TAG": 0,
     "EVIL TWIN": 0,
     "IBEACON": 0
    },
@@ -1003,26 +1130,26 @@
    "checks": [
     {
      "dev": "DEAUTH",
-     "same_pos_match": 0.609,
-     "best_shift_match": 0.84,
+     "same_pos_match": 0.711,
+     "best_shift_match": 0.829,
      "moved": true
     },
     {
      "dev": "AIR TAG",
-     "same_pos_match": 0.655,
-     "best_shift_match": 0.793,
+     "same_pos_match": 0.704,
+     "best_shift_match": 0.759,
      "moved": true
     },
     {
      "dev": "FLOCK",
-     "same_pos_match": 0.644,
-     "best_shift_match": 0.765,
+     "same_pos_match": 0.713,
+     "best_shift_match": 0.752,
      "moved": true
     },
     {
      "dev": "RAVEN",
-     "same_pos_match": 0.684,
-     "best_shift_match": 0.81,
+     "same_pos_match": 0.703,
+     "best_shift_match": 0.723,
      "moved": true
     }
    ]
@@ -1032,12 +1159,12 @@
    "pass": true,
    "dumps": 18,
    "identical": 18,
-   "video_sha256": "4df8956800502469"
+   "video_sha256": "e853dbfb3e67c432"
   },
   {
    "name": "video: no frozen (identical consecutive) frames",
    "pass": true,
-   "frames": 1156,
+   "frames": 708,
    "frozen": 0
   },
   {
@@ -1049,12 +1176,12 @@
     720,
     960
    ],
-   "frames": "1156",
-   "seconds": "34.680000"
+   "frames": "708",
+   "seconds": "21.240000"
   },
   {
    "name": "stills: idle @1x 240x320, idle + 4 close-ups @3x 720x960",
-   "pass": false
+   "pass": true
   }
  ]
 }

@@ -280,6 +280,30 @@ rep2("mo3_mx(0x0b3320, 0x5ac080", "mo3_mx(0x03120a, 0x3a8a58")       # v5d: high
 assert s.count("0xd8ffe6, MO11_GH, 0x010805, a, a)") == 2
 s = s.replace("0xd8ffe6, MO11_GH, 0x010805, a, a)", "MO_EMB_COL[i], MO_EMB_DET[i], 0x010805, a, a)")   # v5d: T1 emblems in the per-device colour
 # ---- v5d open state (Mobandy 2:36 - 2:38 PM ET): mo12_folder = HACKbot DOWNLOAD's folder (lv_dl_drop) with richer real info; mo12_drop0 (search first)
-_a = s.index('static void mo12_folder(LvBand &B, int i, int j, int ys, float ph, int tl)\n{'); _b = s.index('\n}\n', _a) + 3
-s = s[:_a] + open(D + '/v5d_open.inc.txt').read() + s[_b:]
+if False:   # v5e: REJECTED 3:23 PM ET, off (v5c folder restored)
+    _a = s.index('static void mo12_folder(LvBand &B, int i, int j, int ys, float ph, int tl)\n{'); _b = s.index('\n}\n', _a) + 3
+    s = s[:_a] + open(D + '/v5d_open.inc.txt').read() + s[_b:]
+# ---- v5e (Mobandy 3:25 PM ET) ----
+import json
+# 1) solid wood: the 13 wood bodies opaque again (front grain, sides, cap at full alpha); brass, rails, emblem, file rows unchanged
+rep2("            mo13_px(B, x, y, grain(x, y, u), a * 96 / 256);   /* v3: ~38% wood so the room shows through at idle too */", "            mo13_px(B, x, y, grain(x, y, u), a);   /* v5e: SOLID wood (Mobandy 3:25 PM ET) */")
+rep2("for (int y = top; y <= bot; ++y) mo13_px(B, x, y, mo3_mx(0x6a4020, 0x2a160a, u), a * 105 / 256); }", "for (int y = top; y <= bot; ++y) mo13_px(B, x, y, mo3_mx(0x6a4020, 0x2a160a, u), a); }   /* v5e: solid side */")
+rep2("mo_quad(B, X, Y, lv_hex(0xb08a3a), a * 150 / 256);", "mo_quad(B, X, Y, lv_hex(0xb08a3a), a);   /* v5e: solid cap */")
+# 2) Matrix rain on the 5 black towers: the CYD code-streak rain of lv_radar.h (the radar field's 'code streaks' / lv_rd_bg case 0 RAIN):
+#    x = (s*53+17) % W, len = 10+(s*7)%18, sp = 40+(s*29)%70 px/s, head = top + (t*sp + s*37) % (H+len), every 2nd px, head 0x10d858 /
+#    tail 0x00a83c (the MO v11 Matrix colours), fade k==0 ? 8 : 6-k*5/len of 8 - mapped onto the tower face, drawn before the file rows + emblem
+_a = s.index("    /* falling code: glyph columns (close-up) or 1 px streaks (idle), dim so the file rows stay readable */")
+_b = s.index("else mo13_px(B, cx, gy, c, al); } }", _a) + len("else mo13_px(B, cx, gy, c, al); } }")
+s = s[:_a] + """    const bool big = fw >= 40;
+    /* v5e: Matrix rain = lv_radar.h's CYD code streaks (field rain law, same constants + colours), mapped into this tower's face */
+    { const int W_ = fw - 3, H_ = yv - yt - 1, ns = fw >= 40 ? 18 : (fw / 3 > 2 ? fw / 3 : 2);
+      if (W_ > 0 && H_ > 4) for (int s_ = 0; s_ < ns; ++s_) {
+        const int x = x0 + 2 + (s_ * 53 + 17 + i * 7) % W_, len = 10 + (s_ * 7) % 18, sp = 40 + (s_ * 29) % 70;
+        const int head = yt + 1 + (int)(lv_now / 1000.0f * sp + s_ * 37 + i * 11) % (H_ + len);
+        for (int k = 0; k < len; k += 2) { const int y = head - k; if (y > yt && y < yv) mo13_px(B, x, y, lv_hex(k == 0 ? 0x10d858 : 0x00a83c), a * (k == 0 ? 8 : 6 - k * 5 / len) / 8); } } }""" + s[_b:]
+# 3) emblems bolted to the face: one fixed size per tower (largest even size that fits its narrowest drifting face with >= 1 px inset each
+#    side, from 320 real-sim samples: src/emb_fix_v5e.json), centred on the face; no size steps while idle; 40 px only in the open close-up
+rep2("static int mo_embS4(int i, int fw)\n{\n    if (fw >= 50) return mo_eS_last[i] = 40;",
+     "static const int MO_EMB_SFIX[MO_N] = {%s};   /* v5e: fixed idle emblem size per tower */\nstatic int mo_embS4(int i, int fw)\n{\n    if (fw >= 50) return mo_eS_last[i] = 40;\n    { int S = MO_EMB_SFIX[i], lim = fw - 3; if (S > lim) S = lim < 4 ? 0 : lim; return mo_eS_last[i] = S; }   /* v5e: fixed, inset >= 1 px */" % ', '.join(map(str, json.load(open(D + '/emb_fix_v5e.json'))['S'])))
+
 open(D+'/mo_mix.inc','w').write(s); print('mo_mix.inc written')

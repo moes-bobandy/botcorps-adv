@@ -1,0 +1,3 @@
+v5d = commit bf90bda4122fecffd10c09d4ec918153a72534ef (3:23 PM ET), gate 23/31.
+REJECTED by Mobandy 3:23-3:24 PM ET: the HACKbot UI was layered over the Morpheus open screen; the added stat bars / coloured strips meant nothing ("Everything must be purposeful"). Also 3:25 PM: wood should be solid, Matrix towers need rain, emblems look detached.
+Superseded by v5e.

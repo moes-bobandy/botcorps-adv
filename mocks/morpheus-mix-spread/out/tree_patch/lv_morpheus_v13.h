@@ -170,16 +170,14 @@ static float mo_t(void) { return (lv_now - mo_tw0) / 1000.0f; }
 #define MO12_SX 38.0f        /* close-up front-face centre column (the DOWNLOAD game parks its tower at x 50) */
 #define MO12_YT 60.0f        /* close-up front-top row (the search bar sits above it, rows 38..52) */
 #define MO12_CAMA 0.02f      /* open camera: Gibson's sway law, smaller */
-#define MO12_LOCK_MS 1000    /* v5d: Gibson lock - hold brackets close in for 1 s (lv_rd_cg_brackets), then the snap */
-#define MO12_SWEEP_FR 3      /* v5d: HACKbot tower meter, one band per 3 frames (30 fps) */
-#define MO12_BAR0 1200      /* v5d: HACKbot search bar after the lock snap (was 120) */
+#define MO12_BAR0 120       /* search bar wipes in, then types the device */
 #define MO12_WIPE_MS 180
 #define MO12_TYPE_MS 45
-#define MO12_DROP0 mo12_drop0()   /* v5d: folders only after the search is done (src/v5d_open.inc.txt) */
-#define MO12_GAP 700        /* v5d: HACKbot stagger 21 frames */
-#define MO12_DROP_MS 867    /* v5d: HACKbot drop 26 frames */
+#define MO12_DROP0 (MO12_BAR0 + MO12_WIPE_MS + (itw_mo_sel >= 0 ? (int)strlen(MO_DEV[itw_mo_sel].name) : 0) * MO12_TYPE_MS + 200)   /* v5e: folders drop 200 ms after the search finished typing the device (DOWNLOAD's eased stagger kept) */
+#define MO12_GAP 110
+#define MO12_DROP_MS 380
 #define MO12_LOAD_MS 500     /* a landed folder's LOADING bar */
-static const int MO12_FX = 90, MO12_FW = 145, MO12_FY0 = 78, MO12_FDY = 50, MO12_FH = 40;   /* v5d: HACKbot folder x 90 w 145, first at 78; 40 tall, 50 apart */   /* folder j: tab top FY0 + j*FDY, body 8 below, 36 tall */
+static const int MO12_FX = 92, MO12_FW = 143, MO12_FY0 = 60, MO12_FDY = 62, MO12_FH = 46;   /* folder j: tab top FY0 + j*FDY, body 8 below, 36 tall */
 static const int MO12_BX = 8, MO12_BY = 38, MO12_BW = 229, MO12_BH = 15;                      /* search bar 229x15 at (8,38) */
 static float mo12_camc = 0;   /* open camera centre (picked at tap) */
 static LvBand *mo12_B = nullptr;   /* the band being drawn (for the room wash inside the tower loop) */
@@ -539,44 +537,33 @@ static void mo13_folder_v131(LvBand &B, int i, int j, int ys, float ph, int tl) 
 }
 #include "../../../src/mo_mix.inc"
 /* ---- v12 line-item search bar across the top of the tower + its index line down to the folders ---- */
-static int mo12_lit = 0;   /* v5d dump: HACKbot tower-meter bands lit */
 static void mo12_search(LvBand &B, const LvTower &T, int i, int el)
 {
-    /* 1) Gibson lock on the opened tower = the hold / lock bracket branch of lv_radar.h lv_rd_fx, line for line (holding: brackets
-     *    close in from pad 15 to 3 and brighten over 1 s; locked: magenta brackets pulsing at 1.6 Hz, tick + LOCK label; the 200 ms
-     *    white snap flash under the same LV_RD_CHARGE condition as Gibson, so with the shipped charge lock it is never white),
-     *    calling the real lv_rd_box / lv_rd_brackets / lv_rd_rect_blend / lv_dim / b_text35; the hold is driven by the time since
-     *    the tap instead of a held finger (Morpheus has no HOLD TO LOCK bar). */
-    { const uint16_t MAG = lv_hex(0xff2ad4), W = lv_hex(0xffffff); int xa, xb, ya, yb;
-      if (el < MO12_LOCK_MS) { float u = el / (float)MO12_LOCK_MS; if (u > 1) u = 1; if (u < 0) u = 0;
-          const int pad = 3 + (int)lroundf((1 - u) * 12); lv_rd_box(T, pad, xa, xb, ya, yb); lv_rd_brackets(B, xa, ya, xb, yb, 4, lv_dim(MAG, 4 + (int)(u * 4), 8)); }
-      else { const int e = el - MO12_LOCK_MS;
-          const int pulse = 5 + (int)lroundf(3 * (0.5f + 0.5f * sinf(e / 1000.0f * 6.283f * 1.6f)));
-          lv_rd_box(T, 3, xa, xb, ya, yb);
-          if (e < 200 && !(LV_RD_CHARGE && !LV_RD_CG_NODRAW)) lv_rd_rect_blend(B, xa - 1, ya - 1, xb + 1, yb + 1, W, 7 - e * 7 / 200);
-          lv_rd_brackets(B, xa, ya, xb, yb, 4, lv_dim(MAG, pulse, 8));
-          const int cx = (xa + xb) / 2; b_line(B, cx, ya - 1, cx, ya - 3, lv_dim(W, pulse, 8));
-          const char *lab = "LOCK"; int ly = ya - 9; if (ly < LV_RD_Y0 + 1) ly = LV_RD_Y0 + 1;
-          if (el < MO12_BAR0) b_text35(B, cx - lv_w35(lab) / 2, ly, lab, lv_dim(MAG, pulse, 8)); } }
-    /* 2) HACKbot search = lv_scanbot_download.h lv_dl_drop's key bar (dark fill, amber / cyan blinking frame, cyan underline, amber 3x5
-     *    text) typing the device, then its 11-band tower meter (lvi_band inks, 238 - k*18 rows) lighting band by band up the tower */
-    const int t = el - MO12_BAR0; mo12_lit = 0; if (t < 0) return;
-    const int x0 = MO12_BX, y0 = MO12_BY, w = MO12_BW, h = MO12_BH, f = t * 3 / 100;
-    const char *nm = MO_DEV[i].name; const int L = (int)strlen(nm);
-    int typed = t / MO12_TYPE_MS; if (typed > L) typed = L; mo12_typed = typed;
-    const int tdone = L * MO12_TYPE_MS, fs = t < tdone ? -1 : (t - tdone) * 3 / 100;
-    int lit = fs < 0 ? 0 : 1 + fs / MO12_SWEEP_FR; if (lit > 11) lit = 11; mo12_lit = lit;
-    lvi_rect(B, x0, y0, w, h, 0x05101c); lvi_box(B, x0, y0, w, h, f % 30 < 15 ? 0xffb000 : 0x59cddc); lvi_line(B, x0 + 6, y0 + h + 1, x0 + w - 1, y0 + h + 1, 0x81efff);
-    char q[48]; snprintf(q, sizeof q, "[SEARCH // %.*s%s // %d/11]", typed, nm, typed < L ? "_" : "", lit);
-    lvi_txt(B, x0 + 4, y0 + 5, q, 0xffc34a);
-    { const int fx0 = T.x0, fw = T.x1 - T.x0; if (fw > 12) for (int k = 0; k < 11; ++k) { const int yy = 238 - k * 18; if (yy - 6 < T.yt + 2 || yy > 246) continue;
-        const unsigned co = k < lit ? lvi_band(k, f) : 0x12313a; lvi_rect(B, fx0 + 4, yy - 4, fw - 8, 5, co); lvi_rect(B, fx0 + 5, yy - 6, fw - 10, 1, k < lit ? co : 0x17323d); } }
-    if (B.y0 == 0) mo12_aud(x0 + 4, y0 + 5, lv_w35(q), 5, x0 + 2, y0 + 2, x0 + w - 3, y0 + h - 2, "sbarQ");
+    const int t = el - MO12_BAR0; if (t < 0) return;
+    const uint16_t ch = lv_hex(MO11_CHAR), tim = lv_hex(MO11_BEAM), g = lv_hex(MO11_G), gh = lv_hex(MO11_GH), pap = lv_hex(0xe8dec8);
+    const int x0 = MO12_BX, y0 = MO12_BY, w = MO12_BW, h = MO12_BH;
+    const int wv = (int)(w * mo_ease(t / (float)MO12_WIPE_MS));
+    /* hanger: timber posts from the bar to the pillar's front-top corners + a green pointer at its seam */
+    if (t >= MO12_WIPE_MS) { const int cx = (T.x0 + T.x1) / 2, yt = T.yt;
+        if (yt > y0 + h) { mo_aline(B, (float)T.x0 + 4, (float)(y0 + h), (float)T.x0 + 4, (float)yt, tim, 220); mo_aline(B, (float)T.x1 - 4, (float)(y0 + h), (float)T.x1 - 4, (float)yt, tim, 220);
+            for (int r = 0; r < 4; ++r) mo_hspan(B, y0 + h + r, cx - 3 + r, cx + 3 - r, g, 240); } }
+    mo12_rect(B, x0, y0, wv, h, ch, 256);
+    if (wv < w) { mo12_rect(B, x0 + wv - 2, y0, 2, h, gh, 256); return; }
+    b_frame(B, x0, y0, w, h, tim); mo_hspan(B, y0 + 1, x0 + 1, x0 + w - 2, ((lv_now / 500) & 1) ? g : lv_hex(0x2e5a34), 256); mo_hspan(B, y0 + h - 2, x0 + 1, x0 + w - 2, lv_hex(0x3a3228), 256);
+    const char *nm = MO_DEV[i].name; const int L = (int)strlen(nm), ty = t - MO12_WIPE_MS;
+    int typed = ty < 0 ? 0 : ty / MO12_TYPE_MS; if (typed > L) typed = L; mo12_typed = typed;
+    int x = b_text35(B, x0 + 5, y0 + 5, "SEARCH", gh); x = b_text35(B, x + 3, y0 + 5, "//", lv_hex(0x8a7a5a));
+    char q[24]; snprintf(q, sizeof q, "%.*s", typed, nm); const int nx = x + 4, ne = b_text(B, nx, y0 + 4, q, pap);
+    if (typed < L || ((lv_now / 400) & 1)) mo12_rect(B, ne + 1, y0 + 4, 5, 7, gh, 256);   /* blinking green block cursor (solid while typing) */
+    char r[24]; snprintf(r, sizeof r, "%d/3 SCROLLS", mo12_nland); const int rx = x0 + w - 5 - lv_w35(r); b_text35(B, rx, y0 + 5, r, lv_hex(0xbfb294));
+    if (B.y0 == 0) { mo12_aud(x0 + 5, y0 + 5, x - 4 - (x0 + 5), 5, x0 + 2, y0 + 2, x0 + w - 3, y0 + h - 3, "sbarL"); mo12_aud(nx, y0 + 4, L * 6 + 6, 7, x0 + 2, y0 + 2, rx - 4, y0 + h - 3, "sbarQ");
+                     mo12_aud(rx, y0 + 5, lv_w35(r), 5, nx + L * 6 + 8, y0 + 2, x0 + w - 3, y0 + h - 3, "sbarR"); }
 }
-static void mo12_index(LvBand &B, int nland, const int *ys)   /* v5d: HACKbot lv_dl_drop folder rail: cyan lines at x 84 / 86 from the key bar down */
+static void mo12_index(LvBand &B, int nland, const int *ys)   /* the line items: a green index line from the bar down the folder column, a tick + node per landed folder */
 {
-    if (nland <= 0) return; const int yb = ys[nland - 1] + 12;
-    lvi_line(B, 84, MO12_BY + MO12_BH + 2, 84, yb, 0x2ca5b5); lvi_line(B, 86, MO12_BY + MO12_BH + 2, 86, yb, 0x124d61);
+    if (nland <= 0) return; const uint16_t g = lv_hex(MO11_G); const int xl = MO12_FX - 3, yb = ys[nland - 1] + 12;
+    for (int y = MO12_BY + MO12_BH; y <= yb; ++y) mo_bl(B, xl, y, g, 230);
+    for (int j = 0; j < nland; ++j) { const int yy = ys[j] + 12; mo_hspan(B, yy, xl, MO12_FX - 1, g, 230); mo12_rect(B, xl - 1, yy - 1, 3, 3, lv_hex(MO11_GH), 256); }
 }
 
 /* ---- per frame: the Gibson layout on the Morpheus world (called while swapped, skin 1 set so lv_rd_place runs mo11_drift) ---- */
@@ -615,7 +602,7 @@ static void mo11_overlay(LvBand &B)   /* skin-1 hook: called by lv_scene_radar a
         /* v13: red pill removed */
         int ys[4], nland = 0; float ph[4];
         for (int j = 0; j < 3; ++j) { const int tt = (int)el - MO12_DROP0 - j * MO12_GAP; const float u = tt / (float)MO12_DROP_MS; ph[j] = u;
-            const float uu = u < 0 ? 0 : u > 1 ? 1 : u; const int end = MO12_FY0 + j * MO12_FDY, start = j == 0 ? MO12_FY0 - 16 : MO12_FY0 + (j - 1) * MO12_FDY + 6; ys[j] = start + (int)((end - start) * (1.f - (1.f - uu) * (1.f - uu) * (1.f - uu)));   /* v5d: HACKbot lv_dl_drop ease */ if (tt >= 0 && u >= 0.65f) nland = j + 1; }
+            const int end = MO12_FY0 + j * MO12_FDY, start = LV_RD_Y0 - 50; ys[j] = start + (int)((end - start) * mo_ease(u)); if (tt >= 0 && u >= 0.65f) nland = j + 1; }
         mo12_nland = nland;
         mo12_index(B, nland, ys);
         for (int j = 2; j >= 0; --j) { const int tt = (int)el - MO12_DROP0 - j * MO12_GAP; if (tt < 0) continue;
@@ -696,6 +683,6 @@ static void mo_dump(void)
     for (int i = 0; i < MO_N; ++i) if (mo11_have[i]) printf("  MOEMB %d look=%d threat=%s hs=%.3f e=[%d,%d,%d]\n", i, MO_LOOKOF[i], MO_TNAME[MO_THREAT[i]], MO_HFIX[MO_LOOKOF[i]], mo_ex[i], mo_ey[i], mo_eS[i]);
     if (mo_txt_bad) printf("  MOWHY %s\n", mo_txt_why);
     if (cu >= 0 && mo11_have[cu]) { const LvTower &T = mo11_tw[cu]; printf("  MOCU %d p=%.3f f=[%d,%d,%d,%d] b=[%d,%d,%d,%d] fw=%d\n", cu, mo12_p(cu), T.x0, T.x1, T.yt, T.yb, T.bx0, T.bx1, T.byt, T.byb, T.x1 - T.x0); }
-    if (itw_mo_sel >= 0) { printf("  MOFOLD nland=%d typed=%d lit=%d drop0=%d ys=", mo12_nland, mo12_typed, mo12_lit, mo12_drop0()); for (int j = 0; j < 3; ++j) printf("%d/%d%s", mo12_fys[j], mo12_fph100[j], j < 2 ? "," : "\n"); }
+    if (itw_mo_sel >= 0) { printf("  MOFOLD nland=%d typed=%d ys=", mo12_nland, mo12_typed); for (int j = 0; j < 3; ++j) printf("%d/%d%s", mo12_fys[j], mo12_fph100[j], j < 2 ? "," : "\n"); }
 }
 #endif

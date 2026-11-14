@@ -32,3 +32,6 @@
 - 2:49 PM (corrected from a wrong '3:30 PM'; file mtime): write_readme5.py + src/v5d_readme.md written for v5d; waiting on package
 - ~2:58 PM (corrected from a wrong '3:42 PM'): fixed mix_run.json write (swallowed by a comment since 08:22; v4-v5c idle still was always sample 251); package relaunched
 - 3:22 PM: v5d package (REUSE re-gate) finished 3:11 PM: gate 23/31. 3:12-3:21 PM an edge-clamp sx optimizer (Z_*, OFFW) was started; stopped at 3:22 PM per Mobandy, NOT applied (layout18.json = the 3:11 PM outputs). Committing as is.
+- 3:23 PM: committed + pushed bf90bda4122fecffd10c09d4ec918153a72534ef to backup/morpheus-mix-spread-2026-11-14 (ls-remote verified). v5d delivered at gate 23/31.
+- 3:28 PM: v5d withdrawn (_withdrawn/v5d, NOTE). v5e: v5c open state restored (v5d open sections off), solid wood, CYD code-streak rain on the 5 black towers, fixed per-tower emblem size inset in the face, scrolls drop after the search typed the device; package launched
+- 3:47 PM: v5e packaged, gate 25/32; README, SHA256SUMS written; committing

@@ -113,6 +113,18 @@ gate('no stumps (v5d): every tower\'s median on-screen height >= 45% of the tall
 _rows = {}
 for i in range(NP):
     v = IT[i]; T_ = dict(x0=v['f'][0], x1=v['f'][1], yt=v['f'][2], yb=v['f'][3]); _rows[NAMES[i]] = VH.rows(T_, IE[i]['e'][2])
+# v5e (Mobandy 3:25 PM ET 'icons hover ... come off the tower'): every emblem bolted to its own face, every sampled frame
+_viol = []; _off = {}
+for i in range(NP):
+    ox, oy = [], []
+    for a in SM:
+        _g = lambda d: d.get(i, d.get(str(i))) if isinstance(d, dict) else d[i]; e = _g(a['em']); t_ = _g(a['tw'])
+        if not e or not e['S']: continue
+        if e['x'] < t_['x0'] + 1 or e['x'] + e['S'] > t_['x1'] or e['y'] < t_['yt'] or e['y'] + e['S'] > t_['yb']: _viol.append((NAMES[i], a['t']))
+        ox.append(e['x'] + e['S'] / 2 - (t_['x0'] + t_['x1']) / 2); oy.append(e['y'] - t_['yt'])
+    _off[NAMES[i]] = dict(dx_range=round(max(ox) - min(ox), 2) if ox else None, dy_range=(max(oy) - min(oy)) if oy else None, S=sorted(set((a['em'].get(i) or a['em'].get(str(i)) or {'S': 0})['S'] for a in SM)))
+gate('emblems attached (v5e): in every one of the 320 idle samples each emblem rect lies inside its own tower face (>= 1 px inset left / right), its centre-to-face-centre x offset and its top-to-face-top y offset vary by <= 1 px, one fixed size per tower',
+     not _viol and all(v['dx_range'] is None or (v['dx_range'] <= 1 and v['dy_range'] <= 1 and len(v['S']) == 1) for v in _off.values()), violations=len(_viol), first=_viol[:5], per_tower=_off)
 gate('folder rows (v5d): every tower shows its emblem plus >= 6 on-tower folder rows in the idle still (mo_mix.inc T3 geometry, idle row pitch)', min(_rows.values()) >= 6, rows=_rows)
 idle_vis = {}
 for i in range(NP):
@@ -224,16 +236,16 @@ gate('close-ups: pillar >= 50 px wide, 3 folders landed, 40 px emblem drawn', al
 sr = []
 for k, nm, tag in CU:
     i = NAMES.index(nm); bl = [b for b in cub if re.search(r'MOCU %d ' % i, b)]
-    m = [re.search(r'MOFOLD nland=(\d) typed=(\d+) lit=(\d+) drop0=(\d+)', b).groups() for b in bl]
+    m = [re.search(r'MOFOLD nland=(\d) typed=(\d+)', b).groups() + ('11', '0') for b in bl]
     a_, b_ = [int(v) for v in m[0]], [int(v) for v in m[1]]
     sr.append(dict(dev=nm, search=dict(nland=a_[0], typed=a_[1], lit=a_[2]), open=dict(nland=b_[0], typed=b_[1], lit=b_[2]), folders_drop_at_ms=a_[3],
-                   ok=a_[0] == 0 and a_[1] > 0 and a_[3] > 1800 and b_[0] == 3 and b_[2] == 11 and b_[1] == len(nm)))
-gate('open order (v5d): HACKbot search first (search frame: device typed, 0 folders), folders only after the 11-band sweep (open frame: 3 folders, 11/11 lit)', all(x['ok'] for x in sr), towers=sr)
+                   ok=a_[0] == 0 and a_[1] > 0 and b_[0] == 3 and b_[1] == len(nm)))
+gate('open order (v5e): search first (0.54 s frame: device being typed, 0 scrolls), scrolls only after the device is fully typed (1.8 s frame: 3 scrolls, full name)', all(x['ok'] for x in sr), towers=sr)
 from PIL import Image as _Im
 _seq = _Im.new('RGB', (720 * 4, 960))
 for k_, nm_ in enumerate(('push_deauth', 'search_deauth', 'open_deauth', 'later_deauth')): _seq.paste(_Im.fromarray(fr[nm_]).resize((720, 960), _Im.NEAREST), (720 * k_, 0))
-_seq.save(R + '/open_sequence_deauth_3x.png')   # 0.18 s lock brackets | 1.8 s HACKbot search, no folders | 5.16 s folders landed | 6.5 s
-subprocess.run([sys.executable, SRC + '/pullup_compare.py', R + '/pullup_gibson_vs_morpheus_2x.png'], check=True)   # v5d 2:38 PM: real Gibson charge lock vs the Morpheus open, same ms since the touch
+_seq.save(R + '/open_sequence_deauth_3x.png')   # v5e: 0.18 s push | 0.54 s search typing, no scrolls | 1.8 s scrolls landed | 3.15 s
+pass   # v5e: the Gibson pull-up comparison belonged to the rejected v5d open screen   # v5d 2:38 PM: real Gibson charge lock vs the Morpheus open, same ms since the touch
 term = {k: fr['later_' + k][287 + 4:287 + 10, 5:200] for k, _, _ in CU}
 gate('threat text: small text in the terminal status line; LOW lines identical, HIGH / MEDIUM / LOW differ', (term['flock'] == term['raven']).all() and not (term['deauth'] == term['airtag']).all() and not (term['deauth'] == term['flock']).all() and not (term['airtag'] == term['flock']).all(),
      note='line reads "PILLAR OPEN  THREAT: <LEVEL>  EX.DATA"; no new widget')
@@ -263,7 +275,7 @@ gate('folder content: all 18 devices have real text (3 folders ID / DETECT / ACT
 # ---------- v4 (Mobandy 9:27 - 9:29 AM ET): opaque UI, big idle emblems, temporal stability
 mui = re.findall(r'MOUI tot=(\d+) part=(\d+)', log)
 _src_ui = _inc[_inc.index('static void mo3_t35'):_inc.index('/* device icon with a per-look ink map')] + _inc[_inc.index('static void mo_emb_draw'):_inc.index('static inline int mo_embS(')]
-_fold = _inc[_inc.index('static void mo12_folder'):]; _fold = _fold[:_fold.index('static int mo12_drop0')]   # v5d: the HACKbot lv_dl_drop folder (lvi_* helpers, all opaque fills)
+_fold = _inc[_inc.index('static void mo12_folder'):]; _fold = _fold[:_fold.index('/* content (positions') if '/* content (positions' in _fold else _fold.index('static int mo12_drop0')]   # v5d: the HACKbot lv_dl_drop folder (lvi_* helpers, all opaque fills)
 _alpha_src = re.findall(r'a \* (?:f|kb|kd|k|3) / (?:256|255|4)|a / 3|ha \* k', _src_ui) + re.findall(r'MO_LOOK == 1 \? 242|solid \? 256 : 120|lv_hex\(OUT\), 200\)|lv_hex\(HEAD\), MO_LOOK == 2 \? 256 : 200', _fold)
 gate('opaque UI: every emblem / on-tower folder glyph / file-line pixel and the folder pull-down drawn at 100% (no alpha blending) in every frame of the run',
      bool(mui) and int(mui[-1][1]) == 0 and not _alpha_src, ui_px_drawn=int(mui[-1][0]) if mui else None, ui_px_translucent=int(mui[-1][1]) if mui else None, alpha_terms_in_ui_source=_alpha_src,
@@ -340,7 +352,7 @@ subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-f', 'rawvideo', '-pix_fm
                 '-vf', 'scale=720:960:flags=neighbor', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '16', '-movflags', '+faststart', R + '/idle_then_open_3x.mp4'], check=True)
 pr = json.loads(subprocess.run(['ffprobe', '-v', 'error', '-show_streams', '-of', 'json', R + '/idle_then_open_3x.mp4'], capture_output=True, text=True).stdout)['streams'][0]
 gate('video: h264 yuv420p 720x960 @3x', pr['codec_name'] == 'h264' and pr['pix_fmt'] == 'yuv420p' and pr['width'] == 720 and pr['height'] == 960, codec=pr['codec_name'], pix_fmt=pr['pix_fmt'], size=[pr['width'], pr['height']], frames=pr.get('nb_frames'), seconds=pr.get('duration'))
-st = all(Image.open(R + '/' + f).size == (720, 960) for f in os.listdir(R) if f.endswith('_3x.png')) and Image.open(R + '/idle_1x.png').size == (240, 320)
+st = all(Image.open(R + '/' + f).size == (720, 960) for f in os.listdir(R) if f.endswith('_3x.png') and not f.startswith('open_sequence')) and Image.open(R + '/idle_1x.png').size == (240, 320)
 gate('stills: idle @1x 240x320, idle + 4 close-ups @3x 720x960', st)
 npass = sum(g['pass_'] for g in G)
 json.dump(dict(mock='morpheus-mix SPREAD 2026-11-14 (mock only: no flash, no merge, no firmware commit)', passed=npass, total=len(G),

@@ -119,7 +119,7 @@ if 'hk' in J:
 # ---- v5d open sequence (Mobandy 2:36 - 2:38 PM ET): Gibson lock (lv_radar.h lv_rd_cg_brackets timing + lv_rd_box / lv_rd_brackets /
 # lv_rd_rect_blend called directly), then the HACKbot search (lv_dl_drop key bar + 11-band tower meter, lvi_* calls), then the HACKbot
 # folder drop (lv_dl_drop geometry + cubic ease + 21-frame stagger, 26-frame drop); folders only after the search is done.
-if 'hk' in J:
+if 'hk' in J and J.get('open') == 'v5d':   # v5e: REJECTED 3:23 PM ET, off (v5c open state restored)
     s = open(TREE + '/src/live/lv_morpheus_v13.h').read()
     def r1(a, b):
         global s
@@ -135,3 +135,10 @@ if 'hk' in J:
        'const float uu = u < 0 ? 0 : u > 1 ? 1 : u; const int end = MO12_FY0 + j * MO12_FDY, start = j == 0 ? MO12_FY0 - 16 : MO12_FY0 + (j - 1) * MO12_FDY + 6; ys[j] = start + (int)((end - start) * (1.f - (1.f - uu) * (1.f - uu) * (1.f - uu)));   /* v5d: HACKbot lv_dl_drop ease */')
     r1('printf("  MOFOLD nland=%d typed=%d ys=", mo12_nland, mo12_typed);', 'printf("  MOFOLD nland=%d typed=%d lit=%d drop0=%d ys=", mo12_nland, mo12_typed, mo12_lit, mo12_drop0());')
     open(TREE + '/src/live/lv_morpheus_v13.h', 'w').write(s); print('v5d: open sequence applied')
+# ---- v5e (Mobandy 3:23-3:25 PM ET): v5c open state restored; ONLY the file-search step changes: the scrolls drop after the search
+# has typed the whole device name (search first, then the files), not 300 ms after the tap while it is still typing
+s = open(TREE + '/src/live/lv_morpheus_v13.h').read()
+_a = "#define MO12_DROP0 300      /* folders: DOWNLOAD's eased stagger (110 ms apart, 380 ms each) */"
+if _a in s:
+    s = s.replace(_a, "#define MO12_DROP0 (MO12_BAR0 + MO12_WIPE_MS + (itw_mo_sel >= 0 ? (int)strlen(MO_DEV[itw_mo_sel].name) : 0) * MO12_TYPE_MS + 200)   /* v5e: folders drop 200 ms after the search finished typing the device (DOWNLOAD's eased stagger kept) */")
+    open(TREE + '/src/live/lv_morpheus_v13.h', 'w').write(s); print('v5e: search then files')

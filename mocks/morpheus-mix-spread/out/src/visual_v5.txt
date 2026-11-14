@@ -1,8 +1,14 @@
-My own look at idle_3x.png (v5d, 3:22 PM ET):
-- **Black Matrix towers.** They read black, with green code rails and an outline. FLIPPER (blue dolphin, centre), DEAUTH (cyan wifi, right back) and EVIL TWIN (left back) are clearly black.
-- **HACK is off screen.** HACK sits at the far left edge: in this still its face is at x -28..-4, so only a black sliver shows at the left border and its emblem is not visible.
-- **Wood towers.** The other towers read as see-through wood with opaque coloured emblems and green/white folder rows.
-- **Not all logos are visible.** HACK is off screen. META, SAMSUNG and RAVEN are hidden behind nearer towers in this still (0 emblem px). The other 14 emblems are visible.
-- **No stumps.** The shortest on-screen towers are still mid-height pillars with an emblem and 6+ rows; nothing reads as a stump.
-- **Near towers are visibly shorter than in v5c.** The far towers behind show emblems above them.
-- **The front floor (bottom ~40%) is still empty.**
+My own look (v5e, 3:48 PM ET). I checked idle_3x and the 4 DEAUTH open frames; I did not step through the whole video.
+
+**Idle (idle_3x)**
+- The wood towers are solid again.
+- HACK is on screen at the near left, a black Matrix tower with its skull emblem.
+- At idle size the rain on the black towers shows only as thin green streaks; it is easier to see in the close-up.
+- Emblems sit inside their faces at one fixed size each, so far towers carry small emblems.
+
+**Open sequence (DEAUTH)**
+- 0.18 s: camera push.
+- 0.54 s: the Morpheus search bar types "DEAUT_", shows 0/3 SCROLLS, and no scrolls are on screen.
+- 1.8 s: three green Morpheus scrolls have landed beside the tower.
+- 3.15 s: all three scrolls are LOADED.
+- No HACKbot overlay, chips, meters or strips remain.

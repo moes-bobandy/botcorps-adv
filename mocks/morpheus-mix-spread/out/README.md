@@ -1,66 +1,75 @@
-# MORPHEUS MIX SPREAD v5d (mock, 2026-11-14)
+# MORPHEUS MIX SPREAD v5e (mock, 2026-11-14)
 
 **Mock only.** Nothing was flashed, merged, or committed as firmware. Every number comes from the real 240x320 RGB565 sim (same pipeline as v4).
-Earlier versions are in `_withdrawn/v1` .. `v4` (v4 = the 10:15 AM ET renders, rejected 11:51 AM ET; v5a = the first v5 render, rejected 12:42 PM ET, see `_withdrawn/v5a/NOTE.txt`; v5b = commit 512fbb3, superseded 2:05 PM ET, `_withdrawn/v5b/`; v5c = commit d68abf4, superseded 2:34 PM ET, `_withdrawn/v5c/`).
+Earlier versions are in `_withdrawn/v1` .. `v4` (v4 = the 10:15 AM ET renders, rejected 11:51 AM ET; v5a = the first v5 render, rejected 12:42 PM ET, see `_withdrawn/v5a/NOTE.txt`; v5b = commit 512fbb3, superseded 2:05 PM ET, `_withdrawn/v5b/`; v5c = commit d68abf4, superseded 2:34 PM ET, `_withdrawn/v5c/`; v5d = commit bf90bda, open screen rejected 3:23 PM ET, `_withdrawn/v5d/`).
 
-## What changed in v5d (Mobandy 2:34 - 2:38 PM ET)
+## What changed in v5e (Mobandy 3:23 - 3:25 PM ET)
 
-1. **Shorter near towers (2:34 PM ET).** Each tower's world height is its group height times a fixed depth factor:
-   - `hk(Z) = 0.6 + (1.2 - 0.6) * smoothstep((Z - 1.6) / 3.2)`, from Gibson depth Z (`src/v5d_heights.py`). It is fixed per tower, so nothing breathes.
-   - Group order and ratios 1.00 / 0.80 / 0.62 hold at every depth.
-   - **Far factor is 1.2, not 1.0.** With 1.0 the far white towers could not keep >= 6 folder rows while the near towers also stayed >= 45% of the tallest on-screen tower. So the far towers are 20% taller than v5c, and the near ones are about 40% shorter.
-   - HACK, FLIPPER and SKIMMER are back at their true Gibson depths (1.71 / 1.94 / 2.17); their tops now fit.
-   - The front floor still can't take a base. The nearest Gibson depth (Z 1.6) puts a base at about y 205, so the band below is unreachable without leaving Gibson depth.
-   - Columns were re-picked for the new heights (`src/opt18/opt18e.py`, depth fixed).
-   - No stumps: the shortest tower (RING) is 47.3% of the tallest on-screen tower, median over 320 samples.
-   - Every tower shows its emblem plus at least 6 on-tower folder rows.
+**Withdrawn.** The v5d open screen was rejected because the HACKbot UI sat on top of the Morpheus screen and the stat bars and strips meant nothing. All of it is gone: the Gibson lock brackets, the HACKbot key bar, the 11-band meter, the folder chips, the meters and the load bars.
 
-   | tower (near -> far) | Z | hk | H | median on-screen px | idle folder rows |
-   |---|---|---|---|---|---|
-| HACK | 1.71 | 0.602 | 1.566 | 110 px | 18 |
-| CAMERA | 1.83 | 0.609 | 1.266 | 83 px | 11 |
-| FLIPPER | 1.94 | 0.619 | 1.610 | 100 px | 18 |
-| AXON | 2.06 | 0.633 | 1.317 | 76 px | 11 |
-| SKIMMER | 2.17 | 0.651 | 1.692 | 94 px | 17 |
+**Open screen.** This is v5c's Morpheus open state again, code for code:
+- the camera push;
+- the charcoal search bar hung from the tower by timber posts;
+- three green scrolls on DOWNLOAD's eased stagger, with the index line.
+
+**Search step.** Only the file-search step changed. The scrolls now drop 200 ms after the search bar has finished typing the device name, so the search comes first and the files follow. In v5c they started at 300 ms while the name was still typing.
+- Every element of the search bar is real: the typed text is the device name, and "n/3 SCROLLS" counts the scrolls that have landed.
+- Gate, from the sim's own state: DEAUTH at 0.54 s: 0 scrolls, 5 letters typed; at 1.8 s: 3 scrolls, 6 letters; AIR TAG at 0.54 s: 0 scrolls, 5 letters typed; at 1.8 s: 3 scrolls, 7 letters; FLOCK at 0.54 s: 0 scrolls, 5 letters typed; at 1.8 s: 3 scrolls, 5 letters; RAVEN at 0.54 s: 0 scrolls, 5 letters typed; at 1.8 s: 3 scrolls, 5 letters.
+
+**Solid wood.** The 13 wood towers are opaque again: front grain, sides and cap are drawn at full alpha.
+
+**Rain on the 5 black Matrix towers.** The towers are DEAUTH, HACK, SKIMMER, FLIPPER and EVIL TWIN.
+- The old dim glyph or 1 px code inside the glass is replaced by the CYD code-streak rain from `lv_radar.h`, the radar field's "code streaks" (`lv_rd_bg` case 0, RAIN), with the same law:
+
+  | part | value |
+  |---|---|
+  | x | (s*53+17) mod width |
+  | length | 10+(s*7) mod 18 |
+  | speed | 40+(s*29) mod 70 px/s |
+  | head | (t*speed + s*37) mod (height+length) |
+  | pixels lit | every 2nd |
+  | head colour | 0x10d858 |
+  | tail colour | 0x00a83c |
+  | fade | 8/8 at the head, then 6-k*5/len |
+
+- It is mapped into each tower's own face: 18 streams in the close-up, width/3 when idle, offset per tower.
+- It is drawn before the file rows and the emblem, so both stay opaque on top.
+
+**Emblems bolted to the face.** Each tower now has one fixed idle emblem size: its narrowest drifting face width over 320 real-sim samples minus 3, so there is at least 1 px inset on each side (`src/emb_fix_v5e.json`).
+- The emblem is centred on its own face with the same transform, so it never changes size or jumps while idle. It switches to 40 px only in the open close-up.
+- Gate over 320 samples:
+  - 0 rects fall outside their face;
+  - centre-to-face-centre x offset varies by at most 0.5 px;
+  - top offset varies by at most 1 px.
+
+**Unchanged from v5d:** the idle room (shorter near towers, Gibson depth, independent drift, colours, 5 black and 13 wood), the camera, and tw 1.35.
+
+### v5d height factors (kept)
+
+The shortest tower (RING) is 47.3% of the tallest on-screen tower. The minimum is 7 idle folder rows.
+
+| tower (near -> far) | Z | hk | H | median on-screen px | idle folder rows |
+|---|---|---|---|---|---|
+| HACK | 1.71 | 0.602 | 1.566 | 110 px | 21 |
+| CAMERA | 1.83 | 0.609 | 1.266 | 83 px | 13 |
+| FLIPPER | 1.94 | 0.619 | 1.610 | 100 px | 19 |
+| AXON | 2.06 | 0.633 | 1.317 | 76 px | 13 |
+| SKIMMER | 2.17 | 0.651 | 1.692 | 94 px | 14 |
 | GOOGLE TAG | 2.29 | 0.671 | 1.395 | 73 px | 10 |
-| DRONE | 2.40 | 0.694 | 1.118 | 56 px | 7 |
-| FLOCK | 2.63 | 0.746 | 1.203 | 55 px | 6 |
-| META | 2.86 | 0.805 | 1.674 | 71 px | 10 |
+| DRONE | 2.40 | 0.694 | 1.118 | 56 px | 8 |
+| FLOCK | 2.63 | 0.746 | 1.203 | 55 px | 8 |
+| META | 2.86 | 0.805 | 1.674 | 71 px | 12 |
 | EVIL TWIN | 2.97 | 0.836 | 2.174 | 87 px | 16 |
-| RAVEN | 3.43 | 0.964 | 1.554 | 55 px | 7 |
-| KEYFOB | 3.54 | 0.995 | 2.070 | 69 px | 10 |
-| IBEACON | 3.71 | 1.040 | 1.676 | 54 px | 9 |
-| DEAUTH | 3.83 | 1.068 | 2.776 | 87 px | 18 |
-| ALPR | 4.00 | 1.106 | 1.783 | 53 px | 7 |
+| RAVEN | 3.43 | 0.964 | 1.554 | 55 px | 9 |
+| KEYFOB | 3.54 | 0.995 | 2.070 | 69 px | 14 |
+| IBEACON | 3.71 | 1.040 | 1.676 | 54 px | 7 |
+| DEAUTH | 3.83 | 1.068 | 2.776 | 87 px | 16 |
+| ALPR | 4.00 | 1.106 | 1.783 | 53 px | 8 |
 | AIR TAG | 4.17 | 1.140 | 2.370 | 68 px | 11 |
-| RING | 4.34 | 1.167 | 1.881 | 52 px | 6 |
+| RING | 4.34 | 1.167 | 1.881 | 52 px | 7 |
 | SAMSUNG | 4.57 | 1.191 | 2.478 | 65 px | 10 |
 
-2. **Black Matrix towers (2:35 PM ET).** The 5 HIGH towers (DEAUTH, HACK, SKIMMER, FLIPPER, EVIL TWIN) use the existing T1 code-glass branch of `mo11_tower_fx`, the same code path v4 used for the green group.
-   - The falling Matrix code is unchanged. Only the glass base is darkened toward black: front `mo3_mx(0x03120a, 0x000201)`, side `0x05160d`, highlight `0x03120a -> 0x3a8a58`.
-   - The other 13 stay see-through wood (T3).
-   - Emblems use each device's own colour; folders are opaque.
-
-3. **Open sequence (2:36 - 2:38 PM ET).** A tap still pushes the camera in, as in v5c. Then, in order:
-   1. **Gibson lock (0 - 1.2 s).** This is the hold / lock bracket branch of `lv_radar.h lv_rd_fx`, line for line, calling the real `lv_rd_box`, `lv_rd_brackets`, `lv_rd_rect_blend`, `lv_dim` and `b_text35`:
-      - Brackets close in from pad 15 to pad 3 and brighten over 1 s.
-      - Then magenta brackets pulse at 1.6 Hz, with a tick and a LOCK label.
-      - The white snap flash is gated by the same `LV_RD_CHARGE` condition as Gibson, so it is off with the shipped charge lock.
-      - The hold is driven by the time since the tap, because Morpheus has no HOLD TO LOCK bar.
-      - The shipped Gibson locks by charging a HOLD TO LOCK bar, and the locked tower lights in its own colour (`lv_rd_cg_lit`). That part is not used here; `pullup_gibson_vs_morpheus_2x.png` shows both.
-   2. **HACKbot search (1.2 s - about 2.6 s).** This uses `lv_scanbot_download.h lv_dl_drop`'s key bar through the real `lvi_rect` / `lvi_box` / `lvi_line` / `lvi_txt` helpers:
-      - Dark fill, with the frame blinking amber / cyan and a cyan underline.
-      - Amber 3x5 text `[SEARCH // DEAUTH_ // n/11]` types the device name.
-      - Then lv_dl_drop's 11-band tower meter (`lvi_band` inks, rows 238 - k*18) lights band by band up the opened tower.
-   3. **Folders.** These use lv_dl_drop's folder chrome via the `lvi_*` helpers: tab, neon frame, scanlines, drop shadow, the cubic ease-out drop and the stagger, and the cyan rail at x 84 / 86. Each folder adds, inside that chrome and all from folders18:
-      - an `lvi_icon` detection icon and the file name;
-      - a HIGH / MED / LOW risk chip in the threat colour;
-      - the device tag, the EX.DATA dBm and an 11-step signal meter from the device's level;
-      - the action line;
-      - a HACKbot-style load bar with `n%` -> `GOT`;
-      - a `T+n.nS` timestamp since the tap.
-   - The idle on-tower folders are unchanged.
-   - Gate, from the sim's own state: DEAUTH search: 0 folders, typed 6, 4/11 lit; open: 3 folders, 11/11; AIR TAG search: 0 folders, typed 7, 3/11 lit; open: 3 folders, 11/11; FLOCK search: 0 folders, typed 5, 4/11 lit; open: 3 folders, 11/11; RAVEN search: 0 folders, typed 5, 4/11 lit; open: 3 folders, 11/11.
+The black towers are DEAUTH, HACK, SKIMMER, FLIPPER, EVIL TWIN.
 
 ## What changed in v5 (Mobandy 11:51 / 11:52 AM ET)
 
@@ -70,11 +79,11 @@ Earlier versions are in `_withdrawn/v1` .. `v4` (v4 = the 10:15 AM ET renders, r
 3. **A colour per device.** Each emblem gets its own saturated colour (`src/emb_colors.py`):
    - 18 colours with 18 distinct hues (min hue step 5 deg; v5a had crimson and rose both at 340 deg, rose is now #cc5c6a at 352 deg). They are dealt by a swap search that maximises the smallest deltaE between towers that are screen neighbours at any of 64 sampled idle times.
    - Emblems are still crisp binary masks with a 1 px dark outline, drawn pixel-aligned and opaque.
-   - Min pairwise deltaE (CIE76) = 36.4 (FLOCK / IBEACON). Min between screen neighbours = 48.0 (DRONE / EVIL TWIN). Min distance from the wood tones = 36.3.
+   - Min pairwise deltaE (CIE76) = 36.4 (FLOCK / IBEACON). Min between screen neighbours = 58.0 (SAMSUNG / CAMERA). Min distance from the wood tones = 36.3.
 4. **Width reverted:** `tw` is back to **1.35** (v4 had 2.2, which was unrequested).
 5. **Spread (11:52 AM / 12:42 PM ET) - front floor NOT filled.** Columns re-picked (`src/opt18/opt18e.py`, seed 952, depth fixed by item 6) on a corrected occlusion model (a nearer pillar's box now starts at min(front top, back top); v5a missed the front-face top strip, which also caused the false emblem 'flicker'), with an emblem visibility floor, empty-floor and screen-third balance terms.
-   - Largest empty floor square, whole visible floor (rows 140-285): v4 idle **107 px**, v5a idle **71 px**, v5b idle **89 px** (median over 320 samples 87.0, worst 97).
-   - Standable floor (rows 140-251; a base lower than y 251 needs z0 < 0.95 and the tower top leaves the field): v5a idle **43 px**, v5b idle **61 px** (median 61.0, worst 73). Bases per screen third L/M/R: v5a 6/8/4, v5b 6/6/6; front-row bases per third 1/0/0.
+   - Largest empty floor square, whole visible floor (rows 140-285): v4 idle **107 px**, v5a idle **71 px**, v5b idle **83 px** (median over 320 samples 87.0, worst 97).
+   - Standable floor (rows 140-251; a base lower than y 251 needs z0 < 0.95 and the tower top leaves the field): v5a idle **43 px**, v5b idle **63 px** (median 61.0, worst 73). Bases per screen third L/M/R: v5a 6/8/4, v5b 2/8/8; front-row bases per third 1/0/1.
    - The front floor stays bare: towers on it are 35-45 px wide and hide the emblems behind them. With camera, heights, tw and drift locked, ~40 optimizer runs never got the whole-floor square below ~70 px while keeping every emblem >= 0.5 visible.
 6. **Depth like the Gibson scan (2:06 PM ET).** Each device's depth comes from its **example** signal (EX.DATA rssi) through reused Gibson code in `tree/src/live/lv_radar.h`: `lv_rd_level()` (level = rssi + 100, 4..60) and the depth band of `lv_rd_place()` (`T.Z = 1.6f + u * 3.2f`), with u = (60 - level) / 56, so strong = near (Z 1.6) and weak = far (Z 4.8). The real Gibson scan takes u from a MAC hash, not from rssi: the rssi -> u step is new. Columns stay inside Gibson's width spread (`T.X = +-0.72 * T.Z`, screen 34..206). Tall towers are pushed back only as far as the top-clip rule needs. Code: `src/gibson_depth_drift.py`.
    - Near -> far: HACK (-42 dBm, Z 1.71), CAMERA (-44 dBm, Z 1.83), FLIPPER (-46 dBm, Z 1.94), AXON (-48 dBm, Z 2.06), SKIMMER (-50 dBm, Z 2.17), GOOGLE TAG (-52 dBm, Z 2.29), DRONE (-54 dBm, Z 2.40), FLOCK (-58 dBm, Z 2.63), META (-62 dBm, Z 2.86), EVIL TWIN (-64 dBm, Z 2.97), RAVEN (-72 dBm, Z 3.43), KEYFOB (-74 dBm, Z 3.54), IBEACON (-77 dBm, Z 3.71), DEAUTH (-79 dBm, Z 3.83), ALPR (-82 dBm, Z 4.00), AIR TAG (-85 dBm, Z 4.17), RING (-88 dBm, Z 4.34), SAMSUNG (-92 dBm, Z 4.57).
@@ -106,67 +115,71 @@ Earlier versions are in `_withdrawn/v1` .. `v4` (v4 = the 10:15 AM ET renders, r
 
 ## What the idle still looks like
 
-My own look at idle_3x.png (v5d, 3:22 PM ET):
-- **Black Matrix towers.** They read black, with green code rails and an outline. FLIPPER (blue dolphin, centre), DEAUTH (cyan wifi, right back) and EVIL TWIN (left back) are clearly black.
-- **HACK is off screen.** HACK sits at the far left edge: in this still its face is at x -28..-4, so only a black sliver shows at the left border and its emblem is not visible.
-- **Wood towers.** The other towers read as see-through wood with opaque coloured emblems and green/white folder rows.
-- **Not all logos are visible.** HACK is off screen. META, SAMSUNG and RAVEN are hidden behind nearer towers in this still (0 emblem px). The other 14 emblems are visible.
-- **No stumps.** The shortest on-screen towers are still mid-height pillars with an emblem and 6+ rows; nothing reads as a stump.
-- **Near towers are visibly shorter than in v5c.** The far towers behind show emblems above them.
-- **The front floor (bottom ~40%) is still empty.**
+My own look (v5e, 3:48 PM ET). I checked idle_3x and the 4 DEAUTH open frames; I did not step through the whole video.
+
+**Idle (idle_3x)**
+- The wood towers are solid again.
+- HACK is on screen at the near left, a black Matrix tower with its skull emblem.
+- At idle size the rain on the black towers shows only as thin green streaks; it is easier to see in the close-up.
+- Emblems sit inside their faces at one fixed size each, so far towers carry small emblems.
+
+**Open sequence (DEAUTH)**
+- 0.18 s: camera push.
+- 0.54 s: the Morpheus search bar types "DEAUT_", shows 0/3 SCROLLS, and no scrolls are on screen.
+- 1.8 s: three green Morpheus scrolls have landed beside the tower.
+- 3.15 s: all three scrolls are LOADED.
+- No HACKbot overlay, chips, meters or strips remain.
 
 ## Idle still
 
-`idle_1x.png` / `idle_3x.png` = idle sample **202 of 320** (median of per-sample quality (mean emblem visible fraction + mean tap square/60) over the samples where all 18 pillars show some emblem and keep a tap cell; not the best sample; quality 1.0887, median 1.0882).
+`idle_1x.png` / `idle_3x.png` = idle sample **261 of 320** (median of per-sample quality (mean emblem visible fraction + mean tap square/60) over the samples where all 18 pillars show some emblem and keep a tap cell; not the best sample; quality 1.1031, median 1.1031).
 
 ## Per pillar (real sim)
 
 | # | device | group x hk = H | sx | z0 | emblem S | idle px | vis % | tap cell % | min sq | p10 |
 |---|---|---|---|---|---|---|---|---|---|---|
-| 0 | DEAUTH | 1.00 x 1.068 = 2.776 | 186.9 | 3.829 | 8 | 64 | 97 | 100.0 | 35 | 39 |
-| 1 | HACK | 1.00 x 0.602 = 1.566 | 34.0 | 1.714 | 22 | 0 | 86 | 100.0 | 21 | 37 |
-| 2 | FLOCK | 0.62 x 0.746 = 1.203 | 96.0 | 2.629 | 14 | 196 | 62 | 99.7 | 0 | 9 |
-| 3 | DRONE | 0.62 x 0.694 = 1.118 | 60.3 | 2.400 | 18 | 324 | 55 | 99.7 | 0 | 9 |
-| 4 | AIR TAG | 0.80 x 1.140 = 2.370 | 68.8 | 4.171 | 8 | 64 | 51 | 97.8 | 0 | 9 |
-| 5 | KEYFOB | 0.80 x 0.995 = 2.070 | 187.4 | 3.543 | 10 | 40 | 43 | 100.0 | 1 | 9 |
-| 6 | META | 0.80 x 0.805 = 1.674 | 116.3 | 2.857 | 12 | 0 | 55 | 98.7 | 0 | 9 |
-| 7 | SKIMMER | 1.00 x 0.651 = 1.692 | 194.2 | 2.171 | 16 | 256 | 93 | 100.0 | 7 | 15 |
-| 8 | FLIPPER | 1.00 x 0.619 = 1.610 | 132.7 | 1.943 | 18 | 324 | 95 | 100.0 | 3 | 21 |
-| 9 | SAMSUNG | 0.80 x 1.191 = 2.478 | 127.6 | 4.571 | 6 | 0 | 56 | 99.1 | 0 | 15 |
-| 10 | AXON | 0.80 x 0.633 = 1.317 | 202.5 | 2.057 | 18 | 324 | 73 | 100.0 | 1 | 15 |
-| 11 | RAVEN | 0.62 x 0.964 = 1.554 | 164.8 | 3.429 | 10 | 0 | 36 | 99.4 | 0 | 5 |
-| 12 | ALPR | 0.62 x 1.106 = 1.783 | 36.2 | 4.000 | 8 | 8 | 33 | 97.2 | 0 | 5 |
-| 13 | CAMERA | 0.80 x 0.609 = 1.266 | 141.9 | 1.829 | 20 | 400 | 92 | 100.0 | 11 | 31 |
-| 14 | RING | 0.62 x 1.167 = 1.881 | 77.0 | 4.343 | 8 | 36 | 32 | 97.5 | 0 | 5 |
-| 15 | GOOGLE TAG | 0.80 x 0.671 = 1.395 | 69.1 | 2.286 | 16 | 96 | 70 | 100.0 | 7 | 11 |
-| 16 | EVIL TWIN | 1.00 x 0.836 = 2.174 | 52.1 | 2.971 | 12 | 144 | 66 | 100.0 | 17 | 35 |
-| 17 | IBEACON | 0.62 x 1.040 = 1.676 | 206.0 | 3.714 | 8 | 64 | 36 | 99.4 | 0 | 5 |
+| 0 | DEAUTH | 1.00 x 1.068 = 2.776 | 186.9 | 3.829 | 6 | 36 | 99 | 100.0 | 35 | 39 |
+| 1 | HACK | 1.00 x 0.602 = 1.566 | 34.0 | 1.714 | 18 | 324 | 86 | 100.0 | 21 | 37 |
+| 2 | FLOCK | 0.62 x 0.746 = 1.203 | 96.0 | 2.629 | 10 | 100 | 64 | 99.7 | 0 | 9 |
+| 3 | DRONE | 0.62 x 0.694 = 1.118 | 60.3 | 2.400 | 11 | 121 | 54 | 99.7 | 0 | 9 |
+| 4 | AIR TAG | 0.80 x 1.140 = 2.370 | 68.8 | 4.171 | 5 | 0 | 55 | 97.8 | 0 | 9 |
+| 5 | KEYFOB | 0.80 x 0.995 = 2.070 | 187.4 | 3.543 | 6 | 0 | 46 | 100.0 | 1 | 9 |
+| 6 | META | 0.80 x 0.805 = 1.674 | 116.3 | 2.857 | 9 | 81 | 56 | 98.7 | 0 | 9 |
+| 7 | SKIMMER | 1.00 x 0.651 = 1.692 | 194.2 | 2.171 | 13 | 169 | 96 | 100.0 | 7 | 15 |
+| 8 | FLIPPER | 1.00 x 0.619 = 1.610 | 132.7 | 1.943 | 15 | 225 | 98 | 100.0 | 3 | 21 |
+| 9 | SAMSUNG | 0.80 x 1.191 = 2.478 | 127.6 | 4.571 | 4 | 16 | 57 | 99.1 | 0 | 15 |
+| 10 | AXON | 0.80 x 0.633 = 1.317 | 202.5 | 2.057 | 14 | 28 | 73 | 100.0 | 1 | 15 |
+| 11 | RAVEN | 0.62 x 0.964 = 1.554 | 164.8 | 3.429 | 7 | 0 | 37 | 99.4 | 0 | 5 |
+| 12 | ALPR | 0.62 x 1.106 = 1.783 | 36.2 | 4.000 | 6 | 24 | 34 | 97.2 | 0 | 5 |
+| 13 | CAMERA | 0.80 x 0.609 = 1.266 | 141.9 | 1.829 | 17 | 289 | 92 | 100.0 | 11 | 31 |
+| 14 | RING | 0.62 x 1.167 = 1.881 | 77.0 | 4.343 | 5 | 0 | 36 | 97.5 | 0 | 5 |
+| 15 | GOOGLE TAG | 0.80 x 0.671 = 1.395 | 69.1 | 2.286 | 13 | 129 | 70 | 100.0 | 7 | 11 |
+| 16 | EVIL TWIN | 1.00 x 0.836 = 2.174 | 52.1 | 2.971 | 9 | 81 | 69 | 100.0 | 17 | 35 |
+| 17 | IBEACON | 0.62 x 1.040 = 1.676 | 206.0 | 3.714 | 6 | 12 | 37 | 99.4 | 0 | 5 |
 
-## Gate: 23/31 (`gate.json`)
+## Gate: 25/32 (`gate.json`)
 
-- FAIL: bodies (v5d): the 5 HIGH towers (DEAUTH, HACK, SKIMMER, FLIPPER, EVIL TWIN) read as black Matrix code glass (T1), the other 13 as see-through wood (T3); pixel class from each face's own opaque outline / median pixels
 - FAIL: emblem visibility (idle still): every pillar shows emblem pixels
 - FAIL: emblem visibility (320 idle samples): every pillar mean visible fraction >= 0.5
 - FAIL: tap: every pillar keeps a tap cell in every idle sample (100%)
 - FAIL: tap: p10 largest square >= 20 px for every pillar
 - FAIL: floor coverage: largest empty standable-floor square <= 60 px (idle + 320-sample median), whole floor <= 75 px, 5-7 bases per screen third and >= 1 front-row base (y >= 200) in each third (v4 107 px, v5a 71 px whole floor)
 - FAIL: emblem colours: 18 distinct saturated colours with 18 distinct hues (min hue step >= 5 deg), min pairwise CIE76 deltaE >= 30, screen-adjacent towers deltaE >= 40, every colour deltaE >= 30 from the wood tones, >= 16 of 18 drawn in the idle still
-- FAIL: stills: idle @1x 240x320, idle + 4 close-ups @3x 720x960
+- FAIL: emblems: idle emblem as large as the face allows (S from face width - 4 to face width, 2 px steps with hysteresis; was 8 / 10 / 16 px steps)
 
-Temporal stability: 243 pairs, mean |dY| 0.0, worst 0.0. Opaque UI: 478575846 UI pixels, 0 translucent. The tap rule was not changed.
+Temporal stability: 256 pairs, mean |dY| 0.011, worst 2.8. Opaque UI: 330972208 UI pixels, 0 translucent. The tap rule was not changed.
 
 ## Files
 
 | file | content |
 |---|---|
 | `idle_1x.png`, `idle_3x.png` | idle still |
-| `closeup_deauth_high_3x.png` | close-up, height group 1.00, black Matrix body, folders open |
+| `closeup_deauth_high_3x.png` | close-up, height group 1.00, black Matrix body with code rain, scrolls open |
 | `closeup_airtag_medium_3x.png` | close-up, height group 0.80 |
 | `closeup_flock_low_3x.png` | close-up, height group 0.62 |
 | `emblem_colors.png` | 18 emblems in their colours on wood (16 / 24 / 40 px) |
-| `idle_then_open_3x.mp4` | idle, then DEAUTH, AIR TAG, FLOCK, RAVEN opened (lock, HACKbot search, folders); 720x960 h264 |
-| `open_sequence_deauth_3x.png` | DEAUTH open: 0.18 s lock brackets, 1.8 s HACKbot search (no folders), 5.16 s folders landed, 6.5 s |
-| `pullup_gibson_vs_morpheus_2x.png` | top: real Gibson radar charge lock; bottom: Morpheus open; same ms since the touch |
+| `idle_then_open_3x.mp4` | idle, then DEAUTH, AIR TAG, FLOCK, RAVEN opened (search, then scrolls); 720x960 h264 |
+| `open_sequence_deauth_3x.png` | DEAUTH open: 0.18 s push, 0.54 s search typing (no scrolls), 1.8 s scrolls landed, 3.15 s |
 | `folders.md` | folder text (unchanged from v4) |
 | `gate.json`, `SHA256SUMS` | gates, checksums |
 | `src/`, `tree_patch/` | generator sources, patched headers |

@@ -14,7 +14,7 @@
 | SCROLL 2 | Up to 2 numbers as 7-segment digits, labelled | The device's numeric items (e.g. DEAUTH SUBTYPE 12, DISASOC 10; FLOCK OUI 49) |
 | SCROLL 3 (protect) | Shield-check icon + DO THIS | Marks the header line as the action to take |
 
-**Removed:** the progress bar, LOADED / %, the landing light sweep and the idle glow cycle. None of them showed data.
+**Removed:** the progress bar, LOADED / %%, the landing light sweep and the idle glow cycle. None of them showed data.
 
 **Rain on the 5 black towers is brighter.** It is the same lv_radar.h code-streak law (x, length, speed, head), now with:
 - denser streams (face width / 2);

@@ -1,4 +1,4 @@
-# LOCKED: Morpheus tower look = towers3c/EB2
+# SUPERSEDED by ../EB3 (FINAL lock, Mobandy 2026-11-14 8:55 PM ET). Was: LOCKED Morpheus tower look = towers3c/EB2
 
 Locked by Mobandy on 2026-11-14, 8:41 PM ET ("bring a 25% up closer ... and then lock it in"). EB look (approved 8:40 PM ET) + far-tower width fix + near-25% forward spread + real-threat banner.
 Source: ../src/eb2_body.py, ../src/mo_mix_towers3c_EB2.inc, ../src/eb2_tree_patched/. Built 2026-11-14 08:51 PM ET.

@@ -1,0 +1,5 @@
+# towers3c / EB3: FINAL (Mobandy 8:55 PM ET "fix those then final view and lock")
+Base: EB2. Build: ../src/eb3_body.py (MO_BODY=5, MO_EB2, MINFW 10.5, KZ 0.6), real C++ sim via zig.
+1. AXON shifted 37 px left at base depth. Near-5 camera sway is compensated (X += camx*(1-k)), so the moved towers sway exactly as much on screen as they did in EB, with no extra parallax. Across one full 14 s camera cycle (24 samples, steps_sway.json), AXON's face stays within x 114..225 of 0..239 (axon_sway_extremes_2x.png). The model check over 140 s of drift at camera ±0.5 also kept it inside x 1..238.
+2. Visibility: per-tower screen-x nudges and small far-tower depth nudges (eb3_dsx.json) come from an occlusion model of the idle still (eb3_vis_model.py / eb3_opt.py). RING moved +50 px and SAMSUNG -6 px. The near 5 keep their depth, so the floor gap is kept.
+3. Idle banner: "18 THREATS: 5 HIGH 7 MED 6 LOW - TAP A PILLAR  EX.DATA", counted at runtime from MO_THREAT over the 18 example devices. It uses the amber (non-alert) style. The open screen still shows "<DEVICE>  THREAT: <level>" (from EB2).

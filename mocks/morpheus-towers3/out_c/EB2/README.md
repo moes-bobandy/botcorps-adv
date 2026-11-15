@@ -1,0 +1,5 @@
+# towers3c / EB2: EB with three fixes (Mobandy 8:40-8:42 PM ET)
+Base: EB (all 18 own-colour enamel + right-rail LED column). Build: ../src/eb2_body.py (-DMO_BODY=5 -DMO_EB2=1 -DMO_EB2_MINFW=10.5f -DMO_EB2_KZ=0.6f), real C++ sim via zig.
+1. Far towers: min on-screen face of 10.5 px at 1x (world half-width w >= 10.5*Z/(2F)). The side depth d scales by the same factor, so the side/face ratio is unchanged (no warp). X, Z, H, depth order, and drift are unchanged. Affected at idle: 4, 9, 12, 14, 17 (and 0 grazes the limit).
+2. Nearest 25% by Gibson depth (5 of 18: HACK, CAMERA, FLIPPER, AXON, SKIMMER) move forward. The whole tower (X, Z, H, w, d) scales by 0.6 about the camera, so on-screen size, height and emblem are unchanged, and the base drops 37-45 px for a clear floor gap in front of the rest. Drift is independent, and the scale eases back to 1 while the tower is pulled up (open sequence unchanged).
+3. Open-screen banner: "<DEVICE>  THREAT: <HIGH|MEDIUM|LOW>  EX.DATA" from the real example threat. HIGH uses the Gibson alert (red flashing) banner. The idle banner is unchanged.

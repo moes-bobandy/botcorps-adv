@@ -1,0 +1,6 @@
+D idle: 0 px changed outside tower boxes, 8279 inside; close-up: 896 px changed in x>=88 (folders/right side), 14701 total
+E idle: 0 px changed outside tower boxes, 8279 inside; close-up: 897 px changed in x>=88 (folders/right side), 14702 total
+F idle: 0 px changed outside tower boxes, 8279 inside; close-up: 901 px changed in x>=88 (folders/right side), 14706 total
+D x>=105: 323 x range of x>=88 diffs 88 172
+E x>=105: 324 x range of x>=88 diffs 88 172
+F x>=105: 328 x range of x>=88 diffs 88 172

@@ -1,0 +1,25 @@
+--- /workspace/out/morpheus-mix/towers3c/src/eb3_tree_patched/lv_morpheus_v13.h	2026-11-14 21:21:33.000000000 -0500
++++ tree/src/live/lv_morpheus_v13.h	2026-11-15 17:42:48.269998725 -0500
+@@ -630,6 +630,9 @@
+     mo_terminal(B); mo_chrome(B);
+     lv_draw_backbot(B, LV_R_BACKBOT.x0, LV_R_BACKBOT.y0);
+ }
++#ifdef MO_TD
++#include "td4_topdown.h"
++#endif
+ static void itw_mo_scene(LvBand &B, void *)
+ {
+     lv_hc_swap();
+@@ -637,7 +640,11 @@
+     const int rain = lv_rain; lv_rain = 1;   /* the Construct always shows the code rain */
+     lv_rd_skin = 1; mo11_layout();           /* skin 1 during layout: lv_rd_place runs mo11_drift */
+     mo12_B = &B;
+-    lv_rd_skin_fa = MO11_FA; lv_scene_radar(B, 0); lv_rd_skin = 0; lv_rd_skin_fa = 3; lv_rd_skin_tw = 1.0f; lv_rd_skin_th = 1.0f;
++#ifdef MO_TD
++    lv_rd_skin_fa = MO11_FA; td_scene(B);   /* TOP-DOWN 4D mock: replaces the front-view draw only */
++#else
++    lv_rd_skin_fa = MO11_FA; lv_scene_radar(B, 0);
++#endif lv_rd_skin = 0; lv_rd_skin_fa = 3; lv_rd_skin_tw = 1.0f; lv_rd_skin_th = 1.0f;
+     mo12_B = nullptr;
+     lv_rain = rain;
+     lv_hc_swap();

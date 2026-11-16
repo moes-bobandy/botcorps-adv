@@ -1,0 +1,63 @@
+tickto 1000
+press 52 55
+tickto 1800
+release
+tickto 1900
+tickto 2500
+press 52 55
+tickto 4200
+release
+tickto 5000
+press 187 55
+tickto 6700
+release
+tickto 7500
+press 187 226
+tickto 9200
+release
+tickto 10000
+press 52 226
+tickto 11700
+release
+tickto 12300
+tickto 13000
+tick 200
+dump home
+rtap 52 82
+waitscr 13
+tickrel 78660
+dump route_botpheus_idle
+rtap 225 305
+waitscr 2
+tick 30
+rtap 67 205
+waitscr 12
+tick 20
+dump route_hackbot_entry
+rtap 225 305
+waitscr 2
+tick 30
+rtap 186 80
+waitscr 14
+tick 20
+dump route_controlbot
+rtap 225 305
+waitscr 2
+tick 30
+rtap 120 90
+waitscr 8
+tick 20
+dump route_gibson
+rtap 225 305
+waitscr 2
+tick 30
+rtap 173 205
+waitscr 3
+tick 20
+dump route_terminal
+rtap 225 305
+tick 20
+rtap 120 10
+waitscr 4
+tick 20
+dump route_ticker_scan

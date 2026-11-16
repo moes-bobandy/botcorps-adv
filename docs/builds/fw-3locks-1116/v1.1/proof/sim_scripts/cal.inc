@@ -1,0 +1,24 @@
+tickto 1000
+press 52 55
+tickto 1800
+release
+tickto 1900
+tickto 2500
+press 52 55
+tickto 4200
+release
+tickto 5000
+press 187 55
+tickto 6700
+release
+tickto 7500
+press 187 226
+tickto 9200
+release
+tickto 10000
+press 52 226
+tickto 11700
+release
+tickto 12300
+tickto 13000
+tick 200

@@ -1,0 +1,8 @@
+tick 67
+tick 150
+go 2
+tick 36
+tap 67 205
+tick 4
+tick 150
+dump tapB_hk01

@@ -1,0 +1,10 @@
+tick 67
+tick 190
+go 2
+tick 40
+dump home
+tick 7
+dump home_b
+tap 67 205
+tick 1
+dump home_hk_flash

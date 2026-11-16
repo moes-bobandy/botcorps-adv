@@ -1,0 +1,145 @@
+t=0 BACKLIGHT 80% (duty 204/255) (SIM)
+t=0 CONTROLbot boot settings scan=0 vol=40 bri=80 chime=1 time=0 bar=3 tone=0 rain=1 rainmode=0
+t=11605 CAL SAVE c0..c7 = 211 263 3771 274 204 3757 3764 3768 (SIM NVS)
+  chip 1 at 52,51 -> lgfx maps to 53,47
+  chip 2 at 187,51 -> lgfx maps to 188,47
+  chip 3 at 187,222 -> lgfx maps to 187,219
+  chip 4 at 52,222 -> lgfx maps to 52,218
+  worst axis error 4 px
+t=19170 rtap glass 186,80 120ms -> last raw->cal 187,74 -> tap 185,74 -> ctl (scr=2)
+t=19260 waitscr 14 -> scr=14
+DUMP c00_entry scr=14 seg=-1 clipframe=-1 t=19860
+OVL c00_entry
+t=20030 BACKLIGHT 80% (duty 204/255) (SIM)
+t=20030 NVS CONTROLbot scan=1 vol=40 bri=80 chime=1 time=0 bar=3 tone=0 (SIM)
+t=20030 rtap glass 80,231 120ms -> last raw->cal 80,226 -> tap 81,229 -> cb-scan (scr=14)
+DUMP c01_scan_flash scr=14 seg=-1 clipframe=-1 t=20060
+OVL c01_scan_flash
+DUMP c01_scan_after scr=14 seg=-1 clipframe=-1 t=20330
+OVL c01_scan_after
+t=20500 BACKLIGHT 80% (duty 204/255) (SIM)
+t=20500 NVS CONTROLbot scan=1 vol=50 bri=80 chime=1 time=0 bar=3 tone=0 (SIM)
+t=20500 SPEAKER 2000 Hz vol 50% (SIM)
+t=20500 rtap glass 100,254 120ms -> last raw->cal 98,252 -> tap 101,252 -> cb-vol+ (scr=14)
+DUMP c02_vol_plus_flash scr=14 seg=-1 clipframe=-1 t=20530
+OVL c02_vol_plus_flash
+t=20560 SPEAKER 0 Hz vol 50% (SIM)
+DUMP c02_vol_plus_after scr=14 seg=-1 clipframe=-1 t=20800
+OVL c02_vol_plus_after
+t=20970 BACKLIGHT 80% (duty 204/255) (SIM)
+t=20970 NVS CONTROLbot scan=1 vol=40 bri=80 chime=1 time=0 bar=3 tone=0 (SIM)
+t=20970 SPEAKER 2000 Hz vol 40% (SIM)
+t=20970 rtap glass 60,254 120ms -> last raw->cal 62,249 -> tap 61,249 -> cb-vol- (scr=14)
+DUMP c03_vol_minus_flash scr=14 seg=-1 clipframe=-1 t=21000
+OVL c03_vol_minus_flash
+t=21030 SPEAKER 0 Hz vol 40% (SIM)
+DUMP c03_vol_minus_after scr=14 seg=-1 clipframe=-1 t=21270
+OVL c03_vol_minus_after
+t=21440 BACKLIGHT 70% (duty 178/255) (SIM)
+t=21440 NVS CONTROLbot scan=1 vol=40 bri=70 chime=1 time=0 bar=3 tone=0 (SIM)
+t=21440 rtap glass 60,277 120ms -> last raw->cal 61,271 -> tap 62,274 -> cb-bright- (scr=14)
+DUMP c04_bright_minus_flash scr=14 seg=-1 clipframe=-1 t=21470
+OVL c04_bright_minus_flash
+DUMP c04_bright_minus_after scr=14 seg=-1 clipframe=-1 t=21740
+OVL c04_bright_minus_after
+t=21910 BACKLIGHT 80% (duty 204/255) (SIM)
+t=21910 NVS CONTROLbot scan=1 vol=40 bri=80 chime=1 time=0 bar=3 tone=0 (SIM)
+t=21910 rtap glass 100,277 120ms -> last raw->cal 99,274 -> tap 98,273 -> cb-bright+ (scr=14)
+DUMP c05_bright_plus_flash scr=14 seg=-1 clipframe=-1 t=21940
+OVL c05_bright_plus_flash
+DUMP c05_bright_plus_after scr=14 seg=-1 clipframe=-1 t=22210
+OVL c05_bright_plus_after
+t=22380 BACKLIGHT 80% (duty 204/255) (SIM)
+t=22380 NVS CONTROLbot scan=1 vol=40 bri=80 chime=0 time=0 bar=3 tone=0 (SIM)
+t=22380 rtap glass 135,237 120ms -> last raw->cal 134,233 -> tap 134,234 -> cb-chime (scr=14)
+DUMP c06_chime_flash scr=14 seg=-1 clipframe=-1 t=22410
+OVL c06_chime_flash
+DUMP c06_chime_after scr=14 seg=-1 clipframe=-1 t=22680
+OVL c06_chime_after
+t=22850 BACKLIGHT 80% (duty 204/255) (SIM)
+t=22850 NVS CONTROLbot scan=1 vol=40 bri=80 chime=0 time=1 bar=3 tone=0 (SIM)
+t=22850 rtap glass 176,237 120ms -> last raw->cal 176,233 -> tap 177,232 -> cb-time (scr=14)
+DUMP c07_time_flash scr=14 seg=-1 clipframe=-1 t=22880
+OVL c07_time_flash
+DUMP c07_time_after scr=14 seg=-1 clipframe=-1 t=23150
+OVL c07_time_after
+t=23320 BACKLIGHT 80% (duty 204/255) (SIM)
+t=23320 NVS CONTROLbot scan=1 vol=40 bri=80 chime=0 time=1 bar=4 tone=0 (SIM)
+t=23320 rtap glass 135,272 120ms -> last raw->cal 137,269 -> tap 136,270 -> cb-bar (scr=14)
+DUMP c08_bar_flash scr=14 seg=-1 clipframe=-1 t=23350
+OVL c08_bar_flash
+DUMP c08_bar_after scr=14 seg=-1 clipframe=-1 t=23620
+OVL c08_bar_after
+t=23790 BACKLIGHT 80% (duty 204/255) (SIM)
+t=23790 NVS CONTROLbot scan=1 vol=40 bri=80 chime=0 time=1 bar=4 tone=1 (SIM)
+t=23790 SPEAKER 1319 Hz vol 40% (SIM)
+t=23790 rtap glass 176,272 120ms -> last raw->cal 175,266 -> tap 174,270 -> cb-tone (scr=14)
+DUMP c09_tone_flash scr=14 seg=-1 clipframe=-1 t=23820
+OVL c09_tone_flash
+t=23850 SPEAKER 1568 Hz vol 40% (SIM)
+t=23910 SPEAKER 2093 Hz vol 40% (SIM)
+t=24000 SPEAKER 0 Hz vol 40% (SIM)
+DUMP c09_tone_after scr=14 seg=-1 clipframe=-1 t=24090
+OVL c09_tone_after
+t=24260 BACKLIGHT 80% (duty 204/255) (SIM)
+t=24260 NVS CONTROLbot scan=1 vol=40 bri=80 chime=1 time=1 bar=4 tone=1 (SIM)
+t=24260 SPEAKER 1319 Hz vol 40% (SIM)
+t=24260 rtap glass 114,231 120ms -> last raw->cal 113,229 -> tap 114,228 -> cb-chime (scr=14)
+DUMP c10_gap_scan_chime_flash scr=14 seg=-1 clipframe=-1 t=24290
+OVL c10_gap_scan_chime_flash
+t=24320 SPEAKER 1568 Hz vol 40% (SIM)
+t=24380 SPEAKER 2093 Hz vol 40% (SIM)
+t=24470 SPEAKER 0 Hz vol 40% (SIM)
+DUMP c10_gap_scan_chime_after scr=14 seg=-1 clipframe=-1 t=24560
+OVL c10_gap_scan_chime_after
+t=24730 BACKLIGHT 80% (duty 204/255) (SIM)
+t=24730 NVS CONTROLbot scan=1 vol=50 bri=80 chime=1 time=1 bar=4 tone=1 (SIM)
+t=24730 SPEAKER 1319 Hz vol 50% (SIM)
+t=24730 rtap glass 90,266 120ms -> last raw->cal 92,263 -> tap 91,263 -> cb-vol+ (scr=14)
+DUMP c11_gap_vol_bright_flash scr=14 seg=-1 clipframe=-1 t=24760
+OVL c11_gap_vol_bright_flash
+t=24790 SPEAKER 1568 Hz vol 50% (SIM)
+t=24850 SPEAKER 2093 Hz vol 50% (SIM)
+t=24940 SPEAKER 0 Hz vol 50% (SIM)
+DUMP c11_gap_vol_bright_after scr=14 seg=-1 clipframe=-1 t=25030
+OVL c11_gap_vol_bright_after
+t=25200 BACKLIGHT 90% (duty 229/255) (SIM)
+t=25200 NVS CONTROLbot scan=1 vol=50 bri=90 chime=1 time=1 bar=4 tone=1 (SIM)
+t=25200 rtap glass 80,293 120ms -> last raw->cal 81,292 -> tap 81,289 -> cb-bright+ (scr=14)
+DUMP c12_below_bright_flash scr=14 seg=-1 clipframe=-1 t=25230
+OVL c12_below_bright_flash
+DUMP c12_below_bright_after scr=14 seg=-1 clipframe=-1 t=25500
+OVL c12_below_bright_after
+t=25670 BACKLIGHT 90% (duty 229/255) (SIM)
+t=25670 NVS CONTROLbot scan=1 vol=40 bri=90 chime=1 time=1 bar=4 tone=1 (SIM)
+t=25670 SPEAKER 1319 Hz vol 40% (SIM)
+t=25670 rtap glass 40,254 120ms -> last raw->cal 41,252 -> tap 39,252 -> cb-vol- (scr=14)
+DUMP c13_left_of_vol_flash scr=14 seg=-1 clipframe=-1 t=25700
+OVL c13_left_of_vol_flash
+t=25730 SPEAKER 1568 Hz vol 40% (SIM)
+t=25790 SPEAKER 2093 Hz vol 40% (SIM)
+t=25880 SPEAKER 0 Hz vol 40% (SIM)
+DUMP c13_left_of_vol_after scr=14 seg=-1 clipframe=-1 t=25970
+OVL c13_left_of_vol_after
+t=26120 BACKLIGHT 90% (duty 229/255) (SIM)
+t=26120 NVS CONTROLbot scan=1 vol=50 bri=90 chime=1 time=1 bar=4 tone=1 (SIM)
+t=26120 SPEAKER 1319 Hz vol 50% (SIM)
+t=26120 rtap glass 100,254 100ms -> last raw->cal 99,253 -> tap 102,251 -> cb-vol+ (scr=14)
+t=26150 SPEAKER 1568 Hz vol 50% (SIM)
+t=26210 SPEAKER 2093 Hz vol 50% (SIM)
+t=26300 BACKLIGHT 90% (duty 229/255) (SIM)
+t=26300 NVS CONTROLbot scan=1 vol=60 bri=90 chime=1 time=1 bar=4 tone=1 (SIM)
+t=26300 SPEAKER 1319 Hz vol 60% (SIM)
+t=26300 rtap glass 100,254 100ms -> last raw->cal 100,248 -> tap 101,252 -> cb-vol+ (scr=14)
+t=26330 SPEAKER 1568 Hz vol 60% (SIM)
+t=26390 SPEAKER 2093 Hz vol 60% (SIM)
+t=26480 SPEAKER 0 Hz vol 60% (SIM)
+DUMP c99_vol_double scr=14 seg=-1 clipframe=-1 t=26600
+OVL c99_vol_double
+t=26770 NVS lktheme=24 (SIM)
+t=26770 rtap glass 120,145 120ms -> last raw->cal 120,142 -> tap 121,140 -> controlbot-theme (scr=14)
+DUMP c98_face_theme scr=14 seg=-1 clipframe=-1 t=27070
+OVL c98_face_theme
+px pushed by overlays: 7097504
+SHADOW peak 29817 of 32768 bytes
+MOUI tot=0 part=0

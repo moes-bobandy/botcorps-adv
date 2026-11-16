@@ -1,0 +1,5 @@
+tick 67
+tick 190
+go 12
+tick 150
+dump goA_hk01

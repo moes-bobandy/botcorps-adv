@@ -1,0 +1,33 @@
+{
+ "replaced": {
+  "main": 2,
+  "ticker": 1,
+  "calbot": 0,
+  "calbot_gif": 0,
+  "calbot_nvs": 0,
+  "calbot_recal": 0,
+  "checks": 1,
+  "evidence": 1,
+  "evidence_ctl": 0,
+  "evidence_themes": 0,
+  "hitlist": 1,
+  "radar_lock": 0,
+  "radar_rec": 0,
+  "touch": 1
+ },
+ "total": {
+  "files": 277,
+  "frames": 2141,
+  "identical_frames": 2099,
+  "frames_diff_only_in_name_box": 36,
+  "frames_diff_elsewhere": 6
+ },
+ "elsewhere": {
+  "v11/hitlist/h_ctl_all.rgb": 1,
+  "v11/hitlist/h_ctl_mashup.rgb": 1,
+  "v11/hitlist/h_ctl_multi.rgb": 1,
+  "v11/hitlist/h_ctl_orient.rgb": 1,
+  "v11/hitlist/h_ctl_rain.rgb": 1,
+  "v11/hitlist/h_ctl_rainmode.rgb": 1
+ }
+}

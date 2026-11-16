@@ -1,0 +1,23 @@
+t=11605 CAL SAVE c0..c7 = 211 263 3771 274 204 3757 3764 3768 (SIM NVS)
+  worst axis error 4 px
+t=19170 rtap glass 52,82 120ms -> last raw->cal 53,75 -> tap 51,75 -> botpheus-eb3 (scr=2)
+t=19260 waitscr 13 -> scr=13
+t=98090 rtap glass 225,305 120ms -> last raw->cal 224,301 -> tap 226,304 -> mo-back-home (scr=13)
+t=98180 waitscr 2 -> scr=2
+t=99250 rtap glass 67,205 120ms -> last raw->cal 65,202 -> tap 68,202 -> hackbot-game (scr=2)
+t=99340 waitscr 12 -> scr=12
+t=100110 rtap glass 225,305 120ms -> last raw->cal 227,300 -> tap 225,300 -> dl-backbot-home (scr=12)
+t=100200 waitscr 2 -> scr=2
+t=101270 rtap glass 186,80 120ms -> last raw->cal 187,74 -> tap 188,77 -> ctl (scr=2)
+t=101360 waitscr 14 -> scr=14
+t=102130 rtap glass 225,305 120ms -> last raw->cal 224,303 -> tap 223,301 -> backbot-home (scr=14)
+t=102220 waitscr 2 -> scr=2
+t=103290 rtap glass 120,90 120ms -> last raw->cal 120,85 -> tap 119,87 -> gibson-jackin-radar (scr=2)
+t=103380 waitscr 8 -> scr=8
+t=104150 rtap glass 225,305 120ms -> last raw->cal 225,302 -> tap 226,300 -> backbot-radar (scr=8)
+t=104240 waitscr 2 -> scr=2
+t=105310 rtap glass 173,205 120ms -> last raw->cal 175,202 -> tap 175,203 -> term (scr=2)
+t=105400 waitscr 3 -> scr=3
+t=106170 rtap glass 225,305 120ms -> last raw->cal 224,300 -> tap 223,304 -> backbot-home (scr=3)
+t=106940 rtap glass 120,10 120ms -> last raw->cal 120,7 -> tap 121,7 -> ticker->scan (scr=2)
+t=107030 waitscr 4 -> scr=4

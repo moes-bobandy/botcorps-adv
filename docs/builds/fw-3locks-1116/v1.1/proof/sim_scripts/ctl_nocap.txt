@@ -1,0 +1,50 @@
+tickto 1000
+press 52 55
+tickto 1800
+release
+tickto 1900
+tickto 2500
+press 52 55
+tickto 4200
+release
+tickto 5000
+press 187 55
+tickto 6700
+release
+tickto 7500
+press 187 226
+tickto 9200
+release
+tickto 10000
+press 52 226
+tickto 11700
+release
+tickto 12300
+tickto 13000
+tick 200
+dump home
+heapcap 0
+rtap 186 80
+tick 20
+dump cb_entry
+rtap 80 231
+tick 10
+dump cb_scan
+rtap 100 254
+tick 10
+dump cb_vol_plus
+rtap 60 277
+tick 10
+dump cb_bright_minus
+rtap 135 237
+tick 10
+dump cb_chime
+rtap 176 237
+tick 10
+dump cb_time
+rtap 135 272
+tick 10
+dump cb_bar
+rtap 176 272
+tick 10
+dump cb_tone

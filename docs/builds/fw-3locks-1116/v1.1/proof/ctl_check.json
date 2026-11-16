@@ -1,0 +1,171 @@
+{
+ "scan": {
+  "block": "scan",
+  "flash": {
+   "px": 1491,
+   "in_block": 1491,
+   "outside_block": 0
+  },
+  "after": {
+   "px": 35,
+   "in_block": 35,
+   "outside_block": 0
+  }
+ },
+ "vol_plus": {
+  "block": "vol",
+  "flash": {
+   "px": 1475,
+   "in_block": 1475,
+   "outside_block": 0
+  },
+  "after": {
+   "px": 51,
+   "in_block": 51,
+   "outside_block": 0
+  }
+ },
+ "vol_minus": {
+  "block": "vol",
+  "flash": {
+   "px": 1445,
+   "in_block": 1445,
+   "outside_block": 0
+  },
+  "after": {
+   "px": 51,
+   "in_block": 51,
+   "outside_block": 0
+  }
+ },
+ "bright_minus": {
+  "block": "bright",
+  "flash": {
+   "px": 1480,
+   "in_block": 1480,
+   "outside_block": 0
+  },
+  "after": {
+   "px": 16,
+   "in_block": 16,
+   "outside_block": 0
+  }
+ },
+ "bright_plus": {
+  "block": "bright",
+  "flash": {
+   "px": 1480,
+   "in_block": 1480,
+   "outside_block": 0
+  },
+  "after": {
+   "px": 16,
+   "in_block": 16,
+   "outside_block": 0
+  }
+ },
+ "chime": {
+  "block": "chime",
+  "flash": {
+   "px": 860,
+   "in_block": 860,
+   "outside_block": 0
+  },
+  "after": {
+   "px": 627,
+   "in_block": 627,
+   "outside_block": 0
+  }
+ },
+ "time": {
+  "block": "time",
+  "flash": {
+   "px": 1303,
+   "in_block": 1303,
+   "outside_block": 0
+  },
+  "after": {
+   "px": 23,
+   "in_block": 23,
+   "outside_block": 0
+  }
+ },
+ "bar": {
+  "block": "bar",
+  "flash": {
+   "px": 1248,
+   "in_block": 1248,
+   "outside_block": 0
+  },
+  "after": {
+   "px": 78,
+   "in_block": 78,
+   "outside_block": 0
+  }
+ },
+ "tone": {
+  "block": "tone",
+  "flash": {
+   "px": 1288,
+   "in_block": 1288,
+   "outside_block": 0
+  },
+  "after": {
+   "px": 38,
+   "in_block": 38,
+   "outside_block": 0
+  }
+ },
+ "gap_scan_chime": {
+  "block": "chime",
+  "flash": {
+   "px": 1326,
+   "in_block": 1326,
+   "outside_block": 0
+  },
+  "after": {
+   "px": 627,
+   "in_block": 627,
+   "outside_block": 0
+  }
+ },
+ "gap_vol_bright": {
+  "block": "vol",
+  "flash": {
+   "px": 1475,
+   "in_block": 1475,
+   "outside_block": 0
+  },
+  "after": {
+   "px": 51,
+   "in_block": 51,
+   "outside_block": 0
+  }
+ },
+ "below_bright": {
+  "block": "bright",
+  "flash": {
+   "px": 1489,
+   "in_block": 1489,
+   "outside_block": 0
+  },
+  "after": {
+   "px": 37,
+   "in_block": 37,
+   "outside_block": 0
+  }
+ },
+ "left_of_vol": {
+  "block": "vol",
+  "flash": {
+   "px": 1445,
+   "in_block": 1445,
+   "outside_block": 0
+  },
+  "after": {
+   "px": 51,
+   "in_block": 51,
+   "outside_block": 0
+  }
+ }
+}

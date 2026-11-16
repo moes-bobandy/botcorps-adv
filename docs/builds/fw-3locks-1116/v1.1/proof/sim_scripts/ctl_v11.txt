@@ -1,0 +1,101 @@
+tickto 1000
+press 52 55
+tickto 1800
+release
+tickto 1900
+tickto 2500
+press 52 55
+tickto 4200
+release
+tickto 5000
+press 187 55
+tickto 6700
+release
+tickto 7500
+press 187 226
+tickto 9200
+release
+tickto 10000
+press 52 226
+tickto 11700
+release
+tickto 12300
+tickto 13000
+tick 200
+rtap 186 80
+waitscr 14
+tick 20
+dump c00_entry
+rtap 80 231
+tick 1
+dump c01_scan_flash
+tick 9
+dump c01_scan_after
+rtap 100 254
+tick 1
+dump c02_vol_plus_flash
+tick 9
+dump c02_vol_plus_after
+rtap 60 254
+tick 1
+dump c03_vol_minus_flash
+tick 9
+dump c03_vol_minus_after
+rtap 60 277
+tick 1
+dump c04_bright_minus_flash
+tick 9
+dump c04_bright_minus_after
+rtap 100 277
+tick 1
+dump c05_bright_plus_flash
+tick 9
+dump c05_bright_plus_after
+rtap 135 237
+tick 1
+dump c06_chime_flash
+tick 9
+dump c06_chime_after
+rtap 176 237
+tick 1
+dump c07_time_flash
+tick 9
+dump c07_time_after
+rtap 135 272
+tick 1
+dump c08_bar_flash
+tick 9
+dump c08_bar_after
+rtap 176 272
+tick 1
+dump c09_tone_flash
+tick 9
+dump c09_tone_after
+rtap 114 231
+tick 1
+dump c10_gap_scan_chime_flash
+tick 9
+dump c10_gap_scan_chime_after
+rtap 90 266
+tick 1
+dump c11_gap_vol_bright_flash
+tick 9
+dump c11_gap_vol_bright_after
+rtap 80 293
+tick 1
+dump c12_below_bright_flash
+tick 9
+dump c12_below_bright_after
+rtap 40 254
+tick 1
+dump c13_left_of_vol_flash
+tick 9
+dump c13_left_of_vol_after
+rtap 100 254 100
+tick 1
+rtap 100 254 100
+tick 10
+dump c99_vol_double
+rtap 120 145
+tick 10
+dump c98_face_theme

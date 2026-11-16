@@ -1,0 +1,5 @@
+tick 67
+tick 190
+go 13
+tick 2622
+dump goA_idle

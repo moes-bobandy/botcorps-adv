@@ -119,7 +119,7 @@ static void fk_sys(int w, char *o, int n)
     else if (w == 3) snprintf(o, n, "flash 4MB DIO, app slot 3MB (SIM)");
     else if (w == 4) snprintf(o, n, "touch cal: 8-pt matrix OK (SIM)");
 }
-static void fk_save(int) {}
+static void fk_save(int t) { printf("t=%u NVS lktheme=%d (SIM)\n", t_ms, t); }   /* fw-3locks: log the theme save (was a no-op) */
 static uint8_t fk_nvs[2][16 * 6]; static int fk_nvs_n[2] = {0, 0};   /* SIM NVS for radar rdign / rdwat */
 static int fk_mac_load(const char *k, uint8_t *o, int max) { const int w = !strcmp(k, "rdwat"); int n = fk_nvs_n[w] < max ? fk_nvs_n[w] : max; memcpy(o, fk_nvs[w], n * 6); return n; }
 static void fk_mac_save(const char *k, const uint8_t *m, int n) { const int w = !strcmp(k, "rdwat"); fk_nvs_n[w] = n; memcpy(fk_nvs[w], m, n * 6); printf("t=%u NVS %s = %d MACs (SIM)\n", t_ms, k, n); }
@@ -202,7 +202,7 @@ int main(int argc, char **argv)
     blob.resize(LK_BLOB_SIZE);
     if (fread(blob.data(), 1, LK_BLOB_SIZE, bf) != LK_BLOB_SIZE) return 1;
     LkIo io{blob.data(), infl, lv_clip_draw, ibuf};
-    lv_begin(&FAKE, blit, raw_draw, 0, 0, !(argc > 3 && !strcmp(argv[3], "nocal")));
+    /* fw-3locks: SIM_THEME=N boots with NVS lktheme=N (persistence test) */ lv_begin(&FAKE, blit, raw_draw, getenv("SIM_THEME") ? atoi(getenv("SIM_THEME")) : 0, 0, !(argc > 3 && !strcmp(argv[3], "nocal")));
     lv_tick(io, 0);                            /* power-on paint at t=0 (the firmware loop ticks at once too) */
     FILE *sc = fopen(argv[1], "r"); char cmd[32];
     while (fscanf(sc, "%31s", cmd) == 1) {
@@ -265,6 +265,13 @@ int main(int argc, char **argv)
 #endif
         else if (!strcmp(cmd, "radarstate")) printf("t=%u RADAR sel=%d lock=%d hunt=%d reads=%d trend=%d miss=%d ign=%d wat=%d job=%d tk='%s'\n", t_ms, lv_rd_sel, lv_rd_lock, lv_rd_hunting, lv_rd_reads, lv_rd_trend, lv_rd_miss, lv_rd_nign, lv_rd_nwat, lv_job, lv_tk_msg);
         else if (!strcmp(cmd, "theme")) { int t; if (fscanf(sc, "%d", &t) != 1) return 2; lv_set_theme(t); }
+#if LV_CUI
+        else if (!strcmp(cmd, "cui")) { int k; if (fscanf(sc, "%d", &k) != 1) return 2; lv_set_theme_any(LV_CUI_FW[k]); lv_cui_dirty = true; }   /* fw-3locks: Color UI slot k (locked order) */
+        else if (!strcmp(cmd, "tkstill")) {   /* fw-3locks: redraw the firmware ticker at the lock still's clock (now off alert), default text, then restore lv_now */
+            unsigned nw; int off, al; if (fscanf(sc, "%u %d %d", &nw, &off, &al) != 3) return 2;
+            const uint32_t keep = lv_now; lv_now = nw; lv_tk_off = off; lv_tk_alert = al != 0; snprintf(lv_tk_msg, sizeof lv_tk_msg, "%s", "NO THREATS - TAP SCAN");
+            LvTickCtx c{LV_R_TICK.x0, LV_R_TICK.x1}; lv_render(lv_cui_tint_active() ? lv_blit_hw : lv_blit, LV_R_TICK, lv_scene_ticker, &c); lv_now = keep; }
+#endif
         else if (!strcmp(cmd, "motion")) { int m; if (fscanf(sc, "%d", &m) != 1) return 2; lv_motion = m != 0; }   /* BG MOTION (CONTROLbot chip) without the CTL tap */
         else if (!strcmp(cmd, "type")) {
             char line[128]; if (!fgets(line, sizeof line, sc)) return 2;

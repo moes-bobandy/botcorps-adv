@@ -505,7 +505,7 @@ void lv_ui_begin(void)
     lv_flip = rot == 1;
     if (lv_flip) g_cyd.setRotation(0);   /* CONTROLbot ORIENT = FLIP */
     g_cyd.fillScreen(0x0000);
-    if (th < 0 || th >= LV_NTHEME) th = 0;
+    if (th < 0 || th >= LV_NTHEME_ALL) th = 0;   /* fw-3locks-1116: 0..25 (CONTROLbot Color UI v6 themes) */
     ui_live_init(); // NVS/display startup allocations are now included in the heap budget.
     Serial.printf("[live] blob=%u (expect %u) theme=%d %dx%d\n", (unsigned)(lk_blob_live_end - lk_blob_live),
                   (unsigned)LK_BLOB_SIZE, th, (int)g_cyd.width(), (int)g_cyd.height());

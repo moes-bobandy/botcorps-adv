@@ -667,10 +667,10 @@ static int mo_hit(int x, int y)   /* v11 tap assist for drifting pillars: every 
                                      centre column, from lv_rd_box top to bottom) is nearest, front-first on ties. Hidden / far pillars always keep a cell. */
 {
     if (y < MO_FY0 || y > MO_FY1) return -1;
-    int best = -1; long bd = 1L << 40;
+    int best = -1; long long bd = 1LL << 40;   /* fw-3locks-1116: long is 32-bit on the ESP32 (1L << 40 overflowed -> no pillar ever hit); same values on the host */
     for (int k = mo11_nord - 1; k >= 0; --k) { const int i = MO_ORD[k]; if (!itw_seen[i]) continue;
         const int dx2 = 2 * x - itw_fx0[i] - itw_fx1[i], dy = y < itw_hy0[i] ? itw_hy0[i] - y : y > itw_hy1[i] ? y - itw_hy1[i] : 0;
-        const long d = (long)dx2 * dx2 + 4L * dy * dy; if (d < bd) { bd = d; best = i; } }
+        const long long d = (long long)dx2 * dx2 + 4LL * dy * dy; if (d < bd) { bd = d; best = i; } }
     return best;
 }
 static void mo12_plan(int i)   /* at tap: the open camera centre = DOWNLOAD's lv_dl_cam_for law (this pillar's spot at the close-up column), kept within +-1.2 */

@@ -1,0 +1,101 @@
+tick 67
+tick 190
+go 2
+tick 40
+dump a_home
+tap 186 80
+tick 1
+dump b_home_tap_flash
+tick 20
+dump c_controlbot
+tkstill 2000 220 0
+dump c_controlbot_tk
+tap 80 231
+tick 12
+tkstill 2000 220 0
+dump d_scan1
+tap 80 231
+tick 12
+tkstill 2000 220 0
+dump d_scan2
+tap 80 231
+tick 12
+tkstill 2000 220 0
+dump d_scan0
+tap 100 254
+tick 12
+tkstill 2000 220 0
+dump e_vol+
+tap 100 254
+tick 12
+tkstill 2000 220 0
+dump e_vol++
+tap 55 254
+tick 12
+tkstill 2000 220 0
+dump e_vol-
+tap 100 277
+tick 12
+tkstill 2000 220 0
+dump f_bright+
+tap 55 277
+tick 12
+tkstill 2000 220 0
+dump f_bright-
+tap 55 277
+tick 12
+tkstill 2000 220 0
+dump f_bright--
+tap 135 240
+tick 12
+tkstill 2000 220 0
+dump g_chime_off
+tap 135 240
+tick 12
+tkstill 2000 220 0
+dump g_chime_on
+tap 176 240
+tick 12
+tkstill 2000 220 0
+dump h_time_ntp
+tap 176 240
+tick 12
+tkstill 2000 220 0
+dump h_time_rtc
+tap 135 272
+tick 12
+tkstill 2000 220 0
+dump i_bar1
+tap 135 272
+tick 12
+tkstill 2000 220 0
+dump i_bar2
+tap 176 272
+tick 12
+tkstill 2000 220 0
+dump j_tone_8bit
+tap 176 272
+tick 12
+tkstill 2000 220 0
+dump j_tone_siren
+tap 176 272
+tick 12
+tkstill 2000 220 0
+dump j_tone_beep
+tick 12
+cbalert
+tick 10
+dump k_after_alert
+tick 20
+tkstill 2000 220 0
+dump l_face_before
+tap 120 145
+tick 1
+tkstill 2000 220 0
+dump l_face_flash1
+tick 2
+tkstill 2000 220 0
+dump l_face_flash3
+tick 6
+tkstill 2000 220 0
+dump l_face_after

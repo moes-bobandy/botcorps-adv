@@ -1,0 +1,141 @@
+t=0 BACKLIGHT 80% (duty 204/255) (SIM)
+t=0 CONTROLbot boot settings scan=0 vol=40 bri=80 chime=1 time=0 bar=3 tone=0 rain=1 rainmode=0
+DUMP a_home scr=2 seg=2 clipframe=459 t=8910
+OVL a_home m:1,1,238,23 m:34,272,204,305 t8:170,306,201,310
+t=8910 tap 186,80 -> ctl (scr=2 seg=2)
+DUMP b_home_tap_flash scr=2 seg=2 clipframe=460 t=8940
+OVL b_home_tap_flash m:1,1,238,23 m:34,272,204,305 t8:170,306,201,310 f:165,51,208,110
+DUMP c_controlbot scr=14 seg=-1 clipframe=-1 t=9540
+OVL c_controlbot
+DUMP c_controlbot_tk scr=14 seg=-1 clipframe=-1 t=9540
+OVL c_controlbot_tk
+t=9540 BACKLIGHT 80% (duty 204/255) (SIM)
+t=9540 NVS CONTROLbot scan=1 vol=40 bri=80 chime=1 time=0 bar=3 tone=0 (SIM)
+t=9540 tap 80,231 -> cb-scan (scr=14 seg=-1)
+DUMP d_scan1 scr=14 seg=-1 clipframe=-1 t=9900
+OVL d_scan1
+t=9900 BACKLIGHT 80% (duty 204/255) (SIM)
+t=9900 NVS CONTROLbot scan=2 vol=40 bri=80 chime=1 time=0 bar=3 tone=0 (SIM)
+t=9900 tap 80,231 -> cb-scan (scr=14 seg=-1)
+DUMP d_scan2 scr=14 seg=-1 clipframe=-1 t=10260
+OVL d_scan2
+t=10260 BACKLIGHT 80% (duty 204/255) (SIM)
+t=10260 NVS CONTROLbot scan=0 vol=40 bri=80 chime=1 time=0 bar=3 tone=0 (SIM)
+t=10260 tap 80,231 -> cb-scan (scr=14 seg=-1)
+DUMP d_scan0 scr=14 seg=-1 clipframe=-1 t=10620
+OVL d_scan0
+t=10620 BACKLIGHT 80% (duty 204/255) (SIM)
+t=10620 NVS CONTROLbot scan=0 vol=50 bri=80 chime=1 time=0 bar=3 tone=0 (SIM)
+t=10620 SPEAKER 2000 Hz vol 50% (SIM)
+t=10620 tap 100,254 -> cb-vol+ (scr=14 seg=-1)
+t=10710 SPEAKER 0 Hz vol 50% (SIM)
+DUMP e_vol+ scr=14 seg=-1 clipframe=-1 t=10980
+OVL e_vol+
+t=10980 BACKLIGHT 80% (duty 204/255) (SIM)
+t=10980 NVS CONTROLbot scan=0 vol=60 bri=80 chime=1 time=0 bar=3 tone=0 (SIM)
+t=10980 SPEAKER 2000 Hz vol 60% (SIM)
+t=10980 tap 100,254 -> cb-vol+ (scr=14 seg=-1)
+t=11070 SPEAKER 0 Hz vol 60% (SIM)
+DUMP e_vol++ scr=14 seg=-1 clipframe=-1 t=11340
+OVL e_vol++
+t=11340 BACKLIGHT 80% (duty 204/255) (SIM)
+t=11340 NVS CONTROLbot scan=0 vol=50 bri=80 chime=1 time=0 bar=3 tone=0 (SIM)
+t=11340 SPEAKER 2000 Hz vol 50% (SIM)
+t=11340 tap 55,254 -> cb-vol- (scr=14 seg=-1)
+t=11430 SPEAKER 0 Hz vol 50% (SIM)
+DUMP e_vol- scr=14 seg=-1 clipframe=-1 t=11700
+OVL e_vol-
+t=11700 BACKLIGHT 90% (duty 229/255) (SIM)
+t=11700 NVS CONTROLbot scan=0 vol=50 bri=90 chime=1 time=0 bar=3 tone=0 (SIM)
+t=11700 tap 100,277 -> cb-bright+ (scr=14 seg=-1)
+DUMP f_bright+ scr=14 seg=-1 clipframe=-1 t=12060
+OVL f_bright+
+t=12060 BACKLIGHT 80% (duty 204/255) (SIM)
+t=12060 NVS CONTROLbot scan=0 vol=50 bri=80 chime=1 time=0 bar=3 tone=0 (SIM)
+t=12060 tap 55,277 -> cb-bright- (scr=14 seg=-1)
+DUMP f_bright- scr=14 seg=-1 clipframe=-1 t=12420
+OVL f_bright-
+t=12420 BACKLIGHT 70% (duty 178/255) (SIM)
+t=12420 NVS CONTROLbot scan=0 vol=50 bri=70 chime=1 time=0 bar=3 tone=0 (SIM)
+t=12420 tap 55,277 -> cb-bright- (scr=14 seg=-1)
+DUMP f_bright-- scr=14 seg=-1 clipframe=-1 t=12780
+OVL f_bright--
+t=12780 BACKLIGHT 70% (duty 178/255) (SIM)
+t=12780 NVS CONTROLbot scan=0 vol=50 bri=70 chime=0 time=0 bar=3 tone=0 (SIM)
+t=12780 tap 135,240 -> cb-chime (scr=14 seg=-1)
+DUMP g_chime_off scr=14 seg=-1 clipframe=-1 t=13140
+OVL g_chime_off
+t=13140 BACKLIGHT 70% (duty 178/255) (SIM)
+t=13140 NVS CONTROLbot scan=0 vol=50 bri=70 chime=1 time=0 bar=3 tone=0 (SIM)
+t=13140 SPEAKER 2000 Hz vol 50% (SIM)
+t=13140 tap 135,240 -> cb-chime (scr=14 seg=-1)
+t=13230 SPEAKER 0 Hz vol 50% (SIM)
+DUMP g_chime_on scr=14 seg=-1 clipframe=-1 t=13500
+OVL g_chime_on
+t=13500 BACKLIGHT 70% (duty 178/255) (SIM)
+t=13500 NVS CONTROLbot scan=0 vol=50 bri=70 chime=1 time=1 bar=3 tone=0 (SIM)
+t=13500 tap 176,240 -> cb-time (scr=14 seg=-1)
+DUMP h_time_ntp scr=14 seg=-1 clipframe=-1 t=13860
+OVL h_time_ntp
+t=13860 BACKLIGHT 70% (duty 178/255) (SIM)
+t=13860 NVS CONTROLbot scan=0 vol=50 bri=70 chime=1 time=0 bar=3 tone=0 (SIM)
+t=13860 tap 176,240 -> cb-time (scr=14 seg=-1)
+DUMP h_time_rtc scr=14 seg=-1 clipframe=-1 t=14220
+OVL h_time_rtc
+t=14220 BACKLIGHT 70% (duty 178/255) (SIM)
+t=14220 NVS CONTROLbot scan=0 vol=50 bri=70 chime=1 time=0 bar=4 tone=0 (SIM)
+t=14220 tap 135,272 -> cb-bar (scr=14 seg=-1)
+DUMP i_bar1 scr=14 seg=-1 clipframe=-1 t=14580
+OVL i_bar1
+t=14580 BACKLIGHT 70% (duty 178/255) (SIM)
+t=14580 NVS CONTROLbot scan=0 vol=50 bri=70 chime=1 time=0 bar=0 tone=0 (SIM)
+t=14580 tap 135,272 -> cb-bar (scr=14 seg=-1)
+DUMP i_bar2 scr=14 seg=-1 clipframe=-1 t=14940
+OVL i_bar2
+t=14940 BACKLIGHT 70% (duty 178/255) (SIM)
+t=14940 NVS CONTROLbot scan=0 vol=50 bri=70 chime=1 time=0 bar=0 tone=1 (SIM)
+t=14940 SPEAKER 1319 Hz vol 50% (SIM)
+t=14940 tap 176,272 -> cb-tone (scr=14 seg=-1)
+t=15000 SPEAKER 1568 Hz vol 50% (SIM)
+t=15060 SPEAKER 2093 Hz vol 50% (SIM)
+t=15150 SPEAKER 0 Hz vol 50% (SIM)
+DUMP j_tone_8bit scr=14 seg=-1 clipframe=-1 t=15300
+OVL j_tone_8bit
+t=15300 BACKLIGHT 70% (duty 178/255) (SIM)
+t=15300 NVS CONTROLbot scan=0 vol=50 bri=70 chime=1 time=0 bar=0 tone=2 (SIM)
+t=15300 SPEAKER 800 Hz vol 50% (SIM)
+t=15300 tap 176,272 -> cb-tone (scr=14 seg=-1)
+t=15360 SPEAKER 1000 Hz vol 50% (SIM)
+t=15390 SPEAKER 1200 Hz vol 50% (SIM)
+t=15420 SPEAKER 1400 Hz vol 50% (SIM)
+t=15480 SPEAKER 1600 Hz vol 50% (SIM)
+t=15510 SPEAKER 1400 Hz vol 50% (SIM)
+t=15540 SPEAKER 1200 Hz vol 50% (SIM)
+t=15600 SPEAKER 1000 Hz vol 50% (SIM)
+t=15630 SPEAKER 0 Hz vol 50% (SIM)
+DUMP j_tone_siren scr=14 seg=-1 clipframe=-1 t=15660
+OVL j_tone_siren
+t=15660 BACKLIGHT 70% (duty 178/255) (SIM)
+t=15660 NVS CONTROLbot scan=0 vol=50 bri=70 chime=1 time=0 bar=0 tone=0 (SIM)
+t=15660 SPEAKER 2000 Hz vol 50% (SIM)
+t=15660 tap 176,272 -> cb-tone (scr=14 seg=-1)
+t=15750 SPEAKER 0 Hz vol 50% (SIM)
+DUMP j_tone_beep scr=14 seg=-1 clipframe=-1 t=16020
+OVL j_tone_beep
+t=16380 SPEAKER 2000 Hz vol 50% (SIM)
+t=16470 SPEAKER 0 Hz vol 50% (SIM)
+DUMP k_after_alert scr=14 seg=-1 clipframe=-1 t=16680
+OVL k_after_alert
+DUMP l_face_before scr=14 seg=-1 clipframe=-1 t=17280
+OVL l_face_before
+t=17280 NVS lktheme=24 (SIM)
+t=17280 tap 120,145 -> controlbot-theme (scr=14 seg=-1)
+DUMP l_face_flash1 scr=14 seg=-1 clipframe=-1 t=17310
+OVL l_face_flash1
+DUMP l_face_flash3 scr=14 seg=-1 clipframe=-1 t=17370
+OVL l_face_flash3
+DUMP l_face_after scr=14 seg=-1 clipframe=-1 t=17550
+OVL l_face_after
+px pushed by overlays: 7422564
+SHADOW peak 29817 of 32768 bytes
+MOUI tot=0 part=0

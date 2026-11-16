@@ -3,11 +3,168 @@
   "total": {
    "files": 277,
    "frames": 2141,
-   "diff_frames": 0,
-   "diff_px": 0,
-   "diff_px_outside_ticker": 0,
+   "diff_frames": 26,
+   "diff_px": 1234161,
+   "diff_px_outside_ticker": 1123121,
    "missing": 0
   },
-  "files_with_diffs": {}
+  "files_with_diffs": {
+   "t0/main/ctl.rgb": {
+    "frames": 1,
+    "diff_frames": 1,
+    "px": 54789,
+    "px_outside_ticker": 49404
+   },
+   "t0/main/ctl_after.rgb": {
+    "frames": 1,
+    "diff_frames": 1,
+    "px": 54878,
+    "px_outside_ticker": 49404
+   },
+   "t0/main/ctl_mix.rgb": {
+    "frames": 1,
+    "diff_frames": 1,
+    "px": 54879,
+    "px_outside_ticker": 49405
+   },
+   "t0/main/home_t1.rgb": {
+    "frames": 1,
+    "diff_frames": 1,
+    "px": 13196,
+    "px_outside_ticker": 12557
+   },
+   "t0/main/scan_t1.rgb": {
+    "frames": 1,
+    "diff_frames": 1,
+    "px": 10786,
+    "px_outside_ticker": 10083
+   },
+   "t0/evidence/e_ctl.rgb": {
+    "frames": 1,
+    "diff_frames": 1,
+    "px": 54832,
+    "px_outside_ticker": 49404
+   },
+   "t0/evidence/e_ctl_after_bounce.rgb": {
+    "frames": 1,
+    "diff_frames": 1,
+    "px": 54869,
+    "px_outside_ticker": 49402
+   },
+   "t0/evidence/e_ctl_bar_theme2.rgb": {
+    "frames": 1,
+    "diff_frames": 1,
+    "px": 54873,
+    "px_outside_ticker": 49399
+   },
+   "t0/evidence/e_ctl_face_theme1.rgb": {
+    "frames": 1,
+    "diff_frames": 1,
+    "px": 54881,
+    "px_outside_ticker": 49407
+   },
+   "t0/evidence/e_ctl_rain_off.rgb": {
+    "frames": 1,
+    "diff_frames": 1,
+    "px": 54894,
+    "px_outside_ticker": 49430
+   },
+   "t0/evidence/e_ctl_rain_on.rgb": {
+    "frames": 1,
+    "diff_frames": 1,
+    "px": 54860,
+    "px_outside_ticker": 49395
+   },
+   "t0/evidence/e_ctl_theme0.rgb": {
+    "frames": 1,
+    "diff_frames": 1,
+    "px": 54876,
+    "px_outside_ticker": 49406
+   },
+   "t0/evidence/e_p_rain.rgb": {
+    "frames": 1,
+    "diff_frames": 1,
+    "px": 54832,
+    "px_outside_ticker": 49404
+   },
+   "t0/evidence/e_tty.rgb": {
+    "frames": 1,
+    "diff_frames": 1,
+    "px": 15067,
+    "px_outside_ticker": 13548
+   },
+   "t0/hitlist/h_ctl_0.rgb": {
+    "frames": 1,
+    "diff_frames": 1,
+    "px": 50822,
+    "px_outside_ticker": 49404
+   },
+   "t0/hitlist/h_ctl_all.rgb": {
+    "frames": 1,
+    "diff_frames": 1,
+    "px": 54128,
+    "px_outside_ticker": 49401
+   },
+   "t0/hitlist/h_ctl_mashup.rgb": {
+    "frames": 1,
+    "diff_frames": 1,
+    "px": 53450,
+    "px_outside_ticker": 49405
+   },
+   "t0/hitlist/h_ctl_mix.rgb": {
+    "frames": 1,
+    "diff_frames": 1,
+    "px": 53464,
+    "px_outside_ticker": 49418
+   },
+   "t0/hitlist/h_ctl_multi.rgb": {
+    "frames": 1,
+    "diff_frames": 1,
+    "px": 54153,
+    "px_outside_ticker": 49395
+   },
+   "t0/hitlist/h_ctl_orient.rgb": {
+    "frames": 1,
+    "diff_frames": 1,
+    "px": 54181,
+    "px_outside_ticker": 49420
+   },
+   "t0/hitlist/h_ctl_rain.rgb": {
+    "frames": 1,
+    "diff_frames": 1,
+    "px": 54172,
+    "px_outside_ticker": 49416
+   },
+   "t0/hitlist/h_ctl_raincol.rgb": {
+    "frames": 1,
+    "diff_frames": 1,
+    "px": 53450,
+    "px_outside_ticker": 49407
+   },
+   "t0/hitlist/h_ctl_rainmode.rgb": {
+    "frames": 1,
+    "diff_frames": 1,
+    "px": 54158,
+    "px_outside_ticker": 49401
+   },
+   "t0/hitlist/h_ctl_theme.rgb": {
+    "frames": 1,
+    "diff_frames": 1,
+    "px": 53446,
+    "px_outside_ticker": 49402
+   },
+   "t0/touch/t_ctl.rgb": {
+    "frames": 1,
+    "diff_frames": 1,
+    "px": 54759,
+    "px_outside_ticker": 49404
+   },
+   "t0/touch/t_radar.rgb": {
+    "frames": 1,
+    "diff_frames": 1,
+    "px": 1466,
+    "px_outside_ticker": 0
+   }
+  }
  }
 }

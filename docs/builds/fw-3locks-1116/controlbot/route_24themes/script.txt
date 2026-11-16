@@ -1,0 +1,115 @@
+tick 67
+tick 190
+go 2
+tick 40
+dump home
+tap 186 80
+tick 1
+dump home_tap
+tick 20
+dump cui_entry
+tkstill 2000 220 0
+dump slot11
+tap 120 145
+tick 12
+tkstill 2000 220 0
+dump slot12_tap1
+tap 120 145
+tick 12
+tkstill 2000 220 0
+dump slot13_tap2
+tap 120 145
+tick 12
+tkstill 2000 220 0
+dump slot14_tap3
+tap 120 145
+tick 12
+tkstill 2000 220 0
+dump slot15_tap4
+tap 120 145
+tick 12
+tkstill 2000 220 0
+dump slot16_tap5
+tap 120 145
+tick 12
+tkstill 2000 220 0
+dump slot17_tap6
+tap 120 145
+tick 12
+tkstill 2000 220 0
+dump slot18_tap7
+tap 120 145
+tick 12
+tkstill 2000 220 0
+dump slot19_tap8
+tap 120 145
+tick 12
+tkstill 2000 220 0
+dump slot20_tap9
+tap 120 145
+tick 12
+tkstill 2000 220 0
+dump slot21_tap10
+tap 120 145
+tick 12
+tkstill 2000 220 0
+dump slot22_tap11
+tap 120 145
+tick 12
+tkstill 2000 220 0
+dump slot23_tap12
+tap 120 145
+tick 12
+tkstill 2000 220 0
+dump slot0_tap13
+tap 120 145
+tick 12
+tkstill 2000 220 0
+dump slot1_tap14
+tap 120 145
+tick 12
+tkstill 2000 220 0
+dump slot2_tap15
+tap 120 145
+tick 12
+tkstill 2000 220 0
+dump slot3_tap16
+tap 120 145
+tick 12
+tkstill 2000 220 0
+dump slot4_tap17
+tap 120 145
+tick 12
+tkstill 2000 220 0
+dump slot5_tap18
+tap 120 145
+tick 12
+tkstill 2000 220 0
+dump slot6_tap19
+tap 120 145
+tick 12
+tkstill 2000 220 0
+dump slot7_tap20
+tap 120 145
+tick 12
+tkstill 2000 220 0
+dump slot8_tap21
+tap 120 145
+tick 12
+tkstill 2000 220 0
+dump slot9_tap22
+tap 120 145
+tick 12
+tkstill 2000 220 0
+dump slot10_tap23
+tap 120 145
+tick 12
+tkstill 2000 220 0
+dump slot11_tap24
+go 2
+tick 30
+go 6
+tick 20
+type go ctl~
+tick 20
+dump goctl

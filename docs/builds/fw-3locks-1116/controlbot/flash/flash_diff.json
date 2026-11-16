@@ -1,0 +1,22 @@
+{
+ "before_vs_locked_12_neon_grape": 0,
+ "after_vs_locked_13_holo_foil": 0,
+ "flash_30ms": {
+  "changed_px": 11300,
+  "changed_inside_bot": 11300,
+  "changed_outside_bot": 0,
+  "bot_px": 17424
+ },
+ "flash_90ms": {
+  "changed_px": 11300,
+  "changed_inside_bot": 11300,
+  "changed_outside_bot": 0,
+  "bot_px": 17424
+ },
+ "flash_150ms_ended": {
+  "changed_px": 0,
+  "changed_inside_bot": 0,
+  "changed_outside_bot": 0,
+  "bot_px": 17424
+ }
+}

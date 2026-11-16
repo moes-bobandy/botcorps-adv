@@ -1,0 +1,119 @@
+t=0 BACKLIGHT 80% (duty 204/255) (SIM)
+t=0 CONTROLbot boot settings scan=0 vol=40 bri=80 chime=1 time=0 bar=3 tone=0 rain=1 rainmode=0
+DUMP home scr=2 seg=2 clipframe=459 t=8910
+OVL home m:1,1,238,23 m:34,272,204,305 t8:170,306,201,310
+t=8910 tap 186,80 -> ctl (scr=2 seg=2)
+DUMP home_tap scr=2 seg=2 clipframe=460 t=8940
+OVL home_tap m:1,1,238,23 m:34,272,204,305 t8:170,306,201,310 f:165,51,208,110
+DUMP cui_entry scr=14 seg=-1 clipframe=-1 t=9540
+OVL cui_entry
+DUMP slot11 scr=14 seg=-1 clipframe=-1 t=9540
+OVL slot11
+t=9540 NVS lktheme=24 (SIM)
+t=9540 tap 120,145 -> controlbot-theme (scr=14 seg=-1)
+DUMP slot12_tap1 scr=14 seg=-1 clipframe=-1 t=9900
+OVL slot12_tap1
+t=9900 NVS lktheme=2 (SIM)
+t=9900 tap 120,145 -> controlbot-theme (scr=14 seg=-1)
+DUMP slot13_tap2 scr=14 seg=-1 clipframe=-1 t=10260
+OVL slot13_tap2
+t=10260 NVS lktheme=3 (SIM)
+t=10260 tap 120,145 -> controlbot-theme (scr=14 seg=-1)
+DUMP slot14_tap3 scr=14 seg=-1 clipframe=-1 t=10620
+OVL slot14_tap3
+t=10620 NVS lktheme=23 (SIM)
+t=10620 tap 120,145 -> controlbot-theme (scr=14 seg=-1)
+DUMP slot15_tap4 scr=14 seg=-1 clipframe=-1 t=10980
+OVL slot15_tap4
+t=10980 NVS lktheme=5 (SIM)
+t=10980 tap 120,145 -> controlbot-theme (scr=14 seg=-1)
+DUMP slot16_tap5 scr=14 seg=-1 clipframe=-1 t=11340
+OVL slot16_tap5
+t=11340 NVS lktheme=6 (SIM)
+t=11340 tap 120,145 -> controlbot-theme (scr=14 seg=-1)
+DUMP slot17_tap6 scr=14 seg=-1 clipframe=-1 t=11700
+OVL slot17_tap6
+t=11700 NVS lktheme=7 (SIM)
+t=11700 tap 120,145 -> controlbot-theme (scr=14 seg=-1)
+DUMP slot18_tap7 scr=14 seg=-1 clipframe=-1 t=12060
+OVL slot18_tap7
+t=12060 NVS lktheme=8 (SIM)
+t=12060 tap 120,145 -> controlbot-theme (scr=14 seg=-1)
+DUMP slot19_tap8 scr=14 seg=-1 clipframe=-1 t=12420
+OVL slot19_tap8
+t=12420 NVS lktheme=9 (SIM)
+t=12420 tap 120,145 -> controlbot-theme (scr=14 seg=-1)
+DUMP slot20_tap9 scr=14 seg=-1 clipframe=-1 t=12780
+OVL slot20_tap9
+t=12780 NVS lktheme=10 (SIM)
+t=12780 tap 120,145 -> controlbot-theme (scr=14 seg=-1)
+DUMP slot21_tap10 scr=14 seg=-1 clipframe=-1 t=13140
+OVL slot21_tap10
+t=13140 NVS lktheme=11 (SIM)
+t=13140 tap 120,145 -> controlbot-theme (scr=14 seg=-1)
+DUMP slot22_tap11 scr=14 seg=-1 clipframe=-1 t=13500
+OVL slot22_tap11
+t=13500 NVS lktheme=25 (SIM)
+t=13500 tap 120,145 -> controlbot-theme (scr=14 seg=-1)
+DUMP slot23_tap12 scr=14 seg=-1 clipframe=-1 t=13860
+OVL slot23_tap12
+t=13860 NVS lktheme=22 (SIM)
+t=13860 tap 120,145 -> controlbot-theme (scr=14 seg=-1)
+DUMP slot0_tap13 scr=14 seg=-1 clipframe=-1 t=14220
+OVL slot0_tap13
+t=14220 NVS lktheme=12 (SIM)
+t=14220 tap 120,145 -> controlbot-theme (scr=14 seg=-1)
+DUMP slot1_tap14 scr=14 seg=-1 clipframe=-1 t=14580
+OVL slot1_tap14
+t=14580 NVS lktheme=13 (SIM)
+t=14580 tap 120,145 -> controlbot-theme (scr=14 seg=-1)
+DUMP slot2_tap15 scr=14 seg=-1 clipframe=-1 t=14940
+OVL slot2_tap15
+t=14940 NVS lktheme=14 (SIM)
+t=14940 tap 120,145 -> controlbot-theme (scr=14 seg=-1)
+DUMP slot3_tap16 scr=14 seg=-1 clipframe=-1 t=15300
+OVL slot3_tap16
+t=15300 NVS lktheme=15 (SIM)
+t=15300 tap 120,145 -> controlbot-theme (scr=14 seg=-1)
+DUMP slot4_tap17 scr=14 seg=-1 clipframe=-1 t=15660
+OVL slot4_tap17
+t=15660 NVS lktheme=16 (SIM)
+t=15660 tap 120,145 -> controlbot-theme (scr=14 seg=-1)
+DUMP slot5_tap18 scr=14 seg=-1 clipframe=-1 t=16020
+OVL slot5_tap18
+t=16020 NVS lktheme=17 (SIM)
+t=16020 tap 120,145 -> controlbot-theme (scr=14 seg=-1)
+DUMP slot6_tap19 scr=14 seg=-1 clipframe=-1 t=16380
+OVL slot6_tap19
+t=16380 NVS lktheme=18 (SIM)
+t=16380 tap 120,145 -> controlbot-theme (scr=14 seg=-1)
+DUMP slot7_tap20 scr=14 seg=-1 clipframe=-1 t=16740
+OVL slot7_tap20
+t=16740 NVS lktheme=19 (SIM)
+t=16740 tap 120,145 -> controlbot-theme (scr=14 seg=-1)
+DUMP slot8_tap21 scr=14 seg=-1 clipframe=-1 t=17100
+OVL slot8_tap21
+t=17100 NVS lktheme=20 (SIM)
+t=17100 tap 120,145 -> controlbot-theme (scr=14 seg=-1)
+DUMP slot9_tap22 scr=14 seg=-1 clipframe=-1 t=17460
+OVL slot9_tap22
+t=17460 NVS lktheme=21 (SIM)
+t=17460 tap 120,145 -> controlbot-theme (scr=14 seg=-1)
+DUMP slot10_tap23 scr=14 seg=-1 clipframe=-1 t=17820
+OVL slot10_tap23
+t=17820 NVS lktheme=0 (SIM)
+t=17820 tap 120,145 -> controlbot-theme (scr=14 seg=-1)
+DUMP slot11_tap24 scr=14 seg=-1 clipframe=-1 t=18180
+OVL slot11_tap24
+  key 24 at 107,246 -> key
+  key 18 at 203,217 -> key
+  key 41 at 70,304 -> key
+  key 32 at 59,275 -> key
+  key 14 at 107,217 -> key
+  key 28 at 203,246 -> key
+  key 43 at 194,304 -> key
+DUMP goctl scr=14 seg=-1 clipframe=-1 t=20910
+OVL goctl
+px pushed by overlays: 11343661
+SHADOW peak 29817 of 32768 bytes
+MOUI tot=0 part=0

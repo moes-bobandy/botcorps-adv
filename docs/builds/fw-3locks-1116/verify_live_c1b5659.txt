@@ -1,0 +1,56 @@
+boot                     seg  0 frame  39  strict 94.048%  (masked px 0)  overlay-aware 94.048%  (masked px 0)
+home                     seg  2 frame 463  strict 84.077%  (masked px 9885)  overlay-aware 85.641%  (masked px 11448)
+    strict drop px: ticker full width (crown+GIBSON icon removed) 1189, terminal pin rail under old icon column (item 11) 82, unexplained 9384
+scan_empty               seg 14 frame   6  strict 81.913%  (masked px 21109)  overlay-aware 88.821%  (masked px 30041)
+    strict drop px: ticker full width (crown+GIBSON icon removed) 1099, SCAN emoji grid (4 tabs removed) 3407, terminal pin rail under old icon column (item 11) 82, BACKbot 258, unexplained 5227
+scan_running             seg 14 frame  26  strict 73.308%  (masked px 21109)  overlay-aware 96.060%  (masked px 43398)
+    strict drop px: ticker full width (crown+GIBSON icon removed) 1127, SCAN emoji grid (4 tabs removed) 3424, WiFi chip lit 2032, SCANbot lit 6626, terminal pin rail under old icon column (item 11) 82, BACKbot 258, unexplained 1316
+scan_all                 seg 14 frame  26  strict 81.546%  (masked px 21109)  overlay-aware 89.176%  (masked px 30041)
+    strict drop px: ticker full width (crown+GIBSON icon removed) 1157, SCAN emoji grid (4 tabs removed) 3719, terminal pin rail under old icon column (item 11) 82, BACKbot 258, unexplained 5061
+scan_cat                 seg 14 frame  31  strict 82.152%  (masked px 21109)  overlay-aware 89.174%  (masked px 30041)
+    strict drop px: ticker full width (crown+GIBSON icon removed) 1153, SCAN emoji grid (4 tabs removed) 3385, terminal pin rail under old icon column (item 11) 82, BACKbot 258, unexplained 5062
+scan_select              seg 14 frame  36  strict 80.491%  (masked px 21109)  overlay-aware 88.821%  (masked px 30041)
+    strict drop px: ticker full width (crown+GIBSON icon removed) 1124, SCAN emoji grid (4 tabs removed) 4174, terminal pin rail under old icon column (item 11) 82, BACKbot 258, unexplained 5227
+scan_detail              seg 14 frame  39  strict 80.769%  (masked px 21109)  overlay-aware 87.722%  (masked px 30041)
+    strict drop px: ticker full width (crown+GIBSON icon removed) 1117, SCAN emoji grid (4 tabs removed) 3512, terminal pin rail under old icon column (item 11) 82, BACKbot 258, unexplained 5741
+scan_detail_back         seg 14 frame  44  strict 78.900%  (masked px 21109)  overlay-aware 86.931%  (masked px 30041)
+    strict drop px: ticker full width (crown+GIBSON icon removed) 1126, SCAN emoji grid (4 tabs removed) 4174, terminal pin rail under old icon column (item 11) 82, BACKbot 258, unexplained 6111
+scan_grid_back           seg 14 frame  49  strict 79.480%  (masked px 21109)  overlay-aware 86.623%  (masked px 30041)
+    strict drop px: ticker full width (crown+GIBSON icon removed) 1114, SCAN emoji grid (4 tabs removed) 3719, terminal pin rail under old icon column (item 11) 82, BACKbot 258, unexplained 6255
+scan_page2               seg 14 frame   4  strict 79.428%  (masked px 21109)  overlay-aware 86.495%  (masked px 30041)
+    strict drop px: ticker full width (crown+GIBSON icon removed) 1112, SCAN emoji grid (4 tabs removed) 3690, terminal pin rail under old icon column (item 11) 82, BACKbot 258, unexplained 6315
+scan_wifi                seg 14 frame  19  strict 81.828%  (masked px 21109)  overlay-aware 89.176%  (masked px 30041)
+    strict drop px: ticker full width (crown+GIBSON icon removed) 1115, SCAN emoji grid (4 tabs removed) 3604, terminal pin rail under old icon column (item 11) 82, BACKbot 258, unexplained 5061
+scan_detail_wifi         seg 14 frame  27  strict 81.985%  (masked px 21109)  overlay-aware 89.174%  (masked px 30041)
+    strict drop px: ticker full width (crown+GIBSON icon removed) 1119, SCAN emoji grid (4 tabs removed) 3512, terminal pin rail under old icon column (item 11) 82, BACKbot 258, unexplained 5062
+scan_deauth_view         seg 14 frame  37  strict 80.952%  (masked px 21109)  overlay-aware 94.387%  (masked px 40689)
+    strict drop px: ticker full width (crown+GIBSON icon removed) 1128, SCAN emoji grid (4 tabs removed) 3399, SCANbot lit 3714, terminal pin rail under old icon column (item 11) 82, BACKbot 258, unexplained 2027
+scan_deauth_live         seg 14 frame  37  strict 75.343%  (masked px 21109)  overlay-aware 93.852%  (masked px 40689)
+    strict drop px: ticker full width (crown+GIBSON icon removed) 1139, SCAN emoji grid (4 tabs removed) 3407, SCANbot lit 6626, terminal pin rail under old icon column (item 11) 82, BACKbot 258, unexplained 2220
+scan_deauth_done         seg 14 frame  37  strict 81.291%  (masked px 21109)  overlay-aware 88.342%  (masked px 30041)
+    strict drop px: ticker full width (crown+GIBSON icon removed) 1281, SCAN emoji grid (4 tabs removed) 3347, terminal pin rail under old icon column (item 11) 82, BACKbot 258, unexplained 5451
+home_after_back          seg  2 frame 426  strict 86.345%  (masked px 9885)  overlay-aware 88.167%  (masked px 11448)
+    strict drop px: ticker full width (crown+GIBSON icon removed) 1322, terminal pin rail under old icon column (item 11) 82, unexplained 7733
+term                     seg  8 frame   6  strict 89.494%  (masked px 9885)  overlay-aware 93.495%  (masked px 13645)
+    strict drop px: ticker full width (crown+GIBSON icon removed) 1310, hunt chip lit 1272, terminal pin rail under old icon column (item 11) 82, BACKbot 258, unexplained 4108
+term_after_close         seg 14 frame   9  strict 80.216%  (masked px 21109)  overlay-aware 87.416%  (masked px 30041)
+    strict drop px: ticker full width (crown+GIBSON icon removed) 1096, SCAN emoji grid (4 tabs removed) 3698, terminal pin rail under old icon column (item 11) 82, BACKbot 258, unexplained 5884
+home_t1                  seg  2 frame 426  strict 86.634%  (masked px 9885)  overlay-aware 88.167%  (masked px 11448)
+    strict drop px: ticker full width (crown+GIBSON icon removed) 1129, terminal pin rail under old icon column (item 11) 82, unexplained 7733
+scan_t1                  seg 14 frame   6  strict 81.367%  (masked px 21109)  overlay-aware 88.821%  (masked px 30041)
+    strict drop px: ticker full width (crown+GIBSON icon removed) 1112, SCAN emoji grid (4 tabs removed) 3698, terminal pin rail under old icon column (item 11) 82, BACKbot 258, unexplained 5227
+ticker_scanning          seg 14 frame  18  strict 78.614%  (masked px 21109)  overlay-aware 96.177%  (masked px 43398)
+    strict drop px: ticker full width (crown+GIBSON icon removed) 1117, SCAN emoji grid (4 tabs removed) 3424, WiFi chip lit 2032, SCANbot lit 3720, terminal pin rail under old icon column (item 11) 82, BACKbot 258, unexplained 1277
+ticker_find_wifi         seg 14 frame  18  strict 79.756%  (masked px 21109)  overlay-aware 87.068%  (masked px 30041)
+    strict drop px: ticker full width (crown+GIBSON icon removed) 1168, SCAN emoji grid (4 tabs removed) 3719, terminal pin rail under old icon column (item 11) 82, BACKbot 258, unexplained 6047
+ticker_find_2            seg 14 frame   8  strict 79.401%  (masked px 21109)  overlay-aware 86.661%  (masked px 30041)
+    strict drop px: ticker full width (crown+GIBSON icon removed) 1176, SCAN emoji grid (4 tabs removed) 3719, terminal pin rail under old icon column (item 11) 82, BACKbot 258, unexplained 6237
+ticker_alert_airtag_term seg 14 frame   9  strict 79.668%  (masked px 21109)  overlay-aware 87.416%  (masked px 30041)
+    strict drop px: ticker full width (crown+GIBSON icon removed) 1401, SCAN emoji grid (4 tabs removed) 3698, terminal pin rail under old icon column (item 11) 82, BACKbot 258, unexplained 5884
+ticker_alert_flash       seg 14 frame  16  strict 79.022%  (masked px 21109)  overlay-aware 86.625%  (masked px 30041)
+    strict drop px: ticker full width (crown+GIBSON icon removed) 1391, SCAN emoji grid (4 tabs removed) 3698, terminal pin rail under old icon column (item 11) 82, BACKbot 258, unexplained 6254
+calbot_then_boot         seg  0 frame   1  strict 94.104%  (masked px 0)  overlay-aware 94.104%  (masked px 0)
+calbot_then_home         seg  2 frame 475  strict 82.774%  (masked px 9885)  overlay-aware 84.207%  (masked px 11448)
+    strict drop px: ticker full width (crown+GIBSON icon removed) 1124, terminal pin rail under old icon column (item 11) 82, unexplained 10321
+calbot_nvs_then_boot     seg  0 frame   2  strict 94.104%  (masked px 0)  overlay-aware 94.104%  (masked px 0)
+calbot_timeout_then_boot seg  0 frame  11  strict 94.104%  (masked px 0)  overlay-aware 94.104%  (masked px 0)

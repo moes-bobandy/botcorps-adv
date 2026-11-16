@@ -1,0 +1,102 @@
+{
+ "slot0_tap13": {
+  "still": "01_circuit@1x.png",
+  "diff": 0
+ },
+ "slot10_tap23": {
+  "still": "11_perimeter_grid@1x.png",
+  "diff": 0
+ },
+ "slot11": {
+  "still": "12_neon_grape@1x.png",
+  "diff": 0
+ },
+ "slot11_tap24": {
+  "still": "12_neon_grape@1x.png",
+  "diff": 0
+ },
+ "slot12_tap1": {
+  "still": "13_holo_foil@1x.png",
+  "diff": 0
+ },
+ "slot13_tap2": {
+  "still": "14_toxic@1x.png",
+  "diff": 0
+ },
+ "slot14_tap3": {
+  "still": "15_ice@1x.png",
+  "diff": 0
+ },
+ "slot15_tap4": {
+  "still": "16_sonar@1x.png",
+  "diff": 0
+ },
+ "slot16_tap5": {
+  "still": "17_blaze_orange@1x.png",
+  "diff": 0
+ },
+ "slot17_tap6": {
+  "still": "18_gold_rush@1x.png",
+  "diff": 0
+ },
+ "slot18_tap7": {
+  "still": "19_synthwave@1x.png",
+  "diff": 0
+ },
+ "slot19_tap8": {
+  "still": "20_aurora@1x.png",
+  "diff": 0
+ },
+ "slot1_tap14": {
+  "still": "02_hi-vis_blue@1x.png",
+  "diff": 0
+ },
+ "slot20_tap9": {
+  "still": "21_prism@1x.png",
+  "diff": 0
+ },
+ "slot21_tap10": {
+  "still": "22_glitch@1x.png",
+  "diff": 0
+ },
+ "slot22_tap11": {
+  "still": "23_hot_rose@1x.png",
+  "diff": 0
+ },
+ "slot23_tap12": {
+  "still": "24_digi_camo@1x.png",
+  "diff": 0
+ },
+ "slot2_tap15": {
+  "still": "03_nv_green_bloom@1x.png",
+  "diff": 0
+ },
+ "slot3_tap16": {
+  "still": "04_nv_white_phosphor@1x.png",
+  "diff": 0
+ },
+ "slot4_tap17": {
+  "still": "05_ir_ironbow@1x.png",
+  "diff": 0
+ },
+ "slot5_tap18": {
+  "still": "06_ir_rainbow_heat@1x.png",
+  "diff": 0
+ },
+ "slot6_tap19": {
+  "still": "07_ir_white-hot@1x.png",
+  "diff": 0
+ },
+ "slot7_tap20": {
+  "still": "08_ir_red-hot@1x.png",
+  "diff": 0
+ },
+ "slot8_tap21": {
+  "still": "09_alarm_strobe@1x.png",
+  "diff": 0
+ },
+ "slot9_tap22": {
+  "still": "10_police_siren@1x.png",
+  "diff": 0
+ }
+}

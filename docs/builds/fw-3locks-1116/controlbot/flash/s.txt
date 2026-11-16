@@ -1,0 +1,21 @@
+tick 67
+tick 190
+go 2
+tick 40
+tap 186 80
+tick 20
+tkstill 2000 220 0
+dump before
+tap 120 145
+tick 1
+tkstill 2000 220 0
+dump flash_30ms
+tick 2
+tkstill 2000 220 0
+dump flash_90ms
+tick 2
+tkstill 2000 220 0
+dump flash_150ms_ended
+tick 6
+tkstill 2000 220 0
+dump after

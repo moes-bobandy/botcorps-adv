@@ -1,0 +1,87 @@
+t=0 BACKLIGHT 90% (duty 229/255) (SIM)
+t=0 CONTROLbot boot settings scan=1 vol=50 bri=90 chime=0 time=1 bar=0 tone=1 rain=1 rainmode=1
+t=7860 NVS lktheme=22 (SIM)
+DUMP s0 scr=14 seg=-1 clipframe=-1 t=7920
+OVL s0
+t=7920 NVS lktheme=12 (SIM)
+DUMP s1 scr=14 seg=-1 clipframe=-1 t=7980
+OVL s1
+t=7980 NVS lktheme=13 (SIM)
+DUMP s2 scr=14 seg=-1 clipframe=-1 t=8040
+OVL s2
+t=8040 NVS lktheme=14 (SIM)
+DUMP s3 scr=14 seg=-1 clipframe=-1 t=8100
+OVL s3
+t=8100 NVS lktheme=15 (SIM)
+DUMP s4 scr=14 seg=-1 clipframe=-1 t=8160
+OVL s4
+t=8160 NVS lktheme=16 (SIM)
+DUMP s5 scr=14 seg=-1 clipframe=-1 t=8220
+OVL s5
+t=8220 NVS lktheme=17 (SIM)
+DUMP s6 scr=14 seg=-1 clipframe=-1 t=8280
+OVL s6
+t=8280 NVS lktheme=18 (SIM)
+DUMP s7 scr=14 seg=-1 clipframe=-1 t=8340
+OVL s7
+t=8340 NVS lktheme=19 (SIM)
+DUMP s8 scr=14 seg=-1 clipframe=-1 t=8400
+OVL s8
+t=8400 NVS lktheme=20 (SIM)
+DUMP s9 scr=14 seg=-1 clipframe=-1 t=8460
+OVL s9
+t=8460 NVS lktheme=21 (SIM)
+DUMP s10 scr=14 seg=-1 clipframe=-1 t=8520
+OVL s10
+t=8520 NVS lktheme=0 (SIM)
+DUMP s11 scr=14 seg=-1 clipframe=-1 t=8580
+OVL s11
+t=8580 NVS lktheme=24 (SIM)
+DUMP s12 scr=14 seg=-1 clipframe=-1 t=8640
+OVL s12
+t=8640 NVS lktheme=2 (SIM)
+DUMP s13 scr=14 seg=-1 clipframe=-1 t=8700
+OVL s13
+t=8700 NVS lktheme=3 (SIM)
+DUMP s14 scr=14 seg=-1 clipframe=-1 t=8760
+OVL s14
+t=8760 NVS lktheme=23 (SIM)
+DUMP s15 scr=14 seg=-1 clipframe=-1 t=8820
+OVL s15
+t=8820 NVS lktheme=5 (SIM)
+DUMP s16 scr=14 seg=-1 clipframe=-1 t=8880
+OVL s16
+t=8880 NVS lktheme=6 (SIM)
+DUMP s17 scr=14 seg=-1 clipframe=-1 t=8940
+OVL s17
+t=8940 NVS lktheme=7 (SIM)
+DUMP s18 scr=14 seg=-1 clipframe=-1 t=9000
+OVL s18
+t=9000 NVS lktheme=8 (SIM)
+DUMP s19 scr=14 seg=-1 clipframe=-1 t=9060
+OVL s19
+t=9060 NVS lktheme=9 (SIM)
+DUMP s20 scr=14 seg=-1 clipframe=-1 t=9120
+OVL s20
+t=9120 NVS lktheme=10 (SIM)
+DUMP s21 scr=14 seg=-1 clipframe=-1 t=9180
+OVL s21
+t=9180 NVS lktheme=11 (SIM)
+DUMP s22 scr=14 seg=-1 clipframe=-1 t=9240
+OVL s22
+t=9240 NVS lktheme=25 (SIM)
+DUMP s23 scr=14 seg=-1 clipframe=-1 t=9300
+OVL s23
+t=9300 NVS lktheme=7 (SIM)
+DUMP alert scr=14 seg=-1 clipframe=-1 t=9360
+OVL alert
+t=9360 NVS lktheme=8 (SIM)
+t=9360 tap 120,140 -> controlbot-theme (scr=14 seg=-1)
+DUMP aftertap scr=14 seg=-1 clipframe=-1 t=9450
+OVL aftertap
+  | BOTCORPS cyd-livescan 1.0
+  | type 'help'. scans: tap SCAN or 'scan'
+  | CONTROLbot THEME AURORA
+px pushed by overlays: 4530836
+SHADOW peak 29817 of 32768 bytes
+MOUI tot=0 part=0

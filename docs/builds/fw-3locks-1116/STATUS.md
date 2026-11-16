@@ -27,3 +27,18 @@ Request: Mobandy 2026-11-16 1:17 PM ET — build CONTROLbot Color UI v6 + BOTphe
 - Banner tint on non-CUI screens is off by default (lock conflict); -DLV_CUI_TICKER_ALL=1 turns it on.
 - CTL theme bar still cycles the original 12 themes (a CUI theme 12..25 wraps into 0..11 on the next CTL tap).
 - Boot / glossary MORPHEUS pixel art not renamed (locked art). No hardware test, no runtime heap number.
+- 14:14 REVERT STARTED: Mobandy 2:14 PM ET "Keep Morpheus for now" — reverting BOTpheus rename (label, UI text, terminal cmds, docs) back to Morpheus; banner + home CONTROLbot left as is.
+- 14:18 REVERT CANCELLED (Mobandy "Ok keep BOTpheus"; no source changed, BOTPHEUS label stays as 10e5b12). STARTED: CONTROLbot -> Color UI wiring (Mobandy 2:17 PM ET: new Color UI replaces the old CONTROLbot screen).
+- 14:19 (Mobandy 2:18 PM ET) scope widened: v6 IS the new CONTROLbot; panel must operate; rename Color UI -> CONTROLbot. 2:20 PM ET: face tap flash must follow the square bot only.
+- 14:22 rename: LV_SC_CUI -> LV_SC_CONTROLBOT, src/live/cui -> src/live/controlbot, lv_cui_* -> lv_cb_*, tools/cui -> tools/controlbot; `go color/colorui/themes` -> `go controlbot/control`. 24 stills still 0 px.
+- 14:24 routes: home CONTROLbot chip + `go ctl` -> CONTROLbot v6 (old LV_SC_CTL code kept, unrouted).
+- 14:27 live panel (controlbot/lv_controlbot_panel.h): paint_v2 panel + controlbot_colorui_reink roles ported to C++; at defaults all 24 stills + alert = 0 px (565q); non-default values change only x59..187 y224..283.
+- 14:29 controls: SCAN B.RAIN/S.RAIN/OFF -> GIBSON code rain DRIFT/SWEEP/off; VOL 0..100 (left half -10, right +10) -> speaker duty; BRIGHT 10..100 -> backlight; CHIME ON/OFF -> tone on alert events; TONE BEEP/8BIT/SIREN; TIME RTC/NTP and BAR RAIN/DECOD/TICK/HAZRD/HUD saved + shown only (no NTP, no other bar styles in firmware). NVS "botcorps" cbscan..cbtone. Sim log proves each save / backlight / speaker call.
+- 14:30 face flash = lv_hi over x54..185 y79..210 only (black frame/eyes stay black per the firmware flash rule); flash frames vs after: 0 px outside the bot.
+- 14:31 regression vs 049ff59: 251/277 dumps identical; 26 differ = every old-CONTROLbot dump (now CONTROLbot v6) + 4 dumps taken after taps on the CONTROLbot screen (home_t1, scan_t1, e_tty: theme/motion state; t_radar: ticker only). verify_live: ctl/ctl_after/ctl_mix no longer scored (not a clip screen), home_t1/scan_t1 changed theme, other 28 identical. gate.sh identical (1042/1057).
+- 14:34 builds @c1b5659: cyd_livescan RAM 120,588 Flash 2,631,843 (83.7%); cyd RAM 74,172 Flash 1,496,047. merged bin cyd_fw3locks_c1b5659_merged_0x0.bin 2,697,776 B sha256 56b347d5...a6a3e2. NOT flashed.
+## Open (CONTROLbot)
+- Old CONTROLbot functions not on the v6 panel (no UI any more): uptime, ticker FOCUS, MULTI auto-scan, BG MOTION, MIX, RAIN COL, MASHUP speed, ORIENT. Terminal still has `theme`; the others have no command.
+- TIME (NTP) and BAR (non-HAZRD styles) are not implemented; SCAN BOTS/GIBSON/FLYBY/BOUNCE need LV_BG_ENGINE (off in this env). S.RAIN/OFF meanings are my mapping.
+- Speaker + backlight hooks untested on hardware. Default backlight is now 80 % (was 255).
+- Banner tint still only on CONTROLbot (unanswered).

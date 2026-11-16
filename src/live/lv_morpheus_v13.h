@@ -105,7 +105,8 @@ static int mo_src(int i, int r, int c)
 }
 static void mo_build(void)
 {
-    static float C[MO_SP * MO_SP], T[MO_SP * MO_SP];
+    /* fw-3locks-1116: the 15.5 KB build scratch is heap-borrowed for the build only (was static .bss; DRAM overflowed). Same values. */
+    float *const C = (float *)malloc(2 * sizeof(float) * MO_SP * MO_SP); if (!C) return; float *const T = C + MO_SP * MO_SP;
     for (int i = 0; i < 12; ++i) {
         const float Z = MO11_Z0[i], fw = 2 * LV_RD_F * 0.12f * MO11_TW / Z; float s = (fw - 4) / 16; s = s < 0.5f ? 0.5f : s > 1.0f ? 1.0f : s; mo_hsv[i] = s;
         const int n = (int)(16 * s + 0.5f), pad = 3, S = n + 2 * pad; mo_hs[i] = S; mo_hn[i] = n;
@@ -122,6 +123,7 @@ static void mo_build(void)
         for (int y = 0; y < S; ++y) for (int x = 0; x < S; ++x) { float a = 0; for (int d = -2; d <= 2; ++d) { const int yy = y + d; if (yy >= 0 && yy < S) a += T[yy * S + x]; } C[y * S + x] = a / 5; }
         for (int k = 0; k < S * S; ++k) { const float g = C[k] * 2.0f; mo_hg[i][k] = (uint8_t)(g > 1 ? 255 : g * 255); }
     }
+    free(C);
 }
 /* ---- pixel helpers ---- */
 static inline void mo11_bl(LvBand &B, int x, int y, uint16_t c, int a)   /* alpha blend /256 (also used by the skin-1 hooks) */

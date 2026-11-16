@@ -1,0 +1,135 @@
+{
+  "default_theme": "NEON GRAPE (lv_theme=0, slot 11)",
+  "v6_still_sha256": "48096cc6ab73a35a674de412b42c6b853a244830c362b888b4b980cafa0a8779",
+  "face_slot_locked": {
+    "THEME_FACE_inclusive": [
+      65,
+      88,
+      174,
+      197
+    ],
+    "size": [
+      110,
+      110
+    ]
+  },
+  "panel_slot": {
+    "inclusive": [
+      45,
+      220,
+      196,
+      290
+    ],
+    "size": [
+      152,
+      71
+    ]
+  },
+  "control_panel_selftest": "control-panel selftest vs still: diff_px=0 bbox=999,999,-1,-1",
+  "bots": [
+    {
+      "id": "botpheus",
+      "name": "BOTpheus",
+      "face": "raw",
+      "panel": "botpheus",
+      "changed_px": 18190,
+      "diff_bbox": [
+        46,
+        88,
+        195,
+        289
+      ],
+      "changed_outside_face_or_panel": 0
+    },
+    {
+      "id": "gibson",
+      "name": "GIBSONbot",
+      "face": "raw",
+      "panel": "gibson",
+      "changed_px": 17135,
+      "diff_bbox": [
+        46,
+        88,
+        195,
+        289
+      ],
+      "changed_outside_face_or_panel": 0
+    },
+    {
+      "id": "control",
+      "name": "CONTROLbot (locked v6)",
+      "face": "none",
+      "panel": "none",
+      "changed_px": 0,
+      "diff_bbox": null,
+      "changed_outside_face_or_panel": 0
+    },
+    {
+      "id": "hackbot",
+      "name": "HACKbot",
+      "face": "gold",
+      "panel": "hackbot",
+      "changed_px": 17801,
+      "diff_bbox": [
+        46,
+        88,
+        195,
+        289
+      ],
+      "changed_outside_face_or_panel": 0
+    },
+    {
+      "id": "terminal",
+      "name": "TERMINALbot",
+      "face": "silver",
+      "panel": "terminal",
+      "changed_px": 17327,
+      "diff_bbox": [
+        46,
+        88,
+        195,
+        289
+      ],
+      "changed_outside_face_or_panel": 0
+    }
+  ],
+  "themes": [
+    {
+      "theme": "CIRCUIT",
+      "slot": 0,
+      "changed_px": 17363,
+      "diff_bbox": [
+        46,
+        88,
+        195,
+        289
+      ],
+      "outside": 0
+    },
+    {
+      "theme": "ICE",
+      "slot": 14,
+      "changed_px": 17327,
+      "diff_bbox": [
+        46,
+        88,
+        195,
+        289
+      ],
+      "outside": 0
+    },
+    {
+      "theme": "GOLD RUSH",
+      "slot": 17,
+      "changed_px": 17327,
+      "diff_bbox": [
+        46,
+        88,
+        195,
+        289
+      ],
+      "outside": 0
+    }
+  ],
+  "nn3": "all default stills @3x are pixel-exact 3x nearest-neighbour of @1x"
+}

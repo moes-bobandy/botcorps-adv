@@ -1,0 +1,31 @@
+{
+ "mask_px": 4789,
+ "board_role0_outside_mask_identical_to_v2_lime": true,
+ "board_identical_across_new_themes": true,
+ "per_theme": [
+  {
+   "theme": "CIRC",
+   "source": "v3 NEW candidate",
+   "changed_px_vs_no_coilpin": 4789,
+   "changed_outside_mask": 0
+  },
+  {
+   "theme": "SONAR",
+   "source": "v3 NEW candidate",
+   "changed_px_vs_no_coilpin": 4789,
+   "changed_outside_mask": 0
+  },
+  {
+   "theme": "HOLO",
+   "source": "v3 NEW candidate",
+   "changed_px_vs_no_coilpin": 4789,
+   "changed_outside_mask": 0
+  },
+  {
+   "theme": "CAMO",
+   "source": "v3 NEW candidate",
+   "changed_px_vs_no_coilpin": 4789,
+   "changed_outside_mask": 0
+  }
+ ]
+}

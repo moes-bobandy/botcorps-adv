@@ -1,0 +1,276 @@
+{
+ "bar_clone_check": [
+  {
+   "bar": "CURTN",
+   "full_frame_px_diff_vs_locked": 0
+  },
+  {
+   "bar": "TERM",
+   "full_frame_px_diff_vs_locked": 0
+  },
+  {
+   "bar": "ZONE",
+   "full_frame_px_diff_vs_locked": 0
+  },
+  {
+   "bar": "RADAR",
+   "full_frame_px_diff_vs_locked": 0
+  },
+  {
+   "bar": "ARM",
+   "full_frame_px_diff_vs_locked": 0
+  },
+  {
+   "bar": "LITEB",
+   "full_frame_px_diff_vs_locked": 0
+  },
+  {
+   "bar": "BADGE",
+   "full_frame_px_diff_vs_locked": 0
+  },
+  {
+   "bar": "NVG",
+   "full_frame_px_diff_vs_locked": 0
+  },
+  {
+   "bar": "IRON",
+   "full_frame_px_diff_vs_locked": 0
+  },
+  {
+   "bar": "ALARM",
+   "full_frame_px_diff_vs_locked": 0
+  },
+  {
+   "bar": "PERIM",
+   "full_frame_px_diff_vs_locked": 0
+  }
+ ],
+ "final": [
+  {
+   "slot": 1,
+   "theme": "CIRCUIT",
+   "changed_vs_body_outside_header": 0
+  },
+  {
+   "slot": 2,
+   "theme": "HI-VIS BLUE",
+   "changed_vs_body_outside_header": 0,
+   "changed_vs_locked_sec_v2_outside_header_and_mask": 0
+  },
+  {
+   "slot": 3,
+   "theme": "NV GREEN BLOOM",
+   "changed_vs_body_outside_header": 0,
+   "changed_vs_locked_sec_v2_outside_header_and_mask": 0
+  },
+  {
+   "slot": 4,
+   "theme": "NV WHITE PHOSPHOR",
+   "changed_vs_body_outside_header": 0,
+   "changed_vs_locked_sec_v2_outside_header_and_mask": 0
+  },
+  {
+   "slot": 5,
+   "theme": "IR IRONBOW",
+   "changed_vs_body_outside_header": 0,
+   "changed_vs_locked_sec_v2_outside_header_and_mask": 0
+  },
+  {
+   "slot": 6,
+   "theme": "IR RAINBOW HEAT",
+   "changed_vs_body_outside_header": 0,
+   "changed_vs_locked_sec_v2_outside_header_and_mask": 0
+  },
+  {
+   "slot": 7,
+   "theme": "IR WHITE-HOT",
+   "changed_vs_body_outside_header": 0,
+   "changed_vs_locked_sec_v2_outside_header_and_mask": 0
+  },
+  {
+   "slot": 8,
+   "theme": "IR RED-HOT",
+   "changed_vs_body_outside_header": 0,
+   "changed_vs_locked_sec_v2_outside_header_and_mask": 0
+  },
+  {
+   "slot": 9,
+   "theme": "ALARM STROBE",
+   "changed_vs_body_outside_header": 0,
+   "changed_vs_locked_sec_v2_outside_header_and_mask": 0
+  },
+  {
+   "slot": 10,
+   "theme": "POLICE SIREN",
+   "changed_vs_body_outside_header": 0,
+   "changed_vs_locked_sec_v2_outside_header_and_mask": 0
+  },
+  {
+   "slot": 11,
+   "theme": "PERIMETER GRID",
+   "changed_vs_body_outside_header": 0,
+   "changed_vs_locked_sec_v2_outside_header_and_mask": 0
+  },
+  {
+   "slot": 12,
+   "theme": "NEON GRAPE",
+   "changed_vs_body_outside_header": 0
+  },
+  {
+   "slot": 13,
+   "theme": "HOLO FOIL",
+   "changed_vs_body_outside_header": 0
+  },
+  {
+   "slot": 14,
+   "theme": "TOXIC",
+   "changed_vs_body_outside_header": 0
+  },
+  {
+   "slot": 15,
+   "theme": "ICE",
+   "changed_vs_body_outside_header": 0
+  },
+  {
+   "slot": 16,
+   "theme": "SONAR",
+   "changed_vs_body_outside_header": 0
+  },
+  {
+   "slot": 17,
+   "theme": "BLAZE ORANGE",
+   "changed_vs_body_outside_header": 0
+  },
+  {
+   "slot": 18,
+   "theme": "GOLD RUSH",
+   "changed_vs_body_outside_header": 0
+  },
+  {
+   "slot": 19,
+   "theme": "SYNTHWAVE",
+   "changed_vs_body_outside_header": 0
+  },
+  {
+   "slot": 20,
+   "theme": "AURORA",
+   "changed_vs_body_outside_header": 0
+  },
+  {
+   "slot": 21,
+   "theme": "PRISM",
+   "changed_vs_body_outside_header": 0
+  },
+  {
+   "slot": 22,
+   "theme": "GLITCH",
+   "changed_vs_body_outside_header": 0
+  },
+  {
+   "slot": 23,
+   "theme": "HOT ROSE",
+   "changed_vs_body_outside_header": 0
+  },
+  {
+   "slot": 24,
+   "theme": "DIGI CAMO",
+   "changed_vs_body_outside_header": 0
+  }
+ ],
+ "sec_clone_check": [
+  {
+   "slot": 2,
+   "theme": "HI-VIS BLUE",
+   "locked_png": "02_hivis@1x.png",
+   "px_diff_outside_header_and_mask": 0
+  },
+  {
+   "slot": 3,
+   "theme": "NV GREEN BLOOM",
+   "locked_png": "03_nvg@1x.png",
+   "px_diff_outside_header_and_mask": 0
+  },
+  {
+   "slot": 4,
+   "theme": "NV WHITE PHOSPHOR",
+   "locked_png": "04_nvwht@1x.png",
+   "px_diff_outside_header_and_mask": 0
+  },
+  {
+   "slot": 5,
+   "theme": "IR IRONBOW",
+   "locked_png": "05_iron@1x.png",
+   "px_diff_outside_header_and_mask": 0
+  },
+  {
+   "slot": 6,
+   "theme": "IR RAINBOW HEAT",
+   "locked_png": "06_heat@1x.png",
+   "px_diff_outside_header_and_mask": 0
+  },
+  {
+   "slot": 7,
+   "theme": "IR WHITE-HOT",
+   "locked_png": "07_whhot@1x.png",
+   "px_diff_outside_header_and_mask": 0
+  },
+  {
+   "slot": 8,
+   "theme": "IR RED-HOT",
+   "locked_png": "08_redht@1x.png",
+   "px_diff_outside_header_and_mask": 0
+  },
+  {
+   "slot": 9,
+   "theme": "ALARM STROBE",
+   "locked_png": "09_alarm@1x.png",
+   "px_diff_outside_header_and_mask": 0
+  },
+  {
+   "slot": 10,
+   "theme": "POLICE SIREN",
+   "locked_png": "10_siren@1x.png",
+   "px_diff_outside_header_and_mask": 0
+  },
+  {
+   "slot": 11,
+   "theme": "PERIMETER GRID",
+   "locked_png": "11_perim@1x.png",
+   "px_diff_outside_header_and_mask": 0
+  }
+ ],
+ "summary": {
+  "theme_order": [
+   "01 CIRCUIT [NEW (was SEC LIME slot)]",
+   "02 HI-VIS BLUE [SECURITYbot v2]",
+   "03 NV GREEN BLOOM [SECURITYbot v2]",
+   "04 NV WHITE PHOSPHOR [SECURITYbot v2]",
+   "05 IR IRONBOW [SECURITYbot v2]",
+   "06 IR RAINBOW HEAT [SECURITYbot v2]",
+   "07 IR WHITE-HOT [SECURITYbot v2]",
+   "08 IR RED-HOT [SECURITYbot v2]",
+   "09 ALARM STROBE [SECURITYbot v2]",
+   "10 POLICE SIREN [SECURITYbot v2]",
+   "11 PERIMETER GRID [SECURITYbot v2]",
+   "12 NEON GRAPE [CYD]",
+   "13 HOLO FOIL [NEW (was HOT PINK slot)]",
+   "14 TOXIC [CYD]",
+   "15 ICE [CYD]",
+   "16 SONAR [NEW (was CYD BLUE slot)]",
+   "17 BLAZE ORANGE [CYD]",
+   "18 GOLD RUSH [CYD]",
+   "19 SYNTHWAVE [CYD]",
+   "20 AURORA [CYD]",
+   "21 PRISM [CYD]",
+   "22 GLITCH [CYD]",
+   "23 HOT ROSE [CYD]",
+   "24 DIGI CAMO [NEW extra]"
+  ],
+  "body_changed_outside_coilpin_mask_max": 0,
+  "grid_stills_changed_outside_header_vs_body_max": 0,
+  "mp4_prefx_frames_changed_outside_header_total_px": 0,
+  "sec_10_clone_outside_header_and_mask_max": 0,
+  "sec_10_no_coilpin_pipeline_equals_locked_v2": true,
+  "bar_clone_all_zero": true
+ }
+}

@@ -145,6 +145,11 @@ static bool fk_cal_save(const uint16_t c[8])
     return true;
 }
 static void fk_set_rot(int flip) { fk_rot = flip ? 0 : 2; printf("[sim] set_rot -> setRotation(%d)\n", fk_rot); }
+#if LV_CB   /* fw-3locks: CONTROLbot v6 panel hooks, logged (SIM NVS / backlight / speaker) */
+static void fk_cb_save(const LvCbSet &c) { printf("t=%u NVS CONTROLbot scan=%u vol=%u bri=%u chime=%u time=%u bar=%u tone=%u (SIM)\n", t_ms, c.scan, c.vol, c.bri, c.chime, c.time, c.bar, c.tone); }
+static void fk_cb_bright(int pct) { printf("t=%u BACKLIGHT %d%% (duty %d/255) (SIM)\n", t_ms, pct, pct * 255 / 100); }
+static void fk_cb_tone(int hz, int vol) { printf("t=%u SPEAKER %d Hz vol %d%% (SIM)\n", t_ms, hz, vol); }
+#endif
 static const LvRadio FAKE = {fk_wifi_start, fk_wifi_poll, fk_ble_start, fk_ble_poll, fk_deauth_start, fk_deauth_poll, fk_stop, fk_sys, fk_save, fk_cal_save, fk_set_rot, fk_mac_load, fk_mac_save
 #if LV_BG_ENGINE
     , fk_bg_save
@@ -203,6 +208,12 @@ int main(int argc, char **argv)
     if (fread(blob.data(), 1, LK_BLOB_SIZE, bf) != LK_BLOB_SIZE) return 1;
     LkIo io{blob.data(), infl, lv_clip_draw, ibuf};
     /* fw-3locks: SIM_THEME=N boots with NVS lktheme=N (persistence test) */ lv_begin(&FAKE, blit, raw_draw, getenv("SIM_THEME") ? atoi(getenv("SIM_THEME")) : 0, 0, !(argc > 3 && !strcmp(argv[3], "nocal")));
+#if LV_CB   /* fw-3locks: SIM_CB="scan,vol,bri,chime,time,bar,tone" = the CONTROLbot NVS values read at boot (persistence test) */
+    if (getenv("SIM_CB")) { int v[7]; if (sscanf(getenv("SIM_CB"), "%d,%d,%d,%d,%d,%d,%d", v, v + 1, v + 2, v + 3, v + 4, v + 5, v + 6) == 7)
+        lv_cb_set = LvCbSet{(uint8_t)v[0], (uint8_t)v[1], (uint8_t)v[2], (uint8_t)v[3], (uint8_t)v[4], (uint8_t)v[5], (uint8_t)v[6]}; }
+    lv_cb_apply(); lv_cb_save_hook = fk_cb_save; lv_cb_tone_hook = fk_cb_tone; lv_cb_bright_hook = fk_cb_bright; fk_cb_bright(lv_cb_set.bri);
+    printf("t=%u CONTROLbot boot settings scan=%u vol=%u bri=%u chime=%u time=%u bar=%u tone=%u rain=%d rainmode=%d\n", t_ms, lv_cb_set.scan, lv_cb_set.vol, lv_cb_set.bri, lv_cb_set.chime, lv_cb_set.time, lv_cb_set.bar, lv_cb_set.tone, lv_rain, lv_rainmode);
+#endif
     lv_tick(io, 0);                            /* power-on paint at t=0 (the firmware loop ticks at once too) */
     FILE *sc = fopen(argv[1], "r"); char cmd[32];
     while (fscanf(sc, "%31s", cmd) == 1) {
@@ -265,12 +276,15 @@ int main(int argc, char **argv)
 #endif
         else if (!strcmp(cmd, "radarstate")) printf("t=%u RADAR sel=%d lock=%d hunt=%d reads=%d trend=%d miss=%d ign=%d wat=%d job=%d tk='%s'\n", t_ms, lv_rd_sel, lv_rd_lock, lv_rd_hunting, lv_rd_reads, lv_rd_trend, lv_rd_miss, lv_rd_nign, lv_rd_nwat, lv_job, lv_tk_msg);
         else if (!strcmp(cmd, "theme")) { int t; if (fscanf(sc, "%d", &t) != 1) return 2; lv_set_theme(t); }
-#if LV_CUI
-        else if (!strcmp(cmd, "cui")) { int k; if (fscanf(sc, "%d", &k) != 1) return 2; lv_set_theme_any(LV_CUI_FW[k]); lv_cui_dirty = true; }   /* fw-3locks: Color UI slot k (locked order) */
+#if LV_CB
+#if LV_CB
+        else if (!strcmp(cmd, "cbalert")) { lv_event(true, "SIM ALERT (CHIME TEST)"); }   /* fw-3locks: an alert event, as a hunt match / deauth raises */
+#endif
+        else if (!strcmp(cmd, "controlbot")) { int k; if (fscanf(sc, "%d", &k) != 1) return 2; lv_set_theme_any(LV_CB_FW[k]); lv_cb_dirty = true; }   /* fw-3locks: CONTROLbot v6 slot k (locked order) */
         else if (!strcmp(cmd, "tkstill")) {   /* fw-3locks: redraw the firmware ticker at the lock still's clock (now off alert), default text, then restore lv_now */
             unsigned nw; int off, al; if (fscanf(sc, "%u %d %d", &nw, &off, &al) != 3) return 2;
             const uint32_t keep = lv_now; lv_now = nw; lv_tk_off = off; lv_tk_alert = al != 0; snprintf(lv_tk_msg, sizeof lv_tk_msg, "%s", "NO THREATS - TAP SCAN");
-            LvTickCtx c{LV_R_TICK.x0, LV_R_TICK.x1}; lv_render(lv_cui_tint_active() ? lv_blit_hw : lv_blit, LV_R_TICK, lv_scene_ticker, &c); lv_now = keep; }
+            LvTickCtx c{LV_R_TICK.x0, LV_R_TICK.x1}; lv_render(lv_cb_tint_active() ? lv_blit_hw : lv_blit, LV_R_TICK, lv_scene_ticker, &c); lv_now = keep; }
 #endif
         else if (!strcmp(cmd, "motion")) { int m; if (fscanf(sc, "%d", &m) != 1) return 2; lv_motion = m != 0; }   /* BG MOTION (CONTROLbot chip) without the CTL tap */
         else if (!strcmp(cmd, "type")) {

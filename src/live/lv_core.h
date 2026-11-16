@@ -17,7 +17,7 @@
 #include <stdlib.h>
 #include "../lock/lock_core.h"
 #include "lv_draw.h"
-#include "lv_build_3locks.h"   /* fw-3locks-1116: CONTROLbot Color UI v6 + BOTpheus EB3 + HACKbot game switches */
+#include "lv_build_3locks.h"   /* fw-3locks-1116: CONTROLbot v6 + BOTpheus EB3 + HACKbot game switches */
 
 #ifdef BOTCORPS_BUILD_ID
 #define LV_VERSION "cyd-livescan 1.0 " BOTCORPS_BUILD_ID
@@ -119,8 +119,8 @@ enum LvScr { LV_SC_BOOT, LV_SC_HOME_INTRO, LV_SC_HOME, LV_SC_TERM, LV_SC_SCAN, L
 #if LV_TR_INSIDE
              , LV_SC_TR
 #endif
-#if LV_CUI
-             , LV_SC_CUI   /* fw-3locks-1116: CONTROLbot Color UI v6 (cui/lv_cui_screen.h) */
+#if LV_CB
+             , LV_SC_CONTROLBOT   /* fw-3locks-1116: CONTROLbot v6 (controlbot/lv_controlbot_screen.h) */
 #endif
 };   /* item 2: MORPHEUSbot Device Glossary grid + the 12 description pages (lv_glossary.h) */
 
@@ -128,7 +128,7 @@ enum LvScr { LV_SC_BOOT, LV_SC_HOME_INTRO, LV_SC_HOME, LV_SC_TERM, LV_SC_SCAN, L
 #define LV_RD_SKINS 1   /* MOCK 1112: per-bot radar re-skin (lv_rd_skin); 0 everywhere = byte-identical */
 #endif
 #define LV_NTHEME 12
-#if LV_CUI   /* fw-3locks-1116 CONTROLbot Color UI v6: 12..21 = SECURITYbot v2 themes 1..10 (themes_spec_v2.h), 22..25 = v3 NEW
+#if LV_CB   /* fw-3locks-1116 CONTROLbot v6: 12..21 = SECURITYbot v2 themes 1..10 (themes_spec_v2.h), 22..25 = v3 NEW
               * CIRCUIT / SONAR / HOLO FOIL / DIGI CAMO (new_themes_v3.h EXT 12..15). Inks copied from those headers. 0..11 unchanged.
               * LV_NTHEME stays 12 for the locked CONTROLbot / terminal theme cycle. */
 #define LV_NTHEME_ALL 26
@@ -142,12 +142,12 @@ enum LvScr { LV_SC_BOOT, LV_SC_HOME_INTRO, LV_SC_HOME, LV_SC_TERM, LV_SC_SCAN, L
  * pink art is never cyan, so SCANbot / TERMINALbot / BACKbot keep their own colours. LV_THEME_NAME fits the
  * 31 px THEME field; LV_THEME_FULL is the original name (terminal 'theme', CONTROLbot name plate). */
 static const char *const LV_THEME_NAME[LV_NTHEME_ALL] = {"GRAPE", "MAGENTA", "TOXIC", "ICE", "BLUE", "ORANGE", "GOLD", "SYNTH", "AURA", "PRISM", "GLTCH", "ROSE"
-#if LV_CUI
+#if LV_CB
     , "HIVIS", "NVG", "NVWHT", "IRON", "HEAT", "WHHOT", "REDHT", "ALARM", "SIREN", "PERIM", "CIRC", "SONAR", "HOLO", "CAMO"
 #endif
 };
 static const char *const LV_THEME_FULL[LV_NTHEME_ALL] = {"NEON GRAPE", "HOT PINK", "TOXIC", "ICE", "BLUE", "BLAZE ORANGE", "GOLD RUSH", "SYNTHWAVE", "AURORA", "PRISM", "GLITCH", "HOT ROSE"
-#if LV_CUI
+#if LV_CB
     , "HI-VIS BLUE", "NV GREEN BLOOM", "NV WHITE PHOSPHOR", "IR IRONBOW", "IR RAINBOW HEAT", "IR WHITE-HOT", "IR RED-HOT", "ALARM STROBE", "POLICE SIREN", "PERIMETER GRID", "CIRCUIT", "SONAR", "HOLO FOIL", "DIGI CAMO"
 #endif
 };
@@ -157,28 +157,28 @@ static const char *const LV_THEME_FULL[LV_NTHEME_ALL] = {"NEON GRAPE", "HOT PINK
  * originals' accents (botcorps_rgb565 of ac); on the multi themes (7..10) these four values are sentinels
  * that lv_blit_theme re-inks per pixel, so every overlay stroke follows the fade / spectrum / split. */
 static const uint32_t LV_ACC[LV_NTHEME_ALL] = {0xb324fd, 0xdd00ac, 0x92ff02, 0x00ffff, 0x345efb, 0xfd6b00, 0xffda00, 0xff24fd, 0x20fe01, 0x00fe02, 0xfe0001, 0xff0052
-#if LV_CUI
+#if LV_CB
     , 0x0096ff, 0x8cff3c, 0xe4eef6, 0xff7a10, 0xffe000, 0xd0d4d8, 0xff5a14, 0xff1418, 0xff1e2e, 0xb050ff, 0xe0913c, 0x3dffcf, 0xc9a8ff, 0x9aa36a
 #endif
 };
 static const uint32_t LV_ACCD[LV_NTHEME_ALL] = {0x53205d, 0x68004f, 0x4a6010, 0x00636d, 0x0e5166, 0x61480f, 0x6a5a00, 0x690d69, 0x0d690d, 0x086908, 0x690405, 0x690022
-#if LV_CUI
+#if LV_CB
     , 0x003d69, 0x396918, 0x5d6165, 0x693206, 0x695c00, 0x55575a, 0x692508, 0x690809, 0x690c13, 0x482068, 0x0a4a2c, 0x00444a, 0x4f3f72, 0x3a4a2a
 #endif
 };
 static const uint32_t LV_HDR[LV_NTHEME_ALL] = {0xb36afe, 0xdc4aac, 0xb9fb4f, 0x4afffc, 0x6891ff, 0xf4b24c, 0xffe86a, 0xff6afd, 0x6aff6b, 0x6afe6c, 0xff6a6b, 0xff6a96
-#if LV_CUI
+#if LV_CB
     , 0x66c0ff, 0xbaff8a, 0xeff5f9, 0xffaf70, 0xffec66, 0xe2e5e7, 0xff9c72, 0xff7274, 0xff787f, 0xcf96ff, 0xffd27a, 0xa8ffe8, 0xffc2ee, 0xd8cc98
 #endif
 };
 static const uint32_t LV_FRAME[LV_NTHEME_ALL] = {0xff25ae, 0xdf00ae, 0x92fd00, 0x00feff, 0xfd22ff, 0xfd6b00, 0xffda00, 0xff24fd, 0x20fe01, 0x00fe02, 0xfe0001, 0xff0052
-#if LV_CUI
+#if LV_CB
     , 0x0096ff, 0x8cff3c, 0xe4eef6, 0xff7a10, 0xffe000, 0xd0d4d8, 0xff5a14, 0xff1418, 0xff1e2e, 0xb050ff, 0xe0913c, 0x3dffcf, 0xc9a8ff, 0x9aa36a
 #endif
 };
-#if LV_CUI
+#if LV_CB
 static bool lv_multi_theme(int t) { return (t >= 7 && t <= 10) || (t >= 13 && t <= 21) || t >= 22; }   /* + SEC NVG..PERIM, + the 4 NEW patterns */
-static uint32_t lv_theme_at_cui(int t, int x, int y);   /* lv_cui_themes (below lv_theme_at) */
+static uint32_t lv_theme_at_cb(int t, int x, int y);   /* lv_cb_themes (below lv_theme_at) */
 #else
 static bool lv_multi_theme(int t) { return t >= 7 && t <= 10; }
 #endif
@@ -200,16 +200,16 @@ static uint32_t lv_theme_at(int t, int x, int y)
     case 9: { static const uint32_t H[6] = {0xff24ff, 0xff8918, 0xffda00, 0x20ff00, 0x00ffff, 0x3161ff}; return H[((x + y) / 22) % 6]; } /* PRISM */
     case 10: return ((y / 3) % 4 == 1) ? 0x00ffff : 0xff0000;                                /* GLITCH: red, cyan split bands */
     default:
-#if LV_CUI
-        if (t >= LV_NTHEME) return lv_theme_at_cui(t, x, y);
+#if LV_CB
+        if (t >= LV_NTHEME) return lv_theme_at_cb(t, x, y);
 #endif
         return LV_ACC[t];
     }
 }
-#if LV_CUI
-#include "cui/themes_spec_v2.h"   /* VERBATIM copy: securitybot mocks/security-color-themes-v2 (SECURITYbot Color UI v2, locked 2b79d83) */
-#include "cui/new_themes_v3.h"    /* VERBATIM copy: controlbot-colorui-1115 v6-cyd-ticker/sim (CIRCUIT / SONAR / HOLO FOIL / DIGI CAMO) */
-static uint32_t lv_theme_at_cui(int t, int x, int y) { return t < 22 ? sec_theme_at(t - 11, x, y) : ext_theme_at(t - 10, x, y); }
+#if LV_CB
+#include "controlbot/themes_spec_v2.h"   /* VERBATIM copy: securitybot mocks/security-color-themes-v2 (SECURITYbot Color UI v2, locked 2b79d83) */
+#include "controlbot/new_themes_v3.h"    /* VERBATIM copy: controlbot-colorui-1115 v6-cyd-ticker/sim (CIRCUIT / SONAR / HOLO FOIL / DIGI CAMO) */
+static uint32_t lv_theme_at_cb(int t, int x, int y) { return t < 22 ? sec_theme_at(t - 11, x, y) : ext_theme_at(t - 10, x, y); }
 #endif
 #define LV_PROMPT_INK 0xdd00a7
 #define LV_TAN 0xb39152
@@ -322,8 +322,14 @@ static float mo_eb2_k[64];   /* EB2: per-tower forward scale (0 = untouched) */
 static int lv_tk_off = 0, lv_tk_item = 0;
 static bool lv_tk_alert = false;
 static char lv_evq[4][LV_TKLEN]; static uint8_t lv_evalert[4]; static int lv_nev = 0;
+#if LV_CB
+static void lv_cb_alert_chime(void);   /* fw-3locks-1116: CONTROLbot CHIME (controlbot/lv_controlbot_panel.h) */
+#endif
 static void lv_event(bool alert, const char *fmt, ...)
 {
+#if LV_CB
+    if (alert) lv_cb_alert_chime();
+#endif
     if (lv_nev >= 4) { memmove(lv_evq[0], lv_evq[1], sizeof lv_evq[0] * 3); memmove(lv_evalert, lv_evalert + 1, 3); lv_nev = 3; }
     va_list ap; va_start(ap, fmt); vsnprintf(lv_evq[lv_nev], LV_TKLEN, fmt, ap); va_end(ap);
     lv_evalert[lv_nev++] = alert;
@@ -592,8 +598,8 @@ static void lv_set_theme(int t)
     if (lv_radio->save_theme) lv_radio->save_theme(lv_theme);
     lv_dirty_box = lv_dirty_term = lv_dirty_ctl = lv_dirty_tty = lv_dirty_kbd = true;
 }
-#if LV_CUI
-static void lv_set_theme_any(int t)   /* fw-3locks-1116: Color UI v6 themes 0..25, same NVS key (lktheme) and repaint flags */
+#if LV_CB
+static void lv_set_theme_any(int t)   /* fw-3locks-1116: CONTROLbot v6 themes 0..25, same NVS key (lktheme) and repaint flags */
 {
     lv_theme = ((t % LV_NTHEME_ALL) + LV_NTHEME_ALL) % LV_NTHEME_ALL;
     if (lv_radio->save_theme) lv_radio->save_theme(lv_theme);
@@ -727,7 +733,11 @@ static void lv_cmd(const char *line)
         else if (!strcmp(a1, "home")) lv_go(LV_SC_HOME);
         else if (!strcmp(a1, "scan")) lv_go(LV_SC_SCAN);
         else if (!strcmp(a1, "term")) lv_go(LV_SC_TERM);
+#if LV_CB
+        else if (!strcmp(a1, "ctl")) lv_go(LV_SC_CONTROLBOT);   /* fw-3locks-1116 (Mobandy 2:17 PM ET): CONTROLbot v6 REPLACES the old CONTROLbot screen (its code stays, unrouted) */
+#else
         else if (!strcmp(a1, "ctl")) lv_go(LV_SC_CTL);
+#endif
         else if (!strcmp(a1, "radar") || !strcmp(a1, "gibson")) lv_go(LV_SC_RADAR);
         else if (!strcmp(a1, "boot")) { lv_selftest_pending = true; lv_go(LV_SC_BOOT); }
         else if (!strcmp(a1, "glossary") || !strcmp(a1, "gloss") || !strcmp(a1, "morpheus")) lv_go(LV_SC_GLOSS);   /* item 2 */
@@ -737,8 +747,8 @@ static void lv_cmd(const char *line)
 #if LV_DL_GAME
         else if (!strcmp(a1, "hackbot") || !strcmp(a1, "hack")) lv_go(LV_SC_DL);       /* fw-3locks-1116: HACKbot game */
 #endif
-#if LV_CUI
-        else if (!strcmp(a1, "color") || !strcmp(a1, "colorui") || !strcmp(a1, "themes")) lv_go(LV_SC_CUI);   /* fw-3locks-1116: CONTROLbot Color UI v6 */
+#if LV_CB
+        else if (!strcmp(a1, "controlbot") || !strcmp(a1, "control")) lv_go(LV_SC_CONTROLBOT);   /* fw-3locks-1116: CONTROLbot v6 */
 #endif
         else if (!strcmp(a1, "wifi")) lv_job_start(LV_J_WIFI, -1);
         else if (!strcmp(a1, "ble") || !strcmp(a1, "bt")) lv_job_start(LV_J_BLE, -1);
@@ -995,11 +1005,11 @@ static bool lv_rd_info_on(void); static void lv_rd_info_draw(LvBand &B);   /* MO
 #endif
 /* ticker: stripes + scrolling bold text over the whole top bar */
 struct LvTickCtx { int span0, span1; };
-#if LV_CUI
-#include "cui/lv_cui_tint.h"   /* fw-3locks-1116: Color UI v6 tinted ticker (alert stays firmware red) */
+#if LV_CB
+#include "controlbot/lv_controlbot_tint.h"   /* fw-3locks-1116: CONTROLbot v6 tinted ticker (alert stays firmware red) */
 #endif
-#if LV_CUI
-static bool lv_cui_tint_active(void) { return !lv_hunt_bar_on() && (LV_CUI_TICKER_ALL || lv_scr == LV_SC_CUI); }   /* the hunt bar keeps its own path */
+#if LV_CB
+static bool lv_cb_tint_active(void) { return !lv_hunt_bar_on() && (LV_CB_TICKER_ALL || lv_scr == LV_SC_CONTROLBOT); }   /* the hunt bar keeps its own path */
 #endif
 static void lv_scene_ticker(LvBand &B, void *vctx)
 {
@@ -1008,8 +1018,8 @@ static void lv_scene_ticker(LvBand &B, void *vctx)
     if (lv_scr == LV_SC_RADAR && lv_rd_info_on()) { lv_rd_info_draw(B); return; }   /* MOCK 1111 INFO: the file-drop chrome owns the top bar */
 #endif
     if (lv_hunt_bar_on()) { lv_hunt_bar(B); return; }   /* hunting: the banner stops scrolling and becomes the hunt bar */
-#if LV_CUI
-    if (lv_cui_tint_active()) { lv_cui_tint_colors(lv_theme); lv_scene_ticker_tint(B, c->span1); return; }   /* fw-3locks-1116 */
+#if LV_CB
+    if (lv_cb_tint_active()) { lv_cb_tint_colors(lv_theme); lv_scene_ticker_tint(B, c->span1); return; }   /* fw-3locks-1116 */
 #endif
     const bool flash = lv_tk_alert && ((lv_now / 350) & 1);
     const uint16_t bg = lv_tk_alert ? (flash ? lv_hex(0x6a0000) : lv_hex(0x3a0000)) : lv_hex(0x2a0400);
@@ -1071,8 +1081,8 @@ static void lv_ticker_tick(void)
     if (!lv_hunt_bar_on()) lv_tk_off += lv_speed + 1;
     if (lv_tk_off > (r.x1 - r.x0 + 1) + w) lv_tk_next();
     LvTickCtx c{r.x0, r.x1};
-#if LV_CUI
-    lv_render(lv_cui_tint_active() ? lv_blit_hw : lv_blit, r, lv_scene_ticker, &c);   /* fw-3locks-1116: tinted banner = final colours */
+#if LV_CB
+    lv_render(lv_cb_tint_active() ? lv_blit_hw : lv_blit, r, lv_scene_ticker, &c);   /* fw-3locks-1116: tinted banner = final colours */
 #else
     lv_render(lv_blit, r, lv_scene_ticker, &c);
 #endif
@@ -1756,8 +1766,8 @@ static void lv_set_masks(void)
 #endif
 #if LV_MO_INSIDE
     if (lv_scr == LV_SC_MO) return;    /* MOCK 1112: Construct redraws every frame */
-#if LV_CUI
-    if (lv_scr == LV_SC_CUI) return;   /* fw-3locks-1116: Color UI draws itself */
+#if LV_CB
+    if (lv_scr == LV_SC_CONTROLBOT) return;   /* fw-3locks-1116: CONTROLbot v6 draws itself */
 #endif
 #endif
 #if LV_CT_INSIDE
@@ -1795,9 +1805,9 @@ static void lv_paint_tints(bool all)
 #include "lv_scanbot_game.h"   /* MOCK 1111: SCANbot HOT COLD HUNT (LV_HC_GAME) */
 #include "lv_scanbot_download.h"   /* MOCK 1112: SCANbot DOWNLOAD (LV_DL_GAME) */
 #include "lv_inside_towers.h"   /* MOCK 1112: INSIDE TOWERS (LV_MO_INSIDE / LV_CT_INSIDE / LV_TR_INSIDE) */
-#if LV_CUI
+#if LV_CB
 static const char *lv_back(void);
-#include "cui/lv_cui_screen.h"   /* fw-3locks-1116: CONTROLbot Color UI v6 */
+#include "controlbot/lv_controlbot_screen.h"   /* fw-3locks-1116: CONTROLbot v6 */
 #endif
 
 /* ---------- flow ---------- */
@@ -1840,8 +1850,8 @@ static void lv_go(int s)
 #if LV_MO_INSIDE
     if (s == LV_SC_MO && prev != LV_SC_MO) itw_mo_enter();
 #endif
-#if LV_CUI
-    if (s == LV_SC_CUI) lv_cui_enter();
+#if LV_CB
+    if (s == LV_SC_CONTROLBOT) lv_cb_enter();
 #endif
 #if LV_CT_INSIDE
     if (s == LV_SC_CT && prev != LV_SC_CT) itw_ct_enter();
@@ -2118,8 +2128,8 @@ static void lv_flash_repaint(const LvRect &r)
 #if LV_MO_INSIDE
     if (lv_scr == LV_SC_MO) return;
 #endif
-#if LV_CUI
-    if (lv_scr == LV_SC_CUI) return;
+#if LV_CB
+    if (lv_scr == LV_SC_CONTROLBOT) return;
 #endif
 #if LV_CT_INSIDE
     if (lv_scr == LV_SC_CT) return;
@@ -2183,7 +2193,7 @@ static void lv_blit_theme(int x, int y, int w, int h, const uint16_t *px)
 static void lv_begin(const LvRadio *radio, lv_blit_fn blit, lk_draw_fn raw_draw, int theme, uint32_t now, bool cal_valid)
 {
     lv_radio = radio; lv_blit_hw = blit; lv_blit = lv_blit_theme; lv_raw_draw = raw_draw;
-    lv_theme = (theme >= 0 && theme < LV_NTHEME_ALL) ? theme : 0;   /* fw-3locks-1116: the boot NVS theme may be a Color UI v6 theme (12..25) */
+    lv_theme = (theme >= 0 && theme < LV_NTHEME_ALL) ? theme : 0;   /* fw-3locks-1116: the boot NVS theme may be a CONTROLbot v6 theme (12..25) */
     lv_now = lv_boot_ms = now; lv_clip_t = now; lv_auto_t = now;
     lv_print("BOTCORPS %s", LV_VERSION);
     lv_print("type 'help'. scans: tap SCAN or 'scan'");
@@ -2196,8 +2206,9 @@ static void lv_open_tty(const char *cmd);
 static void lv_tick(const LkIo &io, uint32_t now)
 {
     lv_now = now;
-#if LV_CUI
-    lv_cui_io = &io;
+#if LV_CB
+    lv_cb_io = &io;
+    lv_cb_sound_tick(now);   /* CONTROLbot TONE sequencer */
 #endif
     if (lv_scr == LV_SC_CAL) { lv_cal_tick(now); return; }
     lv_job_tick();
@@ -2241,8 +2252,8 @@ static void lv_tick(const LkIo &io, uint32_t now)
 #if LV_MO_INSIDE
     if (lv_scr == LV_SC_MO) { if ((int32_t)(now - lv_clip_t) >= 30 || lv_enter) { lv_clip_t = now; lv_enter = false; itw_mo_frame(); } return; }
 #endif
-#if LV_CUI
-    if (lv_scr == LV_SC_CUI) { if ((int32_t)(now - lv_clip_t) >= 30 || lv_enter) { lv_clip_t = now; const bool f = lv_enter; lv_enter = false; lv_cui_frame(f); } return; }
+#if LV_CB
+    if (lv_scr == LV_SC_CONTROLBOT) { if ((int32_t)(now - lv_clip_t) >= 30 || lv_enter) { lv_clip_t = now; const bool f = lv_enter; lv_enter = false; lv_cb_frame(f); } return; }
 #endif
 #if LV_CT_INSIDE
     if (lv_scr == LV_SC_CT) { if ((int32_t)(now - lv_clip_t) >= 30 || lv_enter) { lv_clip_t = now; lv_enter = false; itw_ct_frame(); } return; }
@@ -2405,8 +2416,8 @@ static const char *lv_tap(int x, int y)
 #if LV_MO_INSIDE
     if (lv_scr == LV_SC_MO) return itw_mo_tap(x, y);   /* MOCK 1112: MORPHEUSbot Construct */
 #endif
-#if LV_CUI
-    if (lv_scr == LV_SC_CUI) return lv_cui_tap(x, y);  /* fw-3locks-1116: CONTROLbot Color UI v6 */
+#if LV_CB
+    if (lv_scr == LV_SC_CONTROLBOT) return lv_controlbot_tap(x, y);  /* fw-3locks-1116: CONTROLbot v6 */
 #endif
 #if LV_CT_INSIDE
     if (lv_scr == LV_SC_CT) return itw_ct_tap(x, y);   /* MOCK 1112: CONTROLbot Grid Plant */
@@ -2461,7 +2472,11 @@ static const char *lv_tap(int x, int y)
     if (lv_scr == LV_SC_HOME) {
         if (LV_TAP(LV_HOME_CHIP[0])) { lv_go_soon(LV_SC_GLOSS, 0); return "morpheus-glossary"; }   /* item 2: MORPHEUSbot opens the Device Glossary ("go boot" still replays BOOT) */
         if (LV_TAP(LV_HOME_CHIP[1])) { lv_go_soon(LV_SC_RADAR, 0); return "gibson-jackin-radar"; }
+#if LV_CB
+        if (LV_TAP(LV_HOME_CHIP[2])) { lv_go_soon(LV_SC_CONTROLBOT, 0); return "ctl"; }   /* fw-3locks-1116: home CONTROLbot opens CONTROLbot v6 (replaces the old CONTROLbot screen) */
+#else
         if (LV_TAP(LV_HOME_CHIP[2])) { lv_go_soon(LV_SC_CTL, 0); return "ctl"; }
+#endif
         if (LV_TAP(LV_HOME_CHIP[3])) { lv_go_soon(LV_SC_SCAN, 0); return "scan"; }
         if (LV_TAP(LV_HOME_CHIP[4])) { lv_go_soon(LV_SC_TERM, 0); return "term"; }
         if (const char *a = lv_mt_hit(x, y)) return a;

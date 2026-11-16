@@ -440,6 +440,40 @@ static void r_bg_save(int style, int col)
 }
 #endif
 
+#if LV_CB
+/* fw-3locks-1116: CONTROLbot v6 control panel. Settings in NVS "botcorps" (cbscan cbvol cbbri cbchime cbtime cbbar cbtone), same namespace as lktheme.
+ * BRIGHT drives the backlight (LovyanGFX setBrightness, GPIO21 PWM). VOL / TONE / CHIME drive the CYD speaker output (GPIO26, LEDC PWM tone,
+ * duty = volume). Untested on hardware. */
+static void r_cb_save(const LvCbSet &c)
+{
+    Preferences prefs;
+    if (prefs.begin("botcorps", false)) {
+        prefs.putUChar("cbscan", c.scan); prefs.putUChar("cbvol", c.vol); prefs.putUChar("cbbri", c.bri); prefs.putUChar("cbchime", c.chime);
+        prefs.putUChar("cbtime", c.time); prefs.putUChar("cbbar", c.bar); prefs.putUChar("cbtone", c.tone); prefs.end();
+    }
+    Serial.printf("[live] NVS CONTROLbot scan=%u vol=%u bri=%u chime=%u time=%u bar=%u tone=%u\n", c.scan, c.vol, c.bri, c.chime, c.time, c.bar, c.tone);
+}
+static void r_cb_bright(int pct) { g_cyd.setBrightness((uint8_t)(pct * 255 / 100)); }
+#define CB_SPK_PIN 26
+static bool s_spk_on = false;
+static void r_cb_tone(int hz, int vol)
+{
+    if (!s_spk_on) { ledcAttach(CB_SPK_PIN, 2000, 8); s_spk_on = true; }
+    if (hz <= 0 || vol <= 0) { ledcWrite(CB_SPK_PIN, 0); return; }
+    ledcWriteTone(CB_SPK_PIN, hz); ledcWrite(CB_SPK_PIN, (uint32_t)(vol * 128 / 100));   /* 8-bit duty, 50 % = loudest */
+}
+static void r_cb_load(void)
+{
+    Preferences prefs;
+    if (prefs.begin("botcorps", true)) {
+        lv_cb_set.scan = prefs.getUChar("cbscan", lv_cb_set.scan); lv_cb_set.vol = prefs.getUChar("cbvol", lv_cb_set.vol);
+        lv_cb_set.bri = prefs.getUChar("cbbri", lv_cb_set.bri); lv_cb_set.chime = prefs.getUChar("cbchime", lv_cb_set.chime);
+        lv_cb_set.time = prefs.getUChar("cbtime", lv_cb_set.time); lv_cb_set.bar = prefs.getUChar("cbbar", lv_cb_set.bar);
+        lv_cb_set.tone = prefs.getUChar("cbtone", lv_cb_set.tone); prefs.end();
+    }
+}
+#endif
+
 static const LvRadio s_radio{r_wifi_start, r_wifi_poll, r_ble_start, r_ble_poll, r_deauth_start, r_deauth_poll,
                              r_stop, r_sys, r_save_theme, r_cal_save, r_set_rot, r_mac_load, r_mac_save
 #if LV_BG_ENGINE
@@ -505,7 +539,7 @@ void lv_ui_begin(void)
     lv_flip = rot == 1;
     if (lv_flip) g_cyd.setRotation(0);   /* CONTROLbot ORIENT = FLIP */
     g_cyd.fillScreen(0x0000);
-    if (th < 0 || th >= LV_NTHEME_ALL) th = 0;   /* fw-3locks-1116: 0..25 (CONTROLbot Color UI v6 themes) */
+    if (th < 0 || th >= LV_NTHEME_ALL) th = 0;   /* fw-3locks-1116: 0..25 (CONTROLbot v6 themes) */
     ui_live_init(); // NVS/display startup allocations are now included in the heap budget.
     Serial.printf("[live] blob=%u (expect %u) theme=%d %dx%d\n", (unsigned)(lk_blob_live_end - lk_blob_live),
                   (unsigned)LK_BLOB_SIZE, th, (int)g_cyd.width(), (int)g_cyd.height());
@@ -513,13 +547,21 @@ void lv_ui_begin(void)
     const bool cal_ok = botcorps_cyd_has_valid_cal();   /* if true, display begin already applied it from NVS */
     Serial.printf("[live] CALbot: saved cal %s\n", cal_ok ? "valid (cv=3) - hold 1 s to redo" : "missing - capture 4 corners");
     lv_begin(&s_radio, ui_blit, ui_raw_draw, th, millis(), cal_ok);
+#if LV_CB
+    r_cb_load(); lv_cb_apply();   /* backlight stays dark here (hook set below) */
+    lv_cb_save_hook = r_cb_save; lv_cb_tone_hook = r_cb_tone;
+#endif
     /* item 3: draw frame 0 of the real (themed) first screen, THEN raise the backlight, so the panel turns on
      * already showing the correct themed frame instead of a black fill or a legacy/unthemed intro. */
     lv_use_pal();
     g_cyd.startWrite();
     lv_tick(s_io, millis());
     ui_live_end();
+#if LV_CB
+    lv_cb_bright_hook = r_cb_bright; r_cb_bright(lv_cb_set.bri);   /* CONTROLbot BRIGHT (NVS cbbri, default 80 %) */
+#else
     g_cyd.setBrightness(255);
+#endif
 }
 
 void lv_ui_loop(void)

@@ -1,4 +1,4 @@
-/* fw-3locks-1116 (Mobandy 2026-11-16 1:17 PM ET: "Build CONTROLbot Color UI v6, BOTpheus EB3 and the HACKbot game into one firmware").
+/* fw-3locks-1116 (Mobandy 2026-11-16 1:17 PM ET: "Build CONTROLbot v6, BOTpheus EB3 and the HACKbot game into one firmware").
  * Build switches shared by the firmware and the host sim (tools/livescan/sim_live.cpp), so both compile the same screens.
  *  - BOTpheus (was Morpheus) EB3 towers: LOCKED 006aa03 (towers3c/EB3). The EB3 sim was built with exactly these four defines
  *    (towers3c/src/eb3_body.py: -DMO_BODY=5 -DMO_EB2=1 -DMO_EB2_MINFW=10.5f -DMO_EB2_KZ=0.6f).
@@ -43,7 +43,7 @@
 #ifndef LV_BOTPHEUS_NAME
 #define LV_BOTPHEUS_NAME 1   /* 1 = the BOTpheus header label reads "BOTPHEUS" (Mobandy rename); 0 = the locked "MORPHEUS" pixels */
 #endif
-#ifndef LV_CUI
-#define LV_CUI 1             /* CONTROLbot Color UI v6 (24 themes, tinted ticker) */
+#ifndef LV_CB
+#define LV_CB 1             /* CONTROLbot v6 (24 themes, tinted ticker) */
 #endif
 #endif

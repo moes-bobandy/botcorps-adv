@@ -1,0 +1,240 @@
+{
+  "default_theme": "NEON GRAPE (lv_theme=0, LV_CB slot 11, stills/12_neon_grape@1x.png)",
+  "v6_still_sha256": "48096cc6ab73a35a674de412b42c6b853a244830c362b888b4b980cafa0a8779",
+  "face_slot": {
+    "THEME_FACE_inclusive": [
+      65,
+      88,
+      174,
+      197
+    ],
+    "LV_CB_BOT_inclusive": [
+      54,
+      79,
+      185,
+      210
+    ]
+  },
+  "bots": [
+    {
+      "id": "botpheus",
+      "name": "BOTpheus",
+      "kind": "raw",
+      "changed_px": 12216,
+      "diff_bbox": [
+        65,
+        88,
+        174,
+        207
+      ],
+      "changed_outside_LV_CB_BOT": 0
+    },
+    {
+      "id": "gibson",
+      "name": "GIBSONbot",
+      "kind": "raw",
+      "changed_px": 11492,
+      "diff_bbox": [
+        65,
+        88,
+        174,
+        206
+      ],
+      "changed_outside_LV_CB_BOT": 0
+    },
+    {
+      "id": "control",
+      "name": "CONTROLbot (locked v6, no name on still)",
+      "kind": "none",
+      "changed_px": 0,
+      "diff_bbox": null,
+      "changed_outside_LV_CB_BOT": 0
+    },
+    {
+      "id": "hackbot",
+      "name": "HACKbot",
+      "kind": "gold",
+      "changed_px": 11440,
+      "diff_bbox": [
+        65,
+        88,
+        174,
+        206
+      ],
+      "changed_outside_LV_CB_BOT": 0
+    },
+    {
+      "id": "terminal",
+      "name": "TERMINALbot",
+      "kind": "silver",
+      "changed_px": 11503,
+      "diff_bbox": [
+        65,
+        88,
+        174,
+        206
+      ],
+      "changed_outside_LV_CB_BOT": 0
+    }
+  ],
+  "outside_bot_px": {
+    "botpheus": 0,
+    "gibson": 0,
+    "control": 0,
+    "hackbot": 0,
+    "terminal": 0
+  },
+  "files": [
+    {
+      "path": "README.md",
+      "sha256": "37d916a2db4bd3ef9bcab80773bf97c4cb10a01c5241d89ff9ec1c133e609cbb",
+      "bytes": 8585
+    },
+    {
+      "path": "contact_sheet_5bots@3x.png",
+      "sha256": "474bbba4bd863319a1f0a0ee268fb6677fa9587319341ae2e4e5cd9364a1f29a",
+      "bytes": 39787
+    },
+    {
+      "path": "diff_proof.json",
+      "sha256": "16d3776e9a6a2211bfadaa0d826b93ea83d19e7e51bd2efe3e33a2da8b4923f9",
+      "bytes": 5679
+    },
+    {
+      "path": "hackbot_3themes@3x.png",
+      "sha256": "814bf2b6c70253763715771db71c14ca5b5ba3cab51ee2c43848d969028dbe03",
+      "bytes": 36055
+    },
+    {
+      "path": "overlay/nav_strip_legend@1x.png",
+      "sha256": "c86bb413b102dd24c65f18dce1099ae8f5ef3395ebec0b8230c7c34055223076",
+      "bytes": 1259
+    },
+    {
+      "path": "overlay/nav_strip_legend@3x.png",
+      "sha256": "0fbfc37ff501aaaa792c61872c90a5f0aea6065af8fcdfd5ba3ad5479664c276",
+      "bytes": 2297
+    },
+    {
+      "path": "overlay/nav_strip_overlay_control@1x.png",
+      "sha256": "d624a1dda03074404b9b421e4a701f193a9b2b789282d3a6d695dfa1382e6893",
+      "bytes": 7551
+    },
+    {
+      "path": "overlay/nav_strip_overlay_control@3x.png",
+      "sha256": "29a6625d443dd1cbb5117cb6b960a4f2799294d6112d96ef64b9ac86fa120449",
+      "bytes": 13591
+    },
+    {
+      "path": "sim/bigbot_compose.cpp",
+      "sha256": "3aea9809f684bf632383f5dc6266c62c39469d1a1bed74ff4718fe9dd110ef4a",
+      "bytes": 11264
+    },
+    {
+      "path": "sim/render_bigbot.py",
+      "sha256": "985f7b3026fffffda286df07db457c108d426c398187d936f06cf0b972ce95e6",
+      "bytes": 16677
+    },
+    {
+      "path": "stills/botpheus@1x.png",
+      "sha256": "bebcb03946491a24cbf8cb9567849431f7759512a7a92205af79bac50b4bfb9e",
+      "bytes": 7181
+    },
+    {
+      "path": "stills/botpheus@3x.png",
+      "sha256": "809d835a5c27678e9db9233d522d058c74621da35da50f4bdfa257ef6dadd7b9",
+      "bytes": 12970
+    },
+    {
+      "path": "stills/control@1x.png",
+      "sha256": "48096cc6ab73a35a674de412b42c6b853a244830c362b888b4b980cafa0a8779",
+      "bytes": 6663
+    },
+    {
+      "path": "stills/control@3x.png",
+      "sha256": "c2ca9d57d814783c4f003dced9e9c36d33262a92487dad6d8887d2921c94fc1a",
+      "bytes": 12235
+    },
+    {
+      "path": "stills/gibson@1x.png",
+      "sha256": "fff44a49f4b91abdfb98749a3acd74c0b86605515cf7322d14d5a8e4d0805c05",
+      "bytes": 7166
+    },
+    {
+      "path": "stills/gibson@3x.png",
+      "sha256": "845b02244ea006f24dd80b707c7a1c334e0faac0510c205f577c2aec1345369d",
+      "bytes": 12887
+    },
+    {
+      "path": "stills/hackbot@1x.png",
+      "sha256": "58d1c9beb5df6b1b8269292c4da6b8556963e233cbd53c2e79fc6c108ff62e94",
+      "bytes": 7191
+    },
+    {
+      "path": "stills/hackbot@3x.png",
+      "sha256": "76c55af961240277421dd77d12924919d566ccce7d5f86d73b560304af0f8216",
+      "bytes": 13205
+    },
+    {
+      "path": "stills/terminal@1x.png",
+      "sha256": "123417790d6cda5b52402bb8420e1b0bf223b44632ff981fecd9b0be1dec0dc9",
+      "bytes": 7319
+    },
+    {
+      "path": "stills/terminal@3x.png",
+      "sha256": "82582c3fef3ef7d69ac1700245ab99f3b4aeee6218da2a3bf9d5997604629d9b",
+      "bytes": 13326
+    },
+    {
+      "path": "swipe_botpheus_to_gibson@3x.gif",
+      "sha256": "31cbef493cd009959b44704b7cf2959100db19c0fd4ab4f71555581a2e18bfc5",
+      "bytes": 1428044
+    },
+    {
+      "path": "swipe_botpheus_to_gibson@3x.mp4",
+      "sha256": "2b23ccf248b6af4b6ef420b676a24ededea7c61ab4aa72e81d0a09081bfbef1a",
+      "bytes": 224914
+    },
+    {
+      "path": "themes/hackbot_01_circuit@1x.png",
+      "sha256": "5dd0d2ea4c5536793ab9e14d6f698a0d55558b5dd2b1828202d50807fe14e3f6",
+      "bytes": 7275
+    },
+    {
+      "path": "themes/hackbot_01_circuit@3x.png",
+      "sha256": "283a5646d46dd48670ff8c84a1652e7f4737e728dd6bb965391fbfb22a9be15c",
+      "bytes": 14445
+    },
+    {
+      "path": "themes/hackbot_15_ice@1x.png",
+      "sha256": "9c8dff4ffca38db3d2149e67838df2bbec00060df0fc85c9fcc23bf5ca0d4720",
+      "bytes": 7073
+    },
+    {
+      "path": "themes/hackbot_15_ice@3x.png",
+      "sha256": "fff43fd9a456e35d32d2beecadaf6b3ed8aeccc360557eb17433d6c4b0dbb02f",
+      "bytes": 13071
+    },
+    {
+      "path": "themes/hackbot_18_gold_rush@1x.png",
+      "sha256": "0f96430acdba59de6058fc167591e7d64d30ff2ec3f449b2d53229cf160b6d34",
+      "bytes": 7181
+    },
+    {
+      "path": "themes/hackbot_18_gold_rush@3x.png",
+      "sha256": "53afd0b884332fde6b47cb10e2881f60d8ce6f1e8f3b571ed97b4f34cc659aca",
+      "bytes": 13136
+    }
+  ],
+  "nn3_stills": "all 5 default stills: @3x is pixel-exact 3x nearest-neighbour of @1x",
+  "swipe_mp4": {
+    "path": "swipe_botpheus_to_gibson@3x.mp4",
+    "width": 720,
+    "height": 960,
+    "codec": "h264",
+    "pix_fmt": "yuv420p",
+    "fps": 30,
+    "frames": 25,
+    "duration_s": 0.833
+  }
+}

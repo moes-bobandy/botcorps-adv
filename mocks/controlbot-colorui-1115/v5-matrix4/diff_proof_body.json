@@ -1,0 +1,229 @@
+{
+ "mask_px": 4789,
+ "board_role0_outside_mask_identical_to_v2_lime": true,
+ "board_identical_across_all_24": true,
+ "per_theme": [
+  {
+   "theme": "CIRC",
+   "source": "v3 NEW",
+   "changed_px_vs_no_coilpin": 4789,
+   "changed_outside_mask": 0,
+   "slot": 1,
+   "src_index": 23
+  },
+  {
+   "theme": "HIVIS",
+   "source": "SECURITYbot v2",
+   "changed_px_vs_no_coilpin": 4789,
+   "changed_outside_mask": 0,
+   "pipeline_equals_locked_v2": true,
+   "changed_px_vs_locked_v2": 4789,
+   "changed_outside_mask_vs_locked_v2": 0,
+   "slot": 2,
+   "src_index": 1
+  },
+  {
+   "theme": "NVG",
+   "source": "SECURITYbot v2",
+   "changed_px_vs_no_coilpin": 4789,
+   "changed_outside_mask": 0,
+   "pipeline_equals_locked_v2": true,
+   "changed_px_vs_locked_v2": 4789,
+   "changed_outside_mask_vs_locked_v2": 0,
+   "slot": 3,
+   "src_index": 2
+  },
+  {
+   "theme": "NVWHT",
+   "source": "SECURITYbot v2",
+   "changed_px_vs_no_coilpin": 4789,
+   "changed_outside_mask": 0,
+   "pipeline_equals_locked_v2": true,
+   "changed_px_vs_locked_v2": 4789,
+   "changed_outside_mask_vs_locked_v2": 0,
+   "slot": 4,
+   "src_index": 3
+  },
+  {
+   "theme": "IRON",
+   "source": "SECURITYbot v2",
+   "changed_px_vs_no_coilpin": 4789,
+   "changed_outside_mask": 0,
+   "pipeline_equals_locked_v2": true,
+   "changed_px_vs_locked_v2": 4789,
+   "changed_outside_mask_vs_locked_v2": 0,
+   "slot": 5,
+   "src_index": 4
+  },
+  {
+   "theme": "HEAT",
+   "source": "SECURITYbot v2",
+   "changed_px_vs_no_coilpin": 4789,
+   "changed_outside_mask": 0,
+   "pipeline_equals_locked_v2": true,
+   "changed_px_vs_locked_v2": 4789,
+   "changed_outside_mask_vs_locked_v2": 0,
+   "slot": 6,
+   "src_index": 5
+  },
+  {
+   "theme": "WHHOT",
+   "source": "SECURITYbot v2",
+   "changed_px_vs_no_coilpin": 4789,
+   "changed_outside_mask": 0,
+   "pipeline_equals_locked_v2": true,
+   "changed_px_vs_locked_v2": 4789,
+   "changed_outside_mask_vs_locked_v2": 0,
+   "slot": 7,
+   "src_index": 6
+  },
+  {
+   "theme": "REDHT",
+   "source": "SECURITYbot v2",
+   "changed_px_vs_no_coilpin": 4789,
+   "changed_outside_mask": 0,
+   "pipeline_equals_locked_v2": true,
+   "changed_px_vs_locked_v2": 4789,
+   "changed_outside_mask_vs_locked_v2": 0,
+   "slot": 8,
+   "src_index": 7
+  },
+  {
+   "theme": "ALARM",
+   "source": "SECURITYbot v2",
+   "changed_px_vs_no_coilpin": 4789,
+   "changed_outside_mask": 0,
+   "pipeline_equals_locked_v2": true,
+   "changed_px_vs_locked_v2": 4789,
+   "changed_outside_mask_vs_locked_v2": 0,
+   "slot": 9,
+   "src_index": 8
+  },
+  {
+   "theme": "SIREN",
+   "source": "SECURITYbot v2",
+   "changed_px_vs_no_coilpin": 4789,
+   "changed_outside_mask": 0,
+   "pipeline_equals_locked_v2": true,
+   "changed_px_vs_locked_v2": 4789,
+   "changed_outside_mask_vs_locked_v2": 0,
+   "slot": 10,
+   "src_index": 9
+  },
+  {
+   "theme": "PERIM",
+   "source": "SECURITYbot v2",
+   "changed_px_vs_no_coilpin": 4789,
+   "changed_outside_mask": 0,
+   "pipeline_equals_locked_v2": true,
+   "changed_px_vs_locked_v2": 4789,
+   "changed_outside_mask_vs_locked_v2": 0,
+   "slot": 11,
+   "src_index": 10
+  },
+  {
+   "theme": "GRAPE",
+   "source": "CYD lv_core.h",
+   "changed_px_vs_no_coilpin": 4789,
+   "changed_outside_mask": 0,
+   "slot": 12,
+   "src_index": 11
+  },
+  {
+   "theme": "HOLO",
+   "source": "v3 NEW",
+   "changed_px_vs_no_coilpin": 4789,
+   "changed_outside_mask": 0,
+   "slot": 13,
+   "src_index": 25
+  },
+  {
+   "theme": "TOXIC",
+   "source": "CYD lv_core.h",
+   "changed_px_vs_no_coilpin": 4789,
+   "changed_outside_mask": 0,
+   "slot": 14,
+   "src_index": 13
+  },
+  {
+   "theme": "ICE",
+   "source": "CYD lv_core.h",
+   "changed_px_vs_no_coilpin": 4789,
+   "changed_outside_mask": 0,
+   "slot": 15,
+   "src_index": 14
+  },
+  {
+   "theme": "SONAR",
+   "source": "v3 NEW",
+   "changed_px_vs_no_coilpin": 4789,
+   "changed_outside_mask": 0,
+   "slot": 16,
+   "src_index": 24
+  },
+  {
+   "theme": "ORANGE",
+   "source": "CYD lv_core.h",
+   "changed_px_vs_no_coilpin": 4789,
+   "changed_outside_mask": 0,
+   "slot": 17,
+   "src_index": 16
+  },
+  {
+   "theme": "GOLD",
+   "source": "CYD lv_core.h",
+   "changed_px_vs_no_coilpin": 4789,
+   "changed_outside_mask": 0,
+   "slot": 18,
+   "src_index": 17
+  },
+  {
+   "theme": "SYNTH",
+   "source": "CYD lv_core.h",
+   "changed_px_vs_no_coilpin": 4789,
+   "changed_outside_mask": 0,
+   "slot": 19,
+   "src_index": 18
+  },
+  {
+   "theme": "AURA",
+   "source": "CYD lv_core.h",
+   "changed_px_vs_no_coilpin": 4789,
+   "changed_outside_mask": 0,
+   "slot": 20,
+   "src_index": 19
+  },
+  {
+   "theme": "PRISM",
+   "source": "CYD lv_core.h",
+   "changed_px_vs_no_coilpin": 4789,
+   "changed_outside_mask": 0,
+   "slot": 21,
+   "src_index": 20
+  },
+  {
+   "theme": "GLTCH",
+   "source": "CYD lv_core.h",
+   "changed_px_vs_no_coilpin": 4789,
+   "changed_outside_mask": 0,
+   "slot": 22,
+   "src_index": 21
+  },
+  {
+   "theme": "ROSE",
+   "source": "CYD lv_core.h",
+   "changed_px_vs_no_coilpin": 4789,
+   "changed_outside_mask": 0,
+   "slot": 23,
+   "src_index": 22
+  },
+  {
+   "theme": "CAMO",
+   "source": "v3 NEW",
+   "changed_px_vs_no_coilpin": 4789,
+   "changed_outside_mask": 0,
+   "slot": 24,
+   "src_index": 26
+  }
+ ]
+}

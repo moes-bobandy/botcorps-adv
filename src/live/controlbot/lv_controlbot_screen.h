@@ -35,6 +35,18 @@ static const uint8_t *lv_cb_strip(int slot, int s)
 }
 static const LvRect LV_CB_BOT = {54, 79, 185, 210};   /* the square bot: face + black frame, exact outline in every v6 still */
 static bool lv_cb_flash_on = false; static uint32_t lv_cb_flash_t = 0;
+/* v1.1 (Mobandy 2026-11-16 4:36 PM ET: controls feel unresponsive, only the small writing changes): a tapped control block flashes
+ * inverted for LV_CB_BLK_MS - its dark plate takes the theme's value ink (re-ink role 4 at that pixel, so multi-colour themes stay
+ * themselves) and its light ink goes to the plate colour - then shows its new value. Only that block's rect is touched. */
+#define LV_CB_BLK_MS 200
+static const LvRect LV_CB_BLK[7] = {{46, 221, 113, 242}, {46, 244, 113, 265}, {46, 267, 113, 288},     /* SCAN, VOL, BRIGHT (68 x 22 bars) */
+                                    {116, 221, 154, 254}, {157, 221, 195, 254}, {116, 256, 154, 289}, {157, 256, 195, 289}};   /* CHIME, TIME, BAR, TONE */
+static bool lv_cb_blk_on = false; static uint32_t lv_cb_blk_t = 0; static LvRect lv_cb_blk = {0, 0, -1, -1};
+static uint16_t lv_cb_invert(uint16_t c, int x, int y)
+{
+    const int r = (c >> 11) << 1, g = (c >> 5) & 63, b = (c & 31) << 1, mx = r > g ? (r > b ? r : b) : (g > b ? g : b);
+    return mx < 32 ? lv_cb_reink(4, lv_hex(CB_VALUE), x, y, x, y) : lv_hex(CB_PLATE);   /* dark -> theme ink, light -> plate */
+}
 static void lv_cb_scene(LvBand &B, void *)
 {
     const int slot = lv_cb_slot();
@@ -46,6 +58,8 @@ static void lv_cb_scene(LvBand &B, void *)
         for (int x = B.x0; x < B.x0 + B.w; ++x) o[x - B.x0] = (uint16_t)(r[2 * x] | (r[2 * x + 1] << 8));   /* byte loads: io->buf has no 16-bit alignment */
         if (lv_cb_pan && lv_cb_pan_slot == slot && y >= LV_CB_PY0 && y < LV_CB_PY0 + LV_CB_PH)   /* live panel over the locked one */
             for (int x = B.x0 > LV_CB_PX0 ? B.x0 : LV_CB_PX0; x < B.x0 + B.w && x < LV_CB_PX0 + LV_CB_PW; ++x) o[x - B.x0] = lv_cb_pan[(y - LV_CB_PY0) * LV_CB_PW + x - LV_CB_PX0];
+        if (lv_cb_blk_on && lv_cb_pan && y >= lv_cb_blk.y0 && y <= lv_cb_blk.y1)   /* v1.1 tap feedback: the tapped control block inverts in the theme ink */
+            for (int x = B.x0 > lv_cb_blk.x0 ? B.x0 : lv_cb_blk.x0; x < B.x0 + B.w && x <= lv_cb_blk.x1; ++x) o[x - B.x0] = lv_cb_invert(o[x - B.x0], x, y);
         if (lv_cb_flash_on && y >= LV_CB_BOT.y0 && y <= LV_CB_BOT.y1)   /* tap flash: the square bot only */
             for (int x = B.x0 > LV_CB_BOT.x0 ? B.x0 : LV_CB_BOT.x0; x < B.x0 + B.w && x <= LV_CB_BOT.x1; ++x) o[x - B.x0] = lv_hi(o[x - B.x0]);
     }
@@ -66,6 +80,7 @@ static void lv_cb_frame(bool full)   /* the locked frames are final colours: lv_
         lv_cb_cached = -1;
         lv_render(lv_blit_hw, LvRect{LV_CB_PX0, LV_CB_PY0, LV_CB_PX0 + LV_CB_PW - 1, LV_CB_PY0 + LV_CB_PH - 1}, lv_cb_scene, 0);
     }
+    if (lv_cb_blk_on && (int32_t)(lv_now - lv_cb_blk_t) >= LV_CB_BLK_MS) { lv_cb_blk_on = false; lv_cb_panel_dirty = true; }   /* v1.1: flash over -> next frame shows the new value plain */
     if (lv_cb_flash_on && (int32_t)(lv_now - lv_cb_flash_t) >= 130) {   /* end of the tap flash (same 130 ms as the firmware press flash) */
         lv_cb_flash_on = false; lv_cb_cached = -1; lv_render(lv_blit_hw, LV_CB_BOT, lv_cb_scene, 0);
     }
@@ -84,10 +99,18 @@ static const char *lv_controlbot_tap(int x, int y)
         lv_print("CONTROLbot THEME %s", LV_CB_NAME[k]);
         return "controlbot-theme";
     }
-    static uint32_t tap_t = 0; static bool tapped = false;   /* 250 ms guard per panel tap (a bouncy contact can't double-step) */
+    /* v1.1: a tap in the 1-2 px gaps between blocks or just outside the panel used to do nothing. Like every other screen
+     * (LV_PAD / lv_pad_snap), a tap within LV_TAP_PAD px of a block now snaps to the nearest block. The guard against a bouncy
+     * contact double-stepping is 150 ms (was 250 ms, which swallowed quick deliberate repeat taps on VOL / BRIGHT). */
+    lv_pad_snap(LV_CB_BLK, 7, x, y);
+    static uint32_t tap_t = 0; static bool tapped = false;
     auto hit = [&](int x0, int y0, int x1, int y1) { return x >= x0 && x <= x1 && y >= y0 && y <= y1; };
-    const bool on_panel = hit(46, 221, 195, 289);
-    if (on_panel) { if (tapped && (int32_t)(lv_now - tap_t) < 250) return "panel-debounce"; tapped = true; tap_t = lv_now; }
+    int blk = -1; for (int k = 0; k < 7; ++k) if (lv_in(LV_CB_BLK[k], x, y)) { blk = k; break; }
+    if (blk >= 0) {
+        if (tapped && (int32_t)(lv_now - tap_t) < 150) return "panel-debounce";
+        tapped = true; tap_t = lv_now;
+        lv_cb_blk = LV_CB_BLK[blk]; lv_cb_blk_on = true; lv_cb_blk_t = lv_now; lv_cb_panel_dirty = true;   /* flash the tapped block */
+    }
     LvCbSet &s = lv_cb_set;
     if (hit(46, 221, 113, 242)) { s.scan = (s.scan + 1) % LV_CB_NSCAN; lv_cb_changed(); lv_print("CONTROLbot SCAN %s", LV_CB_SCAN_NAME[s.scan]); return "cb-scan"; }
     if (hit(46, 244, 113, 265)) { const int d = x < 80 ? -10 : 10; const int v = s.vol + d; s.vol = v < 0 ? 0 : v > 100 ? 100 : v; lv_cb_changed(); lv_cb_play(); lv_print("CONTROLbot VOL %d%%", s.vol); return d < 0 ? "cb-vol-" : "cb-vol+"; }

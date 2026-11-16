@@ -1843,6 +1843,7 @@ static void lv_paint_tints(bool all)
 #include "lv_inside_towers.h"   /* MOCK 1112: INSIDE TOWERS (LV_MO_INSIDE / LV_CT_INSIDE / LV_TR_INSIDE) */
 #if LV_CB
 static const char *lv_back(void);
+static void lv_pad_snap(const LvRect *R, int n, int &x, int &y);   /* v1.1: CONTROLbot panel taps snap like every other screen (defined below) */
 #include "controlbot/lv_controlbot_screen.h"   /* fw-3locks-1116: CONTROLbot v6 */
 #endif
 

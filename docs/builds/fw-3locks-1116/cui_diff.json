@@ -1,0 +1,177 @@
+[
+ {
+  "still": "01_circuit@1x.png",
+  "fw_frame": "s0",
+  "raw888_diff": 32452,
+  "rgb565_quantized_diff": 0,
+  "in_ticker": 0
+ },
+ {
+  "still": "02_hi-vis_blue@1x.png",
+  "fw_frame": "s1",
+  "raw888_diff": 33245,
+  "rgb565_quantized_diff": 0,
+  "in_ticker": 0
+ },
+ {
+  "still": "03_nv_green_bloom@1x.png",
+  "fw_frame": "s2",
+  "raw888_diff": 32541,
+  "rgb565_quantized_diff": 0,
+  "in_ticker": 0
+ },
+ {
+  "still": "04_nv_white_phosphor@1x.png",
+  "fw_frame": "s3",
+  "raw888_diff": 33168,
+  "rgb565_quantized_diff": 0,
+  "in_ticker": 0
+ },
+ {
+  "still": "05_ir_ironbow@1x.png",
+  "fw_frame": "s4",
+  "raw888_diff": 33245,
+  "rgb565_quantized_diff": 0,
+  "in_ticker": 0
+ },
+ {
+  "still": "06_ir_rainbow_heat@1x.png",
+  "fw_frame": "s5",
+  "raw888_diff": 33245,
+  "rgb565_quantized_diff": 0,
+  "in_ticker": 0
+ },
+ {
+  "still": "07_ir_white-hot@1x.png",
+  "fw_frame": "s6",
+  "raw888_diff": 33209,
+  "rgb565_quantized_diff": 0,
+  "in_ticker": 0
+ },
+ {
+  "still": "08_ir_red-hot@1x.png",
+  "fw_frame": "s7",
+  "raw888_diff": 32860,
+  "rgb565_quantized_diff": 0,
+  "in_ticker": 0
+ },
+ {
+  "still": "09_alarm_strobe@1x.png",
+  "fw_frame": "s8",
+  "raw888_diff": 33245,
+  "rgb565_quantized_diff": 0,
+  "in_ticker": 0
+ },
+ {
+  "still": "10_police_siren@1x.png",
+  "fw_frame": "s9",
+  "raw888_diff": 33245,
+  "rgb565_quantized_diff": 0,
+  "in_ticker": 0
+ },
+ {
+  "still": "11_perimeter_grid@1x.png",
+  "fw_frame": "s10",
+  "raw888_diff": 33245,
+  "rgb565_quantized_diff": 0,
+  "in_ticker": 0
+ },
+ {
+  "still": "12_neon_grape@1x.png",
+  "fw_frame": "s11",
+  "raw888_diff": 33245,
+  "rgb565_quantized_diff": 0,
+  "in_ticker": 0
+ },
+ {
+  "still": "13_holo_foil@1x.png",
+  "fw_frame": "s12",
+  "raw888_diff": 33245,
+  "rgb565_quantized_diff": 0,
+  "in_ticker": 0
+ },
+ {
+  "still": "14_toxic@1x.png",
+  "fw_frame": "s13",
+  "raw888_diff": 33245,
+  "rgb565_quantized_diff": 0,
+  "in_ticker": 0
+ },
+ {
+  "still": "15_ice@1x.png",
+  "fw_frame": "s14",
+  "raw888_diff": 33245,
+  "rgb565_quantized_diff": 0,
+  "in_ticker": 0
+ },
+ {
+  "still": "16_sonar@1x.png",
+  "fw_frame": "s15",
+  "raw888_diff": 33245,
+  "rgb565_quantized_diff": 0,
+  "in_ticker": 0
+ },
+ {
+  "still": "17_blaze_orange@1x.png",
+  "fw_frame": "s16",
+  "raw888_diff": 33245,
+  "rgb565_quantized_diff": 0,
+  "in_ticker": 0
+ },
+ {
+  "still": "18_gold_rush@1x.png",
+  "fw_frame": "s17",
+  "raw888_diff": 33245,
+  "rgb565_quantized_diff": 0,
+  "in_ticker": 0
+ },
+ {
+  "still": "19_synthwave@1x.png",
+  "fw_frame": "s18",
+  "raw888_diff": 33245,
+  "rgb565_quantized_diff": 0,
+  "in_ticker": 0
+ },
+ {
+  "still": "20_aurora@1x.png",
+  "fw_frame": "s19",
+  "raw888_diff": 33245,
+  "rgb565_quantized_diff": 0,
+  "in_ticker": 0
+ },
+ {
+  "still": "21_prism@1x.png",
+  "fw_frame": "s20",
+  "raw888_diff": 33245,
+  "rgb565_quantized_diff": 0,
+  "in_ticker": 0
+ },
+ {
+  "still": "22_glitch@1x.png",
+  "fw_frame": "s21",
+  "raw888_diff": 33245,
+  "rgb565_quantized_diff": 0,
+  "in_ticker": 0
+ },
+ {
+  "still": "23_hot_rose@1x.png",
+  "fw_frame": "s22",
+  "raw888_diff": 33245,
+  "rgb565_quantized_diff": 0,
+  "in_ticker": 0
+ },
+ {
+  "still": "24_digi_camo@1x.png",
+  "fw_frame": "s23",
+  "raw888_diff": 32666,
+  "rgb565_quantized_diff": 0,
+  "in_ticker": 0
+ },
+ {
+  "still": "alert_synthwave@1x.png",
+  "fw_frame": "alert",
+  "raw888_diff": 33245,
+  "rgb565_quantized_diff": 0,
+  "in_ticker": 0
+ }
+]

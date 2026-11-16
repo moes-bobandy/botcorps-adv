@@ -1,0 +1,13 @@
+{
+ "t0": {
+  "total": {
+   "files": 277,
+   "frames": 2141,
+   "diff_frames": 0,
+   "diff_px": 0,
+   "diff_px_outside_ticker": 0,
+   "missing": 0
+  },
+  "files_with_diffs": {}
+ }
+}

@@ -1,0 +1,9 @@
+t=8010 NVS lktheme=24 (SIM)
+t=8010 tap 120,145 -> cui-theme (scr=14 seg=-1)
+t=8370 NVS lktheme=2 (SIM)
+t=8370 tap 120,145 -> cui-theme (scr=14 seg=-1)
+DUMP cui_after2 scr=14 seg=-1 clipframe=-1 t=8730
+OVL cui_after2
+px pushed by overlays: 2216234
+SHADOW peak 29817 of 32768 bytes
+MOUI tot=0 part=0

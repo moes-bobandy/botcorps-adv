@@ -1,0 +1,41 @@
+{
+ "n0t0/idle": {
+  "px": 0,
+  "bbox": null
+ },
+ "n0t0/open_deauth": {
+  "px": 0,
+  "bbox": null
+ },
+ "n0t1/idle": {
+  "px": 5028,
+  "bbox": [
+   1,
+   1,
+   238,
+   23
+  ]
+ },
+ "n0t1/open_deauth": {
+  "px": 0,
+  "bbox": null
+ },
+ "t1/idle": {
+  "px": 17,
+  "bbox": [
+   4,
+   27,
+   13,
+   31
+  ]
+ },
+ "t1/open_deauth": {
+  "px": 17,
+  "bbox": [
+   4,
+   27,
+   13,
+   31
+  ]
+ }
+}

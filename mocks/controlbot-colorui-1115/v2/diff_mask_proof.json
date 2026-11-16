@@ -1,0 +1,179 @@
+{
+ "mask_px": 4789,
+ "pad_px_role8": 3851,
+ "label_px_role9": 938,
+ "board_outside_mask_identical_across_all_themes_where_v2_role0": true,
+ "per_theme": [
+  {
+   "theme": "LIME",
+   "source": "SECURITYbot v2",
+   "changed_px_vs_no_coilpin": 4789,
+   "changed_outside_mask": 0,
+   "pipeline_equals_locked_v2": true,
+   "changed_px_vs_locked_v2": 4789,
+   "changed_outside_mask_vs_locked_v2": 0
+  },
+  {
+   "theme": "HIVIS",
+   "source": "SECURITYbot v2",
+   "changed_px_vs_no_coilpin": 4789,
+   "changed_outside_mask": 0,
+   "pipeline_equals_locked_v2": true,
+   "changed_px_vs_locked_v2": 4789,
+   "changed_outside_mask_vs_locked_v2": 0
+  },
+  {
+   "theme": "NVG",
+   "source": "SECURITYbot v2",
+   "changed_px_vs_no_coilpin": 4789,
+   "changed_outside_mask": 0,
+   "pipeline_equals_locked_v2": true,
+   "changed_px_vs_locked_v2": 4789,
+   "changed_outside_mask_vs_locked_v2": 0
+  },
+  {
+   "theme": "NVWHT",
+   "source": "SECURITYbot v2",
+   "changed_px_vs_no_coilpin": 4789,
+   "changed_outside_mask": 0,
+   "pipeline_equals_locked_v2": true,
+   "changed_px_vs_locked_v2": 4789,
+   "changed_outside_mask_vs_locked_v2": 0
+  },
+  {
+   "theme": "IRON",
+   "source": "SECURITYbot v2",
+   "changed_px_vs_no_coilpin": 4789,
+   "changed_outside_mask": 0,
+   "pipeline_equals_locked_v2": true,
+   "changed_px_vs_locked_v2": 4789,
+   "changed_outside_mask_vs_locked_v2": 0
+  },
+  {
+   "theme": "HEAT",
+   "source": "SECURITYbot v2",
+   "changed_px_vs_no_coilpin": 4789,
+   "changed_outside_mask": 0,
+   "pipeline_equals_locked_v2": true,
+   "changed_px_vs_locked_v2": 4789,
+   "changed_outside_mask_vs_locked_v2": 0
+  },
+  {
+   "theme": "WHHOT",
+   "source": "SECURITYbot v2",
+   "changed_px_vs_no_coilpin": 4789,
+   "changed_outside_mask": 0,
+   "pipeline_equals_locked_v2": true,
+   "changed_px_vs_locked_v2": 4789,
+   "changed_outside_mask_vs_locked_v2": 0
+  },
+  {
+   "theme": "REDHT",
+   "source": "SECURITYbot v2",
+   "changed_px_vs_no_coilpin": 4789,
+   "changed_outside_mask": 0,
+   "pipeline_equals_locked_v2": true,
+   "changed_px_vs_locked_v2": 4789,
+   "changed_outside_mask_vs_locked_v2": 0
+  },
+  {
+   "theme": "ALARM",
+   "source": "SECURITYbot v2",
+   "changed_px_vs_no_coilpin": 4789,
+   "changed_outside_mask": 0,
+   "pipeline_equals_locked_v2": true,
+   "changed_px_vs_locked_v2": 4789,
+   "changed_outside_mask_vs_locked_v2": 0
+  },
+  {
+   "theme": "SIREN",
+   "source": "SECURITYbot v2",
+   "changed_px_vs_no_coilpin": 4789,
+   "changed_outside_mask": 0,
+   "pipeline_equals_locked_v2": true,
+   "changed_px_vs_locked_v2": 4789,
+   "changed_outside_mask_vs_locked_v2": 0
+  },
+  {
+   "theme": "PERIM",
+   "source": "SECURITYbot v2",
+   "changed_px_vs_no_coilpin": 4789,
+   "changed_outside_mask": 0,
+   "pipeline_equals_locked_v2": true,
+   "changed_px_vs_locked_v2": 4789,
+   "changed_outside_mask_vs_locked_v2": 0
+  },
+  {
+   "theme": "GRAPE",
+   "source": "CYD lv_core.h",
+   "changed_px_vs_no_coilpin": 4789,
+   "changed_outside_mask": 0
+  },
+  {
+   "theme": "MAGENTA",
+   "source": "CYD lv_core.h",
+   "changed_px_vs_no_coilpin": 4789,
+   "changed_outside_mask": 0
+  },
+  {
+   "theme": "TOXIC",
+   "source": "CYD lv_core.h",
+   "changed_px_vs_no_coilpin": 4789,
+   "changed_outside_mask": 0
+  },
+  {
+   "theme": "ICE",
+   "source": "CYD lv_core.h",
+   "changed_px_vs_no_coilpin": 4789,
+   "changed_outside_mask": 0
+  },
+  {
+   "theme": "BLUE",
+   "source": "CYD lv_core.h",
+   "changed_px_vs_no_coilpin": 4789,
+   "changed_outside_mask": 0
+  },
+  {
+   "theme": "ORANGE",
+   "source": "CYD lv_core.h",
+   "changed_px_vs_no_coilpin": 4789,
+   "changed_outside_mask": 0
+  },
+  {
+   "theme": "GOLD",
+   "source": "CYD lv_core.h",
+   "changed_px_vs_no_coilpin": 4789,
+   "changed_outside_mask": 0
+  },
+  {
+   "theme": "SYNTH",
+   "source": "CYD lv_core.h",
+   "changed_px_vs_no_coilpin": 4789,
+   "changed_outside_mask": 0
+  },
+  {
+   "theme": "AURA",
+   "source": "CYD lv_core.h",
+   "changed_px_vs_no_coilpin": 4789,
+   "changed_outside_mask": 0
+  },
+  {
+   "theme": "PRISM",
+   "source": "CYD lv_core.h",
+   "changed_px_vs_no_coilpin": 4789,
+   "changed_outside_mask": 0
+  },
+  {
+   "theme": "GLTCH",
+   "source": "CYD lv_core.h",
+   "changed_px_vs_no_coilpin": 4789,
+   "changed_outside_mask": 0
+  },
+  {
+   "theme": "ROSE",
+   "source": "CYD lv_core.h",
+   "changed_px_vs_no_coilpin": 4789,
+   "changed_outside_mask": 0
+  }
+ ]
+}

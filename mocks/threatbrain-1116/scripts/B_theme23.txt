@@ -1,0 +1,14 @@
+tick 67
+tick 190
+themeany 23
+go 3
+tick 10
+tbvar 1
+tbfeed 0
+tbt0
+tbdump B_idle_23
+tbfeed 1
+tbt0
+tbrec B_clip_23
+tick 300
+tbstop

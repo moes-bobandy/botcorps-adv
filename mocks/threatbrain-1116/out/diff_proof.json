@@ -1,0 +1,156 @@
+{
+ "inputs": {
+  "renderer": "tools/livescan/sim_live.cpp @9bc3569 (src c1b5659) + lv_core.h + locked clip blob; mock harness sim_tb.cpp"
+ },
+ "variants": {
+  "A": {
+   "name": "THREAT BRAIN",
+   "themes": {
+    "NEON GRAPE": {
+     "frames": 300,
+     "base_vs_locked_render_px": 0,
+     "idle_base_vs_locked_render_px": 0,
+     "changed_px_total_all_frames": 1624947,
+     "changed_px_idle": 3680,
+     "busy_frame": 239,
+     "busy_t_s": 7.2,
+     "changed_px_busy": 5940,
+     "changed_px_outside_net_layer": 0,
+     "changed_px_on_bot_hub_rail_text_rects": 0,
+     "changed_px_on_lit_locked_px": 0,
+     "PASS": true
+    },
+    "GOLD RUSH": {
+     "frames": 300,
+     "base_vs_locked_render_px": 0,
+     "idle_base_vs_locked_render_px": 0,
+     "changed_px_total_all_frames": 1596793,
+     "changed_px_idle": 3605,
+     "busy_frame": 233,
+     "busy_t_s": 7.02,
+     "changed_px_busy": 5923,
+     "changed_px_outside_net_layer": 0,
+     "changed_px_on_bot_hub_rail_text_rects": 0,
+     "changed_px_on_lit_locked_px": 0,
+     "PASS": true
+    },
+    "SONAR": {
+     "frames": 300,
+     "base_vs_locked_render_px": 0,
+     "idle_base_vs_locked_render_px": 0,
+     "changed_px_total_all_frames": 1566938,
+     "changed_px_idle": 3275,
+     "busy_frame": 233,
+     "busy_t_s": 7.02,
+     "changed_px_busy": 5840,
+     "changed_px_outside_net_layer": 0,
+     "changed_px_on_bot_hub_rail_text_rects": 0,
+     "changed_px_on_lit_locked_px": 0,
+     "PASS": true
+    }
+   },
+   "mp4": {
+    "path": "mocks/threatbrain-1116/out/A_threatbrain_neongrape_9s@3x.mp4",
+    "sha256": "c246bcf2105de4c66f65f1fe5d3f94b27fb281281cc6e692f91a8e5f40eab6b4",
+    "probe": {
+     "codec_name": "h264",
+     "width": 720,
+     "height": 960,
+     "pix_fmt": "yuv420p",
+     "duration": "9.000000",
+     "nb_read_frames": "300"
+    },
+    "mean_changed_px_per_frame": 2897.8
+   },
+   "idle_still": {
+    "path": "mocks/threatbrain-1116/out/A_threatbrain_neongrape_idle@3x.png",
+    "sha256": "d7400b1cacb1b7574559fc9711ab6cfc47ab7b3a126902be7978a0d7e21c081a"
+   },
+   "busy_still": {
+    "path": "mocks/threatbrain-1116/out/A_threatbrain_neongrape_busy@3x.png",
+    "sha256": "c97023ae49698ea4a1a0fd53a021462fda8e9247ccaae919189f87b8a1f97204"
+   },
+   "sheet": {
+    "path": "mocks/threatbrain-1116/out/A_threatbrain_3theme_sheet.png",
+    "sha256": "683641a82989b8b1a12d4f048343050ee6f2e7ed75a8defc48bc0a224291ce5c"
+   }
+  },
+  "B": {
+   "name": "NEURAL TRACKS",
+   "themes": {
+    "NEON GRAPE": {
+     "frames": 300,
+     "base_vs_locked_render_px": 0,
+     "idle_base_vs_locked_render_px": 0,
+     "changed_px_total_all_frames": 672485,
+     "changed_px_idle": 2102,
+     "busy_frame": 84,
+     "busy_t_s": 2.55,
+     "changed_px_busy": 2371,
+     "changed_px_outside_net_layer": 0,
+     "changed_px_on_bot_hub_rail_text_rects": 0,
+     "changed_px_on_lit_locked_px": 0,
+     "PASS": true
+    },
+    "GOLD RUSH": {
+     "frames": 300,
+     "base_vs_locked_render_px": 0,
+     "idle_base_vs_locked_render_px": 0,
+     "changed_px_total_all_frames": 626164,
+     "changed_px_idle": 2021,
+     "busy_frame": 122,
+     "busy_t_s": 3.69,
+     "changed_px_busy": 2169,
+     "changed_px_outside_net_layer": 0,
+     "changed_px_on_bot_hub_rail_text_rects": 0,
+     "changed_px_on_lit_locked_px": 0,
+     "PASS": true
+    },
+    "SONAR": {
+     "frames": 300,
+     "base_vs_locked_render_px": 0,
+     "idle_base_vs_locked_render_px": 0,
+     "changed_px_total_all_frames": 630224,
+     "changed_px_idle": 2033,
+     "busy_frame": 177,
+     "busy_t_s": 5.34,
+     "changed_px_busy": 2170,
+     "changed_px_outside_net_layer": 0,
+     "changed_px_on_bot_hub_rail_text_rects": 0,
+     "changed_px_on_lit_locked_px": 0,
+     "PASS": true
+    }
+   },
+   "mp4": {
+    "path": "mocks/threatbrain-1116/out/B_neuraltracks_neongrape_9s@3x.mp4",
+    "sha256": "8f762c8961b6264817c70ef54fbe4b125fe134df25e6b570ff3d9a34a2ba7c3d",
+    "probe": {
+     "codec_name": "h264",
+     "width": 720,
+     "height": 960,
+     "pix_fmt": "yuv420p",
+     "duration": "9.000000",
+     "nb_read_frames": "300"
+    },
+    "mean_changed_px_per_frame": 2930.1
+   },
+   "idle_still": {
+    "path": "mocks/threatbrain-1116/out/B_neuraltracks_neongrape_idle@3x.png",
+    "sha256": "6d2f7ebf47d234dfbfbdc68d83a2324c35c38226214594bf778e343f371e1270"
+   },
+   "busy_still": {
+    "path": "mocks/threatbrain-1116/out/B_neuraltracks_neongrape_busy@3x.png",
+    "sha256": "b7ca1fa528bcb770b46ddc18bfb03cba81537daea016c33e93bbebf6d55b9336"
+   },
+   "sheet": {
+    "path": "mocks/threatbrain-1116/out/B_neuraltracks_3theme_sheet.png",
+    "sha256": "2babfba5d26febf529d68015a1695b93b559b7978491558a1c77cabaebe8d70d"
+   }
+  }
+ },
+ "ab_sheet": {
+  "path": "mocks/threatbrain-1116/out/AB_contact_sheet.png",
+  "sha256": "f14dfa4917c322e97c2b15f353c744a6dbf8c2185b42191cd645b9f1d224b03c"
+ },
+ "PASS": true
+}

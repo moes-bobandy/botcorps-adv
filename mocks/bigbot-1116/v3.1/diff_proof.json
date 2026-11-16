@@ -1,0 +1,224 @@
+{
+  "note": "v3.1 starts from v3 stills. Only THEME_FACE and the under-face name pad change. CONTROLbot is byte-identical.",
+  "control_face_measured": {
+    "THEME_FACE_inclusive": [
+      65,
+      88,
+      174,
+      197
+    ],
+    "slot_size": [
+      110,
+      110
+    ],
+    "edge_black_px": {
+      "N": 0,
+      "S": 0,
+      "W": 0,
+      "E": 0
+    },
+    "edge_all_face_art": true,
+    "fills_slot": true
+  },
+  "bots": [
+    {
+      "id": "botpheus",
+      "face_bounds": {
+        "THEME_FACE_inclusive": [
+          65,
+          88,
+          174,
+          197
+        ],
+        "slot_size": [
+          110,
+          110
+        ],
+        "edge_black_px": {
+          "N": 0,
+          "S": 0,
+          "W": 0,
+          "E": 0
+        },
+        "edge_all_face_art": true,
+        "fills_slot": true
+      },
+      "matches_control_slot": true,
+      "vs_v3_changed_px": 6530,
+      "vs_v3_diff_bbox": [
+        65,
+        88,
+        174,
+        207
+      ],
+      "vs_v3_outside_face_or_name_pad": 0
+    },
+    {
+      "id": "gibson",
+      "face_bounds": {
+        "THEME_FACE_inclusive": [
+          65,
+          88,
+          174,
+          197
+        ],
+        "slot_size": [
+          110,
+          110
+        ],
+        "edge_black_px": {
+          "N": 0,
+          "S": 0,
+          "W": 0,
+          "E": 0
+        },
+        "edge_all_face_art": true,
+        "fills_slot": true
+      },
+      "matches_control_slot": true,
+      "vs_v3_changed_px": 1193,
+      "vs_v3_diff_bbox": [
+        65,
+        88,
+        174,
+        206
+      ],
+      "vs_v3_outside_face_or_name_pad": 0
+    },
+    {
+      "id": "control",
+      "face_bounds": {
+        "THEME_FACE_inclusive": [
+          65,
+          88,
+          174,
+          197
+        ],
+        "slot_size": [
+          110,
+          110
+        ],
+        "edge_black_px": {
+          "N": 0,
+          "S": 0,
+          "W": 0,
+          "E": 0
+        },
+        "edge_all_face_art": true,
+        "fills_slot": true
+      },
+      "matches_control_slot": true,
+      "vs_v3_changed_px": 0,
+      "vs_v3_diff_bbox": null,
+      "vs_v3_outside_face_or_name_pad": 0,
+      "identical_to_v3": true,
+      "identical_to_locked_grape": true
+    },
+    {
+      "id": "hackbot",
+      "face_bounds": {
+        "THEME_FACE_inclusive": [
+          65,
+          88,
+          174,
+          197
+        ],
+        "slot_size": [
+          110,
+          110
+        ],
+        "edge_black_px": {
+          "N": 0,
+          "S": 0,
+          "W": 0,
+          "E": 0
+        },
+        "edge_all_face_art": true,
+        "fills_slot": true
+      },
+      "matches_control_slot": true,
+      "vs_v3_changed_px": 100,
+      "vs_v3_diff_bbox": [
+        99,
+        200,
+        139,
+        206
+      ],
+      "vs_v3_outside_face_or_name_pad": 0
+    },
+    {
+      "id": "terminal",
+      "face_bounds": {
+        "THEME_FACE_inclusive": [
+          65,
+          88,
+          174,
+          197
+        ],
+        "slot_size": [
+          110,
+          110
+        ],
+        "edge_black_px": {
+          "N": 0,
+          "S": 0,
+          "W": 0,
+          "E": 0
+        },
+        "edge_all_face_art": true,
+        "fills_slot": true
+      },
+      "matches_control_slot": true,
+      "vs_v3_changed_px": 163,
+      "vs_v3_diff_bbox": [
+        87,
+        200,
+        151,
+        206
+      ],
+      "vs_v3_outside_face_or_name_pad": 0
+    }
+  ],
+  "vs_v3": [],
+  "themes": [
+    {
+      "theme": "CIRCUIT",
+      "slot": 0,
+      "vs_v3_changed_px": 163,
+      "vs_v3_diff_bbox": [
+        87,
+        200,
+        151,
+        206
+      ],
+      "outside": 0,
+      "fills_slot": true
+    },
+    {
+      "theme": "ICE",
+      "slot": 14,
+      "vs_v3_changed_px": 163,
+      "vs_v3_diff_bbox": [
+        87,
+        200,
+        151,
+        206
+      ],
+      "outside": 0,
+      "fills_slot": true
+    },
+    {
+      "theme": "GOLD RUSH",
+      "slot": 17,
+      "vs_v3_changed_px": 163,
+      "vs_v3_diff_bbox": [
+        87,
+        200,
+        151,
+        206
+      ],
+      "outside": 0,
+      "fills_slot": true
+    }
+  ]
+}

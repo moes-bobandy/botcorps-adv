@@ -1,0 +1,250 @@
+{
+ "ticker_text": {
+  "msg": "NO THREATS - TAP SCAN",
+  "source": "lv_core.h @049ff59 line 234, default lv_tk_msg",
+  "line": 234
+ },
+ "inc_verbatim_vs_firmware_header_880_901": {
+  "match": true,
+  "inc_bytes": 1104,
+  "fw_bytes": 1104
+ },
+ "selftest_tintpath_firmware_palette_vs_verbatim_function": {
+  "log": "selftest frames=256 fail=0",
+  "ok": true
+ },
+ "clone_check_cases": [
+  {
+   "tag": "still_normal",
+   "now": 2000,
+   "off": 220,
+   "alert": 0,
+   "px_diff": 0
+  },
+  {
+   "tag": "t0_off0",
+   "now": 0,
+   "off": 0,
+   "alert": 0,
+   "px_diff": 0
+  },
+  {
+   "tag": "scroll",
+   "now": 1600,
+   "off": 100,
+   "alert": 0,
+   "px_diff": 0
+  },
+  {
+   "tag": "alert_on",
+   "now": 350,
+   "off": 220,
+   "alert": 1,
+   "px_diff": 0
+  },
+  {
+   "tag": "alert_off",
+   "now": 700,
+   "off": 220,
+   "alert": 1,
+   "px_diff": 0
+  }
+ ],
+ "clone_check_all_zero": true,
+ "clone_fullframe_ice_px_diff": 0,
+ "final_stills": [
+  {
+   "slot": 1,
+   "theme": "CIRCUIT",
+   "changed_vs_body_outside_header": 0,
+   "changed_vs_body_outside_header_and_mask": 0
+  },
+  {
+   "slot": 2,
+   "theme": "HI-VIS BLUE",
+   "changed_vs_body_outside_header": 0,
+   "changed_vs_body_outside_header_and_mask": 0
+  },
+  {
+   "slot": 3,
+   "theme": "NV GREEN BLOOM",
+   "changed_vs_body_outside_header": 0,
+   "changed_vs_body_outside_header_and_mask": 0
+  },
+  {
+   "slot": 4,
+   "theme": "NV WHITE PHOSPHOR",
+   "changed_vs_body_outside_header": 0,
+   "changed_vs_body_outside_header_and_mask": 0
+  },
+  {
+   "slot": 5,
+   "theme": "IR IRONBOW",
+   "changed_vs_body_outside_header": 0,
+   "changed_vs_body_outside_header_and_mask": 0
+  },
+  {
+   "slot": 6,
+   "theme": "IR RAINBOW HEAT",
+   "changed_vs_body_outside_header": 0,
+   "changed_vs_body_outside_header_and_mask": 0
+  },
+  {
+   "slot": 7,
+   "theme": "IR WHITE-HOT",
+   "changed_vs_body_outside_header": 0,
+   "changed_vs_body_outside_header_and_mask": 0
+  },
+  {
+   "slot": 8,
+   "theme": "IR RED-HOT",
+   "changed_vs_body_outside_header": 0,
+   "changed_vs_body_outside_header_and_mask": 0
+  },
+  {
+   "slot": 9,
+   "theme": "ALARM STROBE",
+   "changed_vs_body_outside_header": 0,
+   "changed_vs_body_outside_header_and_mask": 0
+  },
+  {
+   "slot": 10,
+   "theme": "POLICE SIREN",
+   "changed_vs_body_outside_header": 0,
+   "changed_vs_body_outside_header_and_mask": 0
+  },
+  {
+   "slot": 11,
+   "theme": "PERIMETER GRID",
+   "changed_vs_body_outside_header": 0,
+   "changed_vs_body_outside_header_and_mask": 0
+  },
+  {
+   "slot": 12,
+   "theme": "NEON GRAPE",
+   "changed_vs_body_outside_header": 0,
+   "changed_vs_body_outside_header_and_mask": 0
+  },
+  {
+   "slot": 13,
+   "theme": "HOLO FOIL",
+   "changed_vs_body_outside_header": 0,
+   "changed_vs_body_outside_header_and_mask": 0
+  },
+  {
+   "slot": 14,
+   "theme": "TOXIC",
+   "changed_vs_body_outside_header": 0,
+   "changed_vs_body_outside_header_and_mask": 0
+  },
+  {
+   "slot": 15,
+   "theme": "ICE",
+   "changed_vs_body_outside_header": 0,
+   "changed_vs_body_outside_header_and_mask": 0
+  },
+  {
+   "slot": 16,
+   "theme": "SONAR",
+   "changed_vs_body_outside_header": 0,
+   "changed_vs_body_outside_header_and_mask": 0
+  },
+  {
+   "slot": 17,
+   "theme": "BLAZE ORANGE",
+   "changed_vs_body_outside_header": 0,
+   "changed_vs_body_outside_header_and_mask": 0
+  },
+  {
+   "slot": 18,
+   "theme": "GOLD RUSH",
+   "changed_vs_body_outside_header": 0,
+   "changed_vs_body_outside_header_and_mask": 0
+  },
+  {
+   "slot": 19,
+   "theme": "SYNTHWAVE",
+   "changed_vs_body_outside_header": 0,
+   "changed_vs_body_outside_header_and_mask": 0
+  },
+  {
+   "slot": 20,
+   "theme": "AURORA",
+   "changed_vs_body_outside_header": 0,
+   "changed_vs_body_outside_header_and_mask": 0
+  },
+  {
+   "slot": 21,
+   "theme": "PRISM",
+   "changed_vs_body_outside_header": 0,
+   "changed_vs_body_outside_header_and_mask": 0
+  },
+  {
+   "slot": 22,
+   "theme": "GLITCH",
+   "changed_vs_body_outside_header": 0,
+   "changed_vs_body_outside_header_and_mask": 0
+  },
+  {
+   "slot": 23,
+   "theme": "HOT ROSE",
+   "changed_vs_body_outside_header": 0,
+   "changed_vs_body_outside_header_and_mask": 0
+  },
+  {
+   "slot": 24,
+   "theme": "DIGI CAMO",
+   "changed_vs_body_outside_header": 0,
+   "changed_vs_body_outside_header_and_mask": 0
+  }
+ ],
+ "alert_still": {
+  "theme": "SYNTHWAVE",
+  "now": 2000,
+  "off": 220,
+  "flash": 1,
+  "changed_vs_body_outside_header": 0
+ },
+ "summary": {
+  "theme_order": [
+   "01 CIRCUIT [NEW (was SEC LIME slot)]",
+   "02 HI-VIS BLUE [SECURITYbot v2]",
+   "03 NV GREEN BLOOM [SECURITYbot v2]",
+   "04 NV WHITE PHOSPHOR [SECURITYbot v2]",
+   "05 IR IRONBOW [SECURITYbot v2]",
+   "06 IR RAINBOW HEAT [SECURITYbot v2]",
+   "07 IR WHITE-HOT [SECURITYbot v2]",
+   "08 IR RED-HOT [SECURITYbot v2]",
+   "09 ALARM STROBE [SECURITYbot v2]",
+   "10 POLICE SIREN [SECURITYbot v2]",
+   "11 PERIMETER GRID [SECURITYbot v2]",
+   "12 NEON GRAPE [CYD]",
+   "13 HOLO FOIL [NEW (was HOT PINK slot)]",
+   "14 TOXIC [CYD]",
+   "15 ICE [CYD]",
+   "16 SONAR [NEW (was CYD BLUE slot)]",
+   "17 BLAZE ORANGE [CYD]",
+   "18 GOLD RUSH [CYD]",
+   "19 SYNTHWAVE [CYD]",
+   "20 AURORA [CYD]",
+   "21 PRISM [CYD]",
+   "22 GLITCH [CYD]",
+   "23 HOT ROSE [CYD]",
+   "24 DIGI CAMO [NEW extra]"
+  ],
+  "inc_verbatim": true,
+  "selftest_ok": true,
+  "clone_check_all_zero": true,
+  "stills_changed_outside_header_max": 0,
+  "mp4_prefx_frames_changed_outside_header_total_px": 0,
+  "mp4_frames": 768,
+  "mp4_fps": 30,
+  "mp4_scale": "720x960 nearest-neighbor",
+  "alert_in_video": "SYNTHWAVE frames 8..28 of its 32 (now steps of 30 ms, flash period 350 ms)",
+  "still_now_off": [
+   2000,
+   220
+  ],
+  "ticker_text": "NO THREATS - TAP SCAN"
+ }
+}

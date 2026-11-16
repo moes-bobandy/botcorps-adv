@@ -46,4 +46,8 @@
 #ifndef LV_CB
 #define LV_CB 1             /* CONTROLbot v6 (24 themes, tinted ticker) */
 #endif
+#ifndef LV_HACKBOT_NAME
+#define LV_HACKBOT_NAME 1   /* v1.1 (Mobandy 2026-11-12 ~9:18-9:24 AM ET: SCANbot renamed HACKbot): the home big-slot label reads "HACKbot"
+                             * (same 5x7 GLCD glyphs and palette inks as the locked "SCANbot" label, only "SCAN" -> "HACK"); 0 = the locked "SCANbot" */
+#endif
 #endif

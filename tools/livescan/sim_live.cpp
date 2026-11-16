@@ -18,6 +18,7 @@
 #include <time.h>
 #include <unistd.h>
 #include <sys/wait.h>
+static uint32_t g_tscr = 0;   /* v1.1 waitscr / tickrel */
 #define BOTCORPS_CYD_LIVESCAN 1
 #define LV_RD_HM_SIM 1   /* hunt meter test hook (hmsched): sim only, never in firmware */
 #include "../../src/live/lv_core.h"
@@ -130,10 +131,32 @@ static void fk_bg_save(int s, int c) { fk_bgs = s; fk_bgc = c; printf("t=%u NVS 
 static int fk_rot = 2;   /* the UI's setRotation: 2 = portrait USB at the bottom (default), 0 = ORIENT FLIP */
 /* simulated XPT2046 (CYD-like swapped + flipped axes, +-30 raw noise) and the fake NVS save */
 static TouchModel g_tm = {"swap+flip (CYD-like)", 3820, 0, -11.2, 3760, -14.6, 0, 30, 2};
+/* v1.1: verbatim copy of the release-edge filter in src/live/lv_ui.cpp lv_read_tap (firmware-only file), fed with the calibrated
+ * touch; millis() -> now. Used by rtap so a sim tap goes raw -> cal matrix -> this filter -> lv_tap like the CYD. */
+static bool sim_read_tap(bool down, int tx, int ty, uint32_t now, int *ox, int *oy)
+{
+    static bool down_prev = false;
+    static int n = 0, up = 0, px[2], py[2];
+    static uint32_t upt = 0;
+    if (down) {
+        if (!down_prev) { down_prev = true; n = 0; }
+        px[0] = px[1]; py[0] = py[1]; px[1] = tx; py[1] = ty; ++n; up = 0;
+        return false;
+    }
+    if (!down_prev) return false;
+    if (++up == 1) upt = now;
+    if (up < 2 || (int32_t)(now - upt) < 45) return false;
+    down_prev = false; up = 0;
+    const int use = n >= 3 ? 0 : 1;
+    *ox = px[use]; *oy = py[use]; n = 0;
+    return true;
+}
+static uint16_t g_cal8[8]; static bool g_cal_ok = false;   /* the c0..c7 CALbot saved (SIM NVS) */
 static bool fk_cal_save(const uint16_t c[8])
 {
     printf("t=%u CAL SAVE c0..c7 = %u %u %u %u %u %u %u %u (SIM NVS)\n", t_ms, c[0], c[1], c[2], c[3], c[4], c[5], c[6], c[7]);
     LgfxCalRef L; L.setCalibrate(c); int worst = 0;
+    memcpy(g_cal8, c, sizeof g_cal8); g_cal_ok = true;   /* v1.1: rtap converts raw touches with exactly this saved matrix */
     for (int i = 0; i < 4; ++i) {
         int rx, ry, x, y; g_tm.raw(LV_CAL_PT[i][0], LV_CAL_PT[i][1], &rx, &ry, false); L.convertRawXY(rx, ry, &x, &y);
         if (fk_rot == 2) { x = 239 - x; y = 319 - y; }   /* Panel_Device::convertRawXY, r == 2: both axes flip */
@@ -226,6 +249,34 @@ int main(int argc, char **argv)
         else if (!strcmp(cmd, "recstart")) { char nm[64]; if (fscanf(sc, "%63s", nm) != 1) return 2; char p[512]; snprintf(p, sizeof p, "%s/%s.rgb", argv[2], nm); g_rec = fopen(p, "wb"); }
         else if (!strcmp(cmd, "recstop")) { if (g_rec) fclose(g_rec); g_rec = nullptr; remove("/tmp/.sim_rec_part"); }
         else if (!strcmp(cmd, "tap")) { int x, y; if (fscanf(sc, "%d %d", &x, &y) != 2) return 2; sim_use_pal(); const char *r = lv_tap(x, y); printf("t=%u tap %d,%d -> %s (scr=%d seg=%d)\n", t_ms, x, y, r, lv_scr, lv_play.seg); }
+        else if (!strcmp(cmd, "waitscr")) {   /* v1.1 waitscr N: tick (30 ms) until lv_scr == N (max 5 s); remembers that time for tickrel */
+            int n; if (fscanf(sc, "%d", &n) != 1) return 2; int k = 0; while (lv_scr != n && k++ < 167) tick1(io);
+            g_tscr = t_ms; printf("t=%u waitscr %d -> scr=%d%s\n", t_ms, n, lv_scr, lv_scr == n ? "" : " (TIMEOUT)"); }
+        else if (!strcmp(cmd, "skip")) { unsigned ms; if (fscanf(sc, "%u", &ms) != 1) return 2; t_ms += ms; }   /* v1.1: move the sim clock without a tick (align a reference run with rtap's sample clock) */
+        else if (!strcmp(cmd, "tickrel")) { unsigned ms; if (fscanf(sc, "%u", &ms) != 1) return 2; tickto(io, g_tscr + ms); }   /* v1.1: tickto (waitscr time + ms) */
+        else if (!strcmp(cmd, "rtap")) {   /* v1.1 rtap X Y [MS]: a finger on the glass at screen (X,Y) for MS (default 120) through the REAL path:
+                                            * simulated XPT2046 raw (+-noise) -> LovyanGFX convertRawXY with the CALbot-saved c0..c7 + rot 2 flip
+                                            * (= g_cyd.getTouch) -> sim_read_tap (copy of lv_ui.cpp lv_read_tap's filter) -> lv_tap. Samples every 5 ms,
+                                            * lv_tick every 30 ms, like lv_ui_loop. */
+            int X, Y, ms = 120; if (fscanf(sc, "%d %d", &X, &Y) != 2) return 2; { long p = ftell(sc); if (fscanf(sc, "%d", &ms) != 1) { fseek(sc, p, SEEK_SET); ms = 120; } }
+            if (!g_cal_ok) { printf("t=%u rtap: no CALbot-saved cal (run the CALbot capture first)\n", t_ms); return 3; }
+            LgfxCalRef L; L.setCalibrate(g_cal8);
+            const char *r = nullptr; int ox = -1, oy = -1, last_x = -1, last_y = -1; const uint32_t t_end = t_ms + ms; uint32_t next_tick = t_ms + 30;
+            for (int phase = 0; phase < 2 && !r; ++phase) {
+                for (int guard = 0; guard < 400 && !r; ++guard) {
+                    if (phase == 0 && t_ms >= t_end) break;
+                    t_ms += 5;
+                    int sx = 0, sy = 0; const bool down = phase == 0;
+                    if (down) { int rx, ry; g_tm.raw(X, Y, &rx, &ry); L.convertRawXY(rx, ry, &sx, &sy); sx = 239 - sx; sy = 319 - sy; last_x = sx; last_y = sy; }
+                    g_down = down; g_fx = sx; g_fy = sy;
+                    if (sim_read_tap(down, sx, sy, t_ms, &ox, &oy)) { sim_use_pal(); r = lv_tap(ox, oy); }
+                    if (lv_scr != LV_SC_CAL) lv_touch(down, sx, sy);
+                    if (t_ms >= next_tick) { next_tick += 30; sim_use_pal(); lv_tick(io, t_ms); rec_frame(); }
+                }
+            }
+            g_down = false;
+            printf("t=%u rtap glass %d,%d %dms -> last raw->cal %d,%d -> tap %d,%d -> %s (scr=%d)\n", t_ms, X, Y, ms, last_x, last_y, ox, oy, r ? r : "(no tap)", lv_scr);
+        }
         else if (!strcmp(cmd, "rhold")) {   /* finger down on (x,y) for ms, then the release-edge tap, as lv_ui.cpp does */
             int x, y, ms; if (fscanf(sc, "%d %d %d", &x, &y, &ms) != 3) return 2; g_fx = x; g_fy = y; g_down = true;
             for (int e = 0; e < ms; e += 30) tick1(io);

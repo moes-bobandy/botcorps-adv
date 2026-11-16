@@ -740,7 +740,12 @@ static void lv_cmd(const char *line)
 #endif
         else if (!strcmp(a1, "radar") || !strcmp(a1, "gibson")) lv_go(LV_SC_RADAR);
         else if (!strcmp(a1, "boot")) { lv_selftest_pending = true; lv_go(LV_SC_BOOT); }
+#if LV_MO_INSIDE
+        else if (!strcmp(a1, "glossary") || !strcmp(a1, "gloss")) lv_go(LV_SC_GLOSS);   /* item 2 */
+        else if (!strcmp(a1, "morpheus")) lv_go(LV_SC_MO);   /* v1.1: Morpheus is BOTpheus EB3 now */
+#else
         else if (!strcmp(a1, "glossary") || !strcmp(a1, "gloss") || !strcmp(a1, "morpheus")) lv_go(LV_SC_GLOSS);   /* item 2 */
+#endif
 #if LV_MO_INSIDE
         else if (!strcmp(a1, "botpheus") || !strcmp(a1, "towers")) lv_go(LV_SC_MO);   /* fw-3locks-1116: BOTpheus EB3 towers */
 #endif
@@ -917,8 +922,39 @@ static void lv_tint_paint(int t)
         }
     }
 }
+#if LV_HACKBOT_NAME
+/* v1.1: HOME big slot "SCANbot" -> "HACKbot". The locked home clip draws the label as LV_GLCD 5x7 text at (46,241), 6 px pitch, two palette
+ * inks (text / plate). Clip rows crossing the "SCAN" cells (x 46..69, y 241..247) are rewritten at the palette-index level before anything
+ * else sees them, so themes, tints, the tap flash and the port layer treat "HACK" exactly as they treated "SCAN". A row is rewritten only
+ * when its pixels are exactly the "SCAN" glyphs in two inks (or, for a partial run, match the inks seen on that row before); any other
+ * content at that spot is left alone. Everything outside those 24 x 7 pixels is untouched. */
+#define LV_HK_X0 46
+#define LV_HK_Y0 241
+static inline bool lv_hk_bit(char c, int cx, int cy) { return cx < 5 && ((LV_GLCD[(c - 32) * 5 + cx] >> cy) & 1); }
+static const uint8_t *lv_hk_rename(int y, int x, int n, const uint8_t *idx)
+{
+    static uint8_t buf[240]; static int ink_on[7] = {-1, -1, -1, -1, -1, -1, -1}, ink_off[7] = {-1, -1, -1, -1, -1, -1, -1};
+    if (y < LV_HK_Y0 || y > LV_HK_Y0 + 6 || x > LV_HK_X0 + 23 || x + n <= LV_HK_X0 || n > 240) return idx;
+    if (lv_scr != LV_SC_HOME && lv_scr != LV_SC_HOME_INTRO) return idx;
+    const int cy = y - LV_HK_Y0, a = x > LV_HK_X0 ? x : LV_HK_X0, b = x + n - 1 < LV_HK_X0 + 23 ? x + n - 1 : LV_HK_X0 + 23;
+    int on = -1, off = -1;
+    for (int px = a; px <= b; ++px) {
+        const int i = px - LV_HK_X0, v = idx[px - x];
+        if (lv_hk_bit("SCAN"[i / 6], i % 6, cy)) { if (on < 0) on = v; else if (on != v) return idx; }
+        else { if (off < 0) off = v; else if (off != v) return idx; }
+    }
+    if (on >= 0 && off >= 0) { if (on == off) return idx; ink_on[cy] = on; ink_off[cy] = off; }
+    else if ((on >= 0 && on != ink_on[cy]) || (off >= 0 && off != ink_off[cy]) || ink_on[cy] < 0 || ink_off[cy] < 0) return idx;
+    memcpy(buf, idx, n);
+    for (int px = a; px <= b; ++px) { const int i = px - LV_HK_X0; buf[px - x] = (uint8_t)(lv_hk_bit("HACK"[i / 6], i % 6, cy) ? ink_on[cy] : ink_off[cy]); }
+    return buf;
+}
+#endif
 static void lv_clip_draw(int y, int x, int n, const uint8_t *idx)
 {
+#if LV_HACKBOT_NAME
+    idx = lv_hk_rename(y, x, n, idx);
+#endif
     int ml[16], nm = 0, tl[LV_MAXT], nt = 0;
     for (int m = 0; m < lv_nmask; ++m) if (y >= lv_masks[m].y0 && y <= lv_masks[m].y1 && lv_masks[m].x1 >= x && lv_masks[m].x0 < x + n) ml[nm++] = m;
     for (int t = 0; t < lv_ntint; ++t) if (y >= lv_tints[t].r.y0 && y <= lv_tints[t].r.y1 && lv_tints[t].r.x1 >= x && lv_tints[t].r.x0 < x + n) tl[nt++] = t;
@@ -2470,14 +2506,22 @@ static const char *lv_tap(int x, int y)
     else if (lv_scr == LV_SC_TERM) LV_PAD(LV_PAD_TERM);
     else if (lv_scr == LV_SC_SCAN) LV_PAD(LV_PAD_SCAN);
     if (lv_scr == LV_SC_HOME) {
+#if LV_MO_INSIDE
+        if (LV_TAP(LV_HOME_CHIP[0])) { lv_go_soon(LV_SC_MO, 0); return "botpheus-eb3"; }   /* v1.1: BOTpheus EB3 (LOCKED 006aa03) replaces the Device Glossary on this chip ("go gloss" still opens it) */
+#else
         if (LV_TAP(LV_HOME_CHIP[0])) { lv_go_soon(LV_SC_GLOSS, 0); return "morpheus-glossary"; }   /* item 2: MORPHEUSbot opens the Device Glossary ("go boot" still replays BOOT) */
+#endif
         if (LV_TAP(LV_HOME_CHIP[1])) { lv_go_soon(LV_SC_RADAR, 0); return "gibson-jackin-radar"; }
 #if LV_CB
         if (LV_TAP(LV_HOME_CHIP[2])) { lv_go_soon(LV_SC_CONTROLBOT, 0); return "ctl"; }   /* fw-3locks-1116: home CONTROLbot opens CONTROLbot v6 (replaces the old CONTROLbot screen) */
 #else
         if (LV_TAP(LV_HOME_CHIP[2])) { lv_go_soon(LV_SC_CTL, 0); return "ctl"; }
 #endif
+#if LV_DL_GAME
+        if (LV_TAP(LV_HOME_CHIP[3])) { lv_go_soon(LV_SC_DL, 0); return "hackbot-game"; }   /* v1.1: HACKbot game (LOCKED cyd-lock-store 3503679 / 856709a) replaces the SCANbot screen on the big slot (ticker / "go scan" still open SCANbot) */
+#else
         if (LV_TAP(LV_HOME_CHIP[3])) { lv_go_soon(LV_SC_SCAN, 0); return "scan"; }
+#endif
         if (LV_TAP(LV_HOME_CHIP[4])) { lv_go_soon(LV_SC_TERM, 0); return "term"; }
         if (const char *a = lv_mt_hit(x, y)) return a;
         return "none";

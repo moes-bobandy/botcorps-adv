@@ -17,6 +17,7 @@
 #include <stdlib.h>
 #include "../lock/lock_core.h"
 #include "lv_draw.h"
+#include "lv_build_3locks.h"   /* fw-3locks-1116: CONTROLbot Color UI v6 + BOTpheus EB3 + HACKbot game switches */
 
 #ifdef BOTCORPS_BUILD_ID
 #define LV_VERSION "cyd-livescan 1.0 " BOTCORPS_BUILD_ID
@@ -87,7 +88,42 @@ struct LvRadio {
 };
 
 enum LvScr { LV_SC_BOOT, LV_SC_HOME_INTRO, LV_SC_HOME, LV_SC_TERM, LV_SC_SCAN, LV_SC_CTL, LV_SC_TTY, LV_SC_CAL, LV_SC_RADAR,
-             LV_SC_GLOSS, LV_SC_GLOSS_DESC };   /* item 2: MORPHEUSbot Device Glossary grid + the 12 description pages (lv_glossary.h) */
+             LV_SC_GLOSS, LV_SC_GLOSS_DESC
+#ifndef LV_HC_GAME
+#define LV_HC_GAME 1   /* MOCK 1111: SCANbot game HOT COLD HUNT, a NEW screen (lv_scanbot_game.h); 0 = none */
+#endif
+#if LV_HC_GAME
+             , LV_SC_HCH
+#endif
+#ifndef LV_DL_GAME
+#define LV_DL_GAME 1   /* MOCK 1112: SCANbot game DOWNLOAD, a NEW screen (lv_scanbot_download.h); 0 = none */
+#endif
+#if LV_DL_GAME
+             , LV_SC_DL
+#endif
+#ifndef LV_MO_INSIDE
+#define LV_MO_INSIDE 1   /* MOCK 1112: MORPHEUSbot "The Construct" inside screen (lv_inside_towers.h); undef = none */
+#endif
+#if LV_MO_INSIDE
+             , LV_SC_MO
+#endif
+#ifndef LV_CT_INSIDE
+#define LV_CT_INSIDE 1   /* MOCK 1112: CONTROLbot "The Grid Plant" inside screen; undef = none */
+#endif
+#if LV_CT_INSIDE
+             , LV_SC_CT
+#endif
+#ifndef LV_TR_INSIDE
+#define LV_TR_INSIDE 1   /* MOCK 1112: TERMINALbot "The Relay Ring" inside screen; undef = none */
+#endif
+#if LV_TR_INSIDE
+             , LV_SC_TR
+#endif
+};   /* item 2: MORPHEUSbot Device Glossary grid + the 12 description pages (lv_glossary.h) */
+
+#if (LV_MO_INSIDE || LV_CT_INSIDE || LV_TR_INSIDE) && !defined(LV_RD_SKINS)
+#define LV_RD_SKINS 1   /* MOCK 1112: per-bot radar re-skin (lv_rd_skin); 0 everywhere = byte-identical */
+#endif
 #define LV_NTHEME 12
 /* Issue 2: the full original CYD THEMES[11] (src/ui/botcorps_ui.cpp) on the live screens. 0..5 keep their NVS
  * meaning (lktheme) and their LOCKED clips: GRAPE = NEON GRAPE, MAGENTA = HOT PINK, TOXIC = TOXIC, ICE = ICE,
@@ -232,6 +268,9 @@ static const char *lv_line_back(int k) /* k = 0 newest */
 /* ---------- ticker ---------- */
 #define LV_TKLEN 200
 static char lv_tk_msg[LV_TKLEN] = "NO THREATS - TAP SCAN";
+#ifdef MO_EB2
+static float mo_eb2_k[64];   /* EB2: per-tower forward scale (0 = untouched) */
+#endif
 static int lv_tk_off = 0, lv_tk_item = 0;
 static bool lv_tk_alert = false;
 static char lv_evq[4][LV_TKLEN]; static uint8_t lv_evalert[4]; static int lv_nev = 0;
@@ -381,12 +420,18 @@ static void lv_sort(void)
         lv_f[j + 1] = t;
     }
 }
+/* hunt fix (1109): the MAC a running GIBSON hunt re-scan must never lose to the LV_MAXF cap (nullptr = none) */
+static const uint8_t *lv_store_keep = nullptr;
 static void lv_store(int kind, const LvFind *src, int n)
 {
     int k = 0;
     for (int i = 0; i < lv_nf; ++i) if (lv_f[i].kind != kind) lv_f[k++] = lv_f[i];
     lv_nf = k;
-    for (int i = 0; i < n && lv_nf < LV_MAXF; ++i) {
+    int keep = -1;   /* the hunted target goes in first, wherever the radio reported it */
+    if (lv_store_keep) for (int i = 0; i < n; ++i) if (!memcmp(src[i].mac, lv_store_keep, 6)) { keep = i; break; }
+    for (int q = -1; q < n && lv_nf < LV_MAXF; ++q) {
+        const int i = q < 0 ? keep : q;
+        if (i < 0 || (q >= 0 && i == keep)) continue;
         LvFind f = src[i]; f.kind = (uint8_t)kind; f.name[32] = 0;
         lv_classify(f);
         f.alert = (lv_hunt >= 0 && lv_hunt_match(lv_hunt, f)) ? 1 : 0;
@@ -630,6 +675,12 @@ static void lv_cmd(const char *line)
         else if (!strcmp(a1, "radar") || !strcmp(a1, "gibson")) lv_go(LV_SC_RADAR);
         else if (!strcmp(a1, "boot")) { lv_selftest_pending = true; lv_go(LV_SC_BOOT); }
         else if (!strcmp(a1, "glossary") || !strcmp(a1, "gloss") || !strcmp(a1, "morpheus")) lv_go(LV_SC_GLOSS);   /* item 2 */
+#if LV_MO_INSIDE
+        else if (!strcmp(a1, "botpheus") || !strcmp(a1, "towers")) lv_go(LV_SC_MO);   /* fw-3locks-1116: BOTpheus EB3 towers */
+#endif
+#if LV_DL_GAME
+        else if (!strcmp(a1, "hackbot") || !strcmp(a1, "hack")) lv_go(LV_SC_DL);       /* fw-3locks-1116: HACKbot game */
+#endif
         else if (!strcmp(a1, "wifi")) lv_job_start(LV_J_WIFI, -1);
         else if (!strcmp(a1, "ble") || !strcmp(a1, "bt")) lv_job_start(LV_J_BLE, -1);
         else lv_print("go: unknown '%s'", a1);
@@ -877,11 +928,20 @@ static const char *const LV_SPEED_NAME[3] = {"SLOW", "MED", "FAST"};
 static const char *const LV_AUTO_NAME[3] = {"OFF", "30S", "60S"};
 static const char *const LV_FLIP_NAME[2] = {"PORT", "FLIP"};
 
+#ifndef LV_RD_INFO
+#define LV_RD_INFO 1
+#endif
+#if LV_RD_INFO
+static bool lv_rd_info_on(void); static void lv_rd_info_draw(LvBand &B);   /* MOCK 1111, lv_radar.h */
+#endif
 /* ticker: stripes + scrolling bold text over the whole top bar */
 struct LvTickCtx { int span0, span1; };
 static void lv_scene_ticker(LvBand &B, void *vctx)
 {
     LvTickCtx *c = (LvTickCtx *)vctx;
+#if LV_RD_INFO
+    if (lv_scr == LV_SC_RADAR && lv_rd_info_on()) { lv_rd_info_draw(B); return; }   /* MOCK 1111 INFO: the file-drop chrome owns the top bar */
+#endif
     if (lv_hunt_bar_on()) { lv_hunt_bar(B); return; }   /* hunting: the banner stops scrolling and becomes the hunt bar */
     const bool flash = lv_tk_alert && ((lv_now / 350) & 1);
     const uint16_t bg = lv_tk_alert ? (flash ? lv_hex(0x6a0000) : lv_hex(0x3a0000)) : lv_hex(0x2a0400);
@@ -1616,6 +1676,21 @@ static void lv_tint_setup(void)
 static void lv_set_masks(void)
 {
     lv_nmask = 0;
+#if LV_HC_GAME
+    if (lv_scr == LV_SC_HCH) return;   /* MOCK 1111: the game redraws itself every frame, like the radar */
+#endif
+#if LV_DL_GAME
+    if (lv_scr == LV_SC_DL) return;    /* MOCK 1112: DOWNLOAD redraws itself every frame */
+#endif
+#if LV_MO_INSIDE
+    if (lv_scr == LV_SC_MO) return;    /* MOCK 1112: Construct redraws every frame */
+#endif
+#if LV_CT_INSIDE
+    if (lv_scr == LV_SC_CT) return;    /* MOCK 1112: Grid Plant redraws every frame */
+#endif
+#if LV_TR_INSIDE
+    if (lv_scr == LV_SC_TR) return;    /* MOCK 1112: Relay Ring redraws every frame */
+#endif
     if (lv_scr == LV_SC_BOOT || lv_scr == LV_SC_HOME_INTRO || lv_scr == LV_SC_CAL || lv_scr == LV_SC_TTY || lv_scr == LV_SC_RADAR || lv_scr == LV_SC_GLOSS || lv_scr == LV_SC_GLOSS_DESC) return;
     lv_masks[lv_nmask++] = LV_R_TICK;
     if (lv_scr == LV_SC_SCAN) { lv_masks[lv_nmask++] = LV_R_SBOX; lv_masks[lv_nmask++] = LV_R_STERM; }
@@ -1642,6 +1717,9 @@ static void lv_paint_tints(bool all)
 }
 
 #include "lv_radar.h"
+#include "lv_scanbot_game.h"   /* MOCK 1111: SCANbot HOT COLD HUNT (LV_HC_GAME) */
+#include "lv_scanbot_download.h"   /* MOCK 1112: SCANbot DOWNLOAD (LV_DL_GAME) */
+#include "lv_inside_towers.h"   /* MOCK 1112: INSIDE TOWERS (LV_MO_INSIDE / LV_CT_INSIDE / LV_TR_INSIDE) */
 
 /* ---------- flow ---------- */
 static int lv_theme_seg(int base) { return base + (lv_theme < LV_THEME_ORIG ? lv_theme : LV_THEME_BASE); }
@@ -1652,6 +1730,12 @@ static void lv_go(int s)
     const int prev = lv_scr;
     lv_cs_open = false;   /* the CMDS overlay never survives a screen change */
     if (prev == LV_SC_RADAR && s != LV_SC_RADAR) lv_radar_leave();   /* leaving releases a lock and ends a hunt */
+#if LV_HC_GAME
+    if (prev == LV_SC_HCH && s != LV_SC_HCH) lv_hc_leave();
+#endif
+#if LV_DL_GAME
+    if (prev == LV_SC_DL && s != LV_SC_DL) lv_dl_leave();
+#endif
     /* item 14: tear the radio down when heading home so no scan/deauth/hunt is left running across screens */
     if (prev != s && lv_job != LV_J_NONE && (s == LV_SC_HOME || s == LV_SC_HOME_INTRO || s == LV_SC_BOOT)) lv_job_stop();
     if (s == LV_SC_RADAR && prev != LV_SC_RADAR) { lv_rd_from = prev; if (prev == LV_SC_SCAN) lv_rd_save_scan(); }
@@ -1668,6 +1752,21 @@ static void lv_go(int s)
     }
     if (s == LV_SC_GLOSS || s == LV_SC_GLOSS_DESC) { lv_gloss_t0 = lv_now; lv_gloss_step = LV_GL_T_STILL; }   /* item 2: rain restarts on the locked still */
     if (s == LV_SC_RADAR) lv_radar_enter();
+#if LV_HC_GAME
+    if (s == LV_SC_HCH && prev != LV_SC_HCH) lv_hc_enter();
+#endif
+#if LV_DL_GAME
+    if (s == LV_SC_DL && prev != LV_SC_DL) lv_dl_enter();
+#endif
+#if LV_MO_INSIDE
+    if (s == LV_SC_MO && prev != LV_SC_MO) itw_mo_enter();
+#endif
+#if LV_CT_INSIDE
+    if (s == LV_SC_CT && prev != LV_SC_CT) itw_ct_enter();
+#endif
+#if LV_TR_INSIDE
+    if (s == LV_SC_TR && prev != LV_SC_TR) itw_tr_enter();
+#endif
     if (prev == LV_SC_RADAR && s == LV_SC_SCAN) lv_rd_restore_scan();
     lv_set_masks(); lv_tint_setup(); lv_port_begin();
     lv_dirty_box = lv_dirty_term = lv_dirty_ctl = lv_dirty_tty = lv_dirty_kbd = true;
@@ -1928,6 +2027,21 @@ static void lv_gloss_paint(const LvRect &r);   /* item 2: lv_glossary.h */
 static void lv_flash_repaint(const LvRect &r)
 {
     if (lv_scr == LV_SC_RADAR) return;   /* redrawn every frame */
+#if LV_HC_GAME
+    if (lv_scr == LV_SC_HCH) return;     /* MOCK 1111: redrawn every frame */
+#endif
+#if LV_DL_GAME
+    if (lv_scr == LV_SC_DL) return;      /* MOCK 1112: redrawn every frame */
+#endif
+#if LV_MO_INSIDE
+    if (lv_scr == LV_SC_MO) return;
+#endif
+#if LV_CT_INSIDE
+    if (lv_scr == LV_SC_CT) return;
+#endif
+#if LV_TR_INSIDE
+    if (lv_scr == LV_SC_TR) return;
+#endif
     if (lv_scr == LV_SC_GLOSS || lv_scr == LV_SC_GLOSS_DESC) { lv_gloss_paint(r); return; }   /* item 2 */
     for (int t = 0; t < lv_ntint; ++t) if (lv_rect_hit(lv_tints[t].r, r)) lv_tint_paint(t);
     if (lv_scr == LV_SC_TTY && lv_rect_hit(LV_R_BACKBOT, r)) lv_dirty_kbd = true;   /* item 8: corner BACKbot repaints with the keyboard band */
@@ -2012,6 +2126,39 @@ static void lv_tick(const LkIo &io, uint32_t now)
         else lv_open_tty(lv_soon_cmd[0] ? lv_soon_cmd : 0);
     }
     if (lv_scr == LV_SC_GLOSS || lv_scr == LV_SC_GLOSS_DESC) { lv_gloss_tick(); lv_ticker_tick(); return; }   /* item 2 */
+#if LV_HC_GAME
+    if (lv_scr == LV_SC_HCH) {   /* MOCK 1111: the game frames exactly as the radar does (30 ms on the host, every loop on the CYD) */
+#if defined(BOTCORPS_CYD) && !defined(LV_HOST)
+        { lv_clip_t = now; lv_hc_frame(); }
+#else
+        if ((int32_t)(now - lv_clip_t) >= 30) { lv_clip_t = now; lv_hc_frame(); }
+#endif
+        if (lv_enter) { lv_enter = false; LvRect e = {0, 0, 239, 0}; lv_render(lv_blit, e, [](LvBand &B, void *) { b_fill(B, B.x0, B.y0, B.w, B.h, 0); }, 0);
+            lv_render(lv_blit, {0, 0, 0, 23}, [](LvBand &B, void *) { b_fill(B, B.x0, B.y0, B.w, B.h, 0); }, 0); lv_render(lv_blit, {239, 0, 239, 23}, [](LvBand &B, void *) { b_fill(B, B.x0, B.y0, B.w, B.h, 0); }, 0); }
+        return;
+    }
+#endif
+#if LV_DL_GAME
+    if (lv_scr == LV_SC_DL) {   /* MOCK 1112: DOWNLOAD frames like the radar / Hot-Cold game */
+#if defined(BOTCORPS_CYD) && !defined(LV_HOST)
+        { lv_clip_t = now; lv_dl_frame(); }
+#else
+        if ((int32_t)(now - lv_clip_t) >= 30) { lv_clip_t = now; lv_dl_frame(); }
+#endif
+        if (lv_enter) { lv_enter = false; LvRect e = {0, 0, 239, 0}; lv_render(lv_blit, e, [](LvBand &B, void *) { b_fill(B, B.x0, B.y0, B.w, B.h, 0); }, 0);
+            lv_render(lv_blit, {0, 0, 0, 23}, [](LvBand &B, void *) { b_fill(B, B.x0, B.y0, B.w, B.h, 0); }, 0); lv_render(lv_blit, {239, 0, 239, 23}, [](LvBand &B, void *) { b_fill(B, B.x0, B.y0, B.w, B.h, 0); }, 0); }
+        return;
+    }
+#endif
+#if LV_MO_INSIDE
+    if (lv_scr == LV_SC_MO) { if ((int32_t)(now - lv_clip_t) >= 30 || lv_enter) { lv_clip_t = now; lv_enter = false; itw_mo_frame(); } return; }
+#endif
+#if LV_CT_INSIDE
+    if (lv_scr == LV_SC_CT) { if ((int32_t)(now - lv_clip_t) >= 30 || lv_enter) { lv_clip_t = now; lv_enter = false; itw_ct_frame(); } return; }
+#endif
+#if LV_TR_INSIDE
+    if (lv_scr == LV_SC_TR) { if ((int32_t)(now - lv_clip_t) >= 30 || lv_enter) { lv_clip_t = now; lv_enter = false; itw_tr_frame(); } return; }
+#endif
     if (lv_scr == LV_SC_RADAR) {
 #if defined(BOTCORPS_CYD) && !defined(LV_HOST)
         { lv_clip_t = now; lv_radar_frame(); } // firmware loop already owns the frame deadline
@@ -2075,6 +2222,9 @@ static void lv_scan_view(int mode, int job) { lv_mode = mode; lv_cat = LV_CAT_GR
 static const char *lv_back(void)
 {
     if (lv_scr == LV_SC_TTY) { lv_go_soon(lv_tty_from == LV_SC_TTY ? LV_SC_HOME : lv_tty_from, 0); return "backbot-tty"; }
+#if LV_RD_INFO
+    if (lv_scr == LV_SC_RADAR && lv_rd_info) { lv_rd_info_close(); return "backbot-radar-info"; }   /* MOCK 1111: INFO -> radar, same tower */
+#endif
     if (lv_scr == LV_SC_RADAR) { const int f = lv_rd_from; lv_go_soon(f == LV_SC_RADAR || f == LV_SC_BOOT || f == LV_SC_HOME_INTRO || f == LV_SC_CAL ? LV_SC_HOME : f, 0); return "backbot-radar"; }
     if (lv_scr == LV_SC_SCAN && lv_cat != LV_CAT_GRID) {
         if (lv_detail) { lv_detail = false; lv_dirty_box = true; return "backbot-detail->list"; }
@@ -2155,6 +2305,21 @@ static const char *lv_tap(int x, int y)
     if (lv_scr == LV_SC_CAL) return "cal-raw-only";
     if (lv_scr == LV_SC_BOOT || lv_scr == LV_SC_HOME_INTRO) { lv_go(LV_SC_HOME); if (lv_selftest_pending) { lv_selftest_pending = false; lv_selftest(); } return "skip-intro"; }
     if (lv_soon_kind) return "busy-nav";
+#if LV_HC_GAME
+    if (lv_scr == LV_SC_HCH) return lv_hc_tap(x, y);   /* MOCK 1111: SCANbot HOT COLD HUNT */
+#endif
+#if LV_DL_GAME
+    if (lv_scr == LV_SC_DL) return lv_dl_tap(x, y);    /* MOCK 1112: SCANbot DOWNLOAD */
+#endif
+#if LV_MO_INSIDE
+    if (lv_scr == LV_SC_MO) return itw_mo_tap(x, y);   /* MOCK 1112: MORPHEUSbot Construct */
+#endif
+#if LV_CT_INSIDE
+    if (lv_scr == LV_SC_CT) return itw_ct_tap(x, y);   /* MOCK 1112: CONTROLbot Grid Plant */
+#endif
+#if LV_TR_INSIDE
+    if (lv_scr == LV_SC_TR) return itw_tr_tap(x, y);   /* MOCK 1112: TERMINALbot Relay Ring */
+#endif
     if (lv_scr == LV_SC_TTY) {
         if (LV_TAPD(LV_R_BACKBOT_TTY_HIT, LV_R_BACKBOT)) return lv_back();   /* item 8: corner BACKbot, works whether CMDS is open or not */
         if (lv_in(LV_R_TTY_TICK, x, y)) { lv_go(LV_SC_SCAN); return "ticker->scan"; }

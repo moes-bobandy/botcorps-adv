@@ -9,3 +9,6 @@ Request: Mobandy 2026-11-16 1:17 PM ET — build CONTROLbot Color UI v6 + BOTphe
 5. Push branch backup/cyd-fw-3locks-2026-11-16.
 ## Log
 - 13:19 worktree /workspace/cyd-fw-3locks-wt on backup/cyd-fw-3locks-2026-11-16 @049ff59; baseline builds running in /tmp/base049/wt
+- 13:22 baseline 049ff59 cyd_livescan: RAM 110740 B, Flash 2348771 B / 3145728; env cyd: RAM 74172, Flash 1496047
+- 13:25 EB3 source reconstructed (/tmp/t3c3b/tree = cyd-morpheus-v6-wt + 006aa03 tree_patch + eb3_tree_patched; src = 006aa03 morpheus-mix-spread/out/src + eb3 body patch). Sim reproduces locked idle_3x and open_deauth_3x at 0 px diff.
+- 13:29 combined tree assembled (EB3 tree live headers + HACKbot lv_scanbot_download.h + botpheus/ mo_emblem.h, mo_mix.inc + lv_build_3locks.h). Sim: BOTpheus idle/open_deauth 0 px vs lock with LV_BOTPHEUS_NAME=0; 17 px (label MORPHEUS->BOTPHEUS, bbox x4-13 y27-31) with name=1.

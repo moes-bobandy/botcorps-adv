@@ -77,21 +77,24 @@ static LvFind mk(const char *n, int rssi, int ch, int auth, uint16_t mfg, uint8_
 }
 static int fk_overlap = 0, fk_starts = 0;
 static int fk_wifi_start(void) { fk_starts++; if (fk_job) fk_overlap++; fk_job = 1; fk_t0 = t_ms; return 0; }
-static uint32_t fk_ble_ms = 5000; static int fk_ovr_m5 = -1, fk_ovr_rssi = 0, fk_ble_n = 0;
+static uint32_t fk_ble_ms = 5000; static int fk_ovr_m5 = -1, fk_ovr_rssi = 0, fk_ble_n = 0, fk_holdpoll = 0;  /* scanhold: freeze in-flight poll (sim only, for HOLD stills) */
 static int fk_ble_start(uint32_t ms) { fk_ble_ms = ms; fk_ble_n++; fk_starts++; if (fk_job) fk_overlap++; fk_job = 2; fk_t0 = t_ms; return 0; }
 static int fk_deauth_start(uint32_t) { fk_starts++; if (fk_job) fk_overlap++; fk_job = 3; fk_t0 = t_ms; return 0; }
 static int fk_wifi_poll(LvFind *o, int max)
 {
+    if (fk_holdpoll) return -1;   /* sim-only: freeze this pass */
     if (t_ms - fk_t0 < 1200) return -1;
     const LvFind F[] = {mk("HomeNet-5G", -52, 6, 3, 0, 0, 0, 1), mk("Flock-A7F21C", -61, 11, 3, 0, 0, 0, 2), mk("TELLO-5A21B3", -66, 1, 0, 0, 0, 0, 3),
                         mk("xfinitywifi", -70, 1, 0, 0, 0, 0, 4), mk("DIRECT-6B-HP OfficeJet", -73, 6, 3, 0, 0, 0, 5), mk("", -80, 149, 6, 0, 0, 0, 6),
                         mk("Tesla_Model3", -82, 36, 3, 0, 0, 0, 7), mk("NETGEAR42", -84, 9, 4, 0, 0, 0, 8), mk("CoffeeShop Guest", -88, 3, 0, 0, 0, 0, 9)};
     int n = (int)(sizeof F / sizeof F[0]); if (n > max) n = max; memcpy(o, F, n * sizeof(LvFind)); fk_job = 0;
     for (int i = 0; i < n; ++i) if (o[i].mac[5] == fk_ovr_m5) o[i].rssi = (int8_t)fk_ovr_rssi;   /* 'sig' command: SAMPLE dBm for a hunt test */
+    for (int i = 0; i < n; ++i) if (o[i].mac[5] == fk_ovr_m5 && fk_ovr_rssi <= -127) { memmove(o + i, o + i + 1, (n - i - 1) * sizeof(LvFind)); --n; break; }   /* 1109 mock: sig M -127 = WiFi target missed this pass */
     return n;
 }
 static int fk_ble_poll(LvFind *o, int max)
 {
+    if (fk_holdpoll) return -1;   /* sim-only: freeze this pass */
     if (t_ms - fk_t0 < fk_ble_ms) return -1;
     const LvFind F[] = {mk("", -48, 0, 0, 0x004C, 0x12, 0, 10), mk("Flipper Zeph", -58, 0, 0, 0xFFFF, 0, 0, 11), mk("", -63, 0, 0, 0x0075, 0, 0xFD5A, 12),
                         mk("RB Meta 0A1F", -67, 0, 0, 0x01AB, 0, 0, 13), mk("HC-05", -71, 0, 0, 0xFFFF, 0, 0, 14), mk("Galaxy Watch6", -74, 0, 0, 0x0075, 0, 0, 15),
@@ -224,6 +227,36 @@ int main(int argc, char **argv)
 #endif
         }
         else if (!strcmp(cmd, "sig")) { if (fscanf(sc, "%d %d", &fk_ovr_m5, &fk_ovr_rssi) != 2) return 2; }
+        else if (!strcmp(cmd, "scanhold")) { fk_holdpoll = 1; printf("t=%u scanhold (SIM: radio poll frozen)\n", t_ms); }
+        else if (!strcmp(cmd, "infodump")) {   /* infodump F NAME: tick to INFO frame F the same way v2 did (tickto T-30, tick 1, dump) */
+            int f; char nm[64]; if (fscanf(sc, "%d %63s", &f, nm) != 2) return 2;
+            unsigned T = lv_rd_info_t + (unsigned)((f * 100 + 2) / 3);   /* t0 + ceil(f*100/3) */
+            if (T >= 30) tickto(io, T - 30);
+            tick1(io);
+            char path[512]; snprintf(path, sizeof path, "%s/%s.rgb", argv[2], nm); dump(path);
+            printf("DUMP %s infodump f=%d t=%u info_t=%u frame=%d hunt=%d miss=%d rssi=%d\n",
+                   nm, f, t_ms, lv_rd_info_t, (int)((uint32_t)(t_ms - lv_rd_info_t) * 3u / 100u),
+                   lv_rd_hunting, lv_rd_miss, lv_rd_info_f.rssi);
+        }
+#if LV_HC_GAME
+        else if (!strcmp(cmd, "hctowers")) {   /* MOCK 1111 game: the fake nodes, their heat, the target and the finger boxes this frame */
+            printf("HC t=%u phase=%d round=%d n=%d target=NODE %02d probes=%d heat=%d prev=%d score=%d best=%d\n", t_ms, lv_hc_phase, lv_hc_round, lv_hc_n, lv_hc_tgt + 1, lv_hc_probes, lv_hc_heat, lv_hc_prev, lv_hc_score, lv_hc_best);
+            for (int k = 0; k < lv_hc_nhb; ++k) { const LvHcHit &h = lv_hc_hb[k]; printf("  HCT NODE %02d heat=%d Z=%.2f hit={%d,%d,%d,%d} cx=%d%s\n", h.i + 1, lv_hc_tgt >= 0 ? lv_hc_heat_of(h.i) : -1, h.Z, h.xa, h.ya, h.xb, h.yb, h.cx, h.i == lv_hc_tgt ? "  <TARGET>" : ""); }
+        }
+#endif
+#if LV_DL_GAME
+        else if (!strcmp(cmd, "dllevel")) { int n; if (fscanf(sc, "%d", &n) != 1) return 2; lv_dl_round = n; lv_dl_try = 0; lv_dl_enter(); printf("t=%u DL SIM shortcut: level %d intro\n", t_ms, n); }   /* MOCK 1112: jump to a level (renders only) */
+        else if (!strcmp(cmd, "dlopen")) { int n; if (fscanf(sc, "%d", &n) != 1) return 2; if (lv_dl_phase != LV_DL_PLAY) lv_dl_play(); if (n>=1 && n<=LV_DL_NT) lv_dl_open_tower(n-1); printf("t=%u DL SIM shortcut: open tower %d\n", t_ms, n); }
+        else if (!strcmp(cmd, "dlnf")) { int n; if (fscanf(sc, "%d", &n) != 1) return 2; lv_dl_nf_force = n; lv_dl_enter(); printf("t=%u DL SIM feasibility: %d files a tower (not the progression)\n", t_ms, n); }
+        else if (!strcmp(cmd, "dlstate")) {   /* MOCK 1112 HACKbot game: phase, trace, files (FAKE game data), finger boxes this frame */
+            printf("DL t=%u phase=%d round=%d tower=%d cam=%d nf=%d need=%d got=%d trace=%d wrong=%d dls=%d score=%d best=%d dl=%d deny=%d camx=%.3f\n", t_ms, lv_dl_phase, lv_dl_round, lv_dl_tw + 1, lv_dl_cam_mode, lv_dl_nf, lv_dl_need, lv_dl_got, lv_dl_trace, lv_dl_wrong, lv_dl_dls, lv_dl_score, lv_dl_best, lv_dl_pf + 1, (int)lv_dl_deny, lv_dl_cam_at);
+            for (int t = 0; t < LV_DL_NT; ++t) { printf("  DLF T%d%s:", t + 1, lv_dl_seen[t] ? "*" : ""); for (int k = 0; k < lv_dl_nf; ++k) { char sz[12]; lv_dl_size(lv_dl_fo[t][k].mb10, sz, sizeof sz); printf(" [%d %s %s%s s=%d]", k + 1, lv_dl_name(lv_dl_fo[t][k]), sz, lv_dl_fo[t][k].tgt >= 0 ? " TARGET" : lv_dl_fo[t][k].la ? " LOOKALIKE" : "", lv_dl_fo[t][k].st); } printf("\n"); }
+            for (int k = 0; k < lv_dl_need; ++k) { char sz[12]; lv_dl_size(lv_dl_tmb[k], sz, sizeof sz); printf("  DLTG %d %s %s T%d F%d got=%d\n", k + 1, LV_DL_NAMES[lv_dl_tnm[k]], sz, lv_dl_ttw[k] + 1, lv_dl_tf[k] + 1, (int)lv_dl_tgot[k]); }
+            for (int k = 0; k < lv_hc_nhb; ++k) { const LvHcHit &h = lv_hc_hb[k]; printf("  DLT T%d Z=%.2f hit={%d,%d,%d,%d} cx=%d\n", h.i + 1, h.Z, h.xa, h.ya, h.xb, h.yb, h.cx); }
+            for (int k = 0; k < lv_dl_ntag; ++k) printf("  DLTAG T%d={%d,%d,%d,%d} drawn_open=%d\n", lv_dl_tags[k].i + 1, lv_dl_tags[k].x0, lv_dl_tags[k].y0, lv_dl_tags[k].x1, lv_dl_tags[k].y1, lv_dl_tag_tw + 1);
+            for (int i = 0; i < lv_dl_nf; ++i) { const LvRect r = lv_dl_ftap(i); printf("  DLFT F%d={%d,%d,%d,%d}\n", i + 1, r.x0, r.y0, r.x1, r.y1); }
+        }
+#endif
         else if (!strcmp(cmd, "towers")) { lv_rd_layout(); for (int n = 0; n < lv_rd_n; ++n) { const LvTower &T = lv_rd_tw[n]; printf("  tower f%d %s %d dBm m5=%d x%d-%d y%d-%d\n", T.i, lv_f[T.i].name, lv_f[T.i].rssi, lv_f[T.i].mac[5], T.x0, T.x1, T.byt, T.yb); } }
 #if LV_BG_ENGINE
         else if (!strcmp(cmd, "bgstate")) printf("t=%u BG rain=%d style=%d col=%d nvs lkbgs=%d lkbgc=%d\n", t_ms, lv_rain, lv_bgstyle, lv_raincol, fk_bgs, fk_bgc);
@@ -261,6 +294,9 @@ int main(int argc, char **argv)
             printf("t=%u rec %s %d frames\n", t_ms, nm, n);
         }
         else if (!strcmp(cmd, "backface")) { int k; if (fscanf(sc, "%d", &k) != 1) return 2; lv_backbot_face = k & 3; lv_go(lv_scr); for (int i = 0; i < 4; ++i) tick1(io); printf("backface %d\n", lv_backbot_face); }
+#if LV_MO_INSIDE || LV_CT_INSIDE || LV_TR_INSIDE
+        else if (!strcmp(cmd, "itwstate")) { itw_dump(); }
+#endif
         else if (!strcmp(cmd, "go")) { int k; if (fscanf(sc, "%d", &k) != 1) return 2; lv_go(k); }
         else if (!strcmp(cmd, "probe")) { /* probe NAME X Y: what a tap there does, in a forked child (no side effects) */
             char nm[64]; int x, y; if (fscanf(sc, "%63s %d %d", nm, &x, &y) != 3) return 2;

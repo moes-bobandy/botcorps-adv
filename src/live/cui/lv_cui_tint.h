@@ -5,7 +5,7 @@
  * lv_core.h just before lv_scene_ticker. */
 #pragma once
 #ifndef LV_CUI_TICKER_ALL
-#define LV_CUI_TICKER_ALL 1   /* 1 = the theme carries into the top banner on every CYD screen (LOCK.md); 0 = only on Color UI */
+#define LV_CUI_TICKER_ALL 0   /* fw-3locks default 0: keeps every other locked screen (and the BOTpheus amber banner) pixel-identical at the default theme; 1 = the theme carries into the top banner on every CYD screen (LOCK.md); 0 = only on Color UI */
 #endif
 static uint32_t lv_cui_g_bg, lv_cui_g_stripe_a, lv_cui_g_stripe_b, lv_cui_g_ink, lv_cui_g_shadow = 0x200000;
 static int lv_cui_lum(uint32_t c) { const int r = (c >> 16) & 255, g = (c >> 8) & 255, b = c & 255; return (r * 3 + g * 6 + b) / 10; }

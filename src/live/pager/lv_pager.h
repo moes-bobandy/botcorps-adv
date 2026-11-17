@@ -339,6 +339,8 @@ static void lv_pg_pips_row(uint16_t *row, int y, int page)
 }
 
 /* Compose one page into a 240-wide RGB565 row at y. Does not paint the live ticker text. */
+#include "lv_pager_fx.h"
+
 static void lv_pg_compose_row(uint16_t *row, int y, int page, LvPgSet &S)
 {
     const int slot = lv_cb_slot();
@@ -358,8 +360,8 @@ static void lv_pg_compose_row(uint16_t *row, int y, int page, LvPgSet &S)
     }
 
     if (page != LV_PG_CTL && y >= 88 && y <= 197) {
-        const uint8_t *fr = lv_pg_ch_row(S, true, lv_pg_art(page), y - 88);
-        if (fr) memcpy(row + 65, fr, LV_PG_FACE_S * 2);
+        const uint8_t *fr = (page == LV_PG_TERMINAL) ? nullptr : lv_pg_ch_row(S, true, lv_pg_art(page), y - 88);
+        lv_pg_face_fx_row(row, y, page, fr);
     }
 
     if (lv_pg_corner && y >= 301 && y <= 319)

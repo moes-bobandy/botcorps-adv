@@ -658,9 +658,10 @@ static void itw_mo_enter(void)
 }
 static void itw_mo_frame(void)
 {
+    mo_emb_mark_frame();
     if (itw_mo_sel >= 0) { const uint32_t el = lv_now - itw_mo_t0;
         itw_mo_phase = el < MO12_PUSH_MS ? 1 : el < MO12_DROP0 + 2 * MO12_GAP + MO12_DROP_MS ? 2 : 3; }
-    lv_render(lv_blit, {0, 0, 239, 319}, itw_mo_scene, 0);
+    lv_render(lv_blit_hw, {0, 0, 239, 319}, itw_mo_scene, 0);   /* v1.2.4: final colours, skip theme re-ink scan of 76800 px */
     itw_top();
 }
 static int mo_hit(int x, int y)   /* v11 tap assist for drifting pillars: every field point belongs to the pillar whose centre line (its front-face
@@ -680,7 +681,9 @@ static void mo12_plan(int i)   /* at tap: the open camera centre = DOWNLOAD's lv
 }
 static const char *itw_mo_tap(int x, int y)
 {
-    if (lv_in(ITW_BACK_HIT, x, y)) { lv_go_soon(LV_SC_HOME, 0); return "mo-back-home"; }
+    { const LvRect R = ITW_BACK_HIT;
+      if (x >= R.x0 - 8 && x <= R.x1 + 8 && y >= R.y0 - 8 && y <= R.y1 + 8)
+        { lv_go_soon(LV_SC_HOME, 0); return "mo-back-home"; } }
     if (y <= 23) { lv_go_soon(LV_SC_HOME, 0); return "mo-ticker"; }
     if (itw_mo_sel >= 0) {
         if (lv_in(MO_BTN, x, y)) { mo_last = itw_mo_sel; mo_closing = true; mo_close_t = lv_now; itw_mo_sel = -1; itw_mo_phase = 0; return "mo-towers"; }

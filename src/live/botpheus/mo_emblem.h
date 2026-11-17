@@ -92,24 +92,43 @@ static bool mo_e_in(const MoEP &p, float x, float y)
  * entry is skipped for that band instead of aborting), the cache is held under MO_EMB_BUDGET bytes, and leaving the Dojo frees it. */
 struct MoEmb { int S; uint32_t bytes; uint8_t *body, *det, *halo; };
 static MoEmb *mo_emb_cache[MO_EMB_N][MO_EMB_MAXS + 1];
+static uint16_t mo_emb_at[MO_EMB_N][MO_EMB_MAXS + 1];
 static uint32_t mo_emb_bytes = 0;
+static uint16_t mo_emb_gen = 1;
 #define MO_EMB_BUDGET 20000u
 static void mo_emb_free_all(void)
 {
-    for (int i = 0; i < MO_EMB_N; ++i) for (int s = 0; s <= MO_EMB_MAXS; ++s) { free(mo_emb_cache[i][s]); mo_emb_cache[i][s] = nullptr; }
+    for (int i = 0; i < MO_EMB_N; ++i) for (int s = 0; s <= MO_EMB_MAXS; ++s) { free(mo_emb_cache[i][s]); mo_emb_cache[i][s] = nullptr; mo_emb_at[i][s] = 0; }
     mo_emb_bytes = 0;
 }
 static void mo_emb_free_one(int i)   /* drop every size of emblem i (its pillar changed size) */
 {
-    for (int s = 0; s <= MO_EMB_MAXS; ++s) if (mo_emb_cache[i][s]) { mo_emb_bytes -= mo_emb_cache[i][s]->bytes; free(mo_emb_cache[i][s]); mo_emb_cache[i][s] = nullptr; }
+    for (int s = 0; s <= MO_EMB_MAXS; ++s) if (mo_emb_cache[i][s]) { mo_emb_bytes -= mo_emb_cache[i][s]->bytes; free(mo_emb_cache[i][s]); mo_emb_cache[i][s] = nullptr; mo_emb_at[i][s] = 0; }
+}
+/* v1.2.4: bump at the start of each Dojo frame. Cache hits this generation are not evicted mid-frame
+ * (the old free_all path re-rasterized all 18 pillars at 6x6 every frame = ~1 FPS on the CYD). */
+static void mo_emb_mark_frame(void)
+{
+    if (++mo_emb_gen == 0) { for (int i = 0; i < MO_EMB_N; ++i) for (int s = 0; s <= MO_EMB_MAXS; ++s) mo_emb_at[i][s] = 0; mo_emb_gen = 1; }
+}
+static void mo_emb_evict(uint32_t need)
+{
+    while (mo_emb_bytes + need > MO_EMB_BUDGET) {
+        int bi = -1, bs = -1; uint16_t oldest = 0xffff;
+        for (int i = 0; i < MO_EMB_N; ++i) for (int s = 0; s <= MO_EMB_MAXS; ++s) {
+            if (!mo_emb_cache[i][s] || mo_emb_at[i][s] == mo_emb_gen) continue;
+            if (mo_emb_at[i][s] <= oldest) { oldest = mo_emb_at[i][s]; bi = i; bs = s; }
+        }
+        if (bi < 0) break;   /* every live entry is for this frame: allow a brief over-budget rather than free_all */
+        mo_emb_bytes -= mo_emb_cache[bi][bs]->bytes; free(mo_emb_cache[bi][bs]); mo_emb_cache[bi][bs] = nullptr; mo_emb_at[bi][bs] = 0;
+    }
 }
 static const MoEmb *mo_emb_get(int i, int S)
 {
     if (i < 0 || i >= MO_EMB_N) return nullptr; if (S < 4) S = 4; if (S > MO_EMB_MAXS) S = MO_EMB_MAXS;
-    if (mo_emb_cache[i][S]) return mo_emb_cache[i][S];
+    if (mo_emb_cache[i][S]) { mo_emb_at[i][S] = mo_emb_gen; return mo_emb_cache[i][S]; }
     const uint32_t need = (uint32_t)(sizeof(MoEmb) + 2 * S * S + (S + 2) * (S + 2));
-    if (mo_emb_bytes + need > MO_EMB_BUDGET) mo_emb_free_one(i);
-    if (mo_emb_bytes + need > MO_EMB_BUDGET) mo_emb_free_all();
+    mo_emb_evict(need);
     MoEmb *E = (MoEmb *)malloc(need); if (!E) return nullptr;
     memset(E, 0, need); E->S = S; E->bytes = need; E->body = (uint8_t *)(E + 1); E->det = E->body + S * S; E->halo = E->det + S * S;
     const int Q = 6; const float k = 16.0f / S;
@@ -125,5 +144,5 @@ static const MoEmb *mo_emb_get(int i, int S)
         for (int dy = -1; dy <= 1; ++dy) for (int dx = -1; dx <= 1; ++dx) { const int yy = y - 1 + dy, xx = x - 1 + dx; if (yy < 0 || xx < 0 || yy >= S || xx >= S) continue;
             const int c = E->body[yy * S + xx] + E->det[yy * S + xx]; if (c > m) m = c; }
         E->halo[y * H + x] = (uint8_t)(m > 255 ? 255 : m); }
-    mo_emb_cache[i][S] = E; mo_emb_bytes += need; return E;
+    mo_emb_cache[i][S] = E; mo_emb_at[i][S] = mo_emb_gen; mo_emb_bytes += need; return E;
 }

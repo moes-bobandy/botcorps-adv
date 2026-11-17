@@ -117,12 +117,13 @@ static void lv_rd_place(void)
     }
     for (int a = 1; a < lv_rd_n; ++a) { LvTower t = lv_rd_tw[a]; int b = a - 1; while (b >= 0 && lv_rd_tw[b].Z < t.Z) { lv_rd_tw[b + 1] = lv_rd_tw[b]; --b; } lv_rd_tw[b + 1] = t; } /* far -> near */
 }
+static bool lv_rd_cam_hold = false;   /* v1.2.4: HACKbot open-tower camera; skip sway + clamp so the tower stays at x=50 next to the folders */
 static void lv_rd_layout(void)
 {
     const float t = (lv_now - lv_rd_t0) / 1000.0f;
-    lv_rd_camx = lv_rainmode == 0 ? 0.5f * sinf(t * 0.45f) : 0.0f;
+    if (!lv_rd_cam_hold) lv_rd_camx = lv_rainmode == 0 ? 0.5f * sinf(t * 0.45f) : 0.0f;
     lv_rd_place();
-    lv_rd_clamp();   /* while locked: camera DRIFT is clamped so the locked tower (and its brackets) stays fully on screen */
+    if (!lv_rd_cam_hold) lv_rd_clamp();   /* while locked: camera DRIFT is clamped so the locked tower (and its brackets) stays fully on screen */
 }
 static inline void b_blend(LvBand &B, int x, int y, uint16_t c, int k)
 {

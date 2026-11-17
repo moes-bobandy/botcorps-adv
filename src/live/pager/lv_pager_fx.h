@@ -97,7 +97,6 @@ static void lv_pg_face_fx_row(uint16_t *row, int y, int page, const uint8_t *fr)
     }
 }
 
-#if 0  /* item 6 later: panels off until they replace LV_PG_PAN_Z */
 /* ---- role panels: only (45,220) 152x71, four distinct smooth meters ---- */
 static void lv_pg_pan_text(uint16_t *row, int y, int x, int gy, const char *s, uint16_t c)
 {
@@ -272,4 +271,3 @@ static void lv_pg_panel_fx_row(uint16_t *row, int y, int page)
     else if (page == LV_PG_GIBSON) lv_pg_pan_gibson(row, y, acc);
     else if (page == LV_PG_TERMINAL) lv_pg_pan_terminal(row, y, acc);
 }
-#endif

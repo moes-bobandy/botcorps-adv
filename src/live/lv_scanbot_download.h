@@ -195,12 +195,14 @@ static void lv_dl_tick(void)
     if (lv_dl_phase == LV_DL_DONE && (int32_t)(lv_now - lv_dl_pt) >= 1500) lv_dl_phase = LV_DL_WIN;
     if (lv_dl_phase == LV_DL_TRACED && (int32_t)(lv_now - lv_dl_pt) >= 1500) lv_dl_phase = LV_DL_OVER;
     /* the radar's own layout (drift camera), then the game camera: ease to the open tower / back to the drift */
+    lv_rd_cam_hold = (lv_dl_cam_mode == 1 || lv_dl_tw >= 0);   /* park next to folders; no sway, no clamp push */
     lv_hc_swap(); lv_rd_layout();
     const float drift = lv_rd_camx; const float u = lv_dl_ease((lv_now - lv_dl_cam_t) / (float)LV_DL_CAM_MS);
     float cx = drift;
     if (lv_dl_cam_mode == 1) cx = lv_dl_cam_from + (lv_dl_cam_for(lv_dl_cam_tw) - lv_dl_cam_from) * u;
     else if (lv_dl_cam_mode == 2) { const float c0 = lv_dl_cam_for(lv_dl_cam_tw); cx = c0 + (drift - c0) * u; if (u >= 1) lv_dl_cam_mode = 0; }
-    if (cx != drift) { lv_rd_camx = cx; lv_rd_place(); lv_rd_clamp(); }
+    if (cx != drift) { lv_rd_camx = cx; lv_rd_place(); if (!lv_rd_cam_hold) lv_rd_clamp(); }
+    if (lv_dl_cam_mode != 1 && lv_dl_tw < 0) lv_rd_cam_hold = false;
     lv_dl_cam_at = lv_rd_camx;
     lv_hc_nhb = 0;   /* finger boxes: >= 40 px wide, >= 60 px tall, nearest centre wins (lv_hc_hit) */
     for (int n = 0; n < lv_rd_n && lv_hc_nhb < LV_HC_MAXT; ++n) {
@@ -429,7 +431,7 @@ static void lv_dl_frame(void)
 {
     lv_dl_tick();
     static const LvRect all = {0, 0, 239, 319};
-    lv_render(lv_blit, all, lv_dl_scene, 0);
+    lv_render(lv_blit_hw, all, lv_dl_scene, 0);   /* v1.2.4: skip theme re-ink; look unchanged */
 }
 static void lv_go_soon(int scr, const char *tty_cmd);
 static const char *lv_dl_tap(int x, int y)

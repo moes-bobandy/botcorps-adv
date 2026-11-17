@@ -785,6 +785,10 @@ struct LvTint { LvRect r; int off; uint8_t id; };
 static uint8_t *lv_shadow = nullptr;   /* heap, allocated once on first tint: 32 KB static did not fit dram0_0_seg */
 static LvTint lv_tints[LV_MAXT];
 static int lv_ntint = 0, lv_shadow_used = 0, lv_shadow_peak = 0;
+static void lv_shadow_vacate(void)   /* v1.2.4: give the radio ~32 KB back before Wi-Fi/BLE init; next tint re-allocates */
+{
+    free(lv_shadow); lv_shadow = nullptr; lv_ntint = 0; lv_shadow_used = 0;
+}
 static LvTS lv_tdrawn[LV_MAXT];
 static bool lv_tdirty[LV_MAXT];   /* the clip wrote under a deco tint: repaint it (keeps the art animating under BACKbot) */
 static LvTS lv_tint_state(int id);

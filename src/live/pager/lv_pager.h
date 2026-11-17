@@ -242,20 +242,21 @@ static void lv_pg_cache_end(void)
 /* row r (0-based) of face image idx / panel image idx, decoded through set S; nullptr if the chunk would not inflate */
 static const uint8_t *lv_pg_ch_row(LvPgSet &S, bool face, int idx, int r)
 {
-    if (!S.mem) return nullptr;
-    const int w = face ? LV_PG_FACE_S : LV_PG_PAN_W, h = face ? LV_PG_FACE_S : LV_PG_PAN_H;
-    const int nch = face ? LV_PG_FACE_NCH : LV_PG_PAN_NCH, c = r / LV_PG_CH, j = idx * nch + c;
-    uint8_t *dst = face ? S.mem : S.mem + LV_PG_FCH_B + LV_PG_GAP;
-    int &k = face ? S.fkey : S.pkey;
+    if (!S.mem || !face) return nullptr;   /* v1.2.4: panels are procedural */
+    const int w = LV_PG_FACE_S, h = LV_PG_FACE_S;
+    const int nch = LV_PG_FACE_NCH, c = r / LV_PG_CH, j = idx * nch + c;
+    uint8_t *dst = S.mem;
+    int &k = S.fkey;
     if (k != j) {
-        const uint32_t *O = face ? LV_PG_FACE_OFF : LV_PG_PAN_OFF;
-        const uint8_t *Z = face ? LV_PG_FACE_Z : LV_PG_PAN_Z;
+        const uint32_t *O = LV_PG_FACE_OFF;
+        const uint8_t *Z = LV_PG_FACE_Z;
         const int rows = (h - c * LV_PG_CH) < LV_PG_CH ? (h - c * LV_PG_CH) : LV_PG_CH;
-        if (!lv_pg_inflate(Z + O[j], O[j + 1] - O[j], dst, face ? LV_PG_FCH_B : LV_PG_PCH_B, (uint32_t)(rows * w * 2))) { k = -1; return nullptr; }
+        if (!lv_pg_inflate(Z + O[j], O[j + 1] - O[j], dst, LV_PG_FCH_B, (uint32_t)(rows * w * 2))) { k = -1; return nullptr; }
         k = j;
     }
     return dst + (r % LV_PG_CH) * w * 2;
 }
+
 
 static void lv_pg_ensure(int page) { (void)page; lv_pg_load_corner(lv_cb_slot()); }
 
@@ -354,10 +355,8 @@ static void lv_pg_compose_row(uint16_t *row, int y, int page, LvPgSet &S)
 
     if (page == LV_PG_CTL && lv_cb_pan && lv_cb_pan_slot == slot && y >= LV_CB_PY0 && y < LV_CB_PY0 + LV_CB_PH)
         memcpy(row + LV_CB_PX0, lv_cb_pan + (y - LV_CB_PY0) * LV_CB_PW, LV_CB_PW * 2);
-    if (page != LV_PG_CTL && y >= LV_CB_PY0 && y < LV_CB_PY0 + LV_CB_PH) {
-        const uint8_t *pr = lv_pg_ch_row(S, false, lv_pg_pan_idx(slot, page), y - LV_CB_PY0);
-        if (pr) memcpy(row + LV_CB_PX0, pr, LV_PG_PAN_W * 2);
-    }
+    if (page != LV_PG_CTL && y >= LV_CB_PY0 && y < LV_CB_PY0 + LV_CB_PH)
+        lv_pg_panel_fx_row(row, y, page);
 
     if (page != LV_PG_CTL && y >= 88 && y <= 197) {
         const uint8_t *fr = (page == LV_PG_TERMINAL) ? nullptr : lv_pg_ch_row(S, true, lv_pg_art(page), y - 88);

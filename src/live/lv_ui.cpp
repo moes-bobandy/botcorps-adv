@@ -274,6 +274,14 @@ static void IRAM_ATTR promisc_cb(void *buf, wifi_promiscuous_pkt_type_t type)
     if (p->payload[0] == 0xC0 || p->payload[0] == 0xA0) ++s_deauth;
     portEXIT_CRITICAL(&s_radio_mux);
 }
+static void radio_heap_prep(const char *tag)
+{
+    lv_shadow_vacate();
+    mo_emb_free_all();
+    lv_pg_leave_cache();
+    heap_log(tag);
+}
+
 static void lv_radio_task(void *)
 {
     int warm = LV_RK_NONE;
@@ -288,13 +296,19 @@ static void lv_radio_task(void *)
                 warm = LV_RK_NONE; failed = false;
                 // The previous stack is fully deinitialized before the other can be initialized.
                 if (r.kind == LV_RK_BLE) {
+                    radio_heap_prep("scan prep BLE");
                     failed = !NimBLEDevice::init("");
+                    Serial.printf("[live] NimBLE init %s heap free=%u largest=%u\n", failed ? "FAIL" : "ok",
+                                  (unsigned)ESP.getFreeHeap(), (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL));
                     if (!failed) {
                         NimBLEScan *sc = NimBLEDevice::getScan();
                         sc->setActiveScan(true); sc->setInterval(100); sc->setWindow(99); sc->setMaxResults(LV_MAXF);
                     }
                 } else if (r.kind != LV_RK_NONE) {
+                    radio_heap_prep("scan prep WIFI");
                     WiFi.persistent(false); failed = !WiFi.mode(WIFI_STA);
+                    Serial.printf("[live] WiFi.mode STA %s heap free=%u largest=%u\n", failed ? "FAIL" : "ok",
+                                  (unsigned)ESP.getFreeHeap(), (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL));
                     if (!failed) WiFi.disconnect(false, false);
                 }
                 warm = r.kind;
@@ -309,12 +323,17 @@ static void lv_radio_task(void *)
                 esp_wifi_set_promiscuous_filter(&flt); esp_wifi_set_promiscuous_rx_cb(promisc_cb);
                 failed = esp_wifi_set_promiscuous(true) != ESP_OK;
             }
-            if (failed) { Serial.printf("[live] radio mode %d init failed\n", warm); radio_publish(r, -2); }
+            if (failed) { Serial.printf("[live] radio mode %d init failed heap free=%u largest=%u\n", warm,
+                                          (unsigned)ESP.getFreeHeap(), (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL)); radio_publish(r, -2); }
         }
         if (warm == LV_RK_NONE || failed) { ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(200)); continue; }
         if (warm == LV_RK_WIFI) {
             if (!scanning) {
-                scanning = WiFi.scanNetworks(true, true) != WIFI_SCAN_FAILED;
+                heap_log("scan start WIFI");
+                const int ret = WiFi.scanNetworks(true, true);
+                scanning = ret != WIFI_SCAN_FAILED;
+                Serial.printf("[live] WiFi.scanNetworks ret=%d (FAILED=%d) heap free=%u largest=%u\n", ret, (int)WIFI_SCAN_FAILED,
+                              (unsigned)ESP.getFreeHeap(), (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL));
                 if (!scanning) { failed = true; radio_publish(r, -2); }
             } else {
                 const int n = WiFi.scanComplete();
@@ -328,8 +347,11 @@ static void lv_radio_task(void *)
             NimBLEScan *sc = NimBLEDevice::getScan();
             if (!scanning) {
                 // Installed NimBLE 2.x: duration is milliseconds; start is non-blocking.
+                heap_log("scan start BLE");
                 scanning = sc->start(r.ms ? r.ms : 5000, false, true);
                 end = millis() + (r.ms ? r.ms : 5000) + 500;
+                Serial.printf("[live] NimBLE scan start %s heap free=%u largest=%u\n", scanning ? "ok" : "FAIL",
+                              (unsigned)ESP.getFreeHeap(), (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL));
                 if (!scanning) { failed = true; radio_publish(r, -2); }
             } else if (!sc->isScanning() || (int32_t)(millis() - end) >= 0) {
                 if (sc->isScanning()) sc->stop();
@@ -487,7 +509,7 @@ static void ui_live_init(void)
     if (initialized) return;
     initialized = true;
     // Account for every persistent UI allocation BEFORE reserving graphics headroom.
-    if (!lv_shadow) lv_shadow = (uint8_t *)malloc(LV_SHADOW_CAP);
+    /* v1.2.4: do not pre-alloc the 32 KB tint shadow; vacate before radio init */
     if (!lv_port_under) lv_port_under = (uint16_t *)malloc(LV_PORT_MAXGLOW * sizeof(uint16_t));
 #if LV_RD_CHARGE
     if (!lv_rd_cgb) {

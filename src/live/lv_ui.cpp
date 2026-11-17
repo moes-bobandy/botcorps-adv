@@ -441,17 +441,18 @@ static void r_bg_save(int style, int col)
 #endif
 
 #if LV_CB
-/* fw-3locks-1116: CONTROLbot v6 control panel. Settings in NVS "botcorps" (cbscan cbvol cbbri cbchime cbtime cbbar cbtone), same namespace as lktheme.
- * BRIGHT drives the backlight (LovyanGFX setBrightness, GPIO21 PWM). VOL / TONE / CHIME drive the CYD speaker output (GPIO26, LEDC PWM tone,
- * duty = volume). Untested on hardware. */
+/* fw-3locks-1116 / v1.2.3: CONTROLbot panel. NVS "botcorps" (cbscan cbvol cbbri cbchime cbtime cbbar cbtone cbsleep).
+ * BRIGHT / SLEEP drive the backlight (LovyanGFX setBrightness, GPIO21 PWM). TONE / CHIME use the saved speaker vol (cbvol, no UI). */
+static const char *const LV_CB_NVS[8] = {"cbscan","cbvol","cbbri","cbchime","cbtime","cbbar","cbtone","cbsleep"};
 static void r_cb_save(const LvCbSet &c)
 {
     Preferences prefs;
     if (prefs.begin("botcorps", false)) {
-        prefs.putUChar("cbscan", c.scan); prefs.putUChar("cbvol", c.vol); prefs.putUChar("cbbri", c.bri); prefs.putUChar("cbchime", c.chime);
-        prefs.putUChar("cbtime", c.time); prefs.putUChar("cbbar", c.bar); prefs.putUChar("cbtone", c.tone); prefs.end();
+        const uint8_t *v = &c.scan;
+        for (int i = 0; i < 8; ++i) prefs.putUChar(LV_CB_NVS[i], v[i]);
+        prefs.end();
     }
-    Serial.printf("[live] NVS CONTROLbot scan=%u vol=%u bri=%u chime=%u time=%u bar=%u tone=%u\n", c.scan, c.vol, c.bri, c.chime, c.time, c.bar, c.tone);
+    Serial.printf("[live] NVS %u %u %u %u %u %u %u %u\n", c.scan, c.vol, c.bri, c.chime, c.time, c.bar, c.tone, c.sleep);
 }
 static void r_cb_bright(int pct) { g_cyd.setBrightness((uint8_t)(pct * 255 / 100)); }
 #define CB_SPK_PIN 26
@@ -466,10 +467,9 @@ static void r_cb_load(void)
 {
     Preferences prefs;
     if (prefs.begin("botcorps", true)) {
-        lv_cb_set.scan = prefs.getUChar("cbscan", lv_cb_set.scan); lv_cb_set.vol = prefs.getUChar("cbvol", lv_cb_set.vol);
-        lv_cb_set.bri = prefs.getUChar("cbbri", lv_cb_set.bri); lv_cb_set.chime = prefs.getUChar("cbchime", lv_cb_set.chime);
-        lv_cb_set.time = prefs.getUChar("cbtime", lv_cb_set.time); lv_cb_set.bar = prefs.getUChar("cbbar", lv_cb_set.bar);
-        lv_cb_set.tone = prefs.getUChar("cbtone", lv_cb_set.tone); prefs.end();
+        uint8_t *v = &lv_cb_set.scan;
+        for (int i = 0; i < 8; ++i) v[i] = prefs.getUChar(LV_CB_NVS[i], v[i]);
+        prefs.end();
     }
 }
 #endif

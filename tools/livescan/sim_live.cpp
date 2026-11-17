@@ -169,7 +169,7 @@ static bool fk_cal_save(const uint16_t c[8])
 }
 static void fk_set_rot(int flip) { fk_rot = flip ? 0 : 2; printf("[sim] set_rot -> setRotation(%d)\n", fk_rot); }
 #if LV_CB   /* fw-3locks: CONTROLbot v6 panel hooks, logged (SIM NVS / backlight / speaker) */
-static void fk_cb_save(const LvCbSet &c) { printf("t=%u NVS CONTROLbot scan=%u vol=%u bri=%u chime=%u time=%u bar=%u tone=%u (SIM)\n", t_ms, c.scan, c.vol, c.bri, c.chime, c.time, c.bar, c.tone); }
+static void fk_cb_save(const LvCbSet &c) { printf("t=%u NVS scan=%u vol=%u bri=%u chime=%u time=%u bar=%u tone=%u sleep=%u (SIM)\n", t_ms, c.scan, c.vol, c.bri, c.chime, c.time, c.bar, c.tone, c.sleep); }
 static void fk_cb_bright(int pct) { printf("t=%u BACKLIGHT %d%% (duty %d/255) (SIM)\n", t_ms, pct, pct * 255 / 100); }
 static void fk_cb_tone(int hz, int vol) { printf("t=%u SPEAKER %d Hz vol %d%% (SIM)\n", t_ms, hz, vol); }
 #endif

@@ -3,12 +3,12 @@
  *   - base art = render_security_color_themes_v2.py paint_v2() panel (v9c draw_theme_bar / draw_cycle_btn / draw_meter, LV_GLCD 5x7), RGB565;
  *   - re-ink = controlbot_colorui_reink.cpp roles 3/4/5/6/7 (label+frame / value+lit / unlit / white text / badge fill), copied below;
  *   - theme = the locked v6 ORDER (render_controlbot_colorui.py ORDER) for the current slot.
- * At the default settings (SCAN B.RAIN, VOL 40%, BRIGHT 80%, CHIME ON, TIME RTC, BAR HAZRD, TONE BEEP) this reproduces the locked
+ * At the default settings (SCAN B.RAIN, SLEEP OFF, BRIGHT 80%, CHIME ON, TIME RTC, BAR HAZRD, TONE BEEP; speaker vol stays 40%) this reproduces the locked
  * stills' panel pixel for pixel (tools: docs/builds/fw-3locks-1116 proof). Settings persist in NVS ("botcorps": cbscan, cbvol, ...). */
 #pragma once
 /* ---- settings ---- */
-struct LvCbSet { uint8_t scan, vol, bri, chime, time, bar, tone; };
-static LvCbSet lv_cb_set = {0, 40, 80, 1, 0, 3, 0};   /* v6 defaults (the locked stills) */
+struct LvCbSet { uint8_t scan, vol, bri, chime, time, bar, tone, sleep; };
+static LvCbSet lv_cb_set = {0, 40, 80, 1, 0, 3, 0, 0};   /* v6 defaults; sleep 0=OFF (VOL slot) */
 #define LV_CB_NSCAN 3
 static const char *const LV_CB_SCAN_NAME[LV_CB_NSCAN] = {"B.RAIN", "S.RAIN", "OFF"};   /* this build: GIBSON code rain DRIFT / SWEEP / off */
 static const char *const LV_CB_TIME_NAME[2] = {"RTC", "NTP"};
@@ -16,6 +16,11 @@ static const char *const LV_CB_TIME_NAME[2] = {"RTC", "NTP"};
 static const char *const LV_CB_BAR_NAME[LV_CB_NBAR] = {"RAIN", "DECOD", "TICK", "HAZRD", "HUD"};
 #define LV_CB_NTONE 3
 static const char *const LV_CB_TONE_NAME[LV_CB_NTONE] = {"BEEP", "8BIT", "SIREN"};
+#define LV_CB_NSLEEP 4
+static const char *const LV_CB_SLEEP_NAME[LV_CB_NSLEEP] = {"OFF", "30S", "1M", "5M"};
+static const uint32_t LV_CB_SLEEP_MS[LV_CB_NSLEEP] = {0, 30000, 60000, 300000};
+static uint8_t lv_cb_slp;          /* 0 awake, 1 screen off, 2 eat this gesture's tap */
+static uint32_t lv_cb_idle_t;
 static void (*lv_cb_save_hook)(const LvCbSet &) = nullptr;   /* lv_ui.cpp: NVS */
 static void (*lv_cb_bright_hook)(int pct) = nullptr;         /* lv_ui.cpp: backlight */
 static void (*lv_cb_tone_hook)(int hz, int vol) = nullptr;   /* lv_ui.cpp: speaker (hz 0 = silent) */
@@ -106,10 +111,10 @@ static bool lv_cb_panel_build(int slot)
     if (!lv_cb_pan) lv_cb_pan = (uint16_t *)malloc(LV_CB_PW * LV_CB_PH * 2);
     if (!lv_cb_pan) return false;
     lv_cb_g_t = LV_CB_REINK_T[slot]; lv_cb_n7 = 0;
-    const LvCbSet &s = lv_cb_set; char v[8], b[8];
+    const LvCbSet &s = lv_cb_set; char b[8];
     lv_cb_fill(LV_CB_PX0, LV_CB_PY0, LV_CB_PW, LV_CB_PH, CB_PLATE); lv_cb_frame(LV_CB_PX0, LV_CB_PY0, LV_CB_PW, LV_CB_PH, CB_KEY);
     lv_cb_bar(46, 221, "SCAN", LV_CB_SCAN_NAME[s.scan], s.scan + 1, true);
-    snprintf(v, sizeof v, "%d%%", s.vol); lv_cb_bar(46, 244, "VOL", v, lv_cb_lit(s.vol), false);
+    lv_cb_bar(46, 244, "SLEEP", LV_CB_SLEEP_NAME[s.sleep], s.sleep ? s.sleep * 2 + 1 : 1, false);
     snprintf(b, sizeof b, "%d%%", s.bri); lv_cb_bar(46, 267, "BRIGHT", b, lv_cb_lit(s.bri), false);
     lv_cb_btn(116, 221, "CHIME", s.chime ? "ON" : "OFF", s.chime);
     lv_cb_btn(157, 221, "TIME", LV_CB_TIME_NAME[s.time], true);
@@ -144,8 +149,28 @@ static void lv_cb_apply(void)   /* push settings into the firmware state they dr
     LvCbSet &s = lv_cb_set;
     if (s.scan >= LV_CB_NSCAN) s.scan = 0; if (s.vol > 100) s.vol = 40; s.vol -= s.vol % 10;
     if (s.bri < 10 || s.bri > 100) s.bri = 80; s.bri -= s.bri % 10; if (s.chime > 1) s.chime = 1; if (s.time > 1) s.time = 0;
-    if (s.bar >= LV_CB_NBAR) s.bar = 3; if (s.tone >= LV_CB_NTONE) s.tone = 0;
+    if (s.bar >= LV_CB_NBAR) s.bar = 3; if (s.tone >= LV_CB_NTONE) s.tone = 0; if (s.sleep >= LV_CB_NSLEEP) s.sleep = 0;
     lv_rain = s.scan != 2; lv_rainmode = s.scan == 1 ? 1 : 0;   /* SCAN: GIBSON radar code rain (old RAIN + RAIN MODE chips) */
     if (lv_cb_bright_hook) lv_cb_bright_hook(s.bri);
 }
 static void lv_cb_changed(void) { lv_cb_apply(); if (lv_cb_save_hook) lv_cb_save_hook(lv_cb_set); lv_cb_panel_dirty = true; }
+
+/* SLEEP: GPIO21 off after the idle timeout; any touch wakes; first wake-tap is eaten. */
+static void lv_cb_blset(int pct) { if (lv_cb_bright_hook) lv_cb_bright_hook(pct); }
+static void lv_cb_finger(bool down)
+{
+    if (lv_cb_slp == 1 && down) { lv_cb_blset(lv_cb_set.bri); lv_cb_slp = 2; }
+    if (down && !lv_cb_slp) lv_cb_idle_t = lv_now;
+}
+static bool lv_cb_eat(void)
+{
+    if (lv_cb_slp == 1) { lv_cb_blset(lv_cb_set.bri); lv_cb_slp = 2; }
+    if (lv_cb_slp != 2) return false;
+    lv_cb_slp = 0; lv_cb_idle_t = lv_now; return true;
+}
+static void lv_cb_idle_tick(uint32_t now)
+{
+    if (!lv_cb_idle_t) { lv_cb_idle_t = now ? now : 1; return; }
+    const uint32_t ms = LV_CB_SLEEP_MS[lv_cb_set.sleep];
+    if (ms && !lv_cb_slp && (int32_t)(now - lv_cb_idle_t) >= (int32_t)ms) { lv_cb_slp = 1; lv_cb_blset(0); }
+}

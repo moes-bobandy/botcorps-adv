@@ -2268,6 +2268,7 @@ static void lv_tick(const LkIo &io, uint32_t now)
 #if LV_CB
     lv_cb_io = &io;
     lv_cb_sound_tick(now);   /* CONTROLbot TONE sequencer */
+    lv_cb_idle_tick(now);
 #endif
     if (lv_scr == LV_SC_CAL) { lv_cal_tick(now); return; }
     lv_job_tick();
@@ -2459,7 +2460,12 @@ static void lv_pad_snap(const LvRect *R, int n, int &x, int &y)
 #define LV_PAD(T) lv_pad_snap(T, (int)(sizeof T / sizeof T[0]), x, y)
 
 /* Touch state every loop (portrait coords, down = finger on glass). Only the radar uses it (hold to lock on). */
-static void lv_touch(bool down, int x, int y) { if (lv_scr == LV_SC_RADAR) lv_radar_touch(down, x, y);
+static void lv_touch(bool down, int x, int y) {
+#if LV_CB
+    lv_cb_finger(down);
+    if (lv_cb_slp) return;   /* asleep or eating the wake gesture: do not start a swipe / radar lock */
+#endif
+    if (lv_scr == LV_SC_RADAR) lv_radar_touch(down, x, y);
 #if LV_CB
     if (lv_scr == LV_SC_HOME) lv_pg_touch(down, x, y);
 #endif
@@ -2469,6 +2475,10 @@ static void lv_touch(bool down, int x, int y) { if (lv_scr == LV_SC_RADAR) lv_ra
 static const char *lv_tap(int x, int y)
 {
     if (lv_scr == LV_SC_CAL) return "cal-raw-only";
+#if LV_CB
+    if (lv_cb_eat()) return "sleep-wake";   /* first tap after SLEEP blank must not fire a control */
+    lv_cb_idle_t = lv_now;
+#endif
     if (lv_scr == LV_SC_BOOT || lv_scr == LV_SC_HOME_INTRO) { lv_go(LV_SC_HOME); if (lv_selftest_pending) { lv_selftest_pending = false; lv_selftest(); } return "skip-intro"; }
     if (lv_soon_kind) return "busy-nav";
 #if LV_HC_GAME

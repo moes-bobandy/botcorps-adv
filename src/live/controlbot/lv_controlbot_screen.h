@@ -99,26 +99,23 @@ static const char *lv_controlbot_tap(int x, int y)
         lv_print("CONTROLbot THEME %s", LV_CB_NAME[k]);
         return "controlbot-theme";
     }
-    /* v1.1: a tap in the 1-2 px gaps between blocks or just outside the panel used to do nothing. Like every other screen
-     * (LV_PAD / lv_pad_snap), a tap within LV_TAP_PAD px of a block now snaps to the nearest block. The guard against a bouncy
-     * contact double-stepping is 150 ms (was 250 ms, which swallowed quick deliberate repeat taps on VOL / BRIGHT). */
+    /* snap like every other screen (LV_TAP_PAD); 150 ms guard against a bouncy double-step. */
     lv_pad_snap(LV_CB_BLK, 7, x, y);
-    static uint32_t tap_t = 0; static bool tapped = false;
-    auto hit = [&](int x0, int y0, int x1, int y1) { return x >= x0 && x <= x1 && y >= y0 && y <= y1; };
+    static uint32_t tap_t = 0;
     int blk = -1; for (int k = 0; k < 7; ++k) if (lv_in(LV_CB_BLK[k], x, y)) { blk = k; break; }
-    if (blk >= 0) {
-        if (tapped && (int32_t)(lv_now - tap_t) < 150) return "panel-debounce";
-        tapped = true; tap_t = lv_now;
-        lv_cb_blk = LV_CB_BLK[blk]; lv_cb_blk_on = true; lv_cb_blk_t = lv_now; lv_cb_panel_dirty = true;   /* flash the tapped block */
+    if (blk < 0) return "none";
+    if (tap_t && (int32_t)(lv_now - tap_t) < 150) return "panel-debounce";
+    tap_t = lv_now;
+    lv_cb_blk = LV_CB_BLK[blk]; lv_cb_blk_on = true; lv_cb_blk_t = lv_now;
+    LvCbSet &s = lv_cb_set; const char *r = "none";
+    switch (blk) {
+    case 0: s.scan = (s.scan + 1) % LV_CB_NSCAN; lv_print("CONTROLbot SCAN %s", LV_CB_SCAN_NAME[s.scan]); r = "cb-scan"; break;
+    case 1: s.sleep = (s.sleep + 1) % LV_CB_NSLEEP; lv_print("CONTROLbot SLEEP %s", LV_CB_SLEEP_NAME[s.sleep]); r = "cb-sleep"; break;
+    case 2: { const int d = x < 80 ? -10 : 10, v = s.bri + d; s.bri = v < 10 ? 10 : v > 100 ? 100 : v; lv_print("CONTROLbot BRIGHT %d%%", s.bri); r = d < 0 ? "cb-bright-" : "cb-bright+"; break; }
+    case 3: s.chime = !s.chime; if (s.chime) lv_cb_play(); lv_print("CONTROLbot CHIME %s", s.chime ? "ON" : "OFF"); r = "cb-chime"; break;
+    case 4: s.time = !s.time; lv_print("CONTROLbot TIME %s", LV_CB_TIME_NAME[s.time]); r = "cb-time"; break;
+    case 5: s.bar = (s.bar + 1) % LV_CB_NBAR; lv_print("CONTROLbot BAR %s", LV_CB_BAR_NAME[s.bar]); r = "cb-bar"; break;
+    case 6: s.tone = (s.tone + 1) % LV_CB_NTONE; lv_cb_play(); lv_print("CONTROLbot TONE %s", LV_CB_TONE_NAME[s.tone]); r = "cb-tone"; break;
     }
-    LvCbSet &s = lv_cb_set;
-    if (hit(46, 221, 113, 242)) { s.scan = (s.scan + 1) % LV_CB_NSCAN; lv_cb_changed(); lv_print("CONTROLbot SCAN %s", LV_CB_SCAN_NAME[s.scan]); return "cb-scan"; }
-    /* VOL slot (block 1, 46,244-113,265; drawn by lv_cb_bar(46, 244, "VOL", ...) in lv_cb_panel_build): Mobandy is picking its replacement - swap this line and that one */
-    if (hit(46, 244, 113, 265)) { const int d = x < 80 ? -10 : 10; const int v = s.vol + d; s.vol = v < 0 ? 0 : v > 100 ? 100 : v; lv_cb_changed(); lv_cb_play(); lv_print("CONTROLbot VOL %d%%", s.vol); return d < 0 ? "cb-vol-" : "cb-vol+"; }
-    if (hit(46, 267, 113, 288)) { const int d = x < 80 ? -10 : 10; const int v = s.bri + d; s.bri = v < 10 ? 10 : v > 100 ? 100 : v; lv_cb_changed(); lv_print("CONTROLbot BRIGHT %d%%", s.bri); return d < 0 ? "cb-bright-" : "cb-bright+"; }
-    if (hit(116, 221, 154, 254)) { s.chime = !s.chime; lv_cb_changed(); if (s.chime) lv_cb_play(); lv_print("CONTROLbot CHIME %s", s.chime ? "ON" : "OFF"); return "cb-chime"; }
-    if (hit(157, 221, 195, 254)) { s.time = !s.time; lv_cb_changed(); lv_print("CONTROLbot TIME %s", LV_CB_TIME_NAME[s.time]); return "cb-time"; }
-    if (hit(116, 256, 154, 289)) { s.bar = (s.bar + 1) % LV_CB_NBAR; lv_cb_changed(); lv_print("CONTROLbot BAR %s", LV_CB_BAR_NAME[s.bar]); return "cb-bar"; }
-    if (hit(157, 256, 195, 289)) { s.tone = (s.tone + 1) % LV_CB_NTONE; lv_cb_changed(); lv_cb_play(); lv_print("CONTROLbot TONE %s", LV_CB_TONE_NAME[s.tone]); return "cb-tone"; }
-    return "none";
+    lv_cb_changed(); return r;
 }

@@ -234,7 +234,7 @@ static void lv_pg_cache_end(void)
 {
     lv_pg_rle_free();
     lv_pg_set1_free();
-    lv_pg_cb_release();
+    if (lv_pg_page != LV_PG_CTL) lv_pg_cb_release();
     lv_pg_cache_on = false;
     lv_pg_slide_used = 0;
 }
@@ -527,7 +527,7 @@ static void lv_pg_blit(int a, int b, int off, bool full)
         lv_render(lv_blit_hw, LvRect{239, 1, 239, 23}, lv_pg_scene, &c);
         lv_render(lv_blit_hw, LvRect{0, 24, 239, 319}, lv_pg_scene, &c);
     }
-    if (!lv_pg_cache_on) lv_pg_cb_release();
+    if (!lv_pg_cache_on && a != LV_PG_CTL) lv_pg_cb_release();
 #if LV_PG_PROF
     if (lv_pg_prof) {
         const uint32_t dt = lv_pg_us_now() - t0;

@@ -1,0 +1,187 @@
+{
+  "note": "Firmware sim_live dumps vs pager-v2 stills after the same RGB565 fill-expand the sim uses ((r<<3)|(r>>2), (g<<2)|(g>>4)). Body (y>=30) is 0-diff on all 10 pages: v6 board, v3.1 faces, v3 panels, restored hole, no BACKbot. Ticker diffs are the live scrolling banner (same text, different offset than the baked mock still). Pip diffs are AA discs quantized to 565 (~86-88 px in y=25-29).",
+  "default_page": {
+    "index": 2,
+    "name": "CONTROLbot",
+    "changeable": true
+  },
+  "routes": {
+    "BOTpheus": "center tap -> LV_SC_MO (pager-botpheus-eb3); BACKbot mo-back-home -> pager, same page",
+    "GIBSONbot": "center tap -> LV_SC_RADAR (pager-gibson-radar); BACKbot backbot-radar -> pager, same page",
+    "CONTROLbot": "center tap -> theme cycle (controlbot-theme), whole pager follows (NEON GRAPE -> HOLO FOIL)",
+    "HACKbot": "center tap -> LV_SC_DL (pager-hackbot-game); BACKbot dl-backbot-home -> pager, same page",
+    "TERMINALbot": "center tap -> LV_SC_TERM (pager-terminal); BACKbot backbot-home -> pager, same page"
+  },
+  "pages": [
+    {
+      "theme": "grape",
+      "page": "botpheus",
+      "all": [
+        1,
+        1,
+        238,
+        29,
+        2980
+      ],
+      "ticker_y0_23": 2894,
+      "pips_y25_29": 86,
+      "body_y30_319": 0,
+      "face": 0,
+      "panel": 0,
+      "corner": 0
+    },
+    {
+      "theme": "grape",
+      "page": "gibson",
+      "all": [
+        1,
+        1,
+        238,
+        29,
+        2929
+      ],
+      "ticker_y0_23": 2843,
+      "pips_y25_29": 86,
+      "body_y30_319": 0,
+      "face": 0,
+      "panel": 0,
+      "corner": 0
+    },
+    {
+      "theme": "grape",
+      "page": "control",
+      "all": [
+        9,
+        5,
+        238,
+        29,
+        1960
+      ],
+      "ticker_y0_23": 1874,
+      "pips_y25_29": 86,
+      "body_y30_319": 0,
+      "face": 0,
+      "panel": 0,
+      "corner": 0
+    },
+    {
+      "theme": "grape",
+      "page": "hackbot",
+      "all": [
+        1,
+        1,
+        238,
+        29,
+        2106
+      ],
+      "ticker_y0_23": 2020,
+      "pips_y25_29": 86,
+      "body_y30_319": 0,
+      "face": 0,
+      "panel": 0,
+      "corner": 0
+    },
+    {
+      "theme": "grape",
+      "page": "terminal",
+      "all": [
+        1,
+        1,
+        238,
+        29,
+        3428
+      ],
+      "ticker_y0_23": 3342,
+      "pips_y25_29": 86,
+      "body_y30_319": 0,
+      "face": 0,
+      "panel": 0,
+      "corner": 0
+    },
+    {
+      "theme": "holo",
+      "page": "botpheus",
+      "all": [
+        1,
+        1,
+        238,
+        29,
+        2950
+      ],
+      "ticker_y0_23": 2862,
+      "pips_y25_29": 88,
+      "body_y30_319": 0,
+      "face": 0,
+      "panel": 0,
+      "corner": 0
+    },
+    {
+      "theme": "holo",
+      "page": "gibson",
+      "all": [
+        1,
+        5,
+        238,
+        29,
+        2033
+      ],
+      "ticker_y0_23": 1945,
+      "pips_y25_29": 88,
+      "body_y30_319": 0,
+      "face": 0,
+      "panel": 0,
+      "corner": 0
+    },
+    {
+      "theme": "holo",
+      "page": "control",
+      "all": [
+        1,
+        1,
+        238,
+        29,
+        2494
+      ],
+      "ticker_y0_23": 2406,
+      "pips_y25_29": 88,
+      "body_y30_319": 0,
+      "face": 0,
+      "panel": 0,
+      "corner": 0
+    },
+    {
+      "theme": "holo",
+      "page": "hackbot",
+      "all": [
+        1,
+        1,
+        238,
+        29,
+        2869
+      ],
+      "ticker_y0_23": 2781,
+      "pips_y25_29": 88,
+      "body_y30_319": 0,
+      "face": 0,
+      "panel": 0,
+      "corner": 0
+    },
+    {
+      "theme": "holo",
+      "page": "terminal",
+      "all": [
+        1,
+        1,
+        238,
+        29,
+        2627
+      ],
+      "ticker_y0_23": 2539,
+      "pips_y25_29": 88,
+      "body_y30_319": 0,
+      "face": 0,
+      "panel": 0,
+      "corner": 0
+    }
+  ]
+}

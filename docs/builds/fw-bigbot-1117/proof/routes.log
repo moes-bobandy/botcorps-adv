@@ -1,0 +1,33 @@
+t=0 BACKLIGHT 80% (duty 204/255) (SIM)
+t=0 CONTROLbot boot settings scan=0 vol=40 bri=80 chime=1 time=0 bar=3 tone=0 rain=1 rainmode=0
+t=7860 tap 120,145 -> pager-botpheus-eb3 (scr=2 seg=-1)
+DUMP after_botpheus scr=13 seg=-1 clipframe=-1 t=8160
+OVL after_botpheus
+t=8160 tap 230,310 -> mo-back-home (scr=13 seg=-1)
+DUMP back_botpheus scr=2 seg=-1 clipframe=-1 t=8460
+OVL back_botpheus t8:170,306,201,310
+t=8610 tap 120,145 -> pager-gibson-radar (scr=2 seg=-1)
+DUMP after_gibson scr=8 seg=-1 clipframe=-1 t=8910
+OVL after_gibson
+t=8910 tap 230,310 -> backbot-radar (scr=8 seg=-1)
+DUMP back_gibson scr=2 seg=-1 clipframe=-1 t=9210
+OVL back_gibson t8:170,306,201,310
+t=9360 tap 120,145 -> pager-hackbot-game (scr=2 seg=-1)
+DUMP after_hackbot scr=12 seg=-1 clipframe=-1 t=9960
+OVL after_hackbot
+t=9960 tap 230,310 -> dl-backbot-home (scr=12 seg=-1)
+DUMP back_hackbot scr=2 seg=-1 clipframe=-1 t=10260
+OVL back_hackbot t8:170,306,201,310
+t=10410 tap 120,145 -> pager-terminal (scr=2 seg=-1)
+DUMP after_term scr=3 seg=8 clipframe=6 t=10710
+OVL after_term m:1,1,238,23 m:34,272,204,305 t8:170,306,201,310 t6:221,301,239,319
+t=10710 tap 230,310 -> backbot-home (scr=3 seg=8)
+DUMP back_term scr=2 seg=-1 clipframe=-1 t=11010
+OVL back_term t8:170,306,201,310
+t=11160 NVS lktheme=24 (SIM)
+t=11160 tap 120,145 -> controlbot-theme (scr=2 seg=-1)
+DUMP after_theme scr=2 seg=-1 clipframe=-1 t=11460
+OVL after_theme t8:170,306,201,310
+px pushed by overlays: 5708152
+SHADOW peak 29943 of 32768 bytes
+MOUI tot=729582 part=0

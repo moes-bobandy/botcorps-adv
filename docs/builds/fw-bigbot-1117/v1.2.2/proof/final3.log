@@ -1,0 +1,39 @@
+t=0 BACKLIGHT 80% (duty 204/255) (SIM)
+t=0 CONTROLbot boot settings scan=0 vol=40 bri=80 chime=1 time=0 bar=3 tone=0 rain=1 rainmode=0
+DUMP boot scr=2 seg=-1 clipframe=-1 t=7710
+OVL boot t8:170,306,201,310
+DUMP g_p0 scr=2 seg=-1 clipframe=-1 t=7770
+OVL g_p0 t8:170,306,201,310
+DUMP g_p1 scr=2 seg=-1 clipframe=-1 t=7830
+OVL g_p1 t8:170,306,201,310
+DUMP g_p2 scr=2 seg=-1 clipframe=-1 t=7890
+OVL g_p2 t8:170,306,201,310
+DUMP g_p3 scr=2 seg=-1 clipframe=-1 t=7950
+OVL g_p3 t8:170,306,201,310
+DUMP g_p4 scr=2 seg=-1 clipframe=-1 t=8010
+OVL g_p4 t8:170,306,201,310
+DUMP mid_from scr=2 seg=-1 clipframe=-1 t=8070
+OVL mid_from t8:170,306,201,310
+t=8070 tap 222,50 -> pager-chip-right-next (scr=2 seg=-1)
+DUMP mid_slide scr=2 seg=-1 clipframe=-1 t=8190
+OVL mid_slide t8:170,306,201,310
+PAGER: slide frames=7 avg=358 us max=404 us infl=168 cache=41386 rle=32970
+DUMP mid_to scr=2 seg=-1 clipframe=-1 t=8550
+OVL mid_to t8:170,306,201,310
+t=8610 tap 222,50 -> pager-chip-right-next (scr=2 seg=-1)
+PAGER: slide frames=7 avg=321 us max=328 us infl=168 cache=41386 rle=32970
+t=9150 tap 222,50 -> pager-chip-right-next (scr=2 seg=-1)
+PAGER: slide frames=7 avg=273 us max=363 us infl=84 cache=32970 rle=32970
+t=9630 NVS lktheme=24 (SIM)
+DUMP h_p0 scr=2 seg=-1 clipframe=-1 t=9780
+OVL h_p0 t8:170,306,201,310
+DUMP h_p2 scr=2 seg=-1 clipframe=-1 t=9840
+OVL h_p2 t8:170,306,201,310
+DUMP h_p4 scr=2 seg=-1 clipframe=-1 t=9900
+OVL h_p4 t8:170,306,201,310
+t=9960 tap 222,50 -> pager-chip-right-next (scr=2 seg=-1)
+DUMP chip_pressed scr=2 seg=-1 clipframe=-1 t=9990
+OVL chip_pressed t8:170,306,201,310
+px pushed by overlays: 18274136
+SHADOW peak 29817 of 32768 bytes
+MOUI tot=0 part=0

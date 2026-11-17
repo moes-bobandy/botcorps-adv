@@ -1,0 +1,9 @@
+sim_live C++ renderer, 240x320 RGB888 dumps, compared to v1.2.1 sim at 9b85518.
+Chip rects: (5,32)-(28,67) and (211,32)-(234,67).
+Ticker: y=0..23. Pip band: (90,24)-(150,29).
+
+BOTpheus grape p0, chips masked only: 0
+GIBSON / HACKbot / TERMINALbot / CONTROLbot grape, chips+ticker+pips masked: 0
+new boot vs new GIBSON (g_p2), ticker masked: 0
+new boot vs v1.2.1 GIBSON (old p1), chips+ticker+pips masked: 0
+new mid-slide (GIBSON->TERMINAL) vs from: 57975 px; vs to: 57697 px (slide is interpolating)

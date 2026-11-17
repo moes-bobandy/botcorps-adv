@@ -591,6 +591,10 @@ void lv_ui_loop(void)
     const uint32_t t_us = micros();
     lv_tick(s_io, now);
     ui_live_end();
+    {   /* v1.2.1: one heap line per screen change, so a serial capture shows what each screen leaves free */
+        static int last_scr = -1;
+        if (lv_scr != last_scr) { char t[16]; snprintf(t, sizeof t, "scr=%d", (int)lv_scr); heap_log(t); last_scr = lv_scr; }
+    }
     if (lv_scr == LV_SC_RADAR) {   /* field fps proof for the radar: render + SPI per tick, logged every 5 s */
         static uint32_t acc = 0, n = 0, mx = 0, t_log = 0;
         const uint32_t d = micros() - t_us; acc += d; ++n; if (d > mx) mx = d;

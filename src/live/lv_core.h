@@ -1865,11 +1865,15 @@ static void lv_go(int s)
 #if LV_DL_GAME
     if (prev == LV_SC_DL && s != LV_SC_DL) lv_dl_leave();
 #endif
+#if LV_MO_INSIDE
+    if (prev == LV_SC_MO && s != LV_SC_MO) mo_emb_free_all();   /* v1.2.1: the Dojo hands its emblem cache back */
+#endif
     /* item 14: tear the radio down when heading home so no scan/deauth/hunt is left running across screens */
     if (prev != s && lv_job != LV_J_NONE && (s == LV_SC_HOME || s == LV_SC_HOME_INTRO || s == LV_SC_BOOT)) lv_job_stop();
     if (s == LV_SC_RADAR && prev != LV_SC_RADAR) { lv_rd_from = prev; if (prev == LV_SC_SCAN) lv_rd_save_scan(); }
 #if LV_CB
     if (s == LV_SC_CONTROLBOT) { lv_pg_set_page(2); s = LV_SC_HOME; }   /* go ctl / old chip -> pager CONTROLbot page */
+    if (prev == LV_SC_HOME && s != LV_SC_HOME) lv_pg_leave_cache();      /* v1.2.1: leaving the pager hands its heap back */
 #endif
     lv_scr = s; lv_enter = true;
     lv_key_hl = -1; lv_flash_r = {0, 0, -1, -1}; lv_soon_kind = 0;
@@ -2108,11 +2112,18 @@ static void lv_scene_cal(LvBand &B, void *)
     if (x <= 175) b_fill(B, x, r, 176 - x, 1, LVC_RULE_C);
 }
 static const LvRect LV_R_CAL_TERM = {37, 275, 175, 290};
+/* v1.2.1 (Mobandy 2026-11-17 8:26 AM ET "get rid of the morpheus intro"): after CALbot the CYD goes straight to the pager.
+ * The MORPHEUSbot BOOTING / ACCESS GRANTED / GIBSONbot JACK IN clip (LK_S_BOOT) no longer plays at power-on; "go boot" still replays it. */
+#if LV_CB
+#define LV_CAL_EXIT LV_SC_HOME
+#else
+#define LV_CAL_EXIT LV_SC_BOOT
+#endif
 static void lv_cal_tick(uint32_t now)
 {
     lv_cal_lock_due(now);
-    if (lv_cal_phase == LV_CAL_NVS && !lv_cal_hold0 && (int32_t)(now - lv_cal_t0) >= 2000) { lv_go(LV_SC_BOOT); lv_clip_t = now; return; }
-    if ((lv_cal_phase == LV_CAL_OK || lv_cal_phase == LV_CAL_KEPT) && (int32_t)(now - lv_cal_t0) >= 1300) { lv_go(LV_SC_BOOT); lv_clip_t = now; return; }
+    if (lv_cal_phase == LV_CAL_NVS && !lv_cal_hold0 && (int32_t)(now - lv_cal_t0) >= 2000) { lv_go(LV_CAL_EXIT); lv_clip_t = now; return; }
+    if ((lv_cal_phase == LV_CAL_OK || lv_cal_phase == LV_CAL_KEPT) && (int32_t)(now - lv_cal_t0) >= 1300) { lv_go(LV_CAL_EXIT); lv_clip_t = now; return; }
     if (lv_cal_phase == LV_CAL_RUN && lv_cal_nvs && !lv_cal_ns && !lv_cal_done && (int32_t)(now - lv_cal_deadline) >= 0) {
         lv_cal_phase = LV_CAL_KEPT; lv_cal_saved = false; lv_cal_msg = 0; lv_cal_t0 = now;   /* old cal untouched */
     }

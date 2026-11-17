@@ -84,13 +84,35 @@ static bool mo_e_in(const MoEP &p, float x, float y)
     }
     return false;
 }
-struct MoEmb { int S; uint8_t body[MO_EMB_MAXS * MO_EMB_MAXS], det[MO_EMB_MAXS * MO_EMB_MAXS], halo[(MO_EMB_MAXS + 2) * (MO_EMB_MAXS + 2)]; };
+/* v1.2.1 (Mobandy 2026-11-17 8:26 AM ET "botpheus doesnt load and force closes"): every (emblem, size) entry used to be a
+ * fixed 7,112 B `new MoEmb` (48x48 body + det + 50x50 halo) that was never freed. The first Dojo frame alone builds all 18
+ * pillar emblems = 128,016 B; the CYD has ~50 KB free, so `new` threw std::bad_alloc -> std::terminate -> abort -> reboot
+ * (QEMU backtrace: operator new <- mo_emb_get, mo_emblem.h:93 <- mo_emb_draw <- mo11_tower_fx <- lv_scene_radar <- itw_mo_scene).
+ * Now each entry holds exactly S*S + S*S + (S+2)^2 bytes (same values, same S-stride indexing), allocation is nothrow (a failed
+ * entry is skipped for that band instead of aborting), the cache is held under MO_EMB_BUDGET bytes, and leaving the Dojo frees it. */
+struct MoEmb { int S; uint32_t bytes; uint8_t *body, *det, *halo; };
 static MoEmb *mo_emb_cache[MO_EMB_N][MO_EMB_MAXS + 1];
+static uint32_t mo_emb_bytes = 0;
+#define MO_EMB_BUDGET 20000u
+static void mo_emb_free_all(void)
+{
+    for (int i = 0; i < MO_EMB_N; ++i) for (int s = 0; s <= MO_EMB_MAXS; ++s) { free(mo_emb_cache[i][s]); mo_emb_cache[i][s] = nullptr; }
+    mo_emb_bytes = 0;
+}
+static void mo_emb_free_one(int i)   /* drop every size of emblem i (its pillar changed size) */
+{
+    for (int s = 0; s <= MO_EMB_MAXS; ++s) if (mo_emb_cache[i][s]) { mo_emb_bytes -= mo_emb_cache[i][s]->bytes; free(mo_emb_cache[i][s]); mo_emb_cache[i][s] = nullptr; }
+}
 static const MoEmb *mo_emb_get(int i, int S)
 {
     if (i < 0 || i >= MO_EMB_N) return nullptr; if (S < 4) S = 4; if (S > MO_EMB_MAXS) S = MO_EMB_MAXS;
     if (mo_emb_cache[i][S]) return mo_emb_cache[i][S];
-    MoEmb *E = new MoEmb; memset(E, 0, sizeof *E); E->S = S; const int Q = 6; const float k = 16.0f / S;
+    const uint32_t need = (uint32_t)(sizeof(MoEmb) + 2 * S * S + (S + 2) * (S + 2));
+    if (mo_emb_bytes + need > MO_EMB_BUDGET) mo_emb_free_one(i);
+    if (mo_emb_bytes + need > MO_EMB_BUDGET) mo_emb_free_all();
+    MoEmb *E = (MoEmb *)malloc(need); if (!E) return nullptr;
+    memset(E, 0, need); E->S = S; E->bytes = need; E->body = (uint8_t *)(E + 1); E->det = E->body + S * S; E->halo = E->det + S * S;
+    const int Q = 6; const float k = 16.0f / S;
     for (int y = 0; y < S; ++y) for (int x = 0; x < S; ++x) { int nb = 0, nd = 0;
         for (int a = 0; a < Q; ++a) for (int b = 0; b < Q; ++b) { const float u = (x + (b + 0.5f) / Q) * k, v = (y + (a + 0.5f) / Q) * k; bool B = false, D = false;
             for (int p = 0; p < MO_EMB_MAXP && MO_EMB[i][p].op; ++p) { const MoEP &P = MO_EMB[i][p]; if (!mo_e_in(P, u, v)) continue; if (P.op == '+') B = true; else if (P.op == '-') B = false; else D = true; }
@@ -103,5 +125,5 @@ static const MoEmb *mo_emb_get(int i, int S)
         for (int dy = -1; dy <= 1; ++dy) for (int dx = -1; dx <= 1; ++dx) { const int yy = y - 1 + dy, xx = x - 1 + dx; if (yy < 0 || xx < 0 || yy >= S || xx >= S) continue;
             const int c = E->body[yy * S + xx] + E->det[yy * S + xx]; if (c > m) m = c; }
         E->halo[y * H + x] = (uint8_t)(m > 255 ? 255 : m); }
-    mo_emb_cache[i][S] = E; return E;
+    mo_emb_cache[i][S] = E; mo_emb_bytes += need; return E;
 }

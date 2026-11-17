@@ -113,6 +113,7 @@ static const char *lv_controlbot_tap(int x, int y)
     }
     LvCbSet &s = lv_cb_set;
     if (hit(46, 221, 113, 242)) { s.scan = (s.scan + 1) % LV_CB_NSCAN; lv_cb_changed(); lv_print("CONTROLbot SCAN %s", LV_CB_SCAN_NAME[s.scan]); return "cb-scan"; }
+    /* VOL slot (block 1, 46,244-113,265; drawn by lv_cb_bar(46, 244, "VOL", ...) in lv_cb_panel_build): Mobandy is picking its replacement - swap this line and that one */
     if (hit(46, 244, 113, 265)) { const int d = x < 80 ? -10 : 10; const int v = s.vol + d; s.vol = v < 0 ? 0 : v > 100 ? 100 : v; lv_cb_changed(); lv_cb_play(); lv_print("CONTROLbot VOL %d%%", s.vol); return d < 0 ? "cb-vol-" : "cb-vol+"; }
     if (hit(46, 267, 113, 288)) { const int d = x < 80 ? -10 : 10; const int v = s.bri + d; s.bri = v < 10 ? 10 : v > 100 ? 100 : v; lv_cb_changed(); lv_print("CONTROLbot BRIGHT %d%%", s.bri); return d < 0 ? "cb-bright-" : "cb-bright+"; }
     if (hit(116, 221, 154, 254)) { s.chime = !s.chime; lv_cb_changed(); if (s.chime) lv_cb_play(); lv_print("CONTROLbot CHIME %s", s.chime ? "ON" : "OFF"); return "cb-chime"; }

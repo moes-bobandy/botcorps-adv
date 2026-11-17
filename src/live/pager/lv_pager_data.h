@@ -16,8 +16,9 @@
 #define LV_PG_NSLOT   24
 #define LV_PG_CH      16   /* v1.2.1: overlay rows per deflate chunk */
 
-/* page index 0 BOTpheus, 1 GIBSONbot, 2 CONTROLbot (no face/panel blob), 3 HACKbot, 4 TERMINALbot */
-#define LV_PG_ART_OF(page) ((page) < 2 ? (page) : (page) - 1) /* 0,1,3,4 -> 0,1,2,3 */
+/* page index 0 BOTpheus, 1 HACKbot, 2 GIBSONbot, 3 TERMINALbot, 4 CONTROLbot (no face/panel blob).
+ * Blobs stay 0 BOTpheus, 1 GIBSONbot, 2 HACKbot, 3 TERMINALbot. */
+#define LV_PG_ART_OF(page) ((page)==0?0:(page)==1?2:(page)==2?1:(page)==3?3:-1)
 
 static const uint32_t LV_PG_CORNER_OFF[25] = { 0, 77, 153, 230, 307, 384, 461, 538, 615, 692, 769, 846, 923, 1000, 1077, 1154, 1231, 1308, 1385, 1462, 1539, 1616, 1691, 1768, 1845 };
 static const uint8_t LV_PG_CORNER_Z[1845] = {

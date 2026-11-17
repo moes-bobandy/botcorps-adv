@@ -1872,7 +1872,7 @@ static void lv_go(int s)
     if (prev != s && lv_job != LV_J_NONE && (s == LV_SC_HOME || s == LV_SC_HOME_INTRO || s == LV_SC_BOOT)) lv_job_stop();
     if (s == LV_SC_RADAR && prev != LV_SC_RADAR) { lv_rd_from = prev; if (prev == LV_SC_SCAN) lv_rd_save_scan(); }
 #if LV_CB
-    if (s == LV_SC_CONTROLBOT) { lv_pg_set_page(2); s = LV_SC_HOME; }   /* go ctl / old chip -> pager CONTROLbot page */
+    if (s == LV_SC_CONTROLBOT) { lv_pg_set_page(LV_PG_CTL); s = LV_SC_HOME; }   /* go ctl / old chip -> pager CONTROLbot page */
     if (prev == LV_SC_HOME && s != LV_SC_HOME) lv_pg_leave_cache();      /* v1.2.1: leaving the pager hands its heap back */
 #endif
     lv_scr = s; lv_enter = true;

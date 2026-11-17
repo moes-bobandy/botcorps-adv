@@ -90,7 +90,7 @@ static void lv_cb_frame(bool full)   /* the locked frames are final colours: lv_
 static const LvRect LV_CB_FACE = {53, 78, 187, 212};   /* the big chip face in the locked frame (135 x 135 finger target) */
 static const char *lv_controlbot_tap(int x, int y)
 {
-    if (lv_in(LV_R_BACKBOT_HIT, x, y)) return lv_back();
+    if (lv_scr != LV_SC_HOME && lv_in(LV_R_BACKBOT_HIT, x, y)) return lv_back();  /* pager home has no BACKbot */
     if (lv_in(LV_CB_FACE, x, y)) {
         if (lv_theme_bounce()) return "theme-debounce";   /* same 250 ms guard as the CONTROLbot face */
         const int k = (lv_cb_slot() + 1) % LV_CB_N;

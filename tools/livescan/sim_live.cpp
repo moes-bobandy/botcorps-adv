@@ -326,7 +326,14 @@ int main(int argc, char **argv)
         else if (!strcmp(cmd, "bgboot")) { lv_rain = fk_bgs < LV_NBGSTYLE; lv_bgstyle = fk_bgs < LV_NBGSTYLE ? fk_bgs : 0; lv_raincol = fk_bgc < LV_NBGCOL ? fk_bgc : 0; printf("t=%u BG boot-load from SIM NVS -> rain=%d style=%d col=%d\n", t_ms, lv_rain, lv_bgstyle, lv_raincol); }
 #endif
         else if (!strcmp(cmd, "radarstate")) printf("t=%u RADAR sel=%d lock=%d hunt=%d reads=%d trend=%d miss=%d ign=%d wat=%d job=%d tk='%s'\n", t_ms, lv_rd_sel, lv_rd_lock, lv_rd_hunting, lv_rd_reads, lv_rd_trend, lv_rd_miss, lv_rd_nign, lv_rd_nwat, lv_job, lv_tk_msg);
-        else if (!strcmp(cmd, "theme")) { int t; if (fscanf(sc, "%d", &t) != 1) return 2; lv_set_theme(t); }
+        else if (!strcmp(cmd, "theme")) { int t; if (fscanf(sc, "%d", &t) != 1) return 2;
+#if LV_CB
+            lv_set_theme_any(t); lv_cb_dirty = true; lv_pg_dirty = true;
+#else
+            lv_set_theme(t);
+#endif
+        }
+        else if (!strcmp(cmd, "page")) { int p; if (fscanf(sc, "%d", &p) != 1) return 2; lv_pg_set_page(p); lv_pg_dirty = true; }
 #if LV_CB
 #if LV_CB
         else if (!strcmp(cmd, "cbalert")) { lv_event(true, "SIM ALERT (CHIME TEST)"); }   /* fw-3locks: an alert event, as a hunt match / deauth raises */

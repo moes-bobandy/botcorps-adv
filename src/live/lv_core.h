@@ -1045,7 +1045,7 @@ struct LvTickCtx { int span0, span1; };
 #include "controlbot/lv_controlbot_tint.h"   /* fw-3locks-1116: CONTROLbot v6 tinted ticker (alert stays firmware red) */
 #endif
 #if LV_CB
-static bool lv_cb_tint_active(void) { return !lv_hunt_bar_on() && (LV_CB_TICKER_ALL || lv_scr == LV_SC_CONTROLBOT); }   /* the hunt bar keeps its own path */
+static bool lv_cb_tint_active(void) { return !lv_hunt_bar_on() && (LV_CB_TICKER_ALL || lv_scr == LV_SC_CONTROLBOT || lv_scr == LV_SC_HOME); }   /* pager home uses the same tinted ticker */
 #endif
 static void lv_scene_ticker(LvBand &B, void *vctx)
 {
@@ -1804,6 +1804,7 @@ static void lv_set_masks(void)
     if (lv_scr == LV_SC_MO) return;    /* MOCK 1112: Construct redraws every frame */
 #if LV_CB
     if (lv_scr == LV_SC_CONTROLBOT) return;   /* fw-3locks-1116: CONTROLbot v6 draws itself */
+    if (lv_scr == LV_SC_HOME) return;          /* fw-bigbot-1117: pager draws itself */
 #endif
 #endif
 #if LV_CT_INSIDE
@@ -1843,8 +1844,10 @@ static void lv_paint_tints(bool all)
 #include "lv_inside_towers.h"   /* MOCK 1112: INSIDE TOWERS (LV_MO_INSIDE / LV_CT_INSIDE / LV_TR_INSIDE) */
 #if LV_CB
 static const char *lv_back(void);
+static void lv_go_soon(int scr, const char *tty_cmd);
 static void lv_pad_snap(const LvRect *R, int n, int &x, int &y);   /* v1.1: CONTROLbot panel taps snap like every other screen (defined below) */
 #include "controlbot/lv_controlbot_screen.h"   /* fw-3locks-1116: CONTROLbot v6 */
+#include "pager/lv_pager.h"                    /* fw-bigbot-1117: pager is the new home */
 #endif
 
 /* ---------- flow ---------- */
@@ -1865,12 +1868,19 @@ static void lv_go(int s)
     /* item 14: tear the radio down when heading home so no scan/deauth/hunt is left running across screens */
     if (prev != s && lv_job != LV_J_NONE && (s == LV_SC_HOME || s == LV_SC_HOME_INTRO || s == LV_SC_BOOT)) lv_job_stop();
     if (s == LV_SC_RADAR && prev != LV_SC_RADAR) { lv_rd_from = prev; if (prev == LV_SC_SCAN) lv_rd_save_scan(); }
+#if LV_CB
+    if (s == LV_SC_CONTROLBOT) { lv_pg_set_page(2); s = LV_SC_HOME; }   /* go ctl / old chip -> pager CONTROLbot page */
+#endif
     lv_scr = s; lv_enter = true;
     lv_key_hl = -1; lv_flash_r = {0, 0, -1, -1}; lv_soon_kind = 0;
     switch (s) {
     case LV_SC_BOOT: lv_play.start(LK_S_BOOT); break;
     case LV_SC_HOME_INTRO: lv_play.start(LK_S_HOME_INTRO); break;
+#if LV_CB
+    case LV_SC_HOME: lv_play.seg = -1; lv_pg_enter(); break;   /* pager draws itself; no home clip */
+#else
     case LV_SC_HOME: lv_play.start(lv_theme_seg(LK_S_HOME_T0)); break;
+#endif
     case LV_SC_TERM: lv_play.start(lv_theme_seg(LK_S_TERM_T0)); break;
     case LV_SC_SCAN: lv_play.start(lv_theme_seg(LK_S_SCAN_T0)); break;
     case LV_SC_CTL: lv_play.start(LK_S_CTL); break;
@@ -2167,6 +2177,7 @@ static void lv_flash_repaint(const LvRect &r)
 #endif
 #if LV_CB
     if (lv_scr == LV_SC_CONTROLBOT) return;
+    if (lv_scr == LV_SC_HOME) return;
 #endif
 #if LV_CT_INSIDE
     if (lv_scr == LV_SC_CT) return;
@@ -2291,6 +2302,7 @@ static void lv_tick(const LkIo &io, uint32_t now)
 #endif
 #if LV_CB
     if (lv_scr == LV_SC_CONTROLBOT) { if ((int32_t)(now - lv_clip_t) >= 30 || lv_enter) { lv_clip_t = now; const bool f = lv_enter; lv_enter = false; lv_cb_frame(f); } return; }
+    if (lv_scr == LV_SC_HOME) { if ((int32_t)(now - lv_clip_t) >= 30 || lv_enter) { lv_clip_t = now; const bool f = lv_enter; lv_enter = false; lv_pg_frame(f); } return; }
 #endif
 #if LV_CT_INSIDE
     if (lv_scr == LV_SC_CT) { if ((int32_t)(now - lv_clip_t) >= 30 || lv_enter) { lv_clip_t = now; lv_enter = false; itw_ct_frame(); } return; }
@@ -2436,7 +2448,11 @@ static void lv_pad_snap(const LvRect *R, int n, int &x, int &y)
 #define LV_PAD(T) lv_pad_snap(T, (int)(sizeof T / sizeof T[0]), x, y)
 
 /* Touch state every loop (portrait coords, down = finger on glass). Only the radar uses it (hold to lock on). */
-static void lv_touch(bool down, int x, int y) { if (lv_scr == LV_SC_RADAR) lv_radar_touch(down, x, y); }
+static void lv_touch(bool down, int x, int y) { if (lv_scr == LV_SC_RADAR) lv_radar_touch(down, x, y);
+#if LV_CB
+    if (lv_scr == LV_SC_HOME) lv_pg_touch(down, x, y);
+#endif
+}
 
 /* Tap at portrait (x,y). Returns a short name of what it did (for logs / the sim). */
 static const char *lv_tap(int x, int y)
@@ -2455,6 +2471,7 @@ static const char *lv_tap(int x, int y)
 #endif
 #if LV_CB
     if (lv_scr == LV_SC_CONTROLBOT) return lv_controlbot_tap(x, y);  /* fw-3locks-1116: CONTROLbot v6 */
+    if (lv_scr == LV_SC_HOME) return lv_pg_tap(x, y);                 /* fw-bigbot-1117: pager home */
 #endif
 #if LV_CT_INSIDE
     if (lv_scr == LV_SC_CT) return itw_ct_tap(x, y);   /* MOCK 1112: CONTROLbot Grid Plant */

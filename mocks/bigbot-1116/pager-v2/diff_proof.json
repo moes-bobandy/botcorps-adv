@@ -1,0 +1,174 @@
+{
+  "backbot_removed": true,
+  "formal_rect": [
+    221,
+    301,
+    239,
+    319
+  ],
+  "pages": [
+    {
+      "changed_px": 275,
+      "bbox": [
+        221,
+        301,
+        239,
+        319
+      ],
+      "outside_formal": 0,
+      "in_formal": 275,
+      "theme": "grape",
+      "id": "botpheus",
+      "index": 0
+    },
+    {
+      "changed_px": 275,
+      "bbox": [
+        221,
+        301,
+        239,
+        319
+      ],
+      "outside_formal": 0,
+      "in_formal": 275,
+      "theme": "grape",
+      "id": "gibson",
+      "index": 1
+    },
+    {
+      "changed_px": 275,
+      "bbox": [
+        221,
+        301,
+        239,
+        319
+      ],
+      "outside_formal": 0,
+      "in_formal": 275,
+      "theme": "grape",
+      "id": "control",
+      "index": 2
+    },
+    {
+      "changed_px": 275,
+      "bbox": [
+        221,
+        301,
+        239,
+        319
+      ],
+      "outside_formal": 0,
+      "in_formal": 275,
+      "theme": "grape",
+      "id": "hackbot",
+      "index": 3
+    },
+    {
+      "changed_px": 275,
+      "bbox": [
+        221,
+        301,
+        239,
+        319
+      ],
+      "outside_formal": 0,
+      "in_formal": 275,
+      "theme": "grape",
+      "id": "terminal",
+      "index": 4
+    },
+    {
+      "changed_px": 275,
+      "bbox": [
+        221,
+        301,
+        239,
+        319
+      ],
+      "outside_formal": 0,
+      "in_formal": 275,
+      "theme": "holo",
+      "id": "botpheus",
+      "index": 0
+    },
+    {
+      "changed_px": 275,
+      "bbox": [
+        221,
+        301,
+        239,
+        319
+      ],
+      "outside_formal": 0,
+      "in_formal": 275,
+      "theme": "holo",
+      "id": "gibson",
+      "index": 1
+    },
+    {
+      "changed_px": 275,
+      "bbox": [
+        221,
+        301,
+        239,
+        319
+      ],
+      "outside_formal": 0,
+      "in_formal": 275,
+      "theme": "holo",
+      "id": "control",
+      "index": 2
+    },
+    {
+      "changed_px": 275,
+      "bbox": [
+        221,
+        301,
+        239,
+        319
+      ],
+      "outside_formal": 0,
+      "in_formal": 275,
+      "theme": "holo",
+      "id": "hackbot",
+      "index": 3
+    },
+    {
+      "changed_px": 275,
+      "bbox": [
+        221,
+        301,
+        239,
+        319
+      ],
+      "outside_formal": 0,
+      "in_formal": 275,
+      "theme": "holo",
+      "id": "terminal",
+      "index": 4
+    }
+  ],
+  "default_page": {
+    "index": 2,
+    "name": "CONTROLbot",
+    "changeable": true
+  },
+  "wrap": "no wrap; edge bounce (~18 px, 233 ms, ease-in-out cubic)",
+  "transition": {
+    "type": "full-frame horizontal slide",
+    "duration_ms": 233,
+    "frames": 7,
+    "fps": 30,
+    "easing": "ease-in-out cubic",
+    "why": "Same as pager v1: full-frame 240x320 slide so themed ticker, pins, and chrome stay attached to each page."
+  },
+  "mp4": {
+    "path": "/workspace/out/bigbot-1116/pager-v2/swipe_tour@3x.mp4",
+    "frames": 273,
+    "fps": 30,
+    "duration_s": 9.1,
+    "codec": "h264 yuv420p",
+    "size": "720x960 nearest-neighbour"
+  },
+  "note": "Only LV_R_BACKBOT {221,301,239,319} changes vs pager v1. Fill is composited from the same still: 5V pad body from the 3V3 pad, mirrored left mounting-hole ring, and this still's rule / theme edge / gold rim."
+}

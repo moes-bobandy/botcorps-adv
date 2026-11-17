@@ -1,0 +1,252 @@
+Adding SPI flash device
+ets Jul 29 2019 12:21:46
+
+rst:0x1 (POWERON_RESET),boot:0x12 (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff0030,len:4640
+load:0x40078000,len:15660
+load:0x40080400,len:3164
+entry 0x4008059c
+E (2226) esp_core_dump_flash: Incorrect size of core dump image: 0
+
+[botcorps] 0.0.0-cyd CYD livescan
+[   483][E][Preferences.cpp:47] begin(): nvs_open failed: NOT_FOUND
+[   821][E][Preferences.cpp:47] begin(): nvs_open failed: NOT_FOUND
+[GFX-RAM] dma_rows=0 dma_bytes=0 band_rows=24 band_bytes=11520 heap=53200 8bit=43100 dma=43100 internal8=43100
+[live] blob=315100 (expect 315100) theme=0 240x320
+[live] heap begin free=53200 min=53000 largest=38900
+[live] CALbot: saved cal valid (cv=3) - hold 1 s to redo
+[   839][E][Preferences.cpp:47] begin(): nvs_open failed: NOT_FOUND
+[live] heap scr=7 free=51508 min=51240 largest=38900
+[live] heap scr=2 free=51956 min=49764 largest=38900
+[live] heap tour page 0 free=50800 min=26720 largest=36852
+[live] heap tour tick free=50800 min=26720 largest=36852
+[live] heap tour page 1 free=50800 min=26720 largest=36852
+[live] heap tour tick free=50800 min=26720 largest=36852
+[live] heap tour page 3 free=50800 min=26720 largest=36852
+[live] heap tour tick free=50800 min=26720 largest=36852
+[live] heap tour page 4 free=50800 min=26720 largest=36852
+[live] heap tour tick free=50800 min=26720 largest=36852
+[live] heap tour page 2 free=50800 min=26720 largest=36852
+[live] heap tour tick free=50800 min=26720 largest=36852
+[live] heap tour cb tap free=50800 min=26720 largest=36852
+[live] heap tour tick free=50800 min=26720 largest=36852
+[live] heap tour page 0 free=50800 min=26720 largest=36852
+[live] heap tour tick free=50800 min=26720 largest=36852
+[live] heap tour MO free=51572 min=26720 largest=36852
+
+abort() was called at PC 0x4019ba37 on core 1
+
+
+Backtrace: 0x400941f4:0x3ffdf520 0x400941b9:0x3ffdf540 0x4009a805:0x3ffdf560 0x4019ba37:0x3ffdf5e0 0x4019ba6c:0x3ffdf600 0x4019bb4b:0x3ffdf620 0x4019bbde:0x3ffdf640 0x400f81b1:0x3ffdf660 0x400ff85f:0x3ffdf6f0 0x4010384e:0x3ffdf810 0x401071fa:0x3ffdf9a0 0x400f3db1:0x3ffdf9c0 0x40111551:0x3ffdfa10 0x40113341:0x3ffdfbc0 0x40113447:0x3ffdfd20 0x4011ad90:0x3ffdfd40 0x4009505d:0x3ffdfd60
+
+
+
+
+ELF file SHA256: f0ca4d814
+
+Rebooting...
+ets Jul 29 2019 12:21:46
+
+rst:0xc (SW_CPU_RESET),boot:0x12 (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff0030,len:4640
+load:0x40078000,len:15660
+load:0x40080400,len:3164
+entry 0x4008059c
+
+[botcorps] 0.0.0-cyd CYD livescan
+[  1815][E][Preferences.cpp:47] begin(): nvs_open failed: NOT_FOUND
+[  2153][E][Preferences.cpp:47] begin(): nvs_open failed: NOT_FOUND
+[GFX-RAM] dma_rows=0 dma_bytes=0 band_rows=24 band_bytes=11520 heap=53200 8bit=43100 dma=43100 internal8=43100
+[live] blob=315100 (expect 315100) theme=0 240x320
+[live] heap begin free=53200 min=53000 largest=38900
+[live] CALbot: saved cal valid (cv=3) - hold 1 s to redo
+[  2171][E][Preferences.cpp:47] begin(): nvs_open failed: NOT_FOUND
+[live] heap scr=7 free=51508 min=51240 largest=38900
+[live] heap scr=2 free=51956 min=49764 largest=38900
+[live] heap tour page 0 free=50800 min=26720 largest=36852
+[live] heap tour tick free=50800 min=26720 largest=36852
+[live] heap tour page 1 free=50800 min=26720 largest=36852
+[live] heap tour tick free=50800 min=26720 largest=36852
+[live] heap tour page 3 free=50800 min=26720 largest=36852
+[live] heap tour tick free=50800 min=26720 largest=36852
+[live] heap tour page 4 free=50800 min=26720 largest=36852
+[live] heap tour tick free=50800 min=26720 largest=36852
+[live] heap tour page 2 free=50800 min=26720 largest=36852
+[live] heap tour tick free=50800 min=26720 largest=36852
+[live] heap tour cb tap free=50800 min=26720 largest=36852
+[live] heap tour tick free=50800 min=26720 largest=36852
+[live] heap tour page 0 free=50800 min=26720 largest=36852
+[live] heap tour tick free=50800 min=26720 largest=36852
+[live] heap tour MO free=51572 min=26720 largest=36852
+
+abort() was called at PC 0x4019ba37 on core 1
+
+
+Backtrace: 0x400941f4:0x3ffdf520 0x400941b9:0x3ffdf540 0x4009a805:0x3ffdf560 0x4019ba37:0x3ffdf5e0 0x4019ba6c:0x3ffdf600 0x4019bb4b:0x3ffdf620 0x4019bbde:0x3ffdf640 0x400f81b1:0x3ffdf660 0x400ff85f:0x3ffdf6f0 0x4010384e:0x3ffdf810 0x401071fa:0x3ffdf9a0 0x400f3db1:0x3ffdf9c0 0x40111551:0x3ffdfa10 0x40113341:0x3ffdfbc0 0x40113447:0x3ffdfd20 0x4011ad90:0x3ffdfd40 0x4009505d:0x3ffdfd60
+
+
+
+
+ELF file SHA256: f0ca4d814
+
+Rebooting...
+ets Jul 29 2019 12:21:46
+
+rst:0xc (SW_CPU_RESET),boot:0x12 (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff0030,len:4640
+load:0x40078000,len:15660
+load:0x40080400,len:3164
+entry 0x4008059c
+Guru Meditation Error: Core  / panic'ed (Cache error). 
+Cache disabled but cached memory region accessed
+
+Core  0 register dump:
+PC      : 0x40082ba0  PS      : 0x00060a35  A0      : 0x80097d09  A1      : 0x3ffdc440  
+A2      : 0x00000006  A3      : 0x00000001  A4      : 0x00060620  A5      : 0x00060a23  
+A6      : 0x3ffdc51c  A7      : 0x0000cdcd  A8      : 0x15122500  A9      : 0x00060a20  
+A10     : 0x00000000  A11     : 0x000000b5  A12     : 0x00060a23  A13     : 0x3f544b24  
+A14     : 0x3ffdc53c  A15     : 0x0000cdcd  SAR     : 0x00000001  EXCCAUSE: 0x00000007  
+EXCVADDR: 0x00000000  LBEG    : 0x4008379d  LEND    : 0x400837a5  LCOUNT  : 0x00000028  
+
+
+Backtrace: 0x40082b9d:0x3ffdc440 0x40097d06:0x3ffdc460 0x40093175:0x3ffdc480 0x4008182f:0x3ffdc4a0 0x4008192f:0x3ffdc4c0 0x400817b3:0x3ffdc4e0 0x400817bd:0x3ffdc500 0x4009bf9d:0x3ffdc520 0x4009bfd9:0x3ffdc560 0x4009b9eb:0x3ffdc580 0x4011cc83:0x3ffdc5c0 0x4012a542:0x3ffdc5e0 0x40128fc5:0x3ffdc600 0x4012adde:0x3ffdc660 0x4012a1bd:0x3ffdc6d0 0x4012a753:0x3ffdc740 0x4012a811:0x3ffdc770 0x401278a7:0x3ffdc7a0 0x401278ba:0x3ffdc7d0 0x40117871:0x3ffdc7f0 0x4011adb5:0x3ffdc820 0x401d791c:0x3ffdc850 0x4009505d:0x3ffdc880
+
+
+Core  1 register dump:
+PC      : 0x4008186d  PS      : 0x00060c35  A0      : 0x80081a92  A1      : 0x3ffba030  
+A2      : 0x00000001  A3      : 0x00000001  A4      : 0xffffffff  A5      : 0x3f544b24  
+A6      : 0x3ffbe2d0  A7      : 0x3ffd6080  A8      : 0x00000000  A9      : 0x3ffd5aa6  
+A10     : 0x00000001  A11     : 0xffffffff  A12     : 0x84000042  A13     : 0x00000004  
+A14     : 0x00000001  A15     : 0x00000000  SAR     : 0x00000001  EXCCAUSE: 0x00000007  
+EXCVADDR: 0x00000000  LBEG    : 0x00000000  LEND    : 0x00000000  LCOUNT  : 0x00000000  
+
+
+Backtrace: 0x4008186a:0x3ffba030 0x40081a8f:0x3ffba050 0x4009505d:0x3ffba080
+
+
+
+
+ELF file SHA256: f0ca4d814
+
+Rebooting...
+ets Jul 29 2019 12:21:46
+
+rst:0xc (SW_CPU_RESET),boot:0x12 (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff0030,len:4640
+load:0x40078000,len:15660
+load:0x40080400,len:3164
+entry 0x4008059c
+Guru Meditation Error: Core  / panic'ed (Cache error). 
+Cache disabled but cached memory region accessed
+
+Core  0 register dump:
+PC      : 0x4012a547  PS      : 0x00060a35  A0      : 0x80128fc8  A1      : 0x3ffdc5e0  
+A2      : 0x00000000  A3      : 0x00004400  A4      : 0x3ffdddec  A5      : 0x00000200  
+A6      : 0x3ffdc6d4  A7      : 0x000001a8  A8      : 0x8012a545  A9      : 0x3ffdc5c0  
+A10     : 0x00000000  A11     : 0x00004400  A12     : 0x3ffdddec  A13     : 0x00000200  
+A14     : 0x3ffdc694  A15     : 0x000001a8  SAR     : 0x00000001  EXCCAUSE: 0x00000007  
+EXCVADDR: 0x00000000  LBEG    : 0x4008379d  LEND    : 0x400837a5  LCOUNT  : 0x00000028  
+
+
+Backtrace: 0x4012a544:0x3ffdc5e0 0x40128fc5:0x3ffdc600 0x4012adde:0x3ffdc660 0x4012a1bd:0x3ffdc6d0 0x4012a753:0x3ffdc740 0x4012a811:0x3ffdc770 0x401278a7:0x3ffdc7a0 0x401278ba:0x3ffdc7d0 0x40117871:0x3ffdc7f0 0x4011adb5:0x3ffdc820 0x401d791c:0x3ffdc850 0x4009505d:0x3ffdc880
+
+
+Core  1 register dump:
+PC      : 0x401d68f4  PS      : 0x00060035  A0      : 0x8009535c  A1      : 0x3ffb9ed0  
+A2      : 0x00000102  A3      : 0x3ffbd2c0  A4      : 0x00000020  A5      : 0x00000000  
+A6      : 0x003fffff  A7      : 0xffffffff  A8      : 0x00000020  A9      : 0x00000020  
+A10     : 0x00000001  A11     : 0x00000000  A12     : 0x00000001  A13     : 0x3ffc0f3c  
+A14     : 0x00000003  A15     : 0x00060023  SAR     : 0x0000001b  EXCCAUSE: 0x00000007  
+EXCVADDR: 0x00000000  LBEG    : 0x4008379d  LEND    : 0x400837a5  LCOUNT  : 0x00000028  
+
+
+Backtrace: 0x401d68f1:0x3ffb9ed0 0x40095359:0x3ffb9ef0 0x40096649:0x3ffb9f10 0x400954b4:0x3ffb9f40 0x40095464:0xa5a5a5a5 |<-CORRUPTED
+
+
+
+
+ELF file SHA256: f0ca4d814
+
+Rebooting...
+ets Jul 29 2019 12:21:46
+
+rst:0xc (SW_CPU_RESET),boot:0x12 (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff0030,len:4640
+load:0x40078000,len:15660
+load:0x40080400,len:3164
+entry 0x4008059c
+
+[botcorps] 0.0.0-cyd CYD livescan
+[  1574][E][Preferences.cpp:47] begin(): nvs_open failed: NOT_FOUND
+[  1910][E][Preferences.cpp:47] begin(): nvs_open failed: NOT_FOUND
+[GFX-RAM] dma_rows=0 dma_bytes=0 band_rows=24 band_bytes=11520 heap=53200 8bit=43100 dma=43100 internal8=43100
+[live] blob=315100 (expect 315100) theme=0 240x320
+[live] heap begin free=53200 min=53000 largest=38900
+[live] CALbot: saved cal valid (cv=3) - hold 1 s to redo
+[  1928][E][Preferences.cpp:47] begin(): nvs_open failed: NOT_FOUND
+[live] heap scr=7 free=51508 min=51240 largest=38900
+[live] heap scr=2 free=51956 min=49764 largest=38900
+[live] heap tour page 0 free=50800 min=26720 largest=36852
+[live] heap tour tick free=50800 min=26720 largest=36852
+[live] heap tour page 1 free=50800 min=26720 largest=36852
+[live] heap tour tick free=50800 min=26720 largest=36852
+[live] heap tour page 3 free=50800 min=26720 largest=36852
+[live] heap tour tick free=50800 min=26720 largest=36852
+[live] heap tour page 4 free=50800 min=26720 largest=36852
+[live] heap tour tick free=50800 min=26720 largest=36852
+[live] heap tour page 2 free=50800 min=26720 largest=36852
+[live] heap tour tick free=50800 min=26720 largest=36852
+[live] heap tour cb tap free=50800 min=26720 largest=36852
+[live] heap tour tick free=50800 min=26720 largest=36852
+[live] heap tour page 0 free=50800 min=26720 largest=36852
+[live] heap tour tick free=50800 min=26720 largest=36852
+[live] heap tour MO free=51572 min=26720 largest=36852
+[live] heap tour tick free=51572 min=26720 largest=36852
+
+abort() was called at PC 0x4019ba37 on core 1
+
+
+Backtrace: 0x400941f4:0x3ffdf520 0x400941b9:0x3ffdf540 0x4009a805:0x3ffdf560 0x4019ba37:0x3ffdf5e0 0x4019ba6c:0x3ffdf600 0x4019bb4b:0x3ffdf620 0x4019bbde:0x3ffdf640 0x400f81b1:0x3ffdf660 0x400ff85f:0x3ffdf6f0 0x4010384e:0x3ffdf810 0x401071fa:0x3ffdf9a0 0x400f3db1:0x3ffdf9c0 0x40111551:0x3ffdfa10 0x40113341:0x3ffdfbc0 0x40113447:0x3ffdfd20 0x4011ad90:0x3ffdfd40 0x4009505d:0x3ffdfd60
+
+
+
+
+ELF file SHA256: f0ca4d814
+
+Rebooting...
+ets Jul 29 2019 12:21:46
+
+rst:0xc (SW_CPU_RESET),boot:0x12 (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff0030,len:4640
+load:0x40078000,len:15660
+load:0x40080400,len:3164
+entry 0x4008059c
+
+[botcorps] 0.0.0-cyd CYD livescan
+[  1995][E][Preferences.cpp:47] begin(): nvs_open failed: NOT_FOUND
+[  2331][E][Preferences.cpp:47] begin(): nvs_open failed: NOT_FOUND
+[GFX-RAM] dma_rows=0 dma_bytes=0 band_rows=24 band_bytes=11520 heap=53200 8bit=43100 dma=43100 internal8=43100
+[live] blob=315100 (expect 315100) theme=0 240x320
+[live] heap begin free=53200 min=53000 largest=38900
+[live] CALbot: saved cal valid (cv=3) - hold 1 s to redo
+[  2349][E][Preferences.cpp:47] begin(): nvs_open failed: NOT_FOUND
+[live] heap scr=7 free=51508 min=51240 largest=38900
+qemu-system-xtensa: terminating on signal 15 from pid 3647283 (timeout)

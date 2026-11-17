@@ -1,0 +1,179 @@
+Adding SPI flash device
+ets Jul 29 2019 12:21:46
+
+rst:0x1 (POWERON_RESET),boot:0x12 (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff0030,len:4640
+load:0x40078000,len:15660
+load:0x40080400,len:3164
+entry 0x4008059c
+E (2309) esp_core_dump_flash: Incorrect size of core dump image: 0
+
+[botcorps] 0.0.0-cyd CYD livescan
+[   502][E][Preferences.cpp:47] begin(): nvs_open failed: NOT_FOUND
+[   840][E][Preferences.cpp:47] begin(): nvs_open failed: NOT_FOUND
+[GFX-RAM] dma_rows=0 dma_bytes=0 band_rows=24 band_bytes=11520 heap=53232 8bit=43132 dma=43132 internal8=43132
+[live] blob=315100 (expect 315100) theme=0 240x320
+[live] heap begin free=53232 min=53036 largest=38900
+[live] CALbot: saved cal valid (cv=3) - hold 1 s to redo
+[   859][E][Preferences.cpp:47] begin(): nvs_open failed: NOT_FOUND
+[live] heap tour page 0 free=50832 min=26756 largest=36852
+[live] heap tour tick free=50832 min=26756 largest=36852
+[live] heap tour page 1 free=26252 min=24708 largest=13812
+[live] heap tour tick free=26252 min=24708 largest=13812
+[live] heap tour page 3 free=26252 min=24708 largest=13812
+[live] heap tour tick free=26252 min=24708 largest=13812
+[live] heap tour page 4 free=26252 min=24708 largest=13812
+[live] heap tour tick free=26252 min=24708 largest=13812
+[live] heap tour page 2 free=26252 min=24708 largest=13812
+[live] heap tour tick free=26252 min=24708 largest=13812
+[live] heap tour cb tap free=26252 min=24708 largest=13812
+[live] heap tour tick free=26252 min=24708 largest=13812
+[live] heap tour page 0 free=26252 min=24708 largest=13812
+[live] heap tour tick free=26252 min=24708 largest=13812
+[live] heap tour MO free=26252 min=24708 largest=13812
+[live] heap tour tick free=26252 min=24708 largest=13812
+
+abort() was called at PC 0x4019b437 on core 1
+
+
+Backtrace: 0x400941f4:0x3ffdf5c0 0x400941b9:0x3ffdf5e0 0x4009a805:0x3ffdf600 0x4019b437:0x3ffdf680 0x4019b46c:0x3ffdf6a0 0x4019b54b:0x3ffdf6c0 0x4019b5de:0x3ffdf6e0 0x400f8645:0x3ffdf700 0x400ffa83:0x3ffdf790 0x40103a76:0x3ffdf8b0 0x40107436:0x3ffdfa40 0x400f4309:0x3ffdfa60 0x4010e51d:0x3ffdfab0 0x40112e08:0x3ffdfc60 0x40112ee3:0x3ffdfd00 0x4011a82c:0x3ffdfd20 0x4009505d:0x3ffdfd40
+
+
+
+
+ELF file SHA256: e5cf0ec45
+
+Rebooting...
+ets Jul 29 2019 12:21:46
+
+rst:0xc (SW_CPU_RESET),boot:0x12 (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff0030,len:4640
+load:0x40078000,len:15660
+load:0x40080400,len:3164
+entry 0x4008059c
+
+[botcorps] 0.0.0-cyd CYD livescan
+[  1723][E][Preferences.cpp:47] begin(): nvs_open failed: NOT_FOUND
+[  2064][E][Preferences.cpp:47] begin(): nvs_open failed: NOT_FOUND
+[GFX-RAM] dma_rows=0 dma_bytes=0 band_rows=24 band_bytes=11520 heap=53232 8bit=43132 dma=43132 internal8=43132
+[live] blob=315100 (expect 315100) theme=0 240x320
+[live] heap begin free=53232 min=53036 largest=38900
+[live] CALbot: saved cal valid (cv=3) - hold 1 s to redo
+[  2082][E][Preferences.cpp:47] begin(): nvs_open failed: NOT_FOUND
+[live] heap tour page 0 free=50832 min=26756 largest=36852
+[live] heap tour tick free=50832 min=26756 largest=36852
+[live] heap tour page 1 free=26252 min=24708 largest=13812
+[live] heap tour tick free=26252 min=24708 largest=13812
+[live] heap tour page 3 free=26252 min=24708 largest=13812
+[live] heap tour tick free=26252 min=24708 largest=13812
+[live] heap tour page 4 free=26252 min=24708 largest=13812
+[live] heap tour tick free=26252 min=24708 largest=13812
+[live] heap tour page 2 free=26252 min=24708 largest=13812
+[live] heap tour tick free=26252 min=24708 largest=13812
+[live] heap tour cb tap free=26252 min=24708 largest=13812
+[live] heap tour tick free=26252 min=24708 largest=13812
+[live] heap tour page 0 free=26252 min=24708 largest=13812
+[live] heap tour tick free=26252 min=24708 largest=13812
+[live] heap tour MO free=26252 min=24708 largest=13812
+
+abort() was called at PC 0x4019b437 on core 1
+
+
+Backtrace: 0x400941f4:0x3ffdf5c0 0x400941b9:0x3ffdf5e0 0x4009a805:0x3ffdf600 0x4019b437:0x3ffdf680 0x4019b46c:0x3ffdf6a0 0x4019b54b:0x3ffdf6c0 0x4019b5de:0x3ffdf6e0 0x400f8645:0x3ffdf700 0x400ffa83:0x3ffdf790 0x40103a76:0x3ffdf8b0 0x40107436:0x3ffdfa40 0x400f4309:0x3ffdfa60 0x4010e51d:0x3ffdfab0 0x40112e08:0x3ffdfc60 0x40112ee3:0x3ffdfd00 0x4011a82c:0x3ffdfd20 0x4009505d:0x3ffdfd40
+
+
+
+
+ELF file SHA256: e5cf0ec45
+
+Rebooting...
+ets Jul 29 2019 12:21:46
+
+rst:0xc (SW_CPU_RESET),boot:0x12 (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff0030,len:4640
+load:0x40078000,len:15660
+load:0x40080400,len:3164
+entry 0x4008059c
+Guru Meditation Error: Core  / panic'ed (Cache error). 
+Cache disabled but cached memory region accessed
+
+Core  0 register dump:
+PC      : 0x40129fe1  PS      : 0x00060c35  A0      : 0x80128a64  A1      : 0x3ffdc5b0  
+A2      : 0x3ffbdafc  A3      : 0x00004800  A4      : 0x3ffdddc4  A5      : 0x00000200  
+A6      : 0x3ffdc6a4  A7      : 0x000001a8  A8      : 0x80129fe1  A9      : 0x3ffdc590  
+A10     : 0x00000000  A11     : 0x00004800  A12     : 0x3ffdddc4  A13     : 0x00000200  
+A14     : 0x3ffdc664  A15     : 0x000001a8  SAR     : 0x00000001  EXCCAUSE: 0x00000007  
+EXCVADDR: 0x00000000  LBEG    : 0x4008379d  LEND    : 0x400837a5  LCOUNT  : 0x00000028  
+
+
+Backtrace: 0x40129fde:0x3ffdc5b0 0x40128a61:0x3ffdc5d0 0x4012a87a:0x3ffdc630 0x40129c59:0x3ffdc6a0 0x4012a1ef:0x3ffdc710 0x4012a2ad:0x3ffdc740 0x40127343:0x3ffdc770 0x40127356:0x3ffdc7a0 0x4011730d:0x3ffdc7c0 0x4011a851:0x3ffdc7f0 0x401d731c:0x3ffdc820 0x4009505d:0x3ffdc850
+
+
+Core  1 register dump:
+PC      : 0x4008186d  PS      : 0x00060c35  A0      : 0x80081a92  A1      : 0x3ffba030  
+A2      : 0x00000001  A3      : 0x00000001  A4      : 0xffffffff  A5      : 0x3f543170  
+A6      : 0x3ffbe2b0  A7      : 0x3ffd6058  A8      : 0x00000000  A9      : 0x3ffd5a7e  
+A10     : 0x00000001  A11     : 0xffffffff  A12     : 0x84000042  A13     : 0x00000004  
+A14     : 0x00000001  A15     : 0x00000000  SAR     : 0x00000001  EXCCAUSE: 0x00000007  
+EXCVADDR: 0x00000000  LBEG    : 0x00000000  LEND    : 0x00000000  LCOUNT  : 0x00000000  
+
+
+Backtrace: 0x4008186a:0x3ffba030 0x40081a8f:0x3ffba050 0x4009505d:0x3ffba080
+
+
+
+
+ELF file SHA256: e5cf0ec45
+
+Rebooting...
+ets Jul 29 2019 12:21:46
+
+rst:0xc (SW_CPU_RESET),boot:0x12 (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff0030,len:4640
+load:0x40078000,len:15660
+load:0x40080400,len:3164
+entry 0x4008059c
+Guru Meditation Error: Core  / panic'ed (Cache error). 
+Cache disabled but cached memory region accessed
+
+Core  0 register dump:
+PC      : 0x4009229e  PS      : 0x00060135  A0      : 0x801d6d20  A1      : 0x3ffbd000  
+A2      : 0x00000000  A3      : 0x00060023  A4      : 0x00060020  A5      : 0x3f543170  
+A6      : 0x00000001  A7      : 0x00000160  A8      : 0x8011e052  A9      : 0x3ffbcfc0  
+A10     : 0x00000000  A11     : 0x00000000  A12     : 0x3ffbed04  A13     : 0x00000000  
+A14     : 0x00060020  A15     : 0x3ffbcfdf  SAR     : 0x00000019  EXCCAUSE: 0x00000007  
+EXCVADDR: 0x00000000  LBEG    : 0x00000000  LEND    : 0x00000000  LCOUNT  : 0x00000000  
+
+
+Backtrace: 0x4009229b:0x3ffbd000 0x401d6d1d:0x3ffbd020 0x40096027:0x3ffbd040 0x4009505d:0x3ffbd060
+
+
+Core  1 register dump:
+PC      : 0x4009229e  PS      : 0x00060b35  A0      : 0x801d6d20  A1      : 0x3ffbd5f0  
+A2      : 0x00000000  A3      : 0x00000000  A4      : 0x00000001  A5      : 0x00000004  
+A6      : 0x3ffd6054  A7      : 0x3ffd6058  A8      : 0x00000001  A9      : 0x3ffd5e60  
+A10     : 0x3ffbd72c  A11     : 0x00000001  A12     : 0x800952cd  A13     : 0x3ffb9ee0  
+A14     : 0x00000003  A15     : 0x00060023  SAR     : 0x00000000  EXCCAUSE: 0x00000007  
+EXCVADDR: 0x00000000  LBEG    : 0x00000000  LEND    : 0x00000000  LCOUNT  : 0x00000000  
+
+
+Backtrace: 0x4009229b:0x3ffbd5f0 0x401d6d1d:0x3ffbd610 0x40096027:0x3ffbd630 0x4009505d:0x3ffbd650
+
+
+
+
+ELF file SHA256: e5cf0ec45
+
+qemu-system-xtensa: terminating on signal 15 from pid 3654016 (timeout)

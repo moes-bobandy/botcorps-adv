@@ -1,0 +1,6 @@
+v1.2.3 ctl0 vs v1.2.2 ctl0 (same script, t=8010, default theme, page 4)
+full-frame differing px: 181
+outside SLEEP/VOL slot (46,244)-(113,265): 0
+outside SLEEP/VOL slot and ticker y0-23: 0
+panel 45,220 152x71 outside SLEEP slot: 0
+panel inside SLEEP slot: 181

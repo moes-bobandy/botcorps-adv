@@ -1,0 +1,65 @@
+tick 67
+tick 190
+go 2
+page 4
+tick 10
+dump ctl0
+tap 80 231
+tick 8
+dump scan
+tap 80 254
+tick 8
+dump sleep30
+tap 80 254
+tick 8
+dump sleep1m
+tap 80 254
+tick 8
+dump sleep5m
+tap 80 254
+tick 8
+dump sleepoff
+tap 60 277
+tick 8
+dump bright70
+tap 100 277
+tick 8
+dump bright80
+tap 135 237
+tick 8
+dump chime
+tap 176 237
+tick 8
+dump time
+tap 135 272
+tick 8
+dump bar
+tap 176 272
+tick 8
+dump tone
+tap 120 145
+tick 8
+dump theme
+rhold 80 231 120
+tick 8
+dump scan2
+tap 80 254
+tick 3
+dump sleep_arm
+tick 1000
+dump asleep
+rhold 135 237 120
+tick 8
+dump woke_rhold
+rhold 135 237 120
+tick 8
+dump chime2
+tap 80 254
+tick 3
+tick 1000
+tap 120 145
+tick 2
+tap 176 272
+tick 8
+dump after_wake_tone
+log

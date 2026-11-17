@@ -1,0 +1,133 @@
+t=0 BACKLIGHT 80% (duty 204/255) (SIM)
+t=0 CONTROLbot boot settings scan=0 vol=40 bri=80 chime=1 time=0 bar=3 tone=0 rain=1 rainmode=0
+DUMP ctl0 scr=2 seg=-1 clipframe=-1 t=8010
+OVL ctl0 t8:170,306,201,310
+t=8010 BACKLIGHT 80% (duty 204/255) (SIM)
+t=8010 NVS scan=1 vol=40 bri=80 chime=1 time=0 bar=3 tone=0 sleep=0 (SIM)
+t=8010 tap 80,231 -> cb-scan (scr=2 seg=-1)
+DUMP scan scr=2 seg=-1 clipframe=-1 t=8250
+OVL scan t8:170,306,201,310
+t=8250 BACKLIGHT 80% (duty 204/255) (SIM)
+t=8250 NVS scan=1 vol=40 bri=80 chime=1 time=0 bar=3 tone=0 sleep=1 (SIM)
+t=8250 tap 80,254 -> cb-sleep (scr=2 seg=-1)
+DUMP sleep30 scr=2 seg=-1 clipframe=-1 t=8490
+OVL sleep30 t8:170,306,201,310
+t=8490 BACKLIGHT 80% (duty 204/255) (SIM)
+t=8490 NVS scan=1 vol=40 bri=80 chime=1 time=0 bar=3 tone=0 sleep=2 (SIM)
+t=8490 tap 80,254 -> cb-sleep (scr=2 seg=-1)
+DUMP sleep1m scr=2 seg=-1 clipframe=-1 t=8730
+OVL sleep1m t8:170,306,201,310
+t=8730 BACKLIGHT 80% (duty 204/255) (SIM)
+t=8730 NVS scan=1 vol=40 bri=80 chime=1 time=0 bar=3 tone=0 sleep=3 (SIM)
+t=8730 tap 80,254 -> cb-sleep (scr=2 seg=-1)
+DUMP sleep5m scr=2 seg=-1 clipframe=-1 t=8970
+OVL sleep5m t8:170,306,201,310
+t=8970 BACKLIGHT 80% (duty 204/255) (SIM)
+t=8970 NVS scan=1 vol=40 bri=80 chime=1 time=0 bar=3 tone=0 sleep=0 (SIM)
+t=8970 tap 80,254 -> cb-sleep (scr=2 seg=-1)
+DUMP sleepoff scr=2 seg=-1 clipframe=-1 t=9210
+OVL sleepoff t8:170,306,201,310
+t=9210 BACKLIGHT 70% (duty 178/255) (SIM)
+t=9210 NVS scan=1 vol=40 bri=70 chime=1 time=0 bar=3 tone=0 sleep=0 (SIM)
+t=9210 tap 60,277 -> cb-bright- (scr=2 seg=-1)
+DUMP bright70 scr=2 seg=-1 clipframe=-1 t=9450
+OVL bright70 t8:170,306,201,310
+t=9450 BACKLIGHT 80% (duty 204/255) (SIM)
+t=9450 NVS scan=1 vol=40 bri=80 chime=1 time=0 bar=3 tone=0 sleep=0 (SIM)
+t=9450 tap 100,277 -> cb-bright+ (scr=2 seg=-1)
+DUMP bright80 scr=2 seg=-1 clipframe=-1 t=9690
+OVL bright80 t8:170,306,201,310
+t=9690 BACKLIGHT 80% (duty 204/255) (SIM)
+t=9690 NVS scan=1 vol=40 bri=80 chime=0 time=0 bar=3 tone=0 sleep=0 (SIM)
+t=9690 tap 135,237 -> cb-chime (scr=2 seg=-1)
+DUMP chime scr=2 seg=-1 clipframe=-1 t=9930
+OVL chime t8:170,306,201,310
+t=9930 BACKLIGHT 80% (duty 204/255) (SIM)
+t=9930 NVS scan=1 vol=40 bri=80 chime=0 time=1 bar=3 tone=0 sleep=0 (SIM)
+t=9930 tap 176,237 -> cb-time (scr=2 seg=-1)
+DUMP time scr=2 seg=-1 clipframe=-1 t=10170
+OVL time t8:170,306,201,310
+t=10170 BACKLIGHT 80% (duty 204/255) (SIM)
+t=10170 NVS scan=1 vol=40 bri=80 chime=0 time=1 bar=4 tone=0 sleep=0 (SIM)
+t=10170 tap 135,272 -> cb-bar (scr=2 seg=-1)
+DUMP bar scr=2 seg=-1 clipframe=-1 t=10410
+OVL bar t8:170,306,201,310
+t=10410 SPEAKER 1319 Hz vol 40% (SIM)
+t=10410 BACKLIGHT 80% (duty 204/255) (SIM)
+t=10410 NVS scan=1 vol=40 bri=80 chime=0 time=1 bar=4 tone=1 sleep=0 (SIM)
+t=10410 tap 176,272 -> cb-tone (scr=2 seg=-1)
+t=10470 SPEAKER 1568 Hz vol 40% (SIM)
+t=10530 SPEAKER 2093 Hz vol 40% (SIM)
+t=10620 SPEAKER 0 Hz vol 40% (SIM)
+DUMP tone scr=2 seg=-1 clipframe=-1 t=10650
+OVL tone t8:170,306,201,310
+t=10650 NVS lktheme=24 (SIM)
+t=10650 tap 120,145 -> controlbot-theme (scr=2 seg=-1)
+DUMP theme scr=2 seg=-1 clipframe=-1 t=10890
+OVL theme t8:170,306,201,310
+t=11040 BACKLIGHT 80% (duty 204/255) (SIM)
+t=11040 NVS scan=2 vol=40 bri=80 chime=0 time=1 bar=4 tone=1 sleep=0 (SIM)
+t=11040 rhold 80,231 120ms -> cb-scan (scr=2)
+DUMP scan2 scr=2 seg=-1 clipframe=-1 t=11280
+OVL scan2 t8:170,306,201,310
+t=11280 BACKLIGHT 80% (duty 204/255) (SIM)
+t=11280 NVS scan=2 vol=40 bri=80 chime=0 time=1 bar=4 tone=1 sleep=1 (SIM)
+t=11280 tap 80,254 -> cb-sleep (scr=2 seg=-1)
+DUMP sleep_arm scr=2 seg=-1 clipframe=-1 t=11370
+OVL sleep_arm t8:170,306,201,310
+t=41280 BACKLIGHT 0% (duty 0/255) (SIM)
+DUMP asleep scr=2 seg=-1 clipframe=-1 t=41370
+OVL asleep t8:170,306,201,310
+t=41400 BACKLIGHT 80% (duty 204/255) (SIM)
+t=41520 rhold 135,237 120ms -> sleep-wake (scr=2)
+DUMP woke_rhold scr=2 seg=-1 clipframe=-1 t=41760
+OVL woke_rhold t8:170,306,201,310
+t=41910 SPEAKER 1319 Hz vol 40% (SIM)
+t=41910 BACKLIGHT 80% (duty 204/255) (SIM)
+t=41910 NVS scan=2 vol=40 bri=80 chime=1 time=1 bar=4 tone=1 sleep=1 (SIM)
+t=41910 rhold 135,237 120ms -> cb-chime (scr=2)
+t=41970 SPEAKER 1568 Hz vol 40% (SIM)
+t=42030 SPEAKER 2093 Hz vol 40% (SIM)
+t=42120 SPEAKER 0 Hz vol 40% (SIM)
+DUMP chime2 scr=2 seg=-1 clipframe=-1 t=42150
+OVL chime2 t8:170,306,201,310
+t=42150 BACKLIGHT 80% (duty 204/255) (SIM)
+t=42150 NVS scan=2 vol=40 bri=80 chime=1 time=1 bar=4 tone=1 sleep=2 (SIM)
+t=42150 tap 80,254 -> cb-sleep (scr=2 seg=-1)
+t=72240 NVS lktheme=2 (SIM)
+t=72240 tap 120,145 -> controlbot-theme (scr=2 seg=-1)
+t=72300 SPEAKER 800 Hz vol 40% (SIM)
+t=72300 BACKLIGHT 80% (duty 204/255) (SIM)
+t=72300 NVS scan=2 vol=40 bri=80 chime=1 time=1 bar=4 tone=2 sleep=2 (SIM)
+t=72300 tap 176,272 -> cb-tone (scr=2 seg=-1)
+t=72360 SPEAKER 1000 Hz vol 40% (SIM)
+t=72390 SPEAKER 1200 Hz vol 40% (SIM)
+t=72420 SPEAKER 1400 Hz vol 40% (SIM)
+t=72480 SPEAKER 1600 Hz vol 40% (SIM)
+t=72510 SPEAKER 1400 Hz vol 40% (SIM)
+t=72540 SPEAKER 1200 Hz vol 40% (SIM)
+DUMP after_wake_tone scr=2 seg=-1 clipframe=-1 t=72540
+OVL after_wake_tone t8:170,306,201,310
+  | BOTCORPS cyd-livescan 1.0
+  | type 'help'. scans: tap SCAN or 'scan'
+  | CONTROLbot SCAN S.RAIN
+  | CONTROLbot SLEEP 30S
+  | CONTROLbot SLEEP 1M
+  | CONTROLbot SLEEP 5M
+  | CONTROLbot SLEEP OFF
+  | CONTROLbot BRIGHT 70%
+  | CONTROLbot BRIGHT 80%
+  | CONTROLbot CHIME OFF
+  | CONTROLbot TIME NTP
+  | CONTROLbot BAR HUD
+  | CONTROLbot TONE 8BIT
+  | CONTROLbot THEME HOLO FOIL
+  | CONTROLbot SCAN OFF
+  | CONTROLbot SLEEP 30S
+  | CONTROLbot CHIME ON
+  | CONTROLbot SLEEP 1M
+  | CONTROLbot THEME TOXIC
+  | CONTROLbot TONE SIREN
+px pushed by overlays: 36332020
+SHADOW peak 29817 of 32768 bytes
+MOUI tot=0 part=0

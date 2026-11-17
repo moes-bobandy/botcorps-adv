@@ -1,0 +1,8 @@
+TERMINALbot face mocks — real C++ sim_live renderer, locked page reused, face box only (65,88)-(174,197).
+Not in firmware.
+A vs locked at t=8010: 11132 px differ, 0 outside the face, 11132 inside.
+B still vs locked (t advanced by 30 ms): 984 px outside the face, 0 once the ticker y0-23 is masked.
+A face unique colors excluding eyes: 17 (16 chips + black 1 px frame). Eyes are {(np.uint8(0), np.uint8(0), np.uint8(0))}.
+Eyes kept at locked 22x22 boxes: face-local (22,22)-(43,43) and (66,22)-(87,43).
+A: 4x4 of 27x27 squares plus a 1 px black frame (110 = 1+4*27+1).
+B: black square, 18 columns of 5x7 GLCD glyphs falling in Matrix green, green digital eyes in the same boxes.

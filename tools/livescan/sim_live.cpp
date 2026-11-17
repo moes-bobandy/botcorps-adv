@@ -7,7 +7,10 @@
  *   press X Y / release (finger down / up NOW: one raw sample at the current time, then the usual 15 ms samples)
  *   tickto T (advance to exactly T ms: 30 ms ticks, then 15 ms raw samples + one lv_tick at T)
  *   hmsched T0 (hunt meter: restart it now, fill from the locked V2 mock schedule relative to T0; 0 = live dBm)
- *   motion 0|1 (BG MOTION off / on, as the CONTROLbot chip sets it) */
+ *   motion 0|1 (BG MOTION off / on, as the CONTROLbot chip sets it)
+ *   termface a | termface b [PHASE]  (MOCK ONLY: overpaint TERMINALbot face (65,88)-(174,197)
+ *     on the already-rendered locked page. a = 4x4 color chips + locked eyes; b = Matrix rain +
+ *     green Matrix eyes. Not compiled into firmware.) */
 #include <zlib.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -223,6 +226,92 @@ static void tap_key(int k, LkIo &io)
     printf("  key %d at %d,%d -> %s\n", k, (r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2, lv_tap((r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2));
     for (int i = 0; i < 3; ++i) tick1(io);
 }
+
+/* MOCK ONLY — never called from firmware. Overpaints the TERMINALbot face box after the locked
+ * pager page has been rendered. Eyes stay in the locked 22x22 boxes at face-local (22,22)-(43,43)
+ * and (66,22)-(87,43). */
+#define SIM_TF_X0 65
+#define SIM_TF_Y0 88
+#define SIM_TF_S  110
+static const int SIM_TF_EYE[2][4] = {{22, 22, 43, 43}, {66, 22, 87, 43}};
+static void sim_tf_px(int x, int y, uint16_t c)
+{
+    if (x < SIM_TF_X0 || x > SIM_TF_X0 + SIM_TF_S - 1 || y < SIM_TF_Y0 || y > SIM_TF_Y0 + SIM_TF_S - 1) return;
+    fb[y][x] = c;
+}
+static void sim_tf_a(void)
+{
+    static const uint32_t PAL[16] = {
+        0xE03030, 0xF07018, 0xE0A010, 0xE8E030,
+        0x88D020, 0x20A040, 0x149080, 0x20C8D8,
+        0x2078E0, 0x2030C0, 0x5030D0, 0x9020C8,
+        0xD02088, 0xE070A8, 0x8A5A28, 0xE8E8F0
+    };
+    for (int ly = 0; ly < SIM_TF_S; ++ly) for (int lx = 0; lx < SIM_TF_S; ++lx) {
+        uint16_t c = 0;
+        if (lx && ly && lx < SIM_TF_S - 1 && ly < SIM_TF_S - 1) {
+            int gx = (lx - 1) / 27, gy = (ly - 1) / 27;
+            if (gx > 3) gx = 3; if (gy > 3) gy = 3;
+            c = lv_hex(PAL[gy * 4 + gx]);
+        }
+        sim_tf_px(SIM_TF_X0 + lx, SIM_TF_Y0 + ly, c);
+    }
+    for (int e = 0; e < 2; ++e)
+        for (int y = SIM_TF_EYE[e][1]; y <= SIM_TF_EYE[e][3]; ++y)
+            for (int x = SIM_TF_EYE[e][0]; x <= SIM_TF_EYE[e][2]; ++x)
+                sim_tf_px(SIM_TF_X0 + x, SIM_TF_Y0 + y, 0);
+}
+static void sim_tf_glyph(int x0, int y0, char ch, uint16_t c)
+{
+    if (ch < 32 || ch > 126) ch = 48;
+    const int g = ch - 32;
+    for (int cx = 0; cx < 5; ++cx) {
+        const uint8_t bits = LV_GLCD[g * 5 + cx];
+        for (int cy = 0; cy < 7; ++cy) if ((bits >> cy) & 1) sim_tf_px(x0 + cx, y0 + cy, c);
+    }
+}
+static void sim_tf_b(int phase)
+{
+    for (int ly = 0; ly < SIM_TF_S; ++ly)
+        for (int lx = 0; lx < SIM_TF_S; ++lx)
+            sim_tf_px(SIM_TF_X0 + lx, SIM_TF_Y0 + ly, 0);
+    static const char GL[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ#$%*+<>/|";
+    const int ngl = (int)sizeof(GL) - 1, CW = 6, CH = 8, NCOL = 18;
+    const uint16_t head = lv_hex(0xD8FFD8), mid = lv_hex(0x00FF41), dim = lv_hex(0x001800);
+    for (int col = 0; col < NCOL; ++col) {
+        const uint32_t s = 0xC0DEU ^ (uint32_t)(col * 2654435761u);
+        const int speed = 1 + (int)((s >> 8) % 3);
+        const int trail = 9 + (int)((s >> 3) % 7);
+        const int period = SIM_TF_S + trail * CH + 24;
+        const int off = (int)((s >> 16) % (uint32_t)period);
+        const int head_y = (phase * speed + off) % period;
+        const int x0 = SIM_TF_X0 + 1 + col * CW;
+        for (int t = 0; t < trail; ++t) {
+            const int gy = head_y - t * CH;
+            if (gy > SIM_TF_S - 1 || gy + 6 < 0) continue;
+            const unsigned k = (unsigned)(s + (unsigned)((gy + period) / CH) * 17u + (unsigned)col * 3u);
+            const char ch = GL[k % (unsigned)ngl];
+            const uint16_t c = t == 0 ? head : t == 1 ? mid : lv_mix(mid, dim, t, trail);
+            sim_tf_glyph(x0, SIM_TF_Y0 + gy, ch, c);
+        }
+    }
+    const uint16_t ehi = lv_hex(0x00FF55), emid = lv_hex(0x00B834), elo = lv_hex(0x003010), slit = lv_hex(0xD0FFD0);
+    for (int e = 0; e < 2; ++e) {
+        const int x0 = SIM_TF_X0 + SIM_TF_EYE[e][0], y0 = SIM_TF_Y0 + SIM_TF_EYE[e][1];
+        const int x1 = SIM_TF_X0 + SIM_TF_EYE[e][2], y1 = SIM_TF_Y0 + SIM_TF_EYE[e][3];
+        const int cy = (y0 + y1) / 2;
+        for (int y = y0; y <= y1; ++y) for (int x = x0; x <= x1; ++x) {
+            uint16_t c = elo;
+            const bool edge = (x == x0 || x == x1 || y == y0 || y == y1);
+            const bool inner = (x == x0 + 1 || x == x1 - 1 || y == y0 + 1 || y == y1 - 1);
+            if (edge) c = ehi; else if (inner) c = emid;
+            if (y >= cy - 1 && y <= cy + 1 && x >= x0 + 5 && x <= x1 - 5) c = slit;
+            if (y == cy && x >= x0 + 4 && x <= x1 - 4) c = ehi;
+            fb[y][x] = c;
+        }
+    }
+}
+
 int main(int argc, char **argv)
 {
     FILE *bf = fopen("src/lock/live/lock_blob_live.bin", "rb");
@@ -469,6 +558,15 @@ int main(int argc, char **argv)
                 m[y][x][0] = c >= 2 ? 255 : 0; m[y][x][1] = c == 1 ? 160 : 0; m[y][x][2] = 0; }
             char p[512]; snprintf(p, sizeof p, "%s/%s.wmap.rgb", argv[2], nm); FILE *f = fopen(p, "wb"); fwrite(m, 1, sizeof m, f); fclose(f);
             printf("WATCH %s t=%u px_written=%ld changed_once=%ld changed_2plus=%ld (back_to_start=%ld) went_black=%ld\n", nm, t_ms, g_wpx, once, multi, back, g_wblack); }
+        else if (!strcmp(cmd, "termface")) {   /* MOCK ONLY: overpaint the TERMINALbot face box; does not touch firmware */
+            char kind[8]; if (fscanf(sc, "%7s", kind) != 1) return 2;
+            int phase = (int)t_ms; long pos = ftell(sc); int v;
+            if (fscanf(sc, "%d", &v) == 1) phase = v; else fseek(sc, pos, SEEK_SET);
+            if (kind[0] == 'a' || kind[0] == 'A') sim_tf_a();
+            else if (kind[0] == 'b' || kind[0] == 'B') sim_tf_b(phase);
+            else return 2;
+            printf("t=%u termface %s phase=%d\n", t_ms, kind, phase);
+        }
         else if (!strcmp(cmd, "log")) { for (int k = (lv_tn < 20 ? lv_tn : 20) - 1; k >= 0; --k) printf("  | %s\n", lv_line_back(k)); }
     }
     printf("px pushed by overlays: %ld\n", g_px_pushed);

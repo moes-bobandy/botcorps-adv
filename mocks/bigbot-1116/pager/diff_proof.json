@@ -1,0 +1,113 @@
+{
+  "grape_vs_v31": [
+    {
+      "changed_px": 98,
+      "bbox": [
+        99,
+        25,
+        137,
+        29
+      ],
+      "outside_y25_29": 0,
+      "in_face": 0,
+      "in_panel": 0,
+      "id": "botpheus",
+      "index": 0,
+      "lit_pip": 0
+    },
+    {
+      "changed_px": 98,
+      "bbox": [
+        102,
+        25,
+        137,
+        29
+      ],
+      "outside_y25_29": 0,
+      "in_face": 0,
+      "in_panel": 0,
+      "id": "gibson",
+      "index": 1,
+      "lit_pip": 1
+    },
+    {
+      "changed_px": 98,
+      "bbox": [
+        102,
+        25,
+        137,
+        29
+      ],
+      "outside_y25_29": 0,
+      "in_face": 0,
+      "in_panel": 0,
+      "id": "control",
+      "index": 2,
+      "lit_pip": 2
+    },
+    {
+      "changed_px": 98,
+      "bbox": [
+        102,
+        25,
+        137,
+        29
+      ],
+      "outside_y25_29": 0,
+      "in_face": 0,
+      "in_panel": 0,
+      "id": "hackbot",
+      "index": 3,
+      "lit_pip": 3
+    },
+    {
+      "changed_px": 98,
+      "bbox": [
+        102,
+        25,
+        140,
+        29
+      ],
+      "outside_y25_29": 0,
+      "in_face": 0,
+      "in_panel": 0,
+      "id": "terminal",
+      "index": 4,
+      "lit_pip": 4
+    }
+  ],
+  "default_page": {
+    "index": 2,
+    "name": "CONTROLbot",
+    "changeable": true
+  },
+  "wrap": "no wrap; edge bounce (~18 px, 233 ms, ease-in-out cubic)",
+  "transition": {
+    "type": "full-frame horizontal slide",
+    "duration_ms": 233,
+    "frames": 7,
+    "fps": 30,
+    "easing": "ease-in-out cubic",
+    "why": "Each v3.1 / themed still is a complete locked board (ticker, pins, chrome, face, panel). Sliding the whole 240x320 frame keeps that board attached to the page, avoids a seam at the pin rails when a theme cycle recolours the ticker and pins, and at 7 frames / 233 ms on an ILI9341 (native 240x320, @3x shown with nearest-neighbour) it stays crisp without interpolated blur."
+  },
+  "pip_band": {
+    "y_inclusive": [
+      25,
+      29
+    ],
+    "placement": "5-px black gap immediately under the ticker hatch, before the coil well; theme-ink AA discs; current pip brighter"
+  },
+  "mp4": {
+    "path": "/workspace/out/bigbot-1116/pager/swipe_tour@3x.mp4",
+    "frames": 273,
+    "fps": 30,
+    "duration_s": 9.1,
+    "codec": "h264 yuv420p",
+    "size": "720x960 nearest-neighbour"
+  },
+  "theme_cycle": {
+    "from": "NEON GRAPE (lv_theme=0, slot 11)",
+    "to": "HOLO FOIL (next in LV_CB_FW / locked v6 order, slot 12)",
+    "applies_to": "all five pager pages"
+  }
+}

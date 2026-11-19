@@ -361,7 +361,7 @@ static void lv_pg_compose_row(uint16_t *row, int y, int page, LvPgSet &S)
         lv_pg_panel_fx_row(row, y, page);
 
     if (page != LV_PG_CTL && y >= 88 && y <= 197) {
-        const uint8_t *fr = (page == LV_PG_TERMINAL) ? nullptr : lv_pg_ch_row(S, true, lv_pg_art(page), y - 88);
+        const uint8_t *fr = (page == LV_PG_HACKBOT) ? nullptr : lv_pg_ch_row(S, true, page == LV_PG_TERMINAL ? 2 : lv_pg_art(page), y - 88);
         lv_pg_face_fx_row(row, y, page, fr);
     }
 

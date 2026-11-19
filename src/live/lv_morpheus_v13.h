@@ -349,9 +349,9 @@ static void mo_panel(LvBand &B)   /* open pillar only: rows 247..285, parchment 
     b_text(B, 173 + (63 - 8 * 6 + 1) / 2, 262, "< TOWERS", lv_hex(MO11_GH));
     if (B.y0 == 0) { mo_audit(34, 252, nx - 34, 14, 30, 249, 170, 275, "pname"); mo_audit(34, 277, lv_w35(t), 5, 30, 276, 170, 283, "psub"); mo_audit(173 + (63 - 8 * 6 + 1) / 2, 262, 47, 7, 176, 252, 233, 280, "ptowers"); }
 }
-static void mo_terminal(LvBand &B)   /* footer terminal rows 287..319, x 1..218 (BACKbot owns the corner): charcoal, parchment + green */
+static void mo_terminal(LvBand &B)   /* footer terminal rows 287..319, x 1..238 (full width, 1 px margins): charcoal, parchment + green */
 {
-    const int x0 = 1, y0 = 287, x1 = 218, y1 = 319; const uint16_t g = lv_hex(0xbfb294), ink = lv_hex(0xe8dec8);
+    const int x0 = 1, y0 = 287, x1 = 238, y1 = 319; const uint16_t g = lv_hex(0xbfb294), ink = lv_hex(0xe8dec8);
     b_fill(B, x0, y0, x1 - x0 + 1, y1 - y0 + 1, lv_hex(MO11_CHAR)); b_frame(B, x0, y0, x1 - x0 + 1, y1 - y0 + 1, lv_hex(MO11_SEAM));
     char a[48], b[48];
     if (itw_mo_sel < 0) { snprintf(a, sizeof a, "HEIGHT = EXAMPLE SIGNAL  EX.DATA"); snprintf(b, sizeof b, "TAP A PILLAR = OPEN IT"); }
@@ -684,7 +684,7 @@ static void mo12_plan(int i)   /* at tap: the open camera centre = DOWNLOAD's lv
 static const char *itw_mo_tap(int x, int y)
 {
     if (y <= 23) { lv_go_soon(LV_SC_HOME, 0); return "mo-ticker"; }
-    if (y >= 287 && x <= 209) { lv_term_from_mo = true; lv_go_soon(LV_SC_TERM, 0); return "mo-terminal"; }
+    if (y >= 287) { lv_term_from_mo = true; lv_go_soon(LV_SC_TERM, 0); return "mo-terminal"; }
     if (itw_mo_sel >= 0) {
         if (lv_in(MO_BTN, x, y)) { mo_last = itw_mo_sel; mo_closing = true; mo_close_t = lv_now; itw_mo_sel = -1; itw_mo_phase = 0; return "mo-towers"; }
         return "mo-open";

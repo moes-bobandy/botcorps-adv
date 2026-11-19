@@ -253,10 +253,10 @@ static int lv_rd_sm4 = 0;   /* smoothed target dBm x4 */
 static inline bool lv_rd_nosig(void) { return lv_rd_miss >= LV_RD_MISS_GRACE; }
 static int lv_rd_from = LV_SC_HOME;  /* where BACK goes (home, SCANbot list, TTY) */
 static int lv_rd_ret_cat = -1, lv_rd_ret_cpage = 0, lv_rd_ret_mode = 0; static bool lv_rd_ret_detail = false; static uint8_t lv_rd_ret_mac[6]; static bool lv_rd_ret_sel = false;
-static const LvRect LV_RD_BTN[3] = {{58, 287, 115, 297}, {58, 304, 115, 314}, {58, 270, 115, 280}};   /* v1.2.8: IGNORE mid, WATCH bottom, HUNT top */
+static const LvRect LV_RD_BTN[3] = {{106, 287, 143, 297}, {106, 304, 143, 314}, {106, 270, 143, 280}};   /* v1.2.9: I mid, W bottom, H top; pills 38x11 */
 /* touch (hit-list item 1): finger targets for the three buttons, padded ~8 px inside the panel (panel y 247..285; the
  * radar field above y247 keeps its own taps) and split at the gap midpoints so they never overlap. Drawn rects unchanged. */
-static const LvRect LV_RD_BTN_TAP[3] = {{52, 284, 129, 299}, {52, 300, 129, 316}, {52, 268, 129, 283}};  /* v1.2.8: I mid, W bottom, H top */
+static const LvRect LV_RD_BTN_TAP[3] = {{102, 284, 147, 299}, {102, 300, 147, 316}, {102, 268, 147, 283}};  /* v1.2.9: I mid, W bottom, H top; 46x16/17 */
 #ifndef LV_RD_INFO
 #define LV_RD_INFO 1   /* MOCK 1111 (Mobandy): IGNORE / WATCH / HUNT / INFO, a taller row, INFO = Joey file-drop node view. 0 = as locked */
 #endif
@@ -918,7 +918,7 @@ static void lv_rd_term(LvBand &B, uint16_t hdr)
     return;
 #endif
 
-    const int x0 = 1, y0 = 287, x1 = 218, y1 = 319;   /* BACKbot {221,301,239,319} stays outside */
+    const int x0 = 1, y0 = 287, x1 = 238, y1 = 319;   /* v1.2.9: full width, matching the 1 px left margin */
     b_fill(B, x0, y0, x1 - x0 + 1, y1 - y0 + 1, lv_hex(0x000000)); b_frame(B, x0, y0, x1 - x0 + 1, y1 - y0 + 1, lv_ink(LV_ACC));
     int typed = (int)((lv_now - lv_rd_tl_t) / 15);
     for (int l = 0; l < 3; ++l) {

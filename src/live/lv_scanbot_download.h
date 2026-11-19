@@ -312,7 +312,7 @@ static void lv_dl_folder(LvBand &B, int i, int ys, float ph)   /* the INFO Joey 
 static void lv_dl_tick_mark(LvBand &B, int x, int y, uint16_t c) { b_line(B, x, y + 2, x + 2, y + 4, c); b_line(B, x + 2, y + 4, x + 6, y, c); b_line(B, x, y + 3, x + 2, y + 5, c); b_line(B, x + 2, y + 5, x + 6, y + 1, c); }
 static void lv_dl_terminal(LvBand &B)   /* rows 287..319: the radar terminal box; 2 log lines + the MISSION as the prompt line, always */
 {
-    const int x0 = 1, y0 = 287, x1 = 218, y1 = 319; char t[64], sz[12];
+    const int x0 = 1, y0 = 287, x1 = 238, y1 = 319; char t[64], sz[12];
     b_fill(B, x0, y0, x1 - x0 + 1, y1 - y0 + 1, lv_hex(0x000000)); b_frame(B, x0, y0, x1 - x0 + 1, y1 - y0 + 1, lv_ink(LV_ACC));
     const LvHcWorld &w = lv_hc_w; int typed = (int)((lv_now - w.tl_t) / 15);
     if (lv_dl_need > 1) {   /* 2+ files: the mission takes the whole box (the panel above shows the last result): FIND got/n, then every

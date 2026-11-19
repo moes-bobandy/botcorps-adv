@@ -246,8 +246,8 @@ static void lv_hc_scene(LvBand &B, void *)
         } else { b_text(B, 5, 264, "TAP A TOWER TO PROBE", W); snprintf(t, sizeof t, "PROBES 0/%d  TIME %d.%dS", LV_HC_PROBES, s10 / 10, s10 % 10); b_text35(B, 5, 275, t, TAN); }
     }
     /* terminal: the radar's own 3-line terminal (game log); the legend line says what the screen means */
-    b_fill(B, 14, 312, 203, 6, 0x0000);
-    { const char *L = "TAP TOWER=PROBE  METER=HEAT  FAKE GAME NODES"; b_text35(B, 218 - 3 - lv_w35(L), 312, L, W); }
+    b_fill(B, 14, 312, 223, 6, 0x0000);
+    { const char *L = "TAP TOWER=PROBE  METER=HEAT  FAKE GAME NODES"; b_text35(B, 238 - 3 - lv_w35(L), 312, L, W); }
     if (lv_hc_phase == LV_HC_START || lv_hc_phase == LV_HC_WIN || lv_hc_phase == LV_HC_OVER) lv_hc_card(B);
     lv_draw_backbot(B, LV_R_BACKBOT.x0, LV_R_BACKBOT.y0);
     lv_hc_swap();

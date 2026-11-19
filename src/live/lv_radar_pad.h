@@ -1,6 +1,7 @@
-/* v1.2.8: v3 Joey Console wider GIBSON controls deck.
- * Frame (1,247)-(218,319). No power beam. D-pad is LEFT/RIGHT only (horizontal
- * rocker in the octagon gate). L/R cycles towers, A locks, B unlocks or goes back.
+/* v1.2.9: v3 Joey Console full-width GIBSON controls deck.
+ * Frame (1,247)-(238,319) — left margin 1, matching right margin on a 240-wide screen.
+ * No power beam. D-pad is LEFT/RIGHT only (horizontal rocker in the octagon gate).
+ * L/R cycles towers, A locks, B unlocks or goes back.
  * Center stack is HUNT, then IGNORE, then WATCH; dimmed unless locked. */
 #pragma once
 
@@ -18,21 +19,23 @@ static void lv_rd_release(void);
 
 #define PAD_X0 1
 #define PAD_Y0 247
-#define PAD_X1 218
+#define PAD_X1 238
 #define PAD_Y1 319
-#define PAD_CX 27
+#define PAD_CX 50
 #define PAD_CY 292
 
-static const LvRect PAD_HIT_L = {  5, 276, 20, 308 };
-static const LvRect PAD_HIT_R = { 34, 276, 49, 308 };
-static const LvRect PAD_HIT_B = {132, 272, 171, 311 };
-static const LvRect PAD_HIT_A = {176, 272, 215, 311 };
-/* HUNT on top, then IGNORE, then WATCH. Hits fill the gap between the D-pad (x<=49) and B (x>=132). */
-static const LvRect PAD_HIT_HNT = { 52, 268, 129, 283 };   /* 78 x 16 */
-static const LvRect PAD_HIT_IGN = { 52, 284, 129, 299 };   /* 78 x 16 */
-static const LvRect PAD_HIT_WAT = { 52, 300, 129, 316 };   /* 78 x 17 */
-#define PAD_MID_X  58
-#define PAD_MID_W  58
+/* v1.2.9: rocker (octagon gate) gets the biggest width share, larger than the center stack.
+ * A/B stay about the v1.2.8 size (r=20, hits 40x40). */
+static const LvRect PAD_HIT_L = {  6, 268, 49, 316 };   /* 44 x 49 */
+static const LvRect PAD_HIT_R = { 51, 268, 94, 316 };   /* 44 x 49 */
+static const LvRect PAD_HIT_B = {152, 272, 191, 311 };  /* 40 x 40 */
+static const LvRect PAD_HIT_A = {196, 272, 235, 311 };  /* 40 x 40 */
+/* HUNT on top, then IGNORE, then WATCH — narrower so the rocker can own the width. */
+static const LvRect PAD_HIT_HNT = {102, 268, 147, 283 };   /* 46 x 16 */
+static const LvRect PAD_HIT_IGN = {102, 284, 147, 299 };   /* 46 x 16 */
+static const LvRect PAD_HIT_WAT = {102, 300, 147, 316 };   /* 46 x 17 */
+#define PAD_MID_X  106
+#define PAD_MID_W  38
 #define PAD_MID_H  11
 #define PAD_MID_YH 270
 #define PAD_MID_YI 287
@@ -95,9 +98,9 @@ static void pad_via(LvBand &B, int x, int y, uint16_t ink)
 
 static void pad_vias_frame(LvBand &B, uint16_t ink)
 {
-    for (int i = 0; i < 10; ++i) pad_via(B, 8 + i * 20, 248, ink);
-    pad_via(B, 3, 248, ink); pad_via(B, 215, 248, ink);
-    pad_via(B, 3, 316, ink); pad_via(B, 215, 316, ink);
+    for (int i = 0; i < 11; ++i) pad_via(B, 8 + i * 21, 248, ink);
+    pad_via(B, 3, 248, ink); pad_via(B, 233, 248, ink);
+    pad_via(B, 3, 316, ink); pad_via(B, 233, 316, ink);
 }
 
 static void pad_bevel_rect(LvBand &B, int x, int y, int w, int h, uint16_t fill, uint16_t ink, int pressed)
@@ -138,28 +141,44 @@ static void pad_glow(LvBand &B, int cx, int cy, int r, uint16_t c, int k)
     }
 }
 
-static void pad_octagon(LvBand &B, int cx, int cy, int r, uint16_t fill, uint16_t ink, int pressed)
+static void pad_octagon(LvBand &B, int cx, int cy, int rx, int ry, uint16_t fill, uint16_t ink, int pressed)
 {
     const uint16_t hi = pressed ? lv_dim(fill, 3, 8) : lv_mix(ink, lv_hex(0xffffff), 6, 8);
     const uint16_t lo = pressed ? lv_mix(ink, lv_hex(0xffffff), 3, 8) : lv_dim(ink, 3, 8);
     const uint16_t body = pressed ? lv_mix(fill, ink, 5, 8) : fill;
-    const int cut = r - r / 3;
-    for (int dy = -r; dy <= r; ++dy) for (int dx = -r; dx <= r; ++dx) {
-        if (abs(dx) + abs(dy) > r + cut) continue;
-        if (abs(dx) > r || abs(dy) > r) continue;
+    const int lim = 5 * rx * ry;   /* |dx|/rx + |dy|/ry <= 5/3  (same corner cut as the old equal-r octagon) */
+    for (int dy = -ry; dy <= ry; ++dy) for (int dx = -rx; dx <= rx; ++dx) {
+        const int s = 3 * (abs(dx) * ry + abs(dy) * rx);
+        if (s > lim) continue;
         uint16_t c = body;
-        const int edge = (abs(dx) == r || abs(dy) == r || abs(dx) + abs(dy) == r + cut);
+        const int edge = (abs(dx) == rx || abs(dy) == ry || s >= lim - (3 * (ry + rx)));
         if (edge) c = (dx + dy < 0) ? hi : lo;
-        else if (dx * 2 + dy * 3 < -r) c = lv_mix(body, hi, 3, 8);
+        else if (dx * 2 + dy * 3 < -ry) c = lv_mix(body, hi, 3, 8);
         if (pressed) c = lv_mix(c, ink, 3, 8);
         b_pix(B, cx + dx, cy + dy, c);
     }
 }
 
-static void pad_mini_arrow(LvBand &B, int cx, int cy, int dir, uint16_t c)
+/* 1-2 px halo around a wide octagon gate. */
+static void pad_glow_oct(LvBand &B, int cx, int cy, int rx, int ry, uint16_t c, int k)
 {
-    if (dir == 1) { b_pix(B, cx - 2, cy, c); b_fill(B, cx - 1, cy - 2, 1, 5, c); b_fill(B, cx, cy - 1, 1, 3, c); b_pix(B, cx + 1, cy, c); }
-    else { b_pix(B, cx + 2, cy, c); b_fill(B, cx + 1, cy - 2, 1, 5, c); b_fill(B, cx, cy - 1, 1, 3, c); b_pix(B, cx - 1, cy, c); }
+    const int lim0 = 5 * rx * ry, lim1 = 5 * (rx + 1) * (ry + 1);
+    for (int dy = -ry - 1; dy <= ry + 1; ++dy) for (int dx = -rx - 1; dx <= rx + 1; ++dx) {
+        const int adx = abs(dx), ady = abs(dy);
+        const int s = 3 * (adx * (ry + 1) + ady * (rx + 1));
+        if (adx > rx + 1 || ady > ry + 1 || s > lim1) continue;
+        const int inner = adx <= rx && ady <= ry && 3 * (adx * ry + ady * rx) <= lim0;
+        if (!inner) b_blend(B, cx + dx, cy + dy, c, k);
+    }
+}
+
+static void pad_arrow(LvBand &B, int cx, int cy, int dir, int s, uint16_t c)
+{
+    /* Bigger L/R chevron: height 2*s-1, width s. dir 1 = left, 2 = right. */
+    for (int i = 0; i < s; ++i) {
+        const int x = (dir == 1) ? (cx - s / 2 + i) : (cx + s / 2 - i);
+        b_fill(B, x, cy - i, 1, 2 * i + 1, c);
+    }
 }
 
 /* Horizontal rocker only, inside the octagon gate. No up/down arms. */
@@ -170,13 +189,13 @@ static void pad_rocker(LvBand &B, int cx, int cy, int aw, int al, uint16_t fill,
     if (lv_rd_pad_held == 2) pad_bevel_rect(B, cx + 1, cy - aw / 2, al / 2, aw, fill, ink, 1);
     const uint16_t lc = lv_rd_pad_held == 1 ? lv_hex(0xffffff) : ink;
     const uint16_t rc = lv_rd_pad_held == 2 ? lv_hex(0xffffff) : ink;
-    pad_mini_arrow(B, cx - al / 2 + 5, cy, 1, lc);
-    pad_mini_arrow(B, cx + al / 2 - 5, cy, 2, rc);
+    pad_arrow(B, cx - al / 2 + 8, cy, 1, 8, lc);
+    pad_arrow(B, cx + al / 2 - 8, cy, 2, 8, rc);
 }
 
 static void pad_plaque(LvBand &B, uint16_t ink, uint16_t dim)
 {
-    const int x = 6, y = 249, w = 206, h = 16;
+    const int x = 6, y = 249, w = 228, h = 16;   /* 6..233, 5 px inset from the 1..238 frame */
     b_fill(B, x, y, w, h, lv_hex(0x08060a));
     b_fill(B, x, y, w, 1, lv_dim(dim, 2, 8));
     b_fill(B, x, y, 1, h, lv_dim(dim, 2, 8));
@@ -194,7 +213,7 @@ static void pad_status(LvBand &B, int x, int y, uint16_t ink, uint16_t dim)
     int k = 0; if (lv_rd_sel >= 0) { for (int i = 0; i < lv_nf; ++i) if (!lv_rd_ignored(lv_f[i].mac)) { ++k; if (i == lv_rd_sel) break; } }
     if (lv_rd_sel < 0 || lv_rd_sel >= lv_nf) {
         b_text35(B, x, y, "L/R CYCLE TOWERS", ink);
-        b_text35(B, x + 120, y, "A LOCK  B BACK", dim);
+        b_text35(B, x + 140, y, "A LOCK  B BACK", dim);
         return;
     }
     const LvFind &f = lv_f[lv_rd_sel];
@@ -203,16 +222,16 @@ static void pad_status(LvBand &B, int x, int y, uint16_t ink, uint16_t dim)
     snprintf(b, sizeof b, "%s %d/%d", lv_rd_lock ? "LOCK" : "SEL", k, n);
     while (lv_w35(a) > 140 && a[0]) a[strlen(a) - 1] = 0;
     b_text35(B, x, y, a, lv_hex(0xffffff));
-    b_text35(B, x + 148, y, b, lv_rd_lock ? lv_hex(0xff2ad4) : ink);
+    b_text35(B, x + 168, y, b, lv_rd_lock ? lv_hex(0xff2ad4) : ink);
 }
 
 static void pad_draw_joey(LvBand &B, uint16_t ink, uint16_t dim)
 {
     const uint16_t ac = lv_hex(0xff2ad4), ice = lv_hex(0x30e8ff);
-    pad_octagon(B, PAD_CX, PAD_CY, 23, lv_hex(0x06040a), dim, 0);
-    pad_glow(B, PAD_CX, PAD_CY, 23, ink, 2);
-    pad_octagon(B, PAD_CX, PAD_CY, 18, lv_hex(0x100818), ink, 0);
-    pad_rocker(B, PAD_CX, PAD_CY, 12, 28, lv_hex(0x1a1018), ink);
+    pad_octagon(B, PAD_CX, PAD_CY, 42, 25, lv_hex(0x06040a), dim, 0);
+    pad_glow_oct(B, PAD_CX, PAD_CY, 42, 25, ink, 2);
+    pad_octagon(B, PAD_CX, PAD_CY, 36, 20, lv_hex(0x100818), ink, 0);
+    pad_rocker(B, PAD_CX, PAD_CY, 16, 68, lv_hex(0x1a1018), ink);
     pad_disc(B, PAD_CX, PAD_CY, 3, lv_rd_lock ? ac : ink, ink, 0);
     auto arcade = [&](int cx, int cy, uint16_t col, const char *lab, const char *sub, int held) {
         pad_disc(B, cx, cy, 20, lv_hex(0x08040c), col, 0);
@@ -221,8 +240,8 @@ static void pad_draw_joey(LvBand &B, uint16_t ink, uint16_t dim)
         b_text35(B, cx - 1, cy - 6, lab, held ? lv_hex(0xffffff) : col);
         b_text35(B, cx - lv_w35(sub) / 2, cy + 3, sub, held ? lv_hex(0xffffff) : lv_dim(col, 6, 8));
     };
-    arcade(152, PAD_CY, ice, "B", "BACK", lv_rd_pad_held == 6);
-    arcade(196, PAD_CY, ac,  "A", "LOCK", lv_rd_pad_held == 5);
+    arcade(172, PAD_CY, ice, "B", "BACK", lv_rd_pad_held == 6);
+    arcade(216, PAD_CY, ac,  "A", "LOCK", lv_rd_pad_held == 5);
 }
 
 static void pad_draw_mid3(LvBand &B, uint16_t ink, uint16_t dim)
@@ -255,8 +274,6 @@ static void lv_rd_pad_draw(LvBand &B, uint16_t hdr)
     const uint16_t ink = lv_ink(LV_ACC), dim = lv_ink(LV_ACCD);
     b_fill(B, PAD_X0, PAD_Y0, PAD_X1 - PAD_X0 + 1, PAD_Y1 - PAD_Y0 + 1, lv_hex(0x000000));
     b_frame(B, PAD_X0, PAD_Y0, PAD_X1 - PAD_X0 + 1, PAD_Y1 - PAD_Y0 + 1, ink);
-    /* the named deck stops at x=218; fill the old BACKbot corner so it never shows stale pixels */
-    b_fill(B, PAD_X1 + 1, PAD_Y0, 239 - PAD_X1, PAD_Y1 - PAD_Y0 + 1, lv_hex(0x000000));
     pad_vias_frame(B, ink);
     pad_plaque(B, ink, dim);
     pad_status(B, 10, 253, ink, dim);

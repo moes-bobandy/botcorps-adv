@@ -1503,8 +1503,8 @@ static LvRect lv_key_rect(int k)
 {
     if (k < 40) { const int r = k / 10, c = k % 10; const int x = c * LV_KBD_PITCH_X + 1, y = LV_KBD_Y + r * LV_KBD_PITCH_Y + 1; return {(int16_t)x, (int16_t)y, (int16_t)(x + LV_KEY_W - 1), (int16_t)(y + LV_KEY_H - 1)}; }
     const int y = LV_KBD_Y + 4 * LV_KBD_PITCH_Y + 1;
-    /* item 8: i = k-40 -> 0 SHIFT, 1 SPACE, 2 DEL, 3 ENTER, 4 CMDS. ENTER ends at x215 so x216..239 stays clear for the corner BACKbot. */
-    static const int X0[5] = {0, 42, 136, 174, 100}, X1[5] = {41, 99, 173, 215, 135};   /* SHIFT 0-41, SPACE 42-99, CMDS 100-135, DEL 136-173, ENTER 174-215 */
+    /* v1.2.9: i = k-40 -> 0 SHIFT, 1 SPACE, 2 DEL, 3 ENTER, 4 CMDS. ENTER extends to the right edge now that the corner BACKbot is gone. */
+    static const int X0[5] = {0, 42, 136, 174, 100}, X1[5] = {41, 99, 173, 239, 135};   /* SHIFT 0-41, SPACE 42-99, CMDS 100-135, DEL 136-173, ENTER 174-239 */
     const int i = k - 40;
     return {(int16_t)(X0[i] + 1), (int16_t)y, (int16_t)(X1[i] - 1), (int16_t)(y + LV_KEY_H - 1)};
 }
@@ -1549,7 +1549,7 @@ static void lv_scene_cs(LvBand &B)   /* overlay on the keyboard rect; TERMINALbo
         const int n = lv_cs_first() + r, y = y0 + LV_CS_HDR + r * LV_CS_RH;
         if (n >= LV_NCS) break;
         const bool hl = lv_cs_hl == n;
-        const int rw = (r == LV_CS_ROWS - 1) ? 214 : 238, hx = (r == LV_CS_ROWS - 1) ? 210 : 232;   /* item 8: last row stops at x214 so x216..239 stays clean for the corner BACKbot even with CMDS open */
+        const int rw = 238, hx = 232;   /* v1.2.9: every CMDS row is full width now that the corner BACKbot is gone */
         b_fill(B, 1, y + 1, rw, LV_CS_RH - 2, hl ? lv_hex(0xffffff) : lv_hex(0x141414));
         b_frame(B, 1, y + 1, rw, LV_CS_RH - 2, fr);
         b_text(B, 7, y + 5, LV_CS[n].cmd, hl ? lv_hex(0x000000) : lv_hex(0xffffff), 2);

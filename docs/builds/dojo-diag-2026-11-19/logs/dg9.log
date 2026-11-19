@@ -1,0 +1,19 @@
+t=0 BACKLIGHT 80% (duty 204/255) (SIM)
+t=0 CONTROLbot boot settings scan=0 vol=40 bri=80 chime=1 time=0 bar=3 tone=0 rain=1 rainmode=0
+t=11605 CAL SAVE c0..c7 = 211 263 3771 274 204 3757 3764 3768 (SIM NVS)
+  chip 1 at 52,51 -> lgfx maps to 53,47
+  chip 2 at 187,51 -> lgfx maps to 188,47
+  chip 3 at 187,222 -> lgfx maps to 187,219
+  chip 4 at 52,222 -> lgfx maps to 52,218
+  worst axis error 4 px
+t=22525 rtap glass 120,145 120ms -> last raw->cal 119,139 -> tap 120,143 -> pager-botpheus-eb3 (scr=2)
+t=22615 waitscr 13 -> scr=13
+t=29515 MOLIVE (v1.2.9: no live table) nf=0 job=0 tk='18 THREATS: 5 HIGH 7 MED 6 LOW - TAP A PILLAR  EX.DATA'
+t=30415 rec dg_idle 30 frames
+t=30580 rtap glass 120,160 120ms -> last raw->cal 122,154 -> tap 122,158 -> FLOCK (scr=13)
+t=32680 rec dg_open 70 frames
+t=32845 rtap glass 200,265 120ms -> last raw->cal 200,265 -> tap 201,259 -> mo-towers (scr=13)
+t=34045 rec dg_close 40 frames
+px pushed by overlays: 54701200
+SHADOW peak 29817 of 32768 bytes
+MOUI tot=29160521 part=0

@@ -1,0 +1,67 @@
+tickto 1000
+press 52 55
+tickto 1800
+release
+tickto 1900
+tickto 2500
+press 52 55
+tickto 4200
+release
+tickto 5000
+press 187 55
+tickto 6700
+release
+tickto 7500
+press 187 226
+tickto 9200
+release
+tickto 10000
+press 52 226
+tickto 11700
+release
+tickto 12300
+tickto 13000
+tick 200
+tick 100
+page 1
+tick 12
+dump s00_pager_botpheus
+rtap 120 145
+waitscr 13
+tick 10
+dump s01_dojo_enter
+molive
+tick 230
+molive
+dump s02_dojo_idle_live
+rtap 120 160
+tick 5
+itwstate
+tick 70
+itwstate
+molive
+dump s03_open
+rtap 30 200
+rtap 180 110
+rtap 120 60
+tick 5
+dump s03b_open_after_noop_taps
+rtap 200 265
+rtap 120 160
+tick 30
+itwstate
+dump s04_closed
+rtap 150 10
+waitscr 2
+tick 10
+dump s05_banner_home
+rtap 120 145
+waitscr 13
+tick 20
+rtap 120 300
+waitscr 3
+tick 10
+dump s06_footer_term
+rtap 150 10
+tick 20
+dump s07_term_banner_back

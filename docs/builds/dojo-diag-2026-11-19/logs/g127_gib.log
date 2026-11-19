@@ -1,0 +1,7 @@
+t=0 BACKLIGHT 80% (duty 204/255) (SIM)
+t=0 CONTROLbot boot settings scan=0 vol=40 bri=80 chime=1 time=0 bar=3 tone=0 rain=1 rainmode=0
+t=3360 tap 120,145 -> pager-gibson-radar (scr=2 seg=-1)
+t=5760 rec gib 60 frames
+px pushed by overlays: 9711836
+SHADOW peak 29817 of 32768 bytes
+MOUI tot=0 part=0

@@ -1,0 +1,55 @@
+t=0 BACKLIGHT 80% (duty 204/255) (SIM)
+t=0 CONTROLbot boot settings scan=0 vol=40 bri=80 chime=1 time=0 bar=3 tone=0 rain=1 rainmode=0
+t=11605 CAL SAVE c0..c7 = 211 263 3771 274 204 3757 3764 3768 (SIM NVS)
+  chip 1 at 52,51 -> lgfx maps to 53,47
+  chip 2 at 187,51 -> lgfx maps to 188,47
+  chip 3 at 187,222 -> lgfx maps to 187,219
+  chip 4 at 52,222 -> lgfx maps to 52,218
+  worst axis error 4 px
+t=22525 rtap glass 120,145 120ms -> last raw->cal 119,139 -> tap 120,143 -> pager-botpheus-eb3 (scr=2)
+t=22615 waitscr 13 -> scr=13
+t=23215 framecost 500 ms per Dojo frame (device model)
+t=23215 bandtouch 0 (v1.2.9: touch read between frames only)
+t=24851 rtap model framecost=500 bandtouch=0: finger down 23215..23335 ms, down samples seen loop=7 band=0
+t=24851 rtap glass 120,160 120ms -> last raw->cal 119,156 -> tap 119,159 -> FLIPPER (scr=13)
+t=29187 rtap model framecost=500 bandtouch=0: finger down 27551..27671 ms, down samples seen loop=7 band=0
+t=29187 rtap glass 200,265 120ms -> last raw->cal 202,264 -> tap 200,263 -> mo-towers (scr=13)
+t=33634 rtap model framecost=500 bandtouch=0: finger down 30437..30557 ms, down samples seen loop=0 band=0
+t=33634 rtap glass 120,160 120ms -> last raw->cal -1,-1 -> tap -1,-1 -> (no tap) (scr=13)
+t=39581 rtap model framecost=500 bandtouch=0: finger down 36384..36504 ms, down samples seen loop=0 band=0
+t=39581 rtap glass 200,265 120ms -> last raw->cal -1,-1 -> tap -1,-1 -> (no tap) (scr=13)
+t=44028 rtap model framecost=500 bandtouch=0: finger down 40881..41001 ms, down samples seen loop=0 band=0
+t=44028 rtap glass 120,160 120ms -> last raw->cal -1,-1 -> tap -1,-1 -> (no tap) (scr=13)
+t=49975 rtap model framecost=500 bandtouch=0: finger down 46828..46948 ms, down samples seen loop=0 band=0
+t=49975 rtap glass 200,265 120ms -> last raw->cal -1,-1 -> tap -1,-1 -> (no tap) (scr=13)
+t=54959 rtap model framecost=500 bandtouch=0: finger down 51325..51445 ms, down samples seen loop=0 band=0
+t=54959 rtap glass 120,160 120ms -> last raw->cal -1,-1 -> tap -1,-1 -> (no tap) (scr=13)
+t=61443 rtap model framecost=500 bandtouch=0: finger down 57809..57929 ms, down samples seen loop=0 band=0
+t=61443 rtap glass 200,265 120ms -> last raw->cal -1,-1 -> tap -1,-1 -> (no tap) (scr=13)
+t=66427 rtap model framecost=500 bandtouch=0: finger down 62843..62963 ms, down samples seen loop=0 band=0
+t=66427 rtap glass 120,160 120ms -> last raw->cal -1,-1 -> tap -1,-1 -> (no tap) (scr=13)
+t=72911 rtap model framecost=500 bandtouch=0: finger down 69327..69447 ms, down samples seen loop=0 band=0
+t=72911 rtap glass 200,265 120ms -> last raw->cal -1,-1 -> tap -1,-1 -> (no tap) (scr=13)
+t=77895 rtap model framecost=500 bandtouch=0: finger down 74361..74481 ms, down samples seen loop=0 band=0
+t=77895 rtap glass 120,160 120ms -> last raw->cal -1,-1 -> tap -1,-1 -> (no tap) (scr=13)
+t=84379 rtap model framecost=500 bandtouch=0: finger down 80845..80965 ms, down samples seen loop=0 band=0
+t=84379 rtap glass 200,265 120ms -> last raw->cal -1,-1 -> tap -1,-1 -> (no tap) (scr=13)
+t=89363 rtap model framecost=500 bandtouch=0: finger down 85879..85999 ms, down samples seen loop=0 band=0
+t=89363 rtap glass 120,160 120ms -> last raw->cal -1,-1 -> tap -1,-1 -> (no tap) (scr=13)
+t=95847 rtap model framecost=500 bandtouch=0: finger down 92363..92483 ms, down samples seen loop=0 band=0
+t=95847 rtap glass 200,265 120ms -> last raw->cal -1,-1 -> tap -1,-1 -> (no tap) (scr=13)
+t=100831 rtap model framecost=500 bandtouch=0: finger down 97397..97517 ms, down samples seen loop=0 band=0
+t=100831 rtap glass 120,160 120ms -> last raw->cal -1,-1 -> tap -1,-1 -> (no tap) (scr=13)
+t=107315 rtap model framecost=500 bandtouch=0: finger down 103881..104001 ms, down samples seen loop=0 band=0
+t=107315 rtap glass 200,265 120ms -> last raw->cal -1,-1 -> tap -1,-1 -> (no tap) (scr=13)
+t=112299 rtap model framecost=500 bandtouch=0: finger down 108915..109035 ms, down samples seen loop=0 band=0
+t=112299 rtap glass 120,160 120ms -> last raw->cal -1,-1 -> tap -1,-1 -> (no tap) (scr=13)
+t=118783 rtap model framecost=500 bandtouch=0: finger down 115399..115519 ms, down samples seen loop=0 band=0
+t=118783 rtap glass 200,265 120ms -> last raw->cal -1,-1 -> tap -1,-1 -> (no tap) (scr=13)
+t=122156 rtap model framecost=500 bandtouch=0: finger down 120433..120553 ms, down samples seen loop=1 band=0
+t=122156 rtap glass 120,160 120ms -> last raw->cal 122,158 -> tap 122,158 -> RING (scr=13)
+t=127029 rtap model framecost=500 bandtouch=0: finger down 125306..125426 ms, down samples seen loop=1 band=0
+t=127029 rtap glass 200,265 120ms -> last raw->cal 200,263 -> tap 200,263 -> mo-towers (scr=13)
+px pushed by overlays: 135959068
+SHADOW peak 29817 of 32768 bytes
+MOUI tot=106224040 part=0

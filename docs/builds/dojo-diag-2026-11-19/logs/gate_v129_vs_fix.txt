@@ -1,0 +1,9 @@
+g_botpheus.rgb 1 frames diff px all 0 rows>=24 0
+g_control.rgb 1 frames diff px all 0 rows>=24 0
+g_dl.rgb 1 frames diff px all 0 rows>=24 0
+g_dojo_600ms.rgb 1 frames diff px all 1841 rows>=24 464
+g_dojo_f1.rgb 1 frames diff px all 1830 rows>=24 476
+g_gibson.rgb 1 frames diff px all 0 rows>=24 0
+g_hackbot.rgb 1 frames diff px all 0 rows>=24 0
+g_radar.rgb 1 frames diff px all 0 rows>=24 0
+g_term.rgb 1 frames diff px all 0 rows>=24 0

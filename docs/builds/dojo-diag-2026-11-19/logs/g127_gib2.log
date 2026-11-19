@@ -1,0 +1,11 @@
+t=0 BACKLIGHT 80% (duty 204/255) (SIM)
+t=0 CONTROLbot boot settings scan=0 vol=40 bri=80 chime=1 time=0 bar=3 tone=0 rain=1 rainmode=0
+t=3360 tap 120,145 -> pager-hackbot-game (scr=2 seg=-1)
+t=4260 DL SIM shortcut: open tower 2
+t=5460 tap 150,10 -> banner-home (scr=12 seg=-1)
+t=6420 tap 120,145 -> pager-gibson-radar (scr=2 seg=-1)
+t=7020 RADAR sel=-1 lock=0 hunt=0 reads=0 trend=0 miss=0 ign=0 wat=0 job=3 tk='SCANNING WIFI...'
+t=8820 rec gibdl 60 frames
+px pushed by overlays: 17551198
+SHADOW peak 29817 of 32768 bytes
+MOUI tot=0 part=0

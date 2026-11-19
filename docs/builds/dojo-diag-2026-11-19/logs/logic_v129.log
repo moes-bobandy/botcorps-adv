@@ -1,0 +1,30 @@
+DUMP s00_pager_botpheus scr=2 seg=-1 clipframe=-1 t=22360
+t=22525 rtap glass 120,145 120ms -> last raw->cal 119,139 -> tap 120,143 -> pager-botpheus-eb3 (scr=2)
+t=22615 waitscr 13 -> scr=13
+DUMP s01_dojo_enter scr=13 seg=-1 clipframe=-1 t=22915
+t=22915 MOLIVE (v1.2.9: no live table) nf=0 job=0 tk='18 THREATS: 5 HIGH 7 MED 6 LOW - TAP A PILLAR  EX.DATA'
+t=29815 MOLIVE (v1.2.9: no live table) nf=0 job=0 tk='18 THREATS: 5 HIGH 7 MED 6 LOW - TAP A PILLAR  EX.DATA'
+DUMP s02_dojo_idle_live scr=13 seg=-1 clipframe=-1 t=29815
+t=29980 rtap glass 120,160 120ms -> last raw->cal 122,154 -> tap 122,158 -> FLOCK (scr=13)
+  MO sel=2 phase=1
+  MO sel=2 phase=3
+t=32230 MOLIVE (v1.2.9: no live table) nf=0 job=0 tk='FLOCK  THREAT: LOW  EX.DATA'
+DUMP s03_open scr=13 seg=-1 clipframe=-1 t=32230
+t=32395 rtap glass 30,200 120ms -> last raw->cal 31,199 -> tap 32,194 -> mo-open (scr=13)
+t=32560 rtap glass 180,110 120ms -> last raw->cal 182,104 -> tap 181,107 -> mo-open (scr=13)
+t=32725 rtap glass 120,60 120ms -> last raw->cal 122,55 -> tap 121,57 -> mo-open (scr=13)
+DUMP s03b_open_after_noop_taps scr=13 seg=-1 clipframe=-1 t=32875
+t=33040 rtap glass 200,265 120ms -> last raw->cal 199,261 -> tap 198,264 -> mo-towers (scr=13)
+t=33205 rtap glass 120,160 120ms -> last raw->cal 122,158 -> tap 120,154 -> mo-camera-moving (scr=13)
+  MO sel=-1 phase=0
+DUMP s04_closed scr=13 seg=-1 clipframe=-1 t=34105
+t=34270 rtap glass 150,10 120ms -> last raw->cal 152,5 -> tap 152,8 -> banner-home (scr=13)
+t=34360 waitscr 2 -> scr=2
+DUMP s05_banner_home scr=2 seg=-1 clipframe=-1 t=34660
+t=34825 rtap glass 120,145 120ms -> last raw->cal 122,142 -> tap 121,140 -> pager-botpheus-eb3 (scr=2)
+t=34915 waitscr 13 -> scr=13
+t=35680 rtap glass 120,300 120ms -> last raw->cal 119,295 -> tap 120,298 -> mo-terminal (scr=13)
+t=35770 waitscr 3 -> scr=3
+DUMP s06_footer_term scr=3 seg=8 clipframe=10 t=36070
+t=36235 rtap glass 150,10 120ms -> last raw->cal 151,5 -> tap 149,8 -> banner-home (scr=3)
+DUMP s07_term_banner_back scr=2 seg=-1 clipframe=-1 t=36835

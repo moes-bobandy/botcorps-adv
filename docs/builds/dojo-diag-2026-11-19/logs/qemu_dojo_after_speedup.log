@@ -1,0 +1,113 @@
+ets Jul 29 2019 12:21:46
+
+rst:0x1 (POWERON_RESET),boot:0x12 (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff0030,len:4640
+load:0x40078000,len:15660
+load:0x40080400,len:3164
+entry 0x4008059c
+
+[botcorps] 0.0.0-cyd CYD livescan
+[   378][E][Preferences.cpp:47] begin(): nvs_open failed: NOT_FOUND
+[   667][E][Preferences.cpp:47] begin(): nvs_open failed: NOT_FOUND
+[GFX-RAM] dma_rows=0 dma_bytes=0 band_rows=24 band_bytes=11520 heap=85472 8bit=75372 dma=75372 internal8=75372
+[live] blob=315100 (expect 315100) theme=0 240x320
+[live] heap begin free=85472 min=85232 largest=65524
+[live] CALbot: saved cal valid (cv=3) - hold 1 s to redo
+[   667][E][Preferences.cpp:47] begin(): nvs_open failed: NOT_FOUND
+[live] heap scr=7 free=83780 min=83340 largest=65524
+[live] heap scr=2 free=49344 min=48012 largest=30708
+[live] heap tour DOJO free=48960 min=31572 largest=30708
+[live] heap scr=13 free=41292 min=25640 largest=29684
+[live] dojo 2 ticks avg 350.3 ms max 504.3 ms
+[live] dojo 26 ticks avg 194.2 ms max 195.9 ms
+[live] dojo 26 ticks avg 196.2 ms max 211.0 ms
+[live] dojo 26 ticks avg 193.6 ms max 198.1 ms
+[ 20791][E][Preferences.cpp:47] begin(): nvs_open failed: NOT_FOUND
+[ 20791][E][Preferences.cpp:47] begin(): nvs_open failed: NOT_FOUND
+[live] heap tour GIBSON radar free=48696 min=25376 largest=30708
+[live] heap scr=8 free=48696 min=25376 largest=30708
+[live] radar 1 ticks avg 53.4 ms max 53.4 ms (~18.7 fps at 30 ms ticks)
+[live] radar 94 ticks avg 53.4 ms max 53.5 ms (~18.7 fps at 30 ms ticks)
+[live] radar 94 ticks avg 53.4 ms max 53.5 ms (~18.7 fps at 30 ms ticks)
+[live] radar 94 ticks avg 53.4 ms max 53.4 ms (~18.7 fps at 30 ms ticks)
+[live] heap tour pager BOTpheus free=48696 min=25376 largest=30708
+[live] heap scr=2 free=47956 min=25376 largest=30708
+[live] pager 63 ticks avg 31.7 ms max 33.4 ms
+[live] pager 167 ticks avg 29.8 ms max 30.1 ms
+[live] pager 167 ticks avg 29.7 ms max 29.9 ms
+[live] pager 167 ticks avg 29.7 ms max 29.9 ms
+[live] heap tour end free=47956 min=25376 largest=30708
+[live] pager 167 ticks avg 29.8 ms max 30.0 ms
+[live] pager 167 ticks avg 29.7 ms max 29.8 ms
+[live] pager 167 ticks avg 29.7 ms max 30.0 ms
+[live] pager 167 ticks avg 29.8 ms max 30.0 ms
+[live] pager 167 ticks avg 29.6 ms max 30.1 ms
+[live] pager 167 ticks avg 29.7 ms max 29.9 ms
+[live] pager 167 ticks avg 29.8 ms max 30.0 ms
+[live] pager 167 ticks avg 29.6 ms max 30.0 ms
+[live] pager 167 ticks avg 29.7 ms max 30.0 ms
+[live] pager 167 ticks avg 29.8 ms max 29.9 ms
+[live] pager 167 ticks avg 29.8 ms max 30.0 ms
+[live] pager 167 ticks avg 29.7 ms max 29.9 ms
+[live] pager 167 ticks avg 29.8 ms max 29.9 ms
+[live] pager 167 ticks avg 29.8 ms max 29.9 ms
+[live] pager 167 ticks avg 29.7 ms max 30.0 ms
+[live] pager 167 ticks avg 29.8 ms max 30.0 ms
+[live] pager 167 ticks avg 29.7 ms max 29.9 ms
+[live] pager 167 ticks avg 29.7 ms max 29.8 ms
+[live] pager 167 ticks avg 29.7 ms max 29.9 ms
+[live] pager 167 ticks avg 29.8 ms max 30.0 ms
+[live] pager 167 ticks avg 29.7 ms max 30.0 ms
+[live] pager 167 ticks avg 29.8 ms max 30.0 ms
+[live] pager 167 ticks avg 29.8 ms max 30.0 ms
+[live] pager 167 ticks avg 29.7 ms max 29.8 ms
+[live] pager 167 ticks avg 29.8 ms max 30.0 ms
+[live] pager 167 ticks avg 29.8 ms max 29.9 ms
+[live] pager 167 ticks avg 29.7 ms max 30.0 ms
+[live] pager 167 ticks avg 29.7 ms max 29.9 ms
+[live] pager 167 ticks avg 29.6 ms max 30.1 ms
+[live] pager 167 ticks avg 29.7 ms max 29.9 ms
+[live] pager 167 ticks avg 29.7 ms max 30.0 ms
+[live] pager 167 ticks avg 29.8 ms max 29.9 ms
+[live] pager 167 ticks avg 29.7 ms max 29.9 ms
+[live] pager 167 ticks avg 29.7 ms max 30.0 ms
+[live] pager 167 ticks avg 29.6 ms max 30.1 ms
+[live] pager 167 ticks avg 29.6 ms max 30.1 ms
+[live] pager 167 ticks avg 29.7 ms max 29.8 ms
+[live] pager 167 ticks avg 29.8 ms max 30.0 ms
+[live] pager 167 ticks avg 29.8 ms max 29.9 ms
+[live] pager 167 ticks avg 29.7 ms max 29.8 ms
+[live] pager 167 ticks avg 29.8 ms max 30.0 ms
+[live] pager 167 ticks avg 29.8 ms max 30.0 ms
+[live] pager 167 ticks avg 29.7 ms max 29.9 ms
+[live] pager 167 ticks avg 29.6 ms max 30.1 ms
+[live] pager 167 ticks avg 29.8 ms max 29.9 ms
+[live] pager 167 ticks avg 29.7 ms max 29.9 ms
+[live] pager 167 ticks avg 29.7 ms max 29.9 ms
+[live] pager 167 ticks avg 29.8 ms max 29.9 ms
+[live] pager 167 ticks avg 29.7 ms max 29.9 ms
+[live] pager 167 ticks avg 29.7 ms max 29.9 ms
+[live] pager 167 ticks avg 29.8 ms max 30.0 ms
+[live] pager 167 ticks avg 29.7 ms max 30.0 ms
+[live] pager 167 ticks avg 29.7 ms max 29.9 ms
+[live] pager 167 ticks avg 29.8 ms max 29.9 ms
+[live] pager 167 ticks avg 29.8 ms max 29.9 ms
+[live] pager 167 ticks avg 29.7 ms max 29.9 ms
+[live] pager 167 ticks avg 29.8 ms max 29.9 ms
+[live] pager 167 ticks avg 29.6 ms max 30.0 ms
+[live] pager 167 ticks avg 29.7 ms max 29.9 ms
+[live] pager 167 ticks avg 29.8 ms max 30.0 ms
+[live] pager 167 ticks avg 29.7 ms max 29.9 ms
+[live] pager 167 ticks avg 29.8 ms max 29.9 ms
+[live] pager 167 ticks avg 29.8 ms max 30.0 ms
+[live] pager 167 ticks avg 29.8 ms max 30.0 ms
+[live] pager 167 ticks avg 29.7 ms max 30.0 ms
+[live] pager 167 ticks avg 29.8 ms max 29.9 ms
+[live] pager 167 ticks avg 29.8 ms max 30.0 ms
+[live] pager 167 ticks avg 29.7 ms max 29.9 ms
+[live] pager 167 ticks avg 29.8 ms max 29.9 ms
+[live] pager 167 ticks avg 29.7 ms max 29.9 ms
+[live] pager 167 ticks avg 29.8 ms max 30.0 ms

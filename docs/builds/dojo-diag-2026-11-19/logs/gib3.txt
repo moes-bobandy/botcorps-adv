@@ -1,0 +1,15 @@
+tick 100
+page 1
+tick 12
+tap 120 145
+tick 20
+tap 120 160
+tick 60
+tap 150 10
+tick 20
+page 2
+tick 12
+tap 120 145
+tick 20
+radarstate
+rec 60 gibmo

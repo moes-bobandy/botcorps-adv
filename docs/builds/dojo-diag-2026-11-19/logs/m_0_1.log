@@ -1,0 +1,35 @@
+t=0 BACKLIGHT 80% (duty 204/255) (SIM)
+t=0 CONTROLbot boot settings scan=0 vol=40 bri=80 chime=1 time=0 bar=3 tone=0 rain=1 rainmode=0
+t=11605 CAL SAVE c0..c7 = 211 263 3771 274 204 3757 3764 3768 (SIM NVS)
+  chip 1 at 52,51 -> lgfx maps to 53,47
+  chip 2 at 187,51 -> lgfx maps to 188,47
+  chip 3 at 187,222 -> lgfx maps to 187,219
+  chip 4 at 52,222 -> lgfx maps to 52,218
+  worst axis error 4 px
+t=22525 rtap glass 120,145 120ms -> last raw->cal 119,139 -> tap 120,143 -> pager-botpheus-eb3 (scr=2)
+t=22615 waitscr 13 -> scr=13
+t=23215 framecost 0 ms per Dojo frame (device model)
+t=23215 bandtouch 1 (v1.2.10: touch read after every band)
+t=23380 rtap glass 120,160 120ms -> last raw->cal 121,158 -> tap 122,154 -> META (scr=13)
+t=26245 rtap glass 200,265 120ms -> last raw->cal 201,263 -> tap 201,259 -> mo-towers (scr=13)
+t=27610 rtap glass 120,160 120ms -> last raw->cal 121,154 -> tap 119,157 -> SAMSUNG (scr=13)
+t=30475 rtap glass 200,265 120ms -> last raw->cal 201,263 -> tap 201,261 -> mo-towers (scr=13)
+t=31840 rtap glass 120,160 120ms -> last raw->cal 119,156 -> tap 119,155 -> FLOCK (scr=13)
+t=34705 rtap glass 200,265 120ms -> last raw->cal 199,263 -> tap 200,261 -> mo-towers (scr=13)
+t=36070 rtap glass 120,160 120ms -> last raw->cal 121,155 -> tap 121,157 -> SAMSUNG (scr=13)
+t=38935 rtap glass 200,265 120ms -> last raw->cal 201,263 -> tap 200,259 -> mo-towers (scr=13)
+t=40300 rtap glass 120,160 120ms -> last raw->cal 119,158 -> tap 120,154 -> SAMSUNG (scr=13)
+t=43165 rtap glass 200,265 120ms -> last raw->cal 200,263 -> tap 200,263 -> mo-towers (scr=13)
+t=44530 rtap glass 120,160 120ms -> last raw->cal 122,157 -> tap 120,158 -> META (scr=13)
+t=47395 rtap glass 200,265 120ms -> last raw->cal 201,261 -> tap 200,262 -> mo-towers (scr=13)
+t=48760 rtap glass 120,160 120ms -> last raw->cal 119,158 -> tap 120,154 -> META (scr=13)
+t=51625 rtap glass 200,265 120ms -> last raw->cal 201,260 -> tap 200,264 -> mo-towers (scr=13)
+t=52990 rtap glass 120,160 120ms -> last raw->cal 121,157 -> tap 122,156 -> RING (scr=13)
+t=55855 rtap glass 200,265 120ms -> last raw->cal 199,261 -> tap 200,263 -> mo-towers (scr=13)
+t=57220 rtap glass 120,160 120ms -> last raw->cal 122,158 -> tap 120,156 -> CAMERA (scr=13)
+t=60085 rtap glass 200,265 120ms -> last raw->cal 202,265 -> tap 199,259 -> mo-towers (scr=13)
+t=61450 rtap glass 120,160 120ms -> last raw->cal 122,155 -> tap 123,156 -> SAMSUNG (scr=13)
+t=64315 rtap glass 200,265 120ms -> last raw->cal 199,261 -> tap 199,262 -> mo-towers (scr=13)
+px pushed by overlays: 134964386
+SHADOW peak 29817 of 32768 bytes
+MOUI tot=141298001 part=0

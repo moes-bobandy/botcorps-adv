@@ -1,0 +1,11 @@
+t=0 BACKLIGHT 80% (duty 204/255) (SIM)
+t=0 CONTROLbot boot settings scan=0 vol=40 bri=80 chime=1 time=0 bar=3 tone=0 rain=1 rainmode=0
+t=3360 tap 120,145 -> pager-botpheus-eb3 (scr=2 seg=-1)
+t=3960 tap 120,160 -> META (scr=13 seg=-1)
+t=5760 tap 150,10 -> banner-home (scr=13 seg=-1)
+t=6720 tap 120,145 -> pager-gibson-radar (scr=2 seg=-1)
+t=7320 RADAR sel=-1 lock=0 hunt=0 reads=0 trend=0 miss=0 ign=0 wat=0 job=0 tk='SCANNING BLE...'
+t=9120 rec gibmo 60 frames
+px pushed by overlays: 18296030
+SHADOW peak 29817 of 32768 bytes
+MOUI tot=8071232 part=0

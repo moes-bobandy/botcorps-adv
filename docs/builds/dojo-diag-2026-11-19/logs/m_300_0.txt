@@ -1,0 +1,72 @@
+tickto 1000
+press 52 55
+tickto 1800
+release
+tickto 1900
+tickto 2500
+press 52 55
+tickto 4200
+release
+tickto 5000
+press 187 55
+tickto 6700
+release
+tickto 7500
+press 187 226
+tickto 9200
+release
+tickto 10000
+press 52 226
+tickto 11700
+release
+tickto 12300
+tickto 13000
+tick 200
+tick 100
+page 1
+tick 12
+rtap 120 145
+waitscr 13
+tick 20
+framecost 300
+bandtouch 0
+rtap 120 160 120 0
+up 2700
+rtap 200 265 120 0
+up 1200
+rtap 120 160 120 30
+up 2700
+rtap 200 265 120 30
+up 1200
+rtap 120 160 120 60
+up 2700
+rtap 200 265 120 60
+up 1200
+rtap 120 160 120 90
+up 2700
+rtap 200 265 120 90
+up 1200
+rtap 120 160 120 120
+up 2700
+rtap 200 265 120 120
+up 1200
+rtap 120 160 120 150
+up 2700
+rtap 200 265 120 150
+up 1200
+rtap 120 160 120 180
+up 2700
+rtap 200 265 120 180
+up 1200
+rtap 120 160 120 210
+up 2700
+rtap 200 265 120 210
+up 1200
+rtap 120 160 120 240
+up 2700
+rtap 200 265 120 240
+up 1200
+rtap 120 160 120 270
+up 2700
+rtap 200 265 120 270
+up 1200

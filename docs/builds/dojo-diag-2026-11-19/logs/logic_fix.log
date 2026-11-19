@@ -1,0 +1,222 @@
+t=0 BACKLIGHT 80% (duty 204/255) (SIM)
+t=0 CONTROLbot boot settings scan=0 vol=40 bri=80 chime=1 time=0 bar=3 tone=0 rain=1 rainmode=0
+t=11605 CAL SAVE c0..c7 = 211 263 3771 274 204 3757 3764 3768 (SIM NVS)
+  chip 1 at 52,51 -> lgfx maps to 53,47
+  chip 2 at 187,51 -> lgfx maps to 188,47
+  chip 3 at 187,222 -> lgfx maps to 187,219
+  chip 4 at 52,222 -> lgfx maps to 52,218
+  worst axis error 4 px
+DUMP s00_pager_botpheus scr=2 seg=-1 clipframe=-1 t=22360
+OVL s00_pager_botpheus t8:170,306,201,310
+t=22525 rtap glass 120,145 120ms -> last raw->cal 119,139 -> tap 120,143 -> pager-botpheus-eb3 (scr=2)
+t=22615 waitscr 13 -> scr=13
+DUMP s01_dojo_enter scr=13 seg=-1 clipframe=-1 t=22915
+OVL s01_dojo_enter
+t=22915 MOLIVE nf=0 job=3 tot=0 pillars=0:  tk='SCANNING... 18 THREATS: 5 HIGH 7 MED 6 LOW  EX.DATA'
+t=29815 MOLIVE nf=20 job=0 tot=11 pillars=9: HACK=3@-66 FLOCK=1@-61 DRONE=1@-66 AIR TAG=1@-48 KEYFOB=1@-77 META=1@-67 SKIMMER=1@-71 FLIPPER=1@-58 SAMSUNG=1@-63  tk='LIVE SCAN: 11 FINDS IN 9 PILLARS - TAP A PILLAR'
+DUMP s02_dojo_idle_live scr=13 seg=-1 clipframe=-1 t=29815
+OVL s02_dojo_idle_live
+t=29980 rtap glass 120,160 120ms -> last raw->cal 122,154 -> tap 122,158 -> FLOCK (scr=13)
+ITW scr=13 nt=18
+  T0 DEAUTH       icon=-1 seen=1 hit=[144,75,163,172] face=[148,73,160,169] lbl=0[0,0,0,0]
+  T1 HACK         icon=2 seen=0 hit=[0,131,-30,255] face=[-81,133,-56,252] lbl=0[0,0,0,0]
+  T2 FLOCK        icon=7 seen=1 hit=[57,86,111,267] face=[60,75,105,264] lbl=0[0,0,0,0]
+  T3 DRONE        icon=10 seen=1 hit=[41,126,67,182] face=[44,128,59,179] lbl=0[0,0,0,0]
+  T4 AIR TAG      icon=5 seen=1 hit=[38,96,58,166] face=[41,96,51,163] lbl=0[0,0,0,0]
+  T5 KEYFOB       icon=13 seen=1 hit=[140,101,158,169] face=[144,101,155,166] lbl=0[0,0,0,0]
+  T6 META         icon=16 seen=1 hit=[69,105,91,179] face=[72,105,85,176] lbl=0[0,0,0,0]
+  T7 SKIMMER      icon=11 seen=1 hit=[135,126,160,223] face=[140,128,157,220] lbl=0[0,0,0,0]
+  T8 FLIPPER      icon=14 seen=1 hit=[63,129,92,232] face=[66,131,86,229] lbl=0[0,0,0,0]
+  T9 SAMSUNG      icon=15 seen=1 hit=[82,94,100,166] face=[85,95,96,163] lbl=0[0,0,0,0]
+  T10 AXON         icon=-1 seen=1 hit=[78,145,106,234] face=[81,149,101,231] lbl=0[0,0,0,0]
+  T11 RAVEN        icon=-1 seen=1 hit=[126,115,143,170] face=[129,117,140,167] lbl=0[0,0,0,0]
+  T12 ALPR         icon=-1 seen=1 hit=[0,112,11,166] face=[-10,113,0,163] lbl=0[0,0,0,0]
+  T13 CAMERA       icon=-1 seen=1 hit=[20,149,57,243] face=[23,154,45,240] lbl=0[0,0,0,0]
+  T14 RING         icon=-1 seen=1 hit=[100,109,117,166] face=[103,110,113,163] lbl=0[0,0,0,0]
+  T15 GOOGLE TAG   icon=-1 seen=1 hit=[0,109,34,194] face=[1,109,20,191] lbl=0[0,0,0,0]
+  T16 EVIL TWIN    icon=-1 seen=1 hit=[0,91,17,174] face=[-5,91,7,171] lbl=0[0,0,0,0]
+  T17 IBEACON      icon=-1 seen=1 hit=[151,111,170,171] face=[157,113,167,168] lbl=0[0,0,0,0]
+  MO sel=2 phase=1
+  MOCAM camx=0.9288 sel=2 closing=0 lock=1 txt_n=0 txt_bad=0 txt_lines_all=0 txt_bad_all=0 t=7.515 p=0.797 camc=1.2000 ord=9,12,4,14,5,11,17,0,16,6,3,15,7,8,10,13,1,2
+  MOTW 0 X=1.9157 Z=3.4854 H=2.7760 f=[148,160,73,169] b=[147,157,78,167] halo=8 dx=0.3071 dz=-0.0932 hk=1.0000
+  MOTW 1 X=-0.5668 Z=0.9513 H=0.9394 f=[-81,-56,133,252] b=[-55,-33,134,237] halo=16 dx=-0.3068 dz=-0.1288 hk=1.0000
+  MOTW 2 X=0.6617 Z=0.8538 H=1.3458 f=[60,105,75,264] b=[73,108,89,237] halo=11 dx=0.3741 dz=0.2368 hk=1.0000
+  MOTW 3 X=-0.5773 Z=2.6457 H=1.1182 f=[44,59,128,179] b=[51,64,129,175] halo=11 dx=0.4368 dz=0.0957 hk=1.0000
+  MOTW 4 X=-1.6947 Z=4.2480 H=2.3704 f=[41,51,96,163] b=[45,55,99,162] halo=8 dx=0.4428 dz=0.1266 hk=1.0000
+  MOTW 5 X=1.8770 Z=3.8295 H=2.0696 f=[144,155,101,166] b=[143,153,104,164] halo=8 dx=-0.4072 dz=0.2866 hk=1.0000
+  MOTW 6 X=-0.0526 Z=2.8410 H=1.6744 f=[72,85,105,176] b=[75,88,108,173] halo=9 dx=0.1339 dz=-0.0661 hk=1.0000
+  MOTW 7 X=1.2444 Z=1.3251 H=1.0149 f=[140,157,128,220] b=[138,154,129,212] halo=14 dx=-0.2505 dz=0.0372 hk=1.0000
+  MOTW 8 X=0.4888 Z=1.1922 H=0.9660 f=[66,86,131,229] b=[72,89,132,219] halo=16 dx=0.0706 dz=0.0441 hk=1.0000
+  MOTW 9 X=-0.1467 Z=4.3781 H=2.4779 f=[85,96,95,163] b=[87,97,97,161] halo=8 dx=-0.2092 dz=-0.1933 hk=1.0000
+  MOTW 10 X=0.6511 Z=1.1618 H=0.7902 f=[81,101,149,231] b=[86,103,148,221] halo=15 dx=-0.3148 dz=-0.1208 hk=1.0000
+  MOTW 11 X=1.3883 Z=3.7763 H=1.5538 f=[129,140,117,167] b=[129,139,118,165] halo=8 dx=-0.2302 dz=0.2977 hk=1.0000
+  MOTW 12 X=-3.5178 Z=4.2697 H=1.7832 f=[-10,0,113,163] b=[-2,8,115,162] halo=0 dx=-0.4623 dz=0.3197 hk=1.0000
+  MOTW 13 X=0.1761 Z=1.0540 H=0.7597 f=[23,45,154,240] b=[35,54,152,228] halo=0 dx=-0.3855 dz=-0.0719 hk=1.0000
+  MOTW 14 X=0.5048 Z=4.2418 H=1.8809 f=[103,113,110,163] b=[104,114,112,162] halo=0 dx=0.2674 dz=0.1989 hk=1.0000
+  MOTW 15 X=-0.9337 Z=2.0404 H=1.3953 f=[1,20,109,191] b=[13,31,112,185] halo=0 dx=-0.0975 dz=-0.1453 hk=1.0000
+  MOTW 16 X=-2.2916 Z=3.2345 H=2.1739 f=[-5,7,91,171] b=[3,14,94,169] halo=0 dx=-0.1025 dz=0.2131 hk=1.0000
+  MOTW 17 X=2.2063 Z=3.6589 H=1.6760 f=[157,167,113,168] b=[154,164,114,166] halo=0 dx=-0.3840 dz=0.0446 hk=1.0000
+  MOEMB 0 look=1 threat=HIGH hs=2.600 e=[151,80,6]
+  MOEMB 1 look=1 threat=HIGH hs=2.600 e=[-77,141,18]
+  MOEMB 2 look=2 threat=LOW hs=1.612 e=[78,91,10]
+  MOEMB 3 look=2 threat=LOW hs=1.612 e=[46,136,11]
+  MOEMB 4 look=3 threat=MEDIUM hs=2.080 e=[44,103,5]
+  MOEMB 5 look=3 threat=MEDIUM hs=2.080 e=[147,108,6]
+  MOEMB 6 look=3 threat=MEDIUM hs=2.080 e=[74,112,9]
+  MOEMB 7 look=1 threat=HIGH hs=2.600 e=[142,136,13]
+  MOEMB 8 look=1 threat=HIGH hs=2.600 e=[69,139,15]
+  MOEMB 9 look=3 threat=MEDIUM hs=2.080 e=[89,102,4]
+  MOEMB 10 look=3 threat=MEDIUM hs=2.080 e=[84,157,14]
+  MOEMB 11 look=2 threat=LOW hs=1.612 e=[131,124,7]
+  MOEMB 12 look=2 threat=LOW hs=1.612 e=[-8,120,6]
+  MOEMB 13 look=3 threat=MEDIUM hs=2.080 e=[26,162,17]
+  MOEMB 14 look=2 threat=LOW hs=1.612 e=[106,117,5]
+  MOEMB 15 look=3 threat=MEDIUM hs=2.080 e=[4,117,13]
+  MOEMB 16 look=1 threat=HIGH hs=2.600 e=[-3,98,9]
+  MOEMB 17 look=2 threat=LOW hs=1.612 e=[159,120,6]
+  MOCU 2 p=0.797 f=[60,105,75,264] b=[73,108,89,237] fw=45
+  MOFOLD nland=0 typed=0 ys=0/0,0/0,0/0
+ITW scr=13 nt=18
+  T0 DEAUTH       icon=-1 seen=1 hit=[149,71,169,174] face=[154,69,166,171] lbl=0[0,0,0,0]
+  T1 HACK         icon=2 seen=0 hit=[0,131,-18,254] face=[-66,133,-42,251] lbl=0[0,0,0,0]
+  T2 FLOCK        icon=7 seen=1 hit=[11,75,85,285] face=[14,58,69,290] lbl=0[0,0,0,0]
+  T3 DRONE        icon=10 seen=1 hit=[30,126,56,180] face=[33,129,47,177] lbl=0[0,0,0,0]
+  T4 AIR TAG      icon=5 seen=1 hit=[14,93,36,169] face=[17,93,27,166] lbl=0[0,0,0,0]
+  T5 KEYFOB       icon=13 seen=1 hit=[135,101,153,169] face=[139,102,150,166] lbl=0[0,0,0,0]
+  T6 META         icon=16 seen=1 hit=[66,104,89,180] face=[69,104,83,177] lbl=0[0,0,0,0]
+  T7 SKIMMER      icon=11 seen=1 hit=[125,126,149,216] face=[129,128,146,213] lbl=0[0,0,0,0]
+  T8 FLIPPER      icon=14 seen=1 hit=[51,128,84,243] face=[54,131,76,240] lbl=0[0,0,0,0]
+  T9 SAMSUNG      icon=15 seen=1 hit=[80,93,98,167] face=[83,93,93,164] lbl=0[0,0,0,0]
+  T10 AXON         icon=-1 seen=1 hit=[88,144,113,223] face=[91,148,109,220] lbl=0[0,0,0,0]
+  T11 RAVEN        icon=-1 seen=1 hit=[108,115,125,170] face=[111,117,122,167] lbl=0[0,0,0,0]
+  T12 ALPR         icon=-1 seen=1 hit=[7,111,29,167] face=[10,113,20,164] lbl=0[0,0,0,0]
+  T13 CAMERA       icon=-1 seen=1 hit=[28,149,65,245] face=[31,154,54,242] lbl=0[0,0,0,0]
+  T14 RING         icon=-1 seen=1 hit=[96,105,113,170] face=[99,106,109,167] lbl=0[0,0,0,0]
+  T15 GOOGLE TAG   icon=-1 seen=1 hit=[0,110,11,192] face=[-23,110,-4,189] lbl=0[0,0,0,0]
+  T16 EVIL TWIN    icon=-1 seen=1 hit=[0,90,16,175] face=[-8,89,5,172] lbl=0[0,0,0,0]
+  T17 IBEACON      icon=-1 seen=1 hit=[156,110,175,172] face=[161,112,172,169] lbl=0[0,0,0,0]
+  MO sel=2 phase=3
+  MOCAM camx=1.1815 sel=2 closing=0 lock=1 txt_n=0 txt_bad=0 txt_lines_all=0 txt_bad_all=0 t=9.615 p=1.000 camc=1.2000 ord=12,9,4,5,11,14,17,0,16,3,6,15,7,10,8,13,1,2
+  MOTW 0 X=2.2720 Z=3.2673 H=2.7760 f=[154,166,69,171] b=[152,163,74,169] halo=8 dx=0.6634 dz=-0.3113 hk=1.0000
+  MOTW 1 X=-0.2126 Z=0.9598 H=0.9394 f=[-66,-42,133,251] b=[-42,-21,134,236] halo=16 dx=0.1152 dz=-0.1146 hk=1.0000
+  MOTW 2 X=0.7158 Z=0.7119 H=1.3756 f=[14,69,58,290] b=[41,82,78,251] halo=11 dx=-0.0382 dz=0.1808 hk=1.0000
+  MOTW 3 X=-0.6721 Z=2.7879 H=1.1182 f=[33,47,129,177] b=[40,53,129,174] halo=11 dx=0.3420 dz=0.2379 hk=1.0000
+  MOTW 4 X=-2.0230 Z=3.9228 H=2.3704 f=[17,27,93,166] b=[23,33,96,164] halo=8 dx=0.1145 dz=-0.1986 hk=1.0000
+  MOTW 5 X=1.9819 Z=3.9100 H=2.0696 f=[139,150,102,166] b=[138,148,104,164] halo=8 dx=-0.3023 dz=0.3671 hk=1.0000
+  MOTW 6 X=0.1777 Z=2.7507 H=1.6744 f=[69,83,104,177] b=[73,86,107,174] halo=9 dx=0.3642 dz=-0.1564 hk=1.0000
+  MOTW 7 X=1.3903 Z=1.4330 H=1.0149 f=[129,146,128,213] b=[128,143,129,206] halo=14 dx=-0.1759 dz=0.2169 hk=1.0000
+  MOTW 8 X=0.6950 Z=1.0574 H=0.9660 f=[54,76,131,240] b=[62,81,131,228] halo=16 dx=0.2458 dz=-0.1806 hk=1.0000
+  MOTW 9 X=0.0518 Z=4.2309 H=2.4779 f=[83,93,93,164] b=[85,95,96,162] halo=8 dx=-0.0107 dz=-0.3405 hk=1.0000
+  MOTW 10 X=0.9620 Z=1.3206 H=0.7902 f=[91,109,148,220] b=[94,110,147,212] halo=15 dx=0.0349 dz=0.1439 hk=1.0000
+  MOTW 11 X=1.0660 Z=3.7290 H=1.5538 f=[111,122,117,167] b=[112,121,118,165] halo=8 dx=-0.5524 dz=0.2504 hk=1.0000
+  MOTW 12 X=-2.5173 Z=4.2318 H=1.7832 f=[10,20,113,164] b=[17,26,114,162] halo=0 dx=0.5382 dz=0.2817 hk=1.0000
+  MOTW 13 X=0.5127 Z=1.0362 H=0.7597 f=[31,54,154,242] b=[42,62,152,230] halo=0 dx=0.0071 dz=-0.1017 hk=1.0000
+  MOTW 14 X=0.6852 Z=3.6923 H=1.8809 f=[99,109,106,167] b=[100,110,108,165] halo=0 dx=0.4478 dz=-0.3506 hk=1.0000
+  MOTW 15 X=-1.1746 Z=2.1193 H=1.3953 f=[-23,-4,110,189] b=[-8,8,113,184] halo=0 dx=-0.3384 dz=-0.0664 hk=1.0000
+  MOTW 16 X=-1.9986 Z=3.1408 H=2.1739 f=[-8,5,89,172] b=[1,13,93,170] halo=0 dx=0.1904 dz=0.1194 hk=1.0000
+  MOTW 17 X=2.5573 Z=3.5392 H=1.6760 f=[161,172,112,169] b=[159,169,113,167] halo=0 dx=-0.0330 dz=-0.0751 hk=1.0000
+  MOEMB 0 look=1 threat=HIGH hs=2.600 e=[157,76,6]
+  MOEMB 1 look=1 threat=HIGH hs=2.600 e=[-63,141,18]
+  MOEMB 2 look=2 threat=LOW hs=1.612 e=[22,74,40]
+  MOEMB 3 look=2 threat=LOW hs=1.612 e=[35,137,11]
+  MOEMB 4 look=3 threat=MEDIUM hs=2.080 e=[20,100,5]
+  MOEMB 5 look=3 threat=MEDIUM hs=2.080 e=[142,109,6]
+  MOEMB 6 look=3 threat=MEDIUM hs=2.080 e=[72,112,9]
+  MOEMB 7 look=1 threat=HIGH hs=2.600 e=[131,136,13]
+  MOEMB 8 look=1 threat=HIGH hs=2.600 e=[58,139,15]
+  MOEMB 9 look=3 threat=MEDIUM hs=2.080 e=[86,100,4]
+  MOEMB 10 look=3 threat=MEDIUM hs=2.080 e=[93,156,14]
+  MOEMB 11 look=2 threat=LOW hs=1.612 e=[113,124,7]
+  MOEMB 12 look=2 threat=LOW hs=1.612 e=[12,120,6]
+  MOEMB 13 look=3 threat=MEDIUM hs=2.080 e=[34,162,17]
+  MOEMB 14 look=2 threat=LOW hs=1.612 e=[102,113,5]
+  MOEMB 15 look=3 threat=MEDIUM hs=2.080 e=[-20,118,13]
+  MOEMB 16 look=1 threat=HIGH hs=2.600 e=[-6,96,9]
+  MOEMB 17 look=2 threat=LOW hs=1.612 e=[164,119,6]
+  MOCU 2 p=1.000 f=[14,69,58,290] b=[41,82,78,251] fw=55
+  MOFOLD nland=3 typed=5 ys=0/0,0/0,0/0
+t=32230 MOLIVE nf=20 job=0 tot=11 pillars=9: HACK=3@-66 FLOCK=1@-61 DRONE=1@-66 AIR TAG=1@-48 KEYFOB=1@-77 META=1@-67 SKIMMER=1@-71 FLIPPER=1@-58 SAMSUNG=1@-63  tk='FLOCK  THREAT: LOW  LIVE 1 SEEN  BEST -61 DBM'
+DUMP s03_open scr=13 seg=-1 clipframe=-1 t=32230
+OVL s03_open
+t=32395 rtap glass 30,200 120ms -> last raw->cal 31,199 -> tap 32,194 -> mo-open (scr=13)
+t=32560 rtap glass 180,110 120ms -> last raw->cal 182,104 -> tap 181,107 -> mo-open (scr=13)
+t=32725 rtap glass 120,60 120ms -> last raw->cal 122,55 -> tap 121,57 -> mo-open (scr=13)
+DUMP s03b_open_after_noop_taps scr=13 seg=-1 clipframe=-1 t=32875
+OVL s03b_open_after_noop_taps
+t=33040 rtap glass 200,265 120ms -> last raw->cal 199,261 -> tap 198,264 -> mo-towers (scr=13)
+t=33205 rtap glass 120,160 120ms -> last raw->cal 122,158 -> tap 120,154 -> mo-camera-moving (scr=13)
+ITW scr=13 nt=18
+  T0 DEAUTH       icon=-1 seen=1 hit=[186,74,208,172] face=[193,73,205,169] lbl=0[0,0,0,0]
+  T1 HACK         icon=2 seen=1 hit=[66,131,99,251] face=[69,133,93,248] lbl=0[0,0,0,0]
+  T2 FLOCK        icon=7 seen=1 hit=[109,123,129,181] face=[112,124,126,178] lbl=0[0,0,0,0]
+  T3 DRONE        icon=10 seen=1 hit=[99,126,119,179] face=[102,129,115,176] lbl=0[0,0,0,0]
+  T4 AIR TAG      icon=5 seen=1 hit=[53,90,73,170] face=[56,91,67,167] lbl=0[0,0,0,0]
+  T5 KEYFOB       icon=13 seen=1 hit=[205,101,227,169] face=[214,102,224,166] lbl=0[0,0,0,0]
+  T6 META         icon=16 seen=1 hit=[109,103,129,181] face=[112,103,126,178] lbl=0[0,0,0,0]
+  T7 SKIMMER      icon=11 seen=1 hit=[230,126,239,218] face=[244,128,261,215] lbl=0[0,0,0,0]
+  T8 FLIPPER      icon=14 seen=1 hit=[150,129,182,238] face=[158,131,179,235] lbl=0[0,0,0,0]
+  T9 SAMSUNG      icon=15 seen=1 hit=[136,96,154,164] face=[140,97,151,161] lbl=0[0,0,0,0]
+  T10 AXON         icon=-1 seen=1 hit=[184,144,214,220] face=[194,148,211,217] lbl=0[0,0,0,0]
+  T11 RAVEN        icon=-1 seen=1 hit=[171,115,191,170] face=[178,117,188,167] lbl=0[0,0,0,0]
+  T12 ALPR         icon=-1 seen=1 hit=[54,110,74,168] face=[57,112,68,165] lbl=0[0,0,0,0]
+  T13 CAMERA       icon=-1 seen=1 hit=[153,149,185,239] face=[161,153,182,236] lbl=0[0,0,0,0]
+  T14 RING         icon=-1 seen=1 hit=[150,105,169,170] face=[155,106,166,167] lbl=0[0,0,0,0]
+  T15 GOOGLE TAG   icon=-1 seen=1 hit=[92,111,116,189] face=[95,112,112,186] lbl=0[0,0,0,0]
+  T16 EVIL TWIN    icon=-1 seen=1 hit=[47,88,70,177] face=[50,87,63,174] lbl=0[0,0,0,0]
+  T17 IBEACON      icon=-1 seen=1 hit=[229,110,239,172] face=[240,111,251,169] lbl=0[0,0,0,0]
+  MO sel=-1 phase=0
+  MOCAM camx=-0.4484 sel=-1 closing=0 lock=0 txt_n=0 txt_bad=0 txt_lines_all=0 txt_bad_all=0 t=11.490 p=0.000 camc=1.2000 ord=9,12,5,14,4,11,0,17,16,3,6,2,15,7,10,8,13,1
+  MOTW 0 X=1.8266 Z=3.4571 H=2.7760 f=[193,205,73,169] b=[189,199,77,167] halo=8 dx=0.2180 dz=-0.1215 hk=1.0000
+  MOTW 1 X=-0.7700 Z=0.9848 H=0.9394 f=[69,93,133,248] b=[75,96,134,234] halo=16 dx=0.2728 dz=-0.0730 hk=1.0000
+  MOTW 2 X=-0.4706 Z=2.6822 H=1.2027 f=[112,126,124,178] b=[112,126,126,175] halo=11 dx=0.0033 dz=0.1036 hk=1.0000
+  MOTW 3 X=-0.7180 Z=2.8330 H=1.1182 f=[102,115,129,176] b=[103,116,129,173] halo=11 dx=0.2961 dz=0.2830 hk=1.0000
+  MOTW 4 X=-2.2652 Z=3.7161 H=2.3704 f=[56,67,91,167] b=[60,70,93,165] halo=8 dx=-0.1277 dz=-0.4053 hk=1.0000
+  MOTW 5 X=2.7738 Z=3.9055 H=2.0696 f=[214,224,102,166] b=[208,218,104,164] halo=8 dx=0.4896 dz=0.3626 hk=1.0000
+  MOTW 6 X=-0.4700 Z=2.6886 H=1.6744 f=[112,126,103,178] b=[112,126,106,175] halo=9 dx=-0.2835 dz=-0.2185 hk=1.0000
+  MOTW 7 X=1.1015 Z=1.4024 H=1.0149 f=[244,261,128,215] b=[233,248,129,208] halo=14 dx=0.4293 dz=0.1660 hk=1.0000
+  MOTW 8 X=-0.0028 Z=1.1132 H=0.9660 f=[158,179,131,235] b=[153,172,132,224] halo=16 dx=0.1693 dz=-0.0875 hk=1.0000
+  MOTW 9 X=0.5360 Z=4.6029 H=2.4779 f=[140,151,97,161] b=[139,149,99,160] halo=8 dx=0.4735 dz=0.0315 hk=1.0000
+  MOTW 10 X=0.4952 Z=1.3680 H=0.7902 f=[194,211,148,217] b=[187,203,147,209] halo=15 dx=0.3436 dz=0.2230 hk=1.0000
+  MOTW 11 X=1.4794 Z=3.6714 H=1.5538 f=[178,188,117,167] b=[174,184,118,166] halo=8 dx=-0.1390 dz=0.1928 hk=1.0000
+  MOTW 12 X=-2.3893 Z=4.0560 H=1.7832 f=[57,68,112,165] b=[61,71,113,163] halo=0 dx=0.6662 dz=0.1060 hk=1.0000
+  MOTW 13 X=0.0242 Z=1.1030 H=0.7597 f=[161,182,153,236] b=[156,175,152,225] halo=0 dx=0.2794 dz=0.0097 hk=1.0000
+  MOTW 14 X=0.8131 Z=3.7232 H=1.8809 f=[155,166,106,167] b=[153,163,108,165] halo=0 dx=0.5757 dz=-0.3197 hk=1.0000
+  MOTW 15 X=-0.7644 Z=2.2652 H=1.3953 f=[95,112,112,186] b=[97,113,114,181] halo=0 dx=0.0718 dz=0.0795 hk=1.0000
+  MOTW 16 X=-2.0473 Z=3.0207 H=2.1739 f=[50,63,87,174] b=[55,67,91,171] halo=0 dx=0.1418 dz=-0.0007 hk=1.0000
+  MOTW 17 X=3.1482 Z=3.4382 H=1.6760 f=[240,251,111,169] b=[232,243,113,167] halo=0 dx=0.5580 dz=-0.1761 hk=1.0000
+  MOEMB 0 look=1 threat=HIGH hs=2.600 e=[196,80,6]
+  MOEMB 1 look=1 threat=HIGH hs=2.600 e=[72,141,18]
+  MOEMB 2 look=2 threat=LOW hs=1.612 e=[114,132,10]
+  MOEMB 3 look=2 threat=LOW hs=1.612 e=[104,136,10]
+  MOEMB 4 look=3 threat=MEDIUM hs=2.080 e=[59,98,5]
+  MOEMB 5 look=3 threat=MEDIUM hs=2.080 e=[216,109,6]
+  MOEMB 6 look=3 threat=MEDIUM hs=2.080 e=[115,111,9]
+  MOEMB 7 look=1 threat=HIGH hs=2.600 e=[246,136,13]
+  MOEMB 8 look=1 threat=HIGH hs=2.600 e=[161,139,15]
+  MOEMB 9 look=3 threat=MEDIUM hs=2.080 e=[144,104,4]
+  MOEMB 10 look=3 threat=MEDIUM hs=2.080 e=[196,156,14]
+  MOEMB 11 look=2 threat=LOW hs=1.612 e=[180,124,7]
+  MOEMB 12 look=2 threat=LOW hs=1.612 e=[60,119,6]
+  MOEMB 13 look=3 threat=MEDIUM hs=2.080 e=[163,161,17]
+  MOEMB 14 look=2 threat=LOW hs=1.612 e=[158,113,5]
+  MOEMB 15 look=3 threat=MEDIUM hs=2.080 e=[97,120,13]
+  MOEMB 16 look=1 threat=HIGH hs=2.600 e=[52,94,9]
+  MOEMB 17 look=2 threat=LOW hs=1.612 e=[243,118,6]
+DUMP s04_closed scr=13 seg=-1 clipframe=-1 t=34105
+OVL s04_closed
+t=34270 rtap glass 150,10 120ms -> last raw->cal 152,5 -> tap 152,8 -> banner-home (scr=13)
+t=34360 waitscr 2 -> scr=2
+DUMP s05_banner_home scr=2 seg=-1 clipframe=-1 t=34660
+OVL s05_banner_home t8:170,306,201,310
+t=34825 rtap glass 120,145 120ms -> last raw->cal 122,142 -> tap 121,140 -> pager-botpheus-eb3 (scr=2)
+t=34915 waitscr 13 -> scr=13
+t=35680 rtap glass 120,300 120ms -> last raw->cal 119,295 -> tap 120,298 -> mo-terminal (scr=13)
+t=35770 waitscr 3 -> scr=3
+DUMP s06_footer_term scr=3 seg=8 clipframe=10 t=36070
+OVL s06_footer_term m:1,1,238,23 m:34,272,204,305 t8:170,306,201,310 t6:221,301,239,319
+t=36235 rtap glass 150,10 120ms -> last raw->cal 151,5 -> tap 149,8 -> backbot-term-dojo (scr=3)
+DUMP s07_term_banner_back scr=13 seg=-1 clipframe=-1 t=36835
+OVL s07_term_banner_back
+px pushed by overlays: 60320153
+SHADOW peak 29943 of 32768 bytes
+MOUI tot=33844889 part=0

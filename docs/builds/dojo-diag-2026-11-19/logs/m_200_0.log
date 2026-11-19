@@ -1,0 +1,55 @@
+t=0 BACKLIGHT 80% (duty 204/255) (SIM)
+t=0 CONTROLbot boot settings scan=0 vol=40 bri=80 chime=1 time=0 bar=3 tone=0 rain=1 rainmode=0
+t=11605 CAL SAVE c0..c7 = 211 263 3771 274 204 3757 3764 3768 (SIM NVS)
+  chip 1 at 52,51 -> lgfx maps to 53,47
+  chip 2 at 187,51 -> lgfx maps to 188,47
+  chip 3 at 187,222 -> lgfx maps to 187,219
+  chip 4 at 52,222 -> lgfx maps to 52,218
+  worst axis error 4 px
+t=22525 rtap glass 120,145 120ms -> last raw->cal 119,139 -> tap 120,143 -> pager-botpheus-eb3 (scr=2)
+t=22615 waitscr 13 -> scr=13
+t=23215 framecost 200 ms per Dojo frame (device model)
+t=23215 bandtouch 0 (v1.2.9: touch read between frames only)
+t=23885 rtap model framecost=200 bandtouch=0: finger down 23215..23315 ms, down samples seen loop=6 band=0
+t=23885 rtap glass 120,160 100ms -> last raw->cal 119,159 -> tap 122,154 -> FLIPPER (scr=13)
+t=27555 rtap model framecost=200 bandtouch=0: finger down 26885..26985 ms, down samples seen loop=6 band=0
+t=27555 rtap glass 200,265 100ms -> last raw->cal 202,262 -> tap 200,262 -> mo-towers (scr=13)
+t=29725 rtap model framecost=200 bandtouch=0: finger down 29055..29175 ms, down samples seen loop=6 band=0
+t=29725 rtap glass 120,160 120ms -> last raw->cal 120,159 -> tap 122,157 -> FLIPPER (scr=13)
+t=33455 rtap model framecost=200 bandtouch=0: finger down 32785..32905 ms, down samples seen loop=6 band=0
+t=33455 rtap glass 200,265 120ms -> last raw->cal 201,264 -> tap 202,260 -> mo-towers (scr=13)
+t=35685 rtap model framecost=200 bandtouch=0: finger down 35015..35155 ms, down samples seen loop=6 band=0
+t=35685 rtap glass 120,160 140ms -> last raw->cal 119,155 -> tap 121,156 -> RING (scr=13)
+t=39445 rtap model framecost=200 bandtouch=0: finger down 38775..38915 ms, down samples seen loop=6 band=0
+t=39445 rtap glass 200,265 140ms -> last raw->cal 201,263 -> tap 201,261 -> mo-towers (scr=13)
+t=41735 rtap model framecost=200 bandtouch=0: finger down 41065..41165 ms, down samples seen loop=6 band=0
+t=41735 rtap glass 120,160 100ms -> last raw->cal 119,157 -> tap 123,157 -> SAMSUNG (scr=13)
+t=45525 rtap model framecost=200 bandtouch=0: finger down 44855..44955 ms, down samples seen loop=6 band=0
+t=45525 rtap glass 200,265 100ms -> last raw->cal 201,263 -> tap 201,259 -> mo-towers (scr=13)
+t=47875 rtap model framecost=200 bandtouch=0: finger down 47205..47325 ms, down samples seen loop=6 band=0
+t=47875 rtap glass 120,160 120ms -> last raw->cal 120,155 -> tap 119,156 -> RING (scr=13)
+t=51695 rtap model framecost=200 bandtouch=0: finger down 51025..51145 ms, down samples seen loop=6 band=0
+t=51695 rtap glass 200,265 120ms -> last raw->cal 202,265 -> tap 199,261 -> mo-towers (scr=13)
+t=54105 rtap model framecost=200 bandtouch=0: finger down 53435..53575 ms, down samples seen loop=6 band=0
+t=54105 rtap glass 120,160 140ms -> last raw->cal 120,157 -> tap 121,157 -> RING (scr=13)
+t=57985 rtap model framecost=200 bandtouch=0: finger down 57315..57455 ms, down samples seen loop=6 band=0
+t=57985 rtap glass 200,265 140ms -> last raw->cal 200,260 -> tap 198,263 -> mo-towers (scr=13)
+t=60425 rtap model framecost=200 bandtouch=0: finger down 59755..59855 ms, down samples seen loop=6 band=0
+t=60425 rtap glass 120,160 100ms -> last raw->cal 122,155 -> tap 118,156 -> FLOCK (scr=13)
+t=64335 rtap model framecost=200 bandtouch=0: finger down 63665..63765 ms, down samples seen loop=6 band=0
+t=64335 rtap glass 200,265 100ms -> last raw->cal 199,264 -> tap 202,264 -> mo-towers (scr=13)
+t=66835 rtap model framecost=200 bandtouch=0: finger down 66165..66285 ms, down samples seen loop=6 band=0
+t=66835 rtap glass 120,160 120ms -> last raw->cal 120,155 -> tap 122,159 -> FLIPPER (scr=13)
+t=70775 rtap model framecost=200 bandtouch=0: finger down 70105..70225 ms, down samples seen loop=6 band=0
+t=70775 rtap glass 200,265 120ms -> last raw->cal 201,263 -> tap 201,261 -> mo-towers (scr=13)
+t=73335 rtap model framecost=200 bandtouch=0: finger down 72665..72805 ms, down samples seen loop=6 band=0
+t=73335 rtap glass 120,160 140ms -> last raw->cal 122,155 -> tap 122,154 -> FLOCK (scr=13)
+t=77305 rtap model framecost=200 bandtouch=0: finger down 76635..76775 ms, down samples seen loop=6 band=0
+t=77305 rtap glass 200,265 140ms -> last raw->cal 199,261 -> tap 201,264 -> mo-towers (scr=13)
+t=79925 rtap model framecost=200 bandtouch=0: finger down 79255..79355 ms, down samples seen loop=6 band=0
+t=79925 rtap glass 120,160 100ms -> last raw->cal 119,159 -> tap 121,157 -> SAMSUNG (scr=13)
+t=83955 rtap model framecost=200 bandtouch=0: finger down 83285..83385 ms, down samples seen loop=6 band=0
+t=83955 rtap glass 200,265 100ms -> last raw->cal 198,261 -> tap 198,261 -> mo-towers (scr=13)
+px pushed by overlays: 157536016
+SHADOW peak 29817 of 32768 bytes
+MOUI tot=164895718 part=0

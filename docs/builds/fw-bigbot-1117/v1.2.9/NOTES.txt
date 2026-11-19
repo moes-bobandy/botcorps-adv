@@ -1,0 +1,90 @@
+BOTcorps CYD v1.2.9  —  2026-11-19 11:35 AM ET (America/New_York)
+Branch: backup/cyd-bigbot-pager-2026-11-17
+From: 9a6a0ed (v1.2.8 docs) / firmware source of v1.2.8 was 13c84fb.
+Firmware source for this build: da2c07b. Not flashed.
+
+Now that the corner BACKbot is gone, bars that had been cut at x≈218 are
+extended to the full 240-wide screen (right edge x=238, matching the 1 px
+left margin). Nothing else was changed.
+
+1. GIBSON tower Joey deck is now frame (1,247)-(238,319). The leftover
+   black fill of x=219..239 is gone because the frame itself covers it.
+   The L/R rocker (wide octagon gate) gets the biggest share of the width,
+   larger than the HUNT/IGNORE/WATCH stack. Rocker arrows and hits are
+   clearly bigger. The center stack is narrowed to fit. A/B stay about the
+   v1.2.8 size (r=20, hits 40×40). Mapping is unchanged: L/R-only, HUNT
+   then IGNORE then WATCH (dimmed unless locked), no ghost ring, no power
+   beam, A locks, B unlocks or goes back.
+
+   Deck rect: (1,247)-(238,319)
+
+   Rocker (octagon gate):
+     visual outer gate  rx=42, ry=25 at (50,292) → x=8..92 (85 px wide), y=267..317 (51 px tall)
+     inner well         rx=36, ry=20
+     rocker bar         68×16, arrows size 8 (8 px wide, 15 px tall)
+     L hit              {6,268,49,316}   44×49
+     R hit              {51,268,94,316}  44×49
+     combined touch     x=6..94 (89 px) × y=268..316 (49 px)
+
+   Center stack (HUNT / IGNORE / WATCH):
+     visual pills       38×11 at x=106, y=270/287/304
+     HUNT hit           {102,268,147,283}  46×16
+     IGNORE hit         {102,284,147,299}  46×16
+     WATCH hit          {102,300,147,316}  46×17
+
+   A/B (about the same as v1.2.8):
+     visual discs       r=20 at B=(172,292), A=(216,292)
+     B hit              {152,272,191,311}  40×40
+     A hit              {196,272,235,311}  40×40
+
+2. Other sub-screen footers/bars that were cut at x≈218 for BACKbot were
+   extended to x=238:
+     - Dojo (MO) footer terminal, and the footer tap (no longer x<=209)
+     - HACKbot download (DL) play-screen terminal footer
+     - Hot-cold hunt (HCH) bottom legend fill/align (the screen also
+       inherits the full-width Joey deck from the shared radar draw)
+     - TTY ENTER key, now 174..239 (was 174..215)
+     - TTY CMDS overlay last row, now full width like the other rows
+     - leftover lv_rd_term path (only if PAD is off; not drawn in this build)
+
+3. HACKbot (first pager page): the LEFT arrow chip is not painted and is
+   not hittable, the same way CONTROLbot's right chip was removed in
+   v1.2.8. His right chip stays. Green rain and face are pixel-identical
+   to v1.2.8.
+
+Screens checked:
+  CHANGED: Gibson tower deck; Dojo footer; DL play footer; HCH legend
+           (and inherited deck); TTY ENTER; TTY CMDS last row; HACKbot
+           home left chip; unused lv_rd_term width.
+  UNCHANGED: GIBSONbot home (0 px vs v1.2.8 same-script); BOTpheus home
+           (0 px); CONTROLbot home (0 px); Glossary / glossary-desc
+           (board already full width; BACKbot was only overlaid and is
+           already a no-op); TERM / SCAN / old CTL miniterm (designed
+           inner boxes ending at x=204/206, not a 218 BACKbot cut; TTERM
+           is also used on HOME so it was left alone); DL intro (already
+           a full-screen frame); CAL / BOOT; CT/TR inside towers (not
+           compiled: LV_CT_INSIDE=0, LV_TR_INSIDE=0); INFO UI (off in
+           this build); pager home corner chrome at x=221 (mounting-hole
+           art, not a BACKbot footer).
+
+Gate (same-script host render vs v1.2.8):
+  GIBSONbot home     0 px
+  BOTpheus home      0 px
+  CONTROLbot home    0 px
+  HACKbot home       695 px, bbox (5,32)-(28,66) — entirely inside the
+                     left-chip paint rect {5,32,28,67}. 0 px outside
+                     (rain and face unchanged).
+  GIBSONbot also matches the official v1.2.8 proof PNG (0 px). Other
+  official-PNG diffs are rain/ticker timing, not real UI changes.
+
+App partition: ota_0 2,686,976 B. Clean build BOTCORPS_BUILD_ID = v1019z da2c07b.
+BOTcorps-CYD-v1.2.9.bin (app-only, flash at 0x10000)  2,650,960 B
+  sha256 b6a1686ba441fea11eda74dca462083fa28c901dd20bfb4ee1684ded183b3836
+  headroom 36,016 B (fits).
+BOTcorps-CYD-v1.2.9-full.bin (merged at 0x0)          2,716,496 B
+  sha256 4e186c7fcf2c3998839c9711a987b156e2203e56f66c5db984cc3e6b25570899
+Bins live under /workspace/out/fw-bigbot-1117/v1.2.9/ and a copy under
+docs/builds (*.bin is gitignored). Sizes and sha256 are also in SHA256SUMS.
+
+Proofs (real C++ renderer, nearest-neighbor @3x, deck crop @5x) are in
+proof/ and copied to docs/builds/fw-bigbot-1117/v1.2.9/.

@@ -2314,7 +2314,14 @@ static void lv_tick(const LkIo &io, uint32_t now)
     }
 #endif
 #if LV_MO_INSIDE
-    if (lv_scr == LV_SC_MO) { if ((int32_t)(now - lv_clip_t) >= 30 || lv_enter) { lv_clip_t = now; lv_enter = false; itw_mo_frame(); } return; }
+    if (lv_scr == LV_SC_MO) {
+        if ((int32_t)(now - lv_clip_t) >= 30 || lv_enter) {
+            /* v1.2.5: keep 30 ms cadence (catch up at most one frame) so a slow draw does not jump the camera */
+            if (!lv_enter && (int32_t)(now - lv_clip_t) < 90) lv_clip_t += 30; else lv_clip_t = now;
+            lv_enter = false; itw_mo_frame();
+        }
+        return;
+    }
 #endif
 #if LV_CB
     if (lv_scr == LV_SC_CONTROLBOT) { if ((int32_t)(now - lv_clip_t) >= 30 || lv_enter) { lv_clip_t = now; const bool f = lv_enter; lv_enter = false; lv_cb_frame(f); } return; }

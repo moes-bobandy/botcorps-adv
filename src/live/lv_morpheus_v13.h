@@ -661,7 +661,9 @@ static void itw_mo_frame(void)
     mo_emb_mark_frame();
     if (itw_mo_sel >= 0) { const uint32_t el = lv_now - itw_mo_t0;
         itw_mo_phase = el < MO12_PUSH_MS ? 1 : el < MO12_DROP0 + 2 * MO12_GAP + MO12_DROP_MS ? 2 : 3; }
-    lv_render(lv_blit_hw, {0, 0, 239, 319}, itw_mo_scene, 0);   /* v1.2.4: final colours, skip theme re-ink scan of 76800 px */
+    /* v1.2.5: dirty-rect the field only (y=24..319). Never clear or repaint the ticker band;
+     * a full-frame blit was overwriting the banner every tick, then itw_top black-filled it. */
+    lv_render(lv_blit_hw, {0, 24, 239, 319}, itw_mo_scene, 0);
     itw_top();
 }
 static int mo_hit(int x, int y)   /* v11 tap assist for drifting pillars: every field point belongs to the pillar whose centre line (its front-face

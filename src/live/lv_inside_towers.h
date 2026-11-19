@@ -87,7 +87,7 @@ static void itw_labels(LvBand &B, uint16_t ink, uint16_t plate, bool names)
 /* the real alert ticker on rows 1..23 + the black frame, exactly as every non-game screen keeps it */
 static void itw_top(void)
 {
-    lv_render(lv_blit, {0, 0, 239, 23}, [](LvBand &B, void *) { b_fill(B, B.x0, B.y0, B.w, B.h, 0); }, 0);
+    /* v1.2.5: do not black-clear the banner; that flashed the ticker every Dojo frame */
     lv_ticker_tick();
 }
 static const LvRect ITW_BACK_HIT = {210, 289, 239, 319};

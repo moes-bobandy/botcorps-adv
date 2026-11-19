@@ -10,7 +10,7 @@ static void lv_press(LvRect r);
 #define LV_RD_HOR 138
 #define LV_RD_CAMH 0.9f
 #define LV_RD_Y0 34
-#define LV_RD_Y1 285
+#define LV_RD_Y1 246   /* v1.2.8: wider Joey deck starts at 247; was 285 */
 static const LvRect LV_R_RADAR = {0, 24, 239, 319};
 static uint32_t lv_rd_t0 = 0;
 static int lv_rd_sel = -1;           /* index into lv_f */
@@ -253,10 +253,10 @@ static int lv_rd_sm4 = 0;   /* smoothed target dBm x4 */
 static inline bool lv_rd_nosig(void) { return lv_rd_miss >= LV_RD_MISS_GRACE; }
 static int lv_rd_from = LV_SC_HOME;  /* where BACK goes (home, SCANbot list, TTY) */
 static int lv_rd_ret_cat = -1, lv_rd_ret_cpage = 0, lv_rd_ret_mode = 0; static bool lv_rd_ret_detail = false; static uint8_t lv_rd_ret_mac[6]; static bool lv_rd_ret_sel = false;
-static const LvRect LV_RD_BTN[3] = {{5, 250, 76, 260}, {84, 250, 155, 260}, {163, 250, 234, 260}};   /* IGNORE WATCH HUNT, inside the grown panel */
+static const LvRect LV_RD_BTN[3] = {{58, 287, 115, 297}, {58, 304, 115, 314}, {58, 270, 115, 280}};   /* v1.2.8: IGNORE mid, WATCH bottom, HUNT top */
 /* touch (hit-list item 1): finger targets for the three buttons, padded ~8 px inside the panel (panel y 247..285; the
  * radar field above y247 keeps its own taps) and split at the gap midpoints so they never overlap. Drawn rects unchanged. */
-static const LvRect LV_RD_BTN_TAP[3] = {{0, 247, 80, 268}, {81, 247, 159, 268}, {160, 247, 239, 268}};
+static const LvRect LV_RD_BTN_TAP[3] = {{52, 284, 129, 299}, {52, 300, 129, 316}, {52, 268, 129, 283}};  /* v1.2.8: I mid, W bottom, H top */
 #ifndef LV_RD_INFO
 #define LV_RD_INFO 1   /* MOCK 1111 (Mobandy): IGNORE / WATCH / HUNT / INFO, a taller row, INFO = Joey file-drop node view. 0 = as locked */
 #endif
@@ -328,6 +328,7 @@ static void lv_rd_brackets(LvBand &B, int xa, int ya, int xb, int yb, int L, uin
 
 #ifndef LV_RD_CHARGE
 #define LV_RD_CHARGE 1   /* LOCKED ui_gibson_radar_charge D4 (lock store, src 4a8197a); 0 = the locked radar 3240b03 hold-1s lock */
+#define LV_RD_CG_NODRAW 1  /* v1.2.8: no power current to the tower; A on the footer pad locks */
 #endif
 #ifndef LV_RD_CG_NODRAW
 #define LV_RD_CG_NODRAW 0
@@ -909,8 +910,14 @@ static void lv_rd_log(const char *fmt, ...)
     for (char *q = t; *q; ++q) if (*q >= 'a' && *q <= 'z') *q -= 32;
     memmove(lv_rd_tl[0], lv_rd_tl[1], 2 * sizeof lv_rd_tl[0]); snprintf(lv_rd_tl[2], sizeof lv_rd_tl[2], "%s", t); lv_rd_tl_t = lv_now;
 }
+#include "lv_radar_pad.h"
 static void lv_rd_term(LvBand &B, uint16_t hdr)
 {
+#if LV_RD_PAD
+    lv_rd_pad_draw(B, hdr);
+    return;
+#endif
+
     const int x0 = 1, y0 = 287, x1 = 218, y1 = 319;   /* BACKbot {221,301,239,319} stays outside */
     b_fill(B, x0, y0, x1 - x0 + 1, y1 - y0 + 1, lv_hex(0x000000)); b_frame(B, x0, y0, x1 - x0 + 1, y1 - y0 + 1, lv_ink(LV_ACC));
     int typed = (int)((lv_now - lv_rd_tl_t) / 15);
@@ -1057,11 +1064,15 @@ static void lv_scene_radar(LvBand &B, void *)
 #else
         const int py0 = lv_rd_lock ? 247 : 262;   /* locked: the panel grows up 15 px for the IGNORE / WATCH / HUNT row */
 #endif
+#if LV_RD_PAD
+        (void)l; (void)t; (void)m;   /* v1.2.8: name/dBm mid-panel overlaps the wider deck; pad status replaces it */
+#else
         b_fill(B, 2, py0, 236, 285 - py0, lv_hex(0x000000)); b_frame(B, 2, py0, 236, 285 - py0, lv_rd_col(f, 8, 8));
         if (lv_rd_lock && LV_RD_ROW != 2) lv_rd_panel_buttons(B);   /* FLOAT: drawn last, over the current (below) */
         b_text(B, 5, 264, l, lv_hex(0xffffff));
         snprintf(t, sizeof t, "%d", f.rssi); b_text(B, 235 - ((int)strlen(t) + 4) * 6, 264, t, lv_rd_col(f, 8, 8)); b_text35(B, 235 - 4 * 6 + 4, 265, "DBM", lv_rd_col(f, 8, 8));
         snprintf(t, sizeof t, "%s %s  %s", f.kind == LV_K_WIFI ? "WIFI" : "BLE", LV_ICON_NAME[f.icon], m); b_text35(B, 5, 275, t, lv_hex(LV_TAN));
+#endif
     }
     /* footer (item 13): a 3-line boxed mini terminal that types out live radar info over a >_ prompt, legend folded into the prompt */
     lv_rd_term(B, hdr);
@@ -1094,7 +1105,8 @@ static void lv_hunt_bar(LvBand &B)
     const LvFind &f = lv_rd_tgt; char m[18], t[24], l[26]; lv_macstr(f.mac, m);
     if (f.name[0]) snprintf(l, sizeof l, "%.13s", f.name); else snprintf(l, sizeof l, "%s %.8s", f.kind == LV_K_WIFI ? "WIFI" : "BLE", LV_ICON_NAME[f.icon]);   /* no name: kind + type, the MAC tail is on the line above */
     snprintf(t, sizeof t, "HUNT ..%s", m + 9);
-    b_text35(B, 3, 5, t, MAG); b_text(B, 3, 12, l, lv_hex(0xffffff));
+    const int hx = LV_BANNER_BACK_ON ? (LV_R_BANNER_BACK.x1 + 3) : 3;
+    b_text35(B, hx, 5, t, MAG); b_text(B, hx, 12, l, lv_hex(0xffffff));
     const int miss = lv_rd_nosig(), hold = lv_rd_miss > 0 && !miss;   /* hold: bars stay, number greys */
     /* item 6 (Mobandy 2026-11-06, "keep the meter for hunter on the top also ... the boarder alert ... both places"):
      * the top border-alert banner keeps the original 11-bar signal meter right where it used to be (3240b03 / 3b8b3de),
@@ -1117,6 +1129,7 @@ static void lv_hunt_bar(LvBand &B)
     else if (lv_rd_trend < 0) { w = "COLDER"; snprintf(d, sizeof d, "%+dDB", lv_rd_trend); k = 0x40c8ff; }
     else { w = "STEADY"; snprintf(d, sizeof d, "READ %d", lv_rd_reads); k = 0xc0c0c0; }
     b_text35(B, 236 - lv_w35(w), 6, w, lv_hex(k)); b_text35(B, 236 - lv_w35(d), 14, d, lv_hex(k));
+    lv_banner_back_draw(B);
 }
 /* hunt ticker line: the target's full info + a trend that is ONLY the change of its real dBm (no direction) */
 static void lv_rd_hunt_line(void)
@@ -1391,10 +1404,13 @@ static void lv_rd_select(int i)   /* what a tower tap always did: select + its f
 /* touch state every loop (firmware: lv_ui.cpp; sim: press / rhold). Hold a tower ~1 s -> lock on. */
 static void lv_radar_touch(bool down, int x, int y)
 {
+#if LV_RD_PAD
+    if (y >= PAD_Y0) { lv_rd_pad_touch(down, x, y); return; }
+#endif
 #if LV_RD_INFO
     if (lv_rd_info) return;
 #endif
-#if LV_RD_CHARGE   /* hold the CHARGE button (not the tower): 1 s to full, then the lock fires; let go early and it drains */
+#if LV_RD_CHARGE && !LV_RD_CG_NODRAW   /* hold the CHARGE button (not the tower): 1 s to full, then the lock fires; let go early and it drains */
     const bool show = lv_rd_cg_show();
     if (lv_rd_cg) {
         if (!down) {   /* c) resistive dropout: hold the charge through a brief (<=140 ms) lost-contact blip */
@@ -1439,7 +1455,6 @@ static int lv_rd_cycle_next(void)   /* strongest -> weakest dBm, wraps; ignored 
 static const char *lv_radar_tap(int x, int y)
 {
     if (lv_rd_swallow) { lv_rd_swallow = false; return "radar-locked"; }
-    if (y > LV_RD_Y1 + 1 && !(LV_RD_INFO && lv_rd_info)) return "radar-term";   /* the footer terminal is read-only (BACKbot is handled before this) */
 #if LV_RD_INFO
     if (lv_rd_info) {   /* INFO view: only BACK (and the corner BACKbot, via lv_back) do anything */
         if (lv_in(LV_RD_INFO_BTN_L, x, y)) { lv_rd_info_close(); return "radar-info-back"; }
@@ -1472,12 +1487,22 @@ static const char *lv_radar_tap(int x, int y)
             if (lv_rd_hunting) { lv_rd_hunt_stop(); lv_rd_log("HUNT STOPPED  %d READS", lv_rd_reads); return "radar-hunt-stop"; }
             lv_rd_hunt_go(i); return "radar-hunt";
         }
+#if LV_RD_PAD
+        if (y >= PAD_Y0) {
+            const char *a = lv_rd_pad_tap(x, y);
+            if (a && strcmp(a, "radar-term")) return a;
+            return "radar-panel";
+        }
+#endif
         if (y >= LV_RD_PTOP && y <= 285) return "radar-panel";   /* the panel itself does not release the lock */
         const int i = lv_rd_hit(x, y);
         if (i >= 0 && !memcmp(lv_f[i].mac, lv_rd_lockmac, 6)) return "radar-locked";
         lv_rd_release(); lv_rd_log("RELEASED"); return "radar-unlock";   /* a tap anywhere else releases the lock (and ends a hunt) */
     }
-#if LV_RD_CHARGE
+#if LV_RD_PAD
+    if (y >= PAD_Y0 && !(LV_RD_INFO && lv_rd_info)) return lv_rd_pad_tap(x, y);
+#endif
+#if LV_RD_CHARGE && !LV_RD_CG_NODRAW
     /* item 1: touch-owner latch + 350 ms post-release guard + widened arm zone -> a hold / abort / drift / release NEVER cycles or re-picks a tower */
     if (lv_rd_cg_owned || (int32_t)(lv_now - lv_rd_cg_guard_until) < 0 || (lv_rd_cg_show() && lv_in(LV_RD_CG_ARM, x, y))) { lv_rd_cg_owned = false; return "radar-charge-short"; }
 #endif

@@ -196,7 +196,6 @@ static void itw_ct_scene(LvBand &B, void *)
 static void itw_ct_frame(void) { lv_render(lv_blit, {0, 0, 239, 319}, itw_ct_scene, 0); itw_top(); }
 static const char *itw_ct_tap(int x, int y)
 {
-    if (lv_in(ITW_BACK_HIT, x, y)) { lv_go_soon(LV_SC_HOME, 0); return "ct-back-home"; }
     if (y <= 23) { lv_go_soon(LV_SC_HOME, 0); return "ct-ticker"; }
     if (itw_ct_sel >= 0) {
         const ItwCtGroup &G = ITW_CT_G[itw_ct_sel]; const int top = 146, fh = 30, gap = 6;
@@ -267,7 +266,6 @@ static void itw_tr_frame(void)
 }
 static const char *itw_tr_tap(int x, int y)
 {
-    if (lv_in(ITW_BACK_HIT, x, y)) { lv_go_soon(LV_SC_HOME, 0); return "tr-back-home"; }
     if (y <= 23) { lv_go_soon(LV_SC_HOME, 0); return "tr-ticker"; }
     if (itw_tr_sel >= 0) return "tr-beam";
     const int i = itw_hit(x, y);

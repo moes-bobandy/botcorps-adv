@@ -436,7 +436,6 @@ static void lv_dl_frame(void)
 static void lv_go_soon(int scr, const char *tty_cmd);
 static const char *lv_dl_tap(int x, int y)
 {
-    if (lv_in(LV_R_BACKBOT_HIT, x, y)) { lv_go_soon(LV_SC_HOME, 0); return "dl-backbot-home"; }
     if (lv_dl_phase == LV_DL_INTRO) {
         if (!lv_dl_intro_done) { lv_dl_typed_all = true; return "dl-intro-skip-typing"; }   /* first tap while typing: show it all */
         lv_dl_play(); return "dl-start";

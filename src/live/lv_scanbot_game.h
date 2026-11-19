@@ -289,7 +289,6 @@ static void lv_hc_frame(void)
 static void lv_go_soon(int scr, const char *tty_cmd);
 static const char *lv_hc_tap(int x, int y)
 {
-    if (lv_in(LV_R_BACKBOT_HIT, x, y)) { lv_go_soon(LV_SC_HOME, 0); return "hc-backbot-home"; }
     if (lv_hc_phase == LV_HC_START || lv_hc_phase == LV_HC_WIN || lv_hc_phase == LV_HC_OVER) {
         const LvRect L = {(int16_t)(LV_HC_BTN_L.x0 - 3), (int16_t)(LV_HC_BTN_L.y0 - 3), (int16_t)(LV_HC_BTN_L.x1 + 2), (int16_t)(LV_HC_BTN_L.y1 + 3)};
         const LvRect R = {(int16_t)(LV_HC_BTN_R.x0 - 2), (int16_t)(LV_HC_BTN_R.y0 - 3), (int16_t)(LV_HC_BTN_R.x1 + 3), (int16_t)(LV_HC_BTN_R.y1 + 3)};

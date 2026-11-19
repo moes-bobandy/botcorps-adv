@@ -219,6 +219,24 @@ static uint32_t lv_theme_at_cb(int t, int x, int y) { return t < 22 ? sec_theme_
 /* ticker = the whole top bar inside the gold rim (item 3: the crown + top-left GIBSON icon are gone; the colour
  * swatches + counter were already hidden under the old two ticker masks) */
 static const LvRect LV_R_TICK = {1, 1, 238, 23};
+/* v1.2.8: built-in Stripe Slot back at the LEFT END of the hazard banner.
+ * Visual is banner-tall (y=1..23). Touch is 40x40 around that left end.
+ * The bottom-right corner BACKbot is removed. */
+static const LvRect LV_R_BANNER_BACK = {1, 1, 32, 23};
+static const LvRect LV_R_BANNER_BACK_HIT = {0, 0, 39, 39};
+#if LV_CT_INSIDE
+#define LV_BANNER_BACK_CT (lv_scr == LV_SC_CT)
+#else
+#define LV_BANNER_BACK_CT 0
+#endif
+#if LV_TR_INSIDE
+#define LV_BANNER_BACK_TR (lv_scr == LV_SC_TR)
+#else
+#define LV_BANNER_BACK_TR 0
+#endif
+#ifndef LV_BANNER_BACK_ON
+#define LV_BANNER_BACK_ON (     lv_scr == LV_SC_TERM || lv_scr == LV_SC_SCAN || lv_scr == LV_SC_CTL || lv_scr == LV_SC_TTY     || lv_scr == LV_SC_RADAR || lv_scr == LV_SC_GLOSS || lv_scr == LV_SC_GLOSS_DESC     || (LV_HC_GAME && lv_scr == LV_SC_HCH)     || (LV_DL_GAME && lv_scr == LV_SC_DL)     || (LV_MO_INSIDE && lv_scr == LV_SC_MO)     || LV_BANNER_BACK_CT || LV_BANNER_BACK_TR)
+#endif
 static const LvRect LV_R_SBOX = {33, 153, 206, 256};  /* SCANbot device-emoji grid (old 4 tabs + results box) */
 /* Small terminal box (item 11): the whole inner box is now overlay - 1 line row, an enlarged button row right above
  * the prompt, and the prompt. The old 20x12 icon stack hung 5 rows out of the box (spill); those rows are rebuilt from
@@ -511,6 +529,7 @@ static bool lv_rd_is_trk(void);
 static void lv_rd_track_done(void);
 static bool lv_rd_hunt_tk(void);
 struct LvBand; static bool lv_hunt_bar_on(void); static void lv_hunt_bar(LvBand &B);   /* issue 5 (MOCK): fixed hunt bar in the ticker */
+static void lv_banner_back_draw(LvBand &B);
 static void lv_rd_hunt_open(int i, int from);
 static int lv_rd_unignore(const char *a);
 static const char *lv_job_name(int j) { return j == LV_J_WIFI ? "WIFI" : j == LV_J_BLE ? "BLE" : j == LV_J_ALL ? "WIFI+BLE" : j == LV_J_DEAUTH ? "DEAUTH WATCH" : "-"; }
@@ -1043,6 +1062,60 @@ static const char *const LV_FLIP_NAME[2] = {"PORT", "FLIP"};
 #if LV_RD_INFO
 static bool lv_rd_info_on(void); static void lv_rd_info_draw(LvBand &B);   /* MOCK 1111, lv_radar.h */
 #endif
+static void lv_banner_back_chevron(LvBand &B, int cx, int cy, uint16_t c, uint16_t hi)
+{
+    for (int i = 0; i < 5; ++i) {
+        const int tip = 4 - i;
+        b_pix(B, cx - tip, cy - i, (i == 0) ? hi : c);
+        b_pix(B, cx - tip, cy + i, c);
+        if (i < 4) {
+            b_pix(B, cx - tip + 1, cy - i, hi);
+            b_pix(B, cx - tip + 1, cy + i, c);
+        }
+    }
+    b_fill(B, cx, cy - 1, 5, 3, c);
+    b_fill(B, cx, cy, 5, 1, hi);
+}
+
+/* v1.2.8 Stripe Slot: hazard rails stay as the button's top and bottom border;
+ * a recessed gold-rim pill is cut between them, built into the banner. Text is
+ * overpainted so it never shows through. */
+static void lv_banner_back_draw(LvBand &B)
+{
+    if (!LV_BANNER_BACK_ON) return;
+    const int x0 = LV_R_BANNER_BACK.x0, y0 = LV_R_BANNER_BACK.y0;
+    const int x1 = LV_R_BANNER_BACK.x1, y1 = LV_R_BANNER_BACK.y1;
+    const bool flash = lv_tk_alert && ((lv_now / 350) & 1);
+    const bool hunt = lv_hunt_bar_on();
+    const uint16_t bg = hunt ? lv_hex(0x1a0012)
+                      : (lv_tk_alert ? (flash ? lv_hex(0x6a0000) : lv_hex(0x3a0000)) : lv_hex(0x2a0400));
+    const uint16_t red = hunt ? lv_hex(0xff2ad4) : lv_hex(flash ? 0xff2020 : 0xe00000);
+    const uint16_t gold = lv_hex(0xffb000);
+    const uint16_t ink = hunt ? lv_hex(0xff2ad4) : (lv_tk_alert ? lv_hex(0xffffff) : lv_hex(0xffc830));
+    const int ph = (int)(lv_now / 40);
+    auto stripe = [&](int x, int y) -> uint16_t {
+        if (hunt) return (((x + (y <= 3 ? y : -y)) / 5) & 1) ? red : gold;
+        return (((x + (y <= 3 ? y : -y) + ph) / 5) & 1) ? red : gold;
+    };
+    auto in_stripes = [&](int y) { return y <= 3 || y >= 21; };
+    for (int y = y0; y <= y1; ++y) for (int x = x0; x <= x1; ++x) {
+        uint16_t c = bg;
+        if (in_stripes(y)) c = stripe(x, y);
+        b_pix(B, x, y, c);
+    }
+    for (int y = y0; y <= y1; ++y) b_pix(B, x1, y, in_stripes(y) ? stripe(x1, y) : gold);
+    const int sx = 4, sy = 6, sw = 25, sh = 12;
+    for (int y = 0; y < sh; ++y) for (int x = 0; x < sw; ++x) {
+        const int cap = (y < 2 || y >= sh - 2) ? (2 - ((y < 2) ? y : (sh - 1 - y))) : 0;
+        if (x < cap || x >= sw - cap) continue;
+        uint16_t c = lv_hex(0x100408);
+        if (y == 0 || x == cap) c = lv_dim(gold, 4, 8);
+        else if (y == sh - 1 || x == sw - cap - 1) c = gold;
+        b_pix(B, sx + x, sy + y, c);
+    }
+    lv_banner_back_chevron(B, 15, 12, ink, lv_hex(0xffffff));
+}
+
 /* ticker: stripes + scrolling bold text over the whole top bar */
 struct LvTickCtx { int span0, span1; };
 #if LV_CB
@@ -1076,6 +1149,7 @@ static void lv_scene_ticker(LvBand &B, void *vctx)
     const uint16_t ink = lv_tk_alert ? lv_hex(0xffffff) : lv_hex(0xffc830);
     b_text(B, tx + 1, 6, lv_tk_msg, lv_hex(0x200000), 2);
     b_text(B, tx, 5, lv_tk_msg, ink, 2);
+    lv_banner_back_draw(B);
 }
 static int lv_matches(void) { int m = 0; for (int i = 0; i < lv_nf; ++i) if (lv_f[i].alert) ++m; return m; }
 static void lv_tk_next(void)
@@ -1602,6 +1676,8 @@ static const LvRect LV_R_BACKBOT_HIT = {210, 289, 239, 319}; /* finger target in
 static const LvRect LV_R_BACKBOT_TTY_HIT = {216, 290, 239, 319}; /* item 8: TTY BACKbot shares the bottom-right corner {221,301,239,319}; this is its finger target (clean of ENTER x<=215) */
 static void lv_draw_backbot(LvBand &B, int x0, int y0)
 {
+    (void)B; (void)x0; (void)y0; return;   /* v1.2.8: corner BACKbot removed */
+
     const uint16_t gold = lv_hex(0xc8a24a), gold_hi = lv_hex(0xf0d080);
     const int S = BACKBOT_FS, fx = x0 + 2, fy = y0 + (BACKBOT_H - S) / 2;
     /* one row of pins on each of the four sides: 2x2 gold, light top row, 1 px gaps */
@@ -2495,9 +2571,12 @@ static const char *lv_tap(int x, int y)
     if (lv_soon_kind) return "busy-nav";
     /* v1.2.5: tapping the top banner returns to the big-bot pager from any sub screen.
      * Existing corner BACK pads are unchanged. */
-    if (y <= 23 && (lv_scr == LV_SC_MO || lv_scr == LV_SC_RADAR || lv_scr == LV_SC_DL || lv_scr == LV_SC_TERM)) {
-        lv_go_soon(LV_SC_HOME, 0); return "banner-home";
+    if (lv_scr == LV_SC_MO || lv_scr == LV_SC_RADAR || lv_scr == LV_SC_DL || lv_scr == LV_SC_TERM) {
+        if (y <= 23 || lv_in(LV_R_BANNER_BACK_HIT, x, y)) {
+            lv_go_soon(LV_SC_HOME, 0); return "banner-home";
+        }
     }
+    if (LV_BANNER_BACK_ON && lv_in(LV_R_BANNER_BACK_HIT, x, y)) return lv_back();
 #if LV_HC_GAME
     if (lv_scr == LV_SC_HCH) return lv_hc_tap(x, y);   /* MOCK 1111: SCANbot HOT COLD HUNT */
 #endif
@@ -2518,7 +2597,6 @@ static const char *lv_tap(int x, int y)
     if (lv_scr == LV_SC_TR) return itw_tr_tap(x, y);   /* MOCK 1112: TERMINALbot Relay Ring */
 #endif
     if (lv_scr == LV_SC_TTY) {
-        if (LV_TAPD(LV_R_BACKBOT_TTY_HIT, LV_R_BACKBOT)) return lv_back();   /* item 8: corner BACKbot, works whether CMDS is open or not */
         if (lv_in(LV_R_TTY_TICK, x, y)) { lv_go(LV_SC_SCAN); return "ticker->scan"; }
         if (y >= LV_KBD_Y && lv_cs_open) {   /* every pixel of the overlay is a button: header thirds, rows full width */
             lv_dirty_kbd = true;
@@ -2546,14 +2624,12 @@ static const char *lv_tap(int x, int y)
         return "none";
     }
     if (lv_scr == LV_SC_GLOSS || lv_scr == LV_SC_GLOSS_DESC) {   /* item 2 */
-        if (LV_TAPD(LV_R_BACKBOT_HIT, LV_R_BACKBOT)) return lv_back();
         if (y <= 23) { lv_press(LV_R_TICK); lv_mode = 0; lv_cat = LV_CAT_GRID; lv_dirty_box = true; lv_go_soon(LV_SC_SCAN, 0); return "ticker->scan"; }
         if (lv_scr == LV_SC_GLOSS_DESC) return "none";
         LV_PAD(LV_GL_CHIP);
         for (int d = 0; d < 12; ++d) if (LV_TAP(LV_GL_CHIP[d])) { lv_gloss_dev = d; lv_go_soon(LV_SC_GLOSS_DESC, 0); return LV_GLOSS_NAME[d]; }
         return "none";
     }
-    if (lv_scr != LV_SC_HOME && LV_TAP(LV_R_BACKBOT_HIT)) return lv_back();
     if (lv_scr == LV_SC_RADAR && y > 23) return y >= LV_RD_Y0 ? lv_radar_tap(x, y) : "none";
     /* ticker (full width now: crown + GIBSON icon removed) -> SCANbot, all finds */
     if (y <= 23) { lv_press(LV_R_TICK); lv_mode = 0; lv_cat = LV_CAT_GRID; lv_dirty_box = true; if (lv_scr != LV_SC_SCAN) lv_go_soon(LV_SC_SCAN, 0); return "ticker->scan"; }

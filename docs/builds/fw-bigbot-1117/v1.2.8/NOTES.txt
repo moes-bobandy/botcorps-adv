@@ -1,0 +1,36 @@
+BOTcorps CYD v1.2.8  —  2026-11-19 11:19 AM ET (America/New_York)
+Branch: backup/cyd-bigbot-pager-2026-11-17
+From: cfc8a27 (v1.2.7). Mock source: backup/gibson-dpad-mock-2026-11-19 @ 83724d4
+(pre-INFO). The INFO folder mock was not ported and is not in this build.
+Not flashed.
+
+Ported from the mock, with the v1.2.8 differences called out below:
+
+1. GIBSON tower — v3 Joey Console wider deck, frame (1,247)-(218,319).
+   No power beam (LV_RD_CG_NODRAW). D-pad is LEFT/RIGHT only: a horizontal
+   rocker in the octagon gate, no up/down arms, hits, or status-line cycling.
+   L/R cycles towers. A locks (and is a no-op if already locked). B unlocks
+   or goes back. Center stack is HUNT on top, then IGNORE, then WATCH,
+   dimmed unless locked. The v3 glow-ring behind the center buttons is gone.
+   Other mock pad skins (v0-v2, v4-v5) were not included.
+
+2. v2 Stripe Slot banner-left back on every sub screen that had BACKbot
+   (TERM, SCAN, CTL, TTY, RADAR, GLOSS, GLOSS_DESC, HCH, DL, MO, and CT/TR
+   when those scenes are compiled). Visual {1,1,32,23}, touch {0,0,39,39}.
+   The bottom-right corner BACKbot is removed everywhere: it is not drawn,
+   and its hit (LV_R_BACKBOT_HIT, TTY hit, ITW/MO/DL/HCH corner hits, and
+   the global non-home corner tap) is gone. The tower deck still ends at
+   x=218 as named; the old corner is filled black.
+
+3. CONTROLbot right arrow chip is not painted and is not hittable.
+
+Unchanged: GIBSONbot, BOTpheus, and HACKbot home pages are pixel-identical
+to v1.2.7 (same-script host render, 0 changed pixels). GIBSONbot home also
+matches the official v1.2.7 proof PNG (0 px). CONTROLbot home differs only
+in the right-chip box: 686 pixels, bbox (211,32)-(235,67).
+
+App partition: ota_0 2,686,976 B. See SHA256SUMS for final app/full sizes
+after the clean (post-commit) build.
+
+Proofs (real C++ renderer, nearest-neighbor @3x, D-pad crop @5x) are in
+proof/ and copied to docs/builds/fw-bigbot-1117/v1.2.8/.

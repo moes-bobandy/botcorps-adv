@@ -683,9 +683,6 @@ static void mo12_plan(int i)   /* at tap: the open camera centre = DOWNLOAD's lv
 }
 static const char *itw_mo_tap(int x, int y)
 {
-    { const LvRect R = ITW_BACK_HIT;
-      if (x >= R.x0 - 8 && x <= R.x1 + 8 && y >= R.y0 - 8 && y <= R.y1 + 8)
-        { lv_go_soon(LV_SC_HOME, 0); return "mo-back-home"; } }
     if (y <= 23) { lv_go_soon(LV_SC_HOME, 0); return "mo-ticker"; }
     if (y >= 287 && x <= 209) { lv_term_from_mo = true; lv_go_soon(LV_SC_TERM, 0); return "mo-terminal"; }
     if (itw_mo_sel >= 0) {

@@ -19,6 +19,7 @@
 #include "display/botcorps_display.h"
 #include "live/lv_ui.h"
 #include "live/lv_core.h"
+#include "live/lv_tapfilt.h"   /* v1.2.10: shared tap filter (sample between Dojo bands) */
 extern "C" {
 #include "miniz.h" /* esp_rom/include: ROM tinfl */
 }
@@ -105,27 +106,31 @@ static void ui_blit(int x, int y, int w, int h, const uint16_t *px)
 static const LkIo s_io{lk_blob_live, lv_infl, lv_clip_draw, s_buf};
 
 static bool s_tdown = false; static int s_tx = 0, s_ty = 0;   /* live finger state for lv_touch (radar hold-to-lock) */
-static bool lv_read_tap(int *ox, int *oy)
+static LvTapFilt s_tf = {};   /* v1.2.10: the old lv_read_tap statics, now shared with the Dojo band hook */
+static void lv_touch_sample(void)
 {
-    static bool down_prev = false;
-    static int n = 0, up = 0, px[2], py[2];
-    static uint32_t upt = 0;
     int tx, ty;
     const bool down = g_cyd.getTouch(&tx, &ty);
     s_tdown = down; if (down) { s_tx = tx; s_ty = ty; }
-    if (down) {
-        if (!down_prev) { down_prev = true; n = 0; }
-        px[0] = px[1]; py[0] = py[1]; px[1] = tx; py[1] = ty; ++n; up = 0;
-        return false;
-    }
-    if (!down_prev) return false;
-    if (++up == 1) upt = millis();
-    if (up < 2 || (int32_t)(millis() - upt) < 45) return false;
-    down_prev = false; up = 0;
-    const int use = n >= 3 ? 0 : 1;
-    *ox = px[use]; *oy = py[use]; n = 0;
-    return true;
+    lv_tf_sample(s_tf, down, tx, ty, millis());
 }
+static bool lv_read_tap(int *ox, int *oy)
+{
+    lv_touch_sample();
+    return lv_tf_take(s_tf, ox, oy);
+}
+#if LV_MO_INSIDE
+/* v1.2.10 (Mobandy 2026-11-19 "DEVICEdojo totally doesn't operate"): the Dojo frame is long on the CYD, and touch was
+ * only read between frames, so a normal tap went down AND up inside one frame and was never seen. While the Dojo
+ * draws, read the touch panel after every band (touch is on its own VSPI bus, bus_shared=false; no draw changes).
+ * Also the only safe place to hand the emblem cache back for a radio init: between bands no emblem pointer is live. */
+static void ui_band_hook(void)
+{
+    if (lv_scr != LV_SC_MO) return;
+    lv_touch_sample();
+    mo_emb_service();
+}
+#endif
 
 static void heap_log(const char *tag)
 {
@@ -274,10 +279,21 @@ static void IRAM_ATTR promisc_cb(void *buf, wifi_promiscuous_pkt_type_t type)
     if (p->payload[0] == 0xC0 || p->payload[0] == 0xA0) ++s_deauth;
     portEXIT_CRITICAL(&s_radio_mux);
 }
+#if LV_MO_INSIDE
+static void mo_emb_request_free(void)   /* radio core: ask the UI core to free the Dojo emblems, wait <= 2 s */
+{
+    mo_emb_hold = true; mo_emb_free_req = true;
+    for (int k = 0; k < 400 && mo_emb_free_req; ++k) vTaskDelay(pdMS_TO_TICKS(5));
+}
+static void mo_emb_release(void) { mo_emb_hold = false; }
+#else
+static void mo_emb_request_free(void) {}
+static void mo_emb_release(void) {}
+#endif
 static void radio_heap_prep(const char *tag)
 {
     lv_shadow_vacate();
-    mo_emb_free_all();
+    mo_emb_request_free();   /* v1.2.10: the UI core frees the Dojo emblems between bands (was a cross-core free mid-draw) */
     lv_pg_leave_cache();
     heap_log(tag);
 }
@@ -298,6 +314,7 @@ static void lv_radio_task(void *)
                 if (r.kind == LV_RK_BLE) {
                     radio_heap_prep("scan prep BLE");
                     failed = !NimBLEDevice::init("");
+                    mo_emb_release();
                     Serial.printf("[live] NimBLE init %s heap free=%u largest=%u\n", failed ? "FAIL" : "ok",
                                   (unsigned)ESP.getFreeHeap(), (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL));
                     if (!failed) {
@@ -307,6 +324,7 @@ static void lv_radio_task(void *)
                 } else if (r.kind != LV_RK_NONE) {
                     radio_heap_prep("scan prep WIFI");
                     WiFi.persistent(false); failed = !WiFi.mode(WIFI_STA);
+                    mo_emb_release();
                     Serial.printf("[live] WiFi.mode STA %s heap free=%u largest=%u\n", failed ? "FAIL" : "ok",
                                   (unsigned)ESP.getFreeHeap(), (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL));
                     if (!failed) WiFi.disconnect(false, false);
@@ -569,6 +587,9 @@ void lv_ui_begin(void)
     const bool cal_ok = botcorps_cyd_has_valid_cal();   /* if true, display begin already applied it from NVS */
     Serial.printf("[live] CALbot: saved cal %s\n", cal_ok ? "valid (cv=3) - hold 1 s to redo" : "missing - capture 4 corners");
     lv_begin(&s_radio, ui_blit, ui_raw_draw, th, millis(), cal_ok);
+#if LV_MO_INSIDE
+    lv_band_hook = ui_band_hook;   /* v1.2.10: Dojo reads touch between bands */
+#endif
 #if LV_CB
     r_cb_load(); lv_cb_apply();   /* backlight stays dark here (hook set below) */
     lv_cb_save_hook = r_cb_save; lv_cb_tone_hook = r_cb_tone;
@@ -590,6 +611,9 @@ void lv_ui_loop(void)
 {
     static uint32_t next = 0;
     int x, y;
+#if LV_MO_INSIDE
+    mo_emb_service();   /* v1.2.10: a radio init asked for the Dojo emblem heap */
+#endif
     if (lv_scr == LV_SC_CAL) {                 /* CALbot reads RAW XPT2046, not the calibrated getTouch() */
         int rx = 0, ry = 0;
         const bool d = g_cyd.get_touch_raw(&rx, &ry);
@@ -617,6 +641,16 @@ void lv_ui_loop(void)
         static int last_scr = -1;
         if (lv_scr != last_scr) { char t[16]; snprintf(t, sizeof t, "scr=%d", (int)lv_scr); heap_log(t); last_scr = lv_scr; }
     }
+#if LV_MO_INSIDE
+    if (lv_scr == LV_SC_MO) {   /* v1.2.10: Dojo frame time on the device, every 5 s (field proof of the long frame + taps seen) */
+        static uint32_t acc = 0, n = 0, mx = 0, t_log = 0;
+        const uint32_t d = micros() - t_us; acc += d; ++n; if (d > mx) mx = d;
+        if ((int32_t)(now - t_log) >= 5000) {
+            if (n) Serial.printf("[live] dojo %lu ticks avg %.1f ms max %.1f ms\n", (unsigned long)n, acc / 1000.0f / n, mx / 1000.0f);
+            acc = 0; n = 0; mx = 0; t_log = now;
+        }
+    }
+#endif
     if (lv_scr == LV_SC_RADAR) {   /* field fps proof for the radar: render + SPI per tick, logged every 5 s */
         static uint32_t acc = 0, n = 0, mx = 0, t_log = 0;
         const uint32_t d = micros() - t_us; acc += d; ++n; if (d > mx) mx = d;

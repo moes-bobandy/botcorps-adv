@@ -71,6 +71,27 @@ static const char *const MO_SEC[3] = {"WHAT IT IS", "HOW IT IS SPOTTED", "HOW TO
 static const float MO11_SX[MO_N] = {173.939f, 32.000f, 97.950f, 72.277f, 57.763f, 197.367f, 112.303f, 214.246f, 127.717f, 121.640f, 165.545f, 175.832f, 27.175f, 123.927f, 127.046f, 74.091f, 33.057f, 206.000f};
 static const float MO11_Z0[MO_N] = {3.5786f, 1.7143f, 2.5786f, 2.5500f, 4.1214f, 3.5429f, 2.9071f, 2.1714f, 1.9429f, 4.5714f, 2.0571f, 3.4786f, 3.9500f, 1.8286f, 4.0429f, 2.1857f, 3.0214f, 3.6143f};
 static const int8_t MO11_RSSI[MO_N] = {-79, -42, -58, -54, -85, -74, -62, -50, -46, -92, -48, -72, -82, -44, -88, -52, -64, -77};   /* EX.DATA */
+/* v1.2.10 (Mobandy 2026-11-19: the Dojo only ever showed EX.DATA): the live scan behind each pillar. Each pillar whose device
+ * the firmware can already detect uses that hunt's own matcher (lv_hunt_match, the same rule the HUNT bots use) over the
+ * real finds in lv_f; DEAUTH uses the deauth watch count. The other 8 pillars have no detector in this firmware yet and keep
+ * their EX.DATA labels. Refreshed once per Dojo frame, before the render swaps the example world in. Pillar layout,
+ * heights and motion are unchanged; only the numbers and labels for a pillar that is really seen switch to LIVE. */
+static const int MO_HUNT[MO_N] = {LV_H_DEAUTH, LV_H_HACK, LV_H_FLOCK, LV_H_DRONE, LV_H_AIRTAG, LV_H_KEYFOB, LV_H_META, LV_H_SKIMMER, LV_H_FLIPPER, LV_H_SAMSUNG,
+                                  -1, -1, -1, -1, -1, -1, -1, -1};
+static uint8_t mo_live_n[MO_N]; static int8_t mo_live_db[MO_N]; static int mo_live_tot = 0, mo_live_np = 0;
+static void mo_live_update(void)
+{
+    mo_live_tot = mo_live_np = 0;
+    for (int i = 0; i < MO_N; ++i) {
+        int n = 0, best = -127; const int h = MO_HUNT[i];
+        if (h == LV_H_DEAUTH) { if (lv_deauth_have && lv_deauth_n) { n = lv_deauth_n > 255 ? 255 : (int)lv_deauth_n; best = 0; } }
+        else if (h >= 0) for (int k = 0; k < lv_nf; ++k) if (lv_hunt_match(h, lv_f[k])) { ++n; if (lv_f[k].rssi > best) best = lv_f[k].rssi; }
+        mo_live_n[i] = (uint8_t)(n > 255 ? 255 : n); mo_live_db[i] = (int8_t)(n ? best : MO11_RSSI[i]);
+        if (n) { mo_live_tot += n; ++mo_live_np; }
+    }
+}
+static inline bool mo_live(int i) { return i >= 0 && i < MO_N && mo_live_n[i] && MO_HUNT[i] != LV_H_DEAUTH; }   /* a real dBm to show */
+static inline int mo_db(int i) { return mo_live(i) ? mo_live_db[i] : MO11_RSSI[i]; }
 /* independent drift: amplitude + rate (rad/s, all distinct) + phase per pillar and per axis */
 static const float MO11_AX[MO_N] = {0.281f, 0.282f, 0.276f, 0.31f, 0.244f, 0.31f, 0.231f, 0.329f, 0.269f, 0.248f, 0.279f, 0.237f, 0.353f, 0.329f, 0.33f, 0.22f, 0.238f, 0.282f};
 static const float MO11_WX[MO_N] = {0.323f, 0.587f, 0.247f, 0.278f, 0.801f, 0.899f, 0.855f, 0.726f, 0.539f, 0.195f, 0.927f, 0.167f, 0.678f, 0.776f, 0.627f, 0.368f, 0.829f, 0.652f};
@@ -327,7 +348,7 @@ static void mo_chrome(LvBand &B)   /* header bar rows 24..34: charcoal + parchme
     const uint16_t ink = lv_hex(0xe8dec8); char t[32];
     b_fill(B, 0, 24, 240, 1, lv_hex(MO11_BEAM)); b_fill(B, 0, 25, 240, 9, lv_hex(MO11_CHAR)); b_fill(B, 0, 34, 240, 1, lv_hex(MO11_G));
     int x = b_text35(B, 3, 27, LV_BOTPHEUS_NAME ? "BOTPHEUS" : "MORPHEUS", ink); x = b_text35(B, x + 4, 27, "//", lv_hex(MO11_GH)); const int xe = b_text35(B, x + 4, 27, "DOJO CONSTRUCT", ink);
-    if (itw_mo_sel >= 0) snprintf(t, sizeof t, "PILLAR %d/%d  LOCKED", itw_mo_sel + 1, MO_N); else snprintf(t, sizeof t, "%d PILLARS  EX.DATA", MO_N);
+    if (itw_mo_sel >= 0) snprintf(t, sizeof t, "PILLAR %d/%d  LOCKED", itw_mo_sel + 1, MO_N); else if (mo_live_np) snprintf(t, sizeof t, "%d LIVE  %d PILLARS", mo_live_np, MO_N); else snprintf(t, sizeof t, "%d PILLARS  EX.DATA", MO_N);
     const int rx = 237 - lv_w35(t); b_text35(B, rx, 27, t, lv_hex(0xbfb294));
     if (B.y0 == 0) { mo_audit(3, 27, xe - 3, 5, 0, 25, rx - 4, 33, "hdrL"); mo_audit(rx, 27, lv_w35(t), 5, xe + 4, 25, 239, 33, "hdrR"); }
 }
@@ -344,7 +365,11 @@ static void mo_panel(LvBand &B)   /* open pillar only: rows 247..285, parchment 
     b_fill(B, 7, 251, 22, 22, lv_hex(MO11_CHAR)); b_frame(B, 7, 251, 22, 22, lv_hex(MO11_BEAM)); b_fill(B, 7, 272, 22, 1, lv_hex(MO11_G));
     mo_chip_icon(B, i, 10, 254);
     const int nx = b_text(B, 34, 252, MO_DEV[i].name, ink, 2);
-    char t[40]; snprintf(t, sizeof t, "%s  %d DBM  EX.DATA", MO_KNAME[MO_KIND[i]], MO11_RSSI[i]); b_text35(B, 34, 277, t, sub);
+    char t[40];
+    if (mo_live(i)) snprintf(t, sizeof t, "%s  %d DBM  LIVE %d SEEN", MO_KNAME[MO_KIND[i]], mo_live_db[i], mo_live_n[i]);
+    else if (MO_HUNT[i] == LV_H_DEAUTH && mo_live_n[i]) snprintf(t, sizeof t, "%s  LIVE %d FRAMES", MO_KNAME[MO_KIND[i]], mo_live_n[i]);
+    else snprintf(t, sizeof t, "%s  %d DBM  EX.DATA", MO_KNAME[MO_KIND[i]], MO11_RSSI[i]);
+    b_text35(B, 34, 277, t, sub);
     const uint16_t c = lv_hex(MO11_G); b_fill(B, 173, 249, 63, 34, lv_hex(MO11_CHAR)); b_frame(B, 173, 249, 63, 34, c); b_frame(B, 175, 251, 59, 30, lv_hex(0x0a5a28));
     b_text(B, 173 + (63 - 8 * 6 + 1) / 2, 262, "< TOWERS", lv_hex(MO11_GH));
     if (B.y0 == 0) { mo_audit(34, 252, nx - 34, 14, 30, 249, 170, 275, "pname"); mo_audit(34, 277, lv_w35(t), 5, 30, 276, 170, 283, "psub"); mo_audit(173 + (63 - 8 * 6 + 1) / 2, 262, 47, 7, 176, 252, 233, 280, "ptowers"); }
@@ -355,6 +380,7 @@ static void mo_terminal(LvBand &B)   /* footer terminal rows 287..319, x 1..238 
     b_fill(B, x0, y0, x1 - x0 + 1, y1 - y0 + 1, lv_hex(MO11_CHAR)); b_frame(B, x0, y0, x1 - x0 + 1, y1 - y0 + 1, lv_hex(MO11_SEAM));
     char a[48], b[48];
     if (itw_mo_sel < 0) { snprintf(a, sizeof a, "HEIGHT = EXAMPLE SIGNAL  EX.DATA"); snprintf(b, sizeof b, "TAP A PILLAR = OPEN IT"); }
+    else if (mo_live_n[itw_mo_sel]) { snprintf(a, sizeof a, "PILLAR OPEN  THREAT: %s  LIVE SCAN", MO_TNAME[MO_THREAT[itw_mo_sel]]); snprintf(b, sizeof b, "LOADED %s  3 SCROLLS", MO_DEV[itw_mo_sel].name); }
     else { snprintf(a, sizeof a, "PILLAR OPEN  THREAT: %s  EX.DATA", MO_TNAME[MO_THREAT[itw_mo_sel]]); snprintf(b, sizeof b, "LOADED %s  3 SCROLLS", MO_DEV[itw_mo_sel].name); }
     b_text35(B, x0 + 4, y0 + 4, a, g); b_text35(B, x0 + 4, y0 + 11, b, ink);
     b_fill(B, x0 + 2, y0 + 18, x1 - x0 - 3, 1, lv_hex(0x3a3228));
@@ -579,12 +605,18 @@ static void mo11_layout(void)
     const float t = mo_t();
 #ifdef MO_EB2
     if (itw_mo_sel >= 0) {   /* EB2: the open pillar's real example threat owns the top banner (HIGH = Gibson alert flash) */
-        char m[LV_TKLEN]; snprintf(m, sizeof m, "%s  THREAT: %s  EX.DATA", MO_DEV[itw_mo_sel].name, MO_TNAME[MO_THREAT[itw_mo_sel]]);
+        char m[LV_TKLEN];
+        if (mo_live(itw_mo_sel)) snprintf(m, sizeof m, "%s  THREAT: %s  LIVE %d SEEN  BEST %d DBM", MO_DEV[itw_mo_sel].name, MO_TNAME[MO_THREAT[itw_mo_sel]], mo_live_n[itw_mo_sel], mo_live_db[itw_mo_sel]);
+        else if (mo_live_n[itw_mo_sel]) snprintf(m, sizeof m, "%s  THREAT: %s  LIVE %d FRAMES", MO_DEV[itw_mo_sel].name, MO_TNAME[MO_THREAT[itw_mo_sel]], mo_live_n[itw_mo_sel]);
+        else snprintf(m, sizeof m, "%s  THREAT: %s  EX.DATA", MO_DEV[itw_mo_sel].name, MO_TNAME[MO_THREAT[itw_mo_sel]]);
         if (strcmp(m, lv_tk_msg)) { snprintf(lv_tk_msg, sizeof lv_tk_msg, "%s", m); lv_tk_off = LV_R_TICK.x1 - LV_R_TICK.x0 - 4; }
         lv_tk_alert = MO_THREAT[itw_mo_sel] == 0; }
     else {   /* EB3: idle banner = the real example threat count over the 18 example devices */
         int nh = 0, nm = 0, nl = 0; for (int k = 0; k < MO_N; ++k) { if (MO_THREAT[k] == 0) ++nh; else if (MO_THREAT[k] == 1) ++nm; else ++nl; }
-        char m[LV_TKLEN]; snprintf(m, sizeof m, "%d THREATS: %d HIGH %d MED %d LOW - TAP A PILLAR  EX.DATA", nh + nm + nl, nh, nm, nl);
+        char m[LV_TKLEN];
+        if (mo_live_np) snprintf(m, sizeof m, "LIVE SCAN: %d FINDS IN %d PILLARS - TAP A PILLAR", mo_live_tot, mo_live_np);
+        else if (lv_job != LV_J_NONE) snprintf(m, sizeof m, "SCANNING... %d THREATS: %d HIGH %d MED %d LOW  EX.DATA", nh + nm + nl, nh, nm, nl);
+        else snprintf(m, sizeof m, "%d THREATS: %d HIGH %d MED %d LOW - TAP A PILLAR  EX.DATA", nh + nm + nl, nh, nm, nl);
         if (strcmp(m, lv_tk_msg)) { snprintf(lv_tk_msg, sizeof lv_tk_msg, "%s", m); lv_tk_off = LV_R_TICK.x1 - LV_R_TICK.x0 - 4; }
         lv_tk_alert = false; }
 #endif
@@ -655,10 +687,13 @@ static void itw_mo_enter(void)
     }
     w.nf = MO_N; w.t0 = lv_now; w.sel = -1; mo_tw0 = lv_now;
     snprintf(w.tl[0], sizeof w.tl[0], "DOJO CONSTRUCT  18 PILLARS");
+    mo_live_update();
+    if (lv_nf == 0 && lv_job == LV_J_NONE) lv_job_start(lv_scanmix == 1 ? LV_J_WIFI : lv_scanmix == 2 ? LV_J_BLE : LV_J_ALL, -1);   /* v1.2.10: a live feed, as GIBSON's lv_radar_enter */
 }
 static void itw_mo_frame(void)
 {
     mo_emb_mark_frame();
+    mo_live_update();   /* v1.2.10: real finds -> pillars, before the render swaps the example world in */
     if (itw_mo_sel >= 0) { const uint32_t el = lv_now - itw_mo_t0;
         itw_mo_phase = el < MO12_PUSH_MS ? 1 : el < MO12_DROP0 + 2 * MO12_GAP + MO12_DROP_MS ? 2 : 3; }
     /* v1.2.5: dirty-rect the field only (y=24..319). Never clear or repaint the ticker band;

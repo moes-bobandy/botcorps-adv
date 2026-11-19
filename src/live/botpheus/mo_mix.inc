@@ -215,7 +215,7 @@ static void mo3_shadow(LvBand &B, int x0, int x1, int yb, uint32_t c, int a)   /
 #define MO_BODY 0
 #endif
 static inline uint32_t mo_tc(int i) { const int th = MO_THREAT[i]; return th == 0 ? 0xff385c : th == 1 ? 0xffb000 : 0x30ff90; }   /* threat colour */
-static inline float mo_sig(int i) { int l = MO11_RSSI[i] + 100; if (l < 4) l = 4; if (l > 60) l = 60; return (l - 4) / 56.0f; }   /* example signal 0..1 (lv_rd_level) */
+static inline float mo_sig(int i) { int l = mo_db(i) + 100; if (l < 4) l = 4; if (l > 60) l = 60; return (l - 4) / 56.0f; }   /* example signal 0..1 (lv_rd_level) */
 static inline uint32_t mo_mixc(uint32_t a, uint32_t b, float t) { if (t < 0) t = 0; if (t > 1) t = 1; uint32_t o = 0;
     for (int sh = 0; sh <= 16; sh += 8) { const int ca = (a >> sh) & 255, cb = (b >> sh) & 255; o |= (uint32_t)(ca + (cb - ca) * t + 0.5f) << sh; } return o; }
 /* three-stop horizontal shading: lit (left) -> mid -> shadow (right), plus a gentle darkening toward the base */
@@ -452,8 +452,8 @@ const int MO_LOOK = MO_LOOKOF[i];   /* the opened pillar's own look */
     b_text35(B, x + 6, y + 19, MO_FOLD_ACT[i][j], lv_hex(ACT));   /* the folder's real fact line */
     const int iy0 = y + 27, iy = y + 34;   /* instrument labels / instruments */
     if (j == 0) {   /* WHAT IT IS: signal (EX.DATA dBm, 7-seg + 10-LED meter) + threat level (3 segments + warning icon) */
-        char db[8]; snprintf(db, sizeof db, "%d", (int)MO11_RSSI[i]); b_text35(B, x + 6, iy0, "DBM", LBL); seg7s(x + 6, iy, db, LIT, DIM);
-        int lev = MO11_RSSI[i] + 100; if (lev < 4) lev = 4; if (lev > 60) lev = 60; const int nl = (lev * 10 + 30) / 60;   /* lv_rd_level -> 10 LEDs */
+        char db[8]; snprintf(db, sizeof db, "%d", mo_db(i)); b_text35(B, x + 6, iy0, "DBM", LBL); seg7s(x + 6, iy, db, LIT, DIM);
+        int lev = mo_db(i) + 100; if (lev < 4) lev = 4; if (lev > 60) lev = 60; const int nl = (lev * 10 + 30) / 60;   /* lv_rd_level -> 10 LEDs */
         b_text35(B, x + 40, iy0, "SIGNAL", LBL);
         for (int k = 0; k < 10; ++k) { const int bh_ = 2 + k * 7 / 9; mo12_rect(B, x + 40 + k * 5, iy + 9 - bh_, 4, bh_, k < nl ? LIT : DIM, 256); }
         b_text35(B, x + 96, iy0, "THREAT", LBL);

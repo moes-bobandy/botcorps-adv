@@ -148,6 +148,9 @@ static inline void lv_flash_band(LvBand &B)
     const int y0 = f.y0 > B.y0 ? f.y0 : B.y0, y1 = f.y1 < B.y0 + B.h - 1 ? f.y1 : B.y0 + B.h - 1;
     for (int y = y0; y <= y1; ++y) for (int x = x0; x <= x1; ++x) { uint16_t &p = B.px[(y - B.y0) * B.w + (x - B.x0)]; p = lv_hi(p); }
 }
+/* v1.2.10 (Dojo fix): called after every band is pushed. lv_ui.cpp sets it to read the touch panel between
+ * bands while the Dojo renders (its frame is long on the CYD); nullptr = nothing, as before. Never draws. */
+static void (*lv_band_hook)(void) = nullptr;
 static inline void lv_render(lv_blit_fn blit, const LvRect &r, lv_scene_fn scene, void *ctx)
 {
     const int w = r.x1 - r.x0 + 1, h = r.y1 - r.y0 + 1;
@@ -159,5 +162,6 @@ static inline void lv_render(lv_blit_fn blit, const LvRect &r, lv_scene_fn scene
         scene(B, ctx);
         if (lv_flash_r.x1 >= lv_flash_r.x0) lv_flash_band(B);
         blit(r.x0, y, w, bh, lv_bandbuf);
+        if (lv_band_hook) lv_band_hook();
     }
 }

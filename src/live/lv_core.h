@@ -1947,6 +1947,7 @@ static void lv_go(int s)
 #endif
 #if LV_MO_INSIDE
     if (prev == LV_SC_MO && s != LV_SC_MO) mo_emb_free_all();   /* v1.2.1: the Dojo hands its emblem cache back */
+    if (prev == LV_SC_TERM && s != LV_SC_TERM && s != LV_SC_TTY && s != LV_SC_MO) lv_term_from_mo = false;   /* v1.2.10: left the Dojo's TERM some other way */
 #endif
     /* item 14: tear the radio down when heading home so no scan/deauth/hunt is left running across screens */
     if (prev != s && lv_job != LV_J_NONE && (s == LV_SC_HOME || s == LV_SC_HOME_INTRO || s == LV_SC_BOOT)) lv_job_stop();
@@ -2573,6 +2574,9 @@ static const char *lv_tap(int x, int y)
      * Existing corner BACK pads are unchanged. */
     if (lv_scr == LV_SC_MO || lv_scr == LV_SC_RADAR || lv_scr == LV_SC_DL || lv_scr == LV_SC_TERM) {
         if (y <= 23 || lv_in(LV_R_BANNER_BACK_HIT, x, y)) {
+#if LV_MO_INSIDE
+            if (lv_scr == LV_SC_TERM && lv_term_from_mo) return lv_back();   /* v1.2.10: TERM opened from the Dojo footer: the banner goes back to the Dojo (lv_back's backbot-term-dojo was unreachable) */
+#endif
             lv_go_soon(LV_SC_HOME, 0); return "banner-home";
         }
     }

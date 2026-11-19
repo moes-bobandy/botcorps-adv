@@ -101,6 +101,12 @@ static void mo_emb_free_all(void)
     for (int i = 0; i < MO_EMB_N; ++i) for (int s = 0; s <= MO_EMB_MAXS; ++s) { free(mo_emb_cache[i][s]); mo_emb_cache[i][s] = nullptr; mo_emb_at[i][s] = 0; }
     mo_emb_bytes = 0;
 }
+/* v1.2.10: the radio task (Core 0) used to call mo_emb_free_all() itself while the UI core could be in the middle of
+ * drawing an emblem (use-after-free). Now it only raises mo_emb_free_req and mo_emb_hold; the UI core frees between
+ * bands / loops (mo_emb_service), and while mo_emb_hold is set no new emblem is built (that pillar draws without its
+ * emblem for those frames, the same skip path as a failed malloc), so the radio stack gets the heap it was promised. */
+static volatile bool mo_emb_free_req = false, mo_emb_hold = false;
+static void mo_emb_service(void) { if (mo_emb_free_req) { mo_emb_free_all(); mo_emb_free_req = false; } }   /* UI core only */
 static void mo_emb_free_one(int i)   /* drop every size of emblem i (its pillar changed size) */
 {
     for (int s = 0; s <= MO_EMB_MAXS; ++s) if (mo_emb_cache[i][s]) { mo_emb_bytes -= mo_emb_cache[i][s]->bytes; free(mo_emb_cache[i][s]); mo_emb_cache[i][s] = nullptr; mo_emb_at[i][s] = 0; }
@@ -127,6 +133,7 @@ static const MoEmb *mo_emb_get(int i, int S)
 {
     if (i < 0 || i >= MO_EMB_N) return nullptr; if (S < 4) S = 4; if (S > MO_EMB_MAXS) S = MO_EMB_MAXS;
     if (mo_emb_cache[i][S]) { mo_emb_at[i][S] = mo_emb_gen; return mo_emb_cache[i][S]; }
+    if (mo_emb_hold) return nullptr;   /* v1.2.10: radio stack initialising */
     const uint32_t need = (uint32_t)(sizeof(MoEmb) + 2 * S * S + (S + 2) * (S + 2));
     mo_emb_evict(need);
     MoEmb *E = (MoEmb *)malloc(need); if (!E) return nullptr;

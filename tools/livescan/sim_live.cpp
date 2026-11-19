@@ -11,6 +11,7 @@
  *   termface a | termface b [PHASE]  (MOCK ONLY: overpaint TERMINALbot face (65,88)-(174,197)
  *     on the already-rendered locked page. a = 4x4 color chips + locked eyes; b = Matrix rain +
  *     green Matrix eyes. Not compiled into firmware.) */
+#include <stdint.h>
 #include <zlib.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -25,6 +26,7 @@ static uint32_t g_tscr = 0;   /* v1.1 waitscr / tickrel */
 #define BOTCORPS_CYD_LIVESCAN 1
 #define LV_RD_HM_SIM 1   /* hunt meter test hook (hmsched): sim only, never in firmware */
 #include "../../src/live/lv_core.h"
+#include "../../src/live/lv_tapfilt.h"
 #include "lgfx_cal_ref.h"
 #include "touch_model.h"
 
@@ -136,25 +138,30 @@ static int fk_rot = 2;   /* the UI's setRotation: 2 = portrait USB at the bottom
 static TouchModel g_tm = {"swap+flip (CYD-like)", 3820, 0, -11.2, 3760, -14.6, 0, 30, 2};
 /* v1.1: verbatim copy of the release-edge filter in src/live/lv_ui.cpp lv_read_tap (firmware-only file), fed with the calibrated
  * touch; millis() -> now. Used by rtap so a sim tap goes raw -> cal matrix -> this filter -> lv_tap like the CYD. */
-static bool sim_read_tap(bool down, int tx, int ty, uint32_t now, int *ox, int *oy)
+/* v1.2.10: the firmware's own tap filter (src/live/lv_tapfilt.h), not a copy */
+static LvTapFilt g_tf = {};
+static bool sim_read_tap(bool down, int tx, int ty, uint32_t now, int *ox, int *oy) { lv_tf_sample(g_tf, down, tx, ty, now); return lv_tf_take(g_tf, ox, oy); }
+/* v1.2.10 hardware frame-cost model for the Dojo (rtap only). framecost MS: each Dojo lv_tick takes MS of device time
+ * (13 bands). bandtouch 0 = v1.2.9 firmware (touch read only between frames); 1 = v1.2.10 (read after every band,
+ * exactly what lv_ui.cpp's ui_band_hook does). The finger is modelled by time, so a tap can begin and end inside one frame. */
+static int g_framecost = 0, g_bandtouch = 1; static bool g_rt_on = false; static int g_rt_X, g_rt_Y; static uint32_t g_rt_end;
+static int g_rt_seen_down = 0; static uint32_t g_rt_t0 = 0;
+static void sim_finger(uint32_t now, bool *down, int *sx, int *sy);
+static void sim_band_hook(void)
 {
-    static bool down_prev = false;
-    static int n = 0, up = 0, px[2], py[2];
-    static uint32_t upt = 0;
-    if (down) {
-        if (!down_prev) { down_prev = true; n = 0; }
-        px[0] = px[1]; py[0] = py[1]; px[1] = tx; py[1] = ty; ++n; up = 0;
-        return false;
-    }
-    if (!down_prev) return false;
-    if (++up == 1) upt = now;
-    if (up < 2 || (int32_t)(now - upt) < 45) return false;
-    down_prev = false; up = 0;
-    const int use = n >= 3 ? 0 : 1;
-    *ox = px[use]; *oy = py[use]; n = 0;
-    return true;
+    if (!g_rt_on || !g_framecost || lv_scr != LV_SC_MO) return;
+    t_ms += (uint32_t)(g_framecost / 13);
+    if (!g_bandtouch) return;
+    bool d; int x, y; sim_finger(t_ms, &d, &x, &y); if (d) ++g_rt_seen_down;
+    lv_tf_sample(g_tf, d, x, y, t_ms);
 }
 static uint16_t g_cal8[8]; static bool g_cal_ok = false;   /* the c0..c7 CALbot saved (SIM NVS) */
+static void sim_finger(uint32_t now, bool *down, int *sx, int *sy)   /* rtap's finger at device time now (raw XPT2046 -> saved cal -> rot flip) */
+{
+    *down = g_rt_on && now >= g_rt_t0 && now < g_rt_end; *sx = 0; *sy = 0;
+    if (!*down) return;
+    LgfxCalRef L; L.setCalibrate(g_cal8); int rx, ry; g_tm.raw(g_rt_X, g_rt_Y, &rx, &ry); L.convertRawXY(rx, ry, sx, sy); *sx = 239 - *sx; *sy = 319 - *sy;
+}
 static bool fk_cal_save(const uint16_t c[8])
 {
     printf("t=%u CAL SAVE c0..c7 = %u %u %u %u %u %u %u %u (SIM NVS)\n", t_ms, c[0], c[1], c[2], c[3], c[4], c[5], c[6], c[7]);
@@ -349,23 +356,28 @@ int main(int argc, char **argv)
                                             * lv_tick every 30 ms, like lv_ui_loop. */
             int X, Y, ms = 120; if (fscanf(sc, "%d %d", &X, &Y) != 2) return 2; { long p = ftell(sc); if (fscanf(sc, "%d", &ms) != 1) { fseek(sc, p, SEEK_SET); ms = 120; } }
             if (!g_cal_ok) { printf("t=%u rtap: no CALbot-saved cal (run the CALbot capture first)\n", t_ms); return 3; }
-            LgfxCalRef L; L.setCalibrate(g_cal8);
-            const char *r = nullptr; int ox = -1, oy = -1, last_x = -1, last_y = -1; const uint32_t t_end = t_ms + ms; uint32_t next_tick = t_ms + 30;
-            for (int phase = 0; phase < 2 && !r; ++phase) {
-                for (int guard = 0; guard < 400 && !r; ++guard) {
-                    if (phase == 0 && t_ms >= t_end) break;
-                    t_ms += 5;
-                    int sx = 0, sy = 0; const bool down = phase == 0;
-                    if (down) { int rx, ry; g_tm.raw(X, Y, &rx, &ry); L.convertRawXY(rx, ry, &sx, &sy); sx = 239 - sx; sy = 319 - sy; last_x = sx; last_y = sy; }
-                    g_down = down; g_fx = sx; g_fy = sy;
-                    if (sim_read_tap(down, sx, sy, t_ms, &ox, &oy)) { sim_use_pal(); r = lv_tap(ox, oy); }
-                    if (lv_scr != LV_SC_CAL) lv_touch(down, sx, sy);
-                    if (t_ms >= next_tick) { next_tick += 30; sim_use_pal(); lv_tick(io, t_ms); rec_frame(); }
-                }
+            int lead = -1; { long p = ftell(sc); if (fscanf(sc, "%d", &lead) != 1) { fseek(sc, p, SEEK_SET); lead = -1; } }
+            /* lead >= 0 (device model): a frame starts NOW and the finger lands lead ms later, i.e. possibly mid-frame */
+            const char *r = nullptr; int ox = -1, oy = -1, last_x = -1, last_y = -1;
+            const uint32_t t0 = t_ms + (lead > 0 ? (uint32_t)lead : 0), t_end = t0 + ms; uint32_t next_tick = lead >= 0 ? t_ms : t_ms + 30;
+            g_rt_on = true; g_rt_X = X; g_rt_Y = Y; g_rt_t0 = t0; g_rt_end = t_end; g_rt_seen_down = 0; int seen_loop = 0; lv_band_hook = sim_band_hook;
+            if (lead >= 0) t_ms -= 5;
+            for (int guard = 0; guard < 1200 && !r && t_ms < t_end + 3000; ++guard) {
+                t_ms += 5;
+                int sx = 0, sy = 0; bool down; sim_finger(t_ms, &down, &sx, &sy); if (down) { last_x = sx; last_y = sy; ++seen_loop; }
+                g_down = down; g_fx = sx; g_fy = sy;
+                if (sim_read_tap(down, sx, sy, t_ms, &ox, &oy)) { sim_use_pal(); r = lv_tap(ox, oy); }
+                if (lv_scr != LV_SC_CAL) lv_touch(down, sx, sy);
+                if ((int32_t)(t_ms - next_tick) >= 0) { if ((int32_t)(t_ms - next_tick) >= 30) next_tick = t_ms; next_tick += 30; sim_use_pal(); lv_tick(io, t_ms); rec_frame(); }
             }
+            g_rt_on = false; lv_band_hook = nullptr;
+            if (g_framecost) printf("t=%u rtap model framecost=%d bandtouch=%d: finger down %u..%u ms, down samples seen loop=%d band=%d\n", t_ms, g_framecost, g_bandtouch, t0, t_end, seen_loop, g_rt_seen_down);
             g_down = false;
             printf("t=%u rtap glass %d,%d %dms -> last raw->cal %d,%d -> tap %d,%d -> %s (scr=%d)\n", t_ms, X, Y, ms, last_x, last_y, ox, oy, r ? r : "(no tap)", lv_scr);
         }
+        else if (!strcmp(cmd, "molive")) { mo_live_update(); printf("t=%u MOLIVE nf=%d job=%d tot=%d pillars=%d:", t_ms, lv_nf, lv_job, mo_live_tot, mo_live_np); for (int i = 0; i < MO_N; ++i) if (mo_live_n[i]) printf(" %s=%d@%d", MO_DEV[i].name, mo_live_n[i], mo_live_db[i]); printf("  tk='%s'\n", lv_tk_msg); }
+        else if (!strcmp(cmd, "framecost")) { if (fscanf(sc, "%d", &g_framecost) != 1) return 2; printf("t=%u framecost %d ms per Dojo frame (device model)\n", t_ms, g_framecost); }
+        else if (!strcmp(cmd, "bandtouch")) { if (fscanf(sc, "%d", &g_bandtouch) != 1) return 2; printf("t=%u bandtouch %d (%s)\n", t_ms, g_bandtouch, g_bandtouch ? "v1.2.10: touch read after every band" : "v1.2.9: touch read between frames only"); }
         else if (!strcmp(cmd, "rhold")) {   /* finger down on (x,y) for ms, then the release-edge tap, as lv_ui.cpp does */
             int x, y, ms; if (fscanf(sc, "%d %d %d", &x, &y, &ms) != 3) return 2; g_fx = x; g_fy = y; g_down = true;
             for (int e = 0; e < ms; e += 30) tick1(io);

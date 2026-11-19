@@ -348,9 +348,11 @@ static void lv_pg_compose_row(uint16_t *row, int y, int page, LvPgSet &S)
     if (lv_pg_rle && lv_pg_rle_slot == slot) lv_pg_rle_row(row, y);
     else {
         const uint8_t *st = lv_pg_strip(slot, y / LV_CB_STRIP);
-        if (!st) { for (int x = 0; x < 240; ++x) row[x] = 0; return; }
-        const uint8_t *r = st + (y % LV_CB_STRIP) * 240 * 2;
-        for (int x = 0; x < 240; ++x) row[x] = (uint16_t)(r[2 * x] | (r[2 * x + 1] << 8));
+        if (!st) { for (int x = 0; x < 240; ++x) row[x] = 0; }
+        else {
+            const uint8_t *r = st + (y % LV_CB_STRIP) * 240 * 2;
+            for (int x = 0; x < 240; ++x) row[x] = (uint16_t)(r[2 * x] | (r[2 * x + 1] << 8));
+        }
     }
 
     if (page == LV_PG_CTL && lv_cb_pan && lv_cb_pan_slot == slot && y >= LV_CB_PY0 && y < LV_CB_PY0 + LV_CB_PH)
@@ -619,6 +621,9 @@ static void lv_pg_frame(bool full)
     const int off = lv_pg_off_now();
     const int a = (lv_pg_anim == 1) ? lv_pg_from : lv_pg_page;
     const int b = (lv_pg_anim == 1) ? lv_pg_to : lv_pg_page;
+    /* v1.2.5: rain faces + role panels are procedural and must paint every tick. After a CONTROLbot
+     * theme change, seen_slot dirties once, the still blit runs, dirty is cleared, and the rain froze. */
+    if (lv_pg_page != LV_PG_CTL && !lv_pg_anim && !lv_pg_dragging) lv_pg_dirty = true;
     if (full || lv_pg_dirty || lv_pg_anim || lv_pg_dragging || lv_cb_panel_dirty || lv_cb_flash_on || lv_cb_blk_on || lv_pg_pill_on) {
         lv_pg_blit(a, b, off, full || lv_pg_anim || lv_pg_dragging);
         lv_pg_dirty = false;

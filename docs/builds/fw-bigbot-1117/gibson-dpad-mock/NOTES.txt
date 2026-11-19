@@ -1,0 +1,23 @@
+GIBSON tower footer D-pad mock — 2026-11-19
+From v1.2.7 head cfc8a27, branch backup/gibson-dpad-mock-2026-11-19.
+Real C++ renderer (sim_live / lv_radar.h). Not Pillow lookalikes.
+The controller replaces ONLY the locked bottom terminal (1,287)-(218,319):
+same theme-ink frame, chip/pin vias, 3x5 pixel font, BACKbot stays in the corner.
+Nothing above y=286 is restyled (towers, heights, RSSI law, camera, folders, rain,
+IGNORE/WATCH/HUNT row, name/dBm panel). The D4 charge current / HOLD TO LOCK
+power beam is disabled; A locks instantly. Bracket LOCK label remains.
+
+Variants:
+  v0 pluswell   — circular well, joined plus D-pad, two round neon buttons (B theme, A magenta).
+  v1 keycluster — four separate beveled chip keys with chevrons, rectangular A/B keycaps with corner vias.
+  v2 raildeck   — SNES-like disc pad, CRT scanlines, pin rail, diagonal cyan B + magenta A.
+
+Controls: L/R cycle towers (wrap, strongest-to-weakest), U/D cycle the pad status lines
+(name / dBm EX.DATA / MAC), A lock (or open INFO folders if already locked), B unlock or back.
+Press states invert the bevel and light the control.
+
+Touch: visual controls fill the locked 33 px-tall frame (A/B ~29 px, D-pad arms ~11x16).
+Finger targets cannot reach the usual 36-40 px floor without leaving that frame.
+
+Stills and GIFs are @3x nearest-neighbor from 240x320 RGB888. Mock numbers stamped EX.DATA
+where a dBm line is shown on the pad. Do not flash this branch.

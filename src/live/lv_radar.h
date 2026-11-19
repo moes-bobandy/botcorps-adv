@@ -328,6 +328,7 @@ static void lv_rd_brackets(LvBand &B, int xa, int ya, int xb, int yb, int L, uin
 
 #ifndef LV_RD_CHARGE
 #define LV_RD_CHARGE 1   /* LOCKED ui_gibson_radar_charge D4 (lock store, src 4a8197a); 0 = the locked radar 3240b03 hold-1s lock */
+#define LV_RD_CG_NODRAW 1  /* MOCK 2026-11-19: no power current to the tower; A on the footer pad locks */
 #endif
 #ifndef LV_RD_CG_NODRAW
 #define LV_RD_CG_NODRAW 0
@@ -909,8 +910,14 @@ static void lv_rd_log(const char *fmt, ...)
     for (char *q = t; *q; ++q) if (*q >= 'a' && *q <= 'z') *q -= 32;
     memmove(lv_rd_tl[0], lv_rd_tl[1], 2 * sizeof lv_rd_tl[0]); snprintf(lv_rd_tl[2], sizeof lv_rd_tl[2], "%s", t); lv_rd_tl_t = lv_now;
 }
+#include "lv_radar_pad.h"
 static void lv_rd_term(LvBand &B, uint16_t hdr)
 {
+#if LV_RD_PAD
+    lv_rd_pad_draw(B, hdr);
+    return;
+#endif
+
     const int x0 = 1, y0 = 287, x1 = 218, y1 = 319;   /* BACKbot {221,301,239,319} stays outside */
     b_fill(B, x0, y0, x1 - x0 + 1, y1 - y0 + 1, lv_hex(0x000000)); b_frame(B, x0, y0, x1 - x0 + 1, y1 - y0 + 1, lv_ink(LV_ACC));
     int typed = (int)((lv_now - lv_rd_tl_t) / 15);
@@ -1391,10 +1398,13 @@ static void lv_rd_select(int i)   /* what a tower tap always did: select + its f
 /* touch state every loop (firmware: lv_ui.cpp; sim: press / rhold). Hold a tower ~1 s -> lock on. */
 static void lv_radar_touch(bool down, int x, int y)
 {
+#if LV_RD_PAD
+    if (y >= PAD_Y0) { lv_rd_pad_touch(down, x, y); return; }
+#endif
 #if LV_RD_INFO
     if (lv_rd_info) return;
 #endif
-#if LV_RD_CHARGE   /* hold the CHARGE button (not the tower): 1 s to full, then the lock fires; let go early and it drains */
+#if LV_RD_CHARGE && !LV_RD_CG_NODRAW   /* hold the CHARGE button (not the tower): 1 s to full, then the lock fires; let go early and it drains */
     const bool show = lv_rd_cg_show();
     if (lv_rd_cg) {
         if (!down) {   /* c) resistive dropout: hold the charge through a brief (<=140 ms) lost-contact blip */
@@ -1439,7 +1449,13 @@ static int lv_rd_cycle_next(void)   /* strongest -> weakest dBm, wraps; ignored 
 static const char *lv_radar_tap(int x, int y)
 {
     if (lv_rd_swallow) { lv_rd_swallow = false; return "radar-locked"; }
-    if (y > LV_RD_Y1 + 1 && !(LV_RD_INFO && lv_rd_info)) return "radar-term";   /* the footer terminal is read-only (BACKbot is handled before this) */
+    if (y > LV_RD_Y1 + 1 && !(LV_RD_INFO && lv_rd_info)) {
+#if LV_RD_PAD
+        return lv_rd_pad_tap(x, y);
+#else
+        return "radar-term";   /* the footer terminal is read-only (BACKbot is handled before this) */
+#endif
+    }
 #if LV_RD_INFO
     if (lv_rd_info) {   /* INFO view: only BACK (and the corner BACKbot, via lv_back) do anything */
         if (lv_in(LV_RD_INFO_BTN_L, x, y)) { lv_rd_info_close(); return "radar-info-back"; }
@@ -1477,7 +1493,7 @@ static const char *lv_radar_tap(int x, int y)
         if (i >= 0 && !memcmp(lv_f[i].mac, lv_rd_lockmac, 6)) return "radar-locked";
         lv_rd_release(); lv_rd_log("RELEASED"); return "radar-unlock";   /* a tap anywhere else releases the lock (and ends a hunt) */
     }
-#if LV_RD_CHARGE
+#if LV_RD_CHARGE && !LV_RD_CG_NODRAW
     /* item 1: touch-owner latch + 350 ms post-release guard + widened arm zone -> a hold / abort / drift / release NEVER cycles or re-picks a tower */
     if (lv_rd_cg_owned || (int32_t)(lv_now - lv_rd_cg_guard_until) < 0 || (lv_rd_cg_show() && lv_in(LV_RD_CG_ARM, x, y))) { lv_rd_cg_owned = false; return "radar-charge-short"; }
 #endif

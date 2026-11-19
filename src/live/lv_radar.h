@@ -10,7 +10,7 @@ static void lv_press(LvRect r);
 #define LV_RD_HOR 138
 #define LV_RD_CAMH 0.9f
 #define LV_RD_Y0 34
-#define LV_RD_Y1 285
+#define LV_RD_Y1 246   /* MOCK: wider controls deck starts at 247; was 285 */
 static const LvRect LV_R_RADAR = {0, 24, 239, 319};
 static uint32_t lv_rd_t0 = 0;
 static int lv_rd_sel = -1;           /* index into lv_f */
@@ -253,10 +253,10 @@ static int lv_rd_sm4 = 0;   /* smoothed target dBm x4 */
 static inline bool lv_rd_nosig(void) { return lv_rd_miss >= LV_RD_MISS_GRACE; }
 static int lv_rd_from = LV_SC_HOME;  /* where BACK goes (home, SCANbot list, TTY) */
 static int lv_rd_ret_cat = -1, lv_rd_ret_cpage = 0, lv_rd_ret_mode = 0; static bool lv_rd_ret_detail = false; static uint8_t lv_rd_ret_mac[6]; static bool lv_rd_ret_sel = false;
-static const LvRect LV_RD_BTN[3] = {{5, 250, 76, 260}, {84, 250, 155, 260}, {163, 250, 234, 260}};   /* IGNORE WATCH HUNT, inside the grown panel */
+static const LvRect LV_RD_BTN[3] = {{5, 250, 70, 260}, {74, 250, 139, 260}, {143, 250, 210, 260}};   /* MOCK: IGNORE WATCH HUNT fitted in the deck, clear of BACKbot */
 /* touch (hit-list item 1): finger targets for the three buttons, padded ~8 px inside the panel (panel y 247..285; the
  * radar field above y247 keeps its own taps) and split at the gap midpoints so they never overlap. Drawn rects unchanged. */
-static const LvRect LV_RD_BTN_TAP[3] = {{0, 247, 80, 268}, {81, 247, 159, 268}, {160, 247, 239, 268}};
+static const LvRect LV_RD_BTN_TAP[3] = {{0, 247, 72, 266}, {73, 247, 141, 266}, {142, 247, 216, 266}};  /* MOCK: strip only, clear of D-pad and BACKbot */
 #ifndef LV_RD_INFO
 #define LV_RD_INFO 1   /* MOCK 1111 (Mobandy): IGNORE / WATCH / HUNT / INFO, a taller row, INFO = Joey file-drop node view. 0 = as locked */
 #endif
@@ -277,8 +277,8 @@ static const LvRect LV_RD_BTN_TAP[3] = {{0, 247, 80, 268}, {81, 247, 159, 268}, 
 #define LV_RD_PTOP (LV_RD_ROW == 1 ? 233 : 247)          /* locked panel top frame */
 #define LV_RD_BY0 (LV_RD_ROW == 0 ? 249 : 235)           /* drawn button top */
 #define LV_RD_TY0 (LV_RD_ROW == 0 ? 247 : 233)           /* finger target top */
-static const LvRect LV_RD_BTN4[4] = {{5, LV_RD_BY0, 54, 262}, {58, LV_RD_BY0, 107, 262}, {111, LV_RD_BY0, 188, 262}, {192, LV_RD_BY0, 234, 262}};
-static const LvRect LV_RD_BTN4_TAP[4] = {{0, LV_RD_TY0, 56, 285}, {57, LV_RD_TY0, 109, 285}, {110, LV_RD_TY0, 190, 285}, {191, LV_RD_TY0, 239, 285}};
+static const LvRect LV_RD_BTN4[4] = {{5, LV_RD_BY0, 51, 262}, {55, LV_RD_BY0, 101, 262}, {105, LV_RD_BY0, 164, 262}, {168, LV_RD_BY0, 210, 262}};  /* MOCK: fit IGNORE/WATCH/HUNT/INFO in the deck, clear of BACKbot */
+static const LvRect LV_RD_BTN4_TAP[4] = {{0, LV_RD_TY0, 53, 266}, {54, LV_RD_TY0, 103, 266}, {104, LV_RD_TY0, 166, 266}, {167, LV_RD_TY0, 216, 266}};  /* MOCK: I/W/H/INFO strip only, clear of the D-pad and BACKbot */
 static bool lv_rd_info = false; static uint32_t lv_rd_info_t = 0; static LvFind lv_rd_info_f;
 #define LV_RD_NBTN 4
 #define LV_RD_BTNR LV_RD_BTN4
@@ -1064,14 +1064,22 @@ static void lv_scene_radar(LvBand &B, void *)
 #else
         const int py0 = lv_rd_lock ? 247 : 262;   /* locked: the panel grows up 15 px for the IGNORE / WATCH / HUNT row */
 #endif
+#if LV_RD_PAD
+        /* MOCK: name/dBm mid-panel overlaps the wider deck; pad status replaces it. I/W/H is drawn after the pad. */
+        (void)l; (void)t; (void)m;
+#else
         b_fill(B, 2, py0, 236, 285 - py0, lv_hex(0x000000)); b_frame(B, 2, py0, 236, 285 - py0, lv_rd_col(f, 8, 8));
         if (lv_rd_lock && LV_RD_ROW != 2) lv_rd_panel_buttons(B);   /* FLOAT: drawn last, over the current (below) */
         b_text(B, 5, 264, l, lv_hex(0xffffff));
         snprintf(t, sizeof t, "%d", f.rssi); b_text(B, 235 - ((int)strlen(t) + 4) * 6, 264, t, lv_rd_col(f, 8, 8)); b_text35(B, 235 - 4 * 6 + 4, 265, "DBM", lv_rd_col(f, 8, 8));
         snprintf(t, sizeof t, "%s %s  %s", f.kind == LV_K_WIFI ? "WIFI" : "BLE", LV_ICON_NAME[f.icon], m); b_text35(B, 5, 275, t, lv_hex(LV_TAN));
+#endif
     }
     /* footer (item 13): a 3-line boxed mini terminal that types out live radar info over a >_ prompt, legend folded into the prompt */
     lv_rd_term(B, hdr);
+#if LV_RD_PAD
+    if (lv_rd_lock && lv_rd_sel >= 0 && lv_rd_sel < lv_nf && LV_RD_ROW != 2) lv_rd_panel_buttons(B);
+#endif
 #if LV_RD_CHARGE && !LV_RD_CG_NODRAW
     lv_rd_cg_draw(B);
 #if LV_RD_HUNT_METER
@@ -1449,13 +1457,6 @@ static int lv_rd_cycle_next(void)   /* strongest -> weakest dBm, wraps; ignored 
 static const char *lv_radar_tap(int x, int y)
 {
     if (lv_rd_swallow) { lv_rd_swallow = false; return "radar-locked"; }
-    if (y > LV_RD_Y1 + 1 && !(LV_RD_INFO && lv_rd_info)) {
-#if LV_RD_PAD
-        return lv_rd_pad_tap(x, y);
-#else
-        return "radar-term";   /* the footer terminal is read-only (BACKbot is handled before this) */
-#endif
-    }
 #if LV_RD_INFO
     if (lv_rd_info) {   /* INFO view: only BACK (and the corner BACKbot, via lv_back) do anything */
         if (lv_in(LV_RD_INFO_BTN_L, x, y)) { lv_rd_info_close(); return "radar-info-back"; }
@@ -1488,11 +1489,21 @@ static const char *lv_radar_tap(int x, int y)
             if (lv_rd_hunting) { lv_rd_hunt_stop(); lv_rd_log("HUNT STOPPED  %d READS", lv_rd_reads); return "radar-hunt-stop"; }
             lv_rd_hunt_go(i); return "radar-hunt";
         }
+#if LV_RD_PAD
+        if (y >= PAD_Y0) {
+            const char *a = lv_rd_pad_tap(x, y);
+            if (a && strcmp(a, "radar-term")) return a;
+            return "radar-panel";   /* plaque / gaps in the deck do not release the lock */
+        }
+#endif
         if (y >= LV_RD_PTOP && y <= 285) return "radar-panel";   /* the panel itself does not release the lock */
         const int i = lv_rd_hit(x, y);
         if (i >= 0 && !memcmp(lv_f[i].mac, lv_rd_lockmac, 6)) return "radar-locked";
         lv_rd_release(); lv_rd_log("RELEASED"); return "radar-unlock";   /* a tap anywhere else releases the lock (and ends a hunt) */
     }
+#if LV_RD_PAD
+    if (y >= PAD_Y0 && !(LV_RD_INFO && lv_rd_info)) return lv_rd_pad_tap(x, y);
+#endif
 #if LV_RD_CHARGE && !LV_RD_CG_NODRAW
     /* item 1: touch-owner latch + 350 ms post-release guard + widened arm zone -> a hold / abort / drift / release NEVER cycles or re-picks a tower */
     if (lv_rd_cg_owned || (int32_t)(lv_now - lv_rd_cg_guard_until) < 0 || (lv_rd_cg_show() && lv_in(LV_RD_CG_ARM, x, y))) { lv_rd_cg_owned = false; return "radar-charge-short"; }

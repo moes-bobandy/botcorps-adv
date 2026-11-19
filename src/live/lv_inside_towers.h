@@ -90,7 +90,7 @@ static void itw_top(void)
     /* v1.2.5: do not black-clear the banner; that flashed the ticker every Dojo frame */
     lv_ticker_tick();
 }
-static const LvRect ITW_BACK_HIT = {210, 289, 239, 319};
+static const LvRect ITW_BACK_HIT = {200, 280, 239, 319};  /* MOCK: ~40x40, matches LV_R_BACKBOT_HIT */
 static bool lv_term_from_mo = false;   /* v1.2.6: TERM opened from the Dojo footer; BACK returns to Dojo */
 
 /* a per-bot header plate (over the radar header strip) with the LOCKED bot face + title */

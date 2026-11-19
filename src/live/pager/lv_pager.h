@@ -400,6 +400,7 @@ static int lv_pg_chip_at(int x, int y)   /* 1 left, 2 right, 0 none; chip wins o
         const long d = (long)(x - cx) * (x - cx) + (long)(y - cy) * (y - cy);
         if (d < bd) { bd = d; best = i + 1; }
     }
+    if (best == 2 && lv_pg_page == LV_PG_CTL) return 0;   /* MOCK: no page to the right of CONTROLbot */
     return best;
 }
 
@@ -448,7 +449,8 @@ static void lv_pg_pills_row(uint16_t *row, int y)
 {
     if (y < LV_PG_PILL_L.y0 || y > LV_PG_PILL_L.y1) return;
     lv_pg_chip_row(row, y, LV_PG_PILL_L, -1, lv_pg_pill_on == 1);
-    lv_pg_chip_row(row, y, LV_PG_PILL_R, +1, lv_pg_pill_on == 2);
+    if (lv_pg_page != LV_PG_CTL)   /* MOCK: no right arrow chip on the last pager page */
+        lv_pg_chip_row(row, y, LV_PG_PILL_R, +1, lv_pg_pill_on == 2);
 }
 
 static float lv_pg_ease(float t)

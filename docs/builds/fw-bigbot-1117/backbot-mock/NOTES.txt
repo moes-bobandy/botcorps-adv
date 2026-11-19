@@ -1,0 +1,19 @@
+GIBSON / BACKbot + CONTROLbot mock  —  2026-11-19  (America/New_York)
+Branch: backup/gibson-dpad-mock-2026-11-19
+Mock only. Build branch backup/cyd-bigbot-pager-2026-11-17 left at cfc8a27. Not flashed.
+
+(1) BACKbot  —  two slightly larger chip-bot variants in the same bottom-right corner.
+    Face 17 px (was 15), outer 21x21, origin (219,299)-(239,319).
+    Invisible hit ~40x40: LV_R_BACKBOT_HIT = ITW_BACK_HIT = {200, 280, 239, 319}.
+    TTY hit stays {216, 290, 239, 319} so it stays clear of ENTER (x<=215).
+    v0 Chevron Chip: gold pins, pink bevel face, clear 2-px left-pointing back arrow (white on a dark cut).
+    v1 Well Arrow: same chip, recessed dark well, theme-ink arrow with a glow.
+    Rendered @3x on the Dojo (LV_SC_MO) and on the GIBSON tower screen.
+
+(2) CONTROLbot page  —  the RIGHT arrow chip is not painted and is not hittable when
+    lv_pg_page == LV_PG_CTL. Left chip and everything else are pixel-identical to v1.2.7.
+    Pixel diff vs /tmp/v127/sim (v1.2.7, same warmup tick 80, go 2, tick 20, page 3, tick 12):
+      686 pixels, bbox x=211..234 y=32..66
+      outside painted right-chip (211,32)-(234,67): 0
+
+Real C++ renderer (sim_live + lv_core.h). No firmware commit to the build branch.

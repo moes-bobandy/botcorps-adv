@@ -1,0 +1,2 @@
+Wider-deck re-renders of v0-v2 (y=247..319). Original 33 px stills stay in the parent folder.
+See ../v3-v5/NOTES.txt for the full write-up and contact sheet of all six.

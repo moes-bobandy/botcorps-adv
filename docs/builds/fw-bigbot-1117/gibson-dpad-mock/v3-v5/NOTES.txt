@@ -1,0 +1,27 @@
+GIBSON tower D-pad mock v3-v5 + wider deck  —  2026-11-19  (America/New_York)
+Branch: backup/gibson-dpad-mock-2026-11-19
+Mock only. Build branch backup/cyd-bigbot-pager-2026-11-17 left at cfc8a27. Not flashed.
+
+Item (3) was not delivered as a user brief in this lineage. The wider controls area is an
+inferred mock layout so a ~40 px D-pad and A/B can meet the touch floor:
+    deck  (1,247)-(218,319)  — same top as the locked mid-panel, BACKbot stays in the corner
+    3-D world clips at y=246 (LV_RD_Y1 was 285)
+    name/dBm mid-panel is suppressed; pad status replaces it
+    locked I/W/H row is reflowed to x=5..210 so it stays clear of BACKbot
+    D-pad / A/B live in y=268..317; L/R cycle towers, U/D cycle status lines,
+    A locks or opens INFO, B unlocks or goes back. No D4 power beam (LV_RD_CG_NODRAW).
+
+Original 33 px v0-v2 stills and GIFs in the parent folder (gibson-dpad-mock/) are kept
+as the first-pass mock. Wider-deck re-renders of v0-v2 are in ../wide/. This folder
+holds v3-v5 plus the 6-up contact sheet (all six in the wider deck).
+
+Pitches:
+  v0 Pluswell        — circular recessed well, joined plus, two round neon A/B.
+  v1 Keycluster      — four chip keys with chevrons, rectangular A/B keycaps with corner vias.
+  v2 Raildeck        — SNES-like disc, CRT scanlines, pin rail, diagonal cyan B / magenta A.
+  v3 Joey Console    — octagonal cyber gate, glow-ring arcade LOCK/BACK (Joey's hacking buttons).
+  v4 Famicom Brick   — raised purple-grey controller body, cream-lipped well, SEL/STR slots, classic offset glossy A/B.
+  v5 Gibson Grid Deck— mini perspective floor grid, lit-tile plus, trapezoid cyan/magenta hacking keys.
+
+Each variant: idle, press, locked @1x and @3x, plus a 69-frame @3x demo GIF at 15 fps
+(nearest-neighbor), L/R cycle then A-lock, no power beam. Real C++ renderer.

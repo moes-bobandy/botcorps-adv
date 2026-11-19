@@ -1485,7 +1485,7 @@ static void lv_scene_cs(LvBand &B)   /* overlay on the keyboard rect; TERMINALbo
 }
 static void lv_scene_kbd(LvBand &B, void *)
 {
-    if (lv_cs_open) { lv_scene_cs(B); lv_draw_backbot(B, 221, 301); return; }   /* item 8: corner BACKbot drawn on top of the CMDS overlay */
+    if (lv_cs_open) { lv_scene_cs(B); lv_draw_backbot(B, 219, 299); return; }   /* item 8: corner BACKbot drawn on top of the CMDS overlay */
     b_fill(B, B.x0, B.y0, B.w, B.h, lv_hex(0x050505));
     const uint16_t acc = lv_ink(LV_ACC), fr = lv_ink(LV_FRAME);
     for (int k = 0; k < LV_NKEY; ++k) {
@@ -1502,7 +1502,7 @@ static void lv_scene_kbd(LvBand &B, void *)
         if (k < 40) b_text(B, r.x0 + (w - 10) / 2, r.y0 + (h - 14) / 2, t, ink, 2);
         else b_text(B, r.x0 + (w - (int)strlen(t) * 6 + 1) / 2, r.y0 + (h - 7) / 2, t, ink);
     }
-    lv_draw_backbot(B, 221, 301);   /* item 8: corner BACKbot {221,301,239,319}, same as every other non-home screen (literal origin: LV_R_BACKBOT is declared below) */
+    lv_draw_backbot(B, 219, 299);   /* item 8: corner BACKbot {221,301,239,319}, same as every other non-home screen (literal origin: LV_R_BACKBOT is declared below) */
 }
 /* TTY text area: rejoin print() segments that were wrapped at 38 cols (lv_tcont) so a long line never splits a word
  * across the scroll edge, then lay them out bottom-up in nrows rows from ry0. */
@@ -1594,36 +1594,73 @@ static const uint32_t BACKBOT_FACES[4][4] = {{0x8a3200, 0xe06000, 0xff8c1a, 0xff
                                              {0x005e6c, 0x00b4cc, 0x1ef0ff, 0xb4ffff}, {0x780050, 0xd0208c, 0xff44b4, 0xffa8dc}};
 static int lv_backbot_face = BACKBOT_FACE_SEL;
 #define BACKBOT_FACE (BACKBOT_FACES[lv_backbot_face])
-#define BACKBOT_FS 15                                             /* square face side (incl. black frame) */
+#define BACKBOT_FS 17                                             /* MOCK: slightly larger chip (was 15); outer 21x21, still in the corner */
 #define BACKBOT_W (BACKBOT_FS + 4)                                /* + 2 px pins on each side */
 #define BACKBOT_H (BACKBOT_FS + 4)
-static const LvRect LV_R_BACKBOT = {240 - BACKBOT_W, 320 - BACKBOT_H, 239, 319}; /* {221,301,239,319}: bottom-right corner, over the hole ring */
-static const LvRect LV_R_BACKBOT_HIT = {210, 289, 239, 319}; /* finger target incl. slop (30x31); corner buttons end x205 */
-static const LvRect LV_R_BACKBOT_TTY_HIT = {216, 290, 239, 319}; /* item 8: TTY BACKbot shares the bottom-right corner {221,301,239,319}; this is its finger target (clean of ENTER x<=215) */
+static int lv_backbot_var = 0;                                    /* MOCK: 0 chevron chip, 1 well-arrow */
+static const LvRect LV_R_BACKBOT = {240 - BACKBOT_W, 320 - BACKBOT_H, 239, 319}; /* {219,299,239,319}: same bottom-right corner, 2 px larger */
+static const LvRect LV_R_BACKBOT_HIT = {200, 280, 239, 319}; /* MOCK: generous ~40x40 invisible target; TTY stays tighter */
+static const LvRect LV_R_BACKBOT_TTY_HIT = {216, 290, 239, 319}; /* item 8: TTY BACKbot shares the bottom-right corner; clean of ENTER x<=215 */
+static void lv_backbot_chevron(LvBand &B, int cx, int cy, uint16_t c, uint16_t hi)
+{
+    /* 2-px-thick left-pointing back arrow, clearly readable at 15 px */
+    for (int i = 0; i < 6; ++i) {
+        const int tip = 5 - i;
+        b_pix(B, cx - tip, cy - i, (i == 0) ? hi : c);
+        b_pix(B, cx - tip, cy + i, c);
+        if (i < 5) {
+            b_pix(B, cx - tip + 1, cy - i, hi);
+            b_pix(B, cx - tip + 1, cy + i, c);
+        }
+    }
+    b_fill(B, cx - 1, cy - 1, 6, 3, c);
+    b_fill(B, cx - 1, cy, 6, 1, hi);
+}
 static void lv_draw_backbot(LvBand &B, int x0, int y0)
 {
     const uint16_t gold = lv_hex(0xc8a24a), gold_hi = lv_hex(0xf0d080);
     const int S = BACKBOT_FS, fx = x0 + 2, fy = y0 + (BACKBOT_H - S) / 2;
-    /* one row of pins on each of the four sides: 2x2 gold, light top row, 1 px gaps */
-    for (int i = 0; i < 5; ++i) {
+    const int n_side = 5;
+    for (int i = 0; i < n_side; ++i) {
         const int py = fy + 1 + i * 3;
         b_fill(B, x0, py, 2, 2, gold); b_fill(B, fx + S, py, 2, 2, gold);
         b_fill(B, x0, py, 2, 1, gold_hi); b_fill(B, fx + S, py, 2, 1, gold_hi);
         const int px = fx + 1 + i * 3;
-        b_fill(B, px, y0, 2, 2, gold); b_fill(B, px, fy + S, 2, 2, gold); b_fill(B, px, y0, 2, 1, gold_hi); b_fill(B, px, fy + S, 2, 1, gold_hi);
+        b_fill(B, px, y0, 2, 2, gold); b_fill(B, px, fy + S, 2, 2, gold);
+        b_fill(B, px, y0, 2, 1, gold_hi); b_fill(B, px, fy + S, 2, 1, gold_hi);
     }
-    /* face: black frame, pink square with bevel + diagonal shine, two black eyes */
     b_fill(B, fx, fy, S, S, 0x0000);
     const uint32_t *F = BACKBOT_FACE;
     const int n = S - 2;
+    const int well = (lv_backbot_var == 1);
     for (int y = 0; y < n; ++y) for (int x = 0; x < n; ++x) {
         uint32_t c;
         if (y == 0 || x == 0) c = F[3];
         else if (y == n - 1 || x == n - 1) c = F[0];
-        else { const int d = x + y; c = (d >= 9 && d <= 10) ? F[3] : (d < 9 ? F[2] : F[1]); }
+        else {
+            const int d = x + y;
+            c = (d >= 10 && d <= 11) ? F[3] : (d < 10 ? F[2] : F[1]);
+            if (well) {
+                const int dx = x - n / 2, dy = y - n / 2;
+                if (dx * dx + dy * dy <= 36) {
+                    if (dx * dx + dy * dy >= 30) c = (dx + dy < 0) ? F[0] : F[3]; /* recessed ring */
+                    else c = 0x100018;
+                }
+            }
+        }
         b_pix(B, fx + 1 + x, fy + 1 + y, lv_hex(c));
     }
-    b_fill(B, fx + 4, fy + 4, 3, 3, 0x0000); b_fill(B, fx + 8, fy + 4, 3, 3, 0x0000);
+    const int cx = fx + S / 2, cy = fy + S / 2 + 1;
+    if (well) {
+        const uint16_t ink = lv_ink(LV_ACC);
+        /* faint glow around the arrow */
+        lv_backbot_chevron(B, cx + 1, cy, lv_dim(ink, 4, 8), lv_dim(ink, 6, 8));
+        lv_backbot_chevron(B, cx, cy, lv_hi(ink), lv_hex(0xffffff));
+    } else {
+        /* dark cut + bright bevel so the chevron reads as a back arrow, not two eyes */
+        lv_backbot_chevron(B, cx + 1, cy + 1, lv_hex(F[0]), lv_hex(F[0]));
+        lv_backbot_chevron(B, cx, cy, lv_hex(0xffffff), lv_hex(F[3]));
+    }
 }
 
 /* ---------- live tints: state per id (item 1 chip colours, CTL face, BACKbot) ---------- */

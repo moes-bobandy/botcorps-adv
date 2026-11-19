@@ -1,0 +1,55 @@
+GIBSON locked-tower INFO (folder pull-down) mock  —  2026-11-19 11:09 AM ET (America/New_York)
+Branch: backup/gibson-dpad-mock-2026-11-19
+Mock only. Kept out of any v1.2.8 build. Build branch backup/cyd-bigbot-pager-2026-11-17
+left at cfc8a27 (v1.2.7). Not flashed.
+
+Mobandy 10:58 AM ET asked for an INFO screen A opens on a locked Gibson tower.
+Mobandy 10:59 AM ET: "With the folder pull down interactive front tower" / "Right?"
+— a close-up FRONT view of the locked tower with Hackers-style file folders that
+drop down and can be tapped (Joey's extraction scene).
+
+REUSE, not a lookalike:
+  The close-up monolith, drop easing (frame - (18+i*21), 26-frame ease, 42 px pitch,
+  rest y = 78+i*42), Bresenham folder chrome, neon tabs, 11-bar dBm meter, terminal
+  log, and BACK TO GIBSON / HUNT buttons are the existing lv_rd_info_draw in
+  lv_radar.h (MOCK 1111, 1:1 port of the CYDbot Hackers Gibson extract view).
+  /workspace/out/cydbot-gibson-hackers/ is not on this box; the in-tree port is
+  what was reused. No new Pillow / Dojo lookalike was drawn.
+
+WHAT CHANGED (mock-only, this branch):
+  Folders remapped from four (IDENTITY / HARDWARE / RADIO / SECURITY) to three:
+    IDENT  — name/SSID, MAC, vendor (lv_mfg_name when known; otherwise "VENDOR  --",
+             no invented OUI)
+    SIGNAL — type + channel, Nov 6 85x6 RSSI bar + dBm, WIFI / BLE type line
+    SEEN   — first seen as T+Ns, last seen as "Ns AGO", lock count
+  Folders drop closed (tab + short body). After they land, a tap opens one folder
+  and shows its fields (toggle; one open at a time).
+  v2 Stripe Slot banner back is forced on the INFO top chrome; LOCK / name text is
+  inset to x=36 so it does not run under the cap. Name is capped so it ends at the
+  11-bar meter.
+  B, the banner-left back, the [ < BACK TO GIBSON ] button, and the corner BACKbot
+  all close INFO and stay on the locked tower (they do not go home).
+  First/last seen and lock count are MAC-keyed mock trackers (LvFind has no
+  timestamps). Times are taken from lv_now on lv_store / lock_on; nothing is invented.
+
+Locked-tower stills use pad 3 (v3 Joey Console) and bannerback 2. No power beam.
+LV_RD_INFO remains 1 (code compiled); LV_RD_INFO_UI stays 0 (no INFO button on the
+3-button I/W/H row). A on a locked pad already opened this view (pad-a-folder).
+
+Verified in the host sim:
+  tap A on the locked tower -> pad-a-folder
+  tap a landed folder       -> radar-info-folder
+  [ < BACK TO GIBSON ]      -> radar-info-back, scr=RADAR, lock=1
+  banner-left back          -> banner-info-back, scr=RADAR, lock=1
+  pad B hit                 -> radar-info-back, scr=RADAR, lock=1
+
+Flow (real C++ renderer, @1x and nearest-neighbor @3x):
+  locked_tower   — locked Flock-A7F21C, v3 Joey, Stripe Slot cap
+  press_a        — same, A (LOCK) held
+  folders_drop   — INFO close-up, frame 70 (IDENT+SIGNAL landed closed, SEEN in flight)
+  folders_landed — all three folders landed, still closed
+  folder_open    — IDENT opened (name, MAC, vendor)
+  folder_signal  — SIGNAL opened (RSSI bar, CH 11, WIFI ACCESS POINT)  [extra]
+  folder_seen    — SEEN opened (FIRST T+2S, LAST 3S AGO, LOCK COUNT 1)  [extra]
+  back_to_tower  — BACK returns to the same locked tower
+  info_flow@3x.gif — 137 frames, 15 fps, locked -> press A -> drop -> IDENT open

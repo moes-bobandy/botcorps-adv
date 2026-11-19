@@ -261,6 +261,19 @@ static int lv_gloss_step = 9;       /* item 2: glossary chip-rain step on the pa
 static uint32_t lv_gloss_t0 = 0;
 
 static LvFind lv_f[LV_MAXF];
+/* MOCK: first/last seen + lock count, keyed by MAC. LvFind itself has no timestamps. */
+static uint8_t  lv_seen_mac[LV_MAXF][6];
+static uint32_t lv_seen_first[LV_MAXF], lv_seen_last[LV_MAXF];
+static uint16_t lv_seen_locks[LV_MAXF];
+static int lv_seen_n = 0;
+static int lv_seen_find(const uint8_t *m) { for (int i = 0; i < lv_seen_n; ++i) if (!memcmp(lv_seen_mac[i], m, 6)) return i; return -1; }
+static void lv_seen_touch(const uint8_t *m) {
+    int i = lv_seen_find(m);
+    if (i < 0) { if (lv_seen_n >= LV_MAXF) return; i = lv_seen_n++; memcpy(lv_seen_mac[i], m, 6); lv_seen_first[i] = lv_now; lv_seen_locks[i] = 0; }
+    lv_seen_last[i] = lv_now;
+}
+static void lv_seen_lock(const uint8_t *m) { lv_seen_touch(m); const int i = lv_seen_find(m); if (i >= 0) ++lv_seen_locks[i]; }
+
 static int lv_nf = 0;
 static LvFind lv_tmp[LV_MAXF];
 
@@ -496,7 +509,7 @@ static void lv_store(int kind, const LvFind *src, int n)
         LvFind f = src[i]; f.kind = (uint8_t)kind; f.name[32] = 0;
         lv_classify(f);
         f.alert = (lv_hunt >= 0 && lv_hunt_match(lv_hunt, f)) ? 1 : 0;
-        lv_f[lv_nf++] = f;
+        lv_f[lv_nf++] = f; lv_seen_touch(f.mac);
     }
     lv_sort();
     lv_page = 0; lv_sel = -1; lv_detail = false; lv_dirty_box = true; lv_tk_item = 0;
@@ -2642,6 +2655,9 @@ static const char *lv_tap(int x, int y)
      * Existing corner BACK pads are unchanged. */
     if (lv_scr == LV_SC_MO || lv_scr == LV_SC_RADAR || lv_scr == LV_SC_DL || lv_scr == LV_SC_TERM) {
         if (y <= 23 || (LV_BANNER_BACK_ON && lv_in(LV_R_BANNER_BACK_HIT, x, y))) {
+#if LV_RD_INFO
+            if (lv_scr == LV_SC_RADAR && lv_rd_info) { lv_rd_info_close(); return "banner-info-back"; }
+#endif
             lv_go_soon(LV_SC_HOME, 0); return "banner-home";
         }
     }

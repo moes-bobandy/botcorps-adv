@@ -1172,7 +1172,7 @@ static void lv_rd_track_done(void)
         if (lv_rd_trend) { char *e = lv_rd_tl[2] + strlen(lv_rd_tl[2]); snprintf(e, sizeof lv_rd_tl[2] - (e - lv_rd_tl[2]), " %+dDB", lv_rd_trend); }
 #endif
     } else {   /* not heard this pass: keep its last real reading as the target (list full: it takes the weakest slot) */
-        ++lv_rd_miss; if (lv_nf < LV_MAXF) lv_f[lv_nf++] = lv_rd_tgt; else lv_f[LV_MAXF - 1] = lv_rd_tgt; lv_sort();
+        ++lv_rd_miss; if (lv_nf < LV_MAXF) lv_f[lv_nf++] = lv_rd_tgt; else lv_f[LV_MAXF - 1] = lv_rd_tgt; lv_seen_touch(lv_rd_tgt.mac); lv_sort();
         if (lv_rd_miss == LV_RD_MISS_GRACE) lv_rd_log("HUNT: SIGNAL LOST, RESCANNING");   /* one event line; the count + last dBm live on the hunt bar */
     }
     lv_rd_sel = lv_rd_find(lv_rd_tgt.mac);
@@ -1187,6 +1187,7 @@ static void lv_rd_lock_on(int i)
 {
     lv_rd_lock = true; lv_rd_lock_t = lv_now; memcpy(lv_rd_lockmac, lv_f[i].mac, 6);
     lv_rd_sel = i; memcpy(lv_rd_selmac, lv_f[i].mac, 6); lv_rd_holding = false;
+    lv_seen_lock(lv_f[i].mac);
     char m[18]; lv_macstr(lv_f[i].mac, m); lv_rd_log("LOCK %s  IGNORE / WATCH / HUNT", m);
 }
 static void lv_rd_hunt_go(int i)
@@ -1237,33 +1238,42 @@ static void lvi_micro(LvBand &B, int x, int y, int f, int seed, const uint8_t *m
 static void lvi_icon(LvBand &B, int x, int y, int id, uint32_t c)
 { lvi_box(B, x, y, 8, 8, c); if (id == 0) { lvi_box(B, x + 2, y + 2, 4, 4, c); lvi_px(B, x + 3, y + 3, 0xffffff); } if (id == 1) { lvi_line(B, x + 1, y + 6, x + 3, y + 2, c); lvi_line(B, x + 3, y + 2, x + 6, y + 6, c); }
   if (id == 2) { lvi_box(B, x + 2, y + 2, 4, 4, c); lvi_line(B, x, y + 3, x + 7, y + 3, c); } if (id == 3) { lvi_line(B, x + 1, y + 1, x + 6, y + 1, c); lvi_line(B, x + 1, y + 1, x + 2, y + 6, c); lvi_line(B, x + 6, y + 1, x + 4, y + 6, c); } }
-/* the four folders: tab, headline, line 2, line 3 (folder 4: headline + the status line; its bar is the live 0-11 signal / hunt state).
- * Sources: IDENTITY f.name / f.icon (lv_classify) / f.kind; HARDWARE f.mac / f.mfg (lv_mfg_name) / f.apple; RADIO f.kind / f.ch /
- * f.rssi (lv_rd_level) / lv_rd_hunting lv_rd_reads lv_rd_miss; SECURITY (WiFi) f.auth (lv_auth_name) or ACCESS (BLE) f.svc;
- * STATUS f.alert / lv_rd_watched(f.mac) / lv_rd_hunting. Nothing else is shown: LvFind has no timestamps, OUI or connectable flag. */
+/* Folders (Mobandy 2026-11-19): IDENT / SIGNAL / SEEN. Same Joey file-drop chrome as the MOCK 1111
+ * 1:1 port of /workspace/out/cydbot-gibson-hackers (close-up front tower, drop easing, Bresenham folders).
+ * IDENT = name/SSID, MAC, vendor if known; SIGNAL = RSSI bar, channel, type; SEEN = first/last seen, lock count.
+ * First/last seen and lock count are MAC-keyed mock trackers (LvFind has no timestamps). Vendor is lv_mfg_name when present; no invented OUI. */
+#define LV_RD_INFO_NF 3
 struct LvInfoTxt { char tab[24], l[3][40]; };
-static void lv_rd_info_cats(const LvFind &f, LvInfoTxt *T)   /* name capped at 24 glyphs so it never runs under the folder-1 photo glyph at x209 */
+static int lv_rd_info_fold = -1;                 /* -1 = all closed, 0..2 = that folder is open */
+static LvRect LV_RD_INFO_FHIT[LV_RD_INFO_NF];
+static uint8_t LV_RD_INFO_FLAND[LV_RD_INFO_NF];
+static void lv_rd_info_cats(const LvFind &f, LvInfoTxt *T)
 {
-    const bool wifi = f.kind == LV_K_WIFI; char mac[18]; lv_macstr(f.mac, mac); memset(T, 0, 4 * sizeof *T);
-    snprintf(T[0].tab, 24, "IDENTITY"); snprintf(T[0].l[0], 40, "%.24s", f.name[0] ? f.name : wifi ? "(HIDDEN SSID)" : "(NO NAME)");
-    snprintf(T[0].l[1], 40, "CLASS %s", LV_ICON_NAME[f.icon]); snprintf(T[0].l[2], 40, "%s", wifi ? "WIFI ACCESS POINT" : "BLE ADVERTISER");
-    snprintf(T[1].tab, 24, "HARDWARE"); snprintf(T[1].l[0], 40, "%s", mac);
-    if (wifi) snprintf(T[1].l[1], 40, "BSSID (AP RADIO MAC)");
-    else { const char *mn = lv_mfg_name(f.mfg); if (mn) snprintf(T[1].l[1], 40, "VENDOR %s  ID %04X", mn, f.mfg); else if (f.mfg != 0xFFFF) snprintf(T[1].l[1], 40, "COMPANY ID %04X", f.mfg); else snprintf(T[1].l[1], 40, "NO MFG DATA");
-           if (f.mfg == 0x004C && f.apple) snprintf(T[1].l[2], 40, "APPLE TYPE %02X%s", f.apple, f.apple == 0x12 ? "  FINDMY" : ""); }
-    snprintf(T[2].tab, 24, "RADIO"); if (wifi) snprintf(T[2].l[0], 40, "WIFI  CH %d", f.ch); else snprintf(T[2].l[0], 40, "BLE");
-    snprintf(T[2].l[1], 40, "%d DBM  STRENGTH %d/11", f.rssi, (lv_rd_level(f) - 4) * 11 / 56 + 1);
-    if (lv_rd_hunting) snprintf(T[2].l[2], 40, lv_rd_miss ? "HUNT READ %d  HOLD X%d" : "HUNT READ %d  LIVE", lv_rd_reads, lv_rd_miss); else snprintf(T[2].l[2], 40, "LAST SCAN READING");
-    snprintf(T[3].tab, 24, wifi ? "SECURITY / STATUS" : "ACCESS / STATUS");
-    if (wifi) snprintf(T[3].l[0], 40, "AUTH %s", lv_auth_name(f.auth)); else if (f.svc) snprintf(T[3].l[0], 40, "SERVICE %04X", f.svc); else snprintf(T[3].l[0], 40, "NO WATCHED SERVICE UUID");
-    { char *e = T[3].l[1]; int n = 0; const bool wat = lv_rd_watched(f.mac);
-      if (f.alert) n += snprintf(e + n, 40 - n, "HUNT MATCH  ");
-      if (lv_rd_hunting) n += snprintf(e + n, 40 - n, "HUNTING  ");
-      n += snprintf(e + n, 40 - n, wat ? "WATCHED" : "NOT WATCHED"); }
+    const bool wifi = f.kind == LV_K_WIFI; char mac[18]; lv_macstr(f.mac, mac); memset(T, 0, LV_RD_INFO_NF * sizeof *T);
+    snprintf(T[0].tab, 24, "IDENT");
+    snprintf(T[0].l[0], 40, "%.24s", f.name[0] ? f.name : wifi ? "(HIDDEN SSID)" : "(NO NAME)");
+    snprintf(T[0].l[1], 40, "MAC  %s", mac);
+    { const char *mn = lv_mfg_name(f.mfg);
+      if (mn) snprintf(T[0].l[2], 40, "VENDOR  %s  %04X", mn, f.mfg);
+      else if (f.mfg && f.mfg != 0xFFFF) snprintf(T[0].l[2], 40, "VENDOR  ID %04X", f.mfg);
+      else snprintf(T[0].l[2], 40, "VENDOR  --"); }
+    snprintf(T[1].tab, 24, "SIGNAL");
+    if (wifi) snprintf(T[1].l[0], 40, "WIFI  CH %d", f.ch); else snprintf(T[1].l[0], 40, "BLE");
+    snprintf(T[1].l[1], 40, "%d DBM  STRENGTH %d/11", f.rssi, (lv_rd_level(f) - 4) * 11 / 56 + 1);
+    snprintf(T[1].l[2], 40, "%s", wifi ? "WIFI ACCESS POINT" : "BLE ADVERTISER");
+    snprintf(T[2].tab, 24, "SEEN");
+    { const int si = lv_seen_find(f.mac);
+      if (si < 0) { snprintf(T[2].l[0], 40, "FIRST  --"); snprintf(T[2].l[1], 40, "LAST  --"); snprintf(T[2].l[2], 40, "LOCK COUNT  0"); }
+      else {
+        snprintf(T[2].l[0], 40, "FIRST  T+%uS", (unsigned)(lv_seen_first[si] / 1000u));
+        snprintf(T[2].l[1], 40, "LAST  %uS AGO", (unsigned)((lv_now - lv_seen_last[si]) / 1000u));
+        snprintf(T[2].l[2], 40, "LOCK COUNT  %u", (unsigned)lv_seen_locks[si]);
+      }
+    }
 }
 static void lv_rd_info_open(int i)
 {
-    lv_rd_info = true; lv_rd_info_t = lv_now; lv_rd_info_f = lv_f[i];
+    lv_rd_info = true; lv_rd_info_t = lv_now; lv_rd_info_f = lv_f[i]; lv_rd_info_fold = -1;
     char l[26]; lv_label(lv_f[i], l, 20); lv_rd_log("INFO %s  FILE DROP", l);
 }
 static void lv_rd_info_close(void)
@@ -1303,33 +1313,33 @@ static void lv_rd_info_draw(LvBand &B)
     lvi_rect(B, 78, 50, 158, 13, 0x05101c); lvi_box(B, 78, 50, 158, 13, frame % 30 < 15 ? 0xffb000 : 0x59cddc); lvi_line(B, 84, 64, 235, 64, 0x81efff); lvi_line(B, 84, 65, 84, 238, 0x2ca5b5); lvi_line(B, 86, 65, 86, 238, 0x124d61);
     int rad = 8 + (frame % 24); for (int a = 0; a < 360; a += 5) { double r = a * 3.14159265 / 180; lvi_px(B, 59 + int(cos(r) * rad), 249 + int(sin(r) * rad / 4), 0x266881); }
     for (int i = 0; i < 6; i++) { int x = 40 + i * 6, y = 249 - ((i + frame / 3) % 3); lvi_line(B, x, y, x + 3, y, 0x75c9ed); if (i < 5) lvi_line(B, x + 3, y, x + 3, y + 1, 0x428ea8); }
-    LvInfoTxt T[4]; lv_rd_info_cats(f, T);
-    static const unsigned neon[4] = {0x30e8ff, 0xff2ad4, 0xffb000, 0x30ff90};
-    int ys[4], active[4]; float phase[4];
-    for (int i = 0; i < 4; i++) { int t = frame - (18 + i * 21); active[i] = t >= 0; float u = t / 26.f; u = u < 0 ? 0 : u > 1 ? 1 : u; phase[i] = u;
+    LvInfoTxt T[LV_RD_INFO_NF]; lv_rd_info_cats(f, T);
+    static const unsigned neon[LV_RD_INFO_NF] = {0x30e8ff, 0xff2ad4, 0xffb000};
+    int ys[LV_RD_INFO_NF], active[LV_RD_INFO_NF]; float phase[LV_RD_INFO_NF];
+    for (int i = 0; i < LV_RD_INFO_NF; i++) { int t = frame - (18 + i * 21); active[i] = t >= 0; float u = t / 26.f; u = u < 0 ? 0 : u > 1 ? 1 : u; phase[i] = u;
         int start = i == 0 ? 62 : 78 + (i - 1) * 42 + 6, end = 78 + i * 42; float eased = 1.f - (1.f - u) * (1.f - u) * (1.f - u); ys[i] = start + int((end - start) * eased); }
-    for (int i = 3; i >= 0; i--) if (active[i]) {
-        int y = ys[i]; unsigned c = neon[i]; int x = 90; lvi_line(B, 84, y + 12, 89, y + 12, c);
-        if (phase[i] >= 0.65f) lvi_rect(B, x + 3, y + 2, 145, 32, 0x061321);
-        lvi_line(B, x + 145, y + 2, x + 148, y + 5, c); lvi_line(B, x + 148, y + 5, x + 148, y + 32, c); lvi_line(B, x + 3, y + 33, x + 148, y + 33, c);
-        if (phase[i] >= 0.65f) { lvi_rect(B, x, y, 145, 32, 0x050c16); for (int yy = y + 2; yy < y + 31; yy += 4) lvi_rect(B, x + 1, yy, 143, 1, 0x081422); }
+    for (int i = 0; i < LV_RD_INFO_NF; i++) { LV_RD_INFO_FLAND[i] = 0; LV_RD_INFO_FHIT[i] = {0, 0, 0, 0}; }
+    for (int i = LV_RD_INFO_NF - 1; i >= 0; i--) if (active[i]) {
+        int y = ys[i]; unsigned c = neon[i]; int x = 90; const bool open = (lv_rd_info_fold == i); const int bh = open ? 32 : 12;
+        lvi_line(B, 84, y + (open ? 12 : 6), 89, y + (open ? 12 : 6), c);
+        if (phase[i] >= 0.65f) lvi_rect(B, x + 3, y + 2, 145, bh, 0x061321);
+        lvi_line(B, x + 145, y + 2, x + 148, y + 5, c); lvi_line(B, x + 148, y + 5, x + 148, y + bh, c); lvi_line(B, x + 3, y + bh + 1, x + 148, y + bh + 1, c);
+        if (phase[i] >= 0.65f) { lvi_rect(B, x, y, 145, bh, 0x050c16); for (int yy = y + 2; yy < y + bh - 1; yy += 4) lvi_rect(B, x + 1, yy, 143, 1, 0x081422); }
         if (phase[i] >= 0.65f) lvi_rect(B, x, y - 7, 88, 8, 0x050c16);
-        lvi_line(B, x, y - 8, x + 83, y - 8, c); lvi_line(B, x + 83, y - 8, x + 88, y - 3, c); lvi_line(B, x + 88, y - 3, x + 88, y, c); lvi_line(B, x, y - 8, x, y + 31, c);
-        lvi_line(B, x + 88, y, x + 144, y, c); lvi_line(B, x + 144, y, x + 144, y + 31, c); lvi_line(B, x, y + 31, x + 144, y + 31, c);
+        lvi_line(B, x, y - 8, x + 83, y - 8, c); lvi_line(B, x + 83, y - 8, x + 88, y - 3, c); lvi_line(B, x + 88, y - 3, x + 88, y, c); lvi_line(B, x, y - 8, x, y + bh - 1, c);
+        lvi_line(B, x + 88, y, x + 144, y, c); lvi_line(B, x + 144, y, x + 144, y + bh - 1, c); lvi_line(B, x, y + bh - 1, x + 144, y + bh - 1, c);
+        if (phase[i] >= 1.f) { LV_RD_INFO_FLAND[i] = 1; LV_RD_INFO_FHIT[i] = {x, y - 8, x + 148, y + bh + 1}; }
         if (phase[i] < 0.65f) continue;
-        lvi_txt(B, x + 4, y - 6, T[i].tab, c); lvi_icon(B, x + 3, y + 4, i, c); lvi_txt(B, x + 14, y + 5, T[i].l[0], c);
-        if (i == 0) { lvi_txt(B, x + 4, y + 16, T[0].l[1], 0x85a8bd); lvi_txt(B, x + 4, y + 24, T[0].l[2], 0x76b5c4);
-            lvi_box(B, 209, y + 15, 22, 14, c); lvi_line(B, 211, y + 26, 217, y + 19, 0x427c83); lvi_line(B, 217, y + 19, 223, y + 25, 0x427c83); lvi_box(B, 222, y + 18, 5, 7, c); }
-        if (i == 1) { lvi_txt(B, x + 4, y + 16, T[1].l[1], 0xb89ab6); lvi_txt(B, x + 4, y + 24, T[1].l[2], 0x9d73ad); }
-        if (i == 2) { lvi_txt(B, x + 4, y + 16, T[2].l[1], 0xd5b879); lvi_txt(B, x + 4, y + 24, T[2].l[2], 0xb99968); }
-        if (i == 3) {   /* same Nov 6 85x6 frame; fill = RADIO 0-11 strength from real dBm; label = dBm or hunt LIVE/HOLD/NO SIG */
+        lvi_txt(B, x + 4, y - 6, T[i].tab, c);
+        if (!open) continue;   /* closed: tab + short body only; tap after land opens fields */
+        lvi_icon(B, x + 3, y + 4, i, c); lvi_txt(B, x + 14, y + 5, T[i].l[0], c);
+        if (i == 0) { lvi_txt(B, x + 4, y + 16, T[0].l[1], 0x85a8bd); lvi_txt(B, x + 4, y + 24, T[0].l[2], 0x76b5c4); }
+        if (i == 1) {   /* SIGNAL: same Nov 6 85x6 RSSI frame, fill = real dBm 0-11 */
             int sl = (lv_rd_level(f) - 4) * 11 / 56 + 1; if (sl < 0) sl = 0; if (sl > 11) sl = 11;
             lvi_box(B, x + 4, y + 16, 85, 6, c); lvi_rect(B, x + 6, y + 18, 81 * sl / 11, 2, c);
-            char s[16];
-            if (lv_rd_hunting) { if (lv_rd_nosig()) snprintf(s, sizeof s, "NO SIG"); else if (lv_rd_miss > 0) snprintf(s, sizeof s, "HOLD X%d", lv_rd_miss); else snprintf(s, sizeof s, "LIVE"); }
-            else snprintf(s, sizeof s, "%d dBm", f.rssi);
-            lvi_txt(B, x + 94, y + 17, s, c);
-            lvi_txt(B, x + 4, y + 25, T[3].l[1], 0x81bfa4); }
+            char s[16]; snprintf(s, sizeof s, "%d dBm", f.rssi); lvi_txt(B, x + 94, y + 17, s, c);
+            lvi_txt(B, x + 4, y + 25, T[1].l[2], 0xb89ab6); }
+        if (i == 2) { lvi_txt(B, x + 4, y + 16, T[2].l[1], 0xd5b879); lvi_txt(B, x + 4, y + 24, T[2].l[2], 0xb99968); }
     }
     { char t[32]; snprintf(t, sizeof t, "[NODE ..%s // OPEN]", mt + 9);
       lvi_rect(B, 78, 50, 158, 13, 0x05101c); lvi_box(B, 78, 50, 158, 13, frame % 30 < 15 ? 0xffb000 : 0x59cddc); lvi_txt(B, 82, 54, t, 0xffc34a); }
@@ -1337,7 +1347,8 @@ static void lv_rd_info_draw(LvBand &B)
     lvi_rect(B, 0, 0, 240, 24, 0x060913);
     for (int y = 0; y < 3; y++) for (int x = 0; x < 240; x++) lvi_px(B, x, y, ((x + y) / 5) & 1 ? 0xeb31ac : 0xdca137);
     for (int y = 21; y < 24; y++) for (int x = 0; x < 240; x++) lvi_px(B, x, y, ((x - y) / 5) & 1 ? 0xdca137 : 0xeb31ac);
-    { char t[32], l[16]; snprintf(t, sizeof t, "LOCK ..%s %s", mt + 12, wifi ? "WIFI" : "BLE"); lvi_txt(B, 3, 5, t, 0xb9bdc9); lv_label(f, l, 13); lvi_txt(B, 3, 12, l, 0xf3baff, true); }
+    { char t[32], l[16]; snprintf(t, sizeof t, "LOCK ..%s %s", mt + 12, wifi ? "WIFI" : "BLE"); lvi_txt(B, 36, 5, t, 0xb9bdc9); lv_label(f, l, 9); lvi_txt(B, 36, 12, l, 0xf3baff, true); }
+    { const int saved = lv_banner_back_var; lv_banner_back_var = 2; lv_banner_back_draw(B); lv_banner_back_var = saved; }   /* v2 Stripe Slot, forced on INFO */
     { const int sl = (lv_rd_level(f) - 4) * 11 / 56 + 1, tl = lit < sl ? lit : sl;   /* real dBm, filling with the mock's clock */
       for (int i = 0; i < 11; i++) { int h = 5 + i; lvi_rect(B, 84 + i * 6, 20 - h, 5, h, i < tl ? lvi_band(i, frame) : 0x142637); } }
     { char t[12]; snprintf(t, sizeof t, "%ddB", f.rssi); lvi_txt(B, 183 - (int)strlen(t) * 6, 12, t, 0x80d6c9, true); }
@@ -1460,8 +1471,11 @@ static const char *lv_radar_tap(int x, int y)
 {
     if (lv_rd_swallow) { lv_rd_swallow = false; return "radar-locked"; }
 #if LV_RD_INFO
-    if (lv_rd_info) {   /* INFO view: only BACK (and the corner BACKbot, via lv_back) do anything */
-        if (lv_in(LV_RD_INFO_BTN_L, x, y)) { lv_rd_info_close(); return "radar-info-back"; }
+    if (lv_rd_info) {   /* INFO view: folder tap opens/closes; BACK / pad B / banner back return to the locked tower */
+        for (int i = 0; i < LV_RD_INFO_NF; ++i) if (LV_RD_INFO_FLAND[i] && lv_in(LV_RD_INFO_FHIT[i], x, y)) {
+            lv_rd_info_fold = (lv_rd_info_fold == i) ? -1 : i; return "radar-info-folder";
+        }
+        if (lv_in(LV_RD_INFO_BTN_L, x, y) || lv_in(PAD_HIT_B, x, y)) { lv_rd_info_close(); return "radar-info-back"; }
         if (lv_in(LV_RD_INFO_BTN_R, x, y) && LV_RD_INFO_RBTN != 2) {
             if (LV_RD_INFO_RBTN == 0) { const int i = lv_rd_find(lv_rd_lockmac); lv_rd_info_close(); if (lv_rd_hunting) { lv_rd_hunt_stop(); lv_rd_log("HUNT STOPPED  %d READS", lv_rd_reads); return "radar-info-hunt-stop"; } lv_rd_hunt_go(i); return "radar-info-hunt"; }
             const int w = lv_rd_lfind(lv_rd_wat, lv_rd_nwat, lv_rd_lockmac); if (w >= 0) lv_rd_ldel(lv_rd_wat, lv_rd_nwat, w); else lv_rd_ladd(lv_rd_wat, lv_rd_nwat, lv_rd_lockmac);

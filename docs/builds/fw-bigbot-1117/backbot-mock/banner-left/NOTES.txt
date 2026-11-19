@@ -1,0 +1,25 @@
+GIBSON / Dojo banner-left BACK mock  —  2026-11-19  (America/New_York)
+Branch: backup/gibson-dpad-mock-2026-11-19
+Mock only. Build branch backup/cyd-bigbot-pager-2026-11-17 left at cfc8a27. Not flashed.
+
+A NEW set of three back-button designs, different from the earlier v0 chevron chip
+and v1 well-arrow. The button sits at the LEFT END of the top hazard banner
+(LV_R_TICK {1,1,238,23} — the SCANNING WIFI / THREATS bar), blended in:
+same height as the banner (23 px, y=1..23), same red/gold hazard stripes, same
+gold joint / border language. It is a built-in end-cap, not a chip stuck on top.
+A clear back arrow is stamped in the cap. Banner text is overpainted by the cap
+so it never shows through; the rest of the banner is unchanged.
+
+Visual:  LV_R_BANNER_BACK     {1, 1, 32, 23}   32 x 23 px (banner-tall)
+Touch:   LV_R_BANNER_BACK_HIT {0, 0, 39, 39}   40 x 40 px around the left end
+         (the rest of y<=23 on Dojo and the tower still returns home as before)
+
+Variants:
+  v0 Hazard Tab   — recessed well, stripes run straight through, gold joint, stamped chevron
+  v1 Arrow Endcap — pointed gold joint (the banner itself ends in an arrow), stamped chevron
+  v2 Stripe Slot  — hazard rails stay as the top/bottom border; a recessed gold-rim pill is cut between them
+
+The bottom-right corner BACKbot is LEFT AS-IS in these renders (v0 chevron chip,
+21x21 at {219,299,239,319}, hit {200,280,239,319}).
+
+Shown on LV_SC_RADAR (GIBSON tower) and LV_SC_MO (Dojo) only. Real C++ renderer.

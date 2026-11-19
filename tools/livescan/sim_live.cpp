@@ -425,6 +425,7 @@ int main(int argc, char **argv)
         else if (!strcmp(cmd, "page")) { int p; if (fscanf(sc, "%d", &p) != 1) return 2; lv_pg_set_page(p); lv_pg_dirty = true; }
         else if (!strcmp(cmd, "pad")) { int v; if (fscanf(sc, "%d", &v) != 1) return 2; lv_rd_pad_var = v; printf("t=%u pad var=%d\n", t_ms, lv_rd_pad_var); }
         else if (!strcmp(cmd, "backbot")) { int v; if (fscanf(sc, "%d", &v) != 1) return 2; lv_backbot_var = v; printf("t=%u backbot var=%d\n", t_ms, lv_backbot_var); }
+        else if (!strcmp(cmd, "bannerback")) { int v; if (fscanf(sc, "%d", &v) != 1) return 2; lv_banner_back_var = v; printf("t=%u bannerback var=%d\n", t_ms, lv_banner_back_var); }
 #if LV_CB
 #if LV_CB
         else if (!strcmp(cmd, "cbalert")) { lv_event(true, "SIM ALERT (CHIME TEST)"); }   /* fw-3locks: an alert event, as a hunt match / deauth raises */

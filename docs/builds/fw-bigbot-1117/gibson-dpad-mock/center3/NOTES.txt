@@ -1,0 +1,27 @@
+GIBSON center I/W/H mock  —  2026-11-19  (America/New_York)
+Branch: backup/gibson-dpad-mock-2026-11-19
+Mock only. Build branch backup/cyd-bigbot-pager-2026-11-17 left at cfc8a27. Not flashed.
+
+IGNORE, WATCH and HUNT moved out of the top row and into the CENTER of all six
+wider-deck controllers (v0-v5), between the D-pad and A/B, styled like a
+controller's START / SELECT / TURBO buttons, in each skin's own language.
+Idle (not locked): the same three buttons sit in the same place, dimmed / disabled.
+Locked: live colours (grey IGNORE, lime WATCH, magenta HUNT) and press states.
+D-pad, A/B, BACKbot, tower scene and mapping are unchanged. No power beam.
+The top plaque is once again the status strip (name + LOCK n/m).
+
+Touch targets fill the gap between the D-pad (x<=49) and B (x>=132), band y=268..317:
+  IGNORE  {52,268,129,283}  78 x 16 px
+  WATCH   {52,284,129,299}  78 x 16 px
+  HUNT    {52,300,129,316}  78 x 17 px
+Visual pills inside those hits: 58 x 11 at x=58, y=270 / 287 / 304.
+
+Per-variant style:
+  v0 Pluswell        — glossy oval START/SELECT/TURBO pills
+  v1 Keycluster      — tiny chip keys with corner vias
+  v2 Raildeck        — slim CRT-scanline slots
+  v3 Joey Console    — glow-ring arcade micros
+  v4 Famicom Brick   — recessed NES SEL/STR-style slots, now IGNORE/WATCH/HUNT
+  v5 Gibson Grid Deck— lit trapezoid tiles on the floor grid
+
+Real C++ renderer. Still: idle, locked, pressing HUNT @1x and @3x, plus a 6-up contact sheet.

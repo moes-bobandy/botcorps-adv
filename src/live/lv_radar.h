@@ -253,10 +253,10 @@ static int lv_rd_sm4 = 0;   /* smoothed target dBm x4 */
 static inline bool lv_rd_nosig(void) { return lv_rd_miss >= LV_RD_MISS_GRACE; }
 static int lv_rd_from = LV_SC_HOME;  /* where BACK goes (home, SCANbot list, TTY) */
 static int lv_rd_ret_cat = -1, lv_rd_ret_cpage = 0, lv_rd_ret_mode = 0; static bool lv_rd_ret_detail = false; static uint8_t lv_rd_ret_mac[6]; static bool lv_rd_ret_sel = false;
-static const LvRect LV_RD_BTN[3] = {{5, 250, 70, 260}, {74, 250, 139, 260}, {143, 250, 210, 260}};   /* MOCK: IGNORE WATCH HUNT fitted in the deck, clear of BACKbot */
+static const LvRect LV_RD_BTN[3] = {{58, 270, 115, 280}, {58, 287, 115, 297}, {58, 304, 115, 314}};   /* MOCK: center START/SELECT/TURBO visual pills */
 /* touch (hit-list item 1): finger targets for the three buttons, padded ~8 px inside the panel (panel y 247..285; the
  * radar field above y247 keeps its own taps) and split at the gap midpoints so they never overlap. Drawn rects unchanged. */
-static const LvRect LV_RD_BTN_TAP[3] = {{0, 247, 72, 266}, {73, 247, 141, 266}, {142, 247, 216, 266}};  /* MOCK: strip only, clear of D-pad and BACKbot */
+static const LvRect LV_RD_BTN_TAP[3] = {{52, 268, 129, 283}, {52, 284, 129, 299}, {52, 300, 129, 316}};  /* MOCK: center I/W/H hits 78x16, 78x16, 78x17 */
 #ifndef LV_RD_INFO
 #define LV_RD_INFO 1   /* MOCK 1111 (Mobandy): IGNORE / WATCH / HUNT / INFO, a taller row, INFO = Joey file-drop node view. 0 = as locked */
 #endif
@@ -1078,7 +1078,7 @@ static void lv_scene_radar(LvBand &B, void *)
     /* footer (item 13): a 3-line boxed mini terminal that types out live radar info over a >_ prompt, legend folded into the prompt */
     lv_rd_term(B, hdr);
 #if LV_RD_PAD
-    if (lv_rd_lock && lv_rd_sel >= 0 && lv_rd_sel < lv_nf && LV_RD_ROW != 2) lv_rd_panel_buttons(B);
+    /* MOCK: I/W/H live in the controller center (pad_draw_mid3), not the top row. */
 #endif
 #if LV_RD_CHARGE && !LV_RD_CG_NODRAW
     lv_rd_cg_draw(B);
@@ -1109,7 +1109,8 @@ static void lv_hunt_bar(LvBand &B)
     const LvFind &f = lv_rd_tgt; char m[18], t[24], l[26]; lv_macstr(f.mac, m);
     if (f.name[0]) snprintf(l, sizeof l, "%.13s", f.name); else snprintf(l, sizeof l, "%s %.8s", f.kind == LV_K_WIFI ? "WIFI" : "BLE", LV_ICON_NAME[f.icon]);   /* no name: kind + type, the MAC tail is on the line above */
     snprintf(t, sizeof t, "HUNT ..%s", m + 9);
-    b_text35(B, 3, 5, t, MAG); b_text(B, 3, 12, l, lv_hex(0xffffff));
+    const int hx = LV_BANNER_BACK_ON ? (LV_R_BANNER_BACK.x1 + 3) : 3;  /* leave the left end-cap clear */
+    b_text35(B, hx, 5, t, MAG); b_text(B, hx, 12, l, lv_hex(0xffffff));
     const int miss = lv_rd_nosig(), hold = lv_rd_miss > 0 && !miss;   /* hold: bars stay, number greys */
     /* item 6 (Mobandy 2026-11-06, "keep the meter for hunter on the top also ... the boarder alert ... both places"):
      * the top border-alert banner keeps the original 11-bar signal meter right where it used to be (3240b03 / 3b8b3de),
@@ -1132,6 +1133,7 @@ static void lv_hunt_bar(LvBand &B)
     else if (lv_rd_trend < 0) { w = "COLDER"; snprintf(d, sizeof d, "%+dDB", lv_rd_trend); k = 0x40c8ff; }
     else { w = "STEADY"; snprintf(d, sizeof d, "READ %d", lv_rd_reads); k = 0xc0c0c0; }
     b_text35(B, 236 - lv_w35(w), 6, w, lv_hex(k)); b_text35(B, 236 - lv_w35(d), 14, d, lv_hex(k));
+    lv_banner_back_draw(B);
 }
 /* hunt ticker line: the target's full info + a trend that is ONLY the change of its real dBm (no direction) */
 static void lv_rd_hunt_line(void)

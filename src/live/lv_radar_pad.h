@@ -36,6 +36,17 @@ static const LvRect PAD_HIT_U = { 12, 268, 42, 284 };
 static const LvRect PAD_HIT_D = { 12, 300, 42, 316 };
 static const LvRect PAD_HIT_B = {132, 272, 171, 311 };
 static const LvRect PAD_HIT_A = {176, 272, 215, 311 };
+/* Center I/W/H: fill the gap between the D-pad (x<=49) and B (x>=132), band y=268..317.
+ * Visual pills sit inside these hits. Sizes: IGNORE 78x16, WATCH 78x16, HUNT 78x17. */
+static const LvRect PAD_HIT_IGN = { 52, 268, 129, 283 };
+static const LvRect PAD_HIT_WAT = { 52, 284, 129, 299 };
+static const LvRect PAD_HIT_HNT = { 52, 300, 129, 316 };
+#define PAD_MID_X  58
+#define PAD_MID_W  58
+#define PAD_MID_H  11
+#define PAD_MID_Y0 270
+#define PAD_MID_Y1 287
+#define PAD_MID_Y2 304
 
 static int lv_rd_pad_hit_at(int x, int y)
 {
@@ -46,6 +57,9 @@ static int lv_rd_pad_hit_at(int x, int y)
     if (lv_in(PAD_HIT_D, x, y)) return 4;
     if (lv_in(PAD_HIT_B, x, y)) return 6;
     if (lv_in(PAD_HIT_A, x, y)) return 5;
+    if (lv_in(PAD_HIT_IGN, x, y)) return 7;
+    if (lv_in(PAD_HIT_WAT, x, y)) return 8;
+    if (lv_in(PAD_HIT_HNT, x, y)) return 9;
     return 0;
 }
 
@@ -83,6 +97,12 @@ static const char *lv_rd_pad_go(int id)
         if (lv_rd_lock) { lv_rd_release(); lv_rd_log("RELEASED"); return "pad-b-unlock"; }
         lv_go(lv_rd_from == LV_SC_RADAR || lv_rd_from == LV_SC_BOOT || lv_rd_from == LV_SC_HOME_INTRO || lv_rd_from == LV_SC_CAL ? LV_SC_HOME : lv_rd_from);
         return "pad-b-back";
+    }
+    if (id == 7 || id == 8 || id == 9) {
+        if (!lv_rd_lock) return "pad-mid-idle";
+        /* actions are handled in lv_radar_tap via PAD_HIT_* / LV_RD_BTNT so a lock-row tap
+         * still runs IGNORE / WATCH / HUNT. This path is the unlocked no-op plus a fallback. */
+        return id == 7 ? "pad-ignore" : id == 8 ? "pad-watch" : "pad-hunt";
     }
     return "pad-miss";
 }
@@ -314,12 +334,7 @@ static void pad_draw_famicom(LvBand &B, uint16_t ink, uint16_t dim)
     /* screw vias at the four corners of the brick */
     pad_via(B, 8, 271, cream); pad_via(B, 208, 271, cream);
     pad_via(B, 8, 311, cream); pad_via(B, 208, 311, cream);
-    /* NES-style SEL/START slots between the well and B */
-    pad_bevel_rect(B, 78, 286, 22, 6, lv_hex(0x18141c), dim, 1);
-    pad_bevel_rect(B, 78, 296, 22, 6, lv_hex(0x18141c), dim, 1);
-    b_text35(B, 80, 287, "SEL", lv_dim(cream, 6, 8));
-    /* START label is 5*4-1=19, slot is 22: tight; use STR */
-    b_text35(B, 80, 297, "STR", lv_dim(cream, 6, 8));
+    /* SEL/STR slots are now IGNORE / WATCH / HUNT, drawn by pad_draw_mid3 after the brick */
     /* deep cream-lipped well, lighter plus so it reads on the brick */
     pad_disc(B, PAD_CX, PAD_CY, 22, lv_hex(0x0c0810), cream, 0);
     pad_disc(B, PAD_CX, PAD_CY, 18, lv_hex(0x201820), ink, 0);
@@ -396,6 +411,85 @@ static void pad_draw_griddeck(LvBand &B, uint16_t ink, uint16_t dim)
     if (lv_rd_sel >= 0 && !lv_rd_lock) pad_glow(B, 195, 293, 22, ac, 3);
 }
 
+
+/* Center START/SELECT/TURBO-style IGNORE / WATCH / HUNT, in each skin's own language.
+ * Locked = live colours; idle = dimmed / disabled in the same place; press sinks the pill. */
+static void pad_pill_oval(LvBand &B, int x, int y, int w, int h, uint16_t fill, uint16_t ink, int pressed)
+{
+    const uint16_t hi = pressed ? lv_dim(fill, 2, 8) : lv_mix(ink, lv_hex(0xffffff), 6, 8);
+    const uint16_t lo = pressed ? lv_mix(ink, lv_hex(0xffffff), 3, 8) : lv_dim(fill, 2, 8);
+    const uint16_t body = pressed ? lv_mix(fill, ink, 4, 8) : fill;
+    const int cy = y + h / 2, r = h / 2;
+    for (int yy = 0; yy < h; ++yy) {
+        const int dy = yy - r;
+        int inset = 0;
+        for (int s = r; s >= 0; --s) if (s * s + dy * dy <= r * r) { inset = r - s; break; }
+        if (inset > w / 3) inset = w / 3;
+        uint16_t c = body;
+        if (yy == 0) c = hi;
+        else if (yy == h - 1) c = lo;
+        else if (yy == 1) c = lv_mix(body, hi, 3, 8);
+        b_fill(B, x + inset, y + yy, w - 2 * inset, 1, c);
+        b_pix(B, x + inset, y + yy, yy < h / 2 ? hi : lo);
+        b_pix(B, x + w - inset - 1, y + yy, lo);
+    }
+}
+
+static void pad_draw_mid3(LvBand &B, uint16_t ink, uint16_t dim)
+{
+    const char *L[3] = { "IGNORE", "WATCH", "HUNT" };
+    const uint16_t live[3] = { lv_hex(0xa0a0a8), lv_hex(0xa0fc00), lv_hex(0xff2ad4) };
+    const int ys[3] = { PAD_MID_Y0, PAD_MID_Y1, PAD_MID_Y2 };
+    const int x = PAD_MID_X, w = PAD_MID_W, h = PAD_MID_H;
+    const bool on = lv_rd_lock;
+    const int v = lv_rd_pad_var;
+    for (int k = 0; k < 3; ++k) {
+        const int y = ys[k];
+        const int held = (lv_rd_pad_held == 7 + k);
+        const uint16_t acc = on ? live[k] : lv_dim(live[k], 3, 8);
+        const uint16_t fill = on
+            ? (held ? lv_mix(lv_hex(0x100818), acc, 5, 8) : lv_hex(0x100818))
+            : lv_hex(0x0a0810);
+        const uint16_t lab = !on ? lv_dim(acc, 4, 8) : (held ? lv_hex(0xffffff) : acc);
+        const int ly = y + (h - 5) / 2 + (held ? 1 : 0);
+        const int lx = x + (w - lv_w35(L[k])) / 2;
+        if (v == 1) {
+            /* keycluster: tiny chip keys with corner vias */
+            pad_bevel_rect(B, x, y, w, h, fill, acc, held);
+            pad_via(B, x + 1, y + 1, acc);
+            pad_via(B, x + w - 3, y + 1, acc);
+        } else if (v == 2) {
+            /* raildeck: slim CRT slots */
+            pad_bevel_rect(B, x, y, w, h, fill, acc, held);
+            if ((y + 2) % 2 == 0) b_fill(B, x + 2, y + 2, w - 4, 1, lv_dim(acc, 2, 10));
+        } else if (v == 3) {
+            /* joey: glow-ring arcade micros */
+            pad_bevel_rect(B, x - 1, y - 1, w + 2, h + 2, lv_hex(0x08040c), acc, 0);
+            if (on) pad_glow(B, x + w / 2, y + h / 2, w / 2, acc, held ? 5 : 2);
+            pad_bevel_rect(B, x, y, w, h, fill, acc, held);
+        } else if (v == 4) {
+            /* famicom: recessed NES SELECT/START/TURBO slots */
+            pad_bevel_rect(B, x, y, w, h, lv_hex(0x18141c), on ? acc : dim, 1);
+            if (held) b_fill(B, x + 1, y + 1, w - 2, h - 2, lv_mix(lv_hex(0x18141c), acc, 4, 8));
+        } else if (v == 5) {
+            /* griddeck: lit trapezoid tiles */
+            const int inset = 2;
+            for (int yy = 0; yy < h; ++yy) {
+                const int in = (h - 1 - yy) * inset / h;
+                uint16_t c = fill;
+                if (yy == 0) c = on ? lv_mix(acc, lv_hex(0xffffff), 4, 8) : dim;
+                else if (yy == h - 1) c = lv_dim(fill, 2, 8);
+                b_fill(B, x + in, y + yy, w - 2 * in, 1, c);
+            }
+            b_pix(B, x, y, acc); b_pix(B, x + w - 1, y + h - 1, lv_dim(acc, 3, 8));
+        } else {
+            /* pluswell: glossy oval START/SELECT/TURBO pills */
+            pad_pill_oval(B, x, y, w, h, fill, acc, held);
+        }
+        b_text35(B, lx, ly, L[k], lab);
+    }
+}
+
 static void lv_rd_pad_draw(LvBand &B, uint16_t hdr)
 {
     (void)hdr;
@@ -403,19 +497,15 @@ static void lv_rd_pad_draw(LvBand &B, uint16_t hdr)
     b_fill(B, PAD_X0, PAD_Y0, PAD_X1 - PAD_X0 + 1, PAD_Y1 - PAD_Y0 + 1, lv_hex(0x000000));
     b_frame(B, PAD_X0, PAD_Y0, PAD_X1 - PAD_X0 + 1, PAD_Y1 - PAD_Y0 + 1, ink);
     pad_vias_frame(B, ink);
-    if (lv_rd_lock) {
-        /* I/W/H/INFO occupies the plaque strip; keep a 5-px status line under it */
-        pad_status(B, 10, 263, ink, dim);
-    } else {
-        pad_plaque(B, ink, dim);
-        pad_status(B, 10, 253, ink, dim);
-    }
+    pad_plaque(B, ink, dim);
+    pad_status(B, 10, 253, ink, dim);
     if (lv_rd_pad_var == 1) pad_draw_keys(B, ink, dim);
     else if (lv_rd_pad_var == 2) pad_draw_rail(B, ink, dim);
     else if (lv_rd_pad_var == 3) pad_draw_joey(B, ink, dim);
     else if (lv_rd_pad_var == 4) pad_draw_famicom(B, ink, dim);
     else if (lv_rd_pad_var == 5) pad_draw_griddeck(B, ink, dim);
     else pad_draw_pluswell(B, ink, dim);
+    pad_draw_mid3(B, ink, dim);
 }
 
 static void lv_rd_pad_touch(bool down, int x, int y)

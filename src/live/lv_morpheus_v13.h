@@ -687,6 +687,7 @@ static const char *itw_mo_tap(int x, int y)
       if (x >= R.x0 - 8 && x <= R.x1 + 8 && y >= R.y0 - 8 && y <= R.y1 + 8)
         { lv_go_soon(LV_SC_HOME, 0); return "mo-back-home"; } }
     if (y <= 23) { lv_go_soon(LV_SC_HOME, 0); return "mo-ticker"; }
+    if (y >= 287 && x <= 209) { lv_term_from_mo = true; lv_go_soon(LV_SC_TERM, 0); return "mo-terminal"; }
     if (itw_mo_sel >= 0) {
         if (lv_in(MO_BTN, x, y)) { mo_last = itw_mo_sel; mo_closing = true; mo_close_t = lv_now; itw_mo_sel = -1; itw_mo_phase = 0; return "mo-towers"; }
         return "mo-open";

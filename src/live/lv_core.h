@@ -2405,6 +2405,7 @@ static const char *lv_back(void)
         lv_cat = LV_CAT_GRID; lv_sel = -1; lv_dirty_box = true; return "backbot-list->grid";
     }
     if (lv_scr == LV_SC_GLOSS_DESC) { lv_go_soon(LV_SC_GLOSS, 0); return "backbot-gloss"; }   /* item 2: description -> glossary grid */
+    if (lv_scr == LV_SC_TERM && lv_term_from_mo) { lv_term_from_mo = false; lv_pg_set_page(LV_PG_BOTPHEUS); lv_go_soon(LV_SC_MO, 0); return "backbot-term-dojo"; }
     lv_go_soon(LV_SC_HOME, 0); return "backbot-home";
 }
 #define LV_TAP(R) (lv_in(R, x, y) && (lv_press(R), true))

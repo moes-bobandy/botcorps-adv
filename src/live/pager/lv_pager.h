@@ -1,9 +1,9 @@
 /* fw-bigbot-1117: the five v3.1 big-bot screens are the new CYD home (the pager).
  * LV_SC_HOME draws the locked v6 board of the current theme (same stills as CONTROLbot),
  * with BACKbot replaced by the restored mounting-hole chrome, the page's identity face
- * and instrument panel (CONTROLbot keeps the locked v6 live panel), and 5 theme-ink pips.
- * v1.2.2: arrow-chip cycle buttons (theme-ink accent); page order BOTpheus, HACKbot,
- * GIBSONbot, TERMINALbot, CONTROLbot (starts on GIBSONbot). Swipe on the coil strip
+ * and instrument panel (CONTROLbot keeps the locked v6 live panel), and 4 theme-ink pips.
+ * v1.2.2: arrow-chip cycle buttons (theme-ink accent); page order HACKbot, BOTpheus,
+ * GIBSONbot, CONTROLbot (starts on GIBSONbot; v1.2.6 dropped the TERMINALbot page). Swipe on the coil strip
  * (LV_PG_COIL) or tap a chip flips pages, 233 ms ease-in-out cubic, no wrap (edge bounce
  * ~18 px). Center taps: BOTpheus -> EB3, HACKbot -> game, GIBSONbot -> radar,
  * TERMINALbot -> TERM, CONTROLbot cycles the theme (whole pager follows). BACKbot on
@@ -19,12 +19,11 @@
 #define LV_PG_PROF 0
 #endif
 
-#define LV_PG_N        5
-#define LV_PG_BOTPHEUS 0
-#define LV_PG_HACKBOT  1
+#define LV_PG_N        4
+#define LV_PG_HACKBOT  0
+#define LV_PG_BOTPHEUS 1
 #define LV_PG_GIBSON   2
-#define LV_PG_TERMINAL 3
-#define LV_PG_CTL      4
+#define LV_PG_CTL      3
 #define LV_PG_DEFAULT  LV_PG_GIBSON
 #define LV_PG_MS       233
 #define LV_PG_BOUNCE   18
@@ -81,8 +80,8 @@ static uint32_t lv_pg_us_now(void)
 
 static int lv_pg_art(int page)
 {
-    /* blobs stay 0 BOTpheus, 1 GIBSONbot, 2 HACKbot, 3 TERMINALbot */
-    static const int8_t A[LV_PG_N] = {0, 2, 1, 3, -1};
+    /* blobs stay 0 BOTpheus, 1 GIBSONbot, 2 HACKbot; HACKbot face is procedural so art[0] is unused */
+    static const int8_t A[LV_PG_N] = {2, 0, 1, -1};
     return (page >= 0 && page < LV_PG_N) ? A[page] : -1;
 }
 
@@ -305,7 +304,7 @@ static void lv_pg_pips_row(uint16_t *row, int y, int page)
     if (y < 25 || y > 29) return;
     uint8_t on[3], dim[3];
     lv_pg_pip_ink(on, dim);
-    const float CX0 = 104.f, PITCH = 8.f, CY = 27.f, R_OFF = 1.35f, R_ON = 1.75f;
+    const float CX0 = 108.f, PITCH = 8.f, CY = 27.f, R_OFF = 1.35f, R_ON = 1.75f;   /* v1.2.6: 4 pips, still centred on x=120 */
     auto plot = [&](int x, float cr, float cg, float cb, float a) {
         if (a <= 0.f || x < 4 || x > 235) return;
         const int R = ((row[x] >> 11) << 3) | ((row[x] >> 11) >> 2);
@@ -318,7 +317,7 @@ static void lv_pg_pips_row(uint16_t *row, int y, int page)
         const int nb = (int)(cb * a + B * (1.f - a) + 0.5f);
         row[x] = lv_pg_pack(nr, ng, nb);
     };
-    for (int i = 0; i < 5; ++i) {
+    for (int i = 0; i < LV_PG_N; ++i) {
         const bool lit = (i == page);
         const float cx = CX0 + i * PITCH, rad = lit ? R_ON : R_OFF, a0 = lit ? 1.f : 0.85f;
         const uint8_t *c = lit ? on : dim;
@@ -361,7 +360,7 @@ static void lv_pg_compose_row(uint16_t *row, int y, int page, LvPgSet &S)
         lv_pg_panel_fx_row(row, y, page);
 
     if (page != LV_PG_CTL && y >= 88 && y <= 197) {
-        const uint8_t *fr = (page == LV_PG_HACKBOT) ? nullptr : lv_pg_ch_row(S, true, page == LV_PG_TERMINAL ? 2 : lv_pg_art(page), y - 88);
+        const uint8_t *fr = (page == LV_PG_HACKBOT) ? nullptr : lv_pg_ch_row(S, true, lv_pg_art(page), y - 88);
         lv_pg_face_fx_row(row, y, page, fr);
     }
 
@@ -656,7 +655,6 @@ static const char *lv_pg_tap(int x, int y)
         if (lv_pg_page == LV_PG_BOTPHEUS) { lv_go_soon(LV_SC_MO, 0); return "pager-botpheus-eb3"; }
         if (lv_pg_page == LV_PG_HACKBOT)  { lv_go_soon(LV_SC_DL, 0); return "pager-hackbot-game"; }
         if (lv_pg_page == LV_PG_GIBSON)   { lv_go_soon(LV_SC_RADAR, 0); return "pager-gibson-radar"; }
-        if (lv_pg_page == LV_PG_TERMINAL) { lv_go_soon(LV_SC_TERM, 0); return "pager-terminal"; }
     }
     return "none";
 }

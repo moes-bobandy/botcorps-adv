@@ -126,12 +126,11 @@ static void lv_pg_face_fx_row(uint16_t *row, int y, int page, const uint8_t *fr)
         return;
     }
     if (fr) memcpy(row + LV_PG_FX_X0, fr, LV_PG_FACE_S * 2);
-    if (page == LV_PG_TERMINAL) {   /* old HACKbot face, remapped to metallic gold */
-        for (int x = LV_PG_FX_X0; x <= LV_PG_FX_X0 + LV_PG_FX_S - 1; ++x) row[x] = lv_pg_gold(row[x]);
-        return;
-    }
-    if (page == LV_PG_BOTPHEUS || page == LV_PG_GIBSON) {
-        const uint16_t pal[3] = { lv_hex(0xFFFFFF), lv_hex(0xD0D4DC), lv_hex(0x4A5060) };
+    if (page == LV_PG_BOTPHEUS) {   /* v1.2.6: brighter white, pure #FFFFFF heads, brighter trails */
+        const uint16_t pal[3] = { lv_hex(0xFFFFFF), lv_hex(0xF0F2F6), lv_hex(0xC4C8D0) };
+        lv_pg_rain_row(row, y, pal, 1, page);
+    } else if (page == LV_PG_GIBSON) {   /* v1.2.6: pitch-black glyphs, shades stay on top */
+        const uint16_t pal[3] = { lv_hex(0x000000), lv_hex(0x000000), lv_hex(0x000000) };
         lv_pg_rain_row(row, y, pal, 1, page);
     }
 }
@@ -310,5 +309,4 @@ static void lv_pg_panel_fx_row(uint16_t *row, int y, int page)
     if (page == LV_PG_BOTPHEUS) lv_pg_pan_botpheus(row, y, acc);
     else if (page == LV_PG_HACKBOT) lv_pg_pan_terminal(row, y, acc);         /* v1.2.5: CRT panel moved with the green rain face */
     else if (page == LV_PG_GIBSON) lv_pg_pan_gibson(row, y, acc);
-    else if (page == LV_PG_TERMINAL) lv_pg_pan_hackbot(row, y, acc, 1);     /* old HACKbot meter, metallic gold */
 }

@@ -91,6 +91,7 @@ static void itw_top(void)
     lv_ticker_tick();
 }
 static const LvRect ITW_BACK_HIT = {210, 289, 239, 319};
+static bool lv_term_from_mo = false;   /* v1.2.6: TERM opened from the Dojo footer; BACK returns to Dojo */
 
 /* a per-bot header plate (over the radar header strip) with the LOCKED bot face + title */
 static void itw_header(LvBand &B, const char *title, const uint16_t *face, int fw, int fh, uint16_t bg, uint16_t ink)

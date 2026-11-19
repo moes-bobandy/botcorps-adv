@@ -18,14 +18,17 @@ static int lv_pg_bot_feat(uint16_t c)
 {
     return c == 0 || c == 0xFFFF || c == lv_rgb(132, 138, 148) || c == lv_rgb(82, 89, 99);
 }
-/* GIBSONbot / generic: keep dark eyes, bright highlights, and chromatic details on top of the rain. */
+/* GIBSONbot shades + bevel (not the ivory fill): keep these on top of the white rain. */
+static int lv_pg_gib_feat(uint16_t c)
+{
+    return c == 0 || c == lv_rgb(181, 166, 148) || c == lv_rgb(33, 36, 33)
+        || c == lv_rgb(123, 113, 99) || c == lv_rgb(107, 117, 132) || c == lv_rgb(33, 32, 24);
+}
 static int lv_pg_keep_feat(uint16_t c, int page)
 {
     if (page == LV_PG_BOTPHEUS) return lv_pg_bot_feat(c);
-    const int r = (c >> 11) << 3, g = ((c >> 5) & 63) << 2, b = (c & 31) << 3;
-    const int y = (r * 3 + g * 6 + b) / 10;
-    const int chr = abs(r - g) + abs(g - b) + abs(b - r);
-    return (y <= 28) || (y >= 190) || (chr >= 48);
+    if (page == LV_PG_GIBSON) return lv_pg_gib_feat(c);
+    return 0;
 }
 /* Metallic gold (not flat yellow): bronze shadow, rich mid, champagne highlight. */
 static uint16_t lv_pg_gold(uint16_t c)

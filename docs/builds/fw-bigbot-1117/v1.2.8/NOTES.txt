@@ -29,8 +29,10 @@ to v1.2.7 (same-script host render, 0 changed pixels). GIBSONbot home also
 matches the official v1.2.7 proof PNG (0 px). CONTROLbot home differs only
 in the right-chip box: 686 pixels, bbox (211,32)-(235,67).
 
-App partition: ota_0 2,686,976 B. See SHA256SUMS for final app/full sizes
-after the clean (post-commit) build.
+App partition: ota_0 2,686,976 B. Clean build BOTCORPS_BUILD_ID = v1019z 13c84fb.
+BOTcorps-CYD-v1.2.8.bin (app-only, flash at 0x10000) and -full.bin (merged at 0x0)
+are in this folder; *.bin is gitignored so they live under /workspace/out and a
+copy under docs/builds (may be untracked). Sizes and sha256 are in SHA256SUMS.
 
 Proofs (real C++ renderer, nearest-neighbor @3x, D-pad crop @5x) are in
 proof/ and copied to docs/builds/fw-bigbot-1117/v1.2.8/.

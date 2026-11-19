@@ -306,14 +306,24 @@ static void mo11_tower_fx(LvBand &B, const LvTower &T)
         (void)u; return lv_hex(g > 0.15f ? 0x8a5428 : 0x4a2a12); };   /* v4: two-tone grain (crisp streaks, no ramp) */
     auto side = [&](int xf, int xbk) { const int dir = xbk > xf ? 1 : -1, n = abs(xbk - xf); if (n < 1) return;
         for (int s = 0; s <= n; ++s) { const int x = xf + dir * s; const float u = s / (float)n; const int top = (int)lroundf(yt + (byt - yt) * u), bot = (int)lroundf(yb + (byb - yb) * u);
-            for (int y = top; y <= bot; ++y) mo13_px(B, x, y, MO_BODY == 4 ? lv_hex(mo_mixc(0xa8741c, 0x5a3a0c, u)) : MO_BODY == 5 ? lv_hex(mo_mixc(mo_mixc(MO_EMB_COL[i], 0x000000, 0.45f), mo_mixc(MO_EMB_COL[i], 0x000000, 0.7f), u)) : MO_BODY == 6 ? lv_hex(mo_mixc(0xb01c26, 0x5a0a10, u)) : mo3_mx(0x6a4020, 0x2a160a, u), a); }   /* v5e: solid side; towers3b: shaded side */
+            if (x < B.x0 || x >= B.x0 + B.w || bot < B.y0 || top >= B.y0 + B.h) continue;   /* v1.2.10 speed: column outside this band (mo13_px would clip every pixel) */
+            const uint16_t sc = MO_BODY == 4 ? lv_hex(mo_mixc(0xa8741c, 0x5a3a0c, u)) : MO_BODY == 5 ? lv_hex(mo_mixc(mo_mixc(MO_EMB_COL[i], 0x000000, 0.45f), mo_mixc(MO_EMB_COL[i], 0x000000, 0.7f), u)) : MO_BODY == 6 ? lv_hex(mo_mixc(0xb01c26, 0x5a0a10, u)) : mo3_mx(0x6a4020, 0x2a160a, u);   /* v1.2.10 speed: depends on the column only (same value as before) */
+            for (int y = top; y <= bot; ++y) mo13_px(B, x, y, sc, a); }   /* v5e: solid side; towers3b: shaded side */
         mo13_line(B, xbk, byt, xbk, byb, lv_hex(MO_BODY == 0 ? 0x8a5a2a : MO_BODY == 4 ? 0x3a2406 : MO_BODY == 5 ? mo_mixc(MO_EMB_COL[i], 0x000000, 0.8f) : 0x3a0408), MO_BODY ? a : a * 200 / 256); mo13_line(B, xf, yt, xbk, byt, lv_hex(MO_BODY == 0 ? 0xd8aa52 : MO_BODY == 4 ? 0xfff4c0 : MO_BODY == 5 ? mo_mixc(MO_EMB_COL[i], 0xffffff, 0.5f) : 0xff6a6a), a); };
     if (bx1 > x1) side(x1, bx1);
     if (bx0 < x0) side(x0, bx0);
     if (byt < yt) { const float X[4] = {(float)x0, (float)bx0, (float)bx1, (float)x1}, Y[4] = {(float)yt, (float)byt, (float)byt, (float)yt}; mo_quad(B, X, Y, lv_hex(MO_BODY == 4 ? 0xfff2b0 : MO_BODY == 5 ? mo_mixc(MO_EMB_COL[i], 0xffffff, 0.45f) : MO_BODY == 6 ? 0xe8404a : 0xb08a3a), a);   /* v5e: solid cap; towers3b: cap highlight */ mo13_line(B, bx0, byt, bx1, byt, lv_hex(MO_BODY == 6 ? 0xff9a9a : 0xfff0b0), a); }
     /* translucent wood front: grain at ~38% (v3; v2 was 55%) so the room / rain behind shows through, a soft sheen near the lit edge, a faint warm inner light */
+#if MO_BODY == 5   /* v1.2.10 speed: mo_shade3's first stage depends on the column only; computed once per column (identical values) */
+    const uint32_t e_lit = mo_mixc(MO_EMB_COL[i], 0xffffff, 0.30f), e_mid = mo_mixc(MO_EMB_COL[i], 0x000000, 0.12f), e_dk = mo_mixc(MO_EMB_COL[i], 0x000000, 0.50f);
+    uint32_t e_col[240]; const int ex0 = x0 < B.x0 ? B.x0 : x0, ex1 = x1 > B.x0 + B.w - 1 ? B.x0 + B.w - 1 : x1;
+    for (int x = ex0; x <= ex1; ++x) { const float u = (x - x0) / (float)fw; e_col[x - ex0] = u < 0.35f ? mo_mixc(e_lit, e_mid, u / 0.35f) : mo_mixc(e_mid, e_dk, (u - 0.35f) / 0.65f); }
+    for (int y = (yt > B.y0 ? yt : B.y0); y <= yv && y < B.y0 + B.h; ++y) { const float v = (y - yt) / (float)(yb - yt + 1);
+        for (int x = ex0; x <= ex1; ++x) mo13_px(B, x, y, lv_hex(mo_mixc(e_col[x - ex0], e_dk, v * 0.22f)), a); }
+    if (0)
+#endif
     for (int y = yt; y <= yv; ++y) { const float v = (y - yt) / (float)(yb - yt + 1);
-        for (int x = x0; x <= x1; ++x) { const float u = (x - x0) / (float)fw, sh = expf(-((u - 0.2f) * (u - 0.2f)) / 0.012f);
+        for (int x = x0; x <= x1; ++x) { const float u = (x - x0) / (float)fw, sh = 0.0f;   /* v1.2.10: the unused sheen expf() removed (its result was never drawn) */
 #if MO_BODY == 4   /* D UNIFORM: polished SCANbot-style gold, lit left -> shadow right */
             mo13_px(B, x, y, lv_hex(mo_shade3(0xfff4c0, 0xe0b040, 0x8a5a14, u, v)), a);
 #elif MO_BODY == 5   /* E VARIED: each body enamelled in its own device colour (the emblem colour), lit left -> shadow right */

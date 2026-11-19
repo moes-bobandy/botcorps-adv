@@ -1358,6 +1358,7 @@ static void lv_radar_enter(void)
     { int nw = 0; for (int i = 0; i < lv_nf; ++i) nw += lv_f[i].kind == LV_K_WIFI;
       lv_rd_log("GIBSON UP  %dW %dB  HEIGHT=DBM", nw, lv_nf - nw); lv_rd_log("ANGLE/DEPTH = MAC HASH, NOT DIRECTION"); lv_rd_log(lv_nf ? (LV_RD_CHARGE ? "TAP=CYCLE  HOLD CHARGE=LOCK" : "TAP=CYCLE  HOLD 1S=LOCK") : "NO NODES YET - SCANNING"); lv_rd_tl_t = lv_now; }
     lv_rd_t0 = lv_now; lv_rd_sel = -1; lv_rd_glow = false; lv_rd_holding = false; lv_rd_swallow = false;
+    lv_rd_cam_hold = false;   /* v1.2.10: the GIBSON radar never parks its camera (only HACKbot's open tower does) */
 #if LV_RD_CHARGE
     lv_rd_cg = false; lv_rd_cg_owned = false; lv_rd_cg_dropping = false; lv_rd_cg_guard_until = 0;
 #endif

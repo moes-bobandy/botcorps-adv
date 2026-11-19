@@ -1946,7 +1946,7 @@ static void lv_go(int s)
     if (prev == LV_SC_DL && s != LV_SC_DL) lv_dl_leave();
 #endif
 #if LV_MO_INSIDE
-    if (prev == LV_SC_MO && s != LV_SC_MO) mo_emb_free_all();   /* v1.2.1: the Dojo hands its emblem cache back */
+    if (prev == LV_SC_MO && s != LV_SC_MO) { mo_emb_free_all(); lv_tk_alert = false; lv_tk_next(); }   /* v1.2.1: the Dojo hands its emblem cache back; v1.2.10: and its banner text (it leaked onto GIBSON) */
     if (prev == LV_SC_TERM && s != LV_SC_TERM && s != LV_SC_TTY && s != LV_SC_MO) lv_term_from_mo = false;   /* v1.2.10: left the Dojo's TERM some other way */
 #endif
     /* item 14: tear the radio down when heading home so no scan/deauth/hunt is left running across screens */

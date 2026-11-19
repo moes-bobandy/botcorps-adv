@@ -141,7 +141,7 @@ static void lv_dl_play(void)
     lv_hc_log("LINK UP. %d TOWERS. TRACE RUNNING.", LV_DL_NT); lv_hc_log("TAP A TOWER TO OPEN IT");
 }
 static void lv_dl_enter(void) { lv_dl_new_round(); lv_dl_phase = LV_DL_INTRO; lv_dl_intro_t = lv_now; lv_dl_typed_all = lv_dl_intro_done = false; }
-static void lv_dl_leave(void) { lv_dl_phase = LV_DL_INTRO; lv_dl_tw = -1; }
+static void lv_dl_leave(void) { lv_dl_phase = LV_DL_INTRO; lv_dl_tw = -1; lv_dl_cam_mode = 0; lv_rd_cam_hold = false; }   /* v1.2.10: leaving with a tower open left lv_rd_cam_hold set -> GIBSON lost its camera sway */
 static void lv_dl_open_tower(int i)
 {
     lv_dl_why[0] = lv_dl_note[0] = 0; lv_dl_tw = i; lv_dl_open_t = lv_now; lv_dl_seen[i] = true; lv_dl_lock(i, true);

@@ -384,6 +384,23 @@ static const LvRect LV_PG_PILL_LH = {3, 30, 30, 69}, LV_PG_PILL_RH = {209, 30, 2
 static const LvRect LV_PG_COIL = {32, 30, 207, 69};   /* the only swipe zone: the coil strip above the chip */
 static int lv_pg_pill_on = 0; static uint32_t lv_pg_pill_t = 0;   /* 1 left, 2 right: pressed flash */
 #define LV_PG_PILL_MS 130
+static uint32_t lv_pg_pill_guard = 0;   /* v1.2.5: ignore further chip taps until the flip has settled */
+#define LV_PG_PILL_DEBOUNCE 280
+static int lv_pg_chip_at(int x, int y)   /* 1 left, 2 right, 0 none; chip wins over the coil when the point is near both */
+{
+    const int pad = 6;
+    const LvRect *R[2] = { &LV_PG_PILL_LH, &LV_PG_PILL_RH };
+    int best = 0; long bd = 1L << 30;
+    for (int i = 0; i < 2; ++i) {
+        const LvRect &C = *R[i];
+        const bool in = (x >= C.x0 - pad && x <= C.x1 + pad && y >= C.y0 - pad && y <= C.y1 + pad);
+        if (!in) continue;
+        const int cx = (C.x0 + C.x1) / 2, cy = (C.y0 + C.y1) / 2;
+        const long d = (long)(x - cx) * (x - cx) + (long)(y - cy) * (y - cy);
+        if (d < bd) { bd = d; best = i + 1; }
+    }
+    return best;
+}
 
 /* compact IC: rounded body + 6 metallic side pins + a 10x15 bit-mask arrow in theme ink */
 static const uint16_t LV_PG_ARW[15] = { /* bit 0 = base, bit 7 = tip */
@@ -615,7 +632,7 @@ static void lv_pg_frame(bool full)
 
 static void lv_pg_pill_go(int pill, int dir)
 {
-    lv_pg_pill_on = pill; lv_pg_pill_t = lv_now; lv_pg_dirty = true;
+    lv_pg_pill_on = pill; lv_pg_pill_t = lv_now; lv_pg_pill_guard = lv_now; lv_pg_dirty = true;
     lv_pg_start_slide(dir);   /* no wrap: past an end this is the 18 px bounce */
 }
 
@@ -623,8 +640,10 @@ static const char *lv_pg_tap(int x, int y)
 {
     if (lv_pg_swiped) { lv_pg_swiped = false; return "pager-swipe"; }
     if (lv_pg_anim) return "pager-busy";
-    if (lv_in(LV_PG_PILL_LH, x, y)) { lv_pg_pill_go(1, -1); return "pager-chip-left-prev"; }
-    if (lv_in(LV_PG_PILL_RH, x, y)) { lv_pg_pill_go(2, +1); return "pager-chip-right-next"; }
+    if (lv_pg_pill_guard && (int32_t)(lv_now - lv_pg_pill_guard) < LV_PG_PILL_DEBOUNCE) return "pager-chip-debounce";
+    { const int ch = lv_pg_chip_at(x, y);
+      if (ch == 1) { lv_pg_pill_go(1, -1); return "pager-chip-left-prev"; }
+      if (ch == 2) { lv_pg_pill_go(2, +1); return "pager-chip-right-next"; } }
     if (y <= LV_PG_TICK_Y1) return "pager-ticker";   /* banner: not a swipe zone, does not jump to SCAN */
     if (lv_in(LV_PG_COIL, x, y)) return "pager-coil";
     if (lv_pg_page == LV_PG_CTL) return lv_controlbot_tap(x, y);
@@ -642,6 +661,7 @@ static void lv_pg_touch(bool down, int x, int y)
     if (lv_pg_anim) return;
     if (down) {
         if (!lv_pg_dragging) {
+            if (lv_pg_chip_at(x, y)) return;   /* v1.2.5: a chip press is not a coil swipe; wait for the release tap */
             if (!lv_in(LV_PG_COIL, x, y)) return;   /* v1.2.1: swipe starts on the coil strip only (not the banner) */
             lv_pg_dragging = true; lv_pg_dx0 = x; lv_pg_dy0 = y; lv_pg_drag = 0;
             const int left = lv_pg_page - 1, right = lv_pg_page + 1;

@@ -2492,6 +2492,11 @@ static const char *lv_tap(int x, int y)
 #endif
     if (lv_scr == LV_SC_BOOT || lv_scr == LV_SC_HOME_INTRO) { lv_go(LV_SC_HOME); if (lv_selftest_pending) { lv_selftest_pending = false; lv_selftest(); } return "skip-intro"; }
     if (lv_soon_kind) return "busy-nav";
+    /* v1.2.5: tapping the top banner returns to the big-bot pager from any sub screen.
+     * Existing corner BACK pads are unchanged. */
+    if (y <= 23 && (lv_scr == LV_SC_MO || lv_scr == LV_SC_RADAR || lv_scr == LV_SC_DL || lv_scr == LV_SC_TERM)) {
+        lv_go_soon(LV_SC_HOME, 0); return "banner-home";
+    }
 #if LV_HC_GAME
     if (lv_scr == LV_SC_HCH) return lv_hc_tap(x, y);   /* MOCK 1111: SCANbot HOT COLD HUNT */
 #endif

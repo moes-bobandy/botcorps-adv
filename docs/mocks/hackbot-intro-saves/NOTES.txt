@@ -22,8 +22,9 @@ What this mock adds (the rest of HACKbot is unchanged):
   (slot 1 filled: L3, score 860, towers 3/5, files 2/3; slots 2 and 3
   NEW GAME), stamped EX.DATA so the numbers are not live saves.
 - During play, B on the field (no tower open) opens a PAUSE menu with
-  RESUME and SAVE (U/D, A selects, B resumes). SAVE writes the slot in
-  use and shows SLOT SAVED. B on an open tower still closes it (locked).
+  RESUME, SAVE, and EXIT (U/D, A selects, B resumes). SAVE writes the
+  slot in use and shows SLOT SAVED. EXIT returns home without saving.
+  B on an open tower still closes it (locked).
 - The 90s trace timer is frozen while paused. Rain and the camera keep
   moving.
 - The card is the locked LEVEL CLEAR / TRACED frame (12,60 216x181,
@@ -40,9 +41,9 @@ nearest-neighbor, 10 fps. Flow: intro (slot 1) -> A continue -> play
 SLOT SAVED.
 
 Uncertain / noted:
-- B on the field now opens pause instead of going straight home. The
-  slot intro's B still goes home. There is no EXIT row on the pause
-  menu (B / RESUME returns to play).
+- B on the field opens pause instead of going straight home. The slot
+  intro's B still goes home. EXIT on pause goes home without saving;
+  B / RESUME returns to play.
 - A filled slot continues into PLAY with that progress. NEW GAME opens
   the locked level-1 typist.
 - Loading a mid-level save reshuffles that level's files (new_round)

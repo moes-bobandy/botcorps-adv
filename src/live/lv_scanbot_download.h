@@ -20,7 +20,8 @@
  *  SLOTS  - mock 2026-11-20: the HACKbot intro itself is the 3-slot picker (Mobandy). U/D moves between slots, A opens,
  *           B goes back. Slot 1..3 keep full progress (level, score, towers hacked, files downloaded). Empty = NEW GAME.
  *           Saves go to SD /BOTcorps/hackbot/slotN.sav (small 16-byte HB1 record). NVS fallback only if there is no SD.
- *  PAUSE  - during play, B on the field (no tower open) opens a pause menu; SAVE writes the slot in use; B / RESUME returns.
+ *  PAUSE  - during play, B on the field (no tower open) opens a pause menu; RESUME / SAVE / EXIT (U/D, A selects).
+ *           SAVE writes the slot in use. EXIT returns home without saving. B / RESUME returns to play.
  * The mission line ("FIND <file> <size>") is the bottom terminal's prompt line on every play frame. No bot is drawn in the scene.
  * While this screen is up it borrows the Hot/Cold game's world buffer lv_hc_w. All files / towers are FAKE game data. */
 #if LV_DL_GAME
@@ -80,7 +81,8 @@ static int lv_dl_fsel = 0;   /* v1.2.14: the deck's folder cursor (was the MOCK'
 struct LvDlSave { bool used; uint8_t level, towers, files_got, files_need; int16_t score; };
 static LvDlSave lv_dl_slot[LV_DL_NSLOT];
 static int lv_dl_slot_i = 0;     /* 0..2: selected slot on the intro, and the slot in use once play starts */
-static int lv_dl_menu = 0;       /* pause items: 0 RESUME, 1 SAVE */
+static int lv_dl_menu = 0;       /* pause items: 0 RESUME, 1 SAVE, 2 EXIT */
+#define LV_DL_PMENU 3
 static bool lv_dl_sd_ok = true;  /* sim: SD present (example). Firmware: mount result. */
 static bool lv_dl_exdata = true; /* mock stamp: numbers are example data, not live saves */
 static void lv_dl_slot_path(int i, char *o, int n) { snprintf(o, n, LV_DL_SAV_NAME, i + 1); }
@@ -125,7 +127,7 @@ static void lv_dl_capture_slot(int i)
     lv_dl_slot[i].files_need = (uint8_t)lv_dl_need;
 }
 static LvRect lv_dl_slot_rect(int i) { return {(int16_t)22, (int16_t)(100 + i * 44), (int16_t)217, (int16_t)(100 + i * 44 + 41)}; }   /* 196 x 42, >=40 px tall */
-static LvRect lv_dl_pause_rect(int i) { return {(int16_t)22, (int16_t)(156 + i * 40), (int16_t)217, (int16_t)(156 + i * 40 + 36)}; }   /* 196 x 37 */
+static LvRect lv_dl_pause_rect(int i) { return {(int16_t)22, (int16_t)(128 + i * 36), (int16_t)217, (int16_t)(128 + i * 36 + 35)}; }   /* 196 x 36: RESUME / SAVE / EXIT, last row ends y 235, above the deck */
 static LvRect lv_dl_ftap(int i)   /* 3: 152 x 59 (as before); n > 3: one full pitch each, edge to edge: 152 x 47 / 38 / 31 / 27 */
 {
     const int y = LV_DL_FY0 + i * lv_dl_fdy();
@@ -529,8 +531,8 @@ static void lv_dl_save_card(LvBand &B)   /* same magenta Hot/Cold card frame as 
           cur.score = (int16_t)lv_dl_score; cur.towers = (uint8_t)ns; cur.files_got = (uint8_t)lv_dl_got; cur.files_need = (uint8_t)lv_dl_need;
           prog(cur, 102, GOLD); }
         stamp(122);
-        static const char *const ITEM[2] = {"RESUME", "SAVE"};
-        for (int i = 0; i < 2; ++i) {
+        static const char *const ITEM[LV_DL_PMENU] = {"RESUME", "SAVE", "EXIT"};
+        for (int i = 0; i < LV_DL_PMENU; ++i) {
             const LvRect r = lv_dl_pause_rect(i); const bool on = i == lv_dl_menu;
             if (on) lv_dl_sel_frame(B, r, MAG);
             const int lw = (int)strlen(ITEM[i]) * 6;
@@ -666,7 +668,7 @@ static const char *lv_dl_deck(int x, int y)
         if (id == 6) return "dl-pad-b-towers";
         lv_dl_pick(DIR[id]); return id == 3 ? "dl-pad-left" : "dl-pad-right";
     }
-    if (id == 6) { lv_dl_open_pause(); return "dl-pad-b-pause"; }   /* field B opens the pause menu (SAVE / RESUME). Backbot / EXIT is from the slot intro. */
+    if (id == 6) { lv_dl_open_pause(); return "dl-pad-b-pause"; }   /* field B opens the pause menu (RESUME / SAVE / EXIT). EXIT goes home without saving. */
     if (lv_dl_cam_mode == 2 && (int32_t)(lv_sel_clk_now(lv_dl_clk, lv_now) - lv_dl_cam_t) < LV_DL_CAM_MS) return "dl-camera-moving";
     if (id == 5) { int i = lv_hc_w.sel; if (i < 0 || i >= lv_hc_w.nf) { lv_dl_pick(1); i = lv_hc_w.sel; } if (i < 0) return "dl-pad-a-empty"; lv_dl_open_tower(i); return "dl-pad-a-open"; }
     lv_dl_pick(DIR[id]); static const char *const N[5] = {"", "dl-pad-up-row", "dl-pad-down-row", "dl-pad-left", "dl-pad-right"}; return N[id];
@@ -682,10 +684,14 @@ static const char *lv_dl_menu_deck(int id)
         return "dl-slot";
     }
     if (lv_dl_phase == LV_DL_PAUSE) {
-        if (id == 1) { lv_dl_menu = (lv_dl_menu + 1) % 2; return "dl-pause-up"; }   /* 2 items: wrap */
-        if (id == 2) { lv_dl_menu = (lv_dl_menu + 1) % 2; return "dl-pause-down"; }
+        if (id == 1) { lv_dl_menu = (lv_dl_menu + LV_DL_PMENU - 1) % LV_DL_PMENU; return "dl-pause-up"; }
+        if (id == 2) { lv_dl_menu = (lv_dl_menu + 1) % LV_DL_PMENU; return "dl-pause-down"; }
         if (id == 6) { lv_dl_resume_play(); return "dl-pause-back"; }
-        if (id == 5) { if (lv_dl_menu == 1) { lv_dl_do_save(); return "dl-pause-save"; } lv_dl_resume_play(); return "dl-pause-resume"; }
+        if (id == 5) {
+            if (lv_dl_menu == 1) { lv_dl_do_save(); return "dl-pause-save"; }
+            if (lv_dl_menu == 2) { lv_go_soon(LV_SC_HOME, 0); return "dl-pause-exit"; }   /* home, no save */
+            lv_dl_resume_play(); return "dl-pause-resume";
+        }
         return "dl-pause";
     }
     if (lv_dl_phase == LV_DL_SAVEOK) {
@@ -706,7 +712,7 @@ static const char *lv_dl_tap(int x, int y)
     }
     if (lv_dl_phase == LV_DL_PAUSE) {
         if (y >= PAD_Y0) return lv_dl_menu_deck(lv_dl_deck_id(x, y));
-        for (int i = 0; i < 2; ++i) if (lv_in(lv_dl_pause_rect(i), x, y)) {
+        for (int i = 0; i < LV_DL_PMENU; ++i) if (lv_in(lv_dl_pause_rect(i), x, y)) {
             if (lv_dl_menu != i) { lv_dl_menu = i; return "dl-pause-pick"; }
             return lv_dl_menu_deck(5);
         }

@@ -5,6 +5,7 @@
  * Tap a tower: its info shows in the panel and its full line goes on the ticker. BACKbot returns home. */
 #include <math.h>
 #include <stdarg.h>
+#include "lv_select.h"   /* v1.2.11 LOCKED: the shared sub-screen selection (pull-up + folder drop) */
 static void lv_press(LvRect r);
 #define LV_RD_F 120.0f
 #define LV_RD_HOR 138
@@ -128,7 +129,7 @@ static bool lv_rd_cam_hold = false;   /* v1.2.4: HACKbot open-tower camera; skip
 #endif
 #if LV_RD_FOLD
 static int lv_rd_fold_mode = 0;   /* 0 off, 1 advancing / open, 2 easing back to the drift */
-static uint32_t lv_rd_fold_t = 0; static float lv_rd_fold_from = 0; static uint8_t lv_rd_fold_mac[6];
+static uint32_t lv_rd_fold_t = 0; static LvSelClk lv_rd_fclk; static float lv_rd_fold_from = 0; static uint8_t lv_rd_fold_mac[6];
 static int lv_rd_speed = 1; static uint32_t lv_rd_soff = 0, lv_rd_slast = 0;   /* scene clock = lv_now + soff (radar screen only) */
 #define LV_RD_SOFF (lv_scr == LV_SC_RADAR ? lv_rd_soff : 0u)
 #define LV_RD_FCAM_MS 400
@@ -1212,7 +1213,7 @@ static void lv_rd_lock_on(int i)
     lv_rd_sel = i; memcpy(lv_rd_selmac, lv_f[i].mac, 6); lv_rd_holding = false;
     char m[18]; lv_macstr(lv_f[i].mac, m); lv_rd_log("LOCK %s  IGNORE / WATCH / HUNT", m);
 #if LV_RD_FOLD
-    if (lv_rd_fold_mode != 1) { lv_rd_fold_mode = 1; lv_rd_fold_t = lv_now; lv_rd_fold_from = lv_rd_camx; }
+    if (lv_rd_fold_mode != 1) { lv_rd_fold_mode = 1; lv_rd_fold_t = lv_sel_clk_now(lv_rd_fclk, lv_now); lv_rd_fold_from = lv_rd_camx; }
     memcpy(lv_rd_fold_mac, lv_f[i].mac, 6);
 #endif
 }
@@ -1230,7 +1231,7 @@ static void lv_rd_release(void)
     lv_rd_hunt_stop();
     lv_rd_lock = false; lv_rd_holding = false;
 #if LV_RD_FOLD
-    if (lv_rd_fold_mode == 1) { lv_rd_fold_mode = 2; lv_rd_fold_t = lv_now; lv_rd_fold_from = lv_rd_camx; }
+    if (lv_rd_fold_mode == 1) { lv_rd_fold_mode = 2; lv_rd_fold_t = lv_sel_clk_now(lv_rd_fclk, lv_now); lv_rd_fold_from = lv_rd_camx; }
 #endif
 #if LV_RD_CHARGE
     lv_rd_cg = false; lv_rd_cg_rel = 0; lv_rd_cg_owned = false; lv_rd_cg_dropping = false;
@@ -1423,12 +1424,10 @@ static void lv_rd_fold1(LvBand &B, int j, int ys, float ph)
 static void lv_rd_fold_draw(LvBand &B)
 {
     if (!lv_rd_lock) return;
-    const int el = (int)(lv_now - lv_rd_fold_t);
-    for (int j = 2; j >= 0; --j) {
-        const int t = el - LV_RD_FDROP0 - j * LV_RD_FGAP; if (t < 0) continue;
-        float u = t / (float)LV_RD_FDROP; const float uu = u > 1 ? 1 : u; const float e = 1.f - (1.f - uu) * (1.f - uu) * (1.f - uu);
-        const int end = 42 + j * 66, start = LV_RD_Y0 - 50;
-        lv_rd_fold1(B, j, start + (int)((end - start) * e), uu);
+    const int el = (int)(lv_rd_fclk.vt - lv_rd_fold_t);
+    for (int j = 2; j >= 0; --j) {   /* lv_select.h: the locked drop law */
+        int y; float u; if (!lv_sel_drop(el, LV_RD_FDROP0, LV_RD_FGAP, LV_RD_FDROP, j, LV_RD_Y0 - 50, 42 + j * 66, y, u)) continue;
+        lv_rd_fold1(B, j, y, u > 1 ? 1 : u);
     }
 }
 #endif
@@ -1440,7 +1439,7 @@ static void lv_radar_enter(void)
     lv_rd_t0 = lv_now; lv_rd_sel = -1; lv_rd_glow = false; lv_rd_holding = false; lv_rd_swallow = false;
     lv_rd_cam_hold = false;   /* v1.2.10: the GIBSON radar never parks its camera (only HACKbot's open tower does) */
 #if LV_RD_FOLD
-    lv_rd_fold_mode = 0; lv_rd_soff = 0; lv_rd_slast = lv_now;
+    lv_rd_fold_mode = 0; lv_rd_soff = 0; lv_rd_slast = lv_now; lv_sel_clk_reset(lv_rd_fclk, lv_now);
 #endif
 #if LV_RD_CHARGE
     lv_rd_cg = false; lv_rd_cg_owned = false; lv_rd_cg_dropping = false; lv_rd_cg_guard_until = 0;
@@ -1469,15 +1468,17 @@ static void lv_radar_frame(void)
 #if LV_RD_FOLD
     { uint32_t dt = lv_now - lv_rd_slast; lv_rd_slast = lv_now; if (dt > 250) dt = 250; lv_rd_soff += dt * (uint32_t)(lv_rd_speed - 1); }
     lv_rd_cam_hold = lv_rd_fold_mode == 1;   /* parked on the locked tower: no sway, no clamp push (as DOWNLOAD) */
+    { const int fel = (int)(lv_rd_fclk.vt - lv_rd_fold_t);   /* lv_select.h clock: cap only while the pull-up / drop plays */
+      lv_sel_clk_step(lv_rd_fclk, lv_now, lv_rd_fold_mode == 2 || (lv_rd_fold_mode == 1 && fel < LV_RD_FCAM_MS) ? 50u : lv_rd_fold_mode == 1 && fel < LV_RD_FDROP0 + 2 * LV_RD_FGAP + LV_RD_FDROP ? 100u : LV_SEL_NOCAP); }
 #endif
     lv_rd_layout();
 #if LV_RD_FOLD
     if (lv_rd_fold_mode) {
-        float u = (lv_now - lv_rd_fold_t) / (float)LV_RD_FCAM_MS; u = u < 0 ? 0 : u > 1 ? 1 : u; const float e = 1.f - (1.f - u) * (1.f - u) * (1.f - u);
+        const float fel = (float)(int)(lv_rd_fclk.vt - lv_rd_fold_t), u = fel / LV_RD_FCAM_MS;
         const float drift = lv_rd_camx; float tgt = lv_rd_fold_from; const LvTower *T = lv_rd_tower_of(lv_rd_fold_mac);
         if (T) tgt = T->X - (50 - 120) * T->Z / LV_RD_F;
         else { const uint32_t h = lv_rd_hash(lv_rd_fold_mac); const float Z = 1.6f + (((h >> 8) & 0xff) / 255.0f) * 3.2f, X = (((h & 0xff) / 255.0f) * 2.0f - 1.0f) * 0.72f * Z; tgt = X - (50 - 120) * Z / LV_RD_F; }
-        lv_rd_camx = lv_rd_fold_mode == 1 ? lv_rd_fold_from + (tgt - lv_rd_fold_from) * e : lv_rd_fold_from + (drift - lv_rd_fold_from) * e;
+        lv_rd_camx = lv_sel_cam(lv_rd_fold_from, lv_rd_fold_mode == 1 ? tgt : drift, fel, LV_RD_FCAM_MS);   /* lv_select.h pull-up */
         lv_rd_place(); if (lv_rd_fold_mode == 2) { lv_rd_clamp(); if (u >= 1) lv_rd_fold_mode = 0; }
     }
 #endif
@@ -1570,9 +1571,9 @@ static const char *lv_radar_tap(int x, int y)
     if (lv_rd_lock) {
 #if LV_RD_FOLD
         int fk = -1;   /* folders HUNT / IGNORE / WATCH = buttons k 2 / 0 / 1; the deck's centre stack is the SPEED button now */
-        if (lv_rd_fold_mode == 1) for (int j = 0; j < 3; ++j) if (lv_in(LV_RD_FTAP[j], x, y)) {
-            if ((int)(lv_now - lv_rd_fold_t) < LV_RD_FDROP0 + j * LV_RD_FGAP + (int)(LV_RD_FDROP * 0.65f)) return "radar-folder-falling";
-            static const int K[3] = {2, 0, 1}; fk = K[j]; lv_press(LV_RD_FTAP[j]); break; }
+        if (lv_rd_fold_mode == 1) { const int j = lv_sel_hit(LV_RD_FTAP, 3, x, y);
+            if (j >= 0) { if (!lv_sel_landed((int)(lv_sel_clk_now(lv_rd_fclk, lv_now) - lv_rd_fold_t), LV_RD_FDROP0, LV_RD_FGAP, LV_RD_FDROP, j)) return "radar-folder-falling";
+                static const int K[3] = {2, 0, 1}; fk = K[j]; lv_press(LV_RD_FTAP[j]); } }
         for (int k = 0; k < LV_RD_NBTN; ++k) if (k == fk) {
 #else
         for (int k = 0; k < LV_RD_NBTN; ++k) if (lv_in(LV_RD_BTNT[k], x, y)) {

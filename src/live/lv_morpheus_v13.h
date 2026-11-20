@@ -120,8 +120,8 @@ static int mo_last = -1; static uint32_t mo_close_t = 0; static bool mo_closing 
  * locked 30 ms cadence (sim / fast frames) the cap never binds and every frame is the locked frame. */
 #define MO_DT_PUSH 50
 #define MO_DT_DROP 100
-static uint32_t mo_vt = 0, mo_vreal = 0;
-static inline uint32_t mo_vnow(void) { return lv_now - (mo_vreal - mo_vt); }   /* the Dojo clock, read outside the frame (taps) */
+static LvSelClk mo_clk;   /* lv_select.h (LOCKED shared selection) */
+static inline uint32_t mo_vnow(void) { return lv_sel_clk_now(mo_clk, lv_now); }   /* the Dojo clock, read outside the frame (taps) */
 /* v1.2.11 (Mobandy 2026-11-20 "None of the folders are responsive or interactive"): a landed folder is a button.
  * Tap = press flash + it opens (green frame, its real facts in the footer); tap it again or another one to switch. */
 static int mo_fold_sel = -1;
@@ -194,7 +194,7 @@ static void mo_aline(LvBand &B, float x0, float y0, float x1, float y1, uint16_t
 }
 
 
-static float mo_ease(float u) { u = u < 0 ? 0 : u > 1 ? 1 : u; return 1.f - (1.f - u) * (1.f - u) * (1.f - u); }
+static inline float mo_ease(float u) { return lv_sel_ease(u); }   /* v1.2.11: the shared lv_select.h ease (same formula) */
 static inline float mo_px(float X, float Z) { return 120 + LV_RD_F * (X - lv_rd_camx) / Z; }   /* the radar's projection (lv_rd_place px/py) */
 static inline float mo_py(float Y, float Z) { return LV_RD_HOR + LV_RD_F * (LV_RD_CAMH - Y) / Z; }
 static uint32_t mo_tw0 = 0;   /* this world's t0 (= lv_rd_t0 while swapped; also valid in the tap handler, outside the swap) */
@@ -671,8 +671,8 @@ static void mo11_overlay(LvBand &B)   /* skin-1 hook: called by lv_scene_radar a
         /* v13: no select effect (Mobandy: no lock bracket) */
         /* v13: red pill removed */
         int ys[4], nland = 0; float ph[4];
-        for (int j = 0; j < 3; ++j) { const int tt = (int)el - MO12_DROP0 - j * MO12_GAP; const float u = tt / (float)MO12_DROP_MS; ph[j] = u;
-            const int end = MO12_FY0 + j * MO12_FDY, start = LV_RD_Y0 - 50; ys[j] = start + (int)((end - start) * mo_ease(u)); if (tt >= 0 && u >= 0.65f) nland = j + 1; }
+        for (int j = 0; j < 3; ++j) { const bool go = lv_sel_drop((int)el, MO12_DROP0, MO12_GAP, MO12_DROP_MS, j, LV_RD_Y0 - 50, MO12_FY0 + j * MO12_FDY, ys[j], ph[j]);   /* lv_select.h drop law */
+            if (go && ph[j] >= LV_SEL_LAND) nland = j + 1; }
         mo12_nland = nland;
         mo12_index(B, nland, ys);
         for (int j = 2; j >= 0; --j) { const int tt = (int)el - MO12_DROP0 - j * MO12_GAP; if (tt < 0) continue;
@@ -705,7 +705,7 @@ static void itw_mo_scene(LvBand &B, void *)
 static void itw_mo_enter(void)
 {
     mo_build(); itw_nt = MO_N; itw_mo_sel = -1; itw_mo_phase = 0; itw_mo_nav = false; mo_closing = false; mo_last = -1;
-    mo_vt = mo_vreal = lv_now; mo_fold_sel = -1;
+    lv_sel_clk_reset(mo_clk, lv_now); mo_fold_sel = -1;
     LvHcWorld &w = lv_hc_w; memset(&w, 0, sizeof w);
     for (int i = 0; i < MO_N; ++i) {
         snprintf(itw_lab[i], sizeof itw_lab[i], "%s", MO_DEV[i].name); itw_icon[i] = MO_ICON[i];
@@ -721,12 +721,11 @@ static void itw_mo_frame(void)
 {
     mo_emb_mark_frame();
     mo_live_update();   /* v1.2.10: real finds -> pillars, before the render swaps the example world in */
-    const uint32_t real = lv_now; uint32_t dt = real - mo_vreal; mo_vreal = real;
-    if (itw_mo_sel >= 0 || mo_closing) {   /* v1.2.11: cap the step while the camera / folders move */
-        const uint32_t el = mo_vt - itw_mo_t0;
-        const uint32_t cap = mo_closing || el < MO12_PUSH_MS ? MO_DT_PUSH : el < (uint32_t)(MO12_DROP0 + 2 * MO12_GAP + MO12_DROP_MS) ? MO_DT_DROP : 0xFFFFFFFFu;
-        if (dt > cap) dt = cap; }
-    mo_vt += dt; lv_now = mo_vt;
+    const uint32_t real = lv_now; uint32_t cap = LV_SEL_NOCAP;
+    if (itw_mo_sel >= 0 || mo_closing) {   /* v1.2.11: cap the step while the camera / folders move (lv_select.h clock) */
+        const uint32_t el = mo_clk.vt - itw_mo_t0;
+        cap = mo_closing || el < MO12_PUSH_MS ? MO_DT_PUSH : el < (uint32_t)(MO12_DROP0 + 2 * MO12_GAP + MO12_DROP_MS) ? MO_DT_DROP : LV_SEL_NOCAP; }
+    lv_now = lv_sel_clk_step(mo_clk, real, cap);
     if (itw_mo_sel >= 0) { const uint32_t el = lv_now - itw_mo_t0;
         itw_mo_phase = el < MO12_PUSH_MS ? 1 : el < MO12_DROP0 + 2 * MO12_GAP + MO12_DROP_MS ? 2 : 3; }
     /* v1.2.5: dirty-rect the field only (y=24..319). Never clear or repaint the ticker band;
@@ -755,12 +754,11 @@ static int mo_fold_hit(int x, int y)   /* v1.2.11: landed folder j under (x,y), 
 {
     if (itw_mo_sel < 0 || x < MO12_FX - 4 || x > MO12_FX + MO12_FW + 3) return -1;
     const int el = (int)(mo_vnow() - itw_mo_t0);
-    for (int j = 0; j < 3; ++j) {
-        const int ty = MO12_FY0 + j * MO12_FDY, y0 = j == 0 ? ty - 9 : ty - 9 + 3, y1 = j == 2 ? ty + 8 + MO12_FH + 2 : ty + MO12_FDY - 9 + 2;
-        if (y < y0 || y > y1) continue;
-        return el - MO12_DROP0 - j * MO12_GAP >= (int)(0.65f * MO12_DROP_MS) ? j : -1;   /* landed only (same 0.65 as nland) */
-    }
-    return -1;
+    static const LvRect R[3] = {{(int16_t)(MO12_FX - 4), (int16_t)(MO12_FY0 - 9), (int16_t)(MO12_FX + MO12_FW + 3), (int16_t)(MO12_FY0 + MO12_FDY - 7)},
+                                {(int16_t)(MO12_FX - 4), (int16_t)(MO12_FY0 + MO12_FDY - 6), (int16_t)(MO12_FX + MO12_FW + 3), (int16_t)(MO12_FY0 + 2 * MO12_FDY - 7)},
+                                {(int16_t)(MO12_FX - 4), (int16_t)(MO12_FY0 + 2 * MO12_FDY - 6), (int16_t)(MO12_FX + MO12_FW + 3), (int16_t)(MO12_FY0 + 2 * MO12_FDY + 8 + MO12_FH + 2)}};
+    const int j = lv_sel_hit(R, 3, x, y);   /* lv_select.h: landed folders only */
+    return j >= 0 && lv_sel_landed(el, MO12_DROP0, MO12_GAP, MO12_DROP_MS, j) ? j : -1;
 }
 static const char *itw_mo_tap(int x, int y)
 {

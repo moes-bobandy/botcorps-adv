@@ -140,19 +140,21 @@ static void lv_dl_play(void)
     lv_dl_new_round(); lv_dl_phase = LV_DL_PLAY; lv_dl_t0 = lv_now;
     lv_hc_log("LINK UP. %d TOWERS. TRACE RUNNING.", LV_DL_NT); lv_hc_log("TAP A TOWER TO OPEN IT");
 }
-static void lv_dl_enter(void) { lv_dl_new_round(); lv_dl_phase = LV_DL_INTRO; lv_dl_intro_t = lv_now; lv_dl_typed_all = lv_dl_intro_done = false; }
+static LvSelClk lv_dl_clk;   /* v1.2.11: lv_select.h (LOCKED shared selection) clock for the open-tower pull-up + drop */
+static void lv_dl_enter(void) { lv_sel_clk_reset(lv_dl_clk, lv_now); lv_dl_new_round(); lv_dl_phase = LV_DL_INTRO; lv_dl_intro_t = lv_now; lv_dl_typed_all = lv_dl_intro_done = false; }
 static void lv_dl_leave(void) { lv_dl_phase = LV_DL_INTRO; lv_dl_tw = -1; lv_dl_cam_mode = 0; lv_rd_cam_hold = false; }   /* v1.2.10: leaving with a tower open left lv_rd_cam_hold set -> GIBSON lost its camera sway */
 static void lv_dl_open_tower(int i)
 {
-    lv_dl_why[0] = lv_dl_note[0] = 0; lv_dl_tw = i; lv_dl_open_t = lv_now; lv_dl_seen[i] = true; lv_dl_lock(i, true);
-    lv_dl_cam_mode = 1; lv_dl_cam_tw = i; lv_dl_cam_t = lv_now; lv_dl_cam_from = lv_dl_cam_at;
+    const uint32_t vt = lv_sel_clk_now(lv_dl_clk, lv_now);
+    lv_dl_why[0] = lv_dl_note[0] = 0; lv_dl_tw = i; lv_dl_open_t = vt; lv_dl_seen[i] = true; lv_dl_lock(i, true);
+    lv_dl_cam_mode = 1; lv_dl_cam_tw = i; lv_dl_cam_t = vt; lv_dl_cam_from = lv_dl_cam_at;
     lv_hc_log("TOWER %d OPEN. %d FILES.", i + 1, lv_dl_nf);
 }
 static void lv_dl_close_tower(void)
 {
     if (lv_dl_tw < 0) return;
     lv_hc_log("TOWER %d CHECKED", lv_dl_tw + 1);
-    lv_dl_cam_mode = 2; lv_dl_cam_t = lv_now; lv_dl_tw = -1; lv_dl_lock(0, false);
+    lv_dl_cam_mode = 2; lv_dl_cam_t = lv_sel_clk_now(lv_dl_clk, lv_now); lv_dl_tw = -1; lv_dl_lock(0, false);
 }
 static void lv_dl_resolve(void)
 {
@@ -176,7 +178,7 @@ static void lv_dl_resolve(void)
     }
     lv_dl_pf = -1;
 }
-static float lv_dl_ease(float u) { u = u < 0 ? 0 : u > 1 ? 1 : u; return 1.f - (1.f - u) * (1.f - u) * (1.f - u); }
+static inline float lv_dl_ease(float u) { return lv_sel_ease(u); }   /* v1.2.11: the shared lv_select.h ease (same formula) */
 static float lv_dl_cam_for(int i)   /* camera x that puts tower i's front face centre at screen x 50; called INSIDE lv_hc_swap (lv_f = game world) */
 {
     const uint32_t h = lv_rd_hash(lv_f[i].mac);
@@ -185,6 +187,8 @@ static float lv_dl_cam_for(int i)   /* camera x that puts tower i's front face c
 }
 static void lv_dl_tick(void)
 {
+    { const int oel = (int)(lv_dl_clk.vt - lv_dl_open_t), cel = (int)(lv_dl_clk.vt - lv_dl_cam_t);   /* lv_select.h clock: cap only while the pull-up / drop plays */
+      lv_sel_clk_step(lv_dl_clk, lv_now, (lv_dl_cam_mode && cel < LV_DL_CAM_MS) ? 50u : (lv_dl_tw >= 0 && oel < LV_DL_DROP0_MS + (lv_dl_nf - 1) * lv_dl_gap() + LV_DL_DROP_MS) ? 100u : LV_SEL_NOCAP); }
     lv_dl_trace_upd();
     if (lv_dl_phase == LV_DL_PLAY) {
         if (lv_dl_pf >= 0 && (int32_t)(lv_now - lv_dl_pt) >= LV_DL_DL_MS) { lv_dl_resolve(); lv_dl_trace_upd(); }
@@ -197,10 +201,10 @@ static void lv_dl_tick(void)
     /* the radar's own layout (drift camera), then the game camera: ease to the open tower / back to the drift */
     lv_rd_cam_hold = (lv_dl_cam_mode == 1 || lv_dl_tw >= 0);   /* park next to folders; no sway, no clamp push */
     lv_hc_swap(); lv_rd_layout();
-    const float drift = lv_rd_camx; const float u = lv_dl_ease((lv_now - lv_dl_cam_t) / (float)LV_DL_CAM_MS);
+    const float drift = lv_rd_camx; const float cel = (float)(lv_dl_clk.vt - lv_dl_cam_t), u = lv_dl_ease(cel / (float)LV_DL_CAM_MS);
     float cx = drift;
-    if (lv_dl_cam_mode == 1) cx = lv_dl_cam_from + (lv_dl_cam_for(lv_dl_cam_tw) - lv_dl_cam_from) * u;
-    else if (lv_dl_cam_mode == 2) { const float c0 = lv_dl_cam_for(lv_dl_cam_tw); cx = c0 + (drift - c0) * u; if (u >= 1) lv_dl_cam_mode = 0; }
+    if (lv_dl_cam_mode == 1) cx = lv_sel_cam(lv_dl_cam_from, lv_dl_cam_for(lv_dl_cam_tw), cel, LV_DL_CAM_MS);   /* lv_select.h pull-up */
+    else if (lv_dl_cam_mode == 2) { const float c0 = lv_dl_cam_for(lv_dl_cam_tw); cx = lv_sel_cam(c0, drift, cel, LV_DL_CAM_MS); if (u >= 1) lv_dl_cam_mode = 0; }
     if (cx != drift) { lv_rd_camx = cx; lv_rd_place(); if (!lv_rd_cam_hold) lv_rd_clamp(); }
     if (lv_dl_cam_mode != 1 && lv_dl_tw < 0) lv_rd_cam_hold = false;
     lv_dl_cam_at = lv_rd_camx;
@@ -414,11 +418,10 @@ static void lv_dl_scene(LvBand &B, void *)
         if (lv_dl_seen[i] && i != lv_dl_tw) lv_dl_tick_mark(B, h.cx - wd / 2 + 9, y - 1, lv_hex(0x30ff90));
     }
     if (lv_dl_tw >= 0) {   /* the open tower's 3 folders drop in from the top of the scene */
-        const int el = (int)(lv_now - lv_dl_open_t);
-        for (int i = lv_dl_nf - 1; i >= 0; --i) {
-            const int t = el - LV_DL_DROP0_MS - i * lv_dl_gap(); if (t < 0) continue;
-            const float u = t / (float)LV_DL_DROP_MS, e = lv_dl_ease(u); const int end = LV_DL_FY0 + i * lv_dl_fdy(), start = LV_RD_Y0 - 50;
-            lv_dl_folder(B, i, start + (int)((end - start) * e), u > 1 ? 1 : u);
+        const int el = (int)(lv_dl_clk.vt - lv_dl_open_t);
+        for (int i = lv_dl_nf - 1; i >= 0; --i) {   /* lv_select.h: the locked drop law */
+            int y; float u; if (!lv_sel_drop(el, LV_DL_DROP0_MS, lv_dl_gap(), LV_DL_DROP_MS, i, LV_RD_Y0 - 50, LV_DL_FY0 + i * lv_dl_fdy(), y, u)) continue;
+            lv_dl_folder(B, i, y, u > 1 ? 1 : u);
         }
     }
     if (lv_dl_deny && lv_dl_phase == LV_DL_PLAY) lv_dl_banner(B, false, "ACCESS", "DENIED", "WRONG FILE", 0xff385c, lv_dl_deny_t);
@@ -461,15 +464,15 @@ static const char *lv_dl_tap(int x, int y)
     }
     if (lv_dl_phase != LV_DL_PLAY) return "dl-wait";
     if (lv_dl_tw < 0) {
-        if (lv_dl_cam_mode == 2 && (int32_t)(lv_now - lv_dl_cam_t) < LV_DL_CAM_MS) return "dl-camera-moving";
+        if (lv_dl_cam_mode == 2 && (int32_t)(lv_sel_clk_now(lv_dl_clk, lv_now) - lv_dl_cam_t) < LV_DL_CAM_MS) return "dl-camera-moving";
         if (y < LV_RD_Y0 || y >= LV_RD_PTOP) return "dl-none";
         const int i = lv_hc_hit(x, y); if (i < 0) return "dl-miss";
         lv_dl_open_tower(i); return "dl-open-tower";
     }
     if (lv_in(LV_DL_BTN_T, x, y)) { if (lv_dl_pf >= 0) return "dl-busy"; lv_dl_close_tower(); return "dl-towers"; }
-    const int el = (int)(lv_now - lv_dl_open_t);
+    const int el = (int)(lv_sel_clk_now(lv_dl_clk, lv_now) - lv_dl_open_t);
     for (int i = 0; i < lv_dl_nf; ++i) if (lv_in(lv_dl_ftap(i), x, y)) {
-        if (el < LV_DL_DROP0_MS + i * lv_dl_gap() + (int)(LV_DL_DROP_MS * 0.65f)) return "dl-folder-falling";
+        if (!lv_sel_landed(el, LV_DL_DROP0_MS, lv_dl_gap(), LV_DL_DROP_MS, i)) return "dl-folder-falling";   /* lv_select.h landing rule */
         if (lv_dl_pf >= 0) return "dl-busy";
         LvDlFile &f = lv_dl_fo[lv_dl_tw][i]; if (f.st != LV_DL_S_IDLE) return "dl-file-done";
         lv_dl_why[0] = lv_dl_note[0] = 0; f.st = LV_DL_S_DL; lv_dl_pf = i; lv_dl_pt = lv_now; ++lv_dl_dls;

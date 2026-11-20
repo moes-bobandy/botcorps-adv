@@ -295,7 +295,7 @@ static const LvRect LV_RD_BTN_TAP[3] = {{102, 284, 147, 299}, {102, 300, 147, 31
 #define LV_RD_INFO_UI 1   /* fw-3locks-1116: 0 = INFO code compiled (the HACKbot game draws with it) but the radar keeps its locked 3-button row */
 #endif
 #ifndef LV_RD_INFO_TOWER_PULL
-#define LV_RD_INFO_TOWER_PULL 0   /* HOST-SIM MOCK only: pull-up morphs into the original INFO monolith (lv_rd_info_tower). Never set in firmware bins. */
+#define LV_RD_INFO_TOWER_PULL 1   /* v1.2.16 locked (726a5d3): pull-up becomes the original INFO monolith (lv_rd_info_tower). */
 #endif
 #if LV_RD_INFO && LV_RD_INFO_UI
 /* v3 (Mobandy 9:33 "why change the other ui"): on the radar ONLY the locked button row changes vs 049ff599 + HOLD. Name + dBm

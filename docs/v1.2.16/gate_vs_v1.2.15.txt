@@ -1,0 +1,32 @@
+# v1.2.16 gate (real C++ host sim, 240x320)
+# Branch fix/perf-gibson-2026-11-20 @ fd8efa8; LV_RD_INFO_TOWER_PULL=1
+# Locked mock 726a5d37c77786b7471118dd50536b242ed62cd3 (LV_RD_INFO_TOWER_PULL)
+# v1.2.15 baseline sim compiled from c1ab25e
+
+## Close-ups vs locked mock (must be 0 px)
+gibson_info-tower-pullup_landed_SIM@1x.png   0/76800
+hackbot_info-tower-pullup_landed_SIM@1x.png  0/76800
+gib_t1080.rgb (t+1080 ms, frame 32, Tesla_Model3 3C:84:6A:12:31:07)  0/76800
+dl_landed.rgb (HACKbot T4 landed)            0/76800
+dl_pull.rgb (17 mid-pull frames)             0/1305600
+
+## Outside the opened tower vs v1.2.15 (must be 0 px)
+pager0.rgb     0/76800
+pager1.rgb     0/76800
+pager2.rgb     0/76800
+pager3.rgb     0/76800
+dojo.rgb       0/76800
+controlbot.rgb 0/76800
+ctl_old.rgb    0/76800
+gib_scan.rgb   0/76800
+gib_sel_deck.rgb 0/76800
+dl_intro.rgb   0/76800
+dl_play.rgb    0/76800
+Gibson close  deck y>=247                    0/17520
+HACKbot close deck y>=247                    0/17520
+Gibson close  folders/sky outside tower      0/37230
+HACKbot close folders/sky outside tower      0/37230
+Gibson close  outside opened tower bbox x16-120 y37-246  0/54750
+HACKbot close outside opened tower bbox x16-120 y37-246  0/54750
+
+Opened-tower bbox used for the mask: x=16-120, y=37-246 (the locked monolith plus its 1 px roof peak at y=37 x=120 and base row at y=246). Folders and the deck (y>=247) were not moved.

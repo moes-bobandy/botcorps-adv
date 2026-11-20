@@ -283,7 +283,7 @@ static void lv_hc_top(LvBand &B, void *)
 static void lv_hc_frame(void)
 {
     lv_hc_tick();
-    lv_render(lv_blit, LV_R_RADAR, lv_hc_scene, 0);
+    lv_render(lv_blit_dirty, LV_R_RADAR, lv_hc_scene, 0);   /* v1.2.17: changed rows only */
     lv_render(lv_blit, LV_R_TICK, lv_hc_top, 0);
 }
 static void lv_go_soon(int scr, const char *tty_cmd);

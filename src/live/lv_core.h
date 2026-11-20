@@ -262,6 +262,11 @@ static const LvRect LV_R_KBD = {0, 174, 239, 319};
 static const LvRadio *lv_radio;
 static lv_blit_fn lv_blit;
 static lv_blit_fn lv_blit_hw;   /* the panel itself: final colours (lv_blit = lv_blit_theme in front of it) */
+/* v1.2.17 dirty rows (Mobandy 2026-11-20 "do whats necessary"): the moving GIBSON / HACKbot scenes push only the panel rows
+ * whose final pixels changed since they were last pushed. Defined after lv_blit_theme. */
+static void lv_blit_dirty(int x, int y, int w, int h, const uint16_t *px);      /* theme re-ink, then changed rows only */
+static void lv_blit_dirty_hw(int x, int y, int w, int h, const uint16_t *px);   /* final colours, changed rows only */
+static void lv_dr_inval_all(void);
 static LkPlay lv_play;
 static int lv_scr = LV_SC_BOOT, lv_theme = 0;
 static bool lv_motion = true, lv_enter = true;
@@ -1936,6 +1941,7 @@ static uint32_t lv_flash_t = 0;
 static int lv_soon_kind = 0, lv_soon_scr = 0; static char lv_soon_cmd[32]; static uint32_t lv_soon_t = 0;
 static void lv_go(int s)
 {
+    lv_dr_inval_all();   /* v1.2.17: a new screen owns every panel row */
     const int prev = lv_scr;
     lv_cs_open = false;   /* the CMDS overlay never survives a screen change */
     if (prev == LV_SC_RADAR && s != LV_SC_RADAR) lv_radar_leave();   /* leaving releases a lock and ends a hunt */
@@ -2314,7 +2320,7 @@ static void lv_go_soon(int scr, const char *tty_cmd)   /* navigate after the fla
 /* Issue 2: on the multi themes (SYNTHWAVE / AURORA / PRISM / GLITCH) every overlay pixel drawn in the theme's
  * LV_ACC / LV_FRAME / LV_HDR / LV_ACCD sentinel takes the theme ink at its screen position on the way out. The
  * pixels are always lv_bandbuf or a line buffer of ours, consumed by this one blit, so they are re-inked in place. */
-static void lv_blit_theme(int x, int y, int w, int h, const uint16_t *px)
+static void lv_theme_ink(int x, int y, int w, int h, const uint16_t *px)   /* v1.2.17: lv_blit_theme's re-ink, unchanged, split out */
 {
     if (lv_multi_theme(lv_theme)) {
         const int t = lv_theme;
@@ -2327,12 +2333,55 @@ static void lv_blit_theme(int x, int y, int w, int h, const uint16_t *px)
             v = (v == sh) ? lv_hex(lv_mix3(T, 0xffffff, 2, 5)) : (v == sd) ? lv_hex(lv_mix3(T, 0x000000, 59, 100)) : lv_hex(T);
         }
     }
-    lv_blit_hw(x, y, w, h, px);
 }
+static void lv_blit_theme(int x, int y, int w, int h, const uint16_t *px) { lv_theme_ink(x, y, w, h, px); lv_blit_hw(x, y, w, h, px); }
+/* ---- v1.2.17 dirty rows ----
+ * lv_dr_h[y] = hash of the 240 final pixels last pushed to panel row y by a dirty blit; lv_dr_ok bit y = that row on the
+ * panel is still exactly those pixels. EVERY other way onto the panel (lv_blit_hw, which lv_blit_theme and every other
+ * render use, and the clip player's lv_raw_draw) is wrapped to clear the rows it touches; lv_go and ORIENT clear all.
+ * A dirty blit pushes runs of changed rows straight from the band (same zero-copy DMA path) and skips the rest, so the
+ * panel ends every frame with the same pixels as a full push. Insurance against a hash collision: each row is pushed
+ * anyway once every 32 frames (1/32 of the rows per frame). RAM: 1,280 B hashes + 40 B bits (BSS). No panel readback (there is no MISO). */
+static uint32_t lv_dr_h[320]; static uint8_t lv_dr_ok[40]; static uint32_t lv_dr_n = 0; static bool lv_dr_in = false;
+static lv_blit_fn lv_blit_panel; static lk_draw_fn lv_raw_panel;
+static inline void lv_dr_inval(int y0, int y1)
+{
+    if (lv_dr_in) return;
+    if (y0 < 0) y0 = 0; if (y1 > 319) y1 = 319;
+    for (int y = y0; y <= y1; ++y) lv_dr_ok[y >> 3] &= (uint8_t)~(1u << (y & 7));
+}
+static void lv_dr_inval_all(void) { memset(lv_dr_ok, 0, sizeof lv_dr_ok); }
+static void lv_hw_tracked(int x, int y, int w, int h, const uint16_t *px) { lv_dr_inval(y, y + h - 1); lv_blit_panel(x, y, w, h, px); }
+static void lv_raw_tracked(int y, int x, int n, const uint8_t *idx) { lv_dr_inval(y, y); lv_raw_panel(y, x, n, idx); }
+static inline uint32_t lv_dr_hash(const uint16_t *p, int y)   /* 2-lane FNV-1a over the row's 120 words + final mix */
+{   /* each lane step is a bijection of its state, so a row that differs in any ONE word always hashes differently */
+    const uint32_t *q = (const uint32_t *)p; uint32_t a = 0x811c9dc5u ^ (uint32_t)y, b = 0x9747b28cu;
+    for (int i = 0; i < 120; i += 2) { a = (a ^ q[i]) * 0x01000193u; b = (b ^ q[i + 1]) * 0x01000193u; }
+    a ^= (b << 16) | (b >> 16); a ^= a >> 16; a *= 0x85ebca6bu; a ^= a >> 13; return a;
+}
+static void lv_dr_push(int x, int y, int w, int h, const uint16_t *px)
+{
+    if (x != 0 || w != 240 || ((uintptr_t)px & 3)) { lv_hw_tracked(x, y, w, h, px); return; }   /* not whole rows: plain push */
+    { static uint32_t t = 0; if (lv_now != t) { t = lv_now; ++lv_dr_n; } }   /* one count per frame (lv_tick sets lv_now once) */
+    int run = -1;
+    for (int r = 0; r <= h; ++r) {
+        bool need = false;
+        if (r < h) {
+            const int yy = y + r; const uint32_t hv = lv_dr_hash(px + r * 240, yy);
+            const bool ok = lv_dr_ok[yy >> 3] >> (yy & 7) & 1;
+            need = !ok || lv_dr_h[yy] != hv || ((uint32_t)yy & 31) == (lv_dr_n & 31);
+            lv_dr_h[yy] = hv; lv_dr_ok[yy >> 3] |= (uint8_t)(1u << (yy & 7));
+        }
+        if (need && run < 0) run = r;
+        if (!need && run >= 0) { lv_dr_in = true; lv_blit_panel(0, y + run, 240, r - run, px + run * 240); lv_dr_in = false; run = -1; }
+    }
+}
+static void lv_blit_dirty(int x, int y, int w, int h, const uint16_t *px) { lv_theme_ink(x, y, w, h, px); lv_dr_push(x, y, w, h, px); }
+static void lv_blit_dirty_hw(int x, int y, int w, int h, const uint16_t *px) { lv_dr_push(x, y, w, h, px); }
 #include "lv_glossary.h"   /* item 2: glossary screens (after lv_blit_hw / lv_draw_backbot / lv_ticker) */
 static void lv_begin(const LvRadio *radio, lv_blit_fn blit, lk_draw_fn raw_draw, int theme, uint32_t now, bool cal_valid)
 {
-    lv_radio = radio; lv_blit_hw = blit; lv_blit = lv_blit_theme; lv_raw_draw = raw_draw;
+    lv_radio = radio; lv_blit_panel = blit; lv_blit_hw = lv_hw_tracked; lv_blit = lv_blit_theme; lv_raw_panel = raw_draw; lv_raw_draw = lv_raw_tracked; lv_dr_inval_all();   /* v1.2.17: tracked panel writes */
     lv_theme = (theme >= 0 && theme < LV_NTHEME_ALL) ? theme : 0;   /* fw-3locks-1116: the boot NVS theme may be a CONTROLbot v6 theme (12..25) */
     lv_now = lv_boot_ms = now; lv_clip_t = now; lv_auto_t = now;
     lv_print("BOTCORPS %s", LV_VERSION);
@@ -2353,7 +2402,7 @@ static void lv_cb_recal_go(void)
  * the touch with the panel, so the native-order c0..c7 cal stays valid. Full repaint after the flip. */
 static void lv_cb_rotate_go(void)
 {
-    lv_flip = !lv_flip; if (lv_radio && lv_radio->set_rot) lv_radio->set_rot(lv_flip);
+    lv_flip = !lv_flip; if (lv_radio && lv_radio->set_rot) lv_radio->set_rot(lv_flip); lv_dr_inval_all();
     lv_pg_dirty = true; lv_cb_dirty = true; lv_go(LV_SC_HOME);
 }
 #endif
@@ -2758,7 +2807,7 @@ static const char *lv_tap(int x, int y)
 #endif
         if (LV_TAP(((LvRect){170, 131, 205, 170}))) { lv_rainmode = (lv_rainmode + 1) % 3; ev("RAIN MODE", LV_RAINMODE_NAME[lv_rainmode]); return "rain-mode"; }
         if (LV_TAP(((LvRect){90, 212, 159, 258}))) {
-            lv_flip = !lv_flip; if (lv_radio->set_rot) lv_radio->set_rot(lv_flip);
+            lv_flip = !lv_flip; if (lv_radio->set_rot) lv_radio->set_rot(lv_flip); lv_dr_inval_all();
             lv_go(LV_SC_CTL); lv_event(false, "ORIENT: %s", LV_FLIP_NAME[lv_flip]); lv_tk_off = 1 << 14; return "orient";
         }
         if (const char *a = lv_mt_hit(x, y)) return a;

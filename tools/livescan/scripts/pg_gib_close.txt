@@ -1,0 +1,10 @@
+tick 300
+go 8
+tick 150
+motion 0
+tap 110 150
+tick 20
+tap 216 292
+tickto 15180
+dump gib_close
+radarstate

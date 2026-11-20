@@ -1,0 +1,13 @@
+tick 300
+go 8
+tick 150
+tap 110 150
+tick 20
+rhold 200 255 1300
+tick 60
+rec 1 lock4
+tap 212 256
+recstart info
+stick 30 100
+recstop
+radarstate

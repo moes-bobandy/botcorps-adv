@@ -40,6 +40,7 @@ static long g_px_pushed = 0;
  * that changes more than once between wstart and wstop showed an intermediate state on the panel (a flash). */
 static bool g_w = false; static uint16_t g_w0[320][240]; static uint8_t g_wc[320][240]; static long g_wblack = 0, g_wpx = 0;
 static int g_wpx_x = -1, g_wpx_y = -1;
+#include "dev_model.h"   /* v1.2.17: device timeline model (devrec), host only */
 static inline void wput(int y, int x, uint16_t v)
 {
     if (g_w && x == g_wpx_x && y == g_wpx_y && fb[y][x] != v) printf("WPIX (%d,%d) %04x -> %04x after %ld px\n", x, y, fb[y][x], v, g_wpx);
@@ -65,12 +66,16 @@ static void raw_draw(int y, int x, int n, const uint8_t *idx)
     if (g_fwpal < 0) { const char *e = getenv("SIM_FWPAL"); g_fwpal = e && *e == '1' ? 1 : e && *e == '2' ? 2 : 0; }
     if (g_fwpal == 2) g_fwpal_clip = lk_clip_of_seg(lv_play.seg); /* fixed firmware: ui_raw_draw re-validates s_pal */
     const uint16_t *pal = LK_CLIP[g_fwpal && g_fwpal_clip >= 0 ? g_fwpal_clip : lk_clip_of_seg(lv_play.seg)].pal;
+    if (g_dev) { static uint16_t l[240]; for (int i = 0; i < n; ++i) l[i] = pal[idx[i]]; dev_blit(x, y, n, 1, l); }
     for (int i = 0; i < n; ++i) wput(y, x + i, pal[idx[i]]);
+    dev_after_blit();
 }
 static void blit(int x, int y, int w, int h, const uint16_t *px)
 {
+    dev_blit(x, y, w, h, px);
     for (int r = 0; r < h; ++r) for (int c = 0; c < w; ++c) wput(y + r, x + c, px[r * w + c]);
     g_px_pushed += w * h;
+    dev_after_blit();
 }
 
 /* ---- fake radio: canned finds; scans "take" 1.2 s (wifi) / 5 s (ble) of sim time ---- */
@@ -479,6 +484,34 @@ int main(int argc, char **argv)
             for (int i = 0; i < lv_ntint; ++i) { const LvTS t = lv_tint_state(lv_tints[i].id); if (t.mode != LV_TM_RAW || t.deco) printf(" t%d:%d,%d,%d,%d", lv_tints[i].id, lv_tints[i].r.x0, lv_tints[i].r.y0, lv_tints[i].r.x1, lv_tints[i].r.y1); }
             if (lv_flash_r.x1 >= lv_flash_r.x0) printf(" f:%d,%d,%d,%d", lv_flash_r.x0, lv_flash_r.y0, lv_flash_r.x1, lv_flash_r.y1);
             printf("\n"); }
+        else if (!strcmp(cmd, "devrec")) { /* v1.2.17 devrec N NAME: N frames on the DEVICE timeline (dev_model.h). NAME.rgb = each finished
+            * frame (same pixels the plain sim draws), NAME.cam.rgb = the panel every 20 ms of device time, NAME.dev.txt = per-frame cost */
+            int n; char nm[64]; if (fscanf(sc, "%d %63s", &n, nm) != 2) return 2;
+            char p[512], pc[512], pt[512]; snprintf(p, sizeof p, "%s/%s.rgb", argv[2], nm); snprintf(pc, sizeof pc, "%s/%s.cam.rgb", argv[2], nm); snprintf(pt, sizeof pt, "%s/%s.dev.txt", argv[2], nm);
+            FILE *fo = fopen(p, "wb"), *fc = fopen(pc, "wb"), *ft = fopen(pt, "w");
+            g_dev_k = getenv("SIM_DEV_K") ? atof(getenv("SIM_DEV_K")) : 1.0; g_dev = true; memcpy(g_pb, fb, sizeof g_pb); g_dev_ev.clear(); g_dev_ev_i = 0;
+            double E = t_ms * 1000.0, next = E, cam = E, last_s = -1; g_dev_dma = E;
+            static uint8_t row[240 * 3];
+            auto put = [&](FILE *f, uint16_t (*b)[240]) { for (int y = 0; y < 320; ++y) { for (int x = 0; x < 240; ++x) { uint16_t v = b[y][x]; int r = (v >> 11) & 31, g = (v >> 5) & 63, bl = v & 31;
+                row[x * 3] = (r << 3) | (r >> 2); row[x * 3 + 1] = (g << 2) | (g >> 4); row[x * 3 + 2] = (bl << 3) | (bl >> 2); } fwrite(row, 1, sizeof row, f); } };
+            for (int i = 0; i < n; ++i) {
+                double now = E > next ? E : next; now = (double)(long)(now / 1000.0 + 0.999999) * 1000.0;   /* millis() granularity */
+                if (now - next >= 30000.0) next = now;
+                next += 30000.0;
+                t_ms = (uint32_t)(now / 1000.0);
+                { int rx = 0, ry = 0; if (g_down) g_tm.raw(g_fx, g_fy, &rx, &ry); lv_cal_raw(g_down, rx, ry, t_ms); }
+                sim_use_pal(); lv_touch(g_down, g_fx, g_fy);
+                g_dev_cpu = now; g_dev_cpu_acc = 0; const long px0 = g_dev_px; const int w0 = g_dev_nwin; dev_mark();
+                lv_tick(io, t_ms);
+                dev_cpu(); E = g_dev_cpu > g_dev_dma ? g_dev_cpu : g_dev_dma;
+                fprintf(ft, "f=%d start=%.3f ms=%.3f cpu=%.3f step=%.3f px=%ld win=%d\n", i, now / 1000.0, (E - now) / 1000.0, g_dev_cpu_acc / 1000.0, last_s < 0 ? 0.0 : (now - last_s) / 1000.0, g_dev_px - px0, g_dev_nwin - w0);
+                last_s = now;
+                put(fo, fb);
+                while (cam <= E) { dev_panel_at(cam); put(fc, g_cam); cam += LV_DEV_CAM_MS * 1000.0; }
+            }
+            g_dev = false; fclose(fo); fclose(fc); fclose(ft); t_ms = (uint32_t)(E / 1000.0);
+            printf("t=%u devrec %s %d frames\n", t_ms, nm, n);
+        }
         else if (!strcmp(cmd, "rec")) { /* rec N NAME: N ticks, one frame per tick appended to NAME.rgb */
             int n; char nm[64]; if (fscanf(sc, "%d %63s", &n, nm) != 2) return 2; char p[512]; snprintf(p, sizeof p, "%s/%s.rgb", argv[2], nm);
             FILE *o = fopen(p, "wb"); fclose(o);

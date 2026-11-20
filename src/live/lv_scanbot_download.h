@@ -464,7 +464,7 @@ static void lv_dl_frame(void)
 {
     lv_dl_tick();
     static const LvRect all = {0, 0, 239, 319};
-    lv_render(lv_blit_hw, all, lv_dl_scene, 0);   /* v1.2.4: skip theme re-ink; look unchanged */
+    lv_render(lv_blit_dirty_hw, all, lv_dl_scene, 0);   /* v1.2.4: skip theme re-ink; look unchanged. v1.2.17: changed rows only */
 }
 static void lv_go_soon(int scr, const char *tty_cmd);
 #if LV_DL_DECK

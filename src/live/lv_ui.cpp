@@ -645,8 +645,8 @@ static void qemu_tour(uint32_t now)
     static int st = 0; static uint32_t t0 = 0; if (!t0) t0 = now;
     const uint32_t el = now - t0;
 #if LV_QEMU_TOUR == 2   /* profile tour: long stays on the three sub-screens (PC sampling) */
-    static const uint32_t AT[] = {3000, 4000, 34000, 64000, 94000, 124000};
-    static const int WH[] = {4, 5, 6, 7, 8, 11};
+    static const uint32_t AT[] = {3000, 20000, 45000, 60000, 64000, 90000};
+    static const int WH[] = {7, 8, 9, 4, 5, 11};
 #else
     static const uint32_t AT[] = {3000, 9000, 15000, 21000, 27000, 33000, 39000, 47000, 55000, 63000, 71000, 79000};
     static const int WH[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};

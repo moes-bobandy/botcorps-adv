@@ -150,7 +150,9 @@ static void mo_build(void)
 static inline void mo11_bl(LvBand &B, int x, int y, uint16_t c, int a)   /* alpha blend /256 (also used by the skin-1 hooks) */
 {
     if (a <= 0 || x < B.x0 || x >= B.x0 + B.w || y < B.y0 || y >= B.y0 + B.h) return;
-    uint16_t &p = B.px[(y - B.y0) * B.w + (x - B.x0)]; p = lv_mix(p, c, a > 256 ? 256 : a, 256);
+    uint16_t &p = B.px[(y - B.y0) * B.w + (x - B.x0)];
+    if (a >= 256) { p = c; return; }   /* v1.2.11 speed: every opaque pillar/UI pixel was doing a 3-channel blend by 256/256 (exactly c) */
+    p = lv_mix(p, c, a, 256);
 }
 static int mo_cy0 = -10000;   /* scene clip top: folders never paint over the header (y < 46) */
 static inline void mo_bl(LvBand &B, int x, int y, uint16_t c, int a) { if (y >= mo_cy0) mo11_bl(B, x, y, c, a); }

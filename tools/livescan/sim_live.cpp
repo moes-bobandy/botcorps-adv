@@ -413,6 +413,11 @@ int main(int argc, char **argv)
 #endif
 #if LV_DL_GAME
         else if (!strcmp(cmd, "dllevel")) { int n; if (fscanf(sc, "%d", &n) != 1) return 2; lv_dl_round = n; lv_dl_try = 0; lv_dl_enter(); printf("t=%u DL SIM shortcut: level %d intro\n", t_ms, n); }   /* MOCK 1112: jump to a level (renders only) */
+        else if (!strcmp(cmd, "dlboot")) { lv_go(LV_SC_DL); if (lv_scr != LV_SC_DL) lv_go(LV_SC_DL); lv_dl_boot(); printf("t=%u DL SIM shortcut: slot intro (EXAMPLE DATA)\n", t_ms); }
+        else if (!strcmp(cmd, "dlslot")) { int n; if (fscanf(sc, "%d", &n) != 1) return 2; if (n>=1 && n<=LV_DL_NSLOT) lv_dl_slot_i = n-1; printf("t=%u DL SIM shortcut: select slot %d\n", t_ms, lv_dl_slot_i+1); }
+        else if (!strcmp(cmd, "dlapply")) { lv_dl_apply_slot(lv_dl_slot_i); printf("t=%u DL SIM shortcut: apply slot %d phase=%d\n", t_ms, lv_dl_slot_i+1, lv_dl_phase); }
+        else if (!strcmp(cmd, "dlpause")) { if (lv_dl_phase != LV_DL_PLAY) { if (lv_dl_phase != LV_DL_PLAY) lv_dl_play(); } lv_dl_tw = -1; lv_dl_open_pause(); printf("t=%u DL SIM shortcut: pause\n", t_ms); }
+        else if (!strcmp(cmd, "dlsave")) { if (lv_dl_phase != LV_DL_PAUSE && lv_dl_phase != LV_DL_PLAY) lv_dl_play(); if (lv_dl_phase == LV_DL_PLAY) lv_dl_open_pause(); lv_dl_do_save(); printf("t=%u DL SIM shortcut: save slot %d\n", t_ms, lv_dl_slot_i+1); }
         else if (!strcmp(cmd, "dlopen")) { int n; if (fscanf(sc, "%d", &n) != 1) return 2; if (lv_dl_phase != LV_DL_PLAY) lv_dl_play(); if (n>=1 && n<=LV_DL_NT) lv_dl_open_tower(n-1); printf("t=%u DL SIM shortcut: open tower %d\n", t_ms, n); }
 #if LV_RD_INFO_TOWER_PULL
         else if (!strcmp(cmd, "infoscr")) {   /* HOST-SIM MOCK: open the original INFO screen on the locked/selected node */
@@ -423,7 +428,8 @@ int main(int argc, char **argv)
 #endif
         else if (!strcmp(cmd, "dlnf")) { int n; if (fscanf(sc, "%d", &n) != 1) return 2; lv_dl_nf_force = n; lv_dl_enter(); printf("t=%u DL SIM feasibility: %d files a tower (not the progression)\n", t_ms, n); }
         else if (!strcmp(cmd, "dlstate")) {   /* MOCK 1112 HACKbot game: phase, trace, files (FAKE game data), finger boxes this frame */
-            printf("DL t=%u phase=%d round=%d tower=%d cam=%d nf=%d need=%d got=%d trace=%d wrong=%d dls=%d score=%d best=%d dl=%d deny=%d camx=%.3f\n", t_ms, lv_dl_phase, lv_dl_round, lv_dl_tw + 1, lv_dl_cam_mode, lv_dl_nf, lv_dl_need, lv_dl_got, lv_dl_trace, lv_dl_wrong, lv_dl_dls, lv_dl_score, lv_dl_best, lv_dl_pf + 1, (int)lv_dl_deny, lv_dl_cam_at);
+            printf("DL t=%u phase=%d round=%d tower=%d cam=%d nf=%d need=%d got=%d trace=%d wrong=%d dls=%d score=%d best=%d dl=%d deny=%d camx=%.3f slot=%d menu=%d sd=%d\n", t_ms, lv_dl_phase, lv_dl_round, lv_dl_tw + 1, lv_dl_cam_mode, lv_dl_nf, lv_dl_need, lv_dl_got, lv_dl_trace, lv_dl_wrong, lv_dl_dls, lv_dl_score, lv_dl_best, lv_dl_pf + 1, (int)lv_dl_deny, lv_dl_cam_at, lv_dl_slot_i + 1, lv_dl_menu, (int)lv_dl_sd_ok);
+            for (int i = 0; i < LV_DL_NSLOT; ++i) { const LvDlSave &s = lv_dl_slot[i]; printf("  DLSL %d %s L%d SCORE %d TOWERS %d/%d FILES %d/%d\n", i+1, s.used ? "USED" : "NEW", s.level, (int)s.score, s.towers, LV_DL_NT, s.files_got, s.files_need); }
             for (int t = 0; t < LV_DL_NT; ++t) { printf("  DLF T%d%s:", t + 1, lv_dl_seen[t] ? "*" : ""); for (int k = 0; k < lv_dl_nf; ++k) { char sz[12]; lv_dl_size(lv_dl_fo[t][k].mb10, sz, sizeof sz); printf(" [%d %s %s%s s=%d]", k + 1, lv_dl_name(lv_dl_fo[t][k]), sz, lv_dl_fo[t][k].tgt >= 0 ? " TARGET" : lv_dl_fo[t][k].la ? " LOOKALIKE" : "", lv_dl_fo[t][k].st); } printf("\n"); }
             for (int k = 0; k < lv_dl_need; ++k) { char sz[12]; lv_dl_size(lv_dl_tmb[k], sz, sizeof sz); printf("  DLTG %d %s %s T%d F%d got=%d\n", k + 1, LV_DL_NAMES[lv_dl_tnm[k]], sz, lv_dl_ttw[k] + 1, lv_dl_tf[k] + 1, (int)lv_dl_tgot[k]); }
             for (int k = 0; k < lv_hc_nhb; ++k) { const LvHcHit &h = lv_hc_hb[k]; printf("  DLT T%d Z=%.2f hit={%d,%d,%d,%d} cx=%d\n", h.i + 1, h.Z, h.xa, h.ya, h.xb, h.yb, h.cx); }

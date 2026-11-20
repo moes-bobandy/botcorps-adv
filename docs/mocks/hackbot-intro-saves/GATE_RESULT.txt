@@ -1,0 +1,4 @@
+IN-GAME GATE vs v1.2.16 (cd5e118): 0 / 230400 px differ across 3 screens (level typist, play field, open T4)
+gate_intro: 0 / 76800 px differ (0.0000%)
+gate_play: 0 / 76800 px differ (0.0000%)
+gate_open: 0 / 76800 px differ (0.0000%)

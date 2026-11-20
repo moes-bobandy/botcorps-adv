@@ -17,6 +17,10 @@
  *           DEFAULTS he can change: level L needs min(L, 5) target files, each in a different tower; the intro lists them all;
  *           the bottom terminal shows FIND got/n + every target with a green tick when downloaded; all of them = LEVEL L CLEAR
  *           -> NEXT LEVEL (that level's intro) or BACK.
+ *  SLOTS  - mock 2026-11-20: the HACKbot intro itself is the 3-slot picker (Mobandy). U/D moves between slots, A opens,
+ *           B goes back. Slot 1..3 keep full progress (level, score, towers hacked, files downloaded). Empty = NEW GAME.
+ *           Saves go to SD /BOTcorps/hackbot/slotN.sav (small 16-byte HB1 record). NVS fallback only if there is no SD.
+ *  PAUSE  - during play, B on the field (no tower open) opens a pause menu; SAVE writes the slot in use; B / RESUME returns.
  * The mission line ("FIND <file> <size>") is the bottom terminal's prompt line on every play frame. No bot is drawn in the scene.
  * While this screen is up it borrows the Hot/Cold game's world buffer lv_hc_w. All files / towers are FAKE game data. */
 #if LV_DL_GAME
@@ -31,7 +35,7 @@
 #define LV_DL_DROP_MS 380     /* one folder's fall: all 3 are down 300+220+380 = 900 ms after the tap */
 #define LV_DL_DL_MS 1200      /* download bar */
 #define LV_DL_DENY_MS 900     /* ACCESS DENIED flash */
-enum { LV_DL_INTRO, LV_DL_PLAY, LV_DL_DONE, LV_DL_TRACED, LV_DL_WIN, LV_DL_OVER };
+enum { LV_DL_INTRO, LV_DL_PLAY, LV_DL_DONE, LV_DL_TRACED, LV_DL_WIN, LV_DL_OVER, LV_DL_SLOTS, LV_DL_PAUSE, LV_DL_SAVEOK };  /* SLOTS/PAUSE/SAVEOK appended so existing phase numbers stay */
 enum { LV_DL_S_IDLE, LV_DL_S_DL, LV_DL_S_GOT, LV_DL_S_DENY };
 #define LV_DL_MAXT 5          /* most target files in one level (DEFAULT) */
 struct LvDlFile { uint8_t name, st; uint8_t mb10; int8_t tgt; bool la; };   /* size = mb10 / 10 MB; tgt = target index or -1; la = look-alike */
@@ -66,6 +70,62 @@ static int lv_dl_gap(void) { return lv_dl_nf <= 3 ? LV_DL_DROP_GAP : 2 * LV_DL_D
 #define LV_DL_DECK 1   /* v1.2.14: 1 = the d-pad game deck (real firmware); 0 = the old panel + terminal (kept) */
 #endif
 static int lv_dl_fsel = 0;   /* v1.2.14: the deck's folder cursor (was the MOCK's lv_mock_dpad_sel) */
+/* ---- 3 save slots (mock 2026-11-20). File format: 16-byte little-endian record "HB1\0" + ver,level,score,towers,got,need,pad.
+ * Path: /BOTcorps/hackbot/slot1.sav .. slot3.sav on the CYD SD card. If the card is missing or the write fails, the same
+ * 16 bytes go in NVS namespace "botcorps", keys hbsl1..hbsl3. The host sim never touches SD or NVS: it shows canned
+ * EXAMPLE DATA (slot 1 filled, slots 2 and 3 NEW GAME) and stamps EX.DATA on the slot picker. */
+#define LV_DL_NSLOT 3
+#define LV_DL_SAV_DIR "/BOTcorps/hackbot"
+#define LV_DL_SAV_NAME "/BOTcorps/hackbot/slot%d.sav"
+struct LvDlSave { bool used; uint8_t level, towers, files_got, files_need; int16_t score; };
+static LvDlSave lv_dl_slot[LV_DL_NSLOT];
+static int lv_dl_slot_i = 0;     /* 0..2: selected slot on the intro, and the slot in use once play starts */
+static int lv_dl_menu = 0;       /* pause items: 0 RESUME, 1 SAVE */
+static bool lv_dl_sd_ok = true;  /* sim: SD present (example). Firmware: mount result. */
+static bool lv_dl_exdata = true; /* mock stamp: numbers are example data, not live saves */
+static void lv_dl_slot_path(int i, char *o, int n) { snprintf(o, n, LV_DL_SAV_NAME, i + 1); }
+static void lv_dl_slots_example(void)   /* host-sim canned slots, clearly example data */
+{
+    memset(lv_dl_slot, 0, sizeof lv_dl_slot);
+    lv_dl_sd_ok = true; lv_dl_exdata = true;
+    lv_dl_slot[0].used = true; lv_dl_slot[0].level = 3; lv_dl_slot[0].score = 860;
+    lv_dl_slot[0].towers = 3; lv_dl_slot[0].files_got = 2; lv_dl_slot[0].files_need = 3;
+}
+static void lv_dl_pack_save(const LvDlSave &s, uint8_t b[16])
+{
+    memset(b, 0, 16); b[0] = 'H'; b[1] = 'B'; b[2] = '1'; b[3] = 0; b[4] = 1;
+    b[5] = s.used ? 1 : 0; b[6] = s.level; b[7] = (uint8_t)(s.score & 0xff); b[8] = (uint8_t)((s.score >> 8) & 0xff);
+    b[9] = s.towers; b[10] = s.files_got; b[11] = s.files_need;
+}
+static bool lv_dl_unpack_save(const uint8_t b[16], LvDlSave &s)
+{
+    if (b[0] != 'H' || b[1] != 'B' || b[2] != '1' || b[3] != 0 || b[4] != 1) return false;
+    memset(&s, 0, sizeof s); s.used = b[5] != 0; s.level = b[6]; s.score = (int16_t)(b[7] | (b[8] << 8));
+    s.towers = b[9]; s.files_got = b[10]; s.files_need = b[11]; return true;
+}
+/* Firmware I/O is not run in this host-sim mock (no SD.h / Preferences.h in the sim). When a bin is later built:
+ *   1) try SD: mkdir /BOTcorps, mkdir /BOTcorps/hackbot, read/write LV_DL_SAV_NAME (16-byte HB1).
+ *   2) if the card is absent or the file I/O fails: NVS "botcorps" / hbsl1..hbsl3, same 16 bytes.
+ * The sim keeps the three slots in RAM and preloads EXAMPLE DATA. */
+static void lv_dl_slots_load(void)
+{
+#if defined(BOTCORPS_CYD_LIVESCAN) && BOTCORPS_CYD_LIVESCAN
+    lv_dl_slots_example();
+#else
+    lv_dl_slots_example();   /* mock default until the firmware SD/NVS path is wired on a "ok to build" pass */
+#endif
+}
+static void lv_dl_capture_slot(int i)
+{
+    if (i < 0 || i >= LV_DL_NSLOT) return;
+    int ns = 0; for (int t = 0; t < LV_DL_NT; ++t) ns += lv_dl_seen[t];
+    lv_dl_slot[i].used = true; lv_dl_slot[i].level = (uint8_t)(lv_dl_round < 1 ? 1 : lv_dl_round);
+    lv_dl_slot[i].score = (int16_t)(lv_dl_score < 0 ? 0 : lv_dl_score > 9999 ? 9999 : lv_dl_score);
+    lv_dl_slot[i].towers = (uint8_t)ns; lv_dl_slot[i].files_got = (uint8_t)lv_dl_got;
+    lv_dl_slot[i].files_need = (uint8_t)lv_dl_need;
+}
+static LvRect lv_dl_slot_rect(int i) { return {(int16_t)22, (int16_t)(100 + i * 44), (int16_t)217, (int16_t)(100 + i * 44 + 41)}; }   /* 196 x 42, >=40 px tall */
+static LvRect lv_dl_pause_rect(int i) { return {(int16_t)22, (int16_t)(156 + i * 40), (int16_t)217, (int16_t)(156 + i * 40 + 36)}; }   /* 196 x 37 */
 static LvRect lv_dl_ftap(int i)   /* 3: 152 x 59 (as before); n > 3: one full pitch each, edge to edge: 152 x 47 / 38 / 31 / 27 */
 {
     const int y = LV_DL_FY0 + i * lv_dl_fdy();
@@ -145,8 +205,48 @@ static void lv_dl_play(void)
     lv_hc_log("LINK UP. %d TOWERS. TRACE RUNNING.", LV_DL_NT); lv_hc_log("TAP A TOWER TO OPEN IT");
 }
 static LvSelClk lv_dl_clk;   /* v1.2.11: lv_select.h (LOCKED shared selection) clock for the open-tower pull-up + drop */
-static void lv_dl_enter(void) { lv_sel_clk_reset(lv_dl_clk, lv_now); lv_dl_new_round(); lv_dl_phase = LV_DL_INTRO; lv_dl_intro_t = lv_now; lv_dl_typed_all = lv_dl_intro_done = false; }
+static void lv_dl_enter(void) { lv_sel_clk_reset(lv_dl_clk, lv_now); lv_dl_new_round(); lv_dl_phase = LV_DL_INTRO; lv_dl_intro_t = lv_now; lv_dl_typed_all = lv_dl_intro_done = false; }   /* NEXT LEVEL / RETRY / sim dllevel: the locked level typist, not the slot intro */
 static void lv_dl_leave(void) { lv_dl_phase = LV_DL_INTRO; lv_dl_tw = -1; lv_dl_cam_mode = 0; lv_rd_cam_hold = false; }   /* v1.2.10: leaving with a tower open left lv_rd_cam_hold set -> GIBSON lost its camera sway */
+static void lv_dl_boot(void)   /* first entry from HOME / pager: the slot-picker intro */
+{
+    lv_sel_clk_reset(lv_dl_clk, lv_now); lv_dl_new_round();   /* rain + towers sit behind the card; the 90s trace is not running */
+    lv_dl_slots_load(); lv_dl_phase = LV_DL_SLOTS; lv_dl_slot_i = 0; lv_dl_menu = 0; lv_dl_tw = -1;
+}
+static void lv_dl_apply_slot(int i)
+{
+    if (i < 0 || i >= LV_DL_NSLOT) return;
+    lv_dl_slot_i = i;
+    const LvDlSave s = lv_dl_slot[i];
+    if (!s.used) { lv_dl_round = 1; lv_dl_try = 0; lv_dl_score = 0; lv_dl_enter(); return; }   /* NEW GAME -> locked level-1 typist */
+    lv_dl_round = s.level < 1 ? 1 : s.level; lv_dl_try = 0;
+    lv_sel_clk_reset(lv_dl_clk, lv_now);
+    lv_dl_play();   /* one new_round at this level, then PLAY with the saved progress applied below */
+    lv_dl_score = s.score; lv_dl_best = s.score;
+    int want = s.towers > LV_DL_NT ? LV_DL_NT : s.towers;
+    for (int t = 0; t < LV_DL_NT; ++t) lv_dl_seen[t] = t < want;
+    int g = s.files_got; if (g > lv_dl_need) g = lv_dl_need; lv_dl_got = g;
+    for (int k = 0; k < lv_dl_need; ++k) {
+        lv_dl_tgot[k] = k < g;
+        if (k < g) { LvDlFile &f = lv_dl_fo[lv_dl_ttw[k]][lv_dl_tf[k]]; f.st = LV_DL_S_GOT; }
+    }
+}
+static void lv_dl_open_pause(void)
+{
+    if (lv_dl_phase != LV_DL_PLAY || lv_dl_tw >= 0) return;   /* B on an open tower still closes it (locked) */
+    lv_dl_tend = lv_now; lv_dl_phase = LV_DL_PAUSE; lv_dl_menu = 0;   /* freeze the 90s timer at tend; rain keeps moving */
+}
+static void lv_dl_resume_play(void)
+{
+    if (lv_dl_phase != LV_DL_PAUSE && lv_dl_phase != LV_DL_SAVEOK) return;
+    const uint32_t dt = (uint32_t)(lv_now - lv_dl_tend);
+    lv_dl_t0 += dt; lv_dl_pt += dt; lv_dl_deny_t += dt; lv_dl_found_t += dt;   /* freeze was tend; shift the 90s / banner clocks. lv_sel_clk kept stepping, leave it. */
+    lv_dl_phase = LV_DL_PLAY;
+}
+static void lv_dl_do_save(void)
+{
+    lv_dl_capture_slot(lv_dl_slot_i);
+    lv_dl_phase = LV_DL_SAVEOK;
+}
 static void lv_dl_open_tower(int i)
 {
     const uint32_t vt = lv_sel_clk_now(lv_dl_clk, lv_now);
@@ -238,14 +338,15 @@ static void lv_dl_chrome(LvBand &B)   /* rows 0..33: the INFO top chrome (stripe
     for (int y = 0; y < 3; y++) for (int x = 0; x < 240; x++) lvi_px(B, x, y, ((x + y) / 5) & 1 ? 0xeb31ac : 0xdca137);
     for (int y = 21; y < 24; y++) for (int x = 0; x < 240; x++) lvi_px(B, x, y, ((x - y) / 5) & 1 ? 0xdca137 : 0xeb31ac);
     lvi_txt(B, 3, 5, "HACKBOT // GIBSON", 0xb9bdc9);
-    if (lv_dl_tw >= 0) snprintf(t, sizeof t, "TOWER %d", lv_dl_tw + 1); else if (lv_dl_phase >= LV_DL_DONE) snprintf(t, sizeof t, lv_dl_phase == LV_DL_DONE || lv_dl_phase == LV_DL_WIN ? "GOT IT" : "TRACED"); else snprintf(t, sizeof t, "TOWERS");
+    const bool ended = lv_dl_phase == LV_DL_DONE || lv_dl_phase == LV_DL_TRACED || lv_dl_phase == LV_DL_WIN || lv_dl_phase == LV_DL_OVER;
+    if (lv_dl_tw >= 0) snprintf(t, sizeof t, "TOWER %d", lv_dl_tw + 1); else if (ended) snprintf(t, sizeof t, lv_dl_phase == LV_DL_DONE || lv_dl_phase == LV_DL_WIN ? "GOT IT" : "TRACED"); else snprintf(t, sizeof t, "TOWERS");
     lvi_txt(B, 3, 12, t, lv_dl_phase == LV_DL_DONE || lv_dl_phase == LV_DL_WIN ? 0x30ff90 : 0xf3baff, true);
     const int tr = lv_dl_trace, lit = (tr * 11 + 999) / 1000; const bool jp = false; (void)frame;   /* timer only: a wrong file no longer flashes the meter */
     for (int i = 0; i < 11; i++) { int h = 5 + i; unsigned c = i < 6 ? 0x30ff90 : i < 9 ? 0xffb000 : 0xff385c;
         lvi_rect(B, 84 + i * 6, 20 - h, 5, h, i < lit ? (jp ? 0xff385c : c) : 0x142637); }
     snprintf(t, sizeof t, "%d%%", tr / 10); lvi_txt(B, 191 - (int)strlen(t) * 6, 12, t, jp ? 0xffffff : lv_dl_tcol(tr), true);
     lvi_txt(B, 200, 5, "TRACE", 0xffb000);
-    const char *w2 = lv_dl_phase == LV_DL_TRACED || lv_dl_phase == LV_DL_OVER ? "CUT" : lv_dl_phase >= LV_DL_DONE ? "CLEAR" : tr >= 800 ? "HOT!" : "LIVE";
+    const char *w2 = lv_dl_phase == LV_DL_TRACED || lv_dl_phase == LV_DL_OVER ? "CUT" : ended ? "CLEAR" : tr >= 800 ? "HOT!" : "LIVE";
     lvi_txt(B, 200, 14, w2, tr >= 800 || lv_dl_phase == LV_DL_TRACED || lv_dl_phase == LV_DL_OVER ? 0xff385c : 0x75d7e9);
     lvi_rect(B, 0, 24, 240, 10, 0x0b1826);
     int ns = 0; for (int i = 0; i < LV_DL_NT; ++i) ns += lv_dl_seen[i];
@@ -380,6 +481,76 @@ static void lv_dl_panel(LvBand &B)   /* rows 247..285: the radar's locked panel 
         if (s) lv_dl_tick_mark(B, x + 13, y + 2, lv_hex(0x30ff90));
     }
 }
+static void lv_dl_sel_frame(LvBand &B, const LvRect &r, uint16_t c)   /* the open-folder cursor: a double theme frame */
+{
+    b_frame(B, r.x0, r.y0, r.x1 - r.x0 + 1, r.y1 - r.y0 + 1, c);
+    b_frame(B, r.x0 + 1, r.y0 + 1, r.x1 - r.x0 - 1, r.y1 - r.y0 - 1, c);
+}
+static void lv_dl_save_card(LvBand &B)   /* same magenta Hot/Cold card frame as LEVEL CLEAR / TRACED (12,60 216x181), over the rain */
+{
+    const uint16_t W = lv_hex(0xffffff), G = lv_hex(0xa0a0a8), TAN = lv_hex(LV_TAN), CY = lv_hex(0x30e8ff), MAG = LV_HC_MAG;
+    const uint16_t GRN = lv_hex(0x30ff60), GOLD = lv_hex(0xffc34a), DIM = lv_hex(0x707078);
+    b_fill(B, 12, 60, 216, 181, 0x0000); b_frame(B, 12, 60, 216, 181, MAG); b_frame(B, 14, 62, 212, 177, lv_dim(MAG, 3, 8));
+    char t[48], path[40];
+    auto stamp = [&](int y) {
+        if (lv_dl_exdata) {
+            const char *s = lv_dl_sd_ok ? "EX.DATA  SD /BOTcorps/hackbot/" : "EX.DATA  NVS (NO SD)";
+            b_text35(B, 120 - lv_w35(s) / 2, y, s, DIM);
+        }
+    };
+    auto prog = [&](const LvDlSave &s, int y, uint16_t c) {
+        snprintf(t, sizeof t, "L%d  SCORE %d", s.level, (int)s.score); b_text35(B, 120 - lv_w35(t) / 2, y, t, c);
+        snprintf(t, sizeof t, "TOWERS %d/%d  FILES %d/%d", s.towers, LV_DL_NT, s.files_got, s.files_need ? s.files_need : s.files_got);
+        b_text35(B, 120 - lv_w35(t) / 2, y + 9, t, G);
+    };
+    if (lv_dl_phase == LV_DL_SLOTS) {
+        const char *title = "SAVE SLOTS"; const int tw = (int)strlen(title) * 12;
+        b_text(B, 120 - tw / 2 + 1, 71, title, lv_hex(0x4a0a3a), 2); b_text(B, 120 - tw / 2, 70, title, MAG, 2);
+        stamp(88);
+        for (int i = 0; i < LV_DL_NSLOT; ++i) {
+            const LvRect r = lv_dl_slot_rect(i); const LvDlSave &s = lv_dl_slot[i]; const bool on = i == lv_dl_slot_i;
+            if (on) lv_dl_sel_frame(B, r, MAG);
+            snprintf(t, sizeof t, "SLOT %d", i + 1); b_text(B, r.x0 + 8, r.y0 + 6, t, on ? W : G);
+            if (!s.used) b_text(B, r.x0 + 8, r.y0 + 20, "NEW GAME", CY);
+            else {
+                snprintf(t, sizeof t, "L%d  SCORE %d", s.level, (int)s.score); b_text35(B, r.x0 + 8, r.y0 + 20, t, GOLD);
+                snprintf(t, sizeof t, "TOWERS %d/%d  FILES %d/%d", s.towers, LV_DL_NT, s.files_got, s.files_need);
+                b_text35(B, r.x0 + 8, r.y0 + 29, t, on ? W : G);
+            }
+        }
+        return;
+    }
+    if (lv_dl_phase == LV_DL_PAUSE) {
+        const char *title = "PAUSE"; const int tw = (int)strlen(title) * 12;
+        b_text(B, 120 - tw / 2 + 1, 71, title, lv_hex(0x4a3a0a), 2); b_text(B, 120 - tw / 2, 70, title, GOLD, 2);
+        snprintf(t, sizeof t, "SLOT %d IN USE", lv_dl_slot_i + 1); b_text35(B, 120 - lv_w35(t) / 2, 90, t, CY);
+        { int ns = 0; for (int tw = 0; tw < LV_DL_NT; ++tw) ns += lv_dl_seen[tw];
+          LvDlSave cur{}; cur.used = true; cur.level = (uint8_t)(lv_dl_round < 1 ? 1 : lv_dl_round);
+          cur.score = (int16_t)lv_dl_score; cur.towers = (uint8_t)ns; cur.files_got = (uint8_t)lv_dl_got; cur.files_need = (uint8_t)lv_dl_need;
+          prog(cur, 102, GOLD); }
+        stamp(122);
+        static const char *const ITEM[2] = {"RESUME", "SAVE"};
+        for (int i = 0; i < 2; ++i) {
+            const LvRect r = lv_dl_pause_rect(i); const bool on = i == lv_dl_menu;
+            if (on) lv_dl_sel_frame(B, r, MAG);
+            const int lw = (int)strlen(ITEM[i]) * 6;
+            b_text(B, 120 - lw / 2, r.y0 + 12, ITEM[i], on ? W : CY);
+        }
+        return;
+    }
+    /* SAVEOK */
+    const char *title = "SLOT SAVED"; const int tw = (int)strlen(title) * 12;
+    b_text(B, 120 - tw / 2 + 1, 79, title, lv_hex(0x0a4a1a), 2); b_text(B, 120 - tw / 2, 78, title, GRN, 2);
+    snprintf(t, sizeof t, "SLOT %d", lv_dl_slot_i + 1); b_text(B, 120 - (int)strlen(t) * 3, 104, t, GOLD);
+    prog(lv_dl_slot[lv_dl_slot_i], 124, W);
+    if (lv_dl_sd_ok) { lv_dl_slot_path(lv_dl_slot_i, path, sizeof path); snprintf(t, sizeof t, "SD  %s", path); }
+    else snprintf(t, sizeof t, "NVS  hbsl%d  (NO SD)", lv_dl_slot_i + 1);
+    b_text35(B, 120 - lv_w35(t) / 2, 148, t, CY);
+    if (lv_dl_sd_ok) { const char *fb = "NVS FALLBACK IF NO SD"; b_text35(B, 120 - lv_w35(fb) / 2, 158, fb, DIM); }
+    stamp(176);
+    const char *ok = "A=OK"; b_text(B, 120 - (int)strlen(ok) * 3, 200, ok, W);
+}
+
 static void lv_dl_scene(LvBand &B, void *)
 {
     if (lv_dl_phase == LV_DL_INTRO) {   /* full-screen terminal: the mission types out */
@@ -448,15 +619,19 @@ static void lv_dl_scene(LvBand &B, void *)
 #if LV_DL_DECK   /* v1.2.14 (Mobandy 11:34 AM ET "hackerbot has no control ui"): the v1.2.11 MOCK's game deck, real: it replaces the panel + terminal; d-pad cursor = theme frame on folder lv_dl_fsel */
     if (lv_dl_tw >= 0 && lv_dl_fsel >= 0 && lv_sel_landed((int)(lv_dl_clk.vt - lv_dl_open_t), LV_DL_DROP0_MS, lv_dl_gap(), LV_DL_DROP_MS, lv_dl_fsel)) { const LvRect r = lv_dl_ftap(lv_dl_fsel); const uint16_t k = lv_ink(LV_ACC);
         b_frame(B, r.x0 + 1, r.y0 + 1, r.x1 - r.x0 - 1, r.y1 - r.y0 - 1, k); b_frame(B, r.x0 + 2, r.y0 + 2, r.x1 - r.x0 - 3, r.y1 - r.y0 - 3, k); }
-    { char a[40], b[24]; if (lv_dl_tw >= 0) { snprintf(a, sizeof a, "TOWER %d  FILE %d/%d", lv_dl_tw + 1, lv_dl_fsel + 1, lv_dl_nf); snprintf(b, sizeof b, "A=DOWNLOAD"); }
-      else { snprintf(a, sizeof a, "GOT %d OF %d  L/R PICK TOWER", lv_dl_got, lv_dl_need); snprintf(b, sizeof b, "A=OPEN"); }
-      pad_hc_deck(B, a, b); }
+    { char a[40], b[24];
+      if (lv_dl_phase == LV_DL_SLOTS) { snprintf(a, sizeof a, "SLOT %d OF 3  UP/DN PICK", lv_dl_slot_i + 1); snprintf(b, sizeof b, "A=OPEN"); pad_hc_deck(B, a, b, "SLOT", "----"); }
+      else if (lv_dl_phase == LV_DL_PAUSE) { snprintf(a, sizeof a, "PAUSE  SLOT %d", lv_dl_slot_i + 1); snprintf(b, sizeof b, "A=SELECT"); pad_hc_deck(B, a, b, "ITEM", "----"); }
+      else if (lv_dl_phase == LV_DL_SAVEOK) { snprintf(a, sizeof a, "SAVED  SLOT %d", lv_dl_slot_i + 1); snprintf(b, sizeof b, "A=OK"); pad_hc_deck(B, a, b, "----", "----"); }
+      else if (lv_dl_tw >= 0) { snprintf(a, sizeof a, "TOWER %d  FILE %d/%d", lv_dl_tw + 1, lv_dl_fsel + 1, lv_dl_nf); snprintf(b, sizeof b, "A=DOWNLOAD"); pad_hc_deck(B, a, b); }
+      else { snprintf(a, sizeof a, "GOT %d OF %d  L/R PICK TOWER", lv_dl_got, lv_dl_need); snprintf(b, sizeof b, "A=OPEN"); pad_hc_deck(B, a, b); } }
 #else
     lv_dl_panel(B); lv_dl_terminal(B);
 #endif
     if (lv_dl_phase == LV_DL_DONE) lv_dl_banner(B, true, "DOWNLOAD", "COMPLETE", lv_dl_need > 1 ? "ALL FILES" : "RIGHT FILE", 0x30ff90, lv_dl_pt);
     if (lv_dl_phase == LV_DL_TRACED) lv_dl_banner(B, false, "TRACE", "COMPLETE", "CONNECTION CUT", 0xff385c, lv_dl_pt);
     if (lv_dl_phase == LV_DL_WIN || lv_dl_phase == LV_DL_OVER) lv_dl_card(B);
+    if (lv_dl_phase == LV_DL_SLOTS || lv_dl_phase == LV_DL_PAUSE || lv_dl_phase == LV_DL_SAVEOK) lv_dl_save_card(B);
     lv_draw_backbot(B, LV_R_BACKBOT.x0, LV_R_BACKBOT.y0);
     lv_dl_chrome(B);
 }
@@ -470,7 +645,7 @@ static void lv_go_soon(int scr, const char *tty_cmd);
 #if LV_DL_DECK
 /* v1.2.14: the deck's keys on the real game actions. 1 up 2 down 3 left 4 right (lv_pad_dpad_at), 5 A, 6 B (GIBSON's A / B). */
 static int lv_dl_deck_id(int x, int y) { const int d = lv_pad_dpad_at(x, y); return d ? d : lv_in(PAD_HIT_A, x, y) ? 5 : lv_in(PAD_HIT_B, x, y) ? 6 : 0; }
-static void lv_dl_touch(bool down, int x, int y) { lv_hc_dpad_held = down && lv_dl_phase == LV_DL_PLAY && y >= PAD_Y0 ? lv_dl_deck_id(x, y) : 0; }
+static void lv_dl_touch(bool down, int x, int y) { const bool pad = lv_dl_phase == LV_DL_PLAY || lv_dl_phase == LV_DL_SLOTS || lv_dl_phase == LV_DL_PAUSE || lv_dl_phase == LV_DL_SAVEOK; lv_hc_dpad_held = down && pad && y >= PAD_Y0 ? lv_dl_deck_id(x, y) : 0; }
 static const char *lv_dl_tap(int x, int y);
 static void lv_dl_pick(int dir)   /* L / R / UP / DOWN on the game world's towers (lv_rd_dpad_pick, the GIBSON rows law) */
 {
@@ -491,14 +666,56 @@ static const char *lv_dl_deck(int x, int y)
         if (id == 6) return "dl-pad-b-towers";
         lv_dl_pick(DIR[id]); return id == 3 ? "dl-pad-left" : "dl-pad-right";
     }
-    if (id == 6) { lv_go_soon(LV_SC_HOME, 0); return "dl-pad-b-home"; }   /* as the banner */
+    if (id == 6) { lv_dl_open_pause(); return "dl-pad-b-pause"; }   /* field B opens the pause menu (SAVE / RESUME). Backbot / EXIT is from the slot intro. */
     if (lv_dl_cam_mode == 2 && (int32_t)(lv_sel_clk_now(lv_dl_clk, lv_now) - lv_dl_cam_t) < LV_DL_CAM_MS) return "dl-camera-moving";
     if (id == 5) { int i = lv_hc_w.sel; if (i < 0 || i >= lv_hc_w.nf) { lv_dl_pick(1); i = lv_hc_w.sel; } if (i < 0) return "dl-pad-a-empty"; lv_dl_open_tower(i); return "dl-pad-a-open"; }
     lv_dl_pick(DIR[id]); static const char *const N[5] = {"", "dl-pad-up-row", "dl-pad-down-row", "dl-pad-left", "dl-pad-right"}; return N[id];
 }
 #endif
+static const char *lv_dl_menu_deck(int id)
+{
+    if (lv_dl_phase == LV_DL_SLOTS) {
+        if (id == 1) { lv_dl_slot_i = (lv_dl_slot_i + LV_DL_NSLOT - 1) % LV_DL_NSLOT; return "dl-slot-up"; }
+        if (id == 2) { lv_dl_slot_i = (lv_dl_slot_i + 1) % LV_DL_NSLOT; return "dl-slot-down"; }
+        if (id == 5) { lv_dl_apply_slot(lv_dl_slot_i); return lv_dl_slot[lv_dl_slot_i].used && lv_dl_phase == LV_DL_PLAY ? "dl-slot-continue" : "dl-slot-new"; }
+        if (id == 6) { lv_go_soon(LV_SC_HOME, 0); return "dl-slot-back"; }
+        return "dl-slot";
+    }
+    if (lv_dl_phase == LV_DL_PAUSE) {
+        if (id == 1) { lv_dl_menu = (lv_dl_menu + 1) % 2; return "dl-pause-up"; }   /* 2 items: wrap */
+        if (id == 2) { lv_dl_menu = (lv_dl_menu + 1) % 2; return "dl-pause-down"; }
+        if (id == 6) { lv_dl_resume_play(); return "dl-pause-back"; }
+        if (id == 5) { if (lv_dl_menu == 1) { lv_dl_do_save(); return "dl-pause-save"; } lv_dl_resume_play(); return "dl-pause-resume"; }
+        return "dl-pause";
+    }
+    if (lv_dl_phase == LV_DL_SAVEOK) {
+        if (id == 5 || id == 6) { lv_dl_resume_play(); return "dl-saved-ok"; }
+        return "dl-saved";
+    }
+    return "dl-menu";
+}
 static const char *lv_dl_tap(int x, int y)
 {
+    if (lv_dl_phase == LV_DL_SLOTS) {
+        if (y >= PAD_Y0) return lv_dl_menu_deck(lv_dl_deck_id(x, y));
+        for (int i = 0; i < LV_DL_NSLOT; ++i) if (lv_in(lv_dl_slot_rect(i), x, y)) {
+            if (lv_dl_slot_i != i) { lv_dl_slot_i = i; return "dl-slot-pick"; }
+            lv_dl_apply_slot(i); return lv_dl_phase == LV_DL_PLAY ? "dl-slot-continue" : "dl-slot-new";
+        }
+        return "dl-slot";
+    }
+    if (lv_dl_phase == LV_DL_PAUSE) {
+        if (y >= PAD_Y0) return lv_dl_menu_deck(lv_dl_deck_id(x, y));
+        for (int i = 0; i < 2; ++i) if (lv_in(lv_dl_pause_rect(i), x, y)) {
+            if (lv_dl_menu != i) { lv_dl_menu = i; return "dl-pause-pick"; }
+            return lv_dl_menu_deck(5);
+        }
+        return "dl-pause";
+    }
+    if (lv_dl_phase == LV_DL_SAVEOK) {
+        if (y >= PAD_Y0) return lv_dl_menu_deck(lv_dl_deck_id(x, y));
+        lv_dl_resume_play(); return "dl-saved-ok";
+    }
     if (lv_dl_phase == LV_DL_INTRO) {
         if (!lv_dl_intro_done) { lv_dl_typed_all = true; return "dl-intro-skip-typing"; }   /* first tap while typing: show it all */
         lv_dl_play(); return "dl-start";

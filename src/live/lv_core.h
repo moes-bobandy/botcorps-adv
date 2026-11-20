@@ -1977,7 +1977,7 @@ static void lv_go(int s)
     if (s == LV_SC_HCH && prev != LV_SC_HCH) lv_hc_enter();
 #endif
 #if LV_DL_GAME
-    if (s == LV_SC_DL && prev != LV_SC_DL) lv_dl_enter();
+    if (s == LV_SC_DL && prev != LV_SC_DL) lv_dl_boot();   /* mock 2026-11-20: slot-picker intro. NEXT/RETRY and sim dllevel still call lv_dl_enter (level typist). */
 #endif
 #if LV_MO_INSIDE
     if (s == LV_SC_MO && prev != LV_SC_MO) itw_mo_enter();

@@ -1,0 +1,16 @@
+tick 300
+go 8
+tick 150
+tap 110 150
+tick 5
+radarstate
+rhold 110 150 1500
+tick 30
+radarstate
+tap 216 292
+tick 40
+radarstate
+tap 160 60
+tick 40
+radarstate
+rec 60 hunt

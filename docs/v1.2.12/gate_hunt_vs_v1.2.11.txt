@@ -1,0 +1,3 @@
+hunt.rgb       frames=60 diff_px=33000 frames_diff=60 box=x84-148 y6-20
+hunt2.rgb      frames=90 diff_px=0
+TOTAL 33000

@@ -1,0 +1,22 @@
+tick 300
+page 3
+tick 20
+recstart ctl_flow
+tick 20
+tap 80 230
+tick 15
+tap 80 230
+tick 15
+tap 80 230
+tick 15
+tap 176 238
+tick 25
+tap 176 238
+tick 25
+cblauncher 1
+tick 15
+tap 176 272
+tick 25
+tap 135 238
+tick 40
+recstop

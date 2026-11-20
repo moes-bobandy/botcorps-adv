@@ -1,0 +1,13 @@
+tick 300
+go 8
+tick 150
+tap 110 150
+tick 5
+rhold 110 150 1500
+tick 30
+tap 216 292
+tick 40
+tap 160 60
+recstart hunt_flow
+tick 60
+recstop

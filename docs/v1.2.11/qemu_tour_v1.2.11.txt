@@ -1,0 +1,70 @@
+[GFX-RAM] dma_rows=0 dma_bytes=0 band_rows=12 pp=1 band_bytes=11520 heap=85384 8bit=75284 dma=75284 internal8=75284
+[fps] scr=7 pg=-1 ticks=67 avg=0.2ms max=1.5ms fps=33.3 spi=1KB/f heap=50524 largest=30708
+[tour] pager 0
+[fps] scr=2 pg=2 ticks=33 avg=29.6ms max=31.5ms fps=32.8 spi=150KB/f heap=49520 largest=30708
+[fps] scr=2 pg=0 ticks=169 avg=23.0ms max=23.3ms fps=33.6 spi=148KB/f heap=49520 largest=30708
+[tour] pager 1
+[fps] scr=2 pg=0 ticks=31 avg=23.0ms max=23.2ms fps=32.3 spi=155KB/f heap=49520 largest=30708
+[fps] scr=2 pg=1 ticks=168 avg=28.1ms max=28.4ms fps=33.5 spi=149KB/f heap=49520 largest=30708
+[tour] pager 2
+[fps] scr=2 pg=1 ticks=32 avg=27.8ms max=27.9ms fps=32.3 spi=155KB/f heap=49520 largest=30708
+[fps] scr=2 pg=2 ticks=166 avg=30.3ms max=30.6ms fps=33.2 spi=149KB/f heap=49520 largest=30708
+[tour] pager 3
+[fps] scr=2 pg=2 ticks=32 avg=30.4ms max=30.5ms fps=31.9 spi=155KB/f heap=26988 largest=9204
+[fps] scr=2 pg=3 ticks=168 avg=1.1ms max=30.7ms fps=33.6 spi=10KB/f heap=26988 largest=9204
+[tour] HACKbot DL
+[fps] scr=2 pg=3 ticks=32 avg=1.0ms max=1.0ms fps=32.3 spi=15KB/f heap=50260 largest=30708
+[fps] scr=12 pg=-1 ticks=168 avg=8.9ms max=10.5ms fps=33.5 spi=149KB/f heap=50260 largest=30708
+[tour] HACKbot DL tower open
+[fps] scr=12 pg=-1 ticks=95 avg=46.6ms max=67.4ms fps=18.9 spi=150KB/f heap=50260 largest=30708
+[tour] GIBSON radar
+[fps] scr=12 pg=-1 ticks=30 avg=65.2ms max=67.2ms fps=14.8 spi=155KB/f heap=50224 largest=30708
+[fps] scr=8 pg=-1 ticks=168 avg=16.0ms max=16.2ms fps=33.5 spi=148KB/f heap=50224 largest=30708
+[tour] tap 216,292 -> pad-a-empty
+[tour] GIBSON A = lock + folders
+[tour] tap 160,200 -> none
+[tour] GIBSON WATCH folder
+[fps] scr=8 pg=-1 ticks=167 avg=15.9ms max=16.0ms fps=33.3 spi=149KB/f heap=50224 largest=30708
+[tour] tap 124,292 -> pad-speed-2x
+[tour] GIBSON SPEED
+[fps] scr=8 pg=-1 ticks=167 avg=16.0ms max=16.2ms fps=33.3 spi=149KB/f heap=50224 largest=30708
+[tour] DOJO idle
+[fps] scr=8 pg=-1 ticks=97 avg=16.0ms max=16.1ms fps=32.9 spi=150KB/f heap=42492 largest=30708
+[fps] scr=13 pg=-1 ticks=53 avg=96.4ms max=399.4ms fps=10.6 spi=146KB/f heap=42492 largest=30708
+[tour] tap 120,160 -> FLOCK
+[tour] DOJO open
+[fps] scr=13 pg=-1 ticks=45 avg=114.4ms max=683.0ms fps=8.8 spi=149KB/f heap=36200 largest=25588
+[tour] tap 160,140 -> mo-scroll2
+[tour] DOJO scroll 2 folder
+[fps] scr=13 pg=-1 ticks=34 avg=148.5ms max=163.0ms fps=6.8 spi=149KB/f heap=35812 largest=25588
+[tour] tap 200,265 -> mo-towers
+[tour] DOJO closed
+[fps] scr=13 pg=-1 ticks=41 avg=122.3ms max=151.8ms fps=8.1 spi=149KB/f heap=35812 largest=25588
+[tour] CONTROLbot
+[fps] scr=13 pg=-1 ticks=40 avg=93.0ms max=94.6ms fps=10.5 spi=153KB/f heap=26952 largest=9204
+[fps] scr=2 pg=3 ticks=168 avg=1.2ms max=30.7ms fps=33.5 spi=10KB/f heap=26952 largest=9204
+[tour] end
+[fps] scr=2 pg=3 ticks=167 avg=0.9ms max=1.0ms fps=33.3 spi=10KB/f heap=26952 largest=9204
+[fps] scr=2 pg=3 ticks=167 avg=1.0ms max=1.1ms fps=33.3 spi=10KB/f heap=26952 largest=9204
+[fps] scr=2 pg=3 ticks=167 avg=1.0ms max=1.1ms fps=33.3 spi=10KB/f heap=26952 largest=9204
+[fps] scr=2 pg=3 ticks=167 avg=0.9ms max=1.0ms fps=33.3 spi=10KB/f heap=26952 largest=9204
+[fps] scr=2 pg=3 ticks=167 avg=1.0ms max=1.1ms fps=33.3 spi=10KB/f heap=26952 largest=9204
+[fps] scr=2 pg=3 ticks=167 avg=1.0ms max=1.1ms fps=33.3 spi=10KB/f heap=26952 largest=9204
+[fps] scr=2 pg=3 ticks=167 avg=0.9ms max=1.1ms fps=33.3 spi=10KB/f heap=26952 largest=9204
+[fps] scr=2 pg=3 ticks=167 avg=1.0ms max=1.1ms fps=33.3 spi=10KB/f heap=26952 largest=9204
+[fps] scr=2 pg=3 ticks=167 avg=1.0ms max=1.1ms fps=33.3 spi=10KB/f heap=26952 largest=9204
+[fps] scr=2 pg=3 ticks=167 avg=0.9ms max=1.1ms fps=33.3 spi=10KB/f heap=26952 largest=9204
+[fps] scr=2 pg=3 ticks=167 avg=1.0ms max=1.1ms fps=33.3 spi=10KB/f heap=26952 largest=9204
+[fps] scr=2 pg=3 ticks=167 avg=1.0ms max=1.1ms fps=33.3 spi=10KB/f heap=26952 largest=9204
+[fps] scr=2 pg=3 ticks=167 avg=1.0ms max=1.1ms fps=33.3 spi=10KB/f heap=26952 largest=9204
+[fps] scr=2 pg=3 ticks=167 avg=1.0ms max=1.1ms fps=33.3 spi=10KB/f heap=26952 largest=9204
+[fps] scr=2 pg=3 ticks=167 avg=1.0ms max=1.1ms fps=33.3 spi=10KB/f heap=26952 largest=9204
+[fps] scr=2 pg=3 ticks=167 avg=1.0ms max=1.1ms fps=33.3 spi=10KB/f heap=26952 largest=9204
+[fps] scr=2 pg=3 ticks=167 avg=1.0ms max=1.1ms fps=33.3 spi=10KB/f heap=26952 largest=9204
+[fps] scr=2 pg=3 ticks=167 avg=1.0ms max=1.1ms fps=33.3 spi=10KB/f heap=26952 largest=9204
+[fps] scr=2 pg=3 ticks=167 avg=1.0ms max=1.1ms fps=33.3 spi=10KB/f heap=26952 largest=9204
+[fps] scr=2 pg=3 ticks=167 avg=1.0ms max=1.1ms fps=33.3 spi=10KB/f heap=26952 largest=9204
+[fps] scr=2 pg=3 ticks=167 avg=1.0ms max=1.1ms fps=33.3 spi=10KB/f heap=26952 largest=9204
+[fps] scr=2 pg=3 ticks=167 avg=1.0ms max=1.1ms fps=33.3 spi=10KB/f heap=26952 largest=9204
+[fps] scr=2 pg=3 ticks=167 avg=0.9ms max=1.1ms fps=33.3 spi=10KB/f heap=26952 largest=9204
+[fps] scr=2 pg=3 ticks=167 avg=1.0ms max=1.1ms fps=33.3 spi=10KB/f heap=26952 largest=9204

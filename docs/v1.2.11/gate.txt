@@ -1,0 +1,26 @@
+tick 300
+page 0
+rec 45 p0
+page 1
+rec 45 p1
+page 2
+rec 45 p2
+page 3
+rec 45 p3
+go 12
+rec 60 dl
+dlopen 1
+rec 60 dlo
+go 8
+rec 90 radar
+go 13
+rec 120 dojo
+tap 120 160
+rec 90 dojoopen
+tap 200 265
+rec 60 dojoclose
+go 14
+rec 45 ctl
+go 2
+page 2
+rec 30 home2

@@ -1,0 +1,13 @@
+ctl.rgb          frames=  45 diff_px=       0 frames_diff=0
+dl.rgb           frames=  60 diff_px=       0 frames_diff=0
+dlo.rgb          frames=  60 diff_px=       0 frames_diff=0
+dojo.rgb         frames= 120 diff_px=       0 frames_diff=0
+dojoclose.rgb    frames=  60 diff_px=       0 frames_diff=0
+dojoopen.rgb     frames=  90 diff_px=       0 frames_diff=0
+home2.rgb        frames=  30 diff_px=       0 frames_diff=0
+p0.rgb           frames=  45 diff_px=       0 frames_diff=0
+p1.rgb           frames=  45 diff_px=       0 frames_diff=0
+p2.rgb           frames=  45 diff_px=       0 frames_diff=0
+p3.rgb           frames=  45 diff_px=       0 frames_diff=0
+radar.rgb        frames=  90 diff_px=  153900 frames_diff=90
+TOTAL diff px 153900 missing 0

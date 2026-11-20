@@ -118,9 +118,30 @@ static void lv_rd_place(void)
     for (int a = 1; a < lv_rd_n; ++a) { LvTower t = lv_rd_tw[a]; int b = a - 1; while (b >= 0 && lv_rd_tw[b].Z < t.Z) { lv_rd_tw[b + 1] = lv_rd_tw[b]; --b; } lv_rd_tw[b + 1] = t; } /* far -> near */
 }
 static bool lv_rd_cam_hold = false;   /* v1.2.4: HACKbot open-tower camera; skip sway + clamp so the tower stays at x=50 next to the folders */
+/* v1.2.11 (Mobandy 2026-11-20 "on gibson game when hitting a button the tower should advance like dojo tower and show the
+ * folders and that is where the hunt and all other ui exists" + "Replace the center buttons with a speed increase button"):
+ * LV_RD_FOLD 1 = a lock (A or hold-charge) advances the camera onto the locked tower (HACKbot DOWNLOAD's own open-tower
+ * camera law: front face to x 50, eased 400 ms) and drops three folders HUNT / IGNORE / WATCH that carry those actions;
+ * the deck's centre stack is one SPEED button (1X -> 2X -> 3X: the radar's camera / scene clock). 0 = v1.2.10 deck. */
+#ifndef LV_RD_FOLD
+#define LV_RD_FOLD 1
+#endif
+#if LV_RD_FOLD
+static int lv_rd_fold_mode = 0;   /* 0 off, 1 advancing / open, 2 easing back to the drift */
+static uint32_t lv_rd_fold_t = 0; static float lv_rd_fold_from = 0; static uint8_t lv_rd_fold_mac[6];
+static int lv_rd_speed = 1; static uint32_t lv_rd_soff = 0, lv_rd_slast = 0;   /* scene clock = lv_now + soff (radar screen only) */
+#define LV_RD_SOFF (lv_scr == LV_SC_RADAR ? lv_rd_soff : 0u)
+#define LV_RD_FCAM_MS 400
+#define LV_RD_FDROP0 300
+#define LV_RD_FGAP 110
+#define LV_RD_FDROP 380
+static const LvRect LV_RD_FTAP[3] = {{88, 33, 238, 98}, {88, 99, 238, 164}, {88, 165, 238, 230}};   /* 151 x 66 finger boxes */
+#else
+#define LV_RD_SOFF 0u
+#endif
 static void lv_rd_layout(void)
 {
-    const float t = (lv_now - lv_rd_t0) / 1000.0f;
+    const float t = (lv_now - lv_rd_t0 + LV_RD_SOFF) / 1000.0f;
     if (!lv_rd_cam_hold) lv_rd_camx = lv_rainmode == 0 ? 0.5f * sinf(t * 0.45f) : 0.0f;
     lv_rd_place();
     if (!lv_rd_cam_hold) lv_rd_clamp();   /* while locked: camera DRIFT is clamped so the locked tower (and its brackets) stays fully on screen */
@@ -940,6 +961,9 @@ static void lv_rd_term(LvBand &B, uint16_t hdr)
 #if LV_RD_INFO
 static void lv_rd_info_draw(LvBand &B);
 #endif
+#if LV_RD_FOLD
+static void lv_rd_fold_draw(LvBand &B);
+#endif
 static void lv_scene_radar(LvBand &B, void *)
 {
 #if LV_RD_SKINS
@@ -950,7 +974,7 @@ static void lv_scene_radar(LvBand &B, void *)
 #if LV_RD_INFO
     if (lv_rd_info) { lv_rd_info_draw(B); return; }
 #endif
-    const float t = (lv_now - lv_rd_t0) / 1000.0f;
+    const float t = (lv_now - lv_rd_t0 + LV_RD_SOFF) / 1000.0f;
     const uint16_t hdr = lv_ink(LV_HDR);
     uint16_t mag = lv_hex(0xff2ad4), grid = lv_hex(0x7a1cff);
     if (sk == 1) { mag = lv_hex(0x3b2e1e); grid = lv_hex(0x5c4a32); }        /* MO v11: dark-timber horizon rail + timber tatami seams */
@@ -1049,6 +1073,9 @@ static void lv_scene_radar(LvBand &B, void *)
     if (sk == 1) { mo11_overlay(B); return; }   /* MO v11: green corner ticks, pill, 3D shoji panels, dojo header / panel / terminal / BACKbot */
 #endif
     lv_rd_fx(B);
+#if LV_RD_FOLD
+    if (lv_rd_fold_mode == 1) lv_rd_fold_draw(B);
+#endif
     /* header (after the towers so tall near towers tuck under it) */
     b_fill(B, 0, 24, 240, 1, lv_ink(LV_ACCD));
     b_fill(B, 0, 25, 240, 9, lv_hex(0x101018));
@@ -1184,6 +1211,10 @@ static void lv_rd_lock_on(int i)
     lv_rd_lock = true; lv_rd_lock_t = lv_now; memcpy(lv_rd_lockmac, lv_f[i].mac, 6);
     lv_rd_sel = i; memcpy(lv_rd_selmac, lv_f[i].mac, 6); lv_rd_holding = false;
     char m[18]; lv_macstr(lv_f[i].mac, m); lv_rd_log("LOCK %s  IGNORE / WATCH / HUNT", m);
+#if LV_RD_FOLD
+    if (lv_rd_fold_mode != 1) { lv_rd_fold_mode = 1; lv_rd_fold_t = lv_now; lv_rd_fold_from = lv_rd_camx; }
+    memcpy(lv_rd_fold_mac, lv_f[i].mac, 6);
+#endif
 }
 static void lv_rd_hunt_go(int i)
 {
@@ -1198,6 +1229,9 @@ static void lv_rd_release(void)
 {
     lv_rd_hunt_stop();
     lv_rd_lock = false; lv_rd_holding = false;
+#if LV_RD_FOLD
+    if (lv_rd_fold_mode == 1) { lv_rd_fold_mode = 2; lv_rd_fold_t = lv_now; lv_rd_fold_from = lv_rd_camx; }
+#endif
 #if LV_RD_CHARGE
     lv_rd_cg = false; lv_rd_cg_rel = 0; lv_rd_cg_owned = false; lv_rd_cg_dropping = false;
 #endif
@@ -1353,6 +1387,51 @@ static void lv_rd_info_draw(LvBand &B)
 static void lv_rd_info_scene_top(LvBand &B, void *) { lv_rd_info_draw(B); }
 static bool lv_rd_info_on(void) { return lv_rd_info; }
 #endif
+#if LV_RD_FOLD
+/* the three action folders: HACKbot DOWNLOAD's Joey folder frame (lv_dl_folder: tab, 3D lip, scanlines), same drop law */
+static void lv_rd_fold1(LvBand &B, int j, int ys, float ph)
+{
+    static const unsigned C[3] = {0xff2ad4, 0xa0a0a8, 0xa0fc00};   /* the deck's HUNT / IGNORE / WATCH colours */
+    const unsigned c = C[j]; const int x = 92, w = 143, y = ys + 8, h = 46;
+    if (!b_yhit(B, y - 8, y + h + 1)) return;
+    const int i = lv_rd_find(lv_rd_lockmac); const bool wat = lv_rd_watched(lv_rd_lockmac);
+    if (ph >= 0.65f) lvi_rect(B, x + 3, y + 2, w, h, 0x061321);
+    lvi_line(B, x + w, y + 2, x + w + 3, y + 5, c); lvi_line(B, x + w + 3, y + 5, x + w + 3, y + h + 1, c); lvi_line(B, x + 3, y + h + 1, x + w + 3, y + h + 1, c);
+    if (ph >= 0.65f) { lvi_rect(B, x, y, w, h, j == 0 && lv_rd_hunting ? 0x200618 : 0x050c16); for (int yy = y + 2; yy < y + h - 1; yy += 4) lvi_rect(B, x + 1, yy, w - 2, 1, 0x081422);
+                       lvi_rect(B, x, y - 7, 60, 8, 0x050c16); }
+    lvi_line(B, x, y - 8, x + 55, y - 8, c); lvi_line(B, x + 55, y - 8, x + 60, y - 3, c); lvi_line(B, x + 60, y - 3, x + 60, y, c); lvi_line(B, x, y - 8, x, y + h - 1, c);
+    lvi_line(B, x + 60, y, x + w - 1, y, c); lvi_line(B, x + w - 1, y, x + w - 1, y + h - 1, c); lvi_line(B, x, y + h - 1, x + w - 1, y + h - 1, c);
+    if (ph < 0.65f) return;
+    static const char *const TAB[3] = {"HUNT", "IGNORE", "WATCH"}; lvi_txt(B, x + 4, y - 6, TAB[j], c);
+    char a[32], b[40], t[24];
+    if (j == 0) {
+        snprintf(a, sizeof a, "%s", lv_rd_hunting ? "STOP HUNT" : "HUNT THIS NODE");
+        if (lv_rd_hunting && lv_rd_tgt_have) snprintf(b, sizeof b, "READ %d  %d DBM  %s", lv_rd_reads, lv_rd_tgt.rssi, lv_rd_miss ? "HOLD" : lv_rd_trend > 2 ? "WARMER" : lv_rd_trend < -2 ? "COLDER" : "STEADY");
+        else snprintf(b, sizeof b, "%s", lv_rd_hunting ? "RESCANNING..." : "FOCUSED RE-SCANS, LIVE DBM");
+        snprintf(t, sizeof t, "%s", lv_rd_hunting ? "TAP=STOP" : "TAP=HUNT");
+    } else if (j == 1) { snprintf(a, sizeof a, "IGNORE NODE"); snprintf(b, sizeof b, "OFF RADAR + CYCLE  TTY: UNIGNORE"); snprintf(t, sizeof t, "TAP=IGNORE"); }
+    else { snprintf(a, sizeof a, "%s", wat ? "UNWATCH NODE" : "WATCH NODE"); snprintf(b, sizeof b, "%s", wat ? "WATCHED: TOWER IS LIME" : "TOWER TURNS LIME, KEPT IN NVS"); snprintf(t, sizeof t, "%s", wat ? "TAP=UNWATCH" : "TAP=WATCH"); }
+    lvi_icon(B, x + 4, y + 6, j == 1 ? 1 : j == 2 ? 2 : 0, c); lvi_txt(B, x + 16, y + 7, a, 0xffffff, true);
+    lvi_txt(B, x + 4, y + 20, b, j == 0 && lv_rd_hunting ? c : 0x6a8090);
+    /* bar: HUNT = the node's real signal level (lv_rd_level of the hunt read, else the scan read); IGNORE / WATCH = state */
+    const int bw = 70, by = y + 34; int fill = 0;
+    if (j == 0 && i >= 0) fill = (bw - 4) * lv_rd_level(lv_rd_hunting && lv_rd_tgt_have ? lv_rd_tgt : lv_f[i]) / 60;
+    else if (j == 2 && wat) fill = bw - 4;
+    lvi_box(B, x + 4, by, bw, 7, c); if (fill > 0) lvi_rect(B, x + 6, by + 2, fill, 3, c);
+    lvi_txt(B, x + w - 4 - lv_w35(t), by + 1, t, c);
+}
+static void lv_rd_fold_draw(LvBand &B)
+{
+    if (!lv_rd_lock) return;
+    const int el = (int)(lv_now - lv_rd_fold_t);
+    for (int j = 2; j >= 0; --j) {
+        const int t = el - LV_RD_FDROP0 - j * LV_RD_FGAP; if (t < 0) continue;
+        float u = t / (float)LV_RD_FDROP; const float uu = u > 1 ? 1 : u; const float e = 1.f - (1.f - uu) * (1.f - uu) * (1.f - uu);
+        const int end = 42 + j * 66, start = LV_RD_Y0 - 50;
+        lv_rd_fold1(B, j, start + (int)((end - start) * e), uu);
+    }
+}
+#endif
 static void lv_radar_enter(void)
 {
     lv_rd_lists_load();
@@ -1360,12 +1439,18 @@ static void lv_radar_enter(void)
       lv_rd_log("GIBSON UP  %dW %dB  HEIGHT=DBM", nw, lv_nf - nw); lv_rd_log("ANGLE/DEPTH = MAC HASH, NOT DIRECTION"); lv_rd_log(lv_nf ? (LV_RD_CHARGE ? "TAP=CYCLE  HOLD CHARGE=LOCK" : "TAP=CYCLE  HOLD 1S=LOCK") : "NO NODES YET - SCANNING"); lv_rd_tl_t = lv_now; }
     lv_rd_t0 = lv_now; lv_rd_sel = -1; lv_rd_glow = false; lv_rd_holding = false; lv_rd_swallow = false;
     lv_rd_cam_hold = false;   /* v1.2.10: the GIBSON radar never parks its camera (only HACKbot's open tower does) */
+#if LV_RD_FOLD
+    lv_rd_fold_mode = 0; lv_rd_soff = 0; lv_rd_slast = lv_now;
+#endif
 #if LV_RD_CHARGE
     lv_rd_cg = false; lv_rd_cg_owned = false; lv_rd_cg_dropping = false; lv_rd_cg_guard_until = 0;
 #endif
     if (lv_nf == 0 && lv_job == LV_J_NONE) lv_job_start(lv_scanmix == 1 ? LV_J_WIFI : lv_scanmix == 2 ? LV_J_BLE : LV_J_ALL, -1);
 }
 static void lv_radar_leave(void) { if (lv_rd_hunting) lv_tk_off = 1 << 14; lv_rd_release(); lv_rd_sel = -1;
+#if LV_RD_FOLD
+    lv_rd_fold_mode = 0; lv_rd_cam_hold = false; lv_rd_soff = 0;
+#endif
 #if LV_RD_INFO
     lv_rd_info = false;
 #endif
@@ -1381,7 +1466,21 @@ static void lv_radar_frame(void)
     if (jprev != LV_J_NONE && lv_job == LV_J_NONE && !lv_rd_hunting) { int nw = 0; for (int i = 0; i < lv_nf; ++i) nw += lv_f[i].kind == LV_K_WIFI; lv_rd_log("SCAN DONE %dW %dB", nw, lv_nf - nw); }
     jprev = lv_job;
     if (lv_rd_hunting && lv_job == LV_J_NONE) lv_rd_track_start();   /* back-to-back re-scans, as fast as the radio allows */
+#if LV_RD_FOLD
+    { uint32_t dt = lv_now - lv_rd_slast; lv_rd_slast = lv_now; if (dt > 250) dt = 250; lv_rd_soff += dt * (uint32_t)(lv_rd_speed - 1); }
+    lv_rd_cam_hold = lv_rd_fold_mode == 1;   /* parked on the locked tower: no sway, no clamp push (as DOWNLOAD) */
+#endif
     lv_rd_layout();
+#if LV_RD_FOLD
+    if (lv_rd_fold_mode) {
+        float u = (lv_now - lv_rd_fold_t) / (float)LV_RD_FCAM_MS; u = u < 0 ? 0 : u > 1 ? 1 : u; const float e = 1.f - (1.f - u) * (1.f - u) * (1.f - u);
+        const float drift = lv_rd_camx; float tgt = lv_rd_fold_from; const LvTower *T = lv_rd_tower_of(lv_rd_fold_mac);
+        if (T) tgt = T->X - (50 - 120) * T->Z / LV_RD_F;
+        else { const uint32_t h = lv_rd_hash(lv_rd_fold_mac); const float Z = 1.6f + (((h >> 8) & 0xff) / 255.0f) * 3.2f, X = (((h & 0xff) / 255.0f) * 2.0f - 1.0f) * 0.72f * Z; tgt = X - (50 - 120) * Z / LV_RD_F; }
+        lv_rd_camx = lv_rd_fold_mode == 1 ? lv_rd_fold_from + (tgt - lv_rd_fold_from) * e : lv_rd_fold_from + (drift - lv_rd_fold_from) * e;
+        lv_rd_place(); if (lv_rd_fold_mode == 2) { lv_rd_clamp(); if (u >= 1) lv_rd_fold_mode = 0; }
+    }
+#endif
     lv_render(lv_blit, LV_R_RADAR, lv_scene_radar, 0);
 #if LV_RD_INFO
     if (lv_rd_info) lv_render(lv_blit, LvRect{0, 0, 239, 23}, lv_rd_info_scene_top, 0);   /* the mock's top chrome, rim included */
@@ -1469,12 +1568,22 @@ static const char *lv_radar_tap(int x, int y)
     }
 #endif
     if (lv_rd_lock) {
+#if LV_RD_FOLD
+        int fk = -1;   /* folders HUNT / IGNORE / WATCH = buttons k 2 / 0 / 1; the deck's centre stack is the SPEED button now */
+        if (lv_rd_fold_mode == 1) for (int j = 0; j < 3; ++j) if (lv_in(LV_RD_FTAP[j], x, y)) {
+            if ((int)(lv_now - lv_rd_fold_t) < LV_RD_FDROP0 + j * LV_RD_FGAP + (int)(LV_RD_FDROP * 0.65f)) return "radar-folder-falling";
+            static const int K[3] = {2, 0, 1}; fk = K[j]; lv_press(LV_RD_FTAP[j]); break; }
+        for (int k = 0; k < LV_RD_NBTN; ++k) if (k == fk) {
+#else
         for (int k = 0; k < LV_RD_NBTN; ++k) if (lv_in(LV_RD_BTNT[k], x, y)) {
+#endif
             const int i = lv_rd_find(lv_rd_lockmac);
 #if LV_RD_INFO
             if (k == 3) { if (i >= 0) lv_rd_info_open(i); return "radar-info-open"; }   /* no lv_press: the INFO screen is the feedback (the flash would ghost over its first 3 frames) */
 #endif
+#if !LV_RD_FOLD
             lv_press(LV_RD_BTNR[k]);
+#endif
             if (k == 0) {   /* IGNORE: gone from the radar + tap-cycle, kept in NVS; lock released */
                 lv_rd_ladd(lv_rd_ign, lv_rd_nign, lv_rd_lockmac); lv_rd_lists_save(true);
                 const int w = lv_rd_lfind(lv_rd_wat, lv_rd_nwat, lv_rd_lockmac); if (w >= 0) { lv_rd_ldel(lv_rd_wat, lv_rd_nwat, w); lv_rd_lists_save(false); }

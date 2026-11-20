@@ -48,6 +48,9 @@ static int lv_rd_pad_hit_at(int x, int y)
     if (lv_in(PAD_HIT_R, x, y)) return 2;
     if (lv_in(PAD_HIT_B, x, y)) return 6;
     if (lv_in(PAD_HIT_A, x, y)) return 5;
+#if LV_RD_FOLD
+    if (lv_scr == LV_SC_RADAR && x >= PAD_HIT_HNT.x0 && x <= PAD_HIT_HNT.x1 && y >= PAD_HIT_HNT.y0 && y <= PAD_HIT_WAT.y1) return 10;   /* SPEED: the whole old stack, 46 x 49 */
+#endif
     if (lv_in(PAD_HIT_IGN, x, y)) return 7;
     if (lv_in(PAD_HIT_WAT, x, y)) return 8;
     if (lv_in(PAD_HIT_HNT, x, y)) return 9;
@@ -82,6 +85,9 @@ static const char *lv_rd_pad_go(int id)
         lv_go(lv_rd_from == LV_SC_RADAR || lv_rd_from == LV_SC_BOOT || lv_rd_from == LV_SC_HOME_INTRO || lv_rd_from == LV_SC_CAL ? LV_SC_HOME : lv_rd_from);
         return "pad-b-back";
     }
+#if LV_RD_FOLD
+    if (id == 10) { lv_rd_speed = lv_rd_speed % 3 + 1; lv_rd_log("SPEED %dX", lv_rd_speed); static const char *const S[3] = {"pad-speed-1x", "pad-speed-2x", "pad-speed-3x"}; return S[lv_rd_speed - 1]; }
+#endif
     if (id == 7 || id == 8 || id == 9) {
         if (!lv_rd_lock) return "pad-mid-idle";
         return id == 7 ? "pad-ignore" : id == 8 ? "pad-watch" : "pad-hunt";
@@ -268,6 +274,18 @@ static void pad_draw_mid3(LvBand &B, uint16_t ink, uint16_t dim)
     }
 }
 
+#if LV_RD_FOLD
+static void pad_draw_speed(LvBand &B)   /* v1.2.11: one SPEED button in the old centre stack's frame (x106 w38, y270..314) */
+{
+    const int x = PAD_MID_X, w = PAD_MID_W, y = PAD_MID_YH, h = PAD_MID_YW + PAD_MID_H - PAD_MID_YH;
+    const bool held = lv_rd_pad_held == 10; const uint16_t acc = lv_hex(0xffb000);
+    pad_bevel_rect(B, x, y, w, h, held ? lv_mix(lv_hex(0x100818), acc, 5, 8) : lv_hex(0x100818), acc, held);
+    const uint16_t lab = held ? lv_hex(0xffffff) : acc;
+    b_text35(B, x + (w - lv_w35("SPEED")) / 2, y + 5 + (held ? 1 : 0), "SPEED", lab);
+    char s[4]; snprintf(s, sizeof s, "%dX", lv_rd_speed); b_text(B, x + (w - 2 * 11 + 1) / 2, y + 15 + (held ? 1 : 0), s, lab, 2);
+    for (int k = 0; k < 3; ++k) b_fill(B, x + 8 + k * 9, y + h - 7, 6, 3, k < lv_rd_speed ? acc : lv_dim(acc, 2, 8));   /* 1..3 pips */
+}
+#endif
 static void lv_rd_pad_draw(LvBand &B, uint16_t hdr)
 {
     (void)hdr;
@@ -279,7 +297,11 @@ static void lv_rd_pad_draw(LvBand &B, uint16_t hdr)
     pad_plaque(B, ink, dim);
     pad_status(B, 10, 253, ink, dim);
     pad_draw_joey(B, ink, dim);
+#if LV_RD_FOLD
+    if (lv_scr == LV_SC_RADAR) pad_draw_speed(B); else pad_draw_mid3(B, ink, dim);   /* HACKbot DOWNLOAD's deck sliver stays as locked */
+#else
     pad_draw_mid3(B, ink, dim);
+#endif
 }
 
 static void lv_rd_pad_touch(bool down, int x, int y)

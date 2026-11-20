@@ -1,0 +1,12 @@
+tick 300
+go 8
+tick 150
+tap 110 150
+tick 20
+recstart gib_flow
+stick 3 100
+tap 216 292
+stick 22 100
+tap 168 296
+stick 10 100
+recstop

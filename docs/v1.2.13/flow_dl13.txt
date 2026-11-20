@@ -1,0 +1,12 @@
+tick 300
+go 12
+tick 100
+dlopen 0
+tick 30
+recstart dl_flow
+stick 3 100
+tap 140 150
+stick 22 100
+tap 203 266
+stick 10 100
+recstop

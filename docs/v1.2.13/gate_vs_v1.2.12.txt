@@ -1,0 +1,19 @@
+ctl.rgb        frames=45 diff_px=0
+dl.rgb         frames=60 diff_px=0
+dlo.rgb        frames=60 diff_px=689352 frames_diff=60 box=x0-239 y60-246
+dojo.rgb       frames=120 diff_px=0
+dojoclose.rgb  frames=60 diff_px=0
+dojoopen.rgb   frames=90 diff_px=0
+home2.rgb      frames=30 diff_px=0
+p0.rgb         frames=45 diff_px=0
+p1.rgb         frames=45 diff_px=0
+p2.rgb         frames=45 diff_px=0
+p3.rgb         frames=45 diff_px=0
+radar.rgb      frames=90 diff_px=0
+TOTAL 689352
+--- flows (before=v1.2.12, after=v1.2.13), 100 ms device-frame model
+dl_flow.rgb    frames=35 diff_px=271690 frames_diff=29 box=x0-239 y59-246
+gib_flow.rgb   frames=35 diff_px=342445 frames_diff=29 box=x0-239 y60-246
+TOTAL 614135
+--- after close (back to drift)
+TOTAL 0

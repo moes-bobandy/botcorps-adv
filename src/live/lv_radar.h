@@ -84,6 +84,9 @@ static uint16_t lv_rd_col(const LvFind &f, int num, int den)
 }
 static int lv_rd_level(const LvFind &f) { int v = f.rssi + 100; if (v < 4) v = 4; if (v > 60) v = 60; return v; } /* 4..60 */
 static void lv_rd_clamp(void);
+/* v1.2.13 lv_select.h pull-up on GIBSON / HACKbot DOWNLOAD: the screen that owns the selection sets the tower (MAC), the eased
+ * progress p and itself; lv_rd_place then flies that one tower toward the viewer. p = 0 (or another screen): untouched. */
+static float lv_rd_pull_p = 0; static uint8_t lv_rd_pull_mac[6]; static int lv_rd_pull_scr = -1;
 static void lv_rd_place(void)
 {
     lv_rd_n = 0;
@@ -101,6 +104,12 @@ static void lv_rd_place(void)
 #if LV_RD_SKINS && LV_MO_INSIDE
         if (lv_rd_skin == 1) mo11_drift(T);   /* MO v11: every tower its own 3D drift (X, Z, breathing H); the sort below re-orders far -> near */
 #endif
+        if (lv_rd_pull_p > 0 && lv_rd_pull_scr == lv_scr && !memcmp(f.mac, lv_rd_pull_mac, 6)
+#if LV_RD_SKINS
+            && lv_rd_skin == 0
+#endif
+           ) { const float c = lv_rd_camx;
+               lv_sel_pull(c, lv_sel_close_x(c, LV_SEL_SX, LV_SEL_ZC, LV_RD_F), LV_SEL_ZC, lv_sel_close_h(LV_RD_CAMH, LV_RD_HOR, LV_SEL_YT, LV_SEL_ZC, LV_RD_F), lv_rd_pull_p, LV_RD_F, T.X, T.Z, T.H); }
         auto px = [&](float X, float Z) { return (int)lroundf(120 + LV_RD_F * (X - lv_rd_camx) / Z); };
         auto py = [&](float Y, float Z) { return (int)lroundf(LV_RD_HOR + LV_RD_F * (LV_RD_CAMH - Y) / Z); };
         T.x0 = px(T.X - w, T.Z); T.x1 = px(T.X + w, T.Z); T.yt = py(T.H, T.Z); T.yb = py(0, T.Z);
@@ -129,7 +138,7 @@ static bool lv_rd_cam_hold = false;   /* v1.2.4: HACKbot open-tower camera; skip
 #endif
 #if LV_RD_FOLD
 static int lv_rd_fold_mode = 0;   /* 0 off, 1 advancing / open, 2 easing back to the drift */
-static uint32_t lv_rd_fold_t = 0; static LvSelClk lv_rd_fclk; static float lv_rd_fold_from = 0; static uint8_t lv_rd_fold_mac[6];
+static uint32_t lv_rd_fold_t = 0; static LvSelClk lv_rd_fclk; static float lv_rd_fold_from = 0, lv_rd_fold_p0 = 0; static uint8_t lv_rd_fold_mac[6];
 static int lv_rd_speed = 1; static uint32_t lv_rd_soff = 0, lv_rd_slast = 0;   /* scene clock = lv_now + soff (radar screen only) */
 #define LV_RD_SOFF (lv_scr == LV_SC_RADAR ? lv_rd_soff : 0u)
 #define LV_RD_FCAM_MS 400
@@ -1243,7 +1252,7 @@ static void lv_rd_release(void)
     lv_rd_hunt_stop();
     lv_rd_lock = false; lv_rd_holding = false;
 #if LV_RD_FOLD
-    if (lv_rd_fold_mode == 1) { lv_rd_fold_mode = 2; lv_rd_fold_t = lv_sel_clk_now(lv_rd_fclk, lv_now); lv_rd_fold_from = lv_rd_camx; }
+    if (lv_rd_fold_mode == 1) { lv_rd_fold_mode = 2; lv_rd_fold_t = lv_sel_clk_now(lv_rd_fclk, lv_now); lv_rd_fold_from = lv_rd_camx; lv_rd_fold_p0 = lv_rd_pull_p; }
 #endif
 #if LV_RD_CHARGE
     lv_rd_cg = false; lv_rd_cg_rel = 0; lv_rd_cg_owned = false; lv_rd_cg_dropping = false;
@@ -1482,16 +1491,19 @@ static void lv_radar_frame(void)
     lv_rd_cam_hold = lv_rd_fold_mode == 1;   /* parked on the locked tower: no sway, no clamp push (as DOWNLOAD) */
     { const int fel = (int)(lv_rd_fclk.vt - lv_rd_fold_t);   /* lv_select.h clock: cap only while the pull-up / drop plays */
       lv_sel_clk_step(lv_rd_fclk, lv_now, lv_rd_fold_mode == 2 || (lv_rd_fold_mode == 1 && fel < LV_RD_FCAM_MS) ? 50u : lv_rd_fold_mode == 1 && fel < LV_RD_FDROP0 + 2 * LV_RD_FGAP + LV_RD_FDROP ? 100u : LV_SEL_NOCAP); }
+    /* v1.2.13: the locked pull-up. Open: the camera parks where it was (no pan) and the locked tower flies in to the close-up
+     * (lv_sel_pull, eased over LV_RD_FCAM_MS); close: it flies back out while the camera eases back to the drift. */
+    { const float fel = (float)(int)(lv_rd_fclk.vt - lv_rd_fold_t);
+      lv_rd_pull_scr = LV_SC_RADAR; memcpy(lv_rd_pull_mac, lv_rd_fold_mac, 6);
+      lv_rd_pull_p = lv_rd_fold_mode == 1 ? lv_sel_ease(fel / LV_RD_FCAM_MS) : lv_rd_fold_mode == 2 ? lv_rd_fold_p0 * (1.0f - lv_sel_ease(fel / LV_RD_FCAM_MS)) : 0.0f; }
 #endif
     lv_rd_layout();
 #if LV_RD_FOLD
     if (lv_rd_fold_mode) {
         const float fel = (float)(int)(lv_rd_fclk.vt - lv_rd_fold_t), u = fel / LV_RD_FCAM_MS;
-        const float drift = lv_rd_camx; float tgt = lv_rd_fold_from; const LvTower *T = lv_rd_tower_of(lv_rd_fold_mac);
-        if (T) tgt = T->X - (50 - 120) * T->Z / LV_RD_F;
-        else { const uint32_t h = lv_rd_hash(lv_rd_fold_mac); const float Z = 1.6f + (((h >> 8) & 0xff) / 255.0f) * 3.2f, X = (((h & 0xff) / 255.0f) * 2.0f - 1.0f) * 0.72f * Z; tgt = X - (50 - 120) * Z / LV_RD_F; }
-        lv_rd_camx = lv_sel_cam(lv_rd_fold_from, lv_rd_fold_mode == 1 ? tgt : drift, fel, LV_RD_FCAM_MS);   /* lv_select.h pull-up */
-        lv_rd_place(); if (lv_rd_fold_mode == 2) { lv_rd_clamp(); if (u >= 1) lv_rd_fold_mode = 0; }
+        const float drift = lv_rd_camx;
+        lv_rd_camx = lv_rd_fold_mode == 1 ? lv_rd_fold_from : lv_sel_cam(lv_rd_fold_from, drift, fel, LV_RD_FCAM_MS);
+        lv_rd_place(); if (lv_rd_fold_mode == 2) { lv_rd_clamp(); if (u >= 1) { lv_rd_fold_mode = 0; lv_rd_pull_p = 0; } }
     }
 #endif
     lv_render(lv_blit, LV_R_RADAR, lv_scene_radar, 0);

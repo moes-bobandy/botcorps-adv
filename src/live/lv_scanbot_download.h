@@ -47,7 +47,7 @@ static int lv_dl_need = 1, lv_dl_got = 0, lv_dl_ttw[LV_DL_MAXT], lv_dl_tf[LV_DL_
 static int lv_dl_need_for(int lv) { return lv < 1 ? 1 : lv < LV_DL_MAXT ? lv : LV_DL_MAXT; }   /* DEFAULT: L1 = 1 file, +1 a level, max 5 */
 static int lv_dl_pf = -1, lv_dl_wrong = 0, lv_dl_dls = 0, lv_dl_trace = 0, lv_dl_score = 0, lv_dl_best = -1;
 static uint32_t lv_dl_t0 = 0, lv_dl_tend = 0, lv_dl_pt = 0, lv_dl_open_t = 0, lv_dl_cam_t = 0, lv_dl_deny_t = 0, lv_dl_intro_t = 0;
-static float lv_dl_cam_from = 0, lv_dl_cam_at = 0;
+static float lv_dl_cam_from = 0, lv_dl_cam_at = 0, lv_dl_pull_p0 = 0;
 static char lv_dl_why[40], lv_dl_note[40]; static bool lv_dl_found = false; static uint32_t lv_dl_found_t = 0; static int lv_dl_try = 0;   /* note: a right file that is not the last one */   /* RETRY count: a retry reshuffles the files (same towers) */
 struct LvDlTag { int16_t x0, y0, x1, y1, i; }; static LvDlTag lv_dl_tags[LV_DL_NT]; static int lv_dl_ntag = 0, lv_dl_tag_tw = -1;   /* tower tags drawn last frame (sim gate) */   /* why the last download was wrong (shown in the panel until the next download / tower) */
 static bool lv_dl_seen[LV_DL_NT], lv_dl_deny = false, lv_dl_typed_all = false, lv_dl_intro_done = false;   /* done = the last drawn intro frame showed every line */
@@ -155,6 +155,7 @@ static void lv_dl_close_tower(void)
     if (lv_dl_tw < 0) return;
     lv_hc_log("TOWER %d CHECKED", lv_dl_tw + 1);
     lv_dl_cam_mode = 2; lv_dl_cam_t = lv_sel_clk_now(lv_dl_clk, lv_now); lv_dl_tw = -1; lv_dl_lock(0, false);
+    lv_dl_cam_from = lv_dl_cam_at; lv_dl_pull_p0 = lv_rd_pull_scr == LV_SC_DL ? lv_rd_pull_p : 0.0f;   /* v1.2.13: fly back out from here */
 }
 static void lv_dl_resolve(void)
 {
@@ -200,11 +201,18 @@ static void lv_dl_tick(void)
     if (lv_dl_phase == LV_DL_TRACED && (int32_t)(lv_now - lv_dl_pt) >= 1500) lv_dl_phase = LV_DL_OVER;
     /* the radar's own layout (drift camera), then the game camera: ease to the open tower / back to the drift */
     lv_rd_cam_hold = (lv_dl_cam_mode == 1 || lv_dl_tw >= 0);   /* park next to folders; no sway, no clamp push */
-    lv_hc_swap(); lv_rd_layout();
-    const float drift = lv_rd_camx; const float cel = (float)(lv_dl_clk.vt - lv_dl_cam_t), u = lv_dl_ease(cel / (float)LV_DL_CAM_MS);
+    lv_hc_swap();
+    const float cel = (float)(lv_dl_clk.vt - lv_dl_cam_t), u = lv_dl_ease(cel / (float)LV_DL_CAM_MS);
+    /* v1.2.13: the locked lv_select.h pull-up. Open: the camera parks (no pan), the opened tower flies in to the close-up;
+     * close: it flies back out while the camera eases back to the drift. */
+    lv_rd_pull_scr = LV_SC_DL;
+    if (lv_dl_cam_tw >= 0 && lv_dl_cam_tw < lv_nf) memcpy(lv_rd_pull_mac, lv_f[lv_dl_cam_tw].mac, 6);
+    lv_rd_pull_p = lv_dl_cam_mode == 1 ? u : lv_dl_cam_mode == 2 ? lv_dl_pull_p0 * (1.0f - u) : 0.0f;
+    lv_rd_layout();
+    const float drift = lv_rd_camx;
     float cx = drift;
-    if (lv_dl_cam_mode == 1) cx = lv_sel_cam(lv_dl_cam_from, lv_dl_cam_for(lv_dl_cam_tw), cel, LV_DL_CAM_MS);   /* lv_select.h pull-up */
-    else if (lv_dl_cam_mode == 2) { const float c0 = lv_dl_cam_for(lv_dl_cam_tw); cx = lv_sel_cam(c0, drift, cel, LV_DL_CAM_MS); if (u >= 1) lv_dl_cam_mode = 0; }
+    if (lv_dl_cam_mode == 1) cx = lv_dl_cam_from;
+    else if (lv_dl_cam_mode == 2) { cx = lv_sel_cam(lv_dl_cam_from, drift, cel, LV_DL_CAM_MS); if (u >= 1) { lv_dl_cam_mode = 0; lv_rd_pull_p = 0; } }
     if (cx != drift) { lv_rd_camx = cx; lv_rd_place(); if (!lv_rd_cam_hold) lv_rd_clamp(); }
     if (lv_dl_cam_mode != 1 && lv_dl_tw < 0) lv_rd_cam_hold = false;
     lv_dl_cam_at = lv_rd_camx;

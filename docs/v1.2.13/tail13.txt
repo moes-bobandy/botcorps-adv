@@ -1,0 +1,19 @@
+tick 300
+go 8
+tick 150
+tap 110 150
+tick 20
+tap 216 292
+tick 60
+tap 168 296
+tick 60
+rec 30 gib_after
+go 12
+tick 100
+dlopen 0
+tick 30
+tap 140 150
+tick 60
+tap 203 266
+tick 60
+rec 30 dl_after

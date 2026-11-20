@@ -19,3 +19,15 @@ Per screen (not shared): folder geometry and art, colours, folder actions, camer
 
 Proof: sim gate vs v1.2.10 = 0 px on Dojo, HACKbot, pager, CONTROLbot after the refactor; GIBSON and Dojo slow-frame
 flows byte-identical to the pre-module commit.
+
+## v1.2.13: PULL-UP = the Dojo zoom, for every sub-screen (Mobandy 10:33 AM ET, locked)
+- The PULL-UP is no longer a camera pan. `lv_sel_pull` (lv_select.h) flies the selected tower toward the viewer along the camera ray, using the Dojo's own close-up math.
+  - Depth eases in 1/Z to LV_SEL_ZC 0.72.
+  - The front-face column eases to LV_SEL_SX 38.
+  - The height eases until the front top sits on LV_SEL_YT 60.
+- The tower grows until it fills the close-up, then the folders drop (300 ms, 110 ms stagger).
+- GIBSON and HACKbot DOWNLOAD:
+  - The camera parks where it was.
+  - The tower keeps its own locked data (hash X/Z, RSSI height) until the pull-up moves it.
+  - On close the tower flies back out while the camera eases back to the drift.
+- The Dojo calls the same `lv_sel_pull`; its frames are byte-identical to v1.2.12.

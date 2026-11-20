@@ -260,9 +260,8 @@ static_assert(MO_N == 18, "hk table");
         const float Zc = MO12_ZC * (1.0f + 0.012f * sinf(0.9f * t + i));
         const float Hc = (LV_RD_CAMH + (LV_RD_HOR - MO12_YT) * MO12_ZC / LV_RD_F) * (1.0f + 0.012f * sinf(MO11_WH[i] * t + i * 0.77f));
         const float Xc = mo12_camc + (MO12_SX - 120) * MO12_ZC / LV_RD_F + 0.010f * sinf(MO11_WX[i] * t + i * 2.399f);
-        const float Z = 1.0f / (1.0f / Zi + (1.0f / Zc - 1.0f / Zi) * p);
-        const float si = 120 + LV_RD_F * (Xi - c) / Zi, sc = 120 + LV_RD_F * (Xc - c) / Zc, s = si + (sc - si) * p;
-        T.Z = Z; T.X = c + (s - 120) * Z / LV_RD_F; T.H = Hi + (Hc - Hi) * p;
+        (void)Zi; (void)Xi; (void)Hi;
+        lv_sel_pull(c, Xc, Zc, Hc, p, LV_RD_F, T.X, T.Z, T.H);   /* v1.2.13: the shared lv_select.h pull-up (same arithmetic) */
     }
 }
 /* ---- skin-1 scene hooks (lv_scene_radar keeps its own sky / grid / rain / tower code; these add the dojo) ---- */

@@ -34,6 +34,22 @@ static inline bool lv_sel_drop(int el, int d0, int gap, int dur, int j, int star
 }
 static inline bool lv_sel_landed(int el, int d0, int gap, int dur, int j) { return el - d0 - j * gap >= (int)(dur * LV_SEL_LAND); }
 static inline float lv_sel_cam(float from, float to, float el, int dur) { return from + (to - from) * lv_sel_ease(el / (float)dur); }
+/* v1.2.13 (Mobandy 2026-11-20 10:33 AM ET, locked for every sub-screen): the PULL-UP is the Dojo's close-up push, here once.
+ * The selected tower flies toward the viewer along the camera ray: depth eases in 1/Z (so the growth reads evenly) from its own
+ * place to the close-up depth Zc, its screen column eases to the close-up column, its height to the one whose front top sits on
+ * the close-up row. p = 0 is the tower exactly where the scene put it, p = 1 the close-up. c = camera x, f = focal (LV_RD_F). */
+#define LV_SEL_ZC 0.72f    /* close-up depth of the front face (the Dojo's MO12_ZC) */
+#define LV_SEL_SX 38.0f    /* close-up front-face centre column (left of the folders at x 88..92) */
+#define LV_SEL_YT 60.0f    /* close-up front-top row */
+static inline float lv_sel_close_x(float c, float sx, float zc, float f) { return c + (sx - 120) * zc / f; }
+static inline float lv_sel_close_h(float camh, float hor, float yt, float zc, float f) { return camh + (hor - yt) * zc / f; }
+static inline void lv_sel_pull(float c, float Xc, float Zc, float Hc, float p, float f, float &X, float &Z, float &H)
+{
+    const float Zi = Z, Xi = X, Hi = H;
+    const float Zn = 1.0f / (1.0f / Zi + (1.0f / Zc - 1.0f / Zi) * p);
+    const float si = 120 + f * (Xi - c) / Zi, sc = 120 + f * (Xc - c) / Zc, s = si + (sc - si) * p;
+    Z = Zn; X = c + (s - 120) * Zn / f; H = Hi + (Hc - Hi) * p;
+}
 template <typename R> static inline int lv_sel_hit(const R *r, int n, int x, int y)   /* folder finger box under (x,y), -1 none */
 {
     for (int j = 0; j < n; ++j) if (x >= r[j].x0 && x <= r[j].x1 && y >= r[j].y0 && y <= r[j].y1) return j;

@@ -15,6 +15,9 @@
 #include <esp_wifi.h>
 #include <esp_heap_caps.h>
 #include <esp_system.h>
+#include <esp_partition.h>
+#include <esp_ota_ops.h>
+#include <esp_sleep.h>
 #include <NimBLEDevice.h>
 #include "display/botcorps_display.h"
 #include "live/lv_ui.h"
@@ -524,6 +527,44 @@ static void r_cb_tone(int hz, int vol)
     if (hz <= 0 || vol <= 0) { ledcWrite(CB_SPK_PIN, 0); return; }
     ledcWriteTone(CB_SPK_PIN, hz); ledcWrite(CB_SPK_PIN, (uint32_t)(vol * 128 / 100));   /* 8-bit duty, 50 % = loudest */
 }
+/* v1.2.12 CONTROLbot EXIT (Mobandy 2026-11-20 11:03 AM ET). Launcher 3.0 (bmorcelli, support_files/custom_4Mb.csv: nvs, otadata,
+ * test @0x10000) keeps itself in the app "test" partition and installs apps into OTA slots. A -full.bin USB flash (huge_app.csv)
+ * has no test partition: then there is no Launcher. Nothing is erased or overwritten either way. */
+static const esp_partition_t *r_launcher_part(void)
+{
+    const esp_partition_t *p = esp_partition_find_first(ESP_PARTITION_TYPE_APP, ESP_PARTITION_SUBTYPE_APP_TEST, NULL);
+    if (!p || p == esp_ota_get_running_partition()) return nullptr;
+    esp_app_desc_t desc;
+    if (esp_ota_get_partition_description(p, &desc) != ESP_OK) return nullptr;   /* blank or invalid image header */
+    return p;
+}
+static void r_cb_exit(void)
+{
+    const esp_partition_t *L = r_launcher_part();
+    ui_dma_flush(); g_cyd.waitDisplay(); g_cyd.waitDMA();
+    r_stop();   /* radio task idle before sleep */
+    /* A level-triggered wake would immediately wake on the EXIT finger. Wait for IRQ high before arming it. */
+    pinMode(36, INPUT);   /* XPT2046 PENIRQ (CYD T_IRQ), input-only RTC GPIO */
+    const uint32_t release_by = millis() + 5000;
+    while (digitalRead(36) == LOW && (int32_t)(millis() - release_by) < 0) delay(10);
+    if (digitalRead(36) == LOW) { Serial.println("[live] EXIT: release touch, then tap EXIT again"); return; }
+    if (L) {
+        /* Ask IDF to boot the Launcher's partition. Stock IDF only accepts factory / OTA slots here, so on ESP_ERR_INVALID_ARG
+         * fall back to Launcher 3.0's own path: its bootloader opens the Launcher on a deep-sleep wake (200 ms timer). */
+        const esp_err_t e = esp_ota_set_boot_partition(L);
+        Serial.printf("[live] EXIT: Launcher at 0x%06x, set_boot_partition -> %s\n", (unsigned)L->address, esp_err_to_name(e));
+        Serial.flush();
+        if (e == ESP_OK) esp_restart();
+        g_cyd.setBrightness(0);
+        esp_sleep_enable_timer_wakeup(200000);
+        esp_deep_sleep_start();
+    }
+    /* no Launcher: power off = deep sleep, backlight and panel off, the XPT2046 touch IRQ (GPIO36, low while pressed) wakes */
+    Serial.println("[live] EXIT: no Launcher -> deep sleep, touch (IRQ GPIO36) wakes"); Serial.flush();
+    g_cyd.setBrightness(0); g_cyd.sleep();
+    esp_sleep_enable_ext0_wakeup(GPIO_NUM_36, 0);
+    esp_deep_sleep_start();
+}
 static void r_cb_load(void)
 {
     Preferences prefs;
@@ -623,6 +664,8 @@ void lv_ui_begin(void)
 #if LV_CB
     r_cb_load(); lv_cb_apply();   /* backlight stays dark here (hook set below) */
     lv_cb_save_hook = r_cb_save; lv_cb_tone_hook = r_cb_tone;
+    lv_cb_has_launcher = r_launcher_part() != nullptr; lv_cb_exit_hook = r_cb_exit; lv_cb_panel_dirty = true;
+    Serial.printf("[live] CONTROLbot EXIT: %s\n", lv_cb_has_launcher ? "Launcher found (test partition)" : "NO LAUNCHER (deep-sleep power off)");
 #endif
     /* item 3: draw frame 0 of the real (themed) first screen, THEN raise the backlight, so the panel turns on
      * already showing the correct themed frame instead of a black fill or a legacy/unthemed intro. */

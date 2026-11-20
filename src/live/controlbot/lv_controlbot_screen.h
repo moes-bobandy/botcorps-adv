@@ -109,13 +109,13 @@ static const char *lv_controlbot_tap(int x, int y)
     lv_cb_blk = LV_CB_BLK[blk]; lv_cb_blk_on = true; lv_cb_blk_t = lv_now;
     LvCbSet &s = lv_cb_set; const char *r = "none";
     switch (blk) {
-    case 0: s.scan = (s.scan + 1) % LV_CB_NSCAN; lv_print("CONTROLbot SCAN %s", LV_CB_SCAN_NAME[s.scan]); r = "cb-scan"; break;
+    case 0: s.scan = (s.scan + 1) % LV_CB_NSCAN; lv_print("CONTROLbot RADAR %s", LV_CB_SCAN_NAME[s.scan]); r = "cb-scan"; break;
     case 1: s.sleep = (s.sleep + 1) % LV_CB_NSLEEP; lv_print("CONTROLbot SLEEP %s", LV_CB_SLEEP_NAME[s.sleep]); r = "cb-sleep"; break;
     case 2: { const int d = x < 80 ? -10 : 10, v = s.bri + d; s.bri = v < 10 ? 10 : v > 100 ? 100 : v; lv_print("CONTROLbot BRIGHT %d%%", s.bri); r = d < 0 ? "cb-bright-" : "cb-bright+"; break; }
-    case 3: s.chime = !s.chime; if (s.chime) lv_cb_play(); lv_print("CONTROLbot CHIME %s", s.chime ? "ON" : "OFF"); r = "cb-chime"; break;
-    case 4: s.time = !s.time; lv_print("CONTROLbot TIME %s", LV_CB_TIME_NAME[s.time]); r = "cb-time"; break;
+    case 3: lv_print("CONTROLbot RECAL TOUCH"); lv_cb_blk_on = false; lv_cb_recal_go(); return "cb-recal";   /* v1.2.12: was CHIME */
+    case 4: lv_cb_rotate_go(); lv_print("CONTROLbot ROTATE %s", LV_FLIP_NAME[lv_flip ? 1 : 0]); lv_cb_panel_dirty = true; return "cb-rotate";   /* v1.2.12: was TIME */
     case 5: s.bar = (s.bar + 1) % LV_CB_NBAR; lv_print("CONTROLbot BAR %s", LV_CB_BAR_NAME[s.bar]); r = "cb-bar"; break;
-    case 6: s.tone = (s.tone + 1) % LV_CB_NTONE; lv_cb_play(); lv_print("CONTROLbot TONE %s", LV_CB_TONE_NAME[s.tone]); r = "cb-tone"; break;
+    case 6: if (!lv_cb_exit_t) lv_cb_exit_t = lv_now ? lv_now : 1; lv_print("CONTROLbot EXIT -> %s", lv_cb_has_launcher ? "LAUNCHER" : "POWER OFF"); return "cb-exit";   /* v1.2.12: was TONE */
     }
     lv_cb_changed(); return r;
 }

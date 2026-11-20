@@ -2341,6 +2341,22 @@ static void lv_begin(const LvRadio *radio, lv_blit_fn blit, lk_draw_fn raw_draw,
     if (cal_valid) lv_cal_phase = LV_CAL_NVS; else lv_cal_start_run(now);
     lv_go(LV_SC_CAL);
 }
+#if LV_CB
+/* v1.2.12 CONTROLbot RECAL TOUCH: the boot CALbot run, on demand. The current cal stays applied until 4 new corners
+ * save (c0..c7, cv LAST, r_cal_save); a timeout keeps the old cal. CALbot exits to the pager, still on CONTROLbot. */
+static void lv_cb_recal_go(void)
+{
+    lv_cal_nvs = true; lv_cal_saved = false; lv_cal_t0 = lv_cal_open = lv_now; lv_cal_hold0 = 0;
+    lv_cal_start_run(lv_now); lv_go(LV_SC_CAL);
+}
+/* v1.2.12 CONTROLbot ROTATE: the old CTL ORIENT (PORT = setRotation 2, FLIP = setRotation 0), saved as lkrot; LovyanGFX turns
+ * the touch with the panel, so the native-order c0..c7 cal stays valid. Full repaint after the flip. */
+static void lv_cb_rotate_go(void)
+{
+    lv_flip = !lv_flip; if (lv_radio && lv_radio->set_rot) lv_radio->set_rot(lv_flip);
+    lv_pg_dirty = true; lv_cb_dirty = true; lv_go(LV_SC_HOME);
+}
+#endif
 static void lv_open_tty(const char *cmd);
 /* call every ~30 ms. io.draw must be lv_clip_draw. */
 static void lv_tick(const LkIo &io, uint32_t now)

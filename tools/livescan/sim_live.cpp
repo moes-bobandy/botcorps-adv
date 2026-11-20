@@ -441,6 +441,7 @@ int main(int argc, char **argv)
         else if (!strcmp(cmd, "page")) { int p; if (fscanf(sc, "%d", &p) != 1) return 2; lv_pg_set_page(p); lv_pg_dirty = true; }
 #if LV_CB
 #if LV_CB
+        else if (!strcmp(cmd, "cblauncher")) { if (fscanf(sc, "%d", &lv_cb_has_launcher) != 1) return 2; lv_cb_panel_dirty = true; }   /* v1.2.12 SIM: pretend a Launcher is (1) / is not (0) in the test partition */
         else if (!strcmp(cmd, "cbalert")) { lv_event(true, "SIM ALERT (CHIME TEST)"); }   /* fw-3locks: an alert event, as a hunt match / deauth raises */
 #endif
         else if (!strcmp(cmd, "controlbot")) { int k; if (fscanf(sc, "%d", &k) != 1) return 2; lv_set_theme_any(LV_CB_FW[k]); lv_cb_dirty = true; }   /* fw-3locks: CONTROLbot v6 slot k (locked order) */

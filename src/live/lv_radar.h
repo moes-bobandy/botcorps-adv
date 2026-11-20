@@ -694,6 +694,16 @@ static void lv_rd_cg_draw(LvBand &B)
     b_fill(B, lx - 2, r.y0 + 2, lw + 3, 7, lv_hex(0x000000));
     b_text35(B, lx, r.y0 + 3, lab, lv_rd_cg ? W : MAG);
 }
+/* v1.2.12 (Mobandy 2026-11-20 10:44 AM ET, pt1477u: "get ride of hunt meter on scan tower if we can see it in the hunt folder"):
+ * the GIBSON scan screen no longer draws a hunt meter; the live hunt level is read in the HUNT folder (lv_rd_fold level bar).
+ * Code kept (never deleted), off by flag: LV_RD_HM_TOWER = the LOCKED A/V2 bands in the hunted tower's glass,
+ * LV_RD_HM_TOPBAR = the 11-bar meter in the top hunt bar (it ran over the target name text). Set either to 1 to restore. */
+#ifndef LV_RD_HM_TOWER
+#define LV_RD_HM_TOWER 0
+#endif
+#ifndef LV_RD_HM_TOPBAR
+#define LV_RD_HM_TOPBAR 0
+#endif
 #ifndef LV_RD_HUNT_METER
 #define LV_RD_HUNT_METER 1   /* LOCKED ui_gibson_radar_hunt_meter (A, src c83a27e) + ui_gibson_radar_hunt_meter_interact (V2, src 057279f) */
 #endif
@@ -1106,7 +1116,7 @@ static void lv_scene_radar(LvBand &B, void *)
     lv_rd_term(B, hdr);
 #if LV_RD_CHARGE && !LV_RD_CG_NODRAW
     lv_rd_cg_draw(B);
-#if LV_RD_HUNT_METER
+#if LV_RD_HUNT_METER && LV_RD_HM_TOWER
     lv_rd_hm_draw(B);   /* after the current: the bands sit in the glass over the contact glow, as in the mock */
 #endif
 #endif
@@ -1140,12 +1150,14 @@ static void lv_hunt_bar(LvBand &B)
      * the top border-alert banner keeps the original 11-bar signal meter right where it used to be (3240b03 / 3b8b3de),
      * AND the hunted tower keeps the LOCKED A thermometer bands + V2 base arc / ripple (drawn by lv_rd_hm_draw). Both
      * read the same live target dBm (lv_rd_level). This supersedes the b29f8ab clear_top_meter glyph in the banner. */
+#if LV_RD_HM_TOPBAR
     const int lit = (lv_rd_level(f) - 4) * 11 / 56 + 1;
     for (int i = 0; i < 11; ++i) {
         const int x = 84 + i * 6, h = 5 + i, y = 20 - h + 1;
         const uint32_t on = i < 3 ? 0xff3030 : i < 7 ? 0xffb000 : 0x30ff60;
         b_fill(B, x, y, 5, h, i < lit && !miss ? lv_hex(on) : lv_hex(0x3a2a34));
     }
+#endif
     snprintf(t, sizeof t, "%d", f.rssi);
     const uint16_t num = miss || hold ? lv_hex(0x808080) : lv_hex(0xffffff);
     b_text(B, 190 - (int)strlen(t) * 12, 6, t, num, 2); b_text35(B, 191, 15, "DB", num);

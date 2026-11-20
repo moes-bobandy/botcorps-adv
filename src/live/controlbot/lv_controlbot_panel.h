@@ -10,7 +10,11 @@
 struct LvCbSet { uint8_t scan, vol, bri, chime, time, bar, tone, sleep; };
 static LvCbSet lv_cb_set = {0, 40, 80, 1, 0, 3, 0, 0};   /* v6 defaults; sleep 0=OFF (VOL slot) */
 #define LV_CB_NSCAN 3
-static const char *const LV_CB_SCAN_NAME[LV_CB_NSCAN] = {"B.RAIN", "S.RAIN", "OFF"};   /* this build: GIBSON code rain DRIFT / SWEEP / off */
+/* v1.2.12 (Mobandy 2026-11-20 11:03 AM ET "SCAN doesn't work well"): this control never touched scanning. It only sets the
+ * GIBSON radar background: code rain on + drifting camera, code rain on + sweep line, or rain off. The panel now says that:
+ * RADAR RAIN / SWEEP / OFF (was SCAN B.RAIN / S.RAIN / OFF). Same NVS key (cbscan), same values 0/1/2, same apply. */
+static const char *const LV_CB_SCAN_NAME[LV_CB_NSCAN] = {"RAIN", "SWEEP", "OFF"};
+#define LV_CB_SCAN_LABEL "RADAR"
 static const char *const LV_CB_TIME_NAME[2] = {"RTC", "NTP"};
 #define LV_CB_NBAR 5
 static const char *const LV_CB_BAR_NAME[LV_CB_NBAR] = {"RAIN", "DECOD", "TICK", "HAZRD", "HUD"};
@@ -25,6 +29,13 @@ static void (*lv_cb_save_hook)(const LvCbSet &) = nullptr;   /* lv_ui.cpp: NVS *
 static void (*lv_cb_bright_hook)(int pct) = nullptr;         /* lv_ui.cpp: backlight */
 static void (*lv_cb_tone_hook)(int hz, int vol) = nullptr;   /* lv_ui.cpp: speaker (hz 0 = silent) */
 static bool lv_cb_panel_dirty = true;
+/* v1.2.12 (Mobandy 2026-11-20 11:03 AM ET): RECAL TOUCH / ROTATE / EXIT replace CHIME / TIME / TONE on the panel (same spots,
+ * same button style). CHIME / TIME / TONE settings stay in NVS and in code (chime still sounds on alerts at its saved value). */
+static int lv_cb_has_launcher = 0;               /* lv_ui.cpp at boot: 1 = a bmorcelli Launcher app sits in the test partition */
+static void (*lv_cb_exit_hook)(void) = nullptr;  /* lv_ui.cpp: Launcher, else deep-sleep power off (touch IRQ GPIO36 wakes) */
+static uint32_t lv_cb_exit_t = 0;                /* EXIT tapped: run the hook 250 ms later, after the press flash showed */
+static void lv_cb_recal_go(void);                /* lv_core.h: open CALbot (saves c0..c7 + cv on success) */
+static void lv_cb_rotate_go(void);               /* lv_core.h: flip 180 deg, persisted (lkrot), touch follows */
 
 /* ---- re-ink, copied from controlbot_colorui_reink.cpp (v6-cyd-matrix4/sim), g_t -> lv_cb_g_t ---- */
 static int lv_cb_g_t;
@@ -113,13 +124,13 @@ static bool lv_cb_panel_build(int slot)
     lv_cb_g_t = LV_CB_REINK_T[slot]; lv_cb_n7 = 0;
     const LvCbSet &s = lv_cb_set; char b[8];
     lv_cb_fill(LV_CB_PX0, LV_CB_PY0, LV_CB_PW, LV_CB_PH, CB_PLATE); lv_cb_frame(LV_CB_PX0, LV_CB_PY0, LV_CB_PW, LV_CB_PH, CB_KEY);
-    lv_cb_bar(46, 221, "SCAN", LV_CB_SCAN_NAME[s.scan], s.scan + 1, true);
+    lv_cb_bar(46, 221, LV_CB_SCAN_LABEL, LV_CB_SCAN_NAME[s.scan], s.scan + 1, true);
     lv_cb_bar(46, 244, "SLEEP", LV_CB_SLEEP_NAME[s.sleep], s.sleep ? s.sleep * 2 + 1 : 1, false);
     snprintf(b, sizeof b, "%d%%", s.bri); lv_cb_bar(46, 267, "BRIGHT", b, lv_cb_lit(s.bri), false);
-    lv_cb_btn(116, 221, "CHIME", s.chime ? "ON" : "OFF", s.chime);
-    lv_cb_btn(157, 221, "TIME", LV_CB_TIME_NAME[s.time], true);
+    lv_cb_btn(116, 221, "RECAL", "TOUCH", true);                    /* was CHIME */
+    lv_cb_btn(157, 221, "ROTATE", LV_FLIP_NAME[lv_flip ? 1 : 0], true);   /* was TIME */
     lv_cb_btn(116, 256, "BAR", LV_CB_BAR_NAME[s.bar], true);
-    lv_cb_btn(157, 256, "TONE", LV_CB_TONE_NAME[s.tone], true);
+    lv_cb_btn(157, 256, "EXIT", lv_cb_has_launcher ? "LNCHR" : "OFF", true);   /* was TONE */
     lv_cb_pan_slot = slot; lv_cb_panel_dirty = false;
     return true;
 }
@@ -170,6 +181,10 @@ static bool lv_cb_eat(void)
 }
 static void lv_cb_idle_tick(uint32_t now)
 {
+    if (lv_cb_exit_t && (int32_t)(now - lv_cb_exit_t) >= 250) {
+        lv_cb_exit_t = 0;
+        if (lv_cb_exit_hook) lv_cb_exit_hook(); else lv_print("CONTROLbot EXIT -> %s (SIM: no hardware)", lv_cb_has_launcher ? "LAUNCHER" : "POWER OFF");
+    }
     if (!lv_cb_idle_t) { lv_cb_idle_t = now ? now : 1; return; }
     const uint32_t ms = LV_CB_SLEEP_MS[lv_cb_set.sleep];
     if (ms && !lv_cb_slp && (int32_t)(now - lv_cb_idle_t) >= (int32_t)ms) { lv_cb_slp = 1; lv_cb_blset(0); }

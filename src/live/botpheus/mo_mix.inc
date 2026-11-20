@@ -181,10 +181,12 @@ static void mo3_fold5(LvBand &B, int x, int y, uint16_t c, int a, int ylo, int y
 static void mo3_files(LvBand &B, int i, int x0, int x1, int ylo, int yhi, uint16_t ic, uint16_t tc, uint16_t sc, int a, float speed)
 {
     if (yhi - ylo < 6 || x1 - x0 < 3) return;
+    if (!b_yhit(B, ylo - 1, yhi + 1)) return;   /* v1.2.11 speed: every pixel is clipped to ylo..yhi (+1 outline) */
     const int fw = x1 - x0 + 1, rowh = fw >= 40 ? 15 : fw >= 22 ? 8 : 4;
     const int pos = (int)(lv_now / 1000.0f * speed) + i * 37, base = pos / rowh, frac = pos % rowh;
     for (int k = 0;; ++k) { const int y = ylo + 2 - frac + k * rowh; if (y > yhi) break; const int e = (base + k) % 8; const char *nm = MO_ITEM_K[i][e];   /* real KEY (was a made-up file name) */
         if (y + rowh < ylo) continue;
+        if (!b_yhit(B, y - 1, y + rowh)) continue;   /* v1.2.11 speed: a row draws only y-1 .. y+12 (outline incl.) */
         if (rowh == 15) { mo3_fold5(B, x0 + 2, y, ic, a, ylo, yhi); mo3_t35(B, x0 + 9, y, nm, tc, a, ylo, yhi, x1);
             char sz[12]; snprintf(sz, sizeof sz, "%s", MO_ITEM_V[i][e]); mo3_t35(B, x0 + 9, y + 7, sz, sc, a, ylo, yhi, x1);   /* real VALUE (was a fake KB size) */
             const int bw = x1 - (x0 + 9 + lv_w35(sz) + 3) - 1, fl = bw * (int)((7 + e * 13 + i * 5) % 10 + 1) / 10;   /* a tiny transfer bar per file */

@@ -260,7 +260,7 @@ static void mo11_tatami(LvBand &B, int y, float Z, float ph)   /* per floor row,
     const float zs = Z + ph; const int zr = (int)floorf(zs); const float zf = zs - zr;
     const uint16_t a = lv_hex(MO11_MAT_A), b = lv_hex(MO11_MAT_B);
     for (int x = 0; x < 240; ++x) {
-        const float X = (x - 120) * Z / LV_RD_F + lv_rd_camx; const int xc = (int)floorf(X * 2.0f);
+        const float X = (x - 120) * Z / LV_RD_F + lv_rd_camx; const int xc = lv_ifloor(X * 2.0f);
         const bool alt = ((xc + zr) & 1) != 0;
         int k = alt ? 256 : 0;
         if (Z < 4 && (((int)(zf * 16)) & 1)) k = alt ? 200 : 90;   /* rush weave across the mat */

@@ -15,6 +15,13 @@ typedef void (*lv_blit_fn)(int x, int y, int w, int h, const uint16_t *px);
 #if defined(BOTCORPS_CYD) && !defined(LV_HOST)
 static int lv_band_rows = 24;
 #define LV_BAND_PX (240 * lv_band_rows)
+/* v1.2.11 (Mobandy 2026-11-20 "Lets get it done properly"): ping-pong bands. When lv_band_pp is set, lv_bandbuf holds
+ * TWO bands of lv_band_rows; lv_render draws band N+1 into one half while the panel DMA still reads band N from the
+ * other. lv_band_zc is true only inside lv_render's own blit (the band is final and never read again), so the panel
+ * may byte-swap it in place and DMA straight from it. lv_band_drain waits for the last transfer before lv_render
+ * returns, so every other user of lv_bandbuf (scratch rows between frames) still sees an idle buffer. */
+static bool lv_band_pp = false, lv_band_zc = false;
+static void (*lv_band_drain)(void) = nullptr;
 #else
 #ifndef LV_HOST_BAND_ROWS
 #define LV_HOST_BAND_ROWS 24
@@ -46,6 +53,7 @@ static inline void b_pix(LvBand &B, int x, int y, uint16_t c)
 }
 /* v1.2.11 speed: true when rows ya..yb (inclusive) touch this band. Every scene runs once per band and its
  * primitives clip per pixel, so a primitive wholly outside the band is skipped (it would draw nothing). */
+static inline int lv_ifloor(float v) { const int i = (int)v; return (float)i > v ? i - 1 : i; }   /* v1.2.11: == (int)floorf(v) for |v| < 2^31, no libm call */
 static inline bool b_yhit(const LvBand &B, int ya, int yb) { return yb >= B.y0 && ya < B.y0 + B.h; }
 static inline int b_ylo(const LvBand &B, int y) { return y > B.y0 ? y : B.y0; }             /* first row to visit */
 static inline int b_yhi(const LvBand &B, int y) { return y < B.y0 + B.h - 1 ? y : B.y0 + B.h - 1; }   /* last row to visit */
@@ -162,12 +170,26 @@ static inline void lv_render(lv_blit_fn blit, const LvRect &r, lv_scene_fn scene
     const int w = r.x1 - r.x0 + 1, h = r.y1 - r.y0 + 1;
     if (w <= 0 || h <= 0) return;
     int rows = LV_BAND_PX / w; if (rows > h) rows = h;
+    int k = 0;
     for (int y = r.y0; y <= r.y1; y += rows) {
         const int bh = (y + rows - 1 <= r.y1) ? rows : r.y1 - y + 1;
-        LvBand B{lv_bandbuf, r.x0, y, w, bh};
+        uint16_t *buf = lv_bandbuf;
+#if defined(BOTCORPS_CYD) && !defined(LV_HOST)
+        if (lv_band_pp) buf += (k & 1) * LV_BAND_PX;
+        lv_band_zc = true;
+#endif
+        ++k;
+        LvBand B{buf, r.x0, y, w, bh};
         scene(B, ctx);
         if (lv_flash_r.x1 >= lv_flash_r.x0) lv_flash_band(B);
-        blit(r.x0, y, w, bh, lv_bandbuf);
+        blit(r.x0, y, w, bh, buf);
+#if defined(BOTCORPS_CYD) && !defined(LV_HOST)
+        lv_band_zc = false;
+#endif
         if (lv_band_hook) lv_band_hook();
     }
+#if defined(BOTCORPS_CYD) && !defined(LV_HOST)
+    if (lv_band_drain) lv_band_drain();
+#endif
+    (void)k;
 }

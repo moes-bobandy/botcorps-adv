@@ -100,8 +100,24 @@ static void ui_raw_draw(int y, int x, int n, const uint8_t *idx)
     ui_dma_draw(x, y, n, 1, s_line, true);
 }
 
+/* v1.2.11: the final blit of an lv_render band goes straight from the band half to the panel by DMA (swapped to
+ * wire order in place). The previous band's DMA is waited for first, so at most one transfer is in flight and the half
+ * lv_render draws into next is always idle. Every other blit keeps the old copy/synchronous path. */
+static void ui_band_wait(void) { g_cyd.waitDMA(); }
 static void ui_blit(int x, int y, int w, int h, const uint16_t *px)
 {
+    if (lv_band_zc && lv_band_pp && px >= lv_bandbuf && px + w * h <= lv_bandbuf + 2 * LV_BAND_PX) {
+        s_px_pushed += (uint32_t)(w * h);
+        ui_dma_flush();
+        uint16_t *p = const_cast<uint16_t *>(px);
+        const int n = w * h;
+        uint32_t *q = (uint32_t *)p;   /* band halves are 4-byte aligned (240 * rows px each) */
+        for (int i = 0; i < n / 2; ++i) { const uint32_t v = q[i]; q[i] = ((v & 0x00FF00FFu) << 8) | ((v >> 8) & 0x00FF00FFu); }
+        if (n & 1) p[n - 1] = (uint16_t)((p[n - 1] >> 8) | (p[n - 1] << 8));
+        g_cyd.waitDMA();
+        g_cyd.pushImageDMA(x, y, w, h, (const lgfx::swap565_t *)p);
+        return;
+    }
     ui_dma_draw(x, y, w, h, px, false);
 }
 
@@ -545,11 +561,16 @@ static void ui_live_init(void)
     const uint32_t caps = MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT;
     const size_t reserve = 105 * 1024;
     // A 24-row fallback is mandatory. Grow to 64 only while leaving space for two 16-row DMA strips.
-    lv_band_rows = 24;
-    for (const int rows : {64, 48, 32}) {
-        if (heap_caps_get_free_size(caps) >= reserve + (rows + 32) * 240 * 2 + 512) { lv_band_rows = rows; break; }
+    /* v1.2.11: same 11,520 B as the v1.2.10 24-row band, now DMA-capable and split into two 12-row halves (render
+     * N+1 while N transfers). Grows to 2 x 24 rows only if that still leaves the radio reserve. */
+    lv_band_rows = 12;
+    if (heap_caps_get_free_size(caps) >= reserve + 2 * 24 * 240 * 2 + 512) lv_band_rows = 24;
+    lv_bandbuf = (uint16_t *)heap_caps_malloc(2 * LV_BAND_PX * sizeof(uint16_t), MALLOC_CAP_DMA | MALLOC_CAP_8BIT);
+    if (lv_bandbuf) { lv_band_pp = true; lv_band_drain = ui_band_wait; }
+    else {   /* fallback: v1.2.10 single 24-row band, synchronous pushes */
+        lv_band_rows = 24;
+        lv_bandbuf = (uint16_t *)heap_caps_malloc(LV_BAND_PX * sizeof(uint16_t), caps);
     }
-    lv_bandbuf = (uint16_t *)heap_caps_malloc(LV_BAND_PX * sizeof(uint16_t), caps);
     if (!lv_bandbuf) { Serial.println("[live] render buffer allocation FAILED"); abort(); }
     for (const int rows : {48, 32, 16}) {
         const size_t bytes = 240 * rows * sizeof(uint16_t);
@@ -560,9 +581,9 @@ static void ui_live_init(void)
         heap_caps_free(s_dma_buf[0]); heap_caps_free(s_dma_buf[1]);
         s_dma_buf[0] = s_dma_buf[1] = nullptr;
     }
-    Serial.printf("[GFX-RAM] dma_rows=%d dma_bytes=%u band_rows=%d band_bytes=%u heap=%u 8bit=%u dma=%u internal8=%u\n",
-                  s_dma_rows, (unsigned)(2 * 240 * s_dma_rows * sizeof(uint16_t)), lv_band_rows,
-                  (unsigned)(LV_BAND_PX * sizeof(uint16_t)), (unsigned)ESP.getFreeHeap(),
+    Serial.printf("[GFX-RAM] dma_rows=%d dma_bytes=%u band_rows=%d pp=%d band_bytes=%u heap=%u 8bit=%u dma=%u internal8=%u\n",
+                  s_dma_rows, (unsigned)(2 * 240 * s_dma_rows * sizeof(uint16_t)), lv_band_rows, (int)lv_band_pp,
+                  (unsigned)((lv_band_pp ? 2 : 1) * LV_BAND_PX * sizeof(uint16_t)), (unsigned)ESP.getFreeHeap(),
                   (unsigned)heap_caps_get_free_size(MALLOC_CAP_8BIT), (unsigned)heap_caps_get_free_size(MALLOC_CAP_DMA),
                   (unsigned)heap_caps_get_free_size(caps));
 }

@@ -294,6 +294,9 @@ static const LvRect LV_RD_BTN_TAP[3] = {{102, 284, 147, 299}, {102, 300, 147, 31
 #ifndef LV_RD_INFO_UI
 #define LV_RD_INFO_UI 1   /* fw-3locks-1116: 0 = INFO code compiled (the HACKbot game draws with it) but the radar keeps its locked 3-button row */
 #endif
+#ifndef LV_RD_INFO_TOWER_PULL
+#define LV_RD_INFO_TOWER_PULL 0   /* HOST-SIM MOCK only: pull-up morphs into the original INFO monolith (lv_rd_info_tower). Never set in firmware bins. */
+#endif
 #if LV_RD_INFO && LV_RD_INFO_UI
 /* v3 (Mobandy 9:33 "why change the other ui"): on the radar ONLY the locked button row changes vs 049ff599 + HOLD. Name + dBm
  * (y264), type / MAC (y275), panel box, 3-line mini log, BACKbot, header, banner stay where they are. Widths: IGNORE 50, WATCH 50,
@@ -986,6 +989,9 @@ static void lv_rd_fold_draw(LvBand &B);
 #endif
 static void lv_rd_tower_rows(LvBand &B, const LvTower &T, int frame, const uint8_t *data);
 static uint8_t lv_rd_dl_rows[6]; static int lv_rd_dl_rows_frame = 0;
+#if LV_RD_INFO_TOWER_PULL
+static void lv_rd_info_tower_fade(LvBand &B, int frame, const LvFind &f, const uint8_t *mac, float a);
+#endif
 static void lv_scene_radar(LvBand &B, void *)
 {
 #if LV_RD_SKINS
@@ -1082,6 +1088,11 @@ static void lv_scene_radar(LvBand &B, void *)
 #if LV_RD_SKINS && LV_MO_INSIDE
         if (sk == 1) mo11_ink(T, face, edge);   /* MO v11: dark-lacquer pillar + timber edges, the Gibson drawing below unchanged */
 #endif
+#if LV_RD_INFO_TOWER_PULL
+        /* MOCK: at the end of the pull, this node is the INFO monolith (drawn after the loop), not a widened scan cube. */
+        if (sk == 0 && lv_rd_pull_p >= 1.f && lv_rd_pull_scr == lv_scr && !memcmp(f.mac, lv_rd_pull_mac, 6)
+            && (lv_scr == LV_SC_RADAR || lv_scr == LV_SC_DL)) continue;
+#endif
         int ya = T.byt, yb = T.yb; lv_rd_vclip(B, ya, yb);
         /* top face (back-top edge to front-top edge) */
         for (int y = b_ylo(B, T.byt); y <= b_yhi(B, T.yt); ++y) { if (y < LV_RD_Y0 || y > LV_RD_Y1) continue; const float u = T.yt == T.byt ? 1.0f : (float)(y - T.byt) / (T.yt - T.byt);
@@ -1094,11 +1105,13 @@ static void lv_scene_radar(LvBand &B, void *)
         if (T.bx1 > T.x1) b_line(B, T.bx1, T.byt, T.bx1, T.byb, lv_dim(edge, 5, 8));
         if (T.bx0 < T.x0) b_line(B, T.bx0, T.byt, T.bx0, T.byb, lv_dim(edge, 5, 8));
         if (f.alert && ((lv_now / 300) & 1)) b_text35(B, (T.x0 + T.x1) / 2 - 1, T.byt - 7, "!", lv_hex(0xff4040));
+#if !LV_RD_INFO_TOWER_PULL
         if (sk == 0 && lv_rd_lock && lv_rd_pull_p > 0 && lv_rd_pull_scr == lv_scr && !memcmp(f.mac, lv_rd_pull_mac, 6)
             && !memcmp(f.mac, lv_rd_lockmac, 6) && (lv_scr == LV_SC_RADAR || lv_scr == LV_SC_DL)) {
             const int frame = lv_scr == LV_SC_RADAR ? (int)((uint32_t)(lv_now - lv_rd_lock_t) * 3u / 100u) : lv_rd_dl_rows_frame;
             lv_rd_tower_rows(B, T, frame, lv_scr == LV_SC_RADAR ? f.mac : lv_rd_dl_rows);
         }
+#endif
 #if LV_RD_SKINS && LV_MO_INSIDE
         if (sk == 1) mo11_tower_fx(B, T);   /* MO v11: shoji ribs, green energy seam, frosted ghost icon, green flood on the open pillar */
 #endif
@@ -1107,6 +1120,16 @@ static void lv_scene_radar(LvBand &B, void *)
     if (sk == 1) { mo11_overlay(B); return; }   /* MO v11: green corner ticks, pill, 3D shoji panels, dojo header / panel / terminal / BACKbot */
 #endif
     lv_rd_fx(B);
+#if LV_RD_INFO_TOWER_PULL
+    if (lv_rd_pull_p > 0 && lv_rd_pull_scr == lv_scr && (lv_scr == LV_SC_RADAR || lv_scr == LV_SC_DL)) {
+        const int i = lv_rd_find(lv_rd_pull_mac);
+        if (i >= 0) {
+            const int frame = lv_scr == LV_SC_RADAR ? (int)((uint32_t)(lv_now - lv_rd_lock_t) * 3u / 100u) : lv_rd_dl_rows_frame;
+            const uint8_t *data = lv_scr == LV_SC_RADAR ? lv_f[i].mac : lv_rd_dl_rows;
+            lv_rd_info_tower_fade(B, frame, lv_f[i], data, lv_rd_pull_p);
+        }
+    }
+#endif
 #if LV_RD_FOLD
     if (lv_rd_fold_mode == 1) lv_rd_fold_draw(B);
 #endif
@@ -1309,6 +1332,42 @@ static void lv_rd_info_rows(LvBand &B, int frame, const uint8_t *mac)
     for (int i = 0; i < 11; i++) { int y = 238 - i * 18; unsigned co = i < lit ? lvi_band(i, frame) : 0x12313a; lvi_rect(B, 20, y - 4, 55, 5, co); lvi_rect(B, 21, y - 6, 53, 1, i < lit ? co : 0x17323d);
         lvi_micro(B, 24, y + 3 + (frame / 3 % 3), frame, 1471 + i * 131, mac); lvi_micro(B, 50, y + 3 + (frame / 3 % 3), frame, 717 + i * 131, mac); }
 }
+/* The original INFO close-up data tower (e4e3536 lv_rd_info_draw): front face 16,46,87x199/200, side 103..120,
+ * roof/name plate, then lv_rd_info_rows. Coordinates, colours and strokes are cloned verbatim from that function.
+ * Original colours are fixed (no node-state tint). Bounding box x16..120, y38..245. */
+static void lv_rd_info_tower(LvBand &B, int frame, const LvFind &f, const uint8_t *mac)
+{
+    lvi_rect(B, 16, 46, 87, 199, 0x081b2a); for (int x = 17; x <= 101; x++) lvi_line(B, x, 46, x, 244, x % 8 == 0 ? 0x102c3a : 0x091d2b);
+    for (int x = 103; x <= 120; x++) lvi_line(B, x, 46 - (x - 102) / 2, x, 245 - (x - 102) / 2, 0x071420);
+    lvi_box(B, 16, 46, 87, 200, 0x42c9de); lvi_line(B, 16, 46, 34, 38, 0x69e7f0); lvi_line(B, 34, 38, 120, 38, 0x69e7f0); lvi_line(B, 103, 46, 120, 38, 0x30a2b8); lvi_line(B, 120, 38, 120, 236, 0x27849a); lvi_line(B, 103, 245, 120, 236, 0x27849a);
+    { char l[16]; lv_label(f, l, 13); lvi_rect(B, 19, 40, 56, 7, 0x050e18); lvi_txt(B, 21, 41, l, 0x30e8ff); }
+    lv_rd_info_rows(B, frame, mac);
+}
+#if LV_RD_INFO_TOWER_PULL
+/* HOST-SIM MOCK: crossfade the verbatim INFO monolith over the current band (alpha = the existing lv_sel_pull p). */
+static const int LV_RD_INFO_TX0 = 16, LV_RD_INFO_TX1 = 120, LV_RD_INFO_TY0 = 38, LV_RD_INFO_TY1 = 245;
+static void lv_rd_info_tower_fade(LvBand &B, int frame, const LvFind &f, const uint8_t *mac, float a)
+{
+    if (a <= 0.f) return;
+    const int ya = b_ylo(B, LV_RD_INFO_TY0), yb = b_yhi(B, LV_RD_INFO_TY1);
+    if (yb < ya) return;
+    if (a >= 1.f) { lv_rd_info_tower(B, frame, f, mac); return; }
+    const int xa = LV_RD_INFO_TX0 > B.x0 ? LV_RD_INFO_TX0 : B.x0;
+    const int xb = LV_RD_INFO_TX1 < B.x0 + B.w - 1 ? LV_RD_INFO_TX1 : B.x0 + B.w - 1;
+    if (xb < xa) return;
+    const int w = xb - xa + 1, h = yb - ya + 1;
+    static uint16_t bak[105 * 208];
+    if (w * h > (int)(sizeof bak / sizeof bak[0])) { lv_rd_info_tower(B, frame, f, mac); return; }
+    for (int y = ya, i = 0; y <= yb; ++y) for (int x = xa; x <= xb; ++x, ++i)
+        bak[i] = B.px[(y - B.y0) * B.w + (x - B.x0)];
+    lv_rd_info_tower(B, frame, f, mac);
+    const int k = (int)lroundf(a * 256.f); 
+    for (int y = ya, i = 0; y <= yb; ++y) for (int x = xa; x <= xb; ++x, ++i) {
+        uint16_t &p = B.px[(y - B.y0) * B.w + (x - B.x0)];
+        p = lv_mix(bak[i], p, k, 256);
+    }
+}
+#endif
 /* v1.2.15 (Mobandy 12:02 PM ET pt1501u "On the new tower"): the INFO monolith's band + hex-plate rows on the pulled-up
  * tower's front face. Source = the original raster of lv_rd_info_rows (1:1 at the full close-up, the 3x5 font unscaled).
  * The face is 40 px at the close-up (2 x 0.12 x LV_RD_F / LV_SEL_ZC) vs the monolith's 87, so it shows the source
@@ -1391,12 +1450,8 @@ static void lv_rd_info_draw(LvBand &B)
     for (int x = 0; x < 240; x += 24) lvi_line(B, 123, 229, x, 264, 0x14334d);
     for (int y : {236, 241, 249, 262}) lvi_line(B, 0, y, 239, y, 0x123c51);
     for (int j = 0; j < 7; j++) { float t = ((frame * 2 + j * 29) % 180) / 180.f; int x = int((1 - t) * (j * 36) + t * 59), y = int(263 - 15 * t); lvi_rect(B, x, y, 3, 1, 0x2888a8); lvi_rect(B, x + 1, y - 1, 2, 1, 0x185c90); }
-    lvi_rect(B, 16, 46, 87, 199, 0x081b2a); for (int x = 17; x <= 101; x++) lvi_line(B, x, 46, x, 244, x % 8 == 0 ? 0x102c3a : 0x091d2b);
-    for (int x = 103; x <= 120; x++) lvi_line(B, x, 46 - (x - 102) / 2, x, 245 - (x - 102) / 2, 0x071420);
-    lvi_box(B, 16, 46, 87, 200, 0x42c9de); lvi_line(B, 16, 46, 34, 38, 0x69e7f0); lvi_line(B, 34, 38, 120, 38, 0x69e7f0); lvi_line(B, 103, 46, 120, 38, 0x30a2b8); lvi_line(B, 120, 38, 120, 236, 0x27849a); lvi_line(B, 103, 245, 120, 236, 0x27849a);
-    { char l[16]; lv_label(f, l, 13); lvi_rect(B, 19, 40, 56, 7, 0x050e18); lvi_txt(B, 21, 41, l, 0x30e8ff); }
     int lit = 1 + frame / 11 < 11 ? 1 + frame / 11 : 11;   /* the monolith's bands: the mock's file-drop progress (decor, unchanged) */
-    lv_rd_info_rows(B, frame, mac);
+    lv_rd_info_tower(B, frame, f, mac);
     lvi_rect(B, 78, 50, 158, 13, 0x05101c); lvi_box(B, 78, 50, 158, 13, frame % 30 < 15 ? 0xffb000 : 0x59cddc); lvi_line(B, 84, 64, 235, 64, 0x81efff); lvi_line(B, 84, 65, 84, 238, 0x2ca5b5); lvi_line(B, 86, 65, 86, 238, 0x124d61);
     int rad = 8 + (frame % 24); for (int a = 0; a < 360; a += 5) { double r = a * 3.14159265 / 180; lvi_px(B, 59 + int(cos(r) * rad), 249 + int(sin(r) * rad / 4), 0x266881); }
     for (int i = 0; i < 6; i++) { int x = 40 + i * 6, y = 249 - ((i + frame / 3) % 3); lvi_line(B, x, y, x + 3, y, 0x75c9ed); if (i < 5) lvi_line(B, x + 3, y, x + 3, y + 1, 0x428ea8); }

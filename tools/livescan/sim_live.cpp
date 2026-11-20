@@ -414,6 +414,13 @@ int main(int argc, char **argv)
 #if LV_DL_GAME
         else if (!strcmp(cmd, "dllevel")) { int n; if (fscanf(sc, "%d", &n) != 1) return 2; lv_dl_round = n; lv_dl_try = 0; lv_dl_enter(); printf("t=%u DL SIM shortcut: level %d intro\n", t_ms, n); }   /* MOCK 1112: jump to a level (renders only) */
         else if (!strcmp(cmd, "dlopen")) { int n; if (fscanf(sc, "%d", &n) != 1) return 2; if (lv_dl_phase != LV_DL_PLAY) lv_dl_play(); if (n>=1 && n<=LV_DL_NT) lv_dl_open_tower(n-1); printf("t=%u DL SIM shortcut: open tower %d\n", t_ms, n); }
+#if LV_RD_INFO_TOWER_PULL
+        else if (!strcmp(cmd, "infoscr")) {   /* HOST-SIM MOCK: open the original INFO screen on the locked/selected node */
+            int i = lv_rd_sel; if (i < 0) i = lv_rd_find(lv_rd_lockmac); if (i < 0 && lv_nf) i = 0;
+            if (i >= 0) { if (!lv_rd_lock) lv_rd_lock_on(i); lv_rd_info_open(i); }
+            printf("t=%u infoscr i=%d info=%d\n", t_ms, i, (int)lv_rd_info);
+        }
+#endif
         else if (!strcmp(cmd, "dlnf")) { int n; if (fscanf(sc, "%d", &n) != 1) return 2; lv_dl_nf_force = n; lv_dl_enter(); printf("t=%u DL SIM feasibility: %d files a tower (not the progression)\n", t_ms, n); }
         else if (!strcmp(cmd, "dlstate")) {   /* MOCK 1112 HACKbot game: phase, trace, files (FAKE game data), finger boxes this frame */
             printf("DL t=%u phase=%d round=%d tower=%d cam=%d nf=%d need=%d got=%d trace=%d wrong=%d dls=%d score=%d best=%d dl=%d deny=%d camx=%.3f\n", t_ms, lv_dl_phase, lv_dl_round, lv_dl_tw + 1, lv_dl_cam_mode, lv_dl_nf, lv_dl_need, lv_dl_got, lv_dl_trace, lv_dl_wrong, lv_dl_dls, lv_dl_score, lv_dl_best, lv_dl_pf + 1, (int)lv_dl_deny, lv_dl_cam_at);

@@ -113,6 +113,19 @@ static const float MO11_WH[MO_N] = {0.62f, 0.94f, 0.77f, 0.66f, 0.88f, 0.59f, 0.
 static const LvRect MO_BTN = {170, 247, 239, 285};   /* "< TOWERS" finger target 70x39 (drawn 63x34 at 173,249) */
 static int itw_mo_sel = -1, itw_mo_phase = 0; static uint32_t itw_mo_t0 = 0; static bool itw_mo_nav = false;
 static int mo_last = -1; static uint32_t mo_close_t = 0; static bool mo_closing = false;
+/* v1.2.11 (Mobandy 2026-11-20 "the screen changes to a tower and folders instead of the tower advancing"): the Dojo
+ * animates on its own clock mo_vt. It follows lv_now, except that while the push / folder drop / close plays, one frame
+ * may advance it by at most MO_DT_PUSH / MO_DT_DROP ms. A slow CYD frame (the first open frame is ~0.7 s while the
+ * close-up emblems build) used to swallow the whole 400 ms push, so the pillar jumped straight to the close-up. At the
+ * locked 30 ms cadence (sim / fast frames) the cap never binds and every frame is the locked frame. */
+#define MO_DT_PUSH 50
+#define MO_DT_DROP 100
+static uint32_t mo_vt = 0, mo_vreal = 0;
+static inline uint32_t mo_vnow(void) { return lv_now - (mo_vreal - mo_vt); }   /* the Dojo clock, read outside the frame (taps) */
+/* v1.2.11 (Mobandy 2026-11-20 "None of the folders are responsive or interactive"): a landed folder is a button.
+ * Tap = press flash + it opens (green frame, its real facts in the footer); tap it again or another one to switch. */
+static int mo_fold_sel = -1;
+static const char *mo_fold_line(int i, int j, int k);
 static int mo_txt_bad = 0, mo_txt_n = 0; static char mo_txt_why[160] = ""; static long mo_txt_tot = 0, mo_txt_lines = 0;
 static LvTower mo11_tw[MO_N]; static bool mo11_have[MO_N]; static float mo11_cam = 0; static int MO_ORD[MO_N], mo11_nord = 0;   /* this frame's lv_rd_tw, by device */
 static float mo11_dxv[MO_N], mo11_dzv[MO_N], mo11_hk[MO_N];   /* this frame's drift, by device (dump) */
@@ -384,11 +397,12 @@ static void mo_terminal(LvBand &B)   /* footer terminal rows 287..319, x 1..238 
     b_fill(B, x0, y0, x1 - x0 + 1, y1 - y0 + 1, lv_hex(MO11_CHAR)); b_frame(B, x0, y0, x1 - x0 + 1, y1 - y0 + 1, lv_hex(MO11_SEAM));
     char a[48], b[48];
     if (itw_mo_sel < 0) { snprintf(a, sizeof a, "HEIGHT = EXAMPLE SIGNAL  EX.DATA"); snprintf(b, sizeof b, "TAP A PILLAR = OPEN IT"); }
+    else if (mo_fold_sel >= 0) { snprintf(a, sizeof a, "%s", mo_fold_line(itw_mo_sel, mo_fold_sel, 0)); snprintf(b, sizeof b, "%s", mo_fold_line(itw_mo_sel, mo_fold_sel, 1)); }
     else if (mo_live_n[itw_mo_sel]) { snprintf(a, sizeof a, "PILLAR OPEN  THREAT: %s  LIVE SCAN", MO_TNAME[MO_THREAT[itw_mo_sel]]); snprintf(b, sizeof b, "LOADED %s  3 SCROLLS", MO_DEV[itw_mo_sel].name); }
     else { snprintf(a, sizeof a, "PILLAR OPEN  THREAT: %s  EX.DATA", MO_TNAME[MO_THREAT[itw_mo_sel]]); snprintf(b, sizeof b, "LOADED %s  3 SCROLLS", MO_DEV[itw_mo_sel].name); }
     b_text35(B, x0 + 4, y0 + 4, a, g); b_text35(B, x0 + 4, y0 + 11, b, ink);
     b_fill(B, x0 + 2, y0 + 18, x1 - x0 - 3, 1, lv_hex(0x3a3228));
-    int x = b_text(B, x0 + 4, y0 + 22, ">", lv_hex(MO11_GH)); const char *pr = itw_mo_sel < 0 ? "FREE YOUR MIND" : "< TOWERS TO GO BACK"; x = b_text(B, x + 3, y0 + 22, pr, lv_hex(MO11_GH));
+    int x = b_text(B, x0 + 4, y0 + 22, ">", lv_hex(MO11_GH)); const char *pr = itw_mo_sel < 0 ? "FREE YOUR MIND" : mo_fold_sel >= 0 ? "TAP SCROLL AGAIN = CLOSE IT" : "< TOWERS TO GO BACK"; x = b_text(B, x + 3, y0 + 22, pr, lv_hex(MO11_GH));
     if ((lv_now / 500) & 1) b_fill(B, x + 1, y0 + 29, 5, 1, lv_hex(MO11_GH));
     if (B.y0 == 0) { mo_audit(x0 + 4, y0 + 4, lv_w35(a), 5, x0 + 2, y0 + 2, x1 - 2, y0 + 17, "term1"); mo_audit(x0 + 4, y0 + 11, lv_w35(b), 5, x0 + 2, y0 + 2, x1 - 2, y0 + 17, "term2"); mo_audit(x0 + 4, y0 + 22, x - x0 - 4 + 6, 7, x0 + 2, y0 + 20, x1 - 2, y1 - 1, "term3"); }
 }
@@ -664,6 +678,9 @@ static void mo11_overlay(LvBand &B)   /* skin-1 hook: called by lv_scene_radar a
         for (int j = 2; j >= 0; --j) { const int tt = (int)el - MO12_DROP0 - j * MO12_GAP; if (tt < 0) continue;
             mo_cy0 = 35; mo12_folder(B, sel, j, ys[j], ph[j] > 1 ? 1 : ph[j], tt - MO12_DROP_MS); mo_cy0 = -10000;
             if (B.y0 == 0) { mo12_fys[j] = ys[j]; mo12_fph100[j] = (int)(100 * (ph[j] > 1 ? 1 : ph[j])); } }
+        if (mo_fold_sel >= 0 && mo_fold_sel < nland) {   /* v1.2.11: the opened folder wears a 2 px green frame */
+            const int fy = ys[mo_fold_sel] + 8; const uint16_t g = lv_hex(MO11_GH);
+            if (b_yhit(B, fy - 13, fy + MO12_FH + 3)) { b_frame(B, MO12_FX - 4, fy - 13, MO12_FW + 8, MO12_FH + 17, g); b_frame(B, MO12_FX - 3, fy - 12, MO12_FW + 6, MO12_FH + 15, g); } }
         mo12_search(B, T, sel, (int)el);
         mo_panel(B);
     }
@@ -675,7 +692,10 @@ static void itw_mo_scene(LvBand &B, void *)
     lv_hc_swap();
     lv_rd_skin_tw = MO11_TW; lv_rd_skin_th = MO11_TH;
     const int rain = lv_rain; lv_rain = 1;   /* the Construct always shows the code rain */
-    lv_rd_skin = 1; mo11_layout();           /* skin 1 during layout: lv_rd_place runs mo11_drift */
+    lv_rd_skin = 1;
+    /* v1.2.11 speed: the layout is a function of the frame clock only, so it runs once per frame (first band, y 24)
+     * instead of once per band; every later band of the same frame reuses the same towers / camera (0 px gate). */
+    if (B.y0 <= 24) mo11_layout();           /* skin 1 during layout: lv_rd_place runs mo11_drift */
     mo12_B = &B;
     lv_rd_skin_fa = MO11_FA; lv_scene_radar(B, 0); lv_rd_skin = 0; lv_rd_skin_fa = 3; lv_rd_skin_tw = 1.0f; lv_rd_skin_th = 1.0f;
     mo12_B = nullptr;
@@ -685,6 +705,7 @@ static void itw_mo_scene(LvBand &B, void *)
 static void itw_mo_enter(void)
 {
     mo_build(); itw_nt = MO_N; itw_mo_sel = -1; itw_mo_phase = 0; itw_mo_nav = false; mo_closing = false; mo_last = -1;
+    mo_vt = mo_vreal = lv_now; mo_fold_sel = -1;
     LvHcWorld &w = lv_hc_w; memset(&w, 0, sizeof w);
     for (int i = 0; i < MO_N; ++i) {
         snprintf(itw_lab[i], sizeof itw_lab[i], "%s", MO_DEV[i].name); itw_icon[i] = MO_ICON[i];
@@ -700,11 +721,18 @@ static void itw_mo_frame(void)
 {
     mo_emb_mark_frame();
     mo_live_update();   /* v1.2.10: real finds -> pillars, before the render swaps the example world in */
+    const uint32_t real = lv_now; uint32_t dt = real - mo_vreal; mo_vreal = real;
+    if (itw_mo_sel >= 0 || mo_closing) {   /* v1.2.11: cap the step while the camera / folders move */
+        const uint32_t el = mo_vt - itw_mo_t0;
+        const uint32_t cap = mo_closing || el < MO12_PUSH_MS ? MO_DT_PUSH : el < (uint32_t)(MO12_DROP0 + 2 * MO12_GAP + MO12_DROP_MS) ? MO_DT_DROP : 0xFFFFFFFFu;
+        if (dt > cap) dt = cap; }
+    mo_vt += dt; lv_now = mo_vt;
     if (itw_mo_sel >= 0) { const uint32_t el = lv_now - itw_mo_t0;
         itw_mo_phase = el < MO12_PUSH_MS ? 1 : el < MO12_DROP0 + 2 * MO12_GAP + MO12_DROP_MS ? 2 : 3; }
     /* v1.2.5: dirty-rect the field only (y=24..319). Never clear or repaint the ticker band;
      * a full-frame blit was overwriting the banner every tick, then itw_top black-filled it. */
     lv_render(lv_blit_hw, {0, 24, 239, 319}, itw_mo_scene, 0);
+    lv_now = real;
     itw_top();
 }
 static int mo_hit(int x, int y)   /* v11 tap assist for drifting pillars: every field point belongs to the pillar whose centre line (its front-face
@@ -722,18 +750,44 @@ static void mo12_plan(int i)   /* at tap: the open camera centre = DOWNLOAD's lv
     const LvTower &T = mo11_tw[i]; float c = T.X - (MO12_SX - 120) * T.Z / LV_RD_F; if (c > 1.2f) c = 1.2f; if (c < -1.2f) c = -1.2f;
     mo12_camc = c; mo12_bigbuild(i);
 }
+static int mo_fold_hit(int x, int y)   /* v1.2.11: landed folder j under (x,y), else -1. Boxes: x 88..238 (folder +-4),
+                                          y split at the midpoints between the landed folders (51..115 / 116..177 / 178..242). */
+{
+    if (itw_mo_sel < 0 || x < MO12_FX - 4 || x > MO12_FX + MO12_FW + 3) return -1;
+    const int el = (int)(mo_vnow() - itw_mo_t0);
+    for (int j = 0; j < 3; ++j) {
+        const int ty = MO12_FY0 + j * MO12_FDY, y0 = j == 0 ? ty - 9 : ty - 9 + 3, y1 = j == 2 ? ty + 8 + MO12_FH + 2 : ty + MO12_FDY - 9 + 2;
+        if (y < y0 || y > y1) continue;
+        return el - MO12_DROP0 - j * MO12_GAP >= (int)(0.65f * MO12_DROP_MS) ? j : -1;   /* landed only (same 0.65 as nland) */
+    }
+    return -1;
+}
 static const char *itw_mo_tap(int x, int y)
 {
     if (y <= 23) { lv_go_soon(LV_SC_HOME, 0); return "mo-ticker"; }
     if (y >= 287) { lv_term_from_mo = true; lv_go_soon(LV_SC_TERM, 0); return "mo-terminal"; }
     if (itw_mo_sel >= 0) {
-        if (lv_in(MO_BTN, x, y)) { mo_last = itw_mo_sel; mo_closing = true; mo_close_t = lv_now; itw_mo_sel = -1; itw_mo_phase = 0; return "mo-towers"; }
+        if (lv_in(MO_BTN, x, y)) { mo_last = itw_mo_sel; mo_closing = true; mo_close_t = mo_vnow(); itw_mo_sel = -1; itw_mo_phase = 0; mo_fold_sel = -1; return "mo-towers"; }
+        const int j = mo_fold_hit(x, y);
+        if (j >= 0) {   /* v1.2.11: folder = button (press flash on the whole folder, then open / close it) */
+            const int ty = MO12_FY0 + j * MO12_FDY;
+            lv_press({(int16_t)(MO12_FX - 4), (int16_t)(ty - 2), (int16_t)(MO12_FX + MO12_FW + 3), (int16_t)(ty + 8 + MO12_FH + 2)});
+            mo_fold_sel = mo_fold_sel == j ? -1 : j;
+            static const char *const T[3] = {"mo-scroll1", "mo-scroll2", "mo-scroll3"}; return T[j];
+        }
         return "mo-open";
     }
     if (mo_closing) return "mo-camera-moving";
     const int i = mo_hit(x, y);
-    if (i >= 0) { mo12_plan(i); itw_mo_sel = i; itw_mo_phase = 1; itw_mo_t0 = lv_now; return MO_DEV[i].name; }
+    if (i >= 0) { mo12_plan(i); itw_mo_sel = i; itw_mo_phase = 1; itw_mo_t0 = mo_vnow(); mo_fold_sel = -1; return MO_DEV[i].name; }
     return "mo-none";
+}
+static const char *mo_fold_line(int i, int j, int k)   /* footer lines for an opened folder: its real name + fact */
+{
+    static char L[48];
+    if (k == 0) snprintf(L, sizeof L, "SCROLL %d OPEN  %s  %s", j + 1, MO_DEV[i].name, MO_FOLD_NAME[i][j]);
+    else snprintf(L, sizeof L, "%s", MO_FOLD_ACT[i][j]);
+    return L;
 }
 static void mo_dump(void)
 {

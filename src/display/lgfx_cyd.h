@@ -19,7 +19,14 @@ public:
             auto cfg = _bus.config();
             cfg.spi_host = HSPI_HOST;
             cfg.spi_mode = 0;
-            cfg.freq_write = 40000000;
+            /* v1.2.11: opt-in faster panel clock, BUILD FLAG ONLY (-DCYD_SPI_WRITE_HZ=55000000 or 80000000). Default and every
+             * release bin stay 40 MHz. The ESP32 SPI divides 80 MHz, so 55 MHz really runs at 40 (80/2) unless the IDF picks
+             * 53.3 (80/1.5 is not possible): only 80 MHz (80/1) is a true step up, and the ILI9341 datasheet write limit is far
+             * lower; 80 MHz is a per-board gamble (garbled / shifted pixels, worse with long CYD traces). Untested on hardware. */
+#ifndef CYD_SPI_WRITE_HZ
+#define CYD_SPI_WRITE_HZ 40000000
+#endif
+            cfg.freq_write = CYD_SPI_WRITE_HZ;
             cfg.freq_read = 16000000;
             /* 4-wire. MISO is GPIO12 and the panel is readable.
              * spi_3wire=true would ignore MISO and fight readable=true. */

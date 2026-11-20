@@ -1031,10 +1031,10 @@ static void lv_scene_radar(LvBand &B, void *)
 #endif
         int ya = T.byt, yb = T.yb; lv_rd_vclip(B, ya, yb);
         /* top face (back-top edge to front-top edge) */
-        for (int y = T.byt; y <= T.yt; ++y) { if (y < LV_RD_Y0 || y > LV_RD_Y1) continue; const float u = T.yt == T.byt ? 1.0f : (float)(y - T.byt) / (T.yt - T.byt);
+        for (int y = b_ylo(B, T.byt); y <= b_yhi(B, T.yt); ++y) { if (y < LV_RD_Y0 || y > LV_RD_Y1) continue; const float u = T.yt == T.byt ? 1.0f : (float)(y - T.byt) / (T.yt - T.byt);
             const int xa = (int)(T.bx0 + (T.x0 - T.bx0) * u), xb = (int)(T.bx1 + (T.x1 - T.bx1) * u); for (int x = xa; x <= xb; ++x) b_blend(B, x, y, face, fa); }
         /* front face */
-        for (int y = T.yt; y <= T.yb; ++y) { if (y < LV_RD_Y0 || y > LV_RD_Y1) continue; for (int x = T.x0; x <= T.x1; ++x) b_blend(B, x, y, face, fa); }
+        for (int y = b_ylo(B, T.yt); y <= b_yhi(B, T.yb); ++y) { if (y < LV_RD_Y0 || y > LV_RD_Y1) continue; for (int x = T.x0; x <= T.x1; ++x) b_blend(B, x, y, face, fa); }   /* v1.2.11: band rows only (both face loops) */
         b_line(B, T.x0, T.yt, T.x0, T.yb, edge); b_line(B, T.x1, T.yt, T.x1, T.yb, edge);
         b_line(B, T.x0, T.yt, T.x1, T.yt, edge); b_line(B, T.x0, T.yb, T.x1, T.yb, lv_dim(edge, 1, 2));
         b_line(B, T.bx0, T.byt, T.bx1, T.byt, lv_dim(edge, 5, 8)); b_line(B, T.bx0, T.byt, T.x0, T.yt, edge); b_line(B, T.bx1, T.byt, T.x1, T.yt, edge);

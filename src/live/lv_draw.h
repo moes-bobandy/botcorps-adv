@@ -44,6 +44,11 @@ static inline void b_pix(LvBand &B, int x, int y, uint16_t c)
 {
     if (x >= B.x0 && x < B.x0 + B.w && y >= B.y0 && y < B.y0 + B.h) B.px[(y - B.y0) * B.w + (x - B.x0)] = c;
 }
+/* v1.2.11 speed: true when rows ya..yb (inclusive) touch this band. Every scene runs once per band and its
+ * primitives clip per pixel, so a primitive wholly outside the band is skipped (it would draw nothing). */
+static inline bool b_yhit(const LvBand &B, int ya, int yb) { return yb >= B.y0 && ya < B.y0 + B.h; }
+static inline int b_ylo(const LvBand &B, int y) { return y > B.y0 ? y : B.y0; }             /* first row to visit */
+static inline int b_yhi(const LvBand &B, int y) { return y < B.y0 + B.h - 1 ? y : B.y0 + B.h - 1; }   /* last row to visit */
 static inline void b_frame(LvBand &B, int x, int y, int w, int h, uint16_t c)
 {
     b_fill(B, x, y, w, 1, c); b_fill(B, x, y + h - 1, w, 1, c); b_fill(B, x, y, 1, h, c); b_fill(B, x + w - 1, y, 1, h, c);
@@ -66,6 +71,7 @@ static inline int b_text35(LvBand &B, int x, int y, const char *s, uint16_t c)
 {
     for (; *s; ++s, x += 4) {
         int ch = (uint8_t)*s; if (ch < 0x20 || ch > 0x7e) ch = '?';
+        if (y >= B.y0 + B.h || y + 5 <= B.y0) continue;   /* v1.2.11 speed: glyph rows outside the band */
         const uint16_t g = LV_F35[ch - 0x20];
         for (int k = 0; k < 15; ++k) if (g >> (14 - k) & 1) b_pix(B, x + k % 3, y + k / 3, c);
     }

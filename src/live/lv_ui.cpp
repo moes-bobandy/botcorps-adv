@@ -73,8 +73,10 @@ static void ui_live_end(void)
     g_cyd.waitDisplay(); g_cyd.waitDMA(); // HSPI must be idle before CS15 release and VSPI touch polling.
     g_cyd.endWrite();
 }
+static uint32_t s_px_pushed = 0;   /* v1.2.11: pixels sent to the panel (per-screen [fps] log: SPI bytes = 2x) */
 static void ui_dma_draw(int x, int y, int w, int h, const uint16_t *px, bool wire)
 {
+    s_px_pushed += (uint32_t)(w * h);
     if (!s_dma_rows || h > s_dma_rows || w > 240) {
         ui_dma_flush(); g_cyd.waitDisplay(); g_cyd.waitDMA();
         if (wire) g_cyd.pushImage(x, y, w, h, (const lgfx::swap565_t *)px);
@@ -162,6 +164,9 @@ static RadioRequest radio_request(void)
 static int r_request(int kind, uint32_t ms)
 {
     if (!s_radio_task) return -2;
+#ifdef LV_QEMU_TOUR
+    if (kind != LV_RK_NONE) return -2;   /* QEMU has no working radio PHY */
+#endif
     portENTER_CRITICAL(&s_radio_mux);
     s_request.kind = kind; ++s_request.epoch; s_request.ms = ms;
     s_batch_ready = false; s_batch_n = 0;
@@ -584,7 +589,11 @@ void lv_ui_begin(void)
     Serial.printf("[live] blob=%u (expect %u) theme=%d %dx%d\n", (unsigned)(lk_blob_live_end - lk_blob_live),
                   (unsigned)LK_BLOB_SIZE, th, (int)g_cyd.width(), (int)g_cyd.height());
     heap_log("begin");
+#ifdef LV_QEMU_TOUR
+    const bool cal_ok = true;   /* QEMU timing tour only */
+#else
     const bool cal_ok = botcorps_cyd_has_valid_cal();   /* if true, display begin already applied it from NVS */
+#endif
     Serial.printf("[live] CALbot: saved cal %s\n", cal_ok ? "valid (cv=3) - hold 1 s to redo" : "missing - capture 4 corners");
     lv_begin(&s_radio, ui_blit, ui_raw_draw, th, millis(), cal_ok);
 #if LV_MO_INSIDE
@@ -607,8 +616,62 @@ void lv_ui_begin(void)
 #endif
 }
 
+/* v1.2.11 (Mobandy 2026-11-20 "everything is running horrible"): one serial line per screen every 5 s and on every
+ * screen change, so a hardware run gives real numbers for every screen:
+ *   [fps] scr=13 pg=-1 ticks=24 avg=41.2ms max=55.0ms fps=19.6 spi=150KB/f heap=41292 largest=29684
+ * avg/max = one lv_tick (render + SPI push, the whole UI frame); fps = frames drawn per wall second;
+ * spi = panel bytes per tick. Never draws. */
+static void ui_fps_log(uint32_t now, uint32_t d)
+{
+    static uint32_t acc = 0, n = 0, mx = 0, t0 = 0, px0 = 0; static int scr = -1, pg = -1;
+    const int pgn = lv_scr == LV_SC_HOME ? lv_pg_page : -1;
+    if (scr < 0) { scr = lv_scr; pg = pgn; t0 = now; px0 = s_px_pushed; }
+    const bool chg = lv_scr != scr || pgn != pg;
+    if (!chg) { acc += d; ++n; if (d > mx) mx = d; }
+    if (chg || (int32_t)(now - t0) >= 5000) {
+        const uint32_t el = now - t0;
+        if (n) Serial.printf("[fps] scr=%d pg=%d ticks=%lu avg=%.1fms max=%.1fms fps=%.1f spi=%luKB/f heap=%u largest=%u\n", scr, pg, (unsigned long)n,
+                             acc / 1000.0f / n, mx / 1000.0f, el ? n * 1000.0f / el : 0.0f, (unsigned long)((s_px_pushed - px0) * 2 / n / 1024), (unsigned)ESP.getFreeHeap(), (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL));
+        acc = n = mx = 0; t0 = now; px0 = s_px_pushed; scr = lv_scr; pg = pgn;
+        if (!chg) return;
+        acc = d; n = 1; mx = d;
+    }
+}
+#ifdef LV_QEMU_TOUR
+/* QEMU timing tour only (env cyd_qemu): no radio in QEMU, so the screens are visited with canned steps. Not in release bins. */
+static void qemu_tap(int x, int y) { g_cyd.startWrite(); const char *a = lv_tap(x, y); ui_live_end(); Serial.printf("[tour] tap %d,%d -> %s\n", x, y, a ? a : "-"); }
+static void qemu_tour(uint32_t now)
+{
+    static int st = 0; static uint32_t t0 = 0; if (!t0) t0 = now;
+    const uint32_t el = now - t0;
+#if LV_QEMU_TOUR == 2   /* profile tour: long stays on the three sub-screens (PC sampling) */
+    static const uint32_t AT[] = {3000, 4000, 34000, 64000, 94000, 124000};
+    static const int WH[] = {4, 5, 6, 7, 8, 11};
+#else
+    static const uint32_t AT[] = {3000, 9000, 15000, 21000, 27000, 33000, 39000, 47000, 55000, 63000, 71000, 79000};
+    static const int WH[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
+#endif
+    while (st < (int)(sizeof AT / sizeof AT[0]) && el >= AT[st]) {
+        switch (WH[st]) {
+        case 0: case 1: case 2: case 3: lv_go(LV_SC_HOME); lv_pg_set_page(st); lv_pg_dirty = true; Serial.printf("[tour] pager %d\n", st); break;
+        case 4: lv_go(LV_SC_DL); Serial.println("[tour] HACKbot DL"); break;
+        case 5: lv_dl_play(); lv_dl_open_tower(0); Serial.println("[tour] HACKbot DL tower open"); break;
+        case 6: lv_go(LV_SC_RADAR); Serial.println("[tour] GIBSON radar"); break;
+        case 7: lv_go(LV_SC_MO); Serial.println("[tour] DOJO idle"); break;
+        case 8: qemu_tap(120, 160); Serial.println("[tour] DOJO open"); break;
+        case 9: qemu_tap(200, 265); Serial.println("[tour] DOJO closed"); break;
+        case 10: lv_go(LV_SC_CONTROLBOT); Serial.println("[tour] CONTROLbot"); break;
+        default: Serial.println("[tour] end"); break;
+        }
+        ++st;
+    }
+}
+#endif
 void lv_ui_loop(void)
 {
+#ifdef LV_QEMU_TOUR
+    qemu_tour(millis());
+#endif
     static uint32_t next = 0;
     int x, y;
 #if LV_MO_INSIDE
@@ -641,24 +704,6 @@ void lv_ui_loop(void)
         static int last_scr = -1;
         if (lv_scr != last_scr) { char t[16]; snprintf(t, sizeof t, "scr=%d", (int)lv_scr); heap_log(t); last_scr = lv_scr; }
     }
-#if LV_MO_INSIDE
-    if (lv_scr == LV_SC_MO) {   /* v1.2.10: Dojo frame time on the device, every 5 s (field proof of the long frame + taps seen) */
-        static uint32_t acc = 0, n = 0, mx = 0, t_log = 0;
-        const uint32_t d = micros() - t_us; acc += d; ++n; if (d > mx) mx = d;
-        if ((int32_t)(now - t_log) >= 5000) {
-            if (n) Serial.printf("[live] dojo %lu ticks avg %.1f ms max %.1f ms\n", (unsigned long)n, acc / 1000.0f / n, mx / 1000.0f);
-            acc = 0; n = 0; mx = 0; t_log = now;
-        }
-    }
-#endif
-    if (lv_scr == LV_SC_RADAR) {   /* field fps proof for the radar: render + SPI per tick, logged every 5 s */
-        static uint32_t acc = 0, n = 0, mx = 0, t_log = 0;
-        const uint32_t d = micros() - t_us; acc += d; ++n; if (d > mx) mx = d;
-        if ((int32_t)(now - t_log) >= 5000) {
-            if (n) Serial.printf("[live] radar %lu ticks avg %.1f ms max %.1f ms (~%.1f fps at 30 ms ticks)\n", (unsigned long)n, acc / 1000.0f / n, mx / 1000.0f,
-                                 1000.0f / ((acc / 1000.0f / n) > 30.0f ? (acc / 1000.0f / n) : 30.0f));
-            acc = 0; n = 0; mx = 0; t_log = now;
-        }
-    }
+    ui_fps_log(now, micros() - t_us);
 }
 #endif

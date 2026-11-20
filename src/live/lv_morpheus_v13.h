@@ -171,6 +171,7 @@ static void mo_quad(LvBand &B, const float *px, const float *py, uint16_t c, int
 }
 static void mo_aline(LvBand &B, float x0, float y0, float x1, float y1, uint16_t c, int a)   /* anti-aliased line (Wu-style, mostly vertical/horizontal) */
 {
+    if ((y0 < B.y0 - 2 && y1 < B.y0 - 2) || (y0 > B.y0 + B.h + 1 && y1 > B.y0 + B.h + 1)) return;   /* v1.2.11 speed: wholly outside this band */
     const float dx = x1 - x0, dy = y1 - y0; const int n = (int)(fabsf(dx) > fabsf(dy) ? fabsf(dx) : fabsf(dy)) + 1;
     for (int k = 0; k <= n; ++k) { const float t = (float)k / n, x = x0 + dx * t, y = y0 + dy * t;
         if (fabsf(dx) > fabsf(dy)) { const int yi = (int)floorf(y); const float f = y - yi; mo_bl(B, (int)lroundf(x), yi, c, (int)(a * (1 - f))); mo_bl(B, (int)lroundf(x), yi + 1, c, (int)(a * f)); }
@@ -267,16 +268,17 @@ static void mo11_tatami(LvBand &B, int y, float Z, float ph)   /* per floor row,
 static void mo11_horizon(LvBand &B, int shift)   /* Gibson's skyline, transformed: the dojo's far shoji wall + timber posts + ceiling rafters */
 {
     const int top = LV_RD_HOR - 30, beam = top - 3;
+    if (!b_yhit(B, LV_RD_Y0 - 2, LV_RD_HOR + 1)) return;   /* v1.2.11 speed: wall, beams, rafters all lie in rows LV_RD_Y0..LV_RD_HOR (lines clip to the band) */
     const uint16_t dark = lv_hex(MO11_BEAM), paper = lv_hex(MO11_PAPER), seam = lv_hex(MO11_SEAM);
-    for (int y = top; y < LV_RD_HOR; ++y) for (int x = 0; x < 240; ++x) mo11_bl(B, x, y, paper, 200);   /* backlit paper band */
+    for (int y = b_ylo(B, top); y < LV_RD_HOR && y < B.y0 + B.h; ++y) for (int x = 0; x < 240; ++x) mo11_bl(B, x, y, paper, 200);   /* backlit paper band */
     for (int k = -12; k < 36; ++k) {   /* Gibson's skyline slots (x = k*11 - 6 - shift) become shoji panels; extended past 24 so a far-pillar pan never leaves a gap */
         const int x0 = k * 11 - 6 - shift, w = 9; if (x0 < -11 || x0 > 240) continue;
         for (int yy = top + 4; yy < LV_RD_HOR - 2; yy += 6) for (int x = x0 + 1; x < x0 + w; ++x) mo11_bl(B, x, yy, seam, 90);   /* kumiko lattice */
-        for (int y = top; y < LV_RD_HOR; ++y) { mo11_bl(B, x0 + 4, y, seam, 70); mo11_bl(B, x0, y, dark, ((k + 36) % 3) == 0 ? 230 : 120); }
-        if (((k + 36) % 3) == 0) for (int y = top; y < LV_RD_HOR; ++y) mo11_bl(B, x0 + 1, y, dark, 160);   /* heavy timber post every 3 panels */
+        for (int y = b_ylo(B, top); y < LV_RD_HOR && y < B.y0 + B.h; ++y) { mo11_bl(B, x0 + 4, y, seam, 70); mo11_bl(B, x0, y, dark, ((k + 36) % 3) == 0 ? 230 : 120); }
+        if (((k + 36) % 3) == 0) for (int y = b_ylo(B, top); y < LV_RD_HOR && y < B.y0 + B.h; ++y) mo11_bl(B, x0 + 1, y, dark, 160);   /* heavy timber post every 3 panels */
     }
-    for (int y = beam; y < top; ++y) for (int x = 0; x < 240; ++x) mo11_bl(B, x, y, dark, 235);   /* kamoi head beam */
-    for (int x = 0; x < 240; ++x) mo11_bl(B, x, LV_RD_HOR - 2, dark, 140);                       /* sill */
+    for (int y = b_ylo(B, beam); y < top && y < B.y0 + B.h; ++y) for (int x = 0; x < 240; ++x) mo11_bl(B, x, y, dark, 235);   /* kamoi head beam */
+    if (b_yhit(B, LV_RD_HOR - 2, LV_RD_HOR - 2)) for (int x = 0; x < 240; ++x) mo11_bl(B, x, LV_RD_HOR - 2, dark, 140);                       /* sill */
     /* ceiling rafters (world Y 2.25) receding from the camera to the wall at Z 4.8, with Gibson's camera parallax */
     const float Yc = 2.25f, Zw = 4.8f;
     for (int r = -6; r <= 6; ++r) {
@@ -286,7 +288,7 @@ static void mo11_horizon(LvBand &B, int shift)   /* Gibson's skyline, transforme
         (void)ya;
     }
     for (int q = 0; q < 6; ++q) {   /* cross beams */
-        const float Z = 1.9f + q * 0.55f; const int y = (int)lroundf(mo_py(Yc, Z)); if (y < LV_RD_Y0 || y >= beam) continue;
+        const float Z = 1.9f + q * 0.55f; const int y = (int)lroundf(mo_py(Yc, Z)); if (y < LV_RD_Y0 || y >= beam || !b_yhit(B, y, y + 1)) continue;
         for (int x = 0; x < 240; ++x) { mo11_bl(B, x, y, dark, 150 - q * 14); mo11_bl(B, x, y + 1, lv_hex(0xd8c6a0), 60 - q * 6); }
     }
 }
@@ -414,7 +416,8 @@ static void mo11_ink(const LvTower &T, uint16_t &face, uint16_t &edge)
 /* ---- v13.1 HD monolith skin (every pillar; drawn over Gibson's own corners from lv_rd_place, far -> near, so it never moves anything) ---- */
 static void mo13_px(LvBand &B, int x, int y, uint16_t c, int a) { if (y >= LV_RD_Y0 + 1 && y <= LV_RD_Y1) mo_bl(B, x, y, c, a); }
 static void mo13_line(LvBand &B, int x, int y, int xx, int yy, uint16_t c, int a)   /* crisp Bresenham, field-clipped */
-{ int dx = abs(xx - x), sx = x < xx ? 1 : -1, dy = -abs(yy - y), sy = y < yy ? 1 : -1, e = dx + dy;
+{ if ((y < B.y0 && yy < B.y0) || (y >= B.y0 + B.h && yy >= B.y0 + B.h)) return;   /* v1.2.11 speed: wholly outside this band */
+  int dx = abs(xx - x), sx = x < xx ? 1 : -1, dy = -abs(yy - y), sy = y < yy ? 1 : -1, e = dx + dy;
   for (;;) { mo13_px(B, x, y, c, a); if (x == xx && y == yy) break; int e2 = 2 * e; if (e2 >= dy) { e += dy; x += sx; } if (e2 <= dx) { e += dx; y += sy; } } }
 static void mo13_span(LvBand &B, int y, int xa, int xb, uint16_t c, int a) { if (y < LV_RD_Y0 + 1 || y > LV_RD_Y1) return; mo_hspan(B, y, xa, xb, c, a); }
 static uint32_t mo13_icol(char ch)   /* LV_ICON_ART inks -> Dojo: outline ink, parchment body / shade / highlight, fixed inks Matrix green */
@@ -504,9 +507,10 @@ static const char *const MO12_IC[4][8] = {   /* 8x8 ink glyphs: eye / signal wav
     {"########", "#......#", "#..##..#", "#.####.#", "#..##..#", ".#....#.", "..#..#..", "...##..."},
     {"......##", "......##", "....####", "....####", "..######", "..######", "########", "########"}};
 static int mo12_fys[4], mo12_fph100[4], mo12_typed = 0, mo12_nland = 0;   /* dump */
-static inline void mo12_rect(LvBand &B, int x, int y, int w, int h, uint16_t c, int a) { for (int yy = y; yy < y + h; ++yy) mo_hspan(B, yy, x, x + w - 1, c, a); }
+static inline void mo12_rect(LvBand &B, int x, int y, int w, int h, uint16_t c, int a) { for (int yy = b_ylo(B, y); yy < y + h && yy < B.y0 + B.h; ++yy) mo_hspan(B, yy, x, x + w - 1, c, a); }
 static void mo12_line(LvBand &B, int x, int y, int xx, int yy, uint16_t c)   /* Bresenham (the INFO folders' own lines), clipped like mo_bl */
-{ int dx = abs(xx - x), sx = x < xx ? 1 : -1, dy = -abs(yy - y), sy = y < yy ? 1 : -1, e = dx + dy;
+{ if ((y < B.y0 && yy < B.y0) || (y >= B.y0 + B.h && yy >= B.y0 + B.h)) return;   /* v1.2.11 speed: wholly outside this band */
+  int dx = abs(xx - x), sx = x < xx ? 1 : -1, dy = -abs(yy - y), sy = y < yy ? 1 : -1, e = dx + dy;
   for (;;) { mo_bl(B, x, y, c, 256); if (x == xx && y == yy) break; int e2 = 2 * e; if (e2 >= dy) { e += dy; x += sx; } if (e2 <= dx) { e += dx; y += sy; } } }
 static void mo12_aud(int x, int y, int w, int h, int bx0, int by0, int bx1, int by1, const char *what)   /* every v12 text line: inside its box, below the header, above the panel */
 {

@@ -120,7 +120,7 @@ static void pad_disc(LvBand &B, int cx, int cy, int r, uint16_t fill, uint16_t i
     const uint16_t lo = pressed ? lv_mix(ink, lv_hex(0xffffff), 3, 8) : lv_dim(ink, 3, 8);
     const uint16_t body = pressed ? lv_mix(fill, ink, 5, 8) : fill;
     const int r2 = r * r, rin = (r - 1) * (r - 1);
-    for (int dy = -r; dy <= r; ++dy) for (int dx = -r; dx <= r; ++dx) {
+    for (int dy = b_ylo(B, cy - r) - cy; dy <= b_yhi(B, cy + r) - cy; ++dy) for (int dx = -r; dx <= r; ++dx) {   /* v1.2.11: band rows only */
         const int d2 = dx * dx + dy * dy; if (d2 > r2) continue;
         uint16_t c = body;
         if (d2 > rin) c = (dx + dy < 0) ? hi : lo;
@@ -134,7 +134,7 @@ static void pad_disc(LvBand &B, int cx, int cy, int r, uint16_t fill, uint16_t i
 static void pad_glow(LvBand &B, int cx, int cy, int r, uint16_t c, int k)
 {
     const int r2 = (r + 1) * (r + 1), r0 = (r - 1) * (r - 1);
-    for (int dy = -r - 1; dy <= r + 1; ++dy) for (int dx = -r - 1; dx <= r + 1; ++dx) {
+    for (int dy = b_ylo(B, cy - r - 1) - cy; dy <= b_yhi(B, cy + r + 1) - cy; ++dy) for (int dx = -r - 1; dx <= r + 1; ++dx) {   /* v1.2.11: band rows only */
         const int d2 = dx * dx + dy * dy;
         if (d2 > r2 || d2 < r0) continue;
         b_blend(B, cx + dx, cy + dy, c, k);
@@ -147,7 +147,7 @@ static void pad_octagon(LvBand &B, int cx, int cy, int rx, int ry, uint16_t fill
     const uint16_t lo = pressed ? lv_mix(ink, lv_hex(0xffffff), 3, 8) : lv_dim(ink, 3, 8);
     const uint16_t body = pressed ? lv_mix(fill, ink, 5, 8) : fill;
     const int lim = 5 * rx * ry;   /* |dx|/rx + |dy|/ry <= 5/3  (same corner cut as the old equal-r octagon) */
-    for (int dy = -ry; dy <= ry; ++dy) for (int dx = -rx; dx <= rx; ++dx) {
+    for (int dy = b_ylo(B, cy - ry) - cy; dy <= b_yhi(B, cy + ry) - cy; ++dy) for (int dx = -rx; dx <= rx; ++dx) {   /* v1.2.11: band rows only */
         const int s = 3 * (abs(dx) * ry + abs(dy) * rx);
         if (s > lim) continue;
         uint16_t c = body;
@@ -163,7 +163,7 @@ static void pad_octagon(LvBand &B, int cx, int cy, int rx, int ry, uint16_t fill
 static void pad_glow_oct(LvBand &B, int cx, int cy, int rx, int ry, uint16_t c, int k)
 {
     const int lim0 = 5 * rx * ry, lim1 = 5 * (rx + 1) * (ry + 1);
-    for (int dy = -ry - 1; dy <= ry + 1; ++dy) for (int dx = -rx - 1; dx <= rx + 1; ++dx) {
+    for (int dy = b_ylo(B, cy - ry - 1) - cy; dy <= b_yhi(B, cy + ry + 1) - cy; ++dy) for (int dx = -rx - 1; dx <= rx + 1; ++dx) {   /* v1.2.11: band rows only */
         const int adx = abs(dx), ady = abs(dy);
         const int s = 3 * (adx * (ry + 1) + ady * (rx + 1));
         if (adx > rx + 1 || ady > ry + 1 || s > lim1) continue;
@@ -271,6 +271,7 @@ static void pad_draw_mid3(LvBand &B, uint16_t ink, uint16_t dim)
 static void lv_rd_pad_draw(LvBand &B, uint16_t hdr)
 {
     (void)hdr;
+    if (!b_yhit(B, PAD_Y0, PAD_Y1)) return;   /* v1.2.11 speed: the deck is drawn only into the bands it covers (draws nothing elsewhere) */
     const uint16_t ink = lv_ink(LV_ACC), dim = lv_ink(LV_ACCD);
     b_fill(B, PAD_X0, PAD_Y0, PAD_X1 - PAD_X0 + 1, PAD_Y1 - PAD_Y0 + 1, lv_hex(0x000000));
     b_frame(B, PAD_X0, PAD_Y0, PAD_X1 - PAD_X0 + 1, PAD_Y1 - PAD_Y0 + 1, ink);

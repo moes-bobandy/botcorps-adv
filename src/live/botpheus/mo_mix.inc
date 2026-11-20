@@ -1,3 +1,4 @@
+/* v1.2.11 speed: pixel loops visit only the rows of the band being drawn (b_ylo / b_yhi); the skipped rows were clipped anyway. */
 /* ==== MOCK 2026-11-13 morpheus-mix (from morpheus-towers-3 mo_looks.inc): the three pillar looks MIXED per device by threat level
  * (MO_LOOKOF[i]: HIGH -> 1 T1 code glass, MEDIUM -> 3 T3 sentinel lantern, LOW -> 2 T2 construct white light), 18 devices (WIFI + BLUETOOTH removed 2026-11-14), and the device
  * icon art replaced by crisp anti-aliased vector emblems (mo_emblem.h). The look code below is towers-3's, only switched at run time.
@@ -241,14 +242,14 @@ static void mo11_tower_fx(LvBand &B, const LvTower &T)
     /* v4: no soft outer glow (it muddied the edges) */
     auto side = [&](int xf, int xbk) { const int dir = xbk > xf ? 1 : -1, n = abs(xbk - xf); if (n < 1) return;
         for (int s = 0; s <= n; ++s) { const int x = xf + dir * s; const float u = s / (float)n; const int top = (int)lroundf(yt + (byt - yt) * u), bot = (int)lroundf(yb + (byb - yb) * u);
-            for (int y = top; y <= bot; ++y) mo13_px(B, x, y, mo3_mx(0x05160d, 0x000201, u * 0.7f + 0.3f * (y - top) / (float)(bot - top + 1)), a);
+            for (int y = b_ylo(B, top); y <= b_yhi(B, bot); ++y) mo13_px(B, x, y, mo3_mx(0x05160d, 0x000201, u * 0.7f + 0.3f * (y - top) / (float)(bot - top + 1)), a);
             if (s % 3 == 1) { const int hd = top + (int)fmodf(t * (22 + (x * 7) % 17) + x * 13, (float)(bot - top + 18)); for (int q = 0; q < 10; ++q) { const int y = hd - q; if (y >= top && y <= bot) mo13_px(B, x, y, lv_hex(q ? MO11_G : MO11_GH), a * (q ? 120 - q * 10 : 200) / 256); } } }
         mo13_line(B, xbk, byt, xbk, byb, lv_hex(0x0a6a30), a); mo13_line(B, xf, yt, xbk, byt, lv_hex(MO11_GH), a); };
     if (bx1 > x1) side(x1, bx1);
     if (bx0 < x0) side(x0, bx0);
     if (byt < yt) { const float X[4] = {(float)x0, (float)bx0, (float)bx1, (float)x1}, Y[4] = {(float)yt, (float)byt, (float)byt, (float)yt}; mo_quad(B, X, Y, lv_hex(0x1a5a34), a); mo13_line(B, bx0, byt, bx1, byt, lv_hex(MO11_GH), a); }
     /* front glass: smooth vertical ramp + a soft vertical reflection band */
-    for (int y = yt; y <= yv; ++y) { const float v = (y - yt) / (float)(yb - yt + 1); const uint16_t base = mo3_mx(0x03120a, 0x000201, v);
+    for (int y = b_ylo(B, yt); y <= b_yhi(B, yv); ++y) { const float v = (y - yt) / (float)(yb - yt + 1); const uint16_t base = mo3_mx(0x03120a, 0x000201, v);
         const int hx = x0 + 1 + fw / 5; for (int x = x0; x <= x1; ++x) mo13_px(B, x, y, x == hx ? mo3_mx(0x03120a, 0x3a8a58, 0.45f - 0.3f * v) : base, a); }   /* v4: opaque glass + one crisp highlight column */
     const bool big = fw >= 40;
     /* v5e: Matrix rain = lv_radar.h's CYD code streaks (field rain law, same constants + colours), mapped into this tower's face */
@@ -275,12 +276,12 @@ static void mo11_tower_fx(LvBand &B, const LvTower &T)
     if (cp < 0.3f) mo3_shadow(B, x0, x1, yb, 0x5a5448, a * 120 / 256);   /* v4: no soft white outer glow */
     auto side = [&](int xf, int xbk) { const int dir = xbk > xf ? 1 : -1, n = abs(xbk - xf); if (n < 1) return;
         for (int s = 0; s <= n; ++s) { const int x = xf + dir * s; const float u = s / (float)n; const int top = (int)lroundf(yt + (byt - yt) * u), bot = (int)lroundf(yb + (byb - yb) * u);
-            for (int y = top; y <= bot; ++y) mo13_px(B, x, y, lv_hex(0xc4ccc8), a * 150 / 256); }   /* v4: see-through side */
+            for (int y = b_ylo(B, top); y <= b_yhi(B, bot); ++y) mo13_px(B, x, y, lv_hex(0xc4ccc8), a * 150 / 256); }   /* v4: see-through side */
         mo13_line(B, xbk, byt, xbk, byb, lv_hex(MO11_G), a); mo13_line(B, xf, yt, xbk, byt, lv_hex(MO11_G), a); mo13_line(B, xf, yb, xbk, byb, lv_hex(0x5a8a6a), a); };
     if (bx1 > x1) side(x1, bx1);
     if (bx0 < x0) side(x0, bx0);
     if (byt < yt) { const float X[4] = {(float)x0, (float)bx0, (float)bx1, (float)x1}, Y[4] = {(float)yt, (float)byt, (float)byt, (float)yt}; mo_quad(B, X, Y, lv_hex(0xffffff), a * 170 / 256); mo13_line(B, bx0, byt, bx1, byt, lv_hex(MO11_G), a); }
-    for (int y = yt; y <= yv; ++y) mo13_span(B, y, x0, x1, lv_hex(0xf4f8f6), a * 120 / 256);   /* v4: SEE-THROUGH white light front (~47%), flat = crisp; the room / pillars behind show through */
+    for (int y = b_ylo(B, yt); y <= b_yhi(B, yv); ++y) mo13_span(B, y, x0, x1, lv_hex(0xf4f8f6), a * 120 / 256);   /* v4: SEE-THROUGH white light front (~47%), flat = crisp; the room / pillars behind show through */
     /* v4: the soft rising light band removed (alpha shimmer) */
     const bool big = fw >= 40;
     const int iy = yt + (S >= 32 ? 7 : 3);   /* v4: no bob */
@@ -308,7 +309,7 @@ static void mo11_tower_fx(LvBand &B, const LvTower &T)
         for (int s = 0; s <= n; ++s) { const int x = xf + dir * s; const float u = s / (float)n; const int top = (int)lroundf(yt + (byt - yt) * u), bot = (int)lroundf(yb + (byb - yb) * u);
             if (x < B.x0 || x >= B.x0 + B.w || bot < B.y0 || top >= B.y0 + B.h) continue;   /* v1.2.10 speed: column outside this band (mo13_px would clip every pixel) */
             const uint16_t sc = MO_BODY == 4 ? lv_hex(mo_mixc(0xa8741c, 0x5a3a0c, u)) : MO_BODY == 5 ? lv_hex(mo_mixc(mo_mixc(MO_EMB_COL[i], 0x000000, 0.45f), mo_mixc(MO_EMB_COL[i], 0x000000, 0.7f), u)) : MO_BODY == 6 ? lv_hex(mo_mixc(0xb01c26, 0x5a0a10, u)) : mo3_mx(0x6a4020, 0x2a160a, u);   /* v1.2.10 speed: depends on the column only (same value as before) */
-            for (int y = top; y <= bot; ++y) mo13_px(B, x, y, sc, a); }   /* v5e: solid side; towers3b: shaded side */
+            for (int y = b_ylo(B, top); y <= b_yhi(B, bot); ++y) mo13_px(B, x, y, sc, a); }   /* v5e: solid side; towers3b: shaded side */
         mo13_line(B, xbk, byt, xbk, byb, lv_hex(MO_BODY == 0 ? 0x8a5a2a : MO_BODY == 4 ? 0x3a2406 : MO_BODY == 5 ? mo_mixc(MO_EMB_COL[i], 0x000000, 0.8f) : 0x3a0408), MO_BODY ? a : a * 200 / 256); mo13_line(B, xf, yt, xbk, byt, lv_hex(MO_BODY == 0 ? 0xd8aa52 : MO_BODY == 4 ? 0xfff4c0 : MO_BODY == 5 ? mo_mixc(MO_EMB_COL[i], 0xffffff, 0.5f) : 0xff6a6a), a); };
     if (bx1 > x1) side(x1, bx1);
     if (bx0 < x0) side(x0, bx0);
@@ -322,7 +323,7 @@ static void mo11_tower_fx(LvBand &B, const LvTower &T)
         for (int x = ex0; x <= ex1; ++x) mo13_px(B, x, y, lv_hex(mo_mixc(e_col[x - ex0], e_dk, v * 0.22f)), a); }
     if (0)
 #endif
-    for (int y = yt; y <= yv; ++y) { const float v = (y - yt) / (float)(yb - yt + 1);
+    for (int y = b_ylo(B, yt); y <= b_yhi(B, yv); ++y) { const float v = (y - yt) / (float)(yb - yt + 1);
         for (int x = x0; x <= x1; ++x) { const float u = (x - x0) / (float)fw, sh = 0.0f;   /* v1.2.10: the unused sheen expf() removed (its result was never drawn) */
 #if MO_BODY == 4   /* D UNIFORM: polished SCANbot-style gold, lit left -> shadow right */
             mo13_px(B, x, y, lv_hex(mo_shade3(0xfff4c0, 0xe0b040, 0x8a5a14, u, v)), a);
@@ -411,7 +412,7 @@ const int MO_LOOK = MO_LOOKOF[i];   /* the opened pillar's own look */
     (void)IC;
     const uint16_t ink = lv_hex(NAME);
     /* drop shadow */
-    if (solid) for (int yy = y - 4; yy < y + h + 4; ++yy) mo_hspan(B, yy, x + 4, x + w + 3, lv_hex(SHAD), MO_LOOK == 2 ? 50 : 100);
+    if (solid) for (int yy = b_ylo(B, y - 4); yy < y + h + 4 && yy < B.y0 + B.h; ++yy) mo_hspan(B, yy, x + 4, x + w + 3, lv_hex(SHAD), MO_LOOK == 2 ? 50 : 100);
     /* active glow: the folder loading now, or a slow cycle once all are loaded */
     const bool act = false;   /* v5f: no decorative glow cycle */
     const int ga = act ? (int)(70 + 50 * sinf(t * 6.0f)) : 26;
@@ -420,15 +421,15 @@ const int MO_LOOK = MO_LOOKOF[i];   /* the opened pillar's own look */
     /* body with cut corners (T1: bottom-right; T2: top-right + bottom-left; T3: square, brass corner caps) */
     auto xr = [&](int yy) { int e = x + w - 1; if (MO_LOOK == 1 && yy > y + h - 1 - cut) e -= yy - (y + h - 1 - cut); if (MO_LOOK == 2 && yy < y + cut) e -= (y + cut) - yy; return e; };
     auto xl = [&](int yy) { int s = x; if (MO_LOOK == 2 && yy > y + h - 1 - cut) s += yy - (y + h - 1 - cut); return s; };
-    for (int yy = y; yy < y + h; ++yy) { const float v = (yy - y) / (float)h; uint16_t c = MO_LOOK == 2 ? mo3_mx(0xffffff, 0xe8f0ec, v) : lv_hex(((yy - y) & 1) ? SCAN : BODY);
+    for (int yy = b_ylo(B, y); yy < y + h && yy < B.y0 + B.h; ++yy) { const float v = (yy - y) / (float)h; uint16_t c = MO_LOOK == 2 ? mo3_mx(0xffffff, 0xe8f0ec, v) : lv_hex(((yy - y) & 1) ? SCAN : BODY);
         if (!solid) { mo_bl(B, xl(yy), yy, lv_hex(OUT), 256); mo_bl(B, xr(yy), yy, lv_hex(OUT), 256); continue; }
         mo_hspan(B, yy, xl(yy), xr(yy), c, 256); }   /* v4: opaque */
-    if (solid) for (int yy = y + 2; yy < y + 17; ++yy) mo_hspan(B, yy, xl(yy) + 3, xr(yy) - 3, lv_hex(HEAD), 256);   /* header strip */
+    if (solid) for (int yy = b_ylo(B, y + 2); yy < y + 17 && yy < B.y0 + B.h; ++yy) mo_hspan(B, yy, xl(yy) + 3, xr(yy) - 3, lv_hex(HEAD), 256);   /* header strip */
     /* tab (slanted end) */
     for (int r = 0; r < 9; ++r) mo_hspan(B, y - 9 + r, x, x + tw - 6 + (r < 5 ? r : 5), lv_hex(TAB), 256);
     if (!solid) return;
     /* double outline: 2 px outer + 1 px inner, following the cuts */
-    for (int yy = y; yy < y + h; ++yy) { mo_bl(B, xl(yy), yy, lv_hex(OUT), 256); mo_bl(B, xl(yy) + 1, yy, lv_hex(OUT), 256); mo_bl(B, xr(yy), yy, lv_hex(OUT), 256); mo_bl(B, xr(yy) - 1, yy, lv_hex(OUT), 256);
+    for (int yy = b_ylo(B, y); yy < y + h && yy < B.y0 + B.h; ++yy) { mo_bl(B, xl(yy), yy, lv_hex(OUT), 256); mo_bl(B, xl(yy) + 1, yy, lv_hex(OUT), 256); mo_bl(B, xr(yy), yy, lv_hex(OUT), 256); mo_bl(B, xr(yy) - 1, yy, lv_hex(OUT), 256);
         if (yy >= y + 3 && yy <= y + h - 4) { mo_bl(B, xl(yy) + 3, yy, lv_hex(IN), 256); mo_bl(B, xr(yy) - 3, yy, lv_hex(IN), 256); } }
     mo_hspan(B, y, x + tw - 1, xr(y), lv_hex(OUT), 256); mo_hspan(B, y + 1, x + tw - 1, xr(y + 1), lv_hex(OUT), 256); mo_hspan(B, y + h - 1, xl(y + h - 1), xr(y + h - 1), lv_hex(OUT), 256); mo_hspan(B, y + h - 2, xl(y + h - 2), xr(y + h - 2), lv_hex(OUT), 256);
     mo_hspan(B, y + 3, xl(y + 3) + 3, xr(y + 3) - 3, lv_hex(IN), 256); mo_hspan(B, y + h - 4, xl(y + h - 4) + 3, xr(y + h - 4) - 3, lv_hex(IN), 256);

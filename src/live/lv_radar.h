@@ -1344,7 +1344,9 @@ static void lv_rd_info_tower(LvBand &B, int frame, const LvFind &f, const uint8_
     lv_rd_info_rows(B, frame, mac);
 }
 #if LV_RD_INFO_TOWER_PULL
-/* HOST-SIM MOCK: crossfade the verbatim INFO monolith over the current band (alpha = the existing lv_sel_pull p). */
+/* v1.2.16: crossfade the verbatim INFO monolith over the current band (alpha = lv_sel_pull p).
+ * One saved row at a time (the primitives already clip to the band) so firmware does not park a
+ * 105*208 BSS bak in dram0 — that overflowed the linker by 42,904 B. Mix math is unchanged. */
 static const int LV_RD_INFO_TX0 = 16, LV_RD_INFO_TX1 = 120, LV_RD_INFO_TY0 = 38, LV_RD_INFO_TY1 = 245;
 static void lv_rd_info_tower_fade(LvBand &B, int frame, const LvFind &f, const uint8_t *mac, float a)
 {
@@ -1355,16 +1357,19 @@ static void lv_rd_info_tower_fade(LvBand &B, int frame, const LvFind &f, const u
     const int xa = LV_RD_INFO_TX0 > B.x0 ? LV_RD_INFO_TX0 : B.x0;
     const int xb = LV_RD_INFO_TX1 < B.x0 + B.w - 1 ? LV_RD_INFO_TX1 : B.x0 + B.w - 1;
     if (xb < xa) return;
-    const int w = xb - xa + 1, h = yb - ya + 1;
-    static uint16_t bak[105 * 208];
-    if (w * h > (int)(sizeof bak / sizeof bak[0])) { lv_rd_info_tower(B, frame, f, mac); return; }
-    for (int y = ya, i = 0; y <= yb; ++y) for (int x = xa; x <= xb; ++x, ++i)
-        bak[i] = B.px[(y - B.y0) * B.w + (x - B.x0)];
-    lv_rd_info_tower(B, frame, f, mac);
-    const int k = (int)lroundf(a * 256.f); 
-    for (int y = ya, i = 0; y <= yb; ++y) for (int x = xa; x <= xb; ++x, ++i) {
-        uint16_t &p = B.px[(y - B.y0) * B.w + (x - B.x0)];
-        p = lv_mix(bak[i], p, k, 256);
+    const int k = (int)lroundf(a * 256.f);
+    /* The monolith also stamps 1 px at y=37 (side peak) and y=246 (base). The mix window is
+     * still y=38..245, same as the original bak[] fade; those two rows are drawn, not mixed. */
+    const int y0d = b_ylo(B, LV_RD_INFO_TY0 - 1), y1d = b_yhi(B, LV_RD_INFO_TY1 + 1);
+    for (int y = y0d; y <= y1d; ++y) {
+        uint16_t line[105];
+        uint16_t *row = B.px + (y - B.y0) * B.w;
+        const bool mix = (y >= ya && y <= yb && xb >= xa);
+        const int n = xb - xa + 1, off = xa - B.x0;
+        if (mix) for (int i = 0; i < n; ++i) line[i] = row[off + i];
+        LvBand one = B; one.px = row; one.y0 = y; one.h = 1;
+        lv_rd_info_tower(one, frame, f, mac);
+        if (mix) for (int i = 0; i < n; ++i) row[off + i] = lv_mix(line[i], row[off + i], k, 256);
     }
 }
 #endif

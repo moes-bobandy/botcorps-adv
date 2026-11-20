@@ -1,0 +1,22 @@
+# v1.2.14 gate vs v1.2.13 (sim, real renderer)
+ctl.rgb        frames=45 diff_px=0
+dl.rgb         frames=60 diff_px=0
+dlo.rgb        frames=60 diff_px=725169 frames_diff=60 box=x2-238 y41-318
+dojo.rgb       frames=120 diff_px=0
+dojoclose.rgb  frames=60 diff_px=0
+dojoopen.rgb   frames=90 diff_px=0
+home2.rgb      frames=30 diff_px=0
+p0.rgb         frames=45 diff_px=0
+p1.rgb         frames=45 diff_px=0
+p2.rgb         frames=45 diff_px=0
+p3.rgb         frames=45 diff_px=0
+radar.rgb      frames=90 diff_px=83250 frames_diff=90 box=x16-83 y273-311
+TOTAL 808419
+radar.rgb: all diff inside the d-pad box x16-83 y273-311 (cross replaces rocker); 0 px above the deck
+dlo.rgb: above the deck (y<247) only the folder cursor ring (34104 px, 0 outside the rings); below = the new HACKbot deck
+--- close-up flows
+dl_flow.rgb    frames=35 diff_px=417911 frames_diff=35 box=x2-238 y41-318
+gib_flow.rgb   frames=35 diff_px=210594 frames_diff=35 box=x16-237 y34-311
+TOTAL 628505
+gib_flow: outside the d-pad box + folder cursor rings, diffs only inside the pulled-up tower (frames 3-31), 0 px in frames 0-2 and 32-34
+pulled tower pixels on GIBSON (Tesla WIFI, frame 20) = HACKbot open T4 pixels: (222,105,0) edge, (90,36,24) face

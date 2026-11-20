@@ -62,6 +62,10 @@ static const int LV_DL_FX = 92, LV_DL_FW = 143, LV_DL_FY0 = 42;
 static int lv_dl_fdy(void) { return lv_dl_nf <= 3 ? 66 : (186 + 4) / lv_dl_nf; }        /* row pitch: 66 / 47 / 38 / 31 / 27 for 3..7 */
 static int lv_dl_fbody(void) { return lv_dl_nf <= 3 ? 46 : lv_dl_fdy() - 4 - 8; }     /* body height: 46 / 35 / 26 / 19 / 15 */
 static int lv_dl_gap(void) { return lv_dl_nf <= 3 ? LV_DL_DROP_GAP : 2 * LV_DL_DROP_GAP / (lv_dl_nf - 1); }   /* same total stagger (220 ms) */
+#ifndef LV_DL_DECK
+#define LV_DL_DECK 1   /* v1.2.14: 1 = the d-pad game deck (real firmware); 0 = the old panel + terminal (kept) */
+#endif
+static int lv_dl_fsel = 0;   /* v1.2.14: the deck's folder cursor (was the MOCK's lv_mock_dpad_sel) */
 static LvRect lv_dl_ftap(int i)   /* 3: 152 x 59 (as before); n > 3: one full pitch each, edge to edge: 152 x 47 / 38 / 31 / 27 */
 {
     const int y = LV_DL_FY0 + i * lv_dl_fdy();
@@ -147,7 +151,7 @@ static void lv_dl_open_tower(int i)
 {
     const uint32_t vt = lv_sel_clk_now(lv_dl_clk, lv_now);
     lv_dl_why[0] = lv_dl_note[0] = 0; lv_dl_tw = i; lv_dl_open_t = vt; lv_dl_seen[i] = true; lv_dl_lock(i, true);
-    lv_dl_cam_mode = 1; lv_dl_cam_tw = i; lv_dl_cam_t = vt; lv_dl_cam_from = lv_dl_cam_at;
+    lv_dl_cam_mode = 1; lv_dl_cam_tw = i; lv_dl_cam_t = vt; lv_dl_cam_from = lv_dl_cam_at; lv_dl_fsel = 0;
     lv_hc_log("TOWER %d OPEN. %d FILES.", i + 1, lv_dl_nf);
 }
 static void lv_dl_close_tower(void)
@@ -376,9 +380,6 @@ static void lv_dl_panel(LvBand &B)   /* rows 247..285: the radar's locked panel 
         if (s) lv_dl_tick_mark(B, x + 13, y + 2, lv_hex(0x30ff90));
     }
 }
-#ifdef LV_MOCK_HC_DPAD
-static int lv_mock_dpad_sel = 1;
-#endif
 static void lv_dl_scene(LvBand &B, void *)
 {
     if (lv_dl_phase == LV_DL_INTRO) {   /* full-screen terminal: the mission types out */
@@ -435,12 +436,12 @@ static void lv_dl_scene(LvBand &B, void *)
     if (lv_dl_deny && lv_dl_phase == LV_DL_PLAY) lv_dl_banner(B, false, "ACCESS", "DENIED", "WRONG FILE", 0xff385c, lv_dl_deny_t);
     if (lv_dl_found && lv_dl_phase == LV_DL_PLAY) { char t[32]; snprintf(t, sizeof t, "%d OF %d. KEEP GOING", lv_dl_got, lv_dl_need); lv_dl_banner(B, true, "FILE", "FOUND", t, 0x30ff90, lv_dl_found_t); }
     if (lv_dl_phase == LV_DL_PLAY && lv_dl_trace >= 800 && !((lv_now - lv_dl_t0) / 200 % 2)) for (int k = 0; k < 2; ++k) lvi_box(B, k, 34 + k, 240 - 2 * k, 213 - 2 * k, 0xff385c);
-#ifdef LV_MOCK_HC_DPAD   /* MOCK ONLY: the game deck replaces the panel + terminal; d-pad cursor = theme frame on folder lv_mock_dpad_sel */
-    if (lv_dl_tw >= 0 && lv_mock_dpad_sel >= 0) { const LvRect r = lv_dl_ftap(lv_mock_dpad_sel); const uint16_t k = lv_ink(LV_ACC);
+#if LV_DL_DECK   /* v1.2.14 (Mobandy 11:34 AM ET "hackerbot has no control ui"): the v1.2.11 MOCK's game deck, real: it replaces the panel + terminal; d-pad cursor = theme frame on folder lv_dl_fsel */
+    if (lv_dl_tw >= 0 && lv_dl_fsel >= 0 && lv_sel_landed((int)(lv_dl_clk.vt - lv_dl_open_t), LV_DL_DROP0_MS, lv_dl_gap(), LV_DL_DROP_MS, lv_dl_fsel)) { const LvRect r = lv_dl_ftap(lv_dl_fsel); const uint16_t k = lv_ink(LV_ACC);
         b_frame(B, r.x0 + 1, r.y0 + 1, r.x1 - r.x0 - 1, r.y1 - r.y0 - 1, k); b_frame(B, r.x0 + 2, r.y0 + 2, r.x1 - r.x0 - 3, r.y1 - r.y0 - 3, k); }
-    { char a[40], b[24]; if (lv_dl_tw >= 0) { snprintf(a, sizeof a, "TOWER %d  FILE %d/%d", lv_dl_tw + 1, lv_mock_dpad_sel + 1, lv_dl_nf); snprintf(b, sizeof b, "A=DOWNLOAD"); }
+    { char a[40], b[24]; if (lv_dl_tw >= 0) { snprintf(a, sizeof a, "TOWER %d  FILE %d/%d", lv_dl_tw + 1, lv_dl_fsel + 1, lv_dl_nf); snprintf(b, sizeof b, "A=DOWNLOAD"); }
       else { snprintf(a, sizeof a, "GOT %d OF %d  L/R PICK TOWER", lv_dl_got, lv_dl_need); snprintf(b, sizeof b, "A=OPEN"); }
-      pad_mock_hc_deck(B, a, b); }
+      pad_hc_deck(B, a, b); }
 #else
     lv_dl_panel(B); lv_dl_terminal(B);
 #endif
@@ -457,6 +458,36 @@ static void lv_dl_frame(void)
     lv_render(lv_blit_hw, all, lv_dl_scene, 0);   /* v1.2.4: skip theme re-ink; look unchanged */
 }
 static void lv_go_soon(int scr, const char *tty_cmd);
+#if LV_DL_DECK
+/* v1.2.14: the deck's keys on the real game actions. 1 up 2 down 3 left 4 right (lv_pad_dpad_at), 5 A, 6 B (GIBSON's A / B). */
+static int lv_dl_deck_id(int x, int y) { const int d = lv_pad_dpad_at(x, y); return d ? d : lv_in(PAD_HIT_A, x, y) ? 5 : lv_in(PAD_HIT_B, x, y) ? 6 : 0; }
+static void lv_dl_touch(bool down, int x, int y) { lv_hc_dpad_held = down && lv_dl_phase == LV_DL_PLAY && y >= PAD_Y0 ? lv_dl_deck_id(x, y) : 0; }
+static const char *lv_dl_tap(int x, int y);
+static void lv_dl_pick(int dir)   /* L / R / UP / DOWN on the game world's towers (lv_rd_dpad_pick, the GIBSON rows law) */
+{
+    lv_hc_swap();
+    const int j = lv_rd_dpad_pick(lv_rd_sel, dir);
+    if (j >= 0) { lv_rd_sel = j; memcpy(lv_rd_selmac, lv_f[j].mac, 6); lv_rd_glow = true; lv_rd_glow_t = lv_now; }
+    lv_hc_swap();
+}
+static const char *lv_dl_deck(int x, int y)
+{
+    static const int DIR[5] = {0, 2, 3, 0, 1};   /* d-pad id -> lv_rd_dpad_pick dir */
+    const int id = lv_dl_deck_id(x, y); if (!id) return "dl-deck";
+    if (lv_dl_tw >= 0) {   /* a tower is open */
+        if (id == 1 || id == 2) { lv_dl_fsel = (lv_dl_fsel + (id == 2 ? 1 : lv_dl_nf - 1)) % lv_dl_nf; return id == 1 ? "dl-pad-up-file" : "dl-pad-down-file"; }
+        if (id == 5) { const LvRect r = lv_dl_ftap(lv_dl_fsel); return lv_dl_tap((r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2); }   /* A = a tap on that folder */
+        if (lv_dl_pf >= 0) return "dl-busy";
+        const int t = lv_dl_tw; lv_dl_close_tower(); lv_hc_w.sel = t; memcpy(lv_hc_w.selmac, lv_hc_w.f[t].mac, 6);   /* B / L / R: close it (as "< TOWERS"), the cursor stays on it */
+        if (id == 6) return "dl-pad-b-towers";
+        lv_dl_pick(DIR[id]); return id == 3 ? "dl-pad-left" : "dl-pad-right";
+    }
+    if (id == 6) { lv_go_soon(LV_SC_HOME, 0); return "dl-pad-b-home"; }   /* as the banner */
+    if (lv_dl_cam_mode == 2 && (int32_t)(lv_sel_clk_now(lv_dl_clk, lv_now) - lv_dl_cam_t) < LV_DL_CAM_MS) return "dl-camera-moving";
+    if (id == 5) { int i = lv_hc_w.sel; if (i < 0 || i >= lv_hc_w.nf) { lv_dl_pick(1); i = lv_hc_w.sel; } if (i < 0) return "dl-pad-a-empty"; lv_dl_open_tower(i); return "dl-pad-a-open"; }
+    lv_dl_pick(DIR[id]); static const char *const N[5] = {"", "dl-pad-up-row", "dl-pad-down-row", "dl-pad-left", "dl-pad-right"}; return N[id];
+}
+#endif
 static const char *lv_dl_tap(int x, int y)
 {
     if (lv_dl_phase == LV_DL_INTRO) {
@@ -471,6 +502,9 @@ static const char *lv_dl_tap(int x, int y)
         return "dl-card";
     }
     if (lv_dl_phase != LV_DL_PLAY) return "dl-wait";
+#if LV_DL_DECK
+    if (y >= PAD_Y0) return lv_dl_deck(x, y);   /* v1.2.14: the deck owns rows 247.. (the old panel's "< TOWERS" = B) */
+#endif
     if (lv_dl_tw < 0) {
         if (lv_dl_cam_mode == 2 && (int32_t)(lv_sel_clk_now(lv_dl_clk, lv_now) - lv_dl_cam_t) < LV_DL_CAM_MS) return "dl-camera-moving";
         if (y < LV_RD_Y0 || y >= LV_RD_PTOP) return "dl-none";

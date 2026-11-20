@@ -38,6 +38,7 @@ static inline float lv_sel_cam(float from, float to, float el, int dur) { return
  * The selected tower flies toward the viewer along the camera ray: depth eases in 1/Z (so the growth reads evenly) from its own
  * place to the close-up depth Zc, its screen column eases to the close-up column, its height to the one whose front top sits on
  * the close-up row. p = 0 is the tower exactly where the scene put it, p = 1 the close-up. c = camera x, f = focal (LV_RD_F). */
+#define LV_SEL_OPEN_BR 7   /* v1.2.14: the open (pulled-up) tower's brightness /8 = HACKbot's open tower (T4, game dBm -50) */
 #define LV_SEL_ZC 0.72f    /* close-up depth of the front face (the Dojo's MO12_ZC) */
 #define LV_SEL_SX 38.0f    /* close-up front-face centre column (left of the folders at x 88..92) */
 #define LV_SEL_YT 60.0f    /* close-up front-top row */

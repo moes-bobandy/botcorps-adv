@@ -338,7 +338,7 @@ int main(int argc, char **argv)
     while (fscanf(sc, "%31s", cmd) == 1) {
         if (!strcmp(cmd, "tick")) { int n; if (fscanf(sc, "%d", &n) != 1) return 2; for (int i = 0; i < n; ++i) tick1(io); }
 #ifdef LV_MOCK_HC_DPAD
-        else if (!strcmp(cmd, "mockpad")) { if (fscanf(sc, "%d %d", &lv_mock_dpad_held, &lv_mock_dpad_sel) != 2) return 2; }   /* MOCK ONLY: held key + folder cursor */
+        else if (!strcmp(cmd, "mockpad")) { if (fscanf(sc, "%d %d", &lv_hc_dpad_held, &lv_dl_fsel) != 2) return 2; }   /* MOCK ONLY: held key + folder cursor */
 #endif
         else if (!strcmp(cmd, "stick")) { int n, ms; if (fscanf(sc, "%d %d", &n, &ms) != 2) return 2; for (int i = 0; i < n; ++i) { t_ms += ms > 30 ? ms - 30 : 0; tick1(io); } }   /* v1.2.11 device-speed model: one frame every MS ms (a slow CYD frame) */
         else if (!strcmp(cmd, "hold")) { int ms; if (fscanf(sc, "%d %d %d", &g_fx, &g_fy, &ms) != 3) return 2; g_down = true; for (int e = 0; e < ms; e += 30) tick1(io); g_down = false; printf("t=%u hold %d,%d -> scr=%d cal_n=%d phase=%d msg=%d\n", t_ms, g_fx, g_fy, lv_scr, lv_cal_n, lv_cal_phase, lv_cal_msg); }

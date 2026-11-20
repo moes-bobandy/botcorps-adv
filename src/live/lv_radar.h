@@ -1065,7 +1065,14 @@ static void lv_scene_radar(LvBand &B, void *)
             && !(lv_rd_lock && !memcmp(lv_f[T.i].mac, lv_rd_lockmac, 6))
 #endif
             ;
-        uint16_t edge = sel ? lv_hex(0xffffff) : lv_rd_col(f, br, 8), face = lv_rd_col(f, br, 8);
+        /* v1.2.14 (Mobandy 11:33 AM ET pt1481u "why is the tower clear"): the GIBSON pulled-up tower is drawn with HACKbot's
+         * open-tower inputs. HACKbot's open tower is never lv_rd_sel (lv_dl_lock sets sel -1) and its game towers sit at
+         * -70..-45 dBm (br 5..7; the open T4 = 7). GIBSON's was still lv_rd_sel (white edges; the v1.2.8 NODRAW build has no
+         * lock exclusion above) at its real dBm (a -82 dBm node = br 4, the face 4/8 x 3/8 = nearly clear). Pulled: no
+         * select-white, and br eases to HACKbot's 7 with the pull. The state colour (alert / watch / WIFI / BLE) is kept. */
+        const bool pul = lv_rd_pull_p > 0 && lv_rd_pull_scr == LV_SC_RADAR && lv_scr == LV_SC_RADAR && sk == 0 && !memcmp(f.mac, lv_rd_pull_mac, 6);
+        const int brp = pul && br < LV_SEL_OPEN_BR ? br + (int)lroundf((LV_SEL_OPEN_BR - br) * lv_rd_pull_p) : br;
+        uint16_t edge = sel && !pul ? lv_hex(0xffffff) : lv_rd_col(f, brp, 8), face = lv_rd_col(f, brp, 8);
 #if LV_RD_SKINS
         if (sk == 2) { face = lv_hex(0xdfe6ef); edge = sel ? lv_hex(0x30e8ff) : lv_hex(0x8d99ab); }   /* TR: clean silver relays, cyan select */
         else if (sk == 3) { const uint16_t a = lv_hex(lv_rd_skin_acc); face = a; edge = sel ? lv_hex(0xffb000) : lv_hex(0x7af0e2); }  /* CT: teal tower, amber select */
@@ -1235,7 +1242,7 @@ static void lv_rd_lock_on(int i)
     char m[18]; lv_macstr(lv_f[i].mac, m); lv_rd_log("LOCK %s  IGNORE / WATCH / HUNT", m);
 #if LV_RD_FOLD
     if (lv_rd_fold_mode != 1) { lv_rd_fold_mode = 1; lv_rd_fold_t = lv_sel_clk_now(lv_rd_fclk, lv_now); lv_rd_fold_from = lv_rd_camx; }
-    memcpy(lv_rd_fold_mac, lv_f[i].mac, 6);
+    memcpy(lv_rd_fold_mac, lv_f[i].mac, 6); lv_rd_fsel = 0;   /* v1.2.14: the folder cursor starts on HUNT */
 #endif
 }
 static void lv_rd_hunt_go(int i)
@@ -1450,6 +1457,9 @@ static void lv_rd_fold_draw(LvBand &B)
         int y; float u; if (!lv_sel_drop(el, LV_RD_FDROP0, LV_RD_FGAP, LV_RD_FDROP, j, LV_RD_Y0 - 50, 42 + j * 66, y, u)) continue;
         lv_rd_fold1(B, j, y, u > 1 ? 1 : u);
     }
+    if (lv_rd_fsel >= 0 && lv_rd_fsel < 3 && lv_sel_landed(el, LV_RD_FDROP0, LV_RD_FGAP, LV_RD_FDROP, lv_rd_fsel)) {   /* v1.2.14: d-pad folder cursor = the mock's theme frame */
+        const LvRect r = LV_RD_FTAP[lv_rd_fsel]; const uint16_t k = lv_ink(LV_ACC);
+        b_frame(B, r.x0 + 1, r.y0 + 1, r.x1 - r.x0 - 1, r.y1 - r.y0 - 1, k); b_frame(B, r.x0 + 2, r.y0 + 2, r.x1 - r.x0 - 3, r.y1 - r.y0 - 3, k); }
 }
 #endif
 static void lv_radar_enter(void)
@@ -1568,6 +1578,34 @@ static void lv_radar_touch(bool down, int x, int y)
     int xa = 0, xb = -1, ya = 0, yb = -1; if (T) lv_rd_box(*T, 6, xa, xb, ya, yb);
     if (!T || x < xa || x > xb || y < ya || y > yb) { lv_rd_holding = false; return; }   /* slid off: no lock */
     if ((int32_t)(lv_now - lv_rd_hold_t) >= 1000) { const int i = lv_rd_find(lv_rd_holdmac); if (i >= 0) { lv_rd_lock_on(i); lv_rd_swallow = true; } }
+}
+/* v1.2.14 (Mobandy 11:34 AM ET "just going side to side is slow. up and down cycle the rows"): d-pad pick on the placed
+ * towers. Row = the grid depth row of the tower's locked home depth (floor of lv_rd_place's hash Z, 1.6..4.8 -> rows 1..4);
+ * order in a row = its locked home X. dir 0 L / 1 R: the next tower left / right in the same row (wraps in the row);
+ * 2 UP: the next farther row, 3 DOWN: the next nearer row (wrap), landing on the tower nearest in X. Nothing selected:
+ * the nearest row's tower closest to the centre. Ignored towers skipped. Pure read: nothing about the scene changes. */
+static int lv_rd_dpad_pick(int cur, int dir)
+{
+    int ci[LV_MAXF], cr[LV_MAXF]; float cx[LV_MAXF]; int n = 0, p = -1;
+    for (int k = 0; k < lv_rd_n; ++k) { const int i = lv_rd_tw[k].i; if (i < 0 || i >= lv_nf || lv_rd_ignored(lv_f[i].mac)) continue;
+        const uint32_t h = lv_rd_hash(lv_f[i].mac); const float Z = 1.6f + (((h >> 8) & 0xff) / 255.0f) * 3.2f;
+        ci[n] = i; cr[n] = (int)floorf(Z); cx[n] = (((h & 0xff) / 255.0f) * 2.0f - 1.0f) * 0.72f * Z + i * 1e-4f; if (i == cur) p = n; ++n; }
+    if (!n) return -1;
+    if (p < 0) { int b = 0; for (int k = 1; k < n; ++k) if (cr[k] < cr[b] || (cr[k] == cr[b] && fabsf(cx[k]) < fabsf(cx[b]))) b = k; return ci[b]; }
+    if (dir <= 1) {   /* within the row */
+        int b = -1, w = -1;
+        for (int k = 0; k < n; ++k) { if (cr[k] != cr[p] || k == p) continue;
+            if (dir == 1) { if (cx[k] > cx[p] && (b < 0 || cx[k] < cx[b])) b = k; if (w < 0 || cx[k] < cx[w]) w = k; }
+            else { if (cx[k] < cx[p] && (b < 0 || cx[k] > cx[b])) b = k; if (w < 0 || cx[k] > cx[w]) w = k; } }
+        return b >= 0 ? ci[b] : w >= 0 ? ci[w] : cur;
+    }
+    int tr = -1;   /* the next row up (farther) or down (nearer) that has a tower, wrapping */
+    for (int k = 0; k < n; ++k) { if (cr[k] == cr[p]) continue;
+        const int d = dir == 2 ? (cr[k] - cr[p] + 64) % 64 : (cr[p] - cr[k] + 64) % 64, dt = tr < 0 ? 99 : dir == 2 ? (tr - cr[p] + 64) % 64 : (cr[p] - tr + 64) % 64;
+        if (d < dt) tr = cr[k]; }
+    if (tr < 0) return cur;
+    int b = -1; for (int k = 0; k < n; ++k) if (cr[k] == tr && (b < 0 || fabsf(cx[k] - cx[p]) < fabsf(cx[b] - cx[p]))) b = k;
+    return ci[b];
 }
 static int lv_rd_cycle_next(void)   /* strongest -> weakest dBm, wraps; ignored devices skipped */
 {

@@ -1,0 +1,27 @@
+tick 300
+go 8
+tick 150
+recstart gib_pad
+stick 3 100
+tap 85 292
+stick 4 100
+tap 50 272
+stick 4 100
+tap 50 272
+stick 4 100
+tap 50 312
+stick 4 100
+tap 20 292
+stick 4 100
+tap 216 292
+stick 16 100
+tap 50 312
+stick 4 100
+tap 50 312
+stick 4 100
+tap 50 272
+stick 4 100
+tap 168 296
+stick 10 100
+recstop
+towers

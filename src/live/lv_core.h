@@ -2571,6 +2571,9 @@ static void lv_touch(bool down, int x, int y) {
     if (lv_cb_slp) return;   /* asleep or eating the wake gesture: do not start a swipe / radar lock */
 #endif
     if (lv_scr == LV_SC_RADAR) lv_radar_touch(down, x, y);
+#if LV_DL_GAME && LV_DL_DECK
+    if (lv_scr == LV_SC_DL) lv_dl_touch(down, x, y);   /* v1.2.14: deck key held state */
+#endif
 #if LV_CB
     if (lv_scr == LV_SC_HOME) lv_pg_touch(down, x, y);
 #endif

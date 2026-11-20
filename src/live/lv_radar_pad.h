@@ -41,11 +41,23 @@ static const LvRect PAD_HIT_WAT = {102, 300, 147, 316 };   /* 46 x 17 */
 #define PAD_MID_YI 287
 #define PAD_MID_YW 304
 
+/* v1.2.14 (Mobandy 11:34 AM ET "we need an up and down on the dpad"): the v1.2.11 hackbot_dpad_MOCK cross in the same
+ * octagon housing on BOTH decks. Finger zones: the old rocker box x6..94 y268..316 split on its diagonals around the
+ * centre (50,292): up / down arms 89 px wide at the outer edge x 24 px deep, left / right 44 px wide x 49 px tall. */
+static int lv_pad_dpad_at(int x, int y)   /* 0 none, 1 up, 2 down, 3 left, 4 right */
+{
+    if (x < PAD_HIT_L.x0 || x > PAD_HIT_R.x1 || y < PAD_HIT_L.y0 || y > PAD_HIT_L.y1) return 0;
+    const int dx = x - PAD_CX, dy = y - PAD_CY;
+    if (abs(dy) * 45 > abs(dx) * 24) return dy < 0 ? 1 : 2;
+    return dx < 0 ? 3 : 4;
+}
+static int lv_rd_dpad_pick(int cur, int dir);   /* lv_radar.h: 0 L, 1 R (within the row), 2 UP (farther row), 3 DOWN (nearer row) */
+static int lv_rd_fsel = 0;   /* v1.2.14: the d-pad's folder cursor (0 HUNT, 1 IGNORE, 2 WATCH) */
+static const char *lv_radar_tap(int x, int y);
 static int lv_rd_pad_hit_at(int x, int y)
 {
     if (y < PAD_Y0 || y > PAD_Y1 || x < PAD_X0 || x > PAD_X1) return 0;
-    if (lv_in(PAD_HIT_L, x, y)) return 1;
-    if (lv_in(PAD_HIT_R, x, y)) return 2;
+    { const int d = lv_pad_dpad_at(x, y); if (d) return d == 1 ? 11 : d == 2 ? 12 : d == 3 ? 1 : 2; }   /* v1.2.14: 4-way d-pad (11 up, 12 down) */
     if (lv_in(PAD_HIT_B, x, y)) return 6;
     if (lv_in(PAD_HIT_A, x, y)) return 5;
 #if LV_RD_FOLD
@@ -69,13 +81,34 @@ static int lv_rd_cycle_prev(void)
 
 static const char *lv_rd_pad_go(int id)
 {
+    if (id == 11 || id == 12) {   /* v1.2.14 UP / DOWN: open tower = folder cursor; else jump a depth row */
+        if (lv_rd_lock) {
+#if LV_RD_FOLD
+            if (lv_rd_fold_mode == 1) { lv_rd_fsel = (lv_rd_fsel + (id == 12 ? 1 : 2)) % 3; return id == 11 ? "pad-up-folder" : "pad-down-folder"; }
+#endif
+            return "pad-updn-locked";
+        }
+        const int nx = lv_rd_dpad_pick(lv_rd_sel, id == 11 ? 2 : 3);
+        if (nx < 0) return "pad-empty";
+        lv_rd_select(nx); lv_rd_glow = true; lv_rd_glow_t = lv_now; return id == 11 ? "pad-up-row" : "pad-down-row";
+    }
+    if ((id == 1 || id == 2) && !lv_rd_lock) {   /* v1.2.14: L / R move within the selected tower's depth row */
+        const int nx = lv_rd_dpad_pick(lv_rd_sel, id == 2 ? 1 : 0);
+        if (nx < 0) return "pad-empty";
+        lv_rd_select(nx); lv_rd_glow = true; lv_rd_glow_t = lv_now; return id == 2 ? "pad-right" : "pad-left";
+    }
     if (id == 1 || id == 2) {
         const int nx = (id == 2) ? lv_rd_cycle_next() : lv_rd_cycle_prev();
         if (nx < 0) return "pad-empty";
         lv_rd_select(nx); lv_rd_glow = true; lv_rd_glow_t = lv_now; return id == 2 ? "pad-right" : "pad-left";
     }
     if (id == 5) {
-        if (lv_rd_lock) return "pad-a-locked";
+        if (lv_rd_lock) {
+#if LV_RD_FOLD
+            if (lv_rd_fold_mode == 1) { const LvRect &r = LV_RD_FTAP[lv_rd_fsel]; return lv_radar_tap((r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2); }   /* A = a tap on the selected folder (same action + press flash) */
+#endif
+            return "pad-a-locked";
+        }
         int i = lv_rd_sel;
         if (i < 0 || i >= lv_nf) { i = lv_rd_cycle_next(); if (i < 0) return "pad-a-empty"; lv_rd_select(i); }
         lv_rd_lock_on(i); return "pad-a-lock";
@@ -199,6 +232,22 @@ static void pad_rocker(LvBand &B, int cx, int cy, int aw, int al, uint16_t fill,
     pad_arrow(B, cx + al / 2 - 8, cy, 2, 8, rc);
 }
 
+/* v1.2.14: the 4-way cross, cloned verbatim from the v1.2.11 hackbot_dpad_MOCK (3 x 3 cells of 15 px); H 1 up 2 down 3 left
+ * 4 right (held arm pressed + white arrow). ctr = the centre pip ink (mock: ink; GIBSON keeps its magenta-when-locked pip). */
+static void pad_cross(LvBand &B, int cx, int cy, int H, uint16_t ink, uint16_t ctr)
+{
+    const int a = 15;
+    pad_bevel_rect(B, cx - a / 2 - a, cy - a / 2, 3 * a, a, lv_hex(0x1a1018), ink, 0);          /* horizontal bar */
+    pad_bevel_rect(B, cx - a / 2, cy - a / 2 - a + 3, a, 3 * a - 6, lv_hex(0x1a1018), ink, 0);  /* vertical bar */
+    if (H >= 1 && H <= 4) { const int ox = H == 3 ? -a : H == 4 ? a : 0, oy = H == 1 ? -a + 3 : H == 2 ? a - 3 : 0;
+        pad_bevel_rect(B, cx - a / 2 + ox, cy - a / 2 + oy, a, a, lv_mix(lv_hex(0x1a1018), ink, 5, 8), ink, 1); }
+    b_fill(B, cx - 4, cy - 4, 9, 9, lv_hex(0x1a1018));
+    pad_disc(B, cx, cy, 3, ctr, ink, 0);
+    pad_arrow(B, cx - a - 1, cy, 1, 6, H == 3 ? lv_hex(0xffffff) : ink);
+    pad_arrow(B, cx + a + 1, cy, 2, 6, H == 4 ? lv_hex(0xffffff) : ink);
+    for (int r = 0; r < 4; ++r) { b_fill(B, cx - r, cy - a - 4 + r + 3, 2 * r + 1, 1, H == 1 ? lv_hex(0xffffff) : ink); b_fill(B, cx - r, cy + a + 4 - r - 3, 2 * r + 1, 1, H == 2 ? lv_hex(0xffffff) : ink); }
+}
+
 static void pad_plaque(LvBand &B, uint16_t ink, uint16_t dim)
 {
     const int x = 6, y = 249, w = 228, h = 16;   /* 6..233, 5 px inset from the 1..238 frame */
@@ -237,8 +286,7 @@ static void pad_draw_joey(LvBand &B, uint16_t ink, uint16_t dim)
     pad_octagon(B, PAD_CX, PAD_CY, 42, 25, lv_hex(0x06040a), dim, 0);
     pad_glow_oct(B, PAD_CX, PAD_CY, 42, 25, ink, 2);
     pad_octagon(B, PAD_CX, PAD_CY, 36, 20, lv_hex(0x100818), ink, 0);
-    pad_rocker(B, PAD_CX, PAD_CY, 16, 68, lv_hex(0x1a1018), ink);
-    pad_disc(B, PAD_CX, PAD_CY, 3, lv_rd_lock ? ac : ink, ink, 0);
+    { const int h = lv_rd_pad_held; pad_cross(B, PAD_CX, PAD_CY, h == 11 ? 1 : h == 12 ? 2 : h == 1 ? 3 : h == 2 ? 4 : 0, ink, lv_rd_lock ? ac : ink); }   /* v1.2.14: was pad_rocker (kept) */
     auto arcade = [&](int cx, int cy, uint16_t col, const char *lab, const char *sub, int held) {
         pad_disc(B, cx, cy, 20, lv_hex(0x08040c), col, 0);
         pad_glow(B, cx, cy, 20, held ? lv_hi(col) : col, held ? 6 : 3);
@@ -305,13 +353,12 @@ static void lv_rd_pad_draw(LvBand &B, uint16_t hdr)
 }
 
 
-#ifdef LV_MOCK_HC_DPAD
-/* MOCK ONLY (Mobandy 2026-11-20 7:07 "HACKbot needs the d pad and needs to be more game-control oriented"): host sim
- * builds with -DLV_MOCK_HC_DPAD; never in a firmware env. HACKbot DOWNLOAD deck = the GIBSON deck's own primitives
+/* v1.2.14 REAL FIRMWARE (Mobandy 11:34 AM ET "hackerbot has no control ui"), cloned from the v1.2.11 MOCK (Mobandy 2026-11-20 7:07 "HACKbot needs the d pad and needs to be more game-control oriented"). The MOCK's
+ * code, now built into the firmware (was host-sim only behind LV_MOCK_HC_DPAD). HACKbot DOWNLOAD deck = the GIBSON deck's own primitives
  * (frame, vias, plaque, bevel, arcade discs) in the theme ink: a 4-way cross d-pad + B BACK / A OPEN. Finger zones:
  * the d-pad box x6..95 y268..316 split on its diagonals (each arm >= 44 px wide), A / B 40 x 40 as GIBSON. */
-static int lv_mock_dpad_held = 0;   /* 1 up 2 down 3 left 4 right 5 A 6 B */
-static void pad_mock_hc_deck(LvBand &B, const char *st, const char *st2)
+static int lv_hc_dpad_held = 0;   /* 1 up 2 down 3 left 4 right 5 A 6 B */
+static void pad_hc_deck(LvBand &B, const char *st, const char *st2)
 {
     if (!b_yhit(B, PAD_Y0, PAD_Y1)) return;
     const uint16_t ink = lv_ink(LV_ACC), dim = lv_ink(LV_ACCD), ice = lv_hex(0x30e8ff), ac = lv_hex(0xff2ad4);
@@ -323,16 +370,8 @@ static void pad_mock_hc_deck(LvBand &B, const char *st, const char *st2)
     pad_octagon(B, cx, cy, 42, 25, lv_hex(0x06040a), dim, 0);
     pad_glow_oct(B, cx, cy, 42, 25, ink, 2);
     pad_octagon(B, cx, cy, 36, 20, lv_hex(0x100818), ink, 0);
-    const int H = lv_mock_dpad_held;
-    pad_bevel_rect(B, cx - a / 2 - a, cy - a / 2, 3 * a, a, lv_hex(0x1a1018), ink, 0);          /* horizontal bar */
-    pad_bevel_rect(B, cx - a / 2, cy - a / 2 - a + 3, a, 3 * a - 6, lv_hex(0x1a1018), ink, 0);  /* vertical bar */
-    if (H >= 1 && H <= 4) { const int ox = H == 3 ? -a : H == 4 ? a : 0, oy = H == 1 ? -a + 3 : H == 2 ? a - 3 : 0;
-        pad_bevel_rect(B, cx - a / 2 + ox, cy - a / 2 + oy, a, a, lv_mix(lv_hex(0x1a1018), ink, 5, 8), ink, 1); }
-    b_fill(B, cx - 4, cy - 4, 9, 9, lv_hex(0x1a1018));
-    pad_disc(B, cx, cy, 3, ink, ink, 0);
-    pad_arrow(B, cx - a - 1, cy, 1, 6, H == 3 ? lv_hex(0xffffff) : ink);
-    pad_arrow(B, cx + a + 1, cy, 2, 6, H == 4 ? lv_hex(0xffffff) : ink);
-    for (int r = 0; r < 4; ++r) { b_fill(B, cx - r, cy - a - 4 + r + 3, 2 * r + 1, 1, H == 1 ? lv_hex(0xffffff) : ink); b_fill(B, cx - r, cy + a + 4 - r - 3, 2 * r + 1, 1, H == 2 ? lv_hex(0xffffff) : ink); }
+    const int H = lv_hc_dpad_held;
+    pad_cross(B, cx, cy, H, ink, ink);
     b_text35(B, 104, 272, "UP/DN", dim); b_text35(B, 104, 280, "FOLDER", ink); b_text35(B, 104, 292, "L/R", dim); b_text35(B, 104, 300, "TOWER", ink);
     auto arcade = [&](int x, int y, uint16_t col, const char *lab, const char *sub, int held) {
         pad_disc(B, x, y, 20, lv_hex(0x08040c), col, 0); pad_glow(B, x, y, 20, held ? lv_hi(col) : col, held ? 6 : 3);
@@ -341,7 +380,7 @@ static void pad_mock_hc_deck(LvBand &B, const char *st, const char *st2)
     arcade(172, cy, ice, "B", "BACK", H == 6);
     arcade(216, cy, ac, "A", "OPEN", H == 5);
 }
-#endif
+
 
 static void lv_rd_pad_touch(bool down, int x, int y)
 {

@@ -364,6 +364,9 @@ static void lv_dl_panel(LvBand &B)   /* rows 247..285: the radar's locked panel 
         if (s) lv_dl_tick_mark(B, x + 13, y + 2, lv_hex(0x30ff90));
     }
 }
+#ifdef LV_MOCK_HC_DPAD
+static int lv_mock_dpad_sel = 1;
+#endif
 static void lv_dl_scene(LvBand &B, void *)
 {
     if (lv_dl_phase == LV_DL_INTRO) {   /* full-screen terminal: the mission types out */
@@ -421,7 +424,15 @@ static void lv_dl_scene(LvBand &B, void *)
     if (lv_dl_deny && lv_dl_phase == LV_DL_PLAY) lv_dl_banner(B, false, "ACCESS", "DENIED", "WRONG FILE", 0xff385c, lv_dl_deny_t);
     if (lv_dl_found && lv_dl_phase == LV_DL_PLAY) { char t[32]; snprintf(t, sizeof t, "%d OF %d. KEEP GOING", lv_dl_got, lv_dl_need); lv_dl_banner(B, true, "FILE", "FOUND", t, 0x30ff90, lv_dl_found_t); }
     if (lv_dl_phase == LV_DL_PLAY && lv_dl_trace >= 800 && !((lv_now - lv_dl_t0) / 200 % 2)) for (int k = 0; k < 2; ++k) lvi_box(B, k, 34 + k, 240 - 2 * k, 213 - 2 * k, 0xff385c);
+#ifdef LV_MOCK_HC_DPAD   /* MOCK ONLY: the game deck replaces the panel + terminal; d-pad cursor = theme frame on folder lv_mock_dpad_sel */
+    if (lv_dl_tw >= 0 && lv_mock_dpad_sel >= 0) { const LvRect r = lv_dl_ftap(lv_mock_dpad_sel); const uint16_t k = lv_ink(LV_ACC);
+        b_frame(B, r.x0 + 1, r.y0 + 1, r.x1 - r.x0 - 1, r.y1 - r.y0 - 1, k); b_frame(B, r.x0 + 2, r.y0 + 2, r.x1 - r.x0 - 3, r.y1 - r.y0 - 3, k); }
+    { char a[40], b[24]; if (lv_dl_tw >= 0) { snprintf(a, sizeof a, "TOWER %d  FILE %d/%d", lv_dl_tw + 1, lv_mock_dpad_sel + 1, lv_dl_nf); snprintf(b, sizeof b, "A=DOWNLOAD"); }
+      else { snprintf(a, sizeof a, "GOT %d OF %d  L/R PICK TOWER", lv_dl_got, lv_dl_need); snprintf(b, sizeof b, "A=OPEN"); }
+      pad_mock_hc_deck(B, a, b); }
+#else
     lv_dl_panel(B); lv_dl_terminal(B);
+#endif
     if (lv_dl_phase == LV_DL_DONE) lv_dl_banner(B, true, "DOWNLOAD", "COMPLETE", lv_dl_need > 1 ? "ALL FILES" : "RIGHT FILE", 0x30ff90, lv_dl_pt);
     if (lv_dl_phase == LV_DL_TRACED) lv_dl_banner(B, false, "TRACE", "COMPLETE", "CONNECTION CUT", 0xff385c, lv_dl_pt);
     if (lv_dl_phase == LV_DL_WIN || lv_dl_phase == LV_DL_OVER) lv_dl_card(B);

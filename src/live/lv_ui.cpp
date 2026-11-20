@@ -669,8 +669,8 @@ static void qemu_tour(uint32_t now)
     static const uint32_t AT[] = {3000, 20000, 45000, 60000, 64000, 90000};
     static const int WH[] = {7, 8, 9, 4, 5, 11};
 #else
-    static const uint32_t AT[] = {3000, 9000, 15000, 21000, 27000, 33000, 39000, 47000, 55000, 63000, 71000, 79000};
-    static const int WH[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
+    static const uint32_t AT[] = {3000, 9000, 15000, 21000, 27000, 33000, 39000, 45000, 49000, 51000, 57000, 65000, 71000, 75000, 81000, 89000};
+    static const int WH[] = {0, 1, 2, 3, 4, 5, 6, 12, 13, 15, 7, 8, 14, 9, 10, 11};
 #endif
     while (st < (int)(sizeof AT / sizeof AT[0]) && el >= AT[st]) {
         switch (WH[st]) {
@@ -682,6 +682,10 @@ static void qemu_tour(uint32_t now)
         case 8: qemu_tap(120, 160); Serial.println("[tour] DOJO open"); break;
         case 9: qemu_tap(200, 265); Serial.println("[tour] DOJO closed"); break;
         case 10: lv_go(LV_SC_CONTROLBOT); Serial.println("[tour] CONTROLbot"); break;
+        case 12: qemu_tap(216, 292); Serial.println("[tour] GIBSON A = lock + folders"); break;
+        case 13: qemu_tap(160, 200); Serial.println("[tour] GIBSON WATCH folder"); break;
+        case 14: qemu_tap(160, 140); Serial.println("[tour] DOJO scroll 2 folder"); break;
+        case 15: qemu_tap(124, 292); Serial.println("[tour] GIBSON SPEED"); break;
         default: Serial.println("[tour] end"); break;
         }
         ++st;

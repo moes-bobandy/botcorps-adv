@@ -1219,7 +1219,8 @@ static const LvRect LV_RD_INFO_BTN_L = {0, 262, 119, 289}, LV_RD_INFO_BTN_R = {1
 static inline void lvi_rect(LvBand &B, int x, int y, int w, int h, uint32_t c) { b_fill(B, x, y, w, h, lv_hex(c)); }
 static inline void lvi_px(LvBand &B, int x, int y, uint32_t c) { if (x < 0 || y < 0 || x >= 240 || y >= 320) return; b_pix(B, x, y, lv_hex(c)); }
 static void lvi_line(LvBand &B, int x, int y, int xx, int yy, uint32_t c)
-{ int dx = abs(xx - x), sx = x < xx ? 1 : -1, dy = -abs(yy - y), sy = y < yy ? 1 : -1, e = dx + dy;
+{ if ((y < B.y0 && yy < B.y0) || (y >= B.y0 + B.h && yy >= B.y0 + B.h)) return;   /* v1.2.11 speed: wholly outside this band */
+  int dx = abs(xx - x), sx = x < xx ? 1 : -1, dy = -abs(yy - y), sy = y < yy ? 1 : -1, e = dx + dy;
   for (;;) { lvi_px(B, x, y, c); if (x == xx && y == yy) break; int e2 = 2 * e; if (e2 >= dy) { e += dy; x += sx; } if (e2 <= dx) { e += dx; y += sy; } } }
 static void lvi_box(LvBand &B, int x, int y, int w, int h, uint32_t c) { lvi_line(B, x, y, x + w - 1, y, c); lvi_line(B, x, y + h - 1, x + w - 1, y + h - 1, c); lvi_line(B, x, y, x, y + h - 1, c); lvi_line(B, x + w - 1, y, x + w - 1, y + h - 1, c); }
 static inline void lvi_txt(LvBand &B, int x, int y, const char *s, uint32_t c, bool big = false) {

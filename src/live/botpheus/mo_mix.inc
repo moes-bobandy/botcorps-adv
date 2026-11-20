@@ -39,8 +39,9 @@ static void mo_emb_draw(LvBand &B, int i, int x0, int y0, int S, uint32_t bc, ui
     const MoEmb *E = mo_emb_get(i, S); if (!E) return; S = E->S; const int H = S + 2;
     if (ha > 0) { mo_ex[i] = x0; mo_ey[i] = y0; mo_eS[i] = S; }   /* only the pillar emblems (with halo) are recorded; chip / folder glyphs are not */
     const uint16_t BC = lv_hex(bc), DC = lv_hex(dc), HC = lv_hex(hc);
-    if (ha > 0) for (int y = 0; y < H; ++y) { if (y0 - 1 + y > yhi) break; for (int x = 0; x < H; ++x) { const int k = E->halo[y * H + x]; if (k) mo_ui_px(B, x0 - 1 + x, y0 - 1 + y, HC, a); } }   /* v4: opaque outline */
-    for (int y = 0; y < S; ++y) { if (y0 + y > yhi) break; for (int x = 0; x < S; ++x) { const int kb = E->body[y * S + x], kd = E->det[y * S + x];
+    const int ya = B.y0 - y0 + 1 > 0 ? B.y0 - y0 + 1 : 0, yz = B.y0 + B.h - y0 + 1;   /* v1.2.11 speed: halo rows in this band (y0-1+y in B) */
+    if (ha > 0) for (int y = ya; y < H && y < yz; ++y) { if (y0 - 1 + y > yhi) break; for (int x = 0; x < H; ++x) { const int k = E->halo[y * H + x]; if (k) mo_ui_px(B, x0 - 1 + x, y0 - 1 + y, HC, a); } }   /* v4: opaque outline */
+    for (int y = ya > 0 ? ya - 1 : 0; y < S && y < yz - 1; ++y) { if (y0 + y > yhi) break; for (int x = 0; x < S; ++x) { const int kb = E->body[y * S + x], kd = E->det[y * S + x];
         if (kb) mo_ui_px(B, x0 + x, y0 + y, BC, a); if (kd) mo_ui_px(B, x0 + x, y0 + y, DC, a); } }   /* v4: binary masks, opaque */
 }
 static inline int mo_embS(int fw) { return fw >= 50 ? 40 : fw >= 44 ? 32 : fw >= 20 ? 16 : fw >= 12 ? 10 : fw >= 8 ? 8 : 0; }   /* v3 steps (kept for reference) */
@@ -208,6 +209,7 @@ static void mo3_glow_icon(LvBand &B, int i, int x0, int y0, int S, uint32_t g, i
 }
 static void mo3_shadow(LvBand &B, int x0, int x1, int yb, uint32_t c, int a)   /* soft contact shadow on the tatami */
 {
+    if (!b_yhit(B, yb + 1, yb + 3)) return;   /* v1.2.11 speed */
     for (int r = 1; r <= 3; ++r) { const int ext = 1 + r; const int k = a * (4 - r) / 4;
         for (int x = x0 - ext; x <= x1 + ext + 2; ++x) { const int ed = x < x0 ? x0 - x : x > x1 + 2 ? x - x1 - 2 : 0; mo13_px(B, x, yb + r, lv_hex(c), k * (ext + 1 - ed) / (ext + 1)); } }
 }
@@ -348,12 +350,12 @@ static void mo11_tower_fx(LvBand &B, const LvTower &T)
       const int ytop = bt0 + bh + 2 * (fw >= 40 ? 4 : 2) + (S ? S + 2 : 0), ybot = bb0 - 2;
       const int ns = (ybot - ytop + 2) / pitch;
       if (fw >= 8 && ns >= 2) { const float sg = mo_sig(i); const int nl = (int)lroundf(sg * (ns - 1));
-        for (int y = ytop - 1; y <= ytop + ns * pitch - 1; ++y) for (int x = wx0; x <= wx1; ++x) mo13_px(B, x, y, lv_hex(0x08090b), a);   /* the well */
+        for (int y = b_ylo(B, ytop - 1); y <= b_yhi(B, ytop + ns * pitch - 1); ++y) for (int x = wx0; x <= wx1; ++x) mo13_px(B, x, y, lv_hex(0x08090b), a);   /* the well */
         for (int k = 0; k < ns; ++k) { const int ly = ytop + k * pitch, kk = ns - 1 - k;   /* k = 0 at the top */
           uint32_t c = 0x1c2420;
           if (k == 0) c = mo_tc(i);
           else if (kk < nl) c = fmodf(t * (1.0f + 7.0f * sg) + kk * 0.37f + i * 0.11f, 1.0f) < 0.6f ? 0x5cff9c : 0x0e5a2c;
-          for (int y = ly; y < ly + lw; ++y) for (int x = wx0 + 1; x < wx0 + 1 + lw; ++x) mo13_px(B, x, y, lv_hex(c), a);
+          for (int y = b_ylo(B, ly); y < ly + lw && y < B.y0 + B.h; ++y) for (int x = wx0 + 1; x < wx0 + 1 + lw; ++x) mo13_px(B, x, y, lv_hex(c), a);
           if (lw >= 3 && (k == 0 || kk < nl)) mo13_px(B, wx0 + 1, ly, lv_hex(mo_mixc(c, 0xffffff, 0.6f)), a); } } }   /* specular dot on lit LEDs */
 #elif MO_BODY == 6
     /* F: red lacquer cap + base (the lantern's frame), shaded lit -> shadow, a bright lip on the cap */

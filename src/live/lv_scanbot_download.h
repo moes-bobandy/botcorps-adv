@@ -274,6 +274,7 @@ static void lv_dl_folder(LvBand &B, int i, int ys, float ph)   /* the INFO Joey 
     static const unsigned neon[3] = {0x30e8ff, 0xff2ad4, 0xffb000};
     const unsigned c = fo.st == LV_DL_S_GOT ? 0x30ff90 : fo.st == LV_DL_S_DENY ? 0xff385c : neon[i % 3];
     const int x = LV_DL_FX, w = LV_DL_FW, y = ys + 8, h = lv_dl_fbody();   /* body top y */
+    if (!b_yhit(B, y - 8, y + h + 1)) return;   /* v1.2.11 speed: the folder (tab y-8 .. shadow y+h+1) misses this band */
     if (ph >= 0.65f) lvi_rect(B, x + 3, y + 2, w, h, 0x061321);
     lvi_line(B, x + w, y + 2, x + w + 3, y + 5, c); lvi_line(B, x + w + 3, y + 5, x + w + 3, y + h + 1, c); lvi_line(B, x + 3, y + h + 1, x + w + 3, y + h + 1, c);
     if (ph >= 0.65f) { lvi_rect(B, x, y, w, h, fo.st == LV_DL_S_GOT ? 0x06200f : fo.st == LV_DL_S_DENY ? 0x220610 : 0x050c16); for (int yy = y + 2; yy < y + h - 1; yy += 4) lvi_rect(B, x + 1, yy, w - 2, 1, 0x081422);

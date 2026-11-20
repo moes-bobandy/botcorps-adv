@@ -1,0 +1,22 @@
+tick 300
+go 11
+rec 90 hch
+tap 120 160
+rec 40 hch_tap
+go 8
+tick 100
+theme 8
+rec 40 radar_th3
+tap 110 150
+rec 20 radar_th3_tap
+tap 216 292
+rec 40 radar_th3_pull
+theme 0
+rec 20 radar_th0_back
+tap 216 292
+rec 30 radar_close
+go 12
+rec 30 dl_back
+theme 22
+tap 120 280
+rec 40 dl_th5

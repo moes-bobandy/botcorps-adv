@@ -1,0 +1,11 @@
+tick 300
+motion 0
+go 16
+tick 20
+dump controlbot
+go 14
+tick 20
+dump ct_inside
+go 5
+tick 20
+dump ctl_old

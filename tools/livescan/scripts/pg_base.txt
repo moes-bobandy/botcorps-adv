@@ -1,0 +1,20 @@
+tick 300
+go 8
+tick 150
+motion 0
+rec 60 gib_idle
+tap 110 150
+tick 20
+rec 1 gib_sel
+tap 216 292
+rec 50 gib_pull
+dump gib_close
+go 12
+tick 80
+motion 0
+recstart dl_pull
+stick 1 100
+dlopen 4
+stick 16 100
+recstop
+rec 30 dl_open

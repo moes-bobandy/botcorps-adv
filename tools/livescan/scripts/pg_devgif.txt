@@ -1,0 +1,14 @@
+tick 300
+go 8
+tick 150
+motion 0
+tap 110 150
+tick 20
+devrec 3 gib_sel
+tap 216 292
+devrec 300 gib_pull
+go 12
+tick 80
+motion 0
+dlopen 4
+devrec 300 dl_pull

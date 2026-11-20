@@ -1,0 +1,9 @@
+base/gib_pull          frames= 50 diff_px=0
+base/dl_pull           frames= 17 diff_px=0
+base/gib_idle          frames= 60 diff_px=0
+base/gib_sel           frames=  1 diff_px=0
+base/dl_open           frames= 30 diff_px=0
+gib_close/gib_close    frames=  1 diff_px=0
+dl_close/dl_pull       frames= 17 diff_px=0
+dl_close/dl_close      frames=  1 diff_px=0
+TOTAL vs locked INFO-tower mock 726a5d3: frames 177 diff px 0

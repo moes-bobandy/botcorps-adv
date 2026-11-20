@@ -1,0 +1,20 @@
+== SIM_DEV_K=120.7
+gib_idle  k0: ms/frame avg   34.5 p95   41.9 max   47.1 | CPU   19.3 | SPI  147 KB/f | fps  29.0 | motion step max   48.0 ms | frames >100 ms: 0/180
+gib_idle  k1: ms/frame avg   33.7 p95   38.7 max   43.3 | CPU   18.1 | SPI  147 KB/f | fps  29.6 | motion step max   44.0 ms | frames >100 ms: 0/180
+gib_idle  kF: ms/frame avg   29.7 p95   38.5 max   43.0 | CPU   19.3 | SPI   94 KB/f | fps  33.7 | motion step max   44.0 ms | frames >100 ms: 0/180
+gib_pull  k0: ms/frame avg  192.3 p95  879.3 max 1347.4 | CPU  188.1 | SPI  149 KB/f | fps   5.2 | motion step max 1348.0 ms | frames >100 ms: 45/180
+gib_pull  k1: ms/frame avg   44.6 p95   58.7 max   85.9 | CPU   38.1 | SPI  149 KB/f | fps  22.4 | motion step max   86.0 ms | frames >100 ms: 0/180
+gib_pull  kF: ms/frame avg   42.5 p95   60.4 max  115.7 | CPU   37.1 | SPI   62 KB/f | fps  23.5 | motion step max  116.0 ms | frames >100 ms: 1/180
+dl_pull   k0: ms/frame avg  185.6 p95  888.4 max 1378.3 | CPU  183.4 | SPI  148 KB/f | fps   5.4 | motion step max 1379.0 ms | frames >100 ms: 25/180
+dl_pull   k1: ms/frame avg   46.0 p95   64.3 max   85.0 | CPU   42.6 | SPI  148 KB/f | fps  21.7 | motion step max   85.0 ms | frames >100 ms: 0/180
+dl_pull   kF: ms/frame avg   44.4 p95   68.0 max   98.2 | CPU   41.1 | SPI   53 KB/f | fps  22.5 | motion step max   99.0 ms | frames >100 ms: 0/180
+== SIM_DEV_K=181
+gib_idle  k0: ms/frame avg   38.4 p95   44.5 max   57.6 | CPU   25.9 | SPI  147 KB/f | fps  26.0 | motion step max   58.0 ms | frames >100 ms: 0/180
+gib_idle  k1: ms/frame avg   38.2 p95   43.3 max   61.6 | CPU   25.6 | SPI  147 KB/f | fps  26.2 | motion step max   62.0 ms | frames >100 ms: 0/180
+gib_idle  kF: ms/frame avg   37.4 p95   44.3 max   55.5 | CPU   29.1 | SPI   98 KB/f | fps  26.7 | motion step max   56.0 ms | frames >100 ms: 0/180
+gib_pull  k0: ms/frame avg  301.0 p95 1347.8 max 2349.4 | CPU  297.2 | SPI  149 KB/f | fps   3.3 | motion step max 2350.0 ms | frames >100 ms: 163/180
+gib_pull  k1: ms/frame avg   57.2 p95   84.4 max  110.4 | CPU   52.6 | SPI  149 KB/f | fps  17.5 | motion step max  111.0 ms | frames >100 ms: 2/180
+gib_pull  kF: ms/frame avg   56.9 p95   88.4 max  132.9 | CPU   51.6 | SPI   64 KB/f | fps  17.6 | motion step max  133.0 ms | frames >100 ms: 1/180
+dl_pull   k0: ms/frame avg  278.9 p95 1326.5 max 1969.2 | CPU  277.4 | SPI  148 KB/f | fps   3.6 | motion step max 1970.0 ms | frames >100 ms: 171/180
+dl_pull   k1: ms/frame avg   62.1 p95   94.2 max  122.6 | CPU   60.5 | SPI  148 KB/f | fps  16.1 | motion step max  123.0 ms | frames >100 ms: 2/180
+dl_pull   kF: ms/frame avg   64.4 p95  102.5 max  114.8 | CPU   60.9 | SPI   58 KB/f | fps  15.5 | motion step max  115.0 ms | frames >100 ms: 11/180

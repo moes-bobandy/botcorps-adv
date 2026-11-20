@@ -1313,6 +1313,12 @@ static inline void lvi_rect(LvBand &B, int x, int y, int w, int h, uint32_t c) {
 static inline void lvi_px(LvBand &B, int x, int y, uint32_t c) { if (x < 0 || y < 0 || x >= 240 || y >= 320) return; b_pix(B, x, y, lv_hex(c)); }
 static void lvi_line(LvBand &B, int x, int y, int xx, int yy, uint32_t c)
 { if ((y < B.y0 && yy < B.y0) || (y >= B.y0 + B.h && yy >= B.y0 + B.h)) return;   /* v1.2.11 speed: wholly outside this band */
+  /* v1.2.17 speed (pull-up glitch): a vertical line visits exactly the rows y..yy at column x (Bresenham with dx = 0), so only
+   * the band's rows are walked. Same pixels; the INFO monolith's 103 full-height strokes no longer cost 199 steps per band
+   * row (the v1.2.16 one-row fade ran them for every one of its 210 rows: ~13x the frame cost on the CYD). */
+  if (x == xx) { int ya = y < yy ? y : yy, yb = y < yy ? yy : y; if (ya < B.y0) ya = B.y0; if (yb > B.y0 + B.h - 1) yb = B.y0 + B.h - 1;
+    if (x < 0 || x >= 240) return; if (ya < 0) ya = 0; if (yb > 319) yb = 319;   /* lvi_px's own screen bounds */
+    if (yb >= ya) b_fill(B, x, ya, 1, yb - ya + 1, lv_hex(c)); return; }
   int dx = abs(xx - x), sx = x < xx ? 1 : -1, dy = -abs(yy - y), sy = y < yy ? 1 : -1, e = dx + dy;
   for (;;) { lvi_px(B, x, y, c); if (x == xx && y == yy) break; int e2 = 2 * e; if (e2 >= dy) { e += dy; x += sx; } if (e2 <= dx) { e += dx; y += sy; } } }
 static void lvi_box(LvBand &B, int x, int y, int w, int h, uint32_t c) { lvi_line(B, x, y, x + w - 1, y, c); lvi_line(B, x, y + h - 1, x + w - 1, y + h - 1, c); lvi_line(B, x, y, x, y + h - 1, c); lvi_line(B, x + w - 1, y, x + w - 1, y + h - 1, c); }
@@ -1323,7 +1329,8 @@ static inline void lvi_txt(LvBand &B, int x, int y, const char *s, uint32_t c, b
  if (big) b_text(B, x, y, s, lv_hex(c)); else b_text35(B, x, y, s, lv_hex(c)); }
 static unsigned lvi_band(int i, int f) { unsigned c = i < 6 ? 0x30ff90 : i < 9 ? 0xffb000 : 0xff385c; return i == (f / 4) % 11 ? c : ((c & 0xfefefe) >> 1); }
 static void lvi_micro(LvBand &B, int x, int y, int f, int seed, const uint8_t *mac)   /* was random hex: now the node's MAC, 2 bytes per plate */
-{ char s[6]; const int g = (unsigned)(seed + f / 3) % 3; snprintf(s, sizeof s, "%02X%02X", mac[g * 2], mac[g * 2 + 1]); lvi_rect(B, x - 1, y - 1, 18, 7, 0x030a14); lvi_txt(B, x, y, s, 0x23758c); }
+{ if (y + 5 < B.y0 || y - 1 >= B.y0 + B.h) return;   /* v1.2.17 speed: plate rows y-1..y+5 miss this band (draws nothing) */
+  char s[6]; const int g = (unsigned)(seed + f / 3) % 3; snprintf(s, sizeof s, "%02X%02X", mac[g * 2], mac[g * 2 + 1]); lvi_rect(B, x - 1, y - 1, 18, 7, 0x030a14); lvi_txt(B, x, y, s, 0x23758c); }
 /* v1.2.15: lv_rd_info_draw's tower-face band/glyph loop, verbatim (e4e3536:1310-1312; pre-extraction :1360-1362).
  * lvi_micro and lvi_band remain the original implementations above. Shared with the INFO screen, not a lookalike. */
 static void lv_rd_info_rows(LvBand &B, int frame, const uint8_t *mac)
@@ -1340,7 +1347,7 @@ static void lv_rd_info_tower(LvBand &B, int frame, const LvFind &f, const uint8_
     lvi_rect(B, 16, 46, 87, 199, 0x081b2a); for (int x = 17; x <= 101; x++) lvi_line(B, x, 46, x, 244, x % 8 == 0 ? 0x102c3a : 0x091d2b);
     for (int x = 103; x <= 120; x++) lvi_line(B, x, 46 - (x - 102) / 2, x, 245 - (x - 102) / 2, 0x071420);
     lvi_box(B, 16, 46, 87, 200, 0x42c9de); lvi_line(B, 16, 46, 34, 38, 0x69e7f0); lvi_line(B, 34, 38, 120, 38, 0x69e7f0); lvi_line(B, 103, 46, 120, 38, 0x30a2b8); lvi_line(B, 120, 38, 120, 236, 0x27849a); lvi_line(B, 103, 245, 120, 236, 0x27849a);
-    { char l[16]; lv_label(f, l, 13); lvi_rect(B, 19, 40, 56, 7, 0x050e18); lvi_txt(B, 21, 41, l, 0x30e8ff); }
+    if (b_yhit(B, 40, 46)) { char l[16]; lv_label(f, l, 13); lvi_rect(B, 19, 40, 56, 7, 0x050e18); lvi_txt(B, 21, 41, l, 0x30e8ff); }   /* v1.2.17: name plate rows 40..46 only */
     lv_rd_info_rows(B, frame, mac);
 }
 #if LV_RD_INFO_TOWER_PULL
@@ -1613,7 +1620,7 @@ static void lv_radar_frame(void)
         lv_rd_place(); if (lv_rd_fold_mode == 2) { lv_rd_clamp(); if (u >= 1) { lv_rd_fold_mode = 0; lv_rd_pull_p = 0; } }
     }
 #endif
-    lv_render(lv_blit, LV_R_RADAR, lv_scene_radar, 0);
+    lv_render(lv_blit_dirty, LV_R_RADAR, lv_scene_radar, 0);   /* v1.2.17: changed rows only */
 #if LV_RD_INFO
     if (lv_rd_info) lv_render(lv_blit, LvRect{0, 0, 239, 23}, lv_rd_info_scene_top, 0);   /* the mock's top chrome, rim included */
 #endif

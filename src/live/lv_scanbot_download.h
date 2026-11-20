@@ -411,6 +411,15 @@ static void lv_dl_scene(LvBand &B, void *)
         lv_draw_backbot(B, LV_R_BACKBOT.x0, LV_R_BACKBOT.y0);
         return;
     }
+    /* v1.2.15: the same INFO glyph plates, with this game's own bytes, never a scanner MAC.
+     * Six-byte window [tower number, file slot, name id, mb10, state, target+1]; rotates among the real files every 300ms.
+     * The original lvi_micro still selects byte pairs at its unchanged 30fps clock. */
+    if (lv_dl_tw >= 0) {
+        lv_rd_dl_rows_frame = (int)((uint32_t)(lv_now - lv_hc_w.lock_t) * 3u / 100u);
+        const int k = (lv_rd_dl_rows_frame / 9) % lv_dl_nf; const LvDlFile &file = lv_dl_fo[lv_dl_tw][k];
+        lv_rd_dl_rows[0] = (uint8_t)(lv_dl_tw + 1); lv_rd_dl_rows[1] = (uint8_t)(k + 1);
+        lv_rd_dl_rows[2] = file.name; lv_rd_dl_rows[3] = file.mb10; lv_rd_dl_rows[4] = file.st; lv_rd_dl_rows[5] = (uint8_t)(file.tgt + 1);
+    }
     lv_hc_swap(); lv_scene_radar(B, 0); lv_hc_swap();
     /* tower tags under each base; checked towers dimmed + green tick */
     if (B.y0 == 0) { lv_dl_ntag = 0; lv_dl_tag_tw = lv_dl_tw; }

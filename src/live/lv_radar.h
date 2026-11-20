@@ -984,6 +984,8 @@ static void lv_rd_info_draw(LvBand &B);
 #if LV_RD_FOLD
 static void lv_rd_fold_draw(LvBand &B);
 #endif
+static void lv_rd_tower_rows(LvBand &B, const LvTower &T, int frame, const uint8_t *data);
+static uint8_t lv_rd_dl_rows[6]; static int lv_rd_dl_rows_frame = 0;
 static void lv_scene_radar(LvBand &B, void *)
 {
 #if LV_RD_SKINS
@@ -1092,6 +1094,11 @@ static void lv_scene_radar(LvBand &B, void *)
         if (T.bx1 > T.x1) b_line(B, T.bx1, T.byt, T.bx1, T.byb, lv_dim(edge, 5, 8));
         if (T.bx0 < T.x0) b_line(B, T.bx0, T.byt, T.bx0, T.byb, lv_dim(edge, 5, 8));
         if (f.alert && ((lv_now / 300) & 1)) b_text35(B, (T.x0 + T.x1) / 2 - 1, T.byt - 7, "!", lv_hex(0xff4040));
+        if (sk == 0 && lv_rd_lock && lv_rd_pull_p > 0 && lv_rd_pull_scr == lv_scr && !memcmp(f.mac, lv_rd_pull_mac, 6)
+            && !memcmp(f.mac, lv_rd_lockmac, 6) && (lv_scr == LV_SC_RADAR || lv_scr == LV_SC_DL)) {
+            const int frame = lv_scr == LV_SC_RADAR ? (int)((uint32_t)(lv_now - lv_rd_lock_t) * 3u / 100u) : lv_rd_dl_rows_frame;
+            lv_rd_tower_rows(B, T, frame, lv_scr == LV_SC_RADAR ? f.mac : lv_rd_dl_rows);
+        }
 #if LV_RD_SKINS && LV_MO_INSIDE
         if (sk == 1) mo11_tower_fx(B, T);   /* MO v11: shoji ribs, green energy seam, frosted ghost icon, green flood on the open pillar */
 #endif
@@ -1294,6 +1301,37 @@ static inline void lvi_txt(LvBand &B, int x, int y, const char *s, uint32_t c, b
 static unsigned lvi_band(int i, int f) { unsigned c = i < 6 ? 0x30ff90 : i < 9 ? 0xffb000 : 0xff385c; return i == (f / 4) % 11 ? c : ((c & 0xfefefe) >> 1); }
 static void lvi_micro(LvBand &B, int x, int y, int f, int seed, const uint8_t *mac)   /* was random hex: now the node's MAC, 2 bytes per plate */
 { char s[6]; const int g = (unsigned)(seed + f / 3) % 3; snprintf(s, sizeof s, "%02X%02X", mac[g * 2], mac[g * 2 + 1]); lvi_rect(B, x - 1, y - 1, 18, 7, 0x030a14); lvi_txt(B, x, y, s, 0x23758c); }
+/* v1.2.15: lv_rd_info_draw's tower-face band/glyph loop, verbatim (e4e3536:1310-1312; pre-extraction :1360-1362).
+ * lvi_micro and lvi_band remain the original implementations above. Shared with the INFO screen, not a lookalike. */
+static void lv_rd_info_rows(LvBand &B, int frame, const uint8_t *mac)
+{
+    int lit = 1 + frame / 11 < 11 ? 1 + frame / 11 : 11;   /* the monolith's bands: the mock's file-drop progress (decor, unchanged) */
+    for (int i = 0; i < 11; i++) { int y = 238 - i * 18; unsigned co = i < lit ? lvi_band(i, frame) : 0x12313a; lvi_rect(B, 20, y - 4, 55, 5, co); lvi_rect(B, 21, y - 6, 53, 1, i < lit ? co : 0x17323d);
+        lvi_micro(B, 24, y + 3 + (frame / 3 % 3), frame, 1471 + i * 131, mac); lvi_micro(B, 50, y + 3 + (frame / 3 % 3), frame, 717 + i * 131, mac); }
+}
+/* v1.2.15 (Mobandy 12:02 PM ET pt1501u "On the new tower"): the INFO monolith's band + hex-plate rows on the pulled-up
+ * tower's front face. Source = the original raster of lv_rd_info_rows (1:1 at the full close-up, the 3x5 font unscaled).
+ * The face is 40 px at the close-up (2 x 0.12 x LV_RD_F / LV_SEL_ZC) vs the monolith's 87, so it shows the source
+ * window x21..60 (the left plate column whole, the right one cut by the tower edge), top-anchored at the monolith top y46.
+ * While the tower flies in the same window scales down with the face (nearest-neighbour) = it zooms with the tower.
+ * Drawn only inside the front face (outline kept), field rows only, right after that tower in the far -> near loop, so
+ * nearer towers / folders / deck still draw over it. One 87-px source row of scratch per output row. */
+static void lv_rd_tower_rows(LvBand &B, const LvTower &T, int frame, const uint8_t *data)
+{
+    const int x0 = T.x0 + 1, y0 = T.yt + 1, x1 = T.x1 - 1, yb0 = T.yb - 1;
+    if (x1 < x0 || yb0 < y0) return;
+    const int fw = (int)lroundf(2 * 0.12f * LV_RD_F / LV_SEL_ZC);   /* 40: the face at the full close-up */
+    const int wpx = T.x1 - T.x0; const bool one = wpx >= fw;        /* full close-up: exact 1:1 pixels */
+    int ya = b_ylo(B, y0), yb = b_yhi(B, yb0); if (ya < LV_RD_Y0) ya = LV_RD_Y0; if (yb > LV_RD_Y1) yb = LV_RD_Y1;
+    uint16_t row[87]; const uint16_t clear = 0x0821; int last = -1000;
+    for (int y = ya; y <= yb; ++y) {
+        const int sy = 46 + (one ? y - y0 : (y - y0) * fw / wpx); if (sy > 245) break;
+        if (sy != last) { for (int k = 0; k < 87; ++k) row[k] = clear; LvBand src = {row, 16, sy, 87, 1}; lv_rd_info_rows(src, frame, data); last = sy; }
+        const int xa = x0 > B.x0 ? x0 : B.x0, xe = x1 < B.x0 + B.w - 1 ? x1 : B.x0 + B.w - 1;
+        for (int x = xa; x <= xe; ++x) { const int sx = 21 + (one ? x - x0 : (x - x0) * fw / wpx); if (sx > 102) break;
+            const uint16_t c = row[sx - 16]; if (c != clear) b_pix(B, x, y, c); }
+    }
+}
 static void lvi_icon(LvBand &B, int x, int y, int id, uint32_t c)
 { lvi_box(B, x, y, 8, 8, c); if (id == 0) { lvi_box(B, x + 2, y + 2, 4, 4, c); lvi_px(B, x + 3, y + 3, 0xffffff); } if (id == 1) { lvi_line(B, x + 1, y + 6, x + 3, y + 2, c); lvi_line(B, x + 3, y + 2, x + 6, y + 6, c); }
   if (id == 2) { lvi_box(B, x + 2, y + 2, 4, 4, c); lvi_line(B, x, y + 3, x + 7, y + 3, c); } if (id == 3) { lvi_line(B, x + 1, y + 1, x + 6, y + 1, c); lvi_line(B, x + 1, y + 1, x + 2, y + 6, c); lvi_line(B, x + 6, y + 1, x + 4, y + 6, c); } }
@@ -1358,8 +1396,7 @@ static void lv_rd_info_draw(LvBand &B)
     lvi_box(B, 16, 46, 87, 200, 0x42c9de); lvi_line(B, 16, 46, 34, 38, 0x69e7f0); lvi_line(B, 34, 38, 120, 38, 0x69e7f0); lvi_line(B, 103, 46, 120, 38, 0x30a2b8); lvi_line(B, 120, 38, 120, 236, 0x27849a); lvi_line(B, 103, 245, 120, 236, 0x27849a);
     { char l[16]; lv_label(f, l, 13); lvi_rect(B, 19, 40, 56, 7, 0x050e18); lvi_txt(B, 21, 41, l, 0x30e8ff); }
     int lit = 1 + frame / 11 < 11 ? 1 + frame / 11 : 11;   /* the monolith's bands: the mock's file-drop progress (decor, unchanged) */
-    for (int i = 0; i < 11; i++) { int y = 238 - i * 18; unsigned co = i < lit ? lvi_band(i, frame) : 0x12313a; lvi_rect(B, 20, y - 4, 55, 5, co); lvi_rect(B, 21, y - 6, 53, 1, i < lit ? co : 0x17323d);
-        lvi_micro(B, 24, y + 3 + (frame / 3 % 3), frame, 1471 + i * 131, mac); lvi_micro(B, 50, y + 3 + (frame / 3 % 3), frame, 717 + i * 131, mac); }
+    lv_rd_info_rows(B, frame, mac);
     lvi_rect(B, 78, 50, 158, 13, 0x05101c); lvi_box(B, 78, 50, 158, 13, frame % 30 < 15 ? 0xffb000 : 0x59cddc); lvi_line(B, 84, 64, 235, 64, 0x81efff); lvi_line(B, 84, 65, 84, 238, 0x2ca5b5); lvi_line(B, 86, 65, 86, 238, 0x124d61);
     int rad = 8 + (frame % 24); for (int a = 0; a < 360; a += 5) { double r = a * 3.14159265 / 180; lvi_px(B, 59 + int(cos(r) * rad), 249 + int(sin(r) * rad / 4), 0x266881); }
     for (int i = 0; i < 6; i++) { int x = 40 + i * 6, y = 249 - ((i + frame / 3) % 3); lvi_line(B, x, y, x + 3, y, 0x75c9ed); if (i < 5) lvi_line(B, x + 3, y, x + 3, y + 1, 0x428ea8); }

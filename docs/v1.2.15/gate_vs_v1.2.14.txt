@@ -1,0 +1,19 @@
+# v1.2.15 gate vs v1.2.14 (sim, real renderer)
+ctl.rgb        frames=45 diff_px=0
+dl.rgb         frames=60 diff_px=0
+dlo.rgb        frames=60 diff_px=244953 frames_diff=60 box=x19-57 y67-246
+dojo.rgb       frames=120 diff_px=0
+dojoclose.rgb  frames=60 diff_px=0
+dojoopen.rgb   frames=90 diff_px=0
+home2.rgb      frames=30 diff_px=0
+p0.rgb         frames=45 diff_px=0
+p1.rgb         frames=45 diff_px=0
+p2.rgb         frames=45 diff_px=0
+p3.rgb         frames=45 diff_px=0
+radar.rgb      frames=90 diff_px=0
+TOTAL 244953
+dlo.rgb: all diffs x19-57 y67-246 = the open HACKbot tower's front face
+dl_flow.rgb    frames=35 diff_px=87829 frames_diff=22 box=x19-122 y65-245
+gib_flow.rgb   frames=35 diff_px=87446 frames_diff=22 box=x19-99 y67-246
+TOTAL 175275
+flows: diffs only frames 3-24 (tower open), inside the pulled-up tower; 0 px before the open and after the close

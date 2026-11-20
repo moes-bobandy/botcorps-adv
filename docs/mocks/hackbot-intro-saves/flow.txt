@@ -1,0 +1,14 @@
+go 12
+tick 16
+recstart flow
+stick 10 100
+tap 216 292
+stick 16 100
+tap 172 292
+stick 6 100
+tap 50 312
+stick 5 100
+tap 216 292
+stick 10 100
+recstop
+dlstate

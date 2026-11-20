@@ -358,7 +358,7 @@ static void lv_rd_pad_draw(LvBand &B, uint16_t hdr)
  * (frame, vias, plaque, bevel, arcade discs) in the theme ink: a 4-way cross d-pad + B BACK / A OPEN. Finger zones:
  * the d-pad box x6..95 y268..316 split on its diagonals (each arm >= 44 px wide), A / B 40 x 40 as GIBSON. */
 static int lv_hc_dpad_held = 0;   /* 1 up 2 down 3 left 4 right 5 A 6 B */
-static void pad_hc_deck(LvBand &B, const char *st, const char *st2)
+static void pad_hc_deck(LvBand &B, const char *st, const char *st2, const char *ud = "FOLDER", const char *lr = "TOWER")
 {
     if (!b_yhit(B, PAD_Y0, PAD_Y1)) return;
     const uint16_t ink = lv_ink(LV_ACC), dim = lv_ink(LV_ACCD), ice = lv_hex(0x30e8ff), ac = lv_hex(0xff2ad4);
@@ -372,7 +372,7 @@ static void pad_hc_deck(LvBand &B, const char *st, const char *st2)
     pad_octagon(B, cx, cy, 36, 20, lv_hex(0x100818), ink, 0);
     const int H = lv_hc_dpad_held;
     pad_cross(B, cx, cy, H, ink, ink);
-    b_text35(B, 104, 272, "UP/DN", dim); b_text35(B, 104, 280, "FOLDER", ink); b_text35(B, 104, 292, "L/R", dim); b_text35(B, 104, 300, "TOWER", ink);
+    b_text35(B, 104, 272, "UP/DN", dim); b_text35(B, 104, 280, ud, ink); b_text35(B, 104, 292, "L/R", dim); b_text35(B, 104, 300, lr, ink);
     auto arcade = [&](int x, int y, uint16_t col, const char *lab, const char *sub, int held) {
         pad_disc(B, x, y, 20, lv_hex(0x08040c), col, 0); pad_glow(B, x, y, 20, held ? lv_hi(col) : col, held ? 6 : 3);
         pad_disc(B, x, y, 15, held ? lv_mix(lv_hex(0x100818), col, 5, 8) : lv_hex(0x120818), col, held);

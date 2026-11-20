@@ -1,0 +1,18 @@
+go 12
+tick 24
+dlstate
+dump intro_slot1
+dlslot 2
+tick 2
+dump intro_empty
+dlslot 1
+dlapply
+tick 24
+dump play_loaded
+dlpause
+tick 2
+dump pause
+dlsave
+tick 2
+dump save_confirm
+dlstate

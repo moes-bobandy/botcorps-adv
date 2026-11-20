@@ -1,0 +1,14 @@
+go 12
+tick 24
+dlslot 1
+dlapply
+tick 24
+dlpause
+tick 2
+dump pause
+tap 50 312
+tick 1
+tap 50 312
+tick 2
+dump pause_exit
+dlstate

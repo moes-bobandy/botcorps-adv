@@ -1,0 +1,13 @@
+go 12
+dllevel 1
+tick 8
+tap 120 200
+tick 4
+dump gate_intro
+tap 120 200
+tick 20
+dump gate_play
+dlopen 4
+tick 40
+dump gate_open
+dlstate

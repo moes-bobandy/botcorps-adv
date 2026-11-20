@@ -1,0 +1,60 @@
+SIM MOCK only. No firmware bin was built, uploaded, or flashed.
+
+Host-sim: tools/livescan/sim_live.cpp compiled with g++ -O2 -std=gnu++17
+against /workspace/cyd-dojo-fix-wt (branch mock/hackbot-intro-saves-2026-11-20).
+Baseline gate: the same scripts on the v1.2.16 sim from cd5e118.
+
+What this mock adds (the rest of HACKbot is unchanged):
+- Opening HACKbot from HOME / pager now lands on a SAVE SLOTS intro. The
+  intro itself is the 3-slot picker (Mobandy). U/D moves between slots,
+  A opens the selected slot, B goes back home. The locked level typist
+  (INTRO) still appears after NEXT LEVEL, RETRY, or a NEW GAME slot, and
+  via the sim "dllevel" shortcut.
+- Each slot stores full progress: level, score, towers hacked, files
+  downloaded. Empty slots show NEW GAME.
+- Saves go to the CYD SD card: /BOTcorps/hackbot/slot1.sav .. slot3.sav
+  (16-byte little-endian record, magic "HB1\0", ver 1). If the card is
+  missing or the write fails, the same 16 bytes go in NVS namespace
+  "botcorps", keys hbsl1..hbsl3. The slot picker labels this:
+  "EX.DATA  SD /BOTcorps/hackbot/" and the save-confirm card shows the
+  exact file (slot1.sav) plus "NVS FALLBACK IF NO SD".
+- The host sim never mounts SD or NVS. It shows canned EXAMPLE DATA
+  (slot 1 filled: L3, score 860, towers 3/5, files 2/3; slots 2 and 3
+  NEW GAME), stamped EX.DATA so the numbers are not live saves.
+- During play, B on the field (no tower open) opens a PAUSE menu with
+  RESUME, SAVE, and EXIT (U/D, A selects, B resumes). SAVE writes the
+  slot in use and shows SLOT SAVED. EXIT returns home without saving.
+  B on an open tower still closes it (locked).
+- The 90s trace timer is frozen while paused. Rain and the camera keep
+  moving.
+- The card is the locked LEVEL CLEAR / TRACED frame (12,60 216x181,
+  magenta double border, 2x title). The real HACKbot d-pad deck stays
+  at y=247. Rain, chrome, fonts, and colours are the locked play look.
+
+IN-GAME PIXEL GATE vs v1.2.16 (cd5e118), same script (dllevel / play /
+open T4): 0 / 230400 px differ (3 screens x 76800). @3x stills are a
+pixel-exact 3x nearest-neighbor of @1x (0 px).
+
+GIF: 47 frames, 100 ms each, @3x (720x960) and @2x (480x640),
+nearest-neighbor, 10 fps. Flow: intro (slot 1) -> A continue -> play
+(L3, 2 of 3 files, 3/5 towers) -> B pause -> down to SAVE -> A ->
+SLOT SAVED.
+
+Uncertain / noted:
+- B on the field opens pause instead of going straight home. The slot
+  intro's B still goes home. EXIT on pause goes home without saving;
+  B / RESUME returns to play.
+- A filled slot continues into PLAY with that progress. NEW GAME opens
+  the locked level-1 typist.
+- Loading a mid-level save reshuffles that level's files (new_round)
+  and marks the first N towers seen and the first N targets downloaded.
+  The 860 score on a mid-level slot is example data (score is normally
+  computed at level clear).
+- On the slot intro, the chrome behind the card is the unused world
+  (L1 0.0S, 0/5 checked), not the selected slot's progress. The card
+  is the source of truth.
+- Firmware SD/NVS I/O is specified and packed, but not executed in this
+  host sim, and no bin was built.
+- The 3x5 font draws the SD path in uppercase.
+
+sim-only, not yet tested on your CYD.

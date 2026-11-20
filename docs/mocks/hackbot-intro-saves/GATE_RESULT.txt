@@ -1,0 +1,12 @@
+GAME SCREENS vs v1.2.16 (cd5e118):
+  gate_intro: 0 / 76800 px differ (0.0000%)
+  gate_play: 0 / 76800 px differ (0.0000%)
+  gate_open: 0 / 76800 px differ (0.0000%)
+  TOTAL: 0 / 230400 px differ
+INTRO + SAVE-CONFIRM vs 4885476:
+  intro_slot1: 0 / 76800 px differ (0.0000%)
+  intro_empty: 0 / 76800 px differ (0.0000%)
+  save_confirm: 0 / 76800 px differ (0.0000%)
+  TOTAL: 0 / 230400 px differ
+  (ref) play_loaded vs 4885476: 0 / 76800 px differ
+  (ref) pause vs 4885476: 2129 / 76800 px differ

@@ -286,6 +286,7 @@ static_assert(MO_N == 10, "hk table");
 static void mo11_tatami(LvBand &B, int y, float Z, float ph)   /* per floor row, before Gibson's seam rows + lanes: two-tone woven mats, one mat per grid cell */
 {
     if (y < B.y0 || y >= B.y0 + B.h) return;
+    if (LV_MO_BG) { (void)Z; (void)ph; return; }   /* dojo-white-bg: no mats; the solid white floor keeps only Gibson's grid rows + lanes */
     const int fade = Z > 7 ? 0 : Z > 4 ? (int)(256 * (7 - Z) / 3) : 256; if (!fade) return;
     const float zs = Z + ph; const int zr = (int)floorf(zs); const float zf = zs - zr;
     const uint16_t a = lv_hex(MO11_MAT_A), b = lv_hex(MO11_MAT_B);
@@ -309,6 +310,23 @@ static void mo11_horizon(LvBand &B, int shift)   /* Gibson's skyline, transforme
     const int top = LV_RD_HOR - 30, beam = top - 3;
     if (!b_yhit(B, LV_RD_Y0 - 2, LV_RD_HOR + 1)) return;   /* v1.2.11 speed: wall, beams, rafters all lie in rows LV_RD_Y0..LV_RD_HOR (lines clip to the band) */
     const uint16_t dark = lv_hex(MO11_BEAM), paper = lv_hex(MO11_PAPER), seam = lv_hex(MO11_SEAM);
+#if LV_MO_BG
+    {   /* dojo-white-bg: solid white wall (base fill) + the same framing as plain 1 px grid lines: panel frames, wall top, head beam, sill,
+         * ceiling rafters and cross beams at their existing positions / perspective */
+        const uint16_t G = LV_MO_BG == 2 ? lv_hex(0x000000) : seam; (void)dark; (void)paper;
+        for (int k = -12; k < 36; ++k) { const int x0 = k * 11 - 6 - shift; if (x0 < -11 || x0 > 240) continue;
+            for (int y = b_ylo(B, top); y < LV_RD_HOR && y < B.y0 + B.h; ++y) mo11_bl(B, x0, y, G, 256); }
+        if (b_yhit(B, top, top)) mo11_hrow(B, top, 0, 239, G, 256);
+        if (b_yhit(B, beam, beam)) mo11_hrow(B, beam, 0, 239, G, 256);
+        if (b_yhit(B, LV_RD_HOR - 2, LV_RD_HOR - 2)) mo11_hrow(B, LV_RD_HOR - 2, 0, 239, G, 256);
+        const float Yc = 2.25f, Zw = 4.8f;
+        for (int r = -6; r <= 6; ++r) { const float X = r * 0.6f, z0 = 1.6f; const float xa = mo_px(X, z0), ya = mo_py(Yc, z0), xb = mo_px(X, Zw), yb = mo_py(Yc, Zw);
+            mo_aline(B, xa, ya < LV_RD_Y0 ? LV_RD_Y0 : ya, xb, yb, G, 256); }
+        for (int q = 0; q < 6; ++q) { const float Z = 1.9f + q * 0.55f; const int y = (int)lv_lroundf(mo_py(Yc, Z)); if (y < LV_RD_Y0 || y >= beam || !b_yhit(B, y, y)) continue;
+            mo11_hrow(B, y, 0, 239, G, 256); }
+        return;
+    }
+#endif
     for (int y = b_ylo(B, top); y < LV_RD_HOR && y < B.y0 + B.h; ++y) mo11_hrow(B, y, 0, 239, paper, 200);   /* backlit paper band */
     for (int k = -12; k < 36; ++k) {   /* Gibson's skyline slots (x = k*11 - 6 - shift) become shoji panels; extended past 24 so a far-pillar pan never leaves a gap */
         const int x0 = k * 11 - 6 - shift, w = 9; if (x0 < -11 || x0 > 240) continue;

@@ -1008,13 +1008,15 @@ static void lv_scene_radar(LvBand &B, void *)
     const float t = (lv_now - lv_rd_t0 + LV_RD_SOFF) / 1000.0f;
     const uint16_t hdr = lv_ink(LV_HDR);
     uint16_t mag = lv_hex(0xff2ad4), grid = lv_hex(0x7a1cff);
-    if (sk == 1) { mag = lv_hex(0x3b2e1e); grid = lv_hex(0x5c4a32); }        /* MO v11: dark-timber horizon rail + timber tatami seams */
+    if (sk == 1) { mag = lv_hex(0x3b2e1e); grid = lv_hex(0x5c4a32); }
+    if (sk == 1 && LV_MO_BG) { mag = grid = LV_MO_BG == 2 ? lv_hex(0x000000) : lv_hex(0x5c4a32); }   /* dojo-white-bg: one grid colour (A Dojo brown MO11_SEAM, B black) */        /* MO v11: dark-timber horizon rail + timber tatami seams */
     else if (sk == 2) { mag = lv_hex(0x6fd3ea); grid = lv_hex(0x2c3a4c); }   /* TR: cyan horizon + steel floor grid */
     else if (sk == 3) { mag = lv_hex(0x24d6c4); grid = lv_hex(0x0d5a63); }   /* CT: teal horizon + deep-teal floor grid */
     for (int y = B.y0; y < B.y0 + B.h; ++y) {
         uint16_t c = 0;
         if (y >= LV_RD_Y0 && y <= LV_RD_Y1) {
-            if (sk == 1) { if (y < LV_RD_HOR) { const int k = (y - LV_RD_Y0) * 10 / (LV_RD_HOR - LV_RD_Y0); c = lv_mix(lv_hex(0x9c8360), lv_hex(0xc8b38c), k, 10); } else c = lv_hex(0xe8dec8); }   /* MO v11: Gibson's sky ramp as the cedar dojo ceiling + parchment floor */
+            if (sk == 1 && LV_MO_BG) c = lv_hex(0xffffff);   /* dojo-white-bg: solid white wall + floor */
+            else if (sk == 1) { if (y < LV_RD_HOR) { const int k = (y - LV_RD_Y0) * 10 / (LV_RD_HOR - LV_RD_Y0); c = lv_mix(lv_hex(0x9c8360), lv_hex(0xc8b38c), k, 10); } else c = lv_hex(0xe8dec8); }   /* MO v11: Gibson's sky ramp as the cedar dojo ceiling + parchment floor */
             else if (sk == 2) { if (y < LV_RD_HOR) { const int k = (y - LV_RD_Y0) * 10 / (LV_RD_HOR - LV_RD_Y0); c = lv_rgb((uint8_t)(6 + k), (uint8_t)(12 + k * 2), (uint8_t)(20 + k * 3)); } else c = lv_hex(0x060b12); }   /* TR: deep steel void */
             else if (sk == 3) { if (y < LV_RD_HOR) { const int k = (y - LV_RD_Y0) * 10 / (LV_RD_HOR - LV_RD_Y0); c = lv_rgb(0, (uint8_t)(8 + k * 2), (uint8_t)(10 + k * 2)); } else c = lv_hex(0x02100f); }   /* CT: deep teal void */
             else if (y < LV_RD_HOR) { const int k = (y - LV_RD_Y0) * 10 / (LV_RD_HOR - LV_RD_Y0); c = lv_rgb((uint8_t)(4 + k * 2), 0, (uint8_t)(10 + k * 3)); }
@@ -1042,7 +1044,7 @@ static void lv_scene_radar(LvBand &B, void *)
 #if LV_RD_SKINS && LV_MO_INSIDE
         if (sk == 1) mo11_tatami(B, y, Z, ph);   /* MO v11: two-tone tatami under Gibson's own seam rows + lanes */
 #endif
-        const uint16_t gc = (sk == 1) ? lv_mix(lv_hex(0xe8dec8), grid, k, 8) : lv_dim(grid, k, 8);
+        const uint16_t gc = (sk == 1 && LV_MO_BG) ? lv_mix(lv_hex(0xffffff), grid, k, 8) : (sk == 1) ? lv_mix(lv_hex(0xe8dec8), grid, k, 8) : lv_dim(grid, k, 8);   /* dojo-white-bg: the same rows + lanes and depth fade, on white */
         if (floorf(Z + ph) != floorf(Zn + ph)) b_fill(B, 0, y, 240, 1, gc);
         for (int g = -12; g <= 12; ++g) { const int x = (int)lv_lroundf(120 + LV_RD_F * (g * 0.5f - lv_rd_camx) / Z); b_pix(B, x, y, gc); }
         if (lv_rainmode == 1) {   /* SWEEP: a bright line rolls from the horizon to you */

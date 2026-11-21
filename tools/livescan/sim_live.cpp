@@ -331,7 +331,8 @@ int main(int argc, char **argv)
     blob.resize(LK_BLOB_SIZE);
     if (fread(blob.data(), 1, LK_BLOB_SIZE, bf) != LK_BLOB_SIZE) return 1;
     LkIo io{blob.data(), infl, lv_clip_draw, ibuf};
-    /* fw-3locks: SIM_THEME=N boots with NVS lktheme=N (persistence test) */ lv_begin(&FAKE, blit, raw_draw, getenv("SIM_THEME") ? atoi(getenv("SIM_THEME")) : 0, 0, !(argc > 3 && !strcmp(argv[3], "nocal")));
+    /* fw-3locks: SIM_THEME=N boots with NVS lktheme=N (persistence test) */ lv_present_begin_fn = dev_present_begin; lv_present_end_fn = dev_present_end;
+    lv_begin(&FAKE, blit, raw_draw, getenv("SIM_THEME") ? atoi(getenv("SIM_THEME")) : 0, 0, !(argc > 3 && !strcmp(argv[3], "nocal")));
 #if LV_CB   /* fw-3locks: SIM_CB="scan,vol,bri,chime,time,bar,tone" = the CONTROLbot NVS values read at boot (persistence test) */
     if (getenv("SIM_CB")) { int v[7]; if (sscanf(getenv("SIM_CB"), "%d,%d,%d,%d,%d,%d,%d", v, v + 1, v + 2, v + 3, v + 4, v + 5, v + 6) == 7)
         lv_cb_set = LvCbSet{(uint8_t)v[0], (uint8_t)v[1], (uint8_t)v[2], (uint8_t)v[3], (uint8_t)v[4], (uint8_t)v[5], (uint8_t)v[6]}; }
@@ -495,7 +496,7 @@ int main(int argc, char **argv)
             int n; char nm[64]; if (fscanf(sc, "%d %63s", &n, nm) != 2) return 2;
             char p[512], pc[512], pt[512]; snprintf(p, sizeof p, "%s/%s.rgb", argv[2], nm); snprintf(pc, sizeof pc, "%s/%s.cam.rgb", argv[2], nm); snprintf(pt, sizeof pt, "%s/%s.dev.txt", argv[2], nm);
             FILE *fo = fopen(p, "wb"), *fc = fopen(pc, "wb"), *ft = fopen(pt, "w");
-            g_dev_k = getenv("SIM_DEV_K") ? atof(getenv("SIM_DEV_K")) : 1.0; g_dev = true; memcpy(g_pb, fb, sizeof g_pb); g_dev_ev.clear(); g_dev_ev_i = 0;
+            g_dev_k = getenv("SIM_DEV_K") ? atof(getenv("SIM_DEV_K")) : 1.0; g_dev = true; memcpy(g_pb, fb, sizeof g_pb); g_dev_ev.clear(); g_dev_ev_i = 0; g_pr_open = 0;
             double E = t_ms * 1000.0, next = E, cam = E, last_s = -1; g_dev_dma = E;
             static uint8_t row[240 * 3];
             auto put = [&](FILE *f, uint16_t (*b)[240]) { for (int y = 0; y < 320; ++y) { for (int x = 0; x < 240; ++x) { uint16_t v = b[y][x]; int r = (v >> 11) & 31, g = (v >> 5) & 63, bl = v & 31;

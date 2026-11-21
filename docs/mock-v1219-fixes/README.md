@@ -110,3 +110,13 @@ and (152,272)-(191,311). Centre gap: **x 102..147 (46 px) x y 268..316 (49 px)**
 
 Hard gate vs bd6c320: `gate_strip_towers_vs_bd6c320.txt`. Outside-strip 0 px on same-state frames.
 Renders: `/workspace/out/fw-bigbot-1117/v1219-fixes/strip-towers-vs-bd6c320/`.
+
+## 6. Dojo idle no-tear / faster pull-forward
+
+The split happens during idle pillar sway (strip-by-strip SPI of a moving scene), not
+at pull-forward. `LV_MO_COHERENT_PRESENT` (default 1) fences each Dojo frame so the
+device-timeline panel latches one coherent image at present-complete. `MO_PUSH_FAST`
+(default 1) shortens the pull ease 400→240 ms; completed poses stay 0 px vs c70ef04.
+Details: `DOJO_COHERENT.md`, `gate_dojo_coherent_vs_c70ef04.txt`.
+Proofs: `/workspace/out/fw-bigbot-1117/v1219-fixes/dojo-coherent/`.
+

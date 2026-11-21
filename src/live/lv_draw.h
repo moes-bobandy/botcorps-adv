@@ -176,6 +176,11 @@ static inline void lv_flash_band(LvBand &B)
 /* v1.2.10 (Dojo fix): called after every band is pushed. lv_ui.cpp sets it to read the touch panel between
  * bands while the Dojo renders (its frame is long on the CYD); nullptr = nothing, as before. Never draws. */
 static void (*lv_band_hook)(void) = nullptr;
+/* Dojo coherent present fence (mock/v1219). Host sim wires these to dev_present_*; device leaves them null. */
+static void (*lv_present_begin_fn)(void) = nullptr;
+static void (*lv_present_end_fn)(void) = nullptr;
+static inline void lv_present_begin(void) { if (lv_present_begin_fn) lv_present_begin_fn(); }
+static inline void lv_present_end(void) { if (lv_present_end_fn) lv_present_end_fn(); }
 static inline void lv_render(lv_blit_fn blit, const LvRect &r, lv_scene_fn scene, void *ctx)
 {
     const int w = r.x1 - r.x0 + 1, h = r.y1 - r.y0 + 1;

@@ -134,6 +134,9 @@ static int mo_last = -1; static uint32_t mo_close_t = 0; static bool mo_closing 
 #ifndef MO_DROP_FAST
 #define MO_DROP_FAST 1
 #endif
+#ifndef LV_MO_COHERENT_PRESENT
+#define LV_MO_COHERENT_PRESENT 1   /* mock/v1219: each Dojo frame is one present; the panel latches it whole */
+#endif
 #ifndef MO_DROP_X0
 #define MO_DROP_X0 (MO12_FX - 8)   /* drop-only frames touch x >= 84 only: folders, their glow / shadow / green frame, the index line, "n/3 SCROLLS" */
 #endif
@@ -237,7 +240,14 @@ static float mo_t(void) { return (lv_now - mo_tw0) / 1000.0f; }
 
 /* ---- v12 open state: the close-up push (all of it is gated on a tapped / closing pillar; idle never reaches it) ---- */
 #define MO12_PUSH0 0       /* the push starts while the flood is still rising (pill 0..480, flood 480..900) */
+#ifndef MO_PUSH_FAST
+#define MO_PUSH_FAST 1   /* mock/v1219: faster pull-forward; set 0 to keep the 400 ms ease. End poses unchanged. */
+#endif
+#if MO_PUSH_FAST
+#define MO12_PUSH_MS 240     /* camera + pillar ease to the close-up (was 400; completed u=0 / u=1 poses unchanged) */
+#else
 #define MO12_PUSH_MS 400     /* camera + pillar ease to the close-up */
+#endif
 #define MO12_CLOSE_MS 560    /* < TOWERS: the same ease back to idle */
 #define MO12_ZC 0.72f        /* close-up depth of the front face */
 #define MO12_SX 38.0f        /* close-up front-face centre column (the DOWNLOAD game parks its tower at x 50) */
@@ -817,11 +827,23 @@ static void itw_mo_frame(void)
         for (int k = 0; k < ns; ++k) { if (sp[k][0] < 24) sp[k][0] = 24; if (sp[k][1] > 285) sp[k][1] = 285; }
         for (int k = 1; k < ns; ++k) for (int q = k; q > 0 && sp[q][0] < sp[q - 1][0]; --q) { int t0 = sp[q][0], t1 = sp[q][1]; sp[q][0] = sp[q - 1][0]; sp[q][1] = sp[q - 1][1]; sp[q - 1][0] = t0; sp[q - 1][1] = t1; }
         lv_now = mo_full_now; mo_drop_el = del;   /* the held scene; only the folder clock moves */
+#if LV_MO_COHERENT_PRESENT
+        lv_present_begin();   /* one fence around every blit of this Dojo frame */
+#endif
         for (int k = 0; k < ns; ) { int a = sp[k][0], b = sp[k][1]; ++k; while (k < ns && sp[k][0] <= b + 1) { if (sp[k][1] > b) b = sp[k][1]; ++k; }
             if (a <= b) lv_render(lv_blit_dirty_hw, {(int16_t)MO_DROP_X0, (int16_t)a, 239, (int16_t)b}, itw_mo_scene, 0); }
+#if LV_MO_COHERENT_PRESENT
+        lv_present_end();
+#endif
         mo_drop_el = -1; mo_prev_del = del;
     } else {
+#if LV_MO_COHERENT_PRESENT
+        lv_present_begin();   /* idle (and every full frame): latch the field as one image, not strip-by-strip */
+#endif
     lv_render(lv_blit_dirty_hw, {0, 24, 239, 319}, itw_mo_scene, 0);   /* perf-all: changed rows only (was lv_blit_hw: every row, every frame) */
+#if LV_MO_COHERENT_PRESENT
+        lv_present_end();
+#endif
         mo_full_now = lv_now; mo_full_t0 = itw_mo_t0; mo_full_sel = itw_mo_sel; mo_prev_del = del;
     }
     lv_now = real;

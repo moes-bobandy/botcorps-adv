@@ -1,0 +1,16 @@
+Dojo coherent present + pull-forward speed (LV_MO_COHERENT_PRESENT, MO_PUSH_FAST)
+
+Completed frames vs c70ef04 (look lock), same t:
+  idle (t=11400): 0 px
+  open_done (t=12300, 900 ms after tap, both past u=1): 0 px
+  settled (t=13800, 2400 ms after tap): 0 px
+  devrec finished idle frames: 24 frames, 0 px before-fence vs after-fence
+
+Device-timeline (devrec 24 idle frames, camera every 20 ms, SIM_DEV_K=1):
+  BEFORE fence: 21 of 36 cam frames mixed old/new pillar geometry (seams e.g. y=141, 142, 144, 243, 245, 246)
+  AFTER  fence:  0 of 36 cam frames mixed; all 36 field rows (y35..285) match the last completed present
+
+Pull-forward: MO_PUSH_FAST shortens MO12_PUSH_MS 400 -> 240. Mid-pull at t=11580 (180 ms after tap)
+differs by 27367 px in (0,36)-(239,246). Idle and fully-open / settled poses stay 0 px vs c70ef04.
+
+Proofs: /workspace/out/fw-bigbot-1117/v1219-fixes/dojo-coherent/

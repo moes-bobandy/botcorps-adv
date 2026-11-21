@@ -1,0 +1,28 @@
+== A ref=b18 new=combined
+clip                               avg ms     p95     max    CPU  KB/f   fps    >100ms
+dj_dev/dojo_close            ref     86.8   141.5   152.5   84.0   110  11.5   47/135 
+dj_dev/dojo_close            new     48.3    87.4   109.0   44.0   108  20.7    1/135 
+dj_dev/dojo_drop             ref    150.7   192.5   257.3  146.2   100   6.6  135/135 
+dj_dev/dojo_drop             new     96.1   107.0   131.9   90.8    97  10.4   26/135 
+dj_dev/dojo_fold             ref    145.0   194.5   200.7  139.8    95   6.9   87/90  
+dj_dev/dojo_fold             new     97.0   109.5   120.6   91.2    90  10.3   45/90  
+dj_dev/dojo_idle             ref     67.2    76.0    84.9   64.3   110  14.9    0/180 
+dj_dev/dojo_idle             new     40.9    46.3    71.8   36.7   108  24.4    0/180 
+dj_dev/dojo_open             ref    134.7   161.1   225.5  130.5   101   7.4  132/135 
+dj_dev/dojo_open             new     66.8   106.9   119.6   62.5    78  15.0   30/135 
+pa_dev/dojo_enter            ref     75.2   105.7   112.3   72.2   112  13.3   15/120 
+pa_dev/dojo_enter            new     43.4    52.9    60.8   39.4   112  23.0    0/120 
+== B ref=b10 new=combined
+clip                               avg ms     p95     max    CPU  KB/f   fps    >100ms
+dj_dev/dojo_close            ref     45.7    73.1    90.7   41.4   108  21.9    0/135 
+dj_dev/dojo_close            new     48.3    87.4   109.0   44.0   108  20.7    1/135 
+dj_dev/dojo_drop             ref    100.5   119.0   138.6   95.7    96  10.0   55/135 
+dj_dev/dojo_drop             new     96.1   107.0   131.9   90.8    97  10.4   26/135 
+dj_dev/dojo_fold             ref     95.5   106.6   129.9   89.8    91  10.5   33/90  
+dj_dev/dojo_fold             new     97.0   109.5   120.6   91.2    90  10.3   45/90  
+dj_dev/dojo_idle             ref     43.8    50.7    70.0   39.7   109  22.8    0/180 
+dj_dev/dojo_idle             new     40.9    46.3    71.8   36.7   108  24.4    0/180 
+dj_dev/dojo_open             ref     94.9   124.1   151.0   89.7    98  10.5   54/135 
+dj_dev/dojo_open             new     66.8   106.9   119.6   62.5    78  15.0   30/135 
+pa_dev/dojo_enter            ref     49.9    72.2    76.0   46.0   112  20.1    0/120 
+pa_dev/dojo_enter            new     43.4    52.9    60.8   39.4   112  23.0    0/120 

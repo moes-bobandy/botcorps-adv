@@ -1,0 +1,8 @@
+band 12 et/dojo_open: drop-only vs full held render 0 px
+band 12 et/dojo_drop: drop-only vs full held render 0 px
+band 12 flock/dojo_open: drop-only vs full held render 0 px
+band 12 flock/dojo_drop: drop-only vs full held render 0 px
+band 24 et/dojo_open: drop-only vs full held render 0 px
+band 24 et/dojo_drop: drop-only vs full held render 0 px
+band 24 flock/dojo_open: drop-only vs full held render 0 px
+band 24 flock/dojo_drop: drop-only vs full held render 0 px

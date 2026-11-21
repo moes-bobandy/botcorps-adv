@@ -1,0 +1,14 @@
+flock/dojo_idle comb vs 0513879 (10 brown): frames differing 0/60 
+flock/dojo_open comb vs 0513879 (10 brown): frames differing 20/45 f24-f43
+flock/dojo_drop comb vs 0513879 (10 brown): frames differing 0/45 
+flock/dojo_fold comb vs 0513879 (10 brown): frames differing 0/30 
+flock/dojo_close comb vs 0513879 (10 brown): frames differing 0/45 
+flock/dojo_drop landed folder region vs c08935a: cards 0 px, pillar list 0 px
+flock/dojo_fold landed folder region vs c08935a: cards 0 px, pillar list 0 px
+et/dojo_idle comb vs 0513879 (10 brown): frames differing 0/60 
+et/dojo_open comb vs 0513879 (10 brown): frames differing 15/45 f30-f44
+et/dojo_drop comb vs 0513879 (10 brown): frames differing 5/45 f0-f4
+et/dojo_fold comb vs 0513879 (10 brown): frames differing 0/30 
+et/dojo_close comb vs 0513879 (10 brown): frames differing 0/45 
+et/dojo_drop landed folder region vs c08935a: cards 0 px, pillar list 0 px
+et/dojo_fold landed folder region vs c08935a: cards 0 px, pillar list 0 px

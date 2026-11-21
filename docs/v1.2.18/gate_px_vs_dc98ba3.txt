@@ -1,0 +1,34 @@
+== band rows 24: HEAD vs dc98ba3
+pg_gate/dojo.rgb             frames= 120 diff_px=4548394
+pg_gate/dojoclose.rgb        frames=  60 diff_px=2437541
+pg_gate/dojoopen.rgb         frames=  90 diff_px=4388036
+pa_gate/pa_dojo_enter.rgb    frames=  20 diff_px=759526
+pa_gate/pa_tty.rgb           frames=  20 diff_px=320
+dj_gate/dj_close.rgb         frames=  45 diff_px=1848322
+dj_gate/dj_close2.rgb        frames=  30 diff_px=1171611
+dj_gate/dj_drop.rgb          frames=  45 diff_px=1218971
+dj_gate/dj_fold.rgb          frames=  30 diff_px=798172
+dj_gate/dj_fold2.rgb         frames=  20 diff_px=549207
+dj_gate/dj_idle.rgb          frames=  60 diff_px=2265186
+dj_gate/dj_open.rgb          frames=  45 diff_px=2078068
+dj_gate/dj_open2.rgb         frames=  60 diff_px=1556548
+dj_gate/dj_th5.rgb           frames=  20 diff_px=814771
+pg_screens/dojo.rgb          frames=   1 diff_px=37782
+TOTAL frames 2959 diff px 24472455
+== band rows 12: HEAD vs dc98ba3
+pg_gate/dojo.rgb             frames= 120 diff_px=4548394
+pg_gate/dojoclose.rgb        frames=  60 diff_px=2437541
+pg_gate/dojoopen.rgb         frames=  90 diff_px=4388036
+pa_gate/pa_dojo_enter.rgb    frames=  20 diff_px=759526
+pa_gate/pa_tty.rgb           frames=  20 diff_px=320
+dj_gate/dj_close.rgb         frames=  45 diff_px=1848322
+dj_gate/dj_close2.rgb        frames=  30 diff_px=1171611
+dj_gate/dj_drop.rgb          frames=  45 diff_px=1218971
+dj_gate/dj_fold.rgb          frames=  30 diff_px=798172
+dj_gate/dj_fold2.rgb         frames=  20 diff_px=549207
+dj_gate/dj_idle.rgb          frames=  60 diff_px=2265186
+dj_gate/dj_open.rgb          frames=  45 diff_px=2078068
+dj_gate/dj_open2.rgb         frames=  60 diff_px=1556548
+dj_gate/dj_th5.rgb           frames=  20 diff_px=814771
+pg_screens/dojo.rgb          frames=   1 diff_px=37782
+TOTAL frames 2959 diff px 24472455

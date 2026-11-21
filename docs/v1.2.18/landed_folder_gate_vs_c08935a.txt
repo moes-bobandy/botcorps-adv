@@ -1,0 +1,14 @@
+flock/dojo_idle v1.2.18 vs combined c70ef04: 0 px
+flock/dojo_open v1.2.18 vs combined c70ef04: 0 px
+flock/dojo_drop v1.2.18 vs combined c70ef04: 0 px
+flock/dojo_fold v1.2.18 vs combined c70ef04: 0 px
+flock/dojo_close v1.2.18 vs combined c70ef04: 0 px
+flock/dojo_drop landed folder region vs c08935a: cards 0 px, pillar list 0 px
+flock/dojo_fold landed folder region vs c08935a: cards 0 px, pillar list 0 px
+et/dojo_idle v1.2.18 vs combined c70ef04: 0 px
+et/dojo_open v1.2.18 vs combined c70ef04: 0 px
+et/dojo_drop v1.2.18 vs combined c70ef04: 0 px
+et/dojo_fold v1.2.18 vs combined c70ef04: 0 px
+et/dojo_close v1.2.18 vs combined c70ef04: 0 px
+et/dojo_drop landed folder region vs c08935a: cards 0 px, pillar list 0 px
+et/dojo_fold landed folder region vs c08935a: cards 0 px, pillar list 0 px

@@ -36,12 +36,12 @@ static MoUiRep mo_ui_rep;
 static int mo_txt_oc = -1;   /* v4: 1 px opaque outline colour behind on-tower text (-1 none) */
 static void mo_emb_draw(LvBand &B, int i, int x0, int y0, int S, uint32_t bc, uint32_t dc, uint32_t hc, int a, int ha, int yhi = 9999)
 {
-    const MoEmb *E = mo_emb_get(i, S); if (!E) return; S = E->S; const int H = S + 2;
+    MoEmbV E; if (!mo_emb_view(i, S, E)) return; S = E.S; const int H = S + 2;   /* dojo-glitch: flash table first, cache otherwise */
     if (ha > 0) { mo_ex[i] = x0; mo_ey[i] = y0; mo_eS[i] = S; }   /* only the pillar emblems (with halo) are recorded; chip / folder glyphs are not */
     const uint16_t BC = lv_hex(bc), DC = lv_hex(dc), HC = lv_hex(hc);
     const int ya = B.y0 - y0 + 1 > 0 ? B.y0 - y0 + 1 : 0, yz = B.y0 + B.h - y0 + 1;   /* v1.2.11 speed: halo rows in this band (y0-1+y in B) */
-    if (ha > 0) for (int y = ya; y < H && y < yz; ++y) { if (y0 - 1 + y > yhi) break; for (int x = 0; x < H; ++x) { const int k = E->halo[y * H + x]; if (k) mo_ui_px(B, x0 - 1 + x, y0 - 1 + y, HC, a); } }   /* v4: opaque outline */
-    for (int y = ya > 0 ? ya - 1 : 0; y < S && y < yz - 1; ++y) { if (y0 + y > yhi) break; for (int x = 0; x < S; ++x) { const int kb = E->body[y * S + x], kd = E->det[y * S + x];
+    if (ha > 0) for (int y = ya; y < H && y < yz; ++y) { if (y0 - 1 + y > yhi) break; for (int x = 0; x < H; ++x) { const bool k = mo_ev(E, E.halo, y * H + x); if (k) mo_ui_px(B, x0 - 1 + x, y0 - 1 + y, HC, a); } }   /* v4: opaque outline */
+    for (int y = ya > 0 ? ya - 1 : 0; y < S && y < yz - 1; ++y) { if (y0 + y > yhi) break; for (int x = 0; x < S; ++x) { const bool kb = mo_ev(E, E.body, y * S + x), kd = mo_ev(E, E.det, y * S + x);
         if (kb) mo_ui_px(B, x0 + x, y0 + y, BC, a); if (kd) mo_ui_px(B, x0 + x, y0 + y, DC, a); } }   /* v4: binary masks, opaque */
 }
 static inline int mo_embS(int fw) { return fw >= 50 ? 40 : fw >= 44 ? 32 : fw >= 20 ? 16 : fw >= 12 ? 10 : fw >= 8 ? 8 : 0; }   /* v3 steps (kept for reference) */
@@ -161,7 +161,7 @@ static void mo3_size(const char *nm, char *out) { unsigned h = 7; for (const cha
 static const uint32_t MO_EMB_COL[MO_N] = {0x3dcccc, 0xace600, 0xccc35c, 0xff0055, 0x26ffc9, 0xb95ccc, 0x00ff6a, 0xffd400, 0x0080ff, 0x0000ff, 0xcc5c6a, 0xff4000, 0x0033cc, 0xff00ff, 0x00bfff, 0xff9500, 0xff00aa, 0x78cc5c};   /* v5: per-device emblem colour (src/emb_colors.py) */
 static const uint32_t MO_EMB_DET[MO_N] = {0x1c120c, 0x1c120c, 0x1c120c, 0xffffff, 0x1c120c, 0xffffff, 0x1c120c, 0x1c120c, 0xffffff, 0xffffff, 0xffffff, 0xffffff, 0xffffff, 0xffffff, 0x1c120c, 0x1c120c, 0xffffff, 0x1c120c};
 static inline int mo3_cl(int v, int lo, int hi) { return v < lo ? lo : v > hi ? hi : v; }
-static inline uint16_t mo3_mx(uint32_t a, uint32_t b, float u) { const int k = (int)lroundf((u < 0 ? 0 : u > 1 ? 1 : u) * 64); return lv_mix(lv_hex(a), lv_hex(b), k, 64); }
+static inline uint16_t mo3_mx(uint32_t a, uint32_t b, float u) { const int k = (int)lv_lroundf((u < 0 ? 0 : u > 1 ? 1 : u) * 64); return lv_mix(lv_hex(a), lv_hex(b), k, 64); }
 /* clipped 3x5 text (rows ylo..yhi, columns <= xhi), soft fade over the window's top / bottom 4 rows */
 static void mo3_t35(LvBand &B, int x, int y, const char *s, uint16_t c, int a, int ylo, int yhi, int xhi)
 {
@@ -235,7 +235,7 @@ static void mo11_tower_fx(LvBand &B, const LvTower &T)
     const int a = open ? 256 : mo11_fade();
     const int x0 = T.x0, x1 = T.x1, yt = T.yt, yb = T.yb, fw = x1 - x0; if (fw < 2) return;
     const float kd = 1.0f + 1.0f * cp;
-    const int bx0 = x0 + (int)lroundf((T.bx0 - x0) * kd), bx1 = x1 + (int)lroundf((T.bx1 - x1) * kd), byt = yt + (int)lroundf((T.byt - yt) * kd), byb = yb + (int)lroundf((T.byb - yb) * kd);
+    const int bx0 = x0 + (int)lv_lroundf((T.bx0 - x0) * kd), bx1 = x1 + (int)lv_lroundf((T.bx1 - x1) * kd), byt = yt + (int)lv_lroundf((T.byt - yt) * kd), byb = yb + (int)lv_lroundf((T.byb - yb) * kd);
     const float t = lv_now / 1000.0f;
     const int yv = yb < 246 || !open ? yb : 246;   /* visible bottom of the body (the open panel covers 247..) */
     const int S = mo_embS4(i, fw); mo_ui_a = a;
@@ -245,7 +245,7 @@ static void mo11_tower_fx(LvBand &B, const LvTower &T)
     if (cp < 0.3f) mo3_shadow(B, x0, x1, yb, 0x1e2a20, a * 90 / 256);
     /* v4: no soft outer glow (it muddied the edges) */
     auto side = [&](int xf, int xbk) { const int dir = xbk > xf ? 1 : -1, n = abs(xbk - xf); if (n < 1) return;
-        for (int s = 0; s <= n; ++s) { const int x = xf + dir * s; const float u = s / (float)n; const int top = (int)lroundf(yt + (byt - yt) * u), bot = (int)lroundf(yb + (byb - yb) * u);
+        for (int s = 0; s <= n; ++s) { const int x = xf + dir * s; const float u = s / (float)n; const int top = (int)lv_lroundf(yt + (byt - yt) * u), bot = (int)lv_lroundf(yb + (byb - yb) * u);
             for (int y = b_ylo(B, top); y <= b_yhi(B, bot); ++y) mo13_px(B, x, y, mo3_mx(0x05160d, 0x000201, u * 0.7f + 0.3f * (y - top) / (float)(bot - top + 1)), a);
             if (s % 3 == 1) { const int hd = top + (int)fmodf(t * (22 + (x * 7) % 17) + x * 13, (float)(bot - top + 18)); for (int q = 0; q < 10; ++q) { const int y = hd - q; if (y >= top && y <= bot) mo13_px(B, x, y, lv_hex(q ? MO11_G : MO11_GH), a * (q ? 120 - q * 10 : 200) / 256); } } }
         mo13_line(B, xbk, byt, xbk, byb, lv_hex(0x0a6a30), a); mo13_line(B, xf, yt, xbk, byt, lv_hex(MO11_GH), a); };
@@ -279,7 +279,7 @@ static void mo11_tower_fx(LvBand &B, const LvTower &T)
     /* ===== T2 CONSTRUCT WHITE LIGHT: luminous white slab, soft shadow, crisp green wire edges, floating green emblem ===== */
     if (cp < 0.3f) mo3_shadow(B, x0, x1, yb, 0x5a5448, a * 120 / 256);   /* v4: no soft white outer glow */
     auto side = [&](int xf, int xbk) { const int dir = xbk > xf ? 1 : -1, n = abs(xbk - xf); if (n < 1) return;
-        for (int s = 0; s <= n; ++s) { const int x = xf + dir * s; const float u = s / (float)n; const int top = (int)lroundf(yt + (byt - yt) * u), bot = (int)lroundf(yb + (byb - yb) * u);
+        for (int s = 0; s <= n; ++s) { const int x = xf + dir * s; const float u = s / (float)n; const int top = (int)lv_lroundf(yt + (byt - yt) * u), bot = (int)lv_lroundf(yb + (byb - yb) * u);
             for (int y = b_ylo(B, top); y <= b_yhi(B, bot); ++y) mo13_px(B, x, y, lv_hex(0xc4ccc8), a * 150 / 256); }   /* v4: see-through side */
         mo13_line(B, xbk, byt, xbk, byb, lv_hex(MO11_G), a); mo13_line(B, xf, yt, xbk, byt, lv_hex(MO11_G), a); mo13_line(B, xf, yb, xbk, byb, lv_hex(0x5a8a6a), a); };
     if (bx1 > x1) side(x1, bx1);
@@ -291,7 +291,7 @@ static void mo11_tower_fx(LvBand &B, const LvTower &T)
     const int iy = yt + (S >= 32 ? 7 : 3);   /* v4: no bob */
     if (S) { const int ix = x0 + 1 + (fw - 1 - S) / 2;
         if (S >= 32) { const float cx = ix + S / 2.0f - 0.5f, cy = iy + S / 2.0f - 0.5f, R = S * 0.5f + (S >= 32 ? 5 : 2);   /* thin green orbit ring under the emblem */
-            for (int k = 0; k < 160; ++k) { const float th = k * 6.2832f / 160; mo13_px(B, (int)lroundf(cx + R * cosf(th)), (int)lroundf(cy + R * 0.32f * sinf(th) + S * 0.5f + 1), lv_hex(MO11_G), a * 150 / 256); } }
+            for (int k = 0; k < 160; ++k) { const float th = k * 6.2832f / 160; mo13_px(B, (int)lv_lroundf(cx + R * cosf(th)), (int)lv_lroundf(cy + R * 0.32f * sinf(th) + S * 0.5f + 1), lv_hex(MO11_G), a * 150 / 256); } }
         mo_emb_draw(B, i, ix, iy, S, 0x005a20, 0x00b843, 0xffffff, a, a); }
     else if (fw >= 5) { const int gx = (x0 + x1) / 2 - 1; for (int r = 0; r < 5; ++r) for (int c = 0; c < 3; ++c) if (MO13_GLY[MO_KIND[i]][r][c] == '#') mo13_px(B, gx + c, yt + 3 + r, lv_hex(MO11_G), a); }
     const int ly0 = (S ? iy + S + (big ? 12 : 4) : yt + 10), ly1 = yv - (big ? 4 : 2);
@@ -310,7 +310,7 @@ static void mo11_tower_fx(LvBand &B, const LvTower &T)
         const float g = sinf((x - x0) * (fw >= 40 ? 0.55f : 1.3f) + 1.6f * sinf(y * 0.11f + i * 1.3f) + i);
         (void)u; return lv_hex(g > 0.15f ? 0x8a5428 : 0x4a2a12); };   /* v4: two-tone grain (crisp streaks, no ramp) */
     auto side = [&](int xf, int xbk) { const int dir = xbk > xf ? 1 : -1, n = abs(xbk - xf); if (n < 1) return;
-        for (int s = 0; s <= n; ++s) { const int x = xf + dir * s; const float u = s / (float)n; const int top = (int)lroundf(yt + (byt - yt) * u), bot = (int)lroundf(yb + (byb - yb) * u);
+        for (int s = 0; s <= n; ++s) { const int x = xf + dir * s; const float u = s / (float)n; const int top = (int)lv_lroundf(yt + (byt - yt) * u), bot = (int)lv_lroundf(yb + (byb - yb) * u);
             if (x < B.x0 || x >= B.x0 + B.w || bot < B.y0 || top >= B.y0 + B.h) continue;   /* v1.2.10 speed: column outside this band (mo13_px would clip every pixel) */
             const uint16_t sc = MO_BODY == 4 ? lv_hex(mo_mixc(0xa8741c, 0x5a3a0c, u)) : MO_BODY == 5 ? lv_hex(mo_mixc(mo_mixc(MO_EMB_COL[i], 0x000000, 0.45f), mo_mixc(MO_EMB_COL[i], 0x000000, 0.7f), u)) : MO_BODY == 6 ? lv_hex(mo_mixc(0xb01c26, 0x5a0a10, u)) : mo3_mx(0x6a4020, 0x2a160a, u);   /* v1.2.10 speed: depends on the column only (same value as before) */
             for (int y = b_ylo(B, top); y <= b_yhi(B, bot); ++y) mo13_px(B, x, y, sc, a); }   /* v5e: solid side; towers3b: shaded side */
@@ -324,7 +324,8 @@ static void mo11_tower_fx(LvBand &B, const LvTower &T)
     uint32_t e_col[240]; const int ex0 = x0 < B.x0 ? B.x0 : x0, ex1 = x1 > B.x0 + B.w - 1 ? B.x0 + B.w - 1 : x1;
     for (int x = ex0; x <= ex1; ++x) { const float u = (x - x0) / (float)fw; e_col[x - ex0] = u < 0.35f ? mo_mixc(e_lit, e_mid, u / 0.35f) : mo_mixc(e_mid, e_dk, (u - 0.35f) / 0.65f); }
     for (int y = (yt > B.y0 ? yt : B.y0); y <= yv && y < B.y0 + B.h; ++y) { const float v = (y - yt) / (float)(yb - yt + 1);
-        for (int x = ex0; x <= ex1; ++x) mo13_px(B, x, y, lv_hex(mo_mixc(e_col[x - ex0], e_dk, v * 0.22f)), a); }
+        uint32_t lk = 0xffffffffu; uint16_t lc = 0;   /* perf-all 2026-11-21: neighbouring columns often share e_col; same mix, computed once */
+        for (int x = ex0; x <= ex1; ++x) { const uint32_t e = e_col[x - ex0]; if (e != lk) { lk = e; lc = lv_hex(mo_mixc(e, e_dk, v * 0.22f)); } mo13_px(B, x, y, lc, a); } }
     if (0)
 #endif
     for (int y = b_ylo(B, yt); y <= b_yhi(B, yv); ++y) { const float v = (y - yt) / (float)(yb - yt + 1);
@@ -351,7 +352,7 @@ static void mo11_tower_fx(LvBand &B, const LvTower &T)
     { const int lw = fw >= 40 ? 4 : fw >= 20 ? 3 : 2, pitch = lw + 2, wx1 = x1 - 2, wx0 = wx1 - lw - 1;
       const int ytop = bt0 + bh + 2 * (fw >= 40 ? 4 : 2) + (S ? S + 2 : 0), ybot = bb0 - 2;
       const int ns = (ybot - ytop + 2) / pitch;
-      if (fw >= 8 && ns >= 2) { const float sg = mo_sig(i); const int nl = (int)lroundf(sg * (ns - 1));
+      if (fw >= 8 && ns >= 2) { const float sg = mo_sig(i); const int nl = (int)lv_lroundf(sg * (ns - 1));
         for (int y = b_ylo(B, ytop - 1); y <= b_yhi(B, ytop + ns * pitch - 1); ++y) for (int x = wx0; x <= wx1; ++x) mo13_px(B, x, y, lv_hex(0x08090b), a);   /* the well */
         for (int k = 0; k < ns; ++k) { const int ly = ytop + k * pitch, kk = ns - 1 - k;   /* k = 0 at the top */
           uint32_t c = 0x1c2420;

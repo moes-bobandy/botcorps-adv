@@ -153,3 +153,23 @@ static const MoEmb *mo_emb_get(int i, int S)
         E->halo[y * H + x] = (uint8_t)(m > 255 ? 255 : m); }
     mo_emb_cache[i][S] = E; mo_emb_at[i][S] = mo_emb_gen; mo_emb_bytes += need; return E;
 }
+/* dojo-glitch 2026-11-21: every (emblem, size) the Dojo actually draws (S 4..18 idle / chip / glyph, 40 close-up) is a 1-bit
+ * body / detail / halo table in flash (mo_emb_table.h), generated on the host by tools/livescan/gen_mo_emb_table.cpp from this
+ * same mo_emb_get() rasteriser, so the masks are bit-identical to the cache. Those emblems no longer touch the heap: no 6x6
+ * supersample rebuild spikes (the first close-up frame spent ~0.5 s rasterising the 40 px emblem), and a radio init
+ * (mo_emb_hold / mo_emb_free_req) can no longer blank them mid-frame on the board. Other sizes keep the cache path. */
+#ifndef MO_EMBT_GEN
+#include "mo_emb_table.h"
+#endif
+struct MoEmbV { int S; const uint8_t *body, *det, *halo; bool bit; };
+static inline bool mo_ev(const MoEmbV &v, const uint8_t *p, int k) { return v.bit ? ((p[k >> 3] >> (k & 7)) & 1) : p[k] != 0; }
+static bool mo_emb_view(int i, int S, MoEmbV &v)
+{
+    if (i < 0 || i >= MO_EMB_N) return false; if (S < 4) S = 4; if (S > MO_EMB_MAXS) S = MO_EMB_MAXS;
+#ifndef MO_EMBT_GEN
+    const uint32_t o = MO_EMBT_OFF[i][S];
+    if (o != 0xffffffffu) { const int n = (S * S + 7) / 8; v.S = S; v.bit = true; v.body = MO_EMBT_BITS + o; v.det = v.body + n; v.halo = v.det + n; return true; }
+#endif
+    const MoEmb *E = mo_emb_get(i, S); if (!E) return false;
+    v.S = E->S; v.bit = false; v.body = E->body; v.det = E->det; v.halo = E->halo; return true;
+}

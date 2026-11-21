@@ -1,0 +1,11 @@
+tick 300
+go 13
+tick 60
+devrec 60 dojo_idle
+tap 120 160
+devrec 45 dojo_open
+devrec 45 dojo_drop
+tap 160 75
+devrec 30 dojo_fold
+tap 200 265
+devrec 45 dojo_close

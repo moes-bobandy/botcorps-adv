@@ -165,7 +165,10 @@ static inline void mo11_bl(LvBand &B, int x, int y, uint16_t c, int a)   /* alph
     if (a <= 0 || x < B.x0 || x >= B.x0 + B.w || y < B.y0 || y >= B.y0 + B.h) return;
     uint16_t &p = B.px[(y - B.y0) * B.w + (x - B.x0)];
     if (a >= 256) { p = c; return; }   /* v1.2.11 speed: every opaque pillar/UI pixel was doing a 3-channel blend by 256/256 (exactly c) */
-    p = lv_mix(p, c, a, 256);
+    /* perf-all 2026-11-21: one-entry memo; runs of the same (under, ink, alpha) skip the 3-channel blend (lv_mix is a pure function) */
+    static uint32_t mk = 0xffffffffu; static int ma = -1; static uint16_t mv = 0;
+    const uint32_t k = (uint32_t)p << 16 | c; if (k != mk || a != ma) { mk = k; ma = a; mv = lv_mix(p, c, a, 256); }
+    p = mv;
 }
 static int mo_cy0 = -10000;   /* scene clip top: folders never paint over the header (y < 46) */
 static inline void mo_bl(LvBand &B, int x, int y, uint16_t c, int a) { if (y >= mo_cy0) mo11_bl(B, x, y, c, a); }
@@ -181,16 +184,17 @@ static void mo_quad(LvBand &B, const float *px, const float *py, uint16_t c, int
             if ((y < ay && y < by) || (y > ay && y > by)) continue;
             const float x = ay == by ? (ax < bx ? ax : bx) : ax + (bx - ax) * (y - ay) / (by - ay); if (x < xa) xa = x; if (x > xb) xb = x;
             if (ay == by) { const float x2 = ax > bx ? ax : bx; if (x2 > xb) xb = x2; } }
-        if (xa <= xb) mo_hspan(B, y, (int)lroundf(xa), (int)lroundf(xb), c, a);
+        if (xa <= xb) mo_hspan(B, y, (int)lv_lroundf(xa), (int)lv_lroundf(xb), c, a);
     }
 }
 static void mo_aline(LvBand &B, float x0, float y0, float x1, float y1, uint16_t c, int a)   /* anti-aliased line (Wu-style, mostly vertical/horizontal) */
 {
     if ((y0 < B.y0 - 2 && y1 < B.y0 - 2) || (y0 > B.y0 + B.h + 1 && y1 > B.y0 + B.h + 1)) return;   /* v1.2.11 speed: wholly outside this band */
     const float dx = x1 - x0, dy = y1 - y0; const int n = (int)(fabsf(dx) > fabsf(dy) ? fabsf(dx) : fabsf(dy)) + 1;
-    for (int k = 0; k <= n; ++k) { const float t = (float)k / n, x = x0 + dx * t, y = y0 + dy * t;
-        if (fabsf(dx) > fabsf(dy)) { const int yi = (int)floorf(y); const float f = y - yi; mo_bl(B, (int)lroundf(x), yi, c, (int)(a * (1 - f))); mo_bl(B, (int)lroundf(x), yi + 1, c, (int)(a * f)); }
-        else { const int xi = (int)floorf(x); const float f = x - xi; mo_bl(B, xi, (int)lroundf(y), c, (int)(a * (1 - f))); mo_bl(B, xi + 1, (int)lroundf(y), c, (int)(a * f)); } }
+    const float ylo = (float)(B.y0 - 2), yhi = (float)(B.y0 + B.h + 1);   /* perf-all: samples whose 2 rows miss the band draw nothing */
+    for (int k = 0; k <= n; ++k) { const float t = (float)k / n, x = x0 + dx * t, y = y0 + dy * t; if (y < ylo || y > yhi) continue;
+        if (fabsf(dx) > fabsf(dy)) { const int yi = (int)floorf(y); const float f = y - yi; mo_bl(B, (int)lv_lroundf(x), yi, c, (int)(a * (1 - f))); mo_bl(B, (int)lv_lroundf(x), yi + 1, c, (int)(a * f)); }
+        else { const int xi = (int)floorf(x); const float f = x - xi; mo_bl(B, xi, (int)lv_lroundf(y), c, (int)(a * (1 - f))); mo_bl(B, xi + 1, (int)lv_lroundf(y), c, (int)(a * f)); } }
 }
 
 
@@ -287,7 +291,7 @@ static void mo11_horizon(LvBand &B, int shift)   /* Gibson's skyline, transforme
     for (int y = b_ylo(B, top); y < LV_RD_HOR && y < B.y0 + B.h; ++y) for (int x = 0; x < 240; ++x) mo11_bl(B, x, y, paper, 200);   /* backlit paper band */
     for (int k = -12; k < 36; ++k) {   /* Gibson's skyline slots (x = k*11 - 6 - shift) become shoji panels; extended past 24 so a far-pillar pan never leaves a gap */
         const int x0 = k * 11 - 6 - shift, w = 9; if (x0 < -11 || x0 > 240) continue;
-        for (int yy = top + 4; yy < LV_RD_HOR - 2; yy += 6) for (int x = x0 + 1; x < x0 + w; ++x) mo11_bl(B, x, yy, seam, 90);   /* kumiko lattice */
+        for (int yy = top + 4; yy < LV_RD_HOR - 2; yy += 6) { if (yy < B.y0 || yy >= B.y0 + B.h) continue; for (int x = x0 + 1; x < x0 + w; ++x) mo11_bl(B, x, yy, seam, 90); }   /* kumiko lattice (perf-all: band rows only) */
         for (int y = b_ylo(B, top); y < LV_RD_HOR && y < B.y0 + B.h; ++y) { mo11_bl(B, x0 + 4, y, seam, 70); mo11_bl(B, x0, y, dark, ((k + 36) % 3) == 0 ? 230 : 120); }
         if (((k + 36) % 3) == 0) for (int y = b_ylo(B, top); y < LV_RD_HOR && y < B.y0 + B.h; ++y) mo11_bl(B, x0 + 1, y, dark, 160);   /* heavy timber post every 3 panels */
     }
@@ -302,7 +306,7 @@ static void mo11_horizon(LvBand &B, int shift)   /* Gibson's skyline, transforme
         (void)ya;
     }
     for (int q = 0; q < 6; ++q) {   /* cross beams */
-        const float Z = 1.9f + q * 0.55f; const int y = (int)lroundf(mo_py(Yc, Z)); if (y < LV_RD_Y0 || y >= beam || !b_yhit(B, y, y + 1)) continue;
+        const float Z = 1.9f + q * 0.55f; const int y = (int)lv_lroundf(mo_py(Yc, Z)); if (y < LV_RD_Y0 || y >= beam || !b_yhit(B, y, y + 1)) continue;
         for (int x = 0; x < 240; ++x) { mo11_bl(B, x, y, dark, 150 - q * 14); mo11_bl(B, x, y + 1, lv_hex(0xd8c6a0), 60 - q * 6); }
     }
 }
@@ -416,7 +420,13 @@ static float mo_flood(void) { return 0; }   /* v13: no green flood */
 static void mo12_wash(LvBand &B, float p)   /* v12: the room behind the close-up washes toward the parchment (field rows 35..246) */
 {
     const int a = (int)(110 * p); if (a <= 0) return; const uint16_t pap = lv_hex(MO11_PAPER);
-    for (int y = LV_RD_Y0 + 1; y <= 246; ++y) mo_hspan(B, y, 0, 239, pap, a);
+    /* perf-all 2026-11-21: the same per-pixel blend as mo_hspan -> mo_bl -> mo11_bl, walked directly over the band's own rows and columns
+     * (same clips: field rows, mo_cy0, band rect), with a one-entry memo because the room behind is long runs of one colour. */
+    int ya = LV_RD_Y0 + 1; if (ya < B.y0) ya = B.y0; if (ya < mo_cy0) ya = mo_cy0; int yb = 246; if (yb > B.y0 + B.h - 1) yb = B.y0 + B.h - 1;
+    const int xa = B.x0 > 0 ? B.x0 : 0, xb = B.x0 + B.w - 1 < 239 ? B.x0 + B.w - 1 : 239;
+    uint16_t lk = 0, lv = 0; bool have = false;
+    for (int y = ya; y <= yb; ++y) { uint16_t *q = B.px + (y - B.y0) * B.w + (xa - B.x0);
+        for (int x = xa; x <= xb; ++x, ++q) { if (a >= 256) { *q = pap; continue; } if (!have || *q != lk) { have = true; lk = *q; lv = lv_mix(lk, pap, a, 256); } *q = lv; } }
 }
 static void mo11_ink(const LvTower &T, uint16_t &face, uint16_t &edge)
 {
@@ -433,7 +443,9 @@ static void mo13_px(LvBand &B, int x, int y, uint16_t c, int a) { if (y >= LV_RD
 static void mo13_line(LvBand &B, int x, int y, int xx, int yy, uint16_t c, int a)   /* crisp Bresenham, field-clipped */
 { if ((y < B.y0 && yy < B.y0) || (y >= B.y0 + B.h && yy >= B.y0 + B.h)) return;   /* v1.2.11 speed: wholly outside this band */
   int dx = abs(xx - x), sx = x < xx ? 1 : -1, dy = -abs(yy - y), sy = y < yy ? 1 : -1, e = dx + dy;
-  for (;;) { mo13_px(B, x, y, c, a); if (x == xx && y == yy) break; int e2 = 2 * e; if (e2 >= dy) { e += dy; x += sx; } if (e2 <= dx) { e += dx; y += sy; } } }
+  const int ylo = B.y0, yhi = B.y0 + B.h;   /* perf-all: monotonic y; skip rows outside the band, stop once past it (same pixels) */
+  for (;;) { if (y >= ylo && y < yhi) mo13_px(B, x, y, c, a); else if (sy > 0 ? y >= yhi : y < ylo) break;
+    if (x == xx && y == yy) break; int e2 = 2 * e; if (e2 >= dy) { e += dy; x += sx; } if (e2 <= dx) { e += dx; y += sy; } } }
 static void mo13_span(LvBand &B, int y, int xa, int xb, uint16_t c, int a) { if (y < LV_RD_Y0 + 1 || y > LV_RD_Y1) return; mo_hspan(B, y, xa, xb, c, a); }
 static uint32_t mo13_icol(char ch)   /* LV_ICON_ART inks -> Dojo: outline ink, parchment body / shade / highlight, fixed inks Matrix green */
 { return ch == 'k' ? 0x1e1a16 : ch == 'a' ? 0xe8dec8 : ch == 'b' ? 0xb8a47c : ch == 'c' ? 0xffffff : 0x00a83c; }
@@ -463,7 +475,7 @@ static void mo13_tower_fx_v131(LvBand &B, const LvTower &T)   /* v13.1 skin, kep
     const int x0 = T.x0, x1 = T.x1, yt = T.yt, yb = T.yb, fw = x1 - x0;
     /* close-up: deepen the pillar along its own receding edges (x and y extrapolated on the same rays) so the side + cap read as real 3D */
     const float k = 1.0f + 1.4f * cp;
-    const int bx0 = x0 + (int)lroundf((T.bx0 - x0) * k), bx1 = x1 + (int)lroundf((T.bx1 - x1) * k), byt = yt + (int)lroundf((T.byt - yt) * k), byb = yb + (int)lroundf((T.byb - yb) * k);
+    const int bx0 = x0 + (int)lv_lroundf((T.bx0 - x0) * k), bx1 = x1 + (int)lv_lroundf((T.bx1 - x1) * k), byt = yt + (int)lv_lroundf((T.byt - yt) * k), byb = yb + (int)lv_lroundf((T.byb - yb) * k);
     const uint16_t PAP = lv_hex(MO11_PAPER), DK = lv_hex(0x100c09), G = lv_hex(MO11_G), GH = lv_hex(MO11_GH);
     const int pitch = fw >= 40 ? 7 : fw >= 14 ? 5 : 4;   /* pane row pitch (front + side share it so the rows line up round the corner) */
     const int S = fw >= 60 ? 48 : fw >= 38 ? 32 : fw >= 20 ? 16 : fw >= 12 ? 8 : 0, wy0 = S ? yt + 3 + S + 8 : yt + (fw >= 7 ? 10 : 3);
@@ -471,15 +483,15 @@ static void mo13_tower_fx_v131(LvBand &B, const LvTower &T)   /* v13.1 skin, kep
     auto side = [&](int xf, int xbk) {
         const int dir = xbk > xf ? 1 : -1, n = abs(xbk - xf); if (n < 1) return;
         for (int s = 0; s <= n; ++s) { const int x = xf + dir * s; const float u = s / (float)n;
-            const int top = (int)lroundf(yt + (byt - yt) * u), bot = (int)lroundf(yb + (byb - yb) * u);
+            const int top = (int)lv_lroundf(yt + (byt - yt) * u), bot = (int)lv_lroundf(yb + (byb - yb) * u);
             const uint16_t base = mo13_mix(0x7a6342, 0x241b12, s, n);   /* graded shading */
             for (int y = top; y <= bot; ++y) mo13_px(B, x, y, base, a); }
         /* perspective shoji ribs: one per pane row, a dark kumiko line + a lit line under it, both on the receding rays */
         if (n >= 3) for (int yf = wy0; yf < yb - 1; yf += 2 * pitch) { const float v = (yf - yt) / (float)(yb - yt);
-            const int ya = yf, yb2 = (int)lroundf(byt + (byb - byt) * v);
+            const int ya = yf, yb2 = (int)lv_lroundf(byt + (byb - byt) * v);
             mo13_line(B, xf + dir, ya, xbk, yb2, lv_hex(0x1a140e), a); mo13_line(B, xf + dir, ya + 1, xbk, yb2 + 1, lv_hex(0xa88e62), a * 2 / 3); }
         if (n >= 8) for (int q = 1; q <= 2; ++q) { const int s = n * q / 3, x = xf + dir * s; const float u = s / (float)n;   /* posts */
-            mo13_line(B, x, (int)lroundf(yt + (byt - yt) * u), x, (int)lroundf(yb + (byb - yb) * u), lv_hex(0x1e1610), a); }
+            mo13_line(B, x, (int)lv_lroundf(yt + (byt - yt) * u), x, (int)lv_lroundf(yb + (byb - yb) * u), lv_hex(0x1e1610), a); }
         mo13_line(B, xf + dir, yt + 1, xf + dir, yb - 1, lv_hex(0xd8c6a0), a);          /* lit corner edge */
         mo13_line(B, xbk, byt, xbk, byb, lv_hex(0x120e0a), a); mo13_line(B, xf, yt, xbk, byt, lv_hex(0xcbb894), a); mo13_line(B, xf, yb, xbk, byb, DK, a);
     };
@@ -729,7 +741,7 @@ static void itw_mo_frame(void)
         itw_mo_phase = el < MO12_PUSH_MS ? 1 : el < MO12_DROP0 + 2 * MO12_GAP + MO12_DROP_MS ? 2 : 3; }
     /* v1.2.5: dirty-rect the field only (y=24..319). Never clear or repaint the ticker band;
      * a full-frame blit was overwriting the banner every tick, then itw_top black-filled it. */
-    lv_render(lv_blit_hw, {0, 24, 239, 319}, itw_mo_scene, 0);
+    lv_render(lv_blit_dirty_hw, {0, 24, 239, 319}, itw_mo_scene, 0);   /* perf-all: changed rows only (was lv_blit_hw: every row, every frame) */
     lv_now = real;
     itw_top();
 }

@@ -116,12 +116,23 @@ static inline uint16_t lv_boost(uint16_t c, int num, int den) /* scale up, clamp
     if (r > 31) r = 31; if (g > 63) g = 63; if (b > 31) b = 31;
     return (uint16_t)((r << 11) | (g << 5) | b);
 }
+template <int N> static inline uint16_t lv_mix_n(uint16_t a, uint16_t b, int k)   /* perf-all 2026-11-21: lv_mix with a constant divisor */
+{   /* same C truncating division, so the same result; the compiler turns /N into shifts with the sign fix-up */
+    const int r = (a >> 11) + (((b >> 11) - (a >> 11)) * k) / N, g = ((a >> 5) & 63) + ((((b >> 5) & 63) - ((a >> 5) & 63)) * k) / N,
+              bl = (a & 31) + (((b & 31) - (a & 31)) * k) / N;
+    return (uint16_t)((r << 11) | (g << 5) | bl);
+}
 static inline uint16_t lv_mix(uint16_t a, uint16_t b, int k, int n) /* a -> b by k/n */
 {
+    if (n == 256) return lv_mix_n<256>(a, b, k);   /* perf-all: the alpha blends (/256), Gibson glows (/8), ramps (/64) */
+    if (n == 8) return lv_mix_n<8>(a, b, k);
+    if (n == 64) return lv_mix_n<64>(a, b, k);
     const int r = (a >> 11) + (((b >> 11) - (a >> 11)) * k) / n, g = ((a >> 5) & 63) + ((((b >> 5) & 63) - ((a >> 5) & 63)) * k) / n,
               bl = (a & 31) + (((b & 31) - (a & 31)) * k) / n;
     return (uint16_t)((r << 11) | (g << 5) | bl);
 }
+/* perf-all 2026-11-21: lroundf without the libm call (round half away from zero, the same value for |v| < 2^31). */
+static inline long lv_lroundf(float v) { long i = (long)v; const float d = v - (float)i; if (d >= 0.5f) ++i; else if (d <= -0.5f) --i; return i; }
 
 /* Press highlight (hit-list item 5): brighten the element's OWN artwork ~35 % with its hue kept. Pure scale while
  * the brightest channel has headroom (gold 181,146,82 -> 244,197,111: the ramp stays a ramp, never flattened);

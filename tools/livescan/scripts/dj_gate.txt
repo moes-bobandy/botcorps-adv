@@ -1,0 +1,19 @@
+tick 300
+go 13
+tick 30
+rec 60 dj_idle
+tap 120 160
+rec 45 dj_open
+rec 45 dj_drop
+tap 160 75
+rec 30 dj_fold
+tap 160 137
+rec 20 dj_fold2
+tap 200 265
+rec 45 dj_close
+tap 60 150
+rec 60 dj_open2
+tap 200 265
+rec 30 dj_close2
+theme 5
+rec 20 dj_th5

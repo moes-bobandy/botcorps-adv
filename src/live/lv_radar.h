@@ -110,8 +110,8 @@ static void lv_rd_place(void)
 #endif
            ) { const float c = lv_rd_camx;
                lv_sel_pull(c, lv_sel_close_x(c, LV_SEL_SX, LV_SEL_ZC, LV_RD_F), LV_SEL_ZC, lv_sel_close_h(LV_RD_CAMH, LV_RD_HOR, LV_SEL_YT, LV_SEL_ZC, LV_RD_F), lv_rd_pull_p, LV_RD_F, T.X, T.Z, T.H); }
-        auto px = [&](float X, float Z) { return (int)lroundf(120 + LV_RD_F * (X - lv_rd_camx) / Z); };
-        auto py = [&](float Y, float Z) { return (int)lroundf(LV_RD_HOR + LV_RD_F * (LV_RD_CAMH - Y) / Z); };
+        auto px = [&](float X, float Z) { return (int)lv_lroundf(120 + LV_RD_F * (X - lv_rd_camx) / Z); };
+        auto py = [&](float Y, float Z) { return (int)lv_lroundf(LV_RD_HOR + LV_RD_F * (LV_RD_CAMH - Y) / Z); };
         T.x0 = px(T.X - w, T.Z); T.x1 = px(T.X + w, T.Z); T.yt = py(T.H, T.Z); T.yb = py(0, T.Z);
         T.bx0 = px(T.X - w, T.Z + d); T.bx1 = px(T.X + w, T.Z + d); T.byt = py(T.H, T.Z + d); T.byb = py(0, T.Z + d);
 #if LV_RD_SKINS && LV_MO_INSIDE && defined(MO_EB2)
@@ -164,7 +164,9 @@ static void b_line(LvBand &B, int x0, int y0, int x1, int y1, uint16_t c)
 {
     if ((y0 < B.y0 && y1 < B.y0) || (y0 >= B.y0 + B.h && y1 >= B.y0 + B.h)) return;
     int dx = abs(x1 - x0), sx = x0 < x1 ? 1 : -1, dy = -abs(y1 - y0), sy = y0 < y1 ? 1 : -1, e = dx + dy;
-    for (int n = 0; n < 800; ++n) { b_pix(B, x0, y0, c); if (x0 == x1 && y0 == y1) break; const int e2 = 2 * e; if (e2 >= dy) { e += dy; x0 += sx; } if (e2 <= dx) { e += dx; y0 += sy; } }
+    const int ylo = B.y0, yhi = B.y0 + B.h;   /* perf-all: y is monotonic, so stop once it has left the band for good (same pixels) */
+    for (int n = 0; n < 800; ++n) { if (y0 >= ylo && y0 < yhi) b_pix(B, x0, y0, c); else if (sy > 0 ? y0 >= yhi : y0 < ylo) break;
+        if (x0 == x1 && y0 == y1) break; const int e2 = 2 * e; if (e2 >= dy) { e += dy; x0 += sx; } if (e2 <= dx) { e += dx; y0 += sy; } }
 }
 static void lv_rd_vclip(LvBand &B, int &ya, int &yb) { if (ya < LV_RD_Y0) ya = LV_RD_Y0; if (yb > LV_RD_Y1) yb = LV_RD_Y1; (void)B; }
 #if LV_BG_ENGINE
@@ -217,7 +219,7 @@ static void lv_rd_bg(LvBand &B)
             const float u = fmodf(ts / life + p * 0.37f, 1.0f), Z = 7.0f - u * 6.4f;
             for (int tr = 0; tr < 4; ++tr) {
                 const float Zt = Z + tr * 0.25f;
-                const int y = (int)lroundf(LV_RD_HOR + LV_RD_F * LV_RD_CAMH / Zt), x = (int)lroundf(120 + LV_RD_F * (g - lv_rd_camx) / Zt);
+                const int y = (int)lv_lroundf(LV_RD_HOR + LV_RD_F * LV_RD_CAMH / Zt), x = (int)lv_lroundf(120 + LV_RD_F * (g - lv_rd_camx) / Zt);
                 if (y <= LV_RD_HOR || y > LV_RD_Y1) continue;
                 const int k = tr == 0 ? 8 : 6 - tr * 2, sz = tr == 0 ? (Z < 2.5f ? 3 : 2) : 1;
                 for (int a = 0; a < sz; ++a) for (int b = 0; b < sz; ++b) b_blend(B, x + b, y + a, lv_rd_bg_col(p, 8), k);
@@ -394,7 +396,7 @@ static float lv_rd_cg_level(void)
 static bool lv_rd_cg_show(void) { return !lv_rd_lock && lv_rd_sel >= 0 && lv_rd_sel < lv_nf; }
 static uint32_t lv_rd_ch(uint32_t a, uint32_t b) { uint32_t h = a * 2654435761u ^ (b + 0x9e3779b9u) * 2246822519u; h ^= h >> 15; h *= 2654435761u; h ^= h >> 13; return h; }
 /* ---- route along the grid: S -> along a grid row to floor line g -> up floor line g -> along the tower's base row -> tower ---- */
-static int lv_rd_fx_x(int g, int y) { return (int)lroundf(120 + (g * 0.5f - lv_rd_camx) * (y - LV_RD_HOR) / LV_RD_CAMH); }
+static int lv_rd_fx_x(int g, int y) { return (int)lv_lroundf(120 + (g * 0.5f - lv_rd_camx) * (y - LV_RD_HOR) / LV_RD_CAMH); }
 #define LV_RD_CG_NP 900
 /* occlusion hull of one nearer tower (see lv_rd_hulls); integer corners: every value is an int screen coordinate */
 struct LvRdHull { int16_t n, xa, xb, ya, yb, gyb, ns; int16_t x[8], y[8], s[9][4]; };   /* s: the tower's drawn edge segments */
@@ -559,7 +561,7 @@ static void lv_rd_dstream(LvBand &B, float lvl)
     /* D4 palette: no pure white anywhere - the brightest current pixel stays below the top banner's yellow text (luma ~203) */
     const uint16_t PK = lv_hex(0xc4eaff), ICE2 = lv_hex(0xa8dcff), ELEC = lv_hex(0x3aa8ff), VIO = lv_hex(0x7a1cff);
     const int n = lv_rd_np; if (n < 2) return;
-    const int front = lv_rd_lock ? n - 1 : (int)lroundf(lvl * (n - 1));
+    const int front = lv_rd_lock ? n - 1 : (int)lv_lroundf(lvl * (n - 1));
     lv_rd_hulls(lv_rd_sel);
     const uint32_t f4 = lv_now / 120;                      /* D4: crackle / sparks re-roll every 4 sim frames, not every frame */
     const int br = lv_rd_breath(2400, 2);                  /* gentle 2.4 s breathing, +-2/32 */
@@ -695,7 +697,7 @@ static void lv_rd_cg_draw(LvBand &B)
     if (lv_rd_lock) return;   /* the button gives way to IGNORE / WATCH / HUNT exactly as today */
     /* ---- the charge button ---- */
     const LvRect &r = LV_RD_CG_BTN; const int w = r.x1 - r.x0 + 1, h = r.y1 - r.y0 + 1;
-    char pct[12]; snprintf(pct, sizeof pct, "%d%%", (int)lroundf(lvl * 100));
+    char pct[12]; snprintf(pct, sizeof pct, "%d%%", (int)lv_lroundf(lvl * 100));
     lv_rd_cg_log("BTN", r.x0, r.y0, r.x1, r.y1);
     b_fill(B, r.x0, r.y0, w, h, lv_hex(0x000000)); b_frame(B, r.x0, r.y0, w, h, MAG);
     b_fill(B, r.x1 + 1, r.y0 + 3, 2, h - 6, MAG);                                        /* battery nub */
@@ -916,14 +918,14 @@ static void lv_rd_fx(LvBand &B)   /* drawn after the towers, before header / pan
     if (lv_rd_holding && !lv_rd_lock) {
         const LvTower *T = lv_rd_tower_of(lv_rd_holdmac); if (!T) return;
         float u = (lv_now - lv_rd_hold_t) / 1000.0f; if (u > 1) u = 1; if (u < 0) u = 0;
-        const int pad = 3 + (int)lroundf((1 - u) * 12); int xa, xb, ya, yb;
+        const int pad = 3 + (int)lv_lroundf((1 - u) * 12); int xa, xb, ya, yb;
         lv_rd_box(*T, pad, xa, xb, ya, yb); lv_rd_brackets(B, xa, ya, xb, yb, 4, lv_dim(MAG, 4 + (int)(u * 4), 8));
         return;
     }
     if (!lv_rd_lock) return;
     const LvTower *T = lv_rd_tower_of(lv_rd_lockmac); if (!T) return;
     const int e = (int)(lv_now - lv_rd_lock_t);
-    const int pulse = 5 + (int)lroundf(3 * (0.5f + 0.5f * sinf(e / 1000.0f * 6.283f * 1.6f)));   /* 5..8 of 8 */
+    const int pulse = 5 + (int)lv_lroundf(3 * (0.5f + 0.5f * sinf(e / 1000.0f * 6.283f * 1.6f)));   /* 5..8 of 8 */
     int xa, xb, ya, yb; lv_rd_box(*T, 3, xa, xb, ya, yb);
     if (e < 200 && !(LV_RD_CHARGE && !LV_RD_CG_NODRAW)) lv_rd_rect_blend(B, xa - 1, ya - 1, xb + 1, yb + 1, W, 7 - e * 7 / 200);       /* lock snap flash (charge lock: never white) */
     lv_rd_brackets(B, xa, ya, xb, yb, 4, lv_dim(MAG, pulse, 8));
@@ -1041,7 +1043,7 @@ static void lv_scene_radar(LvBand &B, void *)
 #endif
         const uint16_t gc = (sk == 1) ? lv_mix(lv_hex(0xe8dec8), grid, k, 8) : lv_dim(grid, k, 8);
         if (floorf(Z + ph) != floorf(Zn + ph)) b_fill(B, 0, y, 240, 1, gc);
-        for (int g = -12; g <= 12; ++g) { const int x = (int)lroundf(120 + LV_RD_F * (g * 0.5f - lv_rd_camx) / Z); b_pix(B, x, y, gc); }
+        for (int g = -12; g <= 12; ++g) { const int x = (int)lv_lroundf(120 + LV_RD_F * (g * 0.5f - lv_rd_camx) / Z); b_pix(B, x, y, gc); }
         if (lv_rainmode == 1) {   /* SWEEP: a bright line rolls from the horizon to you */
             const float sz = 6.0f - fmodf(t * 1.6f, 5.4f);
             if (Z >= sz && Zn < sz) b_fill(B, 0, y, 240, 1, lv_hex(0x40ff90));
@@ -1079,7 +1081,7 @@ static void lv_scene_radar(LvBand &B, void *)
          * lock exclusion above) at its real dBm (a -82 dBm node = br 4, the face 4/8 x 3/8 = nearly clear). Pulled: no
          * select-white, and br eases to HACKbot's 7 with the pull. The state colour (alert / watch / WIFI / BLE) is kept. */
         const bool pul = lv_rd_pull_p > 0 && lv_rd_pull_scr == LV_SC_RADAR && lv_scr == LV_SC_RADAR && sk == 0 && !memcmp(f.mac, lv_rd_pull_mac, 6);
-        const int brp = pul && br < LV_SEL_OPEN_BR ? br + (int)lroundf((LV_SEL_OPEN_BR - br) * lv_rd_pull_p) : br;
+        const int brp = pul && br < LV_SEL_OPEN_BR ? br + (int)lv_lroundf((LV_SEL_OPEN_BR - br) * lv_rd_pull_p) : br;
         uint16_t edge = sel && !pul ? lv_hex(0xffffff) : lv_rd_col(f, brp, 8), face = lv_rd_col(f, brp, 8);
 #if LV_RD_SKINS
         if (sk == 2) { face = lv_hex(0xdfe6ef); edge = sel ? lv_hex(0x30e8ff) : lv_hex(0x8d99ab); }   /* TR: clean silver relays, cyan select */
@@ -1364,7 +1366,7 @@ static void lv_rd_info_tower_fade(LvBand &B, int frame, const LvFind &f, const u
     const int xa = LV_RD_INFO_TX0 > B.x0 ? LV_RD_INFO_TX0 : B.x0;
     const int xb = LV_RD_INFO_TX1 < B.x0 + B.w - 1 ? LV_RD_INFO_TX1 : B.x0 + B.w - 1;
     if (xb < xa) return;
-    const int k = (int)lroundf(a * 256.f);
+    const int k = (int)lv_lroundf(a * 256.f);
     /* The monolith also stamps 1 px at y=37 (side peak) and y=246 (base). The mix window is
      * still y=38..245, same as the original bak[] fade; those two rows are drawn, not mixed. */
     const int y0d = b_ylo(B, LV_RD_INFO_TY0 - 1), y1d = b_yhi(B, LV_RD_INFO_TY1 + 1);
@@ -1391,7 +1393,7 @@ static void lv_rd_tower_rows(LvBand &B, const LvTower &T, int frame, const uint8
 {
     const int x0 = T.x0 + 1, y0 = T.yt + 1, x1 = T.x1 - 1, yb0 = T.yb - 1;
     if (x1 < x0 || yb0 < y0) return;
-    const int fw = (int)lroundf(2 * 0.12f * LV_RD_F / LV_SEL_ZC);   /* 40: the face at the full close-up */
+    const int fw = (int)lv_lroundf(2 * 0.12f * LV_RD_F / LV_SEL_ZC);   /* 40: the face at the full close-up */
     const int wpx = T.x1 - T.x0; const bool one = wpx >= fw;        /* full close-up: exact 1:1 pixels */
     int ya = b_ylo(B, y0), yb = b_yhi(B, yb0); if (ya < LV_RD_Y0) ya = LV_RD_Y0; if (yb > LV_RD_Y1) yb = LV_RD_Y1;
     uint16_t row[87]; const uint16_t clear = 0x0821; int last = -1000;

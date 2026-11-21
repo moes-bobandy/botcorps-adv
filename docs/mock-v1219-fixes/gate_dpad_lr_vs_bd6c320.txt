@@ -1,0 +1,19 @@
+mock/v1219-fixes-2026-11-21  commit 1 (left/right rocker restore)
+HARD GATE vs bd6c320: pixels outside control-strip bbox must be 0.
+Strip bbox (all pad screens): x=1..238, y=247..319 inclusive  (PAD_X0/Y0..PAD_X1/Y1).
+Dojo has no pad; it is 0 px everywhere (no strip restore).
+
+screen           inside  outside  total  result  change box (if any)
+controlbot            0        0      0  PASS
+ctl_page3             0        0      0  PASS   (CONTROLbot v6 page)
+go16                  0        0      0  PASS
+gib_scan            925        0    925  PASS   (16,273)-(83,311)  left octagon only
+gib_sel_deck        925        0    925  PASS   (16,273)-(83,311)  left octagon only
+dl_intro           1026        0   1026  PASS   (16,272)-(122,311)  rocker + centre labels
+dl_play            1026        0   1026  PASS   (16,272)-(122,311)  rocker + centre labels
+dojo                  0        0      0  PASS
+pager_home            0        0      0  PASS
+
+Same script, same times, host sim (g++ -O2 -std=gnu++17 sim_live.cpp).
+Prior left/right UI: v1.2.13 9efd705 (parent of 89aef6d is docs-only 9382b1b).
+Screens that had the v1.2.14 4-way cross: GIBSON (pad_draw_joey) and HACKbot (pad_hc_deck).

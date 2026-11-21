@@ -28,6 +28,9 @@ static int lv_pg_keep_feat(uint16_t c, int page)
 {
     if (page == LV_PG_BOTPHEUS) return lv_pg_bot_feat(c);
     if (page == LV_PG_GIBSON) return lv_pg_gib_feat(c);
+#if LV_PG_TERMINAL_PAGE
+    if (page == LV_PG_TERMINAL) return c == lv_rgb(40, 24, 8) || c == lv_rgb(41, 24, 8);   /* 7db0c6d gold-face eyes (lv_pg_gold of black) stay on top */
+#endif
     return 0;
 }
 /* Metallic gold (not flat yellow): bronze shadow, rich mid, champagne highlight. */
@@ -126,6 +129,14 @@ static void lv_pg_face_fx_row(uint16_t *row, int y, int page, const uint8_t *fr)
         return;
     }
     if (fr) memcpy(row + LV_PG_FX_X0, fr, LV_PG_FACE_S * 2);
+#if LV_PG_TERMINAL_PAGE
+    if (page == LV_PG_TERMINAL) {   /* 7db0c6d gold remap; a98a25b pitch-black rain (same pal + skip=1 as GIBSON) */
+        for (int x = LV_PG_FX_X0; x <= LV_PG_FX_X0 + LV_PG_FX_S - 1; ++x) row[x] = lv_pg_gold(row[x]);
+        const uint16_t pal[3] = { lv_hex(0x000000), lv_hex(0x000000), lv_hex(0x000000) };
+        lv_pg_rain_row(row, y, pal, 1, page);
+        return;
+    }
+#endif
     if (page == LV_PG_BOTPHEUS) {   /* v1.2.6: brighter white, pure #FFFFFF heads, brighter trails */
         const uint16_t pal[3] = { lv_hex(0xFFFFFF), lv_hex(0xF0F2F6), lv_hex(0xC4C8D0) };
         lv_pg_rain_row(row, y, pal, 1, page);
@@ -326,4 +337,7 @@ static void lv_pg_panel_fx_row(uint16_t *row, int y, int page)
     if (page == LV_PG_BOTPHEUS) lv_pg_pan_botpheus(row, y, acc);
     else if (page == LV_PG_HACKBOT) lv_pg_pan_terminal(row, y, acc);         /* v1.2.5: CRT panel moved with the green rain face */
     else if (page == LV_PG_GIBSON) lv_pg_pan_gibson(row, y, acc);
+#if LV_PG_TERMINAL_PAGE
+    else if (page == LV_PG_TERMINAL) lv_pg_pan_hackbot(row, y, acc, 1);     /* 7db0c6d: old HACKbot meter, metallic gold */
+#endif
 }

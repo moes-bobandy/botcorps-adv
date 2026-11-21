@@ -1,0 +1,10 @@
+LV_PG_TERMINAL_PAGE gate vs branch head (sim_tw, same t=9600)
+face slot: x65..174 y88..197 (110x110) on 7db0c6d gold, new gold+rain, and CONTROLbot
+rain: 1666 pitch-black glyphs; eyes (41,24,8) count 968 unchanged
+tap 120,142 on page 3 -> pager-terminal, then scr=3 (LV_SC_TERM)
+strip {1,247,238,319}: 0 px on HACK, BOTPHEUS, GIBSON, CTL
+GIBSON: 130 px, all pips (102,25)-(137,29)
+CTL: 136 px, all pips (102,25)-(139,29)
+HACK: 825 px = 130 pips + 695 left arrow (first-page identity moved)
+BOTPHEUS: 837 px = 142 pips + 695 left arrow (now first page, no left chip)
+outside pip+arrow masks: 0 on all four existing pages

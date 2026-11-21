@@ -45,6 +45,18 @@ that page (HACKbot had green Matrix rain; BOTpheus/GIBSON had white rain). Pitch
 page. Proof render from 7db0c6d: `/workspace/out/fw-bigbot-1117/v1219-fixes/terminalbot-7db0c6d/`.
 Home layout was not changed.
 
+### Layer: LV_PG_TERMINAL_PAGE (default 1) — applied on this branch
+
+Own droppable flag. Restores the 7db0c6d gold TERMINALbot page as slot 3 in the 5-page
+order (BOTpheus, HACKbot, GIBSONbot, TERMINALbot, CONTROLbot). Face slot already was
+x65..174 y88..197 (110×110) on gold, CONTROLbot and HACKbot — not scaled; metallic
+bevel kept. Pitch-black rain cloned from a98a25b GIBSON (`pal {0,0,0}`, `skip=1`).
+Centre tap → `pager-terminal` / LV_SC_TERM. Other pages 0 px vs branch head except
+the 5-pip row and the first-page left arrow chip (HACKbot gains it, BOTpheus loses it).
+Strip {1,247,238,319} stays 0. Details: `TERMINALBOT.md`, `gate_terminal_page_vs_head.txt`.
+Proofs: `/workspace/out/fw-bigbot-1117/v1219-fixes/terminalbot-page/`.
+
+
 ## 4. Left/right d-pad restore (this commit)
 
 v1.2.14 **89aef6d81ea4c023788e9ac0c70cef83960d6d62** replaced the v1.2.13 left/right rocker

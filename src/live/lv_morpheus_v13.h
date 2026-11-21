@@ -124,6 +124,22 @@ static int mo_last = -1; static uint32_t mo_close_t = 0; static bool mo_closing 
  * locked 30 ms cadence (sim / fast frames) the cap never binds and every frame is the locked frame. */
 #define MO_DT_PUSH 50
 #define MO_DT_DROP 100
+/* dojo-combined (Mobandy 2026-11-21 10:12 AM ET, "smoother folder drop"): DROP-ONLY FRAMES. While the folders drop (and no
+ * folder is open, no press flash, no close), the scene behind them holds still at the last full frame's clock (mo_full_now)
+ * and each frame re-renders only the rows a folder moved through (old + new footprint; the search bar + index line when the
+ * landed count changes). Rows outside those spans are already on the panel from the held scene, so the picture stays whole.
+ * The frames are a fraction of a full Dojo frame, so the drop clock (lv_select.h law, cap MO_DT_DROP unchanged) advances in
+ * small real-time steps: many drop positions instead of ~4. Folder art, positions per clock value, landing rule and timing
+ * law are the locked ones; the first frame after the drop is a normal full frame (folders landed, scene back on its clock). */
+#ifndef MO_DROP_FAST
+#define MO_DROP_FAST 1
+#endif
+#ifndef MO_DROP_X0
+#define MO_DROP_X0 (MO12_FX - 8)   /* drop-only frames touch x >= 84 only: folders, their glow / shadow / green frame, the index line, "n/3 SCROLLS" */
+#endif
+static int mo_drop_el = -1;                       /* >= 0 only inside a drop-only render: the folder clock (ms since open) */
+static uint32_t mo_full_now = 0, mo_full_t0 = 0;  /* clock + open time of the last full Dojo frame */
+static int mo_full_sel = -1, mo_prev_del = -1;    /* pillar open in that frame; folder clock last drawn (-1 = none) */
 static LvSelClk mo_clk;   /* lv_select.h (LOCKED shared selection) */
 static inline uint32_t mo_vnow(void) { return lv_sel_clk_now(mo_clk, lv_now); }   /* the Dojo clock, read outside the frame (taps) */
 /* v1.2.11 (Mobandy 2026-11-20 "None of the folders are responsive or interactive"): a landed folder is a button.
@@ -721,11 +737,12 @@ static void mo11_overlay(LvBand &B)   /* skin-1 hook: called by lv_scene_radar a
         /* v13: no select effect (Mobandy: no lock bracket) */
         /* v13: red pill removed */
         int ys[4], nland = 0; float ph[4];
-        for (int j = 0; j < 3; ++j) { const bool go = lv_sel_drop((int)el, MO12_DROP0, MO12_GAP, MO12_DROP_MS, j, LV_RD_Y0 - 50, MO12_FY0 + j * MO12_FDY, ys[j], ph[j]);   /* lv_select.h drop law */
+        const int del = mo_drop_el >= 0 ? mo_drop_el : (int)el;   /* dojo-combined: the folder clock (= el except in a drop-only frame) */
+        for (int j = 0; j < 3; ++j) { const bool go = lv_sel_drop(del, MO12_DROP0, MO12_GAP, MO12_DROP_MS, j, LV_RD_Y0 - 50, MO12_FY0 + j * MO12_FDY, ys[j], ph[j]);   /* lv_select.h drop law */
             if (go && ph[j] >= LV_SEL_LAND) nland = j + 1; }
         mo12_nland = nland;
         mo12_index(B, nland, ys);
-        for (int j = 2; j >= 0; --j) { const int tt = (int)el - MO12_DROP0 - j * MO12_GAP; if (tt < 0) continue;
+        for (int j = 2; j >= 0; --j) { const int tt = del - MO12_DROP0 - j * MO12_GAP; if (tt < 0) continue;
             mo_cy0 = 35; mo12_folder(B, sel, j, ys[j], ph[j] > 1 ? 1 : ph[j], tt - MO12_DROP_MS); mo_cy0 = -10000;
             if (B.y0 == 0) { mo12_fys[j] = ys[j]; mo12_fph100[j] = (int)(100 * (ph[j] > 1 ? 1 : ph[j])); } }
         if (mo_fold_sel >= 0 && mo_fold_sel < nland) {   /* v1.2.11: the opened folder wears a 2 px green frame */
@@ -780,7 +797,33 @@ static void itw_mo_frame(void)
         itw_mo_phase = el < MO12_PUSH_MS ? 1 : el < MO12_DROP0 + 2 * MO12_GAP + MO12_DROP_MS ? 2 : 3; }
     /* v1.2.5: dirty-rect the field only (y=24..319). Never clear or repaint the ticker band;
      * a full-frame blit was overwriting the banner every tick, then itw_top black-filled it. */
+    const uint32_t dend = (uint32_t)(MO12_DROP0 + 2 * MO12_GAP + MO12_DROP_MS);
+    const int del = itw_mo_sel >= 0 ? (int)(lv_now - itw_mo_t0) : -1;
+    if (MO_DROP_FAST && itw_mo_sel >= 0 && !mo_closing && mo_fold_sel < 0 && lv_flash_r.x1 < lv_flash_r.x0 && mo_full_sel == itw_mo_sel
+        && mo_full_t0 == itw_mo_t0 && mo_prev_del >= 0 && del >= MO12_DROP0 && (uint32_t)del < dend) {
+        int sp[8][2], ns = 0, nl0 = 0, nl1 = 0, ymax = MO12_BY + MO12_BH;
+        for (int j = 0; j < 3; ++j) {
+            int y0, y1; float u0, u1;
+            const bool g0 = lv_sel_drop(mo_prev_del, MO12_DROP0, MO12_GAP, MO12_DROP_MS, j, LV_RD_Y0 - 50, MO12_FY0 + j * MO12_FDY, y0, u0);
+            const bool g1 = lv_sel_drop(del, MO12_DROP0, MO12_GAP, MO12_DROP_MS, j, LV_RD_Y0 - 50, MO12_FY0 + j * MO12_FDY, y1, u1);
+            if (g0 && u0 >= LV_SEL_LAND) nl0 = j + 1;
+            if (g1 && u1 >= LV_SEL_LAND) { nl1 = j + 1; if (y1 + 14 > ymax) ymax = y1 + 14; }
+            if (!g0 && !g1) continue;
+            if (g0 && g1 && y0 == y1 && (u0 >= 0.65f) == (u1 >= 0.65f)) continue;   /* same row, same solid state: nothing moved */
+            const int a = g0 && g1 ? (y0 < y1 ? y0 : y1) : g1 ? y1 : y0, b = g0 && g1 ? (y0 > y1 ? y0 : y1) : g1 ? y1 : y0;
+            sp[ns][0] = a - 8; sp[ns][1] = b + 8 + MO12_FH + 8; ++ns;   /* glow / tab / shadow / green frame margins */
+        }
+        if (nl0 != nl1) { sp[ns][0] = MO12_BY; sp[ns][1] = ymax; ++ns; }   /* "n/3 SCROLLS" + the index line */
+        for (int k = 0; k < ns; ++k) { if (sp[k][0] < 24) sp[k][0] = 24; if (sp[k][1] > 285) sp[k][1] = 285; }
+        for (int k = 1; k < ns; ++k) for (int q = k; q > 0 && sp[q][0] < sp[q - 1][0]; --q) { int t0 = sp[q][0], t1 = sp[q][1]; sp[q][0] = sp[q - 1][0]; sp[q][1] = sp[q - 1][1]; sp[q - 1][0] = t0; sp[q - 1][1] = t1; }
+        lv_now = mo_full_now; mo_drop_el = del;   /* the held scene; only the folder clock moves */
+        for (int k = 0; k < ns; ) { int a = sp[k][0], b = sp[k][1]; ++k; while (k < ns && sp[k][0] <= b + 1) { if (sp[k][1] > b) b = sp[k][1]; ++k; }
+            if (a <= b) lv_render(lv_blit_dirty_hw, {(int16_t)MO_DROP_X0, (int16_t)a, 239, (int16_t)b}, itw_mo_scene, 0); }
+        mo_drop_el = -1; mo_prev_del = del;
+    } else {
     lv_render(lv_blit_dirty_hw, {0, 24, 239, 319}, itw_mo_scene, 0);   /* perf-all: changed rows only (was lv_blit_hw: every row, every frame) */
+        mo_full_now = lv_now; mo_full_t0 = itw_mo_t0; mo_full_sel = itw_mo_sel; mo_prev_del = del;
+    }
     lv_now = real;
     itw_top();
 }

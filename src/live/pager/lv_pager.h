@@ -1,9 +1,11 @@
 /* fw-bigbot-1117: the five v3.1 big-bot screens are the new CYD home (the pager).
  * LV_SC_HOME draws the locked v6 board of the current theme (same stills as CONTROLbot),
  * with BACKbot replaced by the restored mounting-hole chrome, the page's identity face
- * and instrument panel (CONTROLbot keeps the locked v6 live panel), and 4 theme-ink pips.
+ * and instrument panel (CONTROLbot keeps the locked v6 live panel), and LV_PG_N theme-ink pips.
  * v1.2.2: arrow-chip cycle buttons (theme-ink accent); page order HACKbot, BOTpheus,
- * GIBSONbot, CONTROLbot (starts on GIBSONbot; v1.2.6 dropped the TERMINALbot page). Swipe on the coil strip
+ * GIBSONbot, CONTROLbot (starts on GIBSONbot; v1.2.6 dropped the TERMINALbot page).
+ * LV_PG_TERMINAL_PAGE (mock/v1219, default 1): restore the v1.2.5 gold TERMINALbot page as
+ * slot 3 in the 5-page order BOTpheus, HACKbot, GIBSONbot, TERMINALbot, CONTROLbot. Swipe on the coil strip
  * (LV_PG_COIL) or tap a chip flips pages, 233 ms ease-in-out cubic, no wrap (edge bounce
  * ~18 px). Center taps: BOTpheus -> EB3, HACKbot -> game, GIBSONbot -> radar,
  * TERMINALbot -> TERM, CONTROLbot cycles the theme (whole pager follows). BACKbot on
@@ -19,11 +21,23 @@
 #define LV_PG_PROF 0
 #endif
 
+#ifndef LV_PG_TERMINAL_PAGE
+#define LV_PG_TERMINAL_PAGE 1   /* mock/v1219: restore v1.2.5 TERMINALbot pager page; set 0 to drop this layer */
+#endif
+#if LV_PG_TERMINAL_PAGE
+#define LV_PG_N        5
+#define LV_PG_BOTPHEUS 0
+#define LV_PG_HACKBOT  1
+#define LV_PG_GIBSON   2
+#define LV_PG_TERMINAL 3
+#define LV_PG_CTL      4
+#else
 #define LV_PG_N        4
 #define LV_PG_HACKBOT  0
 #define LV_PG_BOTPHEUS 1
 #define LV_PG_GIBSON   2
 #define LV_PG_CTL      3
+#endif
 #define LV_PG_DEFAULT  LV_PG_GIBSON
 #define LV_PG_MS       233
 #define LV_PG_BOUNCE   18
@@ -80,8 +94,13 @@ static uint32_t lv_pg_us_now(void)
 
 static int lv_pg_art(int page)
 {
+#if LV_PG_TERMINAL_PAGE
+    /* 7db0c6d: blobs 0 BOTpheus, 1 GIBSONbot, 2 HACKbot, 3 TERMINALbot; compose uses blob 2 + gold for TERMINAL */
+    static const int8_t A[LV_PG_N] = {0, 2, 1, 3, -1};
+#else
     /* blobs stay 0 BOTpheus, 1 GIBSONbot, 2 HACKbot; HACKbot face is procedural so art[0] is unused */
     static const int8_t A[LV_PG_N] = {2, 0, 1, -1};
+#endif
     return (page >= 0 && page < LV_PG_N) ? A[page] : -1;
 }
 
@@ -304,7 +323,11 @@ static void lv_pg_pips_row(uint16_t *row, int y, int page)
     if (y < 25 || y > 29) return;
     uint8_t on[3], dim[3];
     lv_pg_pip_ink(on, dim);
+#if LV_PG_TERMINAL_PAGE
+    const float CX0 = 104.f, PITCH = 8.f, CY = 27.f, R_OFF = 1.35f, R_ON = 1.75f;   /* 7db0c6d: 5 pips, still centred on x=120 */
+#else
     const float CX0 = 108.f, PITCH = 8.f, CY = 27.f, R_OFF = 1.35f, R_ON = 1.75f;   /* v1.2.6: 4 pips, still centred on x=120 */
+#endif
     auto plot = [&](int x, float cr, float cg, float cb, float a) {
         if (a <= 0.f || x < 4 || x > 235) return;
         const int R = ((row[x] >> 11) << 3) | ((row[x] >> 11) >> 2);
@@ -360,7 +383,11 @@ static void lv_pg_compose_row(uint16_t *row, int y, int page, LvPgSet &S)
         lv_pg_panel_fx_row(row, y, page);
 
     if (page != LV_PG_CTL && y >= 88 && y <= 197) {
+#if LV_PG_TERMINAL_PAGE
+        const uint8_t *fr = (page == LV_PG_HACKBOT) ? nullptr : lv_pg_ch_row(S, true, page == LV_PG_TERMINAL ? 2 : lv_pg_art(page), y - 88);
+#else
         const uint8_t *fr = (page == LV_PG_HACKBOT) ? nullptr : lv_pg_ch_row(S, true, lv_pg_art(page), y - 88);
+#endif
         lv_pg_face_fx_row(row, y, page, fr);
     }
 
@@ -400,8 +427,8 @@ static int lv_pg_chip_at(int x, int y)   /* 1 left, 2 right, 0 none; chip wins o
         const long d = (long)(x - cx) * (x - cx) + (long)(y - cy) * (y - cy);
         if (d < bd) { bd = d; best = i + 1; }
     }
-    if (best == 1 && lv_pg_page == LV_PG_HACKBOT) return 0;   /* v1.2.9: no page to the left of HACKbot */
-    if (best == 2 && lv_pg_page == LV_PG_CTL) return 0;   /* v1.2.8: no page to the right of CONTROLbot */
+    if (best == 1 && lv_pg_page == 0) return 0;   /* no page to the left of the first pager page */
+    if (best == 2 && lv_pg_page == LV_PG_N - 1) return 0;   /* no page to the right of the last pager page */
     return best;
 }
 
@@ -449,9 +476,9 @@ static void lv_pg_chip_row(uint16_t *row, int y, const LvRect &P, int dir, bool 
 static void lv_pg_pills_row(uint16_t *row, int y)
 {
     if (y < LV_PG_PILL_L.y0 || y > LV_PG_PILL_L.y1) return;
-    if (lv_pg_page != LV_PG_HACKBOT)   /* v1.2.9: no left arrow chip on the first pager page */
+    if (lv_pg_page != 0)   /* no left arrow chip on the first pager page */
         lv_pg_chip_row(row, y, LV_PG_PILL_L, -1, lv_pg_pill_on == 1);
-    if (lv_pg_page != LV_PG_CTL)   /* v1.2.8: no right arrow chip on the last pager page */
+    if (lv_pg_page != LV_PG_N - 1)   /* no right arrow chip on the last pager page */
         lv_pg_chip_row(row, y, LV_PG_PILL_R, +1, lv_pg_pill_on == 2);
 }
 
@@ -659,6 +686,9 @@ static const char *lv_pg_tap(int x, int y)
         if (lv_pg_page == LV_PG_BOTPHEUS) { lv_go_soon(LV_SC_MO, 0); return "pager-botpheus-eb3"; }
         if (lv_pg_page == LV_PG_HACKBOT)  { lv_go_soon(LV_SC_DL, 0); return "pager-hackbot-game"; }
         if (lv_pg_page == LV_PG_GIBSON)   { lv_go_soon(LV_SC_RADAR, 0); return "pager-gibson-radar"; }
+#if LV_PG_TERMINAL_PAGE
+        if (lv_pg_page == LV_PG_TERMINAL) { lv_go_soon(LV_SC_TERM, 0); return "pager-terminal"; }   /* 7db0c6d */
+#endif
     }
     return "none";
 }

@@ -1,0 +1,13 @@
+clip                               avg ms     p95     max    CPU  KB/f   fps    >100ms
+dj_dev/dojo_close            ref     72.4   112.0   126.4   69.3   110  13.8   26/135 
+dj_dev/dojo_close            new     54.6    84.2    98.2   51.1   110  18.3    0/135 
+dj_dev/dojo_drop             ref    131.4   147.1   170.9  126.7    99   7.6  135/135 
+dj_dev/dojo_drop             new    102.4   119.4   127.8   97.7    97   9.8   74/135 
+dj_dev/dojo_fold             ref    135.7   180.6   209.4  130.8    95   7.4   87/90  
+dj_dev/dojo_fold             new    102.6   117.6   122.9   97.3    93   9.8   70/90  
+dj_dev/dojo_idle             ref     68.2    92.8   101.6   65.1   110  14.7    2/180 
+dj_dev/dojo_idle             new     54.5    77.3    86.8   51.2   109  18.3    0/180 
+dj_dev/dojo_open             ref    129.5   157.3   186.8  125.1   100   7.7  132/135 
+dj_dev/dojo_open             new     99.4   120.0   138.1   94.9    99  10.1   75/135 
+pa_dev/dojo_enter            ref     64.5    73.0    85.6   61.5   112  15.5    0/120 
+pa_dev/dojo_enter            new     49.1    58.0    63.9   45.7   112  20.4    0/120 

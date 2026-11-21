@@ -1,0 +1,23 @@
+per-device world pos at t=17000, 10-pillar slot -> old id: MOTW X/Z/H compared to dc98ba3 18-pillar build
+slot 0 <- old 0: 18=X=1.9121 Z=3.4057 H=2.7760  10=X=1.9121 Z=3.4057 H=2.7760  SAME
+slot 1 <- old 1: 18=X=-0.9906 Z=0.9512 H=0.9394  10=X=-0.9906 Z=0.9512 H=0.9394  SAME
+slot 2 <- old 2: 18=X=-0.1662 Z=2.8063 H=1.2027  10=X=-0.1662 Z=2.8063 H=1.2027  SAME
+slot 3 <- old 3: 18=X=-0.5427 Z=2.6831 H=1.1182  10=X=-0.5427 Z=2.6831 H=1.1182  SAME
+slot 4 <- old 4: 18=X=-1.4613 Z=4.1756 H=2.3704  10=X=-1.4613 Z=4.1756 H=2.3704  SAME
+slot 5 <- old 16: 18=X=-2.2208 Z=3.2194 H=2.1739  10=X=-2.2208 Z=3.2194 H=2.1739  SAME
+slot 6 <- old 6: 18=X=0.1058 Z=2.8197 H=1.6744  10=X=0.1058 Z=2.8197 H=1.6744  SAME
+slot 7 <- old 7: 18=X=0.7808 Z=1.3575 H=1.0149  10=X=0.7808 Z=1.3575 H=1.0149  SAME
+slot 8 <- old 8: 18=X=0.0049 Z=1.1543 H=0.9660  10=X=0.0049 Z=1.1543 H=0.9660  SAME
+slot 9 <- old 9: 18=X=0.1537 Z=4.2908 H=2.4779  10=X=0.1537 Z=4.2908 H=2.4779  SAME
+
+10-pillar itwstate @17000:
+  T0 DEAUTH       icon=-1 seen=1 hit=[182,73,204,173] face=[189,72,201,170] lbl=0[0,0,0,0]
+  T1 HACK         icon=2 seen=1 hit=[7,131,49,255] face=[10,133,35,252] lbl=0[0,0,0,0]
+  T2 FLOCK        icon=7 seen=1 hit=[112,123,132,179] face=[115,125,129,176] lbl=0[0,0,0,0]
+  T3 DRONE        icon=10 seen=1 hit=[95,126,116,181] face=[98,128,113,178] lbl=0[0,0,0,0]
+  T4 AIR TAG      icon=5 seen=1 hit=[76,95,94,167] face=[79,96,89,164] lbl=0[0,0,0,0]
+  T5 EVIL TWIN    icon=-1 seen=1 hit=[36,91,59,175] face=[39,91,51,172] lbl=0[0,0,0,0]
+  T6 META         icon=16 seen=1 hit=[123,105,144,179] face=[127,105,141,176] lbl=0[0,0,0,0]
+  T7 SKIMMER      icon=11 seen=1 hit=[189,126,220,221] face=[200,128,217,218] lbl=0[0,0,0,0]
+  T8 FLIPPER      icon=14 seen=1 hit=[129,129,156,235] face=[133,131,153,232] lbl=0[0,0,0,0]
+  T9 SAMSUNG      icon=15 seen=1 hit=[122,94,139,166] face=[125,94,136,163] lbl=0[0,0,0,0]

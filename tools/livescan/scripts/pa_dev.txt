@@ -1,0 +1,40 @@
+tick 300
+devrec 40 home_p0
+page 1
+devrec 40 home_p1
+page 2
+devrec 40 home_p2
+page 3
+devrec 40 home_p3
+page 0
+go 3
+devrec 40 term
+go 15
+devrec 40 tr_inside
+go 4
+devrec 40 scan
+go 16
+devrec 40 controlbot
+go 14
+devrec 40 ct_inside
+go 6
+devrec 30 tty
+go 9
+devrec 30 gloss
+go 11
+devrec 40 hch
+go 12
+tick 80
+devrec 40 dl_intro
+dlopen 99
+devrec 40 dl_play
+dlopen 4
+devrec 40 dl_open
+dlpause
+devrec 30 dl_pause
+go 8
+devrec 40 gib_enter
+go 13
+devrec 40 dojo_enter
+go 2
+devrec 40 home_back

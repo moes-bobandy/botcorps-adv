@@ -1,0 +1,4 @@
+== band rows 24: HEAD vs cda0390
+TOTAL frames 2041 diff px 0
+== band rows 12: HEAD vs cda0390
+TOTAL frames 2041 diff px 0

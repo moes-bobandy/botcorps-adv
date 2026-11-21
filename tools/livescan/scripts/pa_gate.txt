@@ -1,0 +1,40 @@
+tick 300
+rec 20 pa_home_p0
+page 1
+rec 20 pa_home_p1
+page 2
+rec 20 pa_home_p2
+page 3
+rec 20 pa_home_p3
+page 0
+go 3
+rec 20 pa_term
+go 15
+rec 20 pa_tr_inside
+go 4
+rec 20 pa_scan
+go 16
+rec 20 pa_controlbot
+go 14
+rec 20 pa_ct_inside
+go 6
+rec 20 pa_tty
+go 9
+rec 20 pa_gloss
+go 11
+rec 20 pa_hch
+go 12
+tick 80
+rec 20 pa_dl_intro
+dlopen 99
+rec 20 pa_dl_play
+dlopen 4
+rec 20 pa_dl_open
+dlpause
+rec 20 pa_dl_pause
+go 8
+rec 20 pa_gib_enter
+go 13
+rec 20 pa_dojo_enter
+go 2
+rec 20 pa_home_back

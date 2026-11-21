@@ -6,6 +6,8 @@
 #  C) HACKbot intro/pause lock 7fe1b4b: docs/mocks/hackbot-intro-saves gate.txt / stills.txt / pause.txt.
 #  D) devrec device-timeline model, 3 runs: HEAD vs cd5e118 (SIM_DEV_K=120.7).
 # Refs get the HEAD dev_model.h and the 66659af devrec harness (git diff cd5e118 66659af -- sim_live.cpp) when missing.
+# 726a5d3 is built with -DLV_RD_INFO_TOWER_PULL=1 (its mock switch). HACKbot entry frames differ from cd5e118 / 66659af /
+# 726a5d3 by design (the locked SAVE SLOTS intro replaces the typist on entry); C and A-vs-7fe1b4b gate those frames.
 # Sims run one at a time (recstart shares /tmp/.sim_rec_part).
 set -e; W=$(git rev-parse --show-toplevel); T=${T:-/tmp/g1217}; rm -rf $T; mkdir -p $T
 CMP=$W/docs/pullup-glitch/cmpg.py
@@ -18,7 +20,8 @@ for s in cd5e118 7fe1b4b 66659af 726a5d3; do mk $s; done
 PG="base gate gib_close dl_close screens control info extra"
 for R in 24 12; do
   (cd $W && g++ -O2 -std=gnu++17 -w -DLV_HOST_BAND_ROWS=$R -o $T/bin_head$R tools/livescan/sim_live.cpp -lz)
-  for s in cd5e118 7fe1b4b 66659af 726a5d3; do (cd $T/ref-$s && g++ -O2 -std=gnu++17 -w -DLV_HOST_BAND_ROWS=$R -o $T/bin_$s$R tools/livescan/sim_live.cpp -lz); done
+  for s in cd5e118 7fe1b4b 66659af 726a5d3; do F=; [ $s = 726a5d3 ] && F=-DLV_RD_INFO_TOWER_PULL=1   # the mock's host-sim switch (default 0 in 726a5d3)
+    (cd $T/ref-$s && g++ -O2 -std=gnu++17 -w -DLV_HOST_BAND_ROWS=$R $F -o $T/bin_$s$R tools/livescan/sim_live.cpp -lz); done
   for b in head cd5e118 7fe1b4b 66659af; do for p in $PG; do run $T/bin_$b$R $W/tools/livescan/scripts/pg_$p.txt $T/A$R/$b/$p; done; done
   for b in head 726a5d3; do for p in base gib_close dl_close; do run $T/bin_$b$R $W/tools/livescan/scripts/pg_$p.txt $T/B$R/$b/$p; done; done
   for b in head 7fe1b4b; do for p in gate stills pause; do run $T/bin_$b$R $W/docs/mocks/hackbot-intro-saves/$p.txt $T/C$R/$b/$p; done; done

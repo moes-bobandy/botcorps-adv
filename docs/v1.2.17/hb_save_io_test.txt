@@ -1,0 +1,13 @@
+PASS entry lands on SAVE SLOTS
+PASS empty card -> 3x NEW GAME
+PASS firmware path: no EX.DATA stamp, SD source
+PASS NEW GAME -> level-1 typist
+PASS B -> PAUSE
+PASS slot2 -> SD 16-byte HB1 record
+PASS record = level 4, score 1234, towers 2, files 1
+PASS reload from SD continues slot 2
+PASS filled slot continues into PLAY with progress
+PASS no SD -> NVS hbsl2 fallback, confirm shows NVS
+PASS no SD -> load from NVS
+0 fail
+MOUI tot=0 part=0

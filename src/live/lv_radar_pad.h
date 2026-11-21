@@ -437,6 +437,28 @@ static void lv_rd_pad_draw(LvBand &B, uint16_t hdr)
 }
 
 
+#ifndef LV_STRIP_TOWERS
+#define LV_STRIP_TOWERS 1   /* mock/v1219 layer 2: centre tower-style plates on the control strip; set 0 to drop this commit */
+#endif
+#if LV_STRIP_TOWERS
+/* Mini clone of the GIBSON folder plate (lv_rd_fold1): 3D lip, dark fill, 4 px scanlines, accent frame, short tab, 3x5 label.
+ * Sized for the strip-centre gap x102..147, y268..316 (46 x 49) — not the full 143x46 folder. */
+static const LvRect LV_ST_UP = {102, 271, 147, 291};   /* 46 x 21; tab y265..270 sits below the plaque (y249..264) */
+static const LvRect LV_ST_DN = {102, 294, 147, 316};   /* 46 x 23 */
+static void pad_tower_btn(LvBand &B, int x, int y, int w, int h, uint16_t ink, const char *lab, int held)
+{
+    if (!b_yhit(B, y - 6, y + h)) return;
+    const uint16_t fill = held ? lv_mix(lv_hex(0x050c16), ink, 5, 8) : lv_hex(0x050c16);
+    b_fill(B, x + 2, y + 1, w, h, lv_hex(0x061321));   /* lip */
+    b_fill(B, x, y, w, h, fill);
+    for (int yy = y + 2; yy < y + h - 1; yy += 4) b_fill(B, x + 1, yy, w - 2, 1, lv_hex(0x081422));
+    b_frame(B, x, y, w, h, ink);
+    b_fill(B, x, y - 6, 28, 6, fill);
+    b_frame(B, x, y - 6, 28, 7, ink);
+    b_text35(B, x + 2, y - 5, lab, held ? lv_hex(0xffffff) : ink);
+}
+#endif
+
 /* v1.2.14 REAL FIRMWARE (Mobandy 11:34 AM ET "hackerbot has no control ui"), cloned from the v1.2.11 MOCK (Mobandy 2026-11-20 7:07 "HACKbot needs the d pad and needs to be more game-control oriented"). The MOCK's
  * code, now built into the firmware (was host-sim only behind LV_MOCK_HC_DPAD). HACKbot DOWNLOAD deck = the GIBSON deck's own primitives
  * (frame, vias, plaque, bevel, arcade discs) in the theme ink: a 4-way cross d-pad + B BACK / A OPEN. Finger zones:
@@ -460,7 +482,13 @@ static void pad_hc_deck(LvBand &B, const char *st, const char *st2, const char *
       pad_rocker(B, cx, cy, 16, 68, lv_hex(0x1a1018), ink);
       pad_disc(B, cx, cy, 3, ink, ink, 0);
       lv_rd_pad_held = keep; }   /* mock/v1219: left/right rocker, verbatim 9efd705 pad_rocker; A OPEN / B BACK stay */
+#if LV_STRIP_TOWERS
+    (void)ud; (void)lr; (void)dim;
+    pad_tower_btn(B, LV_ST_UP.x0, LV_ST_UP.y0, LV_ST_UP.x1 - LV_ST_UP.x0 + 1, LV_ST_UP.y1 - LV_ST_UP.y0 + 1, ink, "UP", H == 1);
+    pad_tower_btn(B, LV_ST_DN.x0, LV_ST_DN.y0, LV_ST_DN.x1 - LV_ST_DN.x0 + 1, LV_ST_DN.y1 - LV_ST_DN.y0 + 1, ink, "DN", H == 2);
+#else
     b_text35(B, 104, 272, "L/R", dim); b_text35(B, 104, 280, lr, ink);
+#endif
     auto arcade = [&](int x, int y, uint16_t col, const char *lab, const char *sub, int held) {
         pad_disc(B, x, y, 20, lv_hex(0x08040c), col, 0); pad_glow(B, x, y, 20, held ? lv_hi(col) : col, held ? 6 : 3);
         pad_disc(B, x, y, 15, held ? lv_mix(lv_hex(0x100818), col, 5, 8) : lv_hex(0x120818), col, held);

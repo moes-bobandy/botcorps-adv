@@ -1,0 +1,17 @@
+mock/v1219-fixes-2026-11-21  commit 2 (LV_STRIP_TOWERS centre plates)
+HARD GATE vs bd6c320: pixels outside control-strip bbox x=1..238, y=247..319 must be 0.
+Same-state scripts (HACKbot slot picked by a tap above the strip, not on the new UP plate).
+
+screen           inside  outside  total  result  change box
+ctl_page3             0        0      0  PASS
+go16                  0        0      0  PASS
+gib_scan            925        0    925  PASS  (16,273)-(83,311)  rocker only (SPEED kept, no centre plates)
+gib_sel_deck        925        0    925  PASS  (16,273)-(83,311)
+dl_intro           3323        0   3323  PASS  (16,265)-(149,317)  rocker + UP/DN plates
+dl_play            3323        0   3323  PASS  (16,265)-(149,317)  fair script (tap 120,140)
+dojo                  0        0      0  PASS
+pager_home            0        0      0  PASS
+
+A first script that tapped 120,280 (inside the new UP plate) moved the slot cursor and
+painted the save-slot highlight outside the strip (2145 px). That is existing UP/DN
+action behaviour, not a draw leak. The same-state gate above is the hard gate.

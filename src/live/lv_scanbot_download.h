@@ -664,7 +664,11 @@ static void lv_dl_frame(void)
 static void lv_go_soon(int scr, const char *tty_cmd);
 #if LV_DL_DECK
 /* v1.2.14: the deck's keys on the real game actions. 1 up 2 down 3 left 4 right (lv_pad_dpad_at), 5 A, 6 B (GIBSON's A / B). */
-static int lv_dl_deck_id(int x, int y) {   /* mock/v1219: L/R rocker boxes (v1.2.13), not the v1.2.14 4-way diagonals. A OPEN / B BACK unchanged. */
+static int lv_dl_deck_id(int x, int y) {   /* mock/v1219: L/R rocker boxes; centre UP/DN tower plates (existing slot/folder/menu/row actions); A/B unchanged. */
+#if LV_STRIP_TOWERS
+    if (lv_in(LV_ST_UP, x, y)) return 1;
+    if (lv_in(LV_ST_DN, x, y)) return 2;
+#endif
     if (lv_in(PAD_HIT_L, x, y)) return 3;
     if (lv_in(PAD_HIT_R, x, y)) return 4;
     return lv_in(PAD_HIT_A, x, y) ? 5 : lv_in(PAD_HIT_B, x, y) ? 6 : 0;

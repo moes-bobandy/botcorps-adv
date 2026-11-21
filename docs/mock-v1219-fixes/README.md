@@ -77,3 +77,24 @@ up/down arm on the rocker. The slots plaque still says "UP/DN PICK" (inside the 
 
 Hard gate vs bd6c320: see `gate_dpad_lr_vs_bd6c320.txt`. Outside-strip diff is 0 on every
 dumped screen. Renders: `/workspace/out/fw-bigbot-1117/v1219-fixes/dpad-lr-vs-bd6c320/`.
+
+## 5. Centre tower-style buttons (separate layer, LV_STRIP_TOWERS)
+
+Own flag `LV_STRIP_TOWERS` (default 1; set 0 or revert this commit to drop it).
+The plates clone the GIBSON folder-plate chrome (`lv_rd_fold1`): 3D lip, dark fill,
+4 px scanlines, accent frame, short tab, 3x5 label — shrunk to the strip centre.
+
+### Room (px) and what was placed
+
+Strip bbox on pad screens: **x 1..238, y 247..319** (238 x 73). Plaque is y 249..264.
+Left rocker housing: about x 6..94, y 268..316. A/B discs: 40 x 40 at (196,272)-(235,311)
+and (152,272)-(191,311). Centre gap: **x 102..147 (46 px) x y 268..316 (49 px)**.
+
+| Screen | Centre already occupied? | Buttons added | Existing actions | Touch size |
+| --- | --- | --- | --- | --- |
+| GIBSON | SPEED already sits in that gap (PAD_MID x106 w38, y270..314, 38 x 45). A LOCK / B BACK are 40 x 40 discs on the right. | **None.** Covering SPEED would drop an existing control. No leftover 36 px pocket beside it (~8 px each side). | — | — |
+| HACKbot | After the rocker restore the gap only had L/R text. | **UP** plate `{102,271,147,291}` (46 x 21, tab y 265..270) and **DN** `{102,294,147,316}` (46 x 23). | The existing 4-way UP/DOWN actions: slot pick, pause menu, open-tower folder cursor, field row jump. A OPEN / B BACK stay on the right discs. L/R stays on the rocker. | Short axis 21 / 23 px, **under** the 36-40 px resistive floor. The 40 x 40 A/B discs remain the large targets. |
+| Dojo | Idle: y 247..286 is empty black; footer terminal is y 287..319 (**33 px tall**, under the 36 px floor). Open pillar: `mo_panel` already fills **x 2..238, y 247..285** (236 x 39) with the pillar name, status, and existing `< TOWERS` (63 x 34 at 173,249). | **None.** Idle has no existing strip action except the y>=287 TERM route (not promoted). Open-pillar centre is already the name/status; folder actions already live on the right-hand folders (outside the strip). Adding plates would cover `mo_panel`. | — | Footer 33 px cannot host a 36 px target without extending into the floor (y<=246), which would fail the hard gate. |
+
+Hard gate vs bd6c320: `gate_strip_towers_vs_bd6c320.txt`. Outside-strip 0 px on same-state frames.
+Renders: `/workspace/out/fw-bigbot-1117/v1219-fixes/strip-towers-vs-bd6c320/`.

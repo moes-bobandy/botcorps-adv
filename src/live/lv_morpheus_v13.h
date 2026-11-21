@@ -13,40 +13,34 @@
  * device by threat level (HIGH -> T1 code glass, MEDIUM -> T3 sentinel lantern, LOW -> T2 construct white light), ONE fixed height per
  * style (MO_HFIX: only three heights), spread placement, crisp vector emblems (src/mo_emblem.h). Mock only, EX.DATA. */
 #include "botpheus/mo_emblem.h"
-#define MO_N 18
+#define MO_N 10   /* dojo-10 (Mobandy 2026-11-21): 10 pillars, was 18 (KEYFOB, AXON, RAVEN, ALPR, CAMERA, RING, GOOGLE TAG, IBEACON dropped from the Dojo only) */
+/* each pillar's id in the old 18-device order: the emblem art (mo_emblem.h, still 18) and every per-device seed use it, so each kept
+ * pillar draws exactly as it did among 18; EVIL TWIN (old 16) takes KEYFOB's slot 5 */
+static const int MO_EID[MO_N] = {0, 1, 2, 3, 4, 16, 6, 7, 8, 9};
 struct MoDev { const char *name, *what, *spot, *prot; };
-static const MoDev MO_DEV[MO_N] = {   /* 2026-11-14: WIFI + BLUETOOTH removed */
+static const MoDev MO_DEV[MO_N] = {   /* dojo-10 (Mobandy 2026-11-21): the 10 kept devices, rows verbatim from the 18-device table, EVIL TWIN in KEYFOB's slot */
     {"DEAUTH", "Fake messages that kick you off Wi-Fi.", "Passive watch for deauth and disassoc floods.", "Use WPA3 or protected frames (802.11w)."},
     {"HACK", "Weak Wi-Fi anyone can read.", "Access points that are OPEN or use WEP.", "Stay off them. Lock yours with WPA2/WPA3."},
     {"FLOCK", "Flock cameras that read license plates.", "Flock Wi-Fi names, Penguin/FS Ext Battery.", "Know where they are. Ask how long data is kept."},
     {"DRONE", "DJI, Tello, Skydio and Anafi drones.", "Drone Wi-Fi names, Bluetooth and Remote ID.", "Note time and place. Report misuse to police."},
     {"AIR TAG", "Apple AirTag, a coin-size Find My tracker.", "Find My adverts (Apple 0x004C, type 0x12).", "Check bags and car. Heed phone tag alerts."},
-    {"KEYFOB", "Keyring trackers like Tile.", "Tile Bluetooth IDs FEED and FEEC.", "Scan for tags you do not own."},
+    {"EVIL TWIN", "A fake hotspot copying a real Wi-Fi name.", "Same name from two APs, lock type differs.", "Check the lock. Forget open copies."},
     {"META", "Meta smart glasses with a camera.", "Bluetooth company ID 0x01AB or 0x058E.", "Watch for the capture light. Ask before filming."},
     {"SKIMMER", "Hidden card readers on pumps and ATMs.", "Serial modules HC-05/06/08 and RNBT.", "Tap to pay. Wiggle the reader. Cover the keypad."},
     {"FLIPPER", "Flipper Zero, a pocket radio and NFC tool.", "Bluetooth advert names that say Flipper.", "Update your phone. Dismiss surprise pop-ups."},
     {"SAMSUNG", "Samsung Galaxy SmartTag trackers.", "SmartTag Bluetooth adverts (FD5A/FD59).", "Run an unknown tag scan in SmartThings."},
-    /* morpheus-mix: the 8 SquachWatch README devices */
-    {"AXON", "Axon police body cams and Taser gear.", "Axon maker MAC prefix and AB3 Wi-Fi names.", "Know your rights. Ask if you are filmed."},
-    {"RAVEN", "Raven gunshot and sound sensors on poles.", "Raven BLE service UUIDs 0x3100 to 0x3500.", "Know where they are. Ask what is kept."},
-    {"ALPR", "Plate reader cams (Motorola, Genetec).", "Camera maker MAC prefixes on Wi-Fi.", "Ask your city who gets the plate data."},
-    {"CAMERA", "Wi-Fi IP cams (Wyze, Verkada, Tuya).", "Camera maker MAC prefixes on Wi-Fi.", "Check rentals for cams. Cover lenses."},
-    {"RING", "Amazon Ring doorbells and cameras.", "Ring and Amazon maker MAC prefixes.", "Say no to video share asks you do not want."},
-    {"GOOGLE TAG", "Google Find My Device trackers.", "FMDN adverts (FEAA), Chipolo, Pebblebee.", "Run your phone's unknown tracker scan."},
-    {"EVIL TWIN", "A fake hotspot copying a real Wi-Fi name.", "Same name from two APs, lock type differs.", "Check the lock. Forget open copies."},
-    {"IBEACON", "Apple iBeacon adverts used by shops.", "BLE adverts 4C 00 02 15 + UUID major minor.", "Turn off Bluetooth or beacon scans."},
 };
 /* the locked description page's icon per device (docs/mocks/morpheus-glossary/README.md "Icons"); -1 = DEV_DEAUTH 12x12 below */
-static const int MO_ICON[MO_N] = {-1, LV_IC_LAPTOP, LV_IC_CCTV, LV_IC_DRONE, LV_IC_AIRTAG, LV_IC_KEYFOB, LV_IC_GLASSES, LV_IC_SKIMMER, LV_IC_FLIPPER, LV_IC_GALAXYTAG, -1, -1, -1, -1, -1, -1, -1, -1};   /* old art (v13.1 only); mix pillars use mo_emblem.h */
+static const int MO_ICON[MO_N] = {-1, LV_IC_LAPTOP, LV_IC_CCTV, LV_IC_DRONE, LV_IC_AIRTAG, -1, LV_IC_GLASSES, LV_IC_SKIMMER, LV_IC_FLIPPER, LV_IC_GALAXYTAG};   /* old art (v13.1 only); mix pillars use mo_emblem.h */
 static const char *const MO_DEAUTH[12] = { "...aaaaaa...", ".aa......aa.", "a..aaaaaa..a", "..aa....aa..", "...a.aa.a...", ".....aa.....",
     ".....aa.....", "........c..c", ".........cc.", ".........cc.", "........c..c", "............" };   /* DEV_ROW[DEV_DEAUTH], src/ui/botcorps_ui.cpp */
 /* kinds: 0 NETWORKS, 1 CAMERAS, 2 TRACKERS, 3 BLE TOOLS (text only: v10 has no colour-coded categories) */
-static const int MO_KIND[MO_N] = {0, 0, 1, 1, 2, 2, 1, 3, 3, 2, 1, 1, 1, 1, 1, 2, 0, 3};
+static const int MO_KIND[MO_N] = {0, 0, 1, 1, 2, 0, 1, 3, 3, 2};
 /* threat (0 HIGH, 1 MEDIUM, 2 LOW) -> look (1 T1 code glass, 3 T3 sentinel lantern, 2 T2 construct white light); provisional split */
-static const int MO_THREAT[MO_N] = {0, 0, 2, 2, 1, 1, 1, 0, 0, 1, 1, 2, 2, 1, 2, 1, 0, 2};
+static const int MO_THREAT[MO_N] = {0, 0, 2, 2, 1, 0, 1, 0, 0, 1};
 static const char *const MO_TNAME[3] = {"HIGH", "MEDIUM", "LOW"};
 static const int MO_TLOOK[3] = {1, 3, 2};
-static const int MO_LOOKOF[MO_N] = {1, 1, 2, 2, 3, 3, 3, 1, 1, 3, 3, 2, 2, 3, 2, 3, 1, 2};
+static const int MO_LOOKOF[MO_N] = {1, 1, 2, 2, 3, 1, 3, 1, 1, 3};
 /* ONE fixed world height per style, by look (1 T1 code glass tallest, 3 T3 lantern middle, 2 T2 white light shortest): only three heights.
  * Replaces the engine's rssi height and the idle breathing for the pillars (mo11_drift). */
 static const float MO_HFIX[4] = {1.0f, 2.600f, 1.612f, 2.080f};
@@ -68,16 +62,26 @@ static const char *const MO_SEC[3] = {"WHAT IT IS", "HOW IT IS SPOTTED", "HOW TO
 #define MO11_GH    0x10d858   /* Matrix green highlight */
 /* ---- world: 12 pillars, each its OWN independent 3D drift (X, Z, breathing H) on top of a scattered base layout ---- */
 /* base (picked offline for touch: tools opt2.py, segment-Voronoi tap cells over 30 drifting samples): screen column at camera 0, depth Z (12 steps 1.65 .. 4.35) and example rssi (12 distinct, -42 .. -92: Gibson's rssi -> level -> H law) */
-static const float MO11_SX[MO_N] = {173.939f, 32.000f, 97.950f, 72.277f, 57.763f, 197.367f, 112.303f, 214.246f, 127.717f, 121.640f, 165.545f, 175.832f, 27.175f, 123.927f, 127.046f, 74.091f, 33.057f, 206.000f};
-static const float MO11_Z0[MO_N] = {3.5786f, 1.7143f, 2.5786f, 2.5500f, 4.1214f, 3.5429f, 2.9071f, 2.1714f, 1.9429f, 4.5714f, 2.0571f, 3.4786f, 3.9500f, 1.8286f, 4.0429f, 2.1857f, 3.0214f, 3.6143f};
-static const int8_t MO11_RSSI[MO_N] = {-79, -42, -58, -54, -85, -74, -62, -50, -46, -92, -48, -72, -82, -44, -88, -52, -64, -77};   /* EX.DATA */
+static const float MO11_SX[MO_N] = {173.939f, 32.000f, 97.950f, 72.277f, 57.763f, 33.057f, 112.303f, 214.246f, 127.717f, 121.640f};
+static const float MO11_Z0[MO_N] = {3.5786f, 1.7143f, 2.5786f, 2.5500f, 4.1214f, 3.0214f, 2.9071f, 2.1714f, 1.9429f, 4.5714f};
+static const int8_t MO11_RSSI[MO_N] = {-79, -42, -58, -54, -85, -64, -62, -50, -46, -92};   /* EX.DATA */
 /* v1.2.10 (Mobandy 2026-11-19: the Dojo only ever showed EX.DATA): the live scan behind each pillar. Each pillar whose device
  * the firmware can already detect uses that hunt's own matcher (lv_hunt_match, the same rule the HUNT bots use) over the
  * real finds in lv_f; DEAUTH uses the deauth watch count. The other 8 pillars have no detector in this firmware yet and keep
  * their EX.DATA labels. Refreshed once per Dojo frame, before the render swaps the example world in. Pillar layout,
  * heights and motion are unchanged; only the numbers and labels for a pillar that is really seen switch to LIVE. */
-static const int MO_HUNT[MO_N] = {LV_H_DEAUTH, LV_H_HACK, LV_H_FLOCK, LV_H_DRONE, LV_H_AIRTAG, LV_H_KEYFOB, LV_H_META, LV_H_SKIMMER, LV_H_FLIPPER, LV_H_SAMSUNG,
-                                  -1, -1, -1, -1, -1, -1, -1, -1};
+static const int MO_HUNT[MO_N] = {   /* dojo-10 (Mobandy 2026-11-21): the 10 kept devices, rows verbatim from the 18-device table, EVIL TWIN in KEYFOB's slot */
+    LV_H_DEAUTH,
+    LV_H_HACK,
+    LV_H_FLOCK,
+    LV_H_DRONE,
+    LV_H_AIRTAG,
+    -1,
+    LV_H_META,
+    LV_H_SKIMMER,
+    LV_H_FLIPPER,
+    LV_H_SAMSUNG,
+};
 static uint8_t mo_live_n[MO_N]; static int8_t mo_live_db[MO_N]; static int mo_live_tot = 0, mo_live_np = 0;
 static void mo_live_update(void)
 {
@@ -93,11 +97,11 @@ static void mo_live_update(void)
 static inline bool mo_live(int i) { return i >= 0 && i < MO_N && mo_live_n[i] && MO_HUNT[i] != LV_H_DEAUTH; }   /* a real dBm to show */
 static inline int mo_db(int i) { return mo_live(i) ? mo_live_db[i] : MO11_RSSI[i]; }
 /* independent drift: amplitude + rate (rad/s, all distinct) + phase per pillar and per axis */
-static const float MO11_AX[MO_N] = {0.281f, 0.282f, 0.276f, 0.31f, 0.244f, 0.31f, 0.231f, 0.329f, 0.269f, 0.248f, 0.279f, 0.237f, 0.353f, 0.329f, 0.33f, 0.22f, 0.238f, 0.282f};
-static const float MO11_WX[MO_N] = {0.323f, 0.587f, 0.247f, 0.278f, 0.801f, 0.899f, 0.855f, 0.726f, 0.539f, 0.195f, 0.927f, 0.167f, 0.678f, 0.776f, 0.627f, 0.368f, 0.829f, 0.652f};
-static const float MO11_AZ[MO_N] = {0.261f, 0.226f, 0.293f, 0.333f, 0.328f, 0.317f, 0.273f, 0.311f, 0.29f, 0.242f, 0.333f, 0.283f, 0.25f, 0.186f, 0.314f, 0.2f, 0.234f, 0.315f};
-static const float MO11_WZ[MO_N] = {0.613f, 0.262f, 0.201f, 0.311f, 0.353f, 0.239f, 0.181f, 0.54f, 0.728f, 0.673f, 0.59f, 0.128f, 0.373f, 0.639f, 0.698f, 0.56f, 0.285f, 0.151f};
-static const float MO11_WH[MO_N] = {0.62f, 0.94f, 0.77f, 0.66f, 0.88f, 0.59f, 0.98f, 0.74f, 0.69f, 0.91f, 0.73f, 0.96f, 0.68f, 0.8f, 0.61f, 0.64f, 0.9f, 0.86f};
+static const float MO11_AX[MO_N] = {0.281f, 0.282f, 0.276f, 0.31f, 0.244f, 0.238f, 0.231f, 0.329f, 0.269f, 0.248f};
+static const float MO11_WX[MO_N] = {0.323f, 0.587f, 0.247f, 0.278f, 0.801f, 0.829f, 0.855f, 0.726f, 0.539f, 0.195f};
+static const float MO11_AZ[MO_N] = {0.261f, 0.226f, 0.293f, 0.333f, 0.328f, 0.234f, 0.273f, 0.311f, 0.29f, 0.242f};
+static const float MO11_WZ[MO_N] = {0.613f, 0.262f, 0.201f, 0.311f, 0.353f, 0.285f, 0.181f, 0.54f, 0.728f, 0.673f};
+static const float MO11_WH[MO_N] = {0.62f, 0.94f, 0.77f, 0.66f, 0.88f, 0.9f, 0.98f, 0.74f, 0.69f, 0.91f};
 #define MO11_AH 0.06f    /* breathing: H * (1 + 0.06 sin) */
 #define MO11_TW 1.35f    /* lv_rd_skin_tw: pillars a little broader than Gibson's needles (touch) */
 #define MO11_TH 1.0f     /* lv_rd_skin_th: Gibson's own height law */
@@ -245,25 +249,25 @@ static float mo12_cam(float t) { return mo12_camc + MO12_CAMA * sinf(t * 0.45f);
 
 /* ---- independent drift (lv_rd_place hook, skin 1): every pillar its own X / Z / H path; the sort in lv_rd_place re-orders far -> near ---- */
 static float mo11_k(int i) { (void)i; return 1.0f; }    /* v12: every pillar keeps its full idle drift; the close-up is a blend on top */
-static const float MO11_PX[MO_N] = {4.974f, 0.836f, 0.518f, 5.273f, 0.932f, 3.105f, 0.22f, 5.384f, 2.198f, 4.591f, 3.912f, 3.58f, 0.577f, 4.965f, 1.645f, 1.769f, 5.765f, 0.14f};
-static const float MO11_PZ[MO_N] = {5.122f, 2.672f, 0.408f, 4.291f, 0.204f, 5.359f, 2.034f, 2.391f, 3.717f, 4.919f, 1.292f, 1.043f, 4.811f, 5.31f, 3.69f, 0.426f, 6.153f, 1.889f};
-static const float MO11_AS[MO_N] = {0.051f, 0.058f, 0.05f, 0.04f, 0.059f, 0.052f, 0.037f, 0.049f, 0.068f, 0.068f, 0.04f, 0.06f, 0.048f, 0.05f, 0.054f, 0.064f, 0.048f, 0.036f};
-static const float MO11_WS[MO_N] = {1.958f, 1.053f, 1.308f, 1.249f, 1.984f, 1.166f, 0.999f, 1.723f, 1.852f, 1.801f, 1.087f, 1.527f, 1.417f, 1.91f, 1.636f, 1.591f, 0.956f, 1.487f};
-static const float MO11_PS[MO_N] = {1.912f, 3.194f, 4.48f, 4.229f, 4.51f, 1.918f, 5.198f, 0.913f, 1.143f, 5.049f, 1.627f, 2.121f, 5.394f, 3.06f, 1.851f, 2.074f, 1.554f, 2.251f};
+static const float MO11_PX[MO_N] = {4.974f, 0.836f, 0.518f, 5.273f, 0.932f, 5.765f, 0.22f, 5.384f, 2.198f, 4.591f};
+static const float MO11_PZ[MO_N] = {5.122f, 2.672f, 0.408f, 4.291f, 0.204f, 6.153f, 2.034f, 2.391f, 3.717f, 4.919f};
+static const float MO11_AS[MO_N] = {0.051f, 0.058f, 0.05f, 0.04f, 0.059f, 0.048f, 0.037f, 0.049f, 0.068f, 0.068f};
+static const float MO11_WS[MO_N] = {1.958f, 1.053f, 1.308f, 1.249f, 1.984f, 0.956f, 0.999f, 1.723f, 1.852f, 1.801f};
+static const float MO11_PS[MO_N] = {1.912f, 3.194f, 4.48f, 4.229f, 4.51f, 1.554f, 5.198f, 0.913f, 1.143f, 5.049f};
 static float mo11_dx(int i, float t) { return mo11_k(i) * (MO11_AX[i] * (MO11_Z0[i] / 2.0f) * sinf(MO11_WX[i] * t + MO11_PX[i]) + MO11_AS[i] * MO11_Z0[i] * sinf(MO11_WS[i] * t + MO11_PS[i])); }   /* v5c: own phase + lateral sway */   /* amplitude grows with depth: far pillars visibly travel too */
 static float mo11_kz(int i) { (void)i; return 1.0f; }
-static const float MO11_HK[MO_N] = {1.0677f, 0.6022f, 0.7461f, 0.6937f, 1.1396f, 0.995f, 0.805f, 0.6506f, 0.6192f, 1.1913f, 0.6332f, 0.9639f, 1.1062f, 0.6087f, 1.1668f, 0.6708f, 0.8361f, 1.0397f};   /* v5d depth height factor */
+static const float MO11_HK[MO_N] = {1.0677f, 0.6022f, 0.7461f, 0.6937f, 1.1396f, 0.8361f, 0.805f, 0.6506f, 0.6192f, 1.1913f};   /* v5d depth height factor */
 static float mo11_dz(int i, float t) { return mo11_kz(i) * MO11_AZ[i] * (MO11_Z0[i] / 3.0f) * sinf(MO11_WZ[i] * t + MO11_PZ[i]); }   /* v5c: own phase; depth from the Gibson map of the EX.DATA rssi */
 static void mo11_drift(LvTower &T)
 {
     const int i = T.i; if (i < 0 || i >= MO_N) return; const float t = mo_t();
-static_assert(MO_N == 18, "hk table");
+static_assert(MO_N == 10, "hk table");
     T.H = MO_HFIX[MO_LOOKOF[i]] * MO11_HK[i];   /* v5d: group height x a fixed depth factor (near towers shorter), no breathing */
     const float Z0 = MO11_Z0[i], X0 = (MO11_SX[i] - 120) * Z0 / LV_RD_F;
     const float dx = mo11_dx(i, t), dz = mo11_dz(i, t), hk = 1.0f;   /* spread: no idle height breathing (heights stay exactly three) */
     T.X = X0 + dx; T.Z = Z0 + dz; T.H *= hk;
 #ifdef MO_EB2
-    { static const bool NEAR5[MO_N] = {false, true, false, false, false, false, false, true, true, false, true, false, false, true, false, false, false, false};   /* the nearest 25% by Gibson depth */
+    { static const bool NEAR5[MO_N] = {false, true, false, false, false, false, false, true, true, false};   /* the nearest 25% by Gibson depth */
       const float kq = NEAR5[i] ? 1.0f + (MO_EB2_KZ - 1.0f) * (1.0f - mo12_p(i)) : 1.0f;   /* eases back to 1 while it is pulled up */
       T.X = T.X * kq + lv_rd_camx * (1.0f - kq); T.Z *= kq; T.H *= kq; mo_eb2_k[i] = kq; }   /* EB3: camera sway compensated -> same on-screen sway as EB (no extra parallax off the edges) */
 #endif
@@ -271,9 +275,9 @@ static_assert(MO_N == 18, "hk table");
     const float p = mo12_p(i);
     if (p > 0) {   /* v12 push: forward along the camera ray (1/Z eased, so the growth reads evenly) to the close-up, keeping a little breathing */
         const float c = lv_rd_camx, Zi = T.Z, Xi = T.X, Hi = T.H;
-        const float Zc = MO12_ZC * (1.0f + 0.012f * sinf(0.9f * t + i));
-        const float Hc = (LV_RD_CAMH + (LV_RD_HOR - MO12_YT) * MO12_ZC / LV_RD_F) * (1.0f + 0.012f * sinf(MO11_WH[i] * t + i * 0.77f));
-        const float Xc = mo12_camc + (MO12_SX - 120) * MO12_ZC / LV_RD_F + 0.010f * sinf(MO11_WX[i] * t + i * 2.399f);
+        const float Zc = MO12_ZC * (1.0f + 0.012f * sinf(0.9f * t + MO_EID[i]));
+        const float Hc = (LV_RD_CAMH + (LV_RD_HOR - MO12_YT) * MO12_ZC / LV_RD_F) * (1.0f + 0.012f * sinf(MO11_WH[i] * t + MO_EID[i] * 0.77f));
+        const float Xc = mo12_camc + (MO12_SX - 120) * MO12_ZC / LV_RD_F + 0.010f * sinf(MO11_WX[i] * t + MO_EID[i] * 2.399f);
         (void)Zi; (void)Xi; (void)Hi;
         lv_sel_pull(c, Xc, Zc, Hc, p, LV_RD_F, T.X, T.Z, T.H);   /* v1.2.13: the shared lv_select.h pull-up (same arithmetic) */
     }
@@ -332,7 +336,7 @@ static void mo_halo(LvBand &B, int i, int cx, int cy, int fade, int boost)   /* 
 {
     const int S = mo_hs[i], x0 = cx - S / 2, y0 = cy - S / 2; if (y0 >= B.y0 + B.h || y0 + S <= B.y0) return;
     const uint16_t cg = boost ? lv_hex(0xd8ffe6) : lv_hex(0xf6f0e2), cb = boost ? lv_hex(0xeafff1) : lv_hex(0xe8dec8), cl = boost ? lv_hex(0x003a16) : lv_hex(0xfffaf0);
-    const float br = 0.85f + 0.15f * sinf((lv_now / 1000.0f) * 2.0f + i * 0.9f);
+    const float br = 0.85f + 0.15f * sinf((lv_now / 1000.0f) * 2.0f + MO_EID[i] * 0.9f);
     const int kg = (int)(70 * br) * fade / 256, kb = 120 * fade / 256, kl = (boost ? 220 : 200) * fade / 256;
     for (int y = 0; y < S; ++y) { const int yy = y0 + y; if (yy < B.y0 || yy >= B.y0 + B.h) continue;
         for (int x = 0; x < S; ++x) { const int k = y * S + x, xx = x0 + x;
@@ -535,13 +539,13 @@ static void mo13_tower_fx_v131(LvBand &B, const LvTower &T)   /* v13.1 skin, kep
         const int ix0 = x0 + (fw >= 30 ? 4 : 2), ix1 = x1 - (fw >= 30 ? 4 : 2), iw = ix1 - ix0 + 1, cols = iw / (fw >= 40 ? 8 : 4) < 2 ? 2 : iw / (fw >= 40 ? 8 : 4);
         for (int y = wy0, row = 0; y + pitch - 1 < yb - 1; y += pitch, ++row) for (int c = 0; c < cols; ++c) {
             const int xa = ix0 + c * iw / cols, xb = ix0 + (c + 1) * iw / cols - 2;
-            const int h = (c * 7 + row * 13 + i * 5 + (int)(lv_now / 1500) * (row == (i % 5))) % 11;
+            const int h = (c * 7 + row * 13 + MO_EID[i] * 5 + (int)(lv_now / 1500) * (row == (MO_EID[i] % 5))) % 11;
             mo13_pane(B, xa, y, xb, y + pitch - 2, h == 0 ? 2 : h <= 2 ? 1 : 0, a); }
     }
     /* crisp outer edges + Matrix-green seam with a moving bright pulse */
     mo13_line(B, x0, yt, x0, yb, PAP, a); mo13_line(B, x0, yt, x1, yt, PAP, a); mo13_line(B, x1, yt, x1, yb, lv_hex(0xb8a47c), a); mo13_line(B, x0, yb, x1, yb, DK, a);
     if (fw >= 8) { const int sx = x1 - (fw >= 30 ? 3 : 1); mo13_line(B, sx, yt + 2, sx, yb - 1, G, a * 3 / 4);
-        const int hgt = yb - yt; if (hgt > 8) { const int py = yb - 2 - (int)(fmodf(lv_now / 1000.0f * (0.6f + 0.05f * i) + i * 0.37f, 1.0f) * (hgt - 6)); mo13_line(B, sx, py, sx, py + 3, GH, a); } }
+        const int hgt = yb - yt; if (hgt > 8) { const int py = yb - 2 - (int)(fmodf(lv_now / 1000.0f * (0.6f + 0.05f * MO_EID[i]) + MO_EID[i] * 0.37f, 1.0f) * (hgt - 6)); mo13_line(B, sx, py, sx, py + 3, GH, a); } }
 }
 /* ---- v12 Dojo folders (the DOWNLOAD / INFO folder structure: tab, icon, name line, info lines, a small bar; Dojo paper + timber + ink) ---- */
 static const char *const MO12_TAB[4] = {"WHAT IT IS", "HOW IT IS SPOTTED", "HOW TO PROTECT YOURSELF", "SIGNAL  EX.DATA"};
@@ -737,11 +741,11 @@ static void itw_mo_enter(void)
     LvHcWorld &w = lv_hc_w; memset(&w, 0, sizeof w);
     for (int i = 0; i < MO_N; ++i) {
         snprintf(itw_lab[i], sizeof itw_lab[i], "%s", MO_DEV[i].name); itw_icon[i] = MO_ICON[i];
-        LvFind &f = w.f[i]; const uint8_t mac[6] = {0x4D, 0x11, (uint8_t)(i + 1), 0x00, 0xD0, (uint8_t)(0x10 + i)}; memcpy(f.mac, mac, 6);
-        f.rssi = MO11_RSSI[i]; f.kind = (uint8_t)(i & 1); f.mfg = 0xFFFF; snprintf(f.name, sizeof f.name, "%s", MO_DEV[i].name);
+        LvFind &f = w.f[i]; const uint8_t mac[6] = {0x4D, 0x11, (uint8_t)(MO_EID[i] + 1), 0x00, 0xD0, (uint8_t)(0x10 + MO_EID[i])}; memcpy(f.mac, mac, 6);
+        f.rssi = MO11_RSSI[i]; f.kind = (uint8_t)(MO_EID[i] & 1); f.mfg = 0xFFFF; snprintf(f.name, sizeof f.name, "%s", MO_DEV[i].name);
     }
     w.nf = MO_N; w.t0 = lv_now; w.sel = -1; mo_tw0 = lv_now;
-    snprintf(w.tl[0], sizeof w.tl[0], "DOJO CONSTRUCT  18 PILLARS");
+    snprintf(w.tl[0], sizeof w.tl[0], "DOJO CONSTRUCT  10 PILLARS");
     mo_live_update();
     if (lv_nf == 0 && lv_job == LV_J_NONE) lv_job_start(lv_scanmix == 1 ? LV_J_WIFI : lv_scanmix == 2 ? LV_J_BLE : LV_J_ALL, -1);   /* v1.2.10: a live feed, as GIBSON's lv_radar_enter */
 }

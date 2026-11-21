@@ -6,25 +6,18 @@
  * Mobandy: v12 ghost glass and v13.1 lacquer/shoji both rejected; no square pane / block grid on any face; the tower body carries
  * continuously scrolling folder/file line-items (folder icon, name, size); folders far more striking (double outline, cut corners,
  * header strip + device glyph, scanline/texture, glow on the active folder, trace/shimmer on landing). Motion untouched. EX.DATA only. */
-static const char *const MO3_FN[MO_N][8] = {   /* 2026-11-14 spread: WIFI + BLUETOOTH rows removed (18 devices) */
+static const char *const MO3_FN[MO_N][8] = {   /* dojo-10 (Mobandy 2026-11-21): the 10 kept devices, rows verbatim from the 18-device table, EVIL TWIN in KEYFOB's slot */
     {"KICK.PKT", "DISAS.LOG", "FLOOD.SIG", "BSSID.LST", "CHAN.MAP", "PMF.DEF", "80211W.CF", "WPA3.DEF"},
     {"OPEN.NET", "WEP.KEY", "AP.LST", "CRACK.SIG", "SNIFF.LOG", "WPA2.DEF", "WPA3.DEF", "LOCK.CFG"},
     {"FLOCK.CAM", "PLATE.LOG", "SSID.SIG", "PNGUIN.ID", "FSEXT.BAT", "GPS.MAP", "KEEP.DAYS", "ASK.DEF"},
     {"DJI.UAV", "TELLO.NET", "REMOTE.ID", "SKYDIO.ID", "ANAFI.ID", "GPS.LOG", "PILOT.LOC", "REPORT.TX"},
     {"FINDMY.AD", "APPLE.4C", "TYPE12.ID", "OWNER.KEY", "UWB.PING", "SOUND.CMD", "LOST.MODE", "BAG.CHECK"},
-    {"TILE.TRK", "FEED.ID", "FEEC.ID", "RING.CMD", "BLE.ADV", "OWNER.LOG", "SCAN.DEF", "KEYS.LST"},
+    {"TWIN.SSID", "BSSID.A", "BSSID.B", "ENC.DIFF", "BEACON.LG", "CAPTV.PRT", "KARMA.SIG", "LOCK.DEF"},
     {"META.CAM", "ID.01AB", "ID.058E", "LED.CHK", "CLIP.MP4", "PHOTO.JPG", "BLE.ADV", "ASK.DEF"},
     {"HC05.SIG", "HC06.SIG", "RNBT.ID", "CARD.DMP", "PIN.LOG", "PUMP.LOC", "TAP.PAY", "COVER.KEY"},
     {"FLIPR.NAM", "SUBGHZ.RF", "NFC.DMP", "IR.REMOTE", "BADUSB.JS", "POPUP.SPM", "BLE.SPAM", "PATCH.DEF"},
     {"STAG.TRK", "FD5A.UUID", "FD59.UUID", "OWNER.ID", "UWB.PING", "SMART.THG", "SCAN.DEF", "RING.CMD"},
-    {"AXON.CAM", "AB3.SSID", "TASER.ID", "OUI.LST", "BODYCAM.V", "LE.GEAR", "RSSI.DAT", "ASK.DEF"},
-    {"RAVEN.SNS", "UUID.3100", "SHOT.LOG", "POLE.LOC", "MIC.ARY", "ALERT.TX", "UUID.3500", "ASK.DEF"},
-    {"ALPR.CAM", "MOTO.OUI", "GENTC.OUI", "PLATE.LOG", "HOTLST.DB", "GPS.MAP", "KEEP.DAYS", "CITY.DEF"},
-    {"IPCAM.NET", "WYZE.OUI", "VRKDA.OUI", "TUYA.OUI", "RTSP.STM", "AXIS.OUI", "ROOM.CHK", "COVER.DEF"},
-    {"RING.CAM", "RING.OUI", "AMZN.OUI", "PORCH.MP4", "MOTION.LG", "NEIGH.APP", "SHARE.REQ", "ASK.DEF"},
-    {"FMDN.TAG", "FEAA.UUID", "CHIPL.ID", "PBBEE.ID", "MOTO.TAG", "OWNER.KEY", "SCAN.DEF", "RING.CMD"},
-    {"TWIN.SSID", "BSSID.A", "BSSID.B", "ENC.DIFF", "BEACON.LG", "CAPTV.PRT", "KARMA.SIG", "LOCK.DEF"},
-    {"IBCN.ADV", "4C000215", "UUID.MAJ", "MINOR.ID", "STORE.LOC", "SHOP.TRK", "PUSH.ADS", "BLE.OFF"}};
+};
 /* vector emblem blit: 1 px halo (contrast ink), body, detail; coverage alpha into RGB565 (mo13_px blends, field-clipped) */
 static int mo_ex[MO_N], mo_ey[MO_N], mo_eS[MO_N];   /* this frame's drawn emblem rect per pillar (dump / gate) */
 /* v4: opaque-UI audit. Every emblem / on-tower folder / file-line pixel goes through mo_ui_px; a pixel drawn below the pillar's own
@@ -36,7 +29,7 @@ static MoUiRep mo_ui_rep;
 static int mo_txt_oc = -1;   /* v4: 1 px opaque outline colour behind on-tower text (-1 none) */
 static void mo_emb_draw(LvBand &B, int i, int x0, int y0, int S, uint32_t bc, uint32_t dc, uint32_t hc, int a, int ha, int yhi = 9999)
 {
-    MoEmbV E; if (!mo_emb_view(i, S, E)) return; S = E.S; const int H = S + 2;   /* dojo-glitch: flash table first, cache otherwise */
+    MoEmbV E; if (!mo_emb_view(MO_EID[i], S, E)) return; S = E.S; const int H = S + 2;   /* dojo-glitch: flash table first, cache otherwise */
     if (ha > 0) { mo_ex[i] = x0; mo_ey[i] = y0; mo_eS[i] = S; }   /* only the pillar emblems (with halo) are recorded; chip / folder glyphs are not */
     const uint16_t BC = lv_hex(bc), DC = lv_hex(dc), HC = lv_hex(hc);
     const int ya = B.y0 - y0 + 1 > 0 ? B.y0 - y0 + 1 : 0, yz = B.y0 + B.h - y0 + 1;   /* v1.2.11 speed: halo rows in this band (y0-1+y in B) */
@@ -48,7 +41,7 @@ static inline int mo_embS(int fw) { return fw >= 50 ? 40 : fw >= 44 ? 32 : fw >=
 /* v4: idle emblem as large as the face allows (face interior = fw - 1 px), in 2 px steps with hysteresis so a drifting pillar does not
  * flip sizes frame to frame; close-up 40 px. Returns 0 when the face is too narrow (< 7 px). */
 static int mo_eS_last[MO_N];
-static const int MO_EMB_SFIX[MO_N] = {6, 18, 10, 11, 5, 6, 9, 13, 15, 4, 14, 7, 6, 17, 5, 13, 9, 6};   /* v5e: fixed idle emblem size per tower */
+static const int MO_EMB_SFIX[MO_N] = {6, 18, 10, 11, 5, 9, 9, 13, 15, 4};   /* v5e: fixed idle emblem size per tower */
 static int mo_embS4(int i, int fw)
 {
     if (fw >= 50) return mo_eS_last[i] = 40;
@@ -57,109 +50,69 @@ static int mo_embS4(int i, int fw)
     int &L = mo_eS_last[i]; if (L == 40 || L == 0 || L > fit + 1 || L < fit - 3) L = fit & ~1; return L;   /* v5: shrink only when the face is 2+ px too narrow (a 1 px overhang onto the edge line is drawn over it), so a +-1 px face wobble never flips the size */
 }
 /* GENERATED by src/folders18.py (2026-11-14): real per-device folder + line-item text. Do not edit by hand. */
-static const char *const MO_FOLD_NAME[MO_N][3] = {
-    {"DEAUTH FLOOD", "MGMT FRAME BURST", "USE WPA3 / PMF"},   /* DEAUTH */
-    {"WEAK WI-FI AP", "BEACON SAYS OPEN/WEP", "STAY OFF / USE VPN"},   /* HACK */
-    {"FLOCK SAFETY ALPR", "SSID FLOCK- / BLE ID", "ASK RETENTION RULES"},   /* FLOCK */
-    {"REMOTE ID DRONE", "RID: BLE FFFA, WIFI", "NOTE TIME + PLACE"},   /* DRONE */
-    {"APPLE AIRTAG", "APPLE 004C, TYPE 12", "SCAN, FIND, DISABLE"},   /* AIR TAG */
-    {"TILE KEYRING TAG", "BLE SVC FEED / FEEC", "TILE SCAN AND SECURE"},   /* KEYFOB */
-    {"RAY-BAN META GLASSES", "BLE SVC FD5F", "WATCH CAPTURE LED"},   /* META */
-    {"BT CARD SKIMMER", "HC-05/06, RN42 NAMES", "TAP PAY, COVER PIN"},   /* SKIMMER */
-    {"FLIPPER ZERO", "BLE SVC 3081-3083", "IGNORE POPUPS"},   /* FLIPPER */
-    {"GALAXY SMARTTAG", "BLE SVC FD5A", "SMARTTHINGS TAG SCAN"},   /* SAMSUNG */
-    {"AXON BODY CAMERA", "SSID AB2- AB3- AB4-", "KNOW YOUR RIGHTS"},   /* AXON */
-    {"RAVEN SHOT SENSOR", "BLE SVC 3100-3500", "ASK AUDIO POLICY"},   /* RAVEN */
-    {"PLATE READER CAMERA", "WIFI MAKER OUI", "ASK WHO GETS DATA"},   /* ALPR */
-    {"WI-FI IP CAMERA", "CAMERA MAKER OUI", "CHECK ROOM FOR CAMS"},   /* CAMERA */
-    {"RING DOORBELL / CAM", "RING + AMAZON OUI", "ASSUME AUDIO + VIDEO"},   /* RING */
-    {"FIND MY DEVICE TAG", "BLE SVC FEAA (FMDN)", "ANDROID TRACKER SCAN"},   /* GOOGLE TAG */
-    {"EVIL TWIN HOTSPOT", "1 SSID, 2 BSSIDS", "FORGET OPEN COPIES"},   /* EVIL TWIN */
-    {"APPLE IBEACON", "HEADER 4C 00 02 15", "LIMIT APP BT ACCESS"},   /* IBEACON */
+static const char *const MO_FOLD_NAME[MO_N][3] = {   /* dojo-10 (Mobandy 2026-11-21): the 10 kept devices, rows verbatim from the 18-device table, EVIL TWIN in KEYFOB's slot */
+    {"DEAUTH FLOOD", "MGMT FRAME BURST", "USE WPA3 / PMF"},
+    {"WEAK WI-FI AP", "BEACON SAYS OPEN/WEP", "STAY OFF / USE VPN"},
+    {"FLOCK SAFETY ALPR", "SSID FLOCK- / BLE ID", "ASK RETENTION RULES"},
+    {"REMOTE ID DRONE", "RID: BLE FFFA, WIFI", "NOTE TIME + PLACE"},
+    {"APPLE AIRTAG", "APPLE 004C, TYPE 12", "SCAN, FIND, DISABLE"},
+    {"EVIL TWIN HOTSPOT", "1 SSID, 2 BSSIDS", "FORGET OPEN COPIES"},
+    {"RAY-BAN META GLASSES", "BLE SVC FD5F", "WATCH CAPTURE LED"},
+    {"BT CARD SKIMMER", "HC-05/06, RN42 NAMES", "TAP PAY, COVER PIN"},
+    {"FLIPPER ZERO", "BLE SVC 3081-3083", "IGNORE POPUPS"},
+    {"GALAXY SMARTTAG", "BLE SVC FD5A", "SMARTTHINGS TAG SCAN"},
 };
-static const char *const MO_FOLD_ACT[MO_N][3] = {
+static const char *const MO_FOLD_ACT[MO_N][3] = {   /* dojo-10 (Mobandy 2026-11-21): the 10 kept devices, rows verbatim from the 18-device table, EVIL TWIN in KEYFOB's slot */
     {"FAKE 802.11 KICK FRAMES", "DEAUTH + DISASSOC RATE", "RISK: KICK + KEY CAPTURE"},
     {"OPEN OR WEP NETWORK", "SECURITY FIELD OF BEACON", "RISK: TRAFFIC READABLE"},
     {"PLATE CAMERA ON A POLE", "49 OUI, CO ID 09C8", "RISK: CAR MOVES LOGGED"},
     {"UAS BROADCASTING ITS ID", "ASTM F3411 MSG DECODED", "RISK: AERIAL FILMING"},
     {"FIND MY BLE TRACKER", "FIND MY OFFLINE ADVERT", "RISK: STALKER TAG IN BAG"},
-    {"LIFE360 BLE TRACKER", "TILE SERVICE UUIDS", "RISK: FOLLOWS YOUR MOVES"},
+    {"FAKE COPY OF A REAL AP", "ENCRYPTION DISAGREES", "RISK: PASSWORD PHISHING"},
     {"CAMERA GLASSES, SNAP TOO", "META/LUXOTTICA/SNAP IDS", "RISK: SILENT PHOTO/VIDEO"},
     {"HIDDEN IN PUMPS + ATMS", "SPP UUID 1101 + 3 OUI", "RISK: CARD + PIN STOLEN"},
     {"MULTI-RADIO HACK TOOL", "CO ID 0E29, OUI 0CFA22", "RISK: BLE SPAM, RF CLONE"},
     {"SAMSUNG BLE TRACKER", "SMARTTAG ADVERT UUID", "RISK: GALAXY NET LOCATES"},
-    {"POLICE CAMS, TASERS", "AXON- SSID + 3 WIFI OUI", "RISK: YOU MAY BE FILMED"},
-    {"POLE AUDIO DETECTOR", "ANY UUID IN THAT RANGE", "RISK: LISTENS FOR SOUNDS"},
-    {"MOTOROLA OR GENETEC", "7 OUI: 5 MOTO, 2 GENETEC", "RISK: TRIPS LOGGED"},
-    {"WYZE TUYA VERKADA AXIS", "17 KNOWN CAM OUI ON WIFI", "RISK: HIDDEN RECORDING"},
-    {"AMAZON HOME CAMERA", "15 WIFI OUI PREFIXES", "RISK: PORCH IS RECORDED"},
-    {"CHIPOLO PEBBLEBEE MOTO", "GOOGLE FIND MY NETWORK", "RISK: ANDROIDS RELAY IT"},
-    {"FAKE COPY OF A REAL AP", "ENCRYPTION DISAGREES", "RISK: PASSWORD PHISHING"},
-    {"SHOP PROXIMITY BEACON", "UUID + MAJOR + MINOR", "RISK: IN-STORE TRACKING"},
 };
-static const char *const MO_FOLD_TAG[MO_N][3] = {
+static const char *const MO_FOLD_TAG[MO_N][3] = {   /* dojo-10 (Mobandy 2026-11-21): the 10 kept devices, rows verbatim from the 18-device table, EVIL TWIN in KEYFOB's slot */
     {"HIGH", "WIFI", "DO"},
     {"HIGH", "WIFI", "DO"},
     {"LOW", "WI+BT", "DO"},
     {"LOW", "WI+BT", "DO"},
     {"MED", "BLE", "DO"},
-    {"MED", "BLE", "DO"},
+    {"HIGH", "WIFI", "DO"},
     {"MED", "BLE", "DO"},
     {"HIGH", "BT", "DO"},
     {"HIGH", "BLE", "DO"},
     {"MED", "BLE", "DO"},
-    {"MED", "WIFI", "DO"},
-    {"LOW", "BLE", "DO"},
-    {"LOW", "WIFI", "DO"},
-    {"MED", "WIFI", "DO"},
-    {"LOW", "WIFI", "DO"},
-    {"MED", "BLE", "DO"},
-    {"HIGH", "WIFI", "DO"},
-    {"LOW", "BLE", "DO"},
 };
-static const char *const MO_ITEM_K[MO_N][8] = {
+static const char *const MO_ITEM_K[MO_N][8] = {   /* dojo-10 (Mobandy 2026-11-21): the 10 kept devices, rows verbatim from the 18-device table, EVIL TWIN in KEYFOB's slot */
     {"TYPE", "FRAME", "SUBTYPE", "DISASOC", "SIGN", "BAND", "FIX", "STD"},
     {"TYPE", "LOCK", "OR", "WEP", "SNIFF", "SAFE", "ALSO OK", "DO"},
     {"MAKER", "TYPE", "SSID", "BLE CO", "BLE NAME", "OUIS", "RISK", "DO"},
     {"TYPE", "STD", "BLE SVC", "WIFI", "SENDS", "ALSO", "RISK", "DO"},
     {"MAKER", "NET", "CO ID", "TYPE", "HAS", "ALERTS", "RISK", "DO"},
-    {"MAKER", "OWNER", "SVC", "SVC 2", "RADIO", "RISK", "CHECK", "DO"},
+    {"TYPE", "SSID", "BSSIDS", "LOCK", "LURE", "RISK", "USE", "DO"},
     {"MAKER", "BRAND", "ALSO", "SVC", "CAM", "LED", "RISK", "DO"},
     {"TYPE", "MOD 1", "MOD 2", "MOD 3", "MOD 4", "SPP", "RISK", "DO"},
     {"RADIO", "ALSO", "RFID", "SVC", "CO ID", "OUI", "RISK", "DO"},
     {"MAKER", "NET", "SVC", "ALSO", "PLUS", "RISK", "APP", "DO"},
-    {"MAKER", "USER", "SSID", "ALSO", "OR", "OUIS", "RISK", "DO"},
-    {"MAKER", "TYPE", "MOUNT", "SVC LO", "SVC HI", "RADIO", "RISK", "DO"},
-    {"TYPE", "MAKER", "ALSO", "OUIS", "MOTO", "GENETEC", "RISK", "DO"},
-    {"TYPE", "OUIS", "MAKER", "MAKER 2", "MAKER 3", "RADIO", "RISK", "DO"},
-    {"MAKER", "OWNER", "TYPE", "OUIS", "RADIO", "REC", "RISK", "DO"},
-    {"NET", "SVC", "PROTO", "MAKER", "MAKER 2", "ALSO", "RISK", "DO"},
-    {"TYPE", "SSID", "BSSIDS", "LOCK", "LURE", "RISK", "USE", "DO"},
-    {"FORMAT", "HEADER", "ID", "PLUS", "USE", "RISK", "DEFAULT", "DO"},
 };
-static const char *const MO_ITEM_V[MO_N][8] = {
+static const char *const MO_ITEM_V[MO_N][8] = {   /* dojo-10 (Mobandy 2026-11-21): the 10 kept devices, rows verbatim from the 18-device table, EVIL TWIN in KEYFOB's slot */
     {"ATTACK", "DEAUTH", "12", "10", "BURST", "2.4 GHZ", "PMF", "802.11W"},
     {"AP", "OPEN", "WEP", "BROKEN", "EASY", "WPA3", "WPA2", "VPN"},
     {"FLOCK", "ALPR CAM", "FLOCK-", "09C8", "PENGUIN", "49", "TRACKED", "ASK CITY"},
     {"UAS", "F3411", "FFFA", "VEND IE", "SERIAL", "OP LOC", "FILMING", "REPORT"},
     {"APPLE", "FIND MY", "004C", "12", "UWB+NFC", "IOS+AND", "STALKING", "PULL BAT"},
-    {"TILE", "LIFE360", "FEED", "FEEC", "BLE", "TRACKING", "TILE APP", "SCAN"},
+    {"ROGUE AP", "SAME", "TWO", "DIFFERS", "PORTAL", "PHISHING", "VPN", "FORGET"},
     {"META", "RAY-BAN", "SNAP", "FD5F", "PHO+VID", "CAPTURE", "FILMING", "ASK"},
     {"SKIMMER", "HC-05", "HC-06", "RN42", "BT04-A", "1101", "CARD", "TAP PAY"},
     {"SUB-GHZ", "NFC+IR", "125KHZ", "3081", "0E29", "0CFA22", "CLONING", "UPDATE"},
     {"SAMSUNG", "ST FIND", "FD5A", "FD59", "UWB", "TRACKING", "SMARTTH.", "SCAN"},
-    {"AXON", "POLICE", "AB3-", "AB4-", "AXON-", "3", "FILMED", "RIGHTS"},
-    {"FLOCK", "GUNSHOT", "POLE", "3100", "3500", "BLE", "AUDIO", "ASK"},
-    {"ALPR", "MOTOROLA", "GENETEC", "7", "5", "2", "LOGGED", "ASK"},
-    {"IP CAM", "17", "WYZE", "TUYA", "VERKADA", "WIFI", "HIDDEN", "LOOK"},
-    {"RING", "AMAZON", "DOORBELL", "15", "WIFI", "AUD+VID", "RECORDED", "ASSUME"},
-    {"GOOGLE", "FEAA", "FMDN", "CHIPOLO", "PEBBLEBE", "MOTO TAG", "TRACKING", "SCAN"},
-    {"ROGUE AP", "SAME", "TWO", "DIFFERS", "PORTAL", "PHISHING", "VPN", "FORGET"},
-    {"APPLE", "4C000215", "UUID", "MAJ+MIN", "RETAIL", "LOCATION", "OFF", "APP PERM"},
 };
 static void mo3_size(const char *nm, char *out) { unsigned h = 7; for (const char *q = nm; *q; ++q) h = h * 31 + (unsigned char)*q; const int k = 6 + (int)(h % 94); snprintf(out, 12, "%d.%dKB", k / 10, k % 10); }
-static const uint32_t MO_EMB_COL[MO_N] = {0x3dcccc, 0xace600, 0xccc35c, 0xff0055, 0x26ffc9, 0xb95ccc, 0x00ff6a, 0xffd400, 0x0080ff, 0x0000ff, 0xcc5c6a, 0xff4000, 0x0033cc, 0xff00ff, 0x00bfff, 0xff9500, 0xff00aa, 0x78cc5c};   /* v5: per-device emblem colour (src/emb_colors.py) */
-static const uint32_t MO_EMB_DET[MO_N] = {0x1c120c, 0x1c120c, 0x1c120c, 0xffffff, 0x1c120c, 0xffffff, 0x1c120c, 0x1c120c, 0xffffff, 0xffffff, 0xffffff, 0xffffff, 0xffffff, 0xffffff, 0x1c120c, 0x1c120c, 0xffffff, 0x1c120c};
+static const uint32_t MO_EMB_COL[MO_N] = {0x3dcccc, 0xace600, 0xccc35c, 0xff0055, 0x26ffc9, 0xff00aa, 0x00ff6a, 0xffd400, 0x0080ff, 0x0000ff};   /* v5: per-device emblem colour (src/emb_colors.py) */
+static const uint32_t MO_EMB_DET[MO_N] = {0x1c120c, 0x1c120c, 0x1c120c, 0xffffff, 0x1c120c, 0xffffff, 0x1c120c, 0x1c120c, 0xffffff, 0xffffff};
 static inline int mo3_cl(int v, int lo, int hi) { return v < lo ? lo : v > hi ? hi : v; }
 static inline uint16_t mo3_mx(uint32_t a, uint32_t b, float u) { const int k = (int)lv_lroundf((u < 0 ? 0 : u > 1 ? 1 : u) * 64); return lv_mix(lv_hex(a), lv_hex(b), k, 64); }
 /* clipped 3x5 text (rows ylo..yhi, columns <= xhi), soft fade over the window's top / bottom 4 rows */
@@ -183,13 +136,13 @@ static void mo3_files(LvBand &B, int i, int x0, int x1, int ylo, int yhi, uint16
     if (yhi - ylo < 6 || x1 - x0 < 3) return;
     if (!b_yhit(B, ylo - 1, yhi + 1)) return;   /* v1.2.11 speed: every pixel is clipped to ylo..yhi (+1 outline) */
     const int fw = x1 - x0 + 1, rowh = fw >= 40 ? 15 : fw >= 22 ? 8 : 4;
-    const int pos = (int)(lv_now / 1000.0f * speed) + i * 37, base = pos / rowh, frac = pos % rowh;
+    const int pos = (int)(lv_now / 1000.0f * speed) + MO_EID[i] * 37, base = pos / rowh, frac = pos % rowh;
     for (int k = 0;; ++k) { const int y = ylo + 2 - frac + k * rowh; if (y > yhi) break; const int e = (base + k) % 8; const char *nm = MO_ITEM_K[i][e];   /* real KEY (was a made-up file name) */
         if (y + rowh < ylo) continue;
         if (!b_yhit(B, y - 1, y + rowh)) continue;   /* v1.2.11 speed: a row draws only y-1 .. y+12 (outline incl.) */
         if (rowh == 15) { mo3_fold5(B, x0 + 2, y, ic, a, ylo, yhi); mo3_t35(B, x0 + 9, y, nm, tc, a, ylo, yhi, x1);
             char sz[12]; snprintf(sz, sizeof sz, "%s", MO_ITEM_V[i][e]); mo3_t35(B, x0 + 9, y + 7, sz, sc, a, ylo, yhi, x1);   /* real VALUE (was a fake KB size) */
-            const int bw = x1 - (x0 + 9 + lv_w35(sz) + 3) - 1, fl = bw * (int)((7 + e * 13 + i * 5) % 10 + 1) / 10;   /* a tiny transfer bar per file */
+            const int bw = x1 - (x0 + 9 + lv_w35(sz) + 3) - 1, fl = bw * (int)((7 + e * 13 + MO_EID[i] * 5) % 10 + 1) / 10;   /* a tiny transfer bar per file */
             for (int q = 0; q < bw; ++q) if (q < fl || (q & 1) == 0) mo3_pxc(B, x0 + 9 + lv_w35(sz) + 3 + q, y + 9, q < fl ? ic : sc, a, ylo, yhi); }   /* v4: opaque (unfilled = dotted, was 1/3 alpha) */
         else if (rowh == 8) { mo3_fold5(B, x0 + 1, y, ic, a, ylo, yhi); mo3_t35(B, x0 + 8, y, MO_ITEM_V[i][e], tc, a, ylo, yhi, x1); }   /* one-line rows: the VALUE (the fact) */
         else { mo3_pxc(B, x0, y, ic, a, ylo, yhi); mo3_pxc(B, x0 + 1, y, ic, a, ylo, yhi); mo3_pxc(B, x0, y + 1, ic, a, ylo, yhi); mo3_pxc(B, x0 + 1, y + 1, ic, a, ylo, yhi);
@@ -284,8 +237,8 @@ static void mo11_tower_fx(LvBand &B, const LvTower &T)
     /* v5e: Matrix rain = lv_radar.h's CYD code streaks (field rain law, same constants + colours), mapped into this tower's face */
     { const int W_ = fw - 3, H_ = yv - yt - 1, ns = fw >= 40 ? 18 : (fw / 2 > 3 ? fw / 2 : 3);   /* v5f: denser */
       if (W_ > 0 && H_ > 4) for (int s_ = 0; s_ < ns; ++s_) {
-        const int x = x0 + 2 + (s_ * 53 + 17 + i * 7) % W_, len = 10 + (s_ * 7) % 18, sp = 40 + (s_ * 29) % 70;
-        const int head = yt + 1 + (int)(lv_now / 1000.0f * sp + s_ * 37 + i * 11) % (H_ + len);
+        const int x = x0 + 2 + (s_ * 53 + 17 + MO_EID[i] * 7) % W_, len = 10 + (s_ * 7) % 18, sp = 40 + (s_ * 29) % 70;
+        const int head = yt + 1 + (int)(lv_now / 1000.0f * sp + s_ * 37 + MO_EID[i] * 11) % (H_ + len);
         for (int k = 0; k < len; ++k) { const int y = head - k; if (y > yt && y < yv) mo13_px(B, x, y, lv_hex(k < 2 ? 0xd8ffe6 : k < len / 2 ? 0x10d858 : 0x00a83c), k < len / 2 ? a : a * (8 - (k - len / 2) * 7 / (len - len / 2)) / 8); } } }   /* v5f: bright head + continuous fading trail */
     /* hologram device in the core */
     const int iy = yt + (S >= 32 ? 6 : 3);   /* v4: no bob */
@@ -332,7 +285,7 @@ static void mo11_tower_fx(LvBand &B, const LvTower &T)
     const int bt0 = yt + (fw >= 40 ? 4 : 2), bb0 = yb - (fw >= 40 ? 10 : 3) - bh;
     auto brass = [&](int k, int n) -> uint16_t { const float v = k / (float)(n > 1 ? n - 1 : 1); return v < 0.35f ? mo3_mx(0xfff0b0, 0xd8aa52, v / 0.35f) : mo3_mx(0xd8aa52, 0x6a4a18, (v - 0.35f) / 0.65f); };
     auto grain = [&](int x, int y, float u) -> uint16_t {   /* wood grain: wavy vertical figure, light / dark streaks */
-        const float g = sinf((x - x0) * (fw >= 40 ? 0.55f : 1.3f) + 1.6f * sinf(y * 0.11f + i * 1.3f) + i);
+        const float g = sinf((x - x0) * (fw >= 40 ? 0.55f : 1.3f) + 1.6f * sinf(y * 0.11f + MO_EID[i] * 1.3f) + MO_EID[i]);
         (void)u; return lv_hex(g > 0.15f ? 0x8a5428 : 0x4a2a12); };   /* v4: two-tone grain (crisp streaks, no ramp) */
     auto side = [&](int xf, int xbk) { const int dir = xbk > xf ? 1 : -1, n = abs(xbk - xf); if (n < 1) return;
         for (int s = 0; s <= n; ++s) { const int x = xf + dir * s; const float u = s / (float)n; const int top = (int)lv_lroundf(yt + (byt - yt) * u), bot = (int)lv_lroundf(yb + (byb - yb) * u);
@@ -402,7 +355,7 @@ static void mo11_tower_fx(LvBand &B, const LvTower &T)
         for (int k = 0; k < ns; ++k) { const int ly = ytop + k * pitch, kk = ns - 1 - k;   /* k = 0 at the top */
           uint32_t c = 0x1c2420;
           if (k == 0) c = mo_tc(i);
-          else if (kk < nl) c = fmodf(t * (1.0f + 7.0f * sg) + kk * 0.37f + i * 0.11f, 1.0f) < 0.6f ? 0x5cff9c : 0x0e5a2c;
+          else if (kk < nl) c = fmodf(t * (1.0f + 7.0f * sg) + kk * 0.37f + MO_EID[i] * 0.11f, 1.0f) < 0.6f ? 0x5cff9c : 0x0e5a2c;
           for (int y = b_ylo(B, ly); y < ly + lw && y < B.y0 + B.h; ++y) for (int x = wx0 + 1; x < wx0 + 1 + lw; ++x) mo13_px(B, x, y, lv_hex(c), a);
           if (lw >= 3 && (k == 0 || kk < nl)) mo13_px(B, wx0 + 1, ly, lv_hex(mo_mixc(c, 0xffffff, 0.6f)), a); } } }   /* specular dot on lit LEDs */
 #elif MO_BODY == 6
@@ -488,14 +441,18 @@ const int MO_LOOK = MO_LOOKOF[i];   /* the opened pillar's own look */
       mo12_rect(B, x - 2, y - 2, L, 3, cap, 256); mo12_rect(B, x - 2, y - 2, 3, L, cap, 256); mo12_rect(B, x + w - L + 1, y - 2, L, 3, cap, 256); mo12_rect(B, x + w - 2, y - 2, 3, L, cap, 256);
       mo12_rect(B, x - 2, y + h - 1, L, 3, cap, 256); mo12_rect(B, x - 2, y + h - L + 1, 3, L, cap, 256); mo12_rect(B, x + w - L + 1, y + h - 1, L, 3, cap, 256); mo12_rect(B, x + w - 2, y + h - L + 1, 3, L, cap, 256); }
     /* content (positions = v13.1, so the text audit boxes are unchanged) */
-    static const char *const MO13_FN[MO_N][3] = {   /* 2026-11-14 spread: WIFI + BLUETOOTH removed */
+    static const char *const MO13_FN[MO_N][3] = {   /* dojo-10 (Mobandy 2026-11-21): the 10 kept devices, rows verbatim from the 18-device table, EVIL TWIN in KEYFOB's slot */
         {"DEAUTH.PKT", "FLOOD.SIG", "PMF.DEF"},
-        {"OPEN.NET", "WEP.SIG", "WPA3.DEF"},        {"FLOCK.CAM", "SSID.SIG", "PLATE.DEF"},  {"DRONE.UAV", "REMOTEID.SIG", "REPORT.DEF"},
-        {"AIRTAG.TRK", "FINDMY.SIG", "BAGCHK.DEF"}, {"TILE.TRK", "FEED.SIG", "TAGSCAN.DEF"}, {"META.CAM", "MAKERID.SIG", "LEDCHK.DEF"},
-        {"SKIMMER.CRD", "HC05.SIG", "TAPPAY.DEF"},  {"FLIPPER.RF", "NAME.SIG", "POPUP.DEF"},  {"SMARTTAG.TRK", "FD5A.SIG", "TAGSCAN.DEF"},
-        {"AXON.CAM", "AB3SSID.SIG", "CAMCHK.DEF"},  {"RAVEN.SNS", "UUID31.SIG", "ASK.DEF"},   {"ALPR.CAM", "MOTOOUI.SIG", "PLATE.DEF"},
-        {"IPCAM.NET", "CAMOUI.SIG", "ROOMCHK.DEF"}, {"RING.CAM", "RINGOUI.SIG", "PORCH.DEF"}, {"FMDN.TRK", "FEAA.SIG", "TAGSCAN.DEF"},
-        {"TWIN.AP", "2BSSID.SIG", "LOCKCHK.DEF"},   {"IBEACON.ADV", "4C0215.SIG", "BTOFF.DEF"}};
+        {"OPEN.NET", "WEP.SIG", "WPA3.DEF"},
+        {"FLOCK.CAM", "SSID.SIG", "PLATE.DEF"},
+        {"DRONE.UAV", "REMOTEID.SIG", "REPORT.DEF"},
+        {"AIRTAG.TRK", "FINDMY.SIG", "BAGCHK.DEF"},
+        {"TWIN.AP", "2BSSID.SIG", "LOCKCHK.DEF"},
+        {"META.CAM", "MAKERID.SIG", "LEDCHK.DEF"},
+        {"SKIMMER.CRD", "HC05.SIG", "TAPPAY.DEF"},
+        {"FLIPPER.RF", "NAME.SIG", "POPUP.DEF"},
+        {"SMARTTAG.TRK", "FD5A.SIG", "TAGSCAN.DEF"},
+    };
     static const char *const MO13_ACT[3] = {"WHAT IT IS", "HOW SPOTTED", "PROTECT"};
     char tab[16]; snprintf(tab, sizeof tab, "SCROLL %d", j + 1); b_text35(B, x + 5, y - 6, tab, lv_hex(TABT));
     if (B.y0 == 0) mo12_aud(x + 5, y - 6, lv_w35(tab), 5, x + 1, y - 7, x + tw - 5, y - 1, "tab");

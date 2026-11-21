@@ -1,0 +1,324 @@
+tick 300
+theme 0
+tick 5
+go 3
+rec 12 t0_term
+go 4
+rec 12 t0_scan
+go 2
+tick 4
+page 0
+rec 6 t0_p0
+page 1
+rec 6 t0_p1
+page 2
+rec 6 t0_p2
+page 3
+rec 6 t0_p3
+page 0
+go 12
+rec 6 t0_dl
+theme 1
+tick 5
+go 3
+rec 12 t1_term
+go 4
+rec 12 t1_scan
+go 2
+tick 4
+page 0
+rec 6 t1_p0
+page 1
+rec 6 t1_p1
+page 2
+rec 6 t1_p2
+page 3
+rec 6 t1_p3
+page 0
+go 12
+rec 6 t1_dl
+theme 2
+tick 5
+go 3
+rec 12 t2_term
+go 4
+rec 12 t2_scan
+go 2
+tick 4
+page 0
+rec 6 t2_p0
+page 1
+rec 6 t2_p1
+page 2
+rec 6 t2_p2
+page 3
+rec 6 t2_p3
+page 0
+go 12
+rec 6 t2_dl
+theme 3
+tick 5
+go 3
+rec 12 t3_term
+go 4
+rec 12 t3_scan
+go 2
+tick 4
+page 0
+rec 6 t3_p0
+page 1
+rec 6 t3_p1
+page 2
+rec 6 t3_p2
+page 3
+rec 6 t3_p3
+page 0
+go 12
+rec 6 t3_dl
+theme 4
+tick 5
+go 3
+rec 12 t4_term
+go 4
+rec 12 t4_scan
+go 2
+tick 4
+page 0
+rec 6 t4_p0
+page 1
+rec 6 t4_p1
+page 2
+rec 6 t4_p2
+page 3
+rec 6 t4_p3
+page 0
+go 12
+rec 6 t4_dl
+theme 5
+tick 5
+go 3
+rec 12 t5_term
+go 4
+rec 12 t5_scan
+go 2
+tick 4
+page 0
+rec 6 t5_p0
+page 1
+rec 6 t5_p1
+page 2
+rec 6 t5_p2
+page 3
+rec 6 t5_p3
+page 0
+go 12
+rec 6 t5_dl
+theme 6
+tick 5
+go 3
+rec 12 t6_term
+go 4
+rec 12 t6_scan
+go 2
+tick 4
+page 0
+rec 6 t6_p0
+page 1
+rec 6 t6_p1
+page 2
+rec 6 t6_p2
+page 3
+rec 6 t6_p3
+page 0
+go 12
+rec 6 t6_dl
+theme 7
+tick 5
+go 3
+rec 12 t7_term
+go 4
+rec 12 t7_scan
+go 2
+tick 4
+page 0
+rec 6 t7_p0
+page 1
+rec 6 t7_p1
+page 2
+rec 6 t7_p2
+page 3
+rec 6 t7_p3
+page 0
+go 12
+rec 6 t7_dl
+theme 8
+tick 5
+go 3
+rec 12 t8_term
+go 4
+rec 12 t8_scan
+go 2
+tick 4
+page 0
+rec 6 t8_p0
+page 1
+rec 6 t8_p1
+page 2
+rec 6 t8_p2
+page 3
+rec 6 t8_p3
+page 0
+go 12
+rec 6 t8_dl
+theme 9
+tick 5
+go 3
+rec 12 t9_term
+go 4
+rec 12 t9_scan
+go 2
+tick 4
+page 0
+rec 6 t9_p0
+page 1
+rec 6 t9_p1
+page 2
+rec 6 t9_p2
+page 3
+rec 6 t9_p3
+page 0
+go 12
+rec 6 t9_dl
+theme 10
+tick 5
+go 3
+rec 12 t10_term
+go 4
+rec 12 t10_scan
+go 2
+tick 4
+page 0
+rec 6 t10_p0
+page 1
+rec 6 t10_p1
+page 2
+rec 6 t10_p2
+page 3
+rec 6 t10_p3
+page 0
+go 12
+rec 6 t10_dl
+theme 11
+tick 5
+go 3
+rec 12 t11_term
+go 4
+rec 12 t11_scan
+go 2
+tick 4
+page 0
+rec 6 t11_p0
+page 1
+rec 6 t11_p1
+page 2
+rec 6 t11_p2
+page 3
+rec 6 t11_p3
+page 0
+go 12
+rec 6 t11_dl
+theme 12
+tick 5
+go 3
+rec 12 t12_term
+go 4
+rec 12 t12_scan
+go 2
+tick 4
+page 0
+rec 6 t12_p0
+page 1
+rec 6 t12_p1
+page 2
+rec 6 t12_p2
+page 3
+rec 6 t12_p3
+page 0
+go 12
+rec 6 t12_dl
+theme 15
+tick 5
+go 3
+rec 12 t15_term
+go 4
+rec 12 t15_scan
+go 2
+tick 4
+page 0
+rec 6 t15_p0
+page 1
+rec 6 t15_p1
+page 2
+rec 6 t15_p2
+page 3
+rec 6 t15_p3
+page 0
+go 12
+rec 6 t15_dl
+theme 18
+tick 5
+go 3
+rec 12 t18_term
+go 4
+rec 12 t18_scan
+go 2
+tick 4
+page 0
+rec 6 t18_p0
+page 1
+rec 6 t18_p1
+page 2
+rec 6 t18_p2
+page 3
+rec 6 t18_p3
+page 0
+go 12
+rec 6 t18_dl
+theme 22
+tick 5
+go 3
+rec 12 t22_term
+go 4
+rec 12 t22_scan
+go 2
+tick 4
+page 0
+rec 6 t22_p0
+page 1
+rec 6 t22_p1
+page 2
+rec 6 t22_p2
+page 3
+rec 6 t22_p3
+page 0
+go 12
+rec 6 t22_dl
+theme 25
+tick 5
+go 3
+rec 12 t25_term
+go 4
+rec 12 t25_scan
+go 2
+tick 4
+page 0
+rec 6 t25_p0
+page 1
+rec 6 t25_p1
+page 2
+rec 6 t25_p2
+page 3
+rec 6 t25_p3
+page 0
+go 12
+rec 6 t25_dl

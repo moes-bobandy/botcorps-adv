@@ -916,8 +916,33 @@ static void lv_scene_tint(LvBand &B, void *ctx)
     const LvTS s = lv_tint_state(T.id);
     const uint16_t *pal = lv_pal();
     const int w = T.r.x1 - T.r.x0 + 1;
-    for (int y = B.y0; y < B.y0 + B.h; ++y)
-        for (int x = B.x0; x < B.x0 + B.w; ++x) B.px[(y - B.y0) * B.w + (x - B.x0)] = lv_tx(s, lv_port_apply(lv_pc(pal, lv_shadow[T.off + (y - T.r.y0) * w + (x - T.r.x0)], x, y), x, y), x, y);
+    /* perf-all r2 (first-frame spike on TERMINALbot / SCAN): same per-pixel chain lv_tx(lv_port_apply(lv_pc(...))), with the
+     * loop-invariant parts lifted. lv_reink_on() is fixed for the frame; lv_tx(RAW) is the identity; lv_port_code's region
+     * scan is cut to the regions that hold row y and meet the band, kept in table order so the first match is the same. */
+    const bool reink = lv_reink_on(), raw = s.mode == LV_TM_RAW;
+    const LvPortScr *P = lv_port_sc >= 0 ? &LV_PORT_SCR[lv_port_sc] : nullptr;
+    int rl[32]; int nr = 0; bool many = false;
+    for (int y = B.y0; y < B.y0 + B.h; ++y) {
+        nr = 0; many = false;
+        if (P) for (int r = 0; r < P->nreg; ++r) {
+            const LvPortReg &R = P->reg[r];
+            if (y < R.y0 || y > R.y1 || R.x1 < B.x0 || R.x0 >= B.x0 + B.w) continue;
+            if (nr == 32) { many = true; break; } rl[nr++] = r;
+        }
+        uint16_t *o = B.px + (y - B.y0) * B.w;
+        const uint8_t *sh = lv_shadow + T.off + (y - T.r.y0) * w - T.r.x0;
+        for (int x = B.x0; x < B.x0 + B.w; ++x) {
+            uint16_t c = reink ? lv_multi_ink(pal[sh[x]], x, y) : pal[sh[x]];
+            if (P) {
+                uint16_t k = 0;
+                if (many) k = lv_port_code(x, y);
+                else for (int j = 0; j < nr; ++j) { const LvPortReg &R = P->reg[rl[j]];
+                    if (x >= R.x0 && x <= R.x1) { k = R.code[(y - R.y0) * (R.x1 - R.x0 + 1) + (x - R.x0)]; break; } }
+                if (k) c = lv_port_px(k, c, x, y);
+            }
+            o[x - B.x0] = raw ? c : lv_tx(s, c, x, y);
+        }
+    }
     if (s.deco) lv_tint_deco(B, T.id, s);
 }
 /* Issue 1 (theme-tap flicker): a tint rect may overlap a mask (the CTL FLASH tints contain the value badges, the
@@ -1006,9 +1031,10 @@ static void lv_clip_draw(int y, int x, int n, const uint8_t *idx)
         for (int k = 0; k < nt; ++k) if (px >= lv_tints[tl[k]].r.x0 && px <= lv_tints[tl[k]].r.x1) return tl[k];
         return -1;
     };
+    int cnext = n > 0 ? cls(0) : -1;                    /* perf-all r2: each pixel is classed once (was twice: run end + next run start) */
     for (int i = 0; i < n;) {
-        const int c = cls(i); int j = i + 1;
-        while (j < n && cls(j) == c) ++j;
+        const int c = cnext; int j = i + 1;
+        while (j < n && (cnext = cls(j)) == c) ++j;
         if (c == -1) raw(x + i, j - i, idx + i);
         else if (c >= 0) {
             const LvTint &T = lv_tints[c]; const int w = T.r.x1 - T.r.x0 + 1;

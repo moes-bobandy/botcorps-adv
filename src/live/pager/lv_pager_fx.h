@@ -255,22 +255,39 @@ static void lv_pg_pan_gibson(uint16_t *row, int y, uint16_t acc)
     }
     /* concentric rings + rotating beam, centre right */
     const int cx = 150, cy = 258;
+    if (y < cy - 29 || y > cy + 28) return;                                   /* perf-all r2: |dy| > 28 => d > 28 for every x */
     const float beam = (lv_now % 3000) * (6.2831853f / 3000.f);
-    for (int x = 80; x <= 190; ++x) {
+    const float rssi_r = 24.f, span = 1.1f + 0.7f * sinf((lv_now % 5000) / 5000.f * 6.2832f);   /* same value every pixel: hoisted */
+    for (int x = cx - 29; x <= cx + 28; ++x) {                                 /* was 80..190; outside this |dx| > 28 => skipped */
         const float dx = x + 0.5f - cx, dy = y + 0.5f - cy;
         const float d = sqrtf(dx * dx + dy * dy);
         if (d > 28.f) continue;
-        const float a = atan2f(dy, dx);
-        float da = a - beam; while (da > 3.1416f) da -= 6.2832f; while (da < -3.1416f) da += 6.2832f;
-        if (da >= 0.f && da < 0.55f && d > 4.f)
-            lv_pg_pan_blend(row, x, acc, (int)((0.55f - da) * 8.f / 0.55f), 8);
+        /* perf-all r2: atan2f only where its value can change a pixel. The RSSI test needs it only on the ring (|d-24| < 2) near the arc;
+         * the beam test only when d > 4 and the angle is near the beam. "Near" uses a cheap atan2 (max error 0.0039 rad,
+         * here given a 0.03 rad margin), so every pixel that could pass the exact test still gets the exact atan2f and the same
+         * pixels. */
+        bool ring = fabsf(d - rssi_r) < 2.0f, need = false;
+        if (ring || d > 4.f) {
+            const float ax = fabsf(dx), ay = fabsf(dy), z = ax > ay ? ay / ax : ax / ay;
+            float aa = z * (0.7853982f + 0.273f * (1.f - z)); if (ay > ax) aa = 1.5707963f - aa;
+            if (dx < 0.f) aa = 3.1415927f - aa; if (dy < 0.f) aa = -aa;
+            if (ring) ring = aa > -2.23f && aa < -2.17f + span;                 /* arc test a in (-2.2, -2.2 + span), same margin */
+            float q = aa - beam; while (q > 3.1416f) q -= 6.2832f; while (q < -3.1416f) q += 6.2832f;
+            need = ring || (d > 4.f && q > -0.03f && q < 0.58f);
+        }
+        float a = 0.f;
+        if (need) {
+            a = atan2f(dy, dx);
+            float da = a - beam; while (da > 3.1416f) da -= 6.2832f; while (da < -3.1416f) da += 6.2832f;
+            if (da >= 0.f && da < 0.55f && d > 4.f)
+                lv_pg_pan_blend(row, x, acc, (int)((0.55f - da) * 8.f / 0.55f), 8);
+        }
         for (int ri = 0; ri < 3; ++ri) {
             const float rr = 9.f + ri * 8.f, e = fabsf(d - rr);
             if (e < 1.4f) lv_pg_pan_blend(row, x, acc, (int)((1.4f - e) * 5.f / 1.4f), 8);
         }
         /* soft RSSI arc, top-right quadrant */
-        const float rssi_r = 24.f, span = 1.1f + 0.7f * sinf((lv_now % 5000) / 5000.f * 6.2832f);
-        if (a > -2.2f && a < -2.2f + span) {
+        if (ring && a > -2.2f && a < -2.2f + span) {
             const float e = fabsf(d - rssi_r);
             if (e < 2.0f) lv_pg_pan_blend(row, x, acc, (int)((2.0f - e) * 8.f / 2.0f), 8);
         }

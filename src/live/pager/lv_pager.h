@@ -548,7 +548,7 @@ static void lv_pg_blit(int a, int b, int off, bool full)
         lv_render(lv_blit_hw, LvRect{0, 0, 239, 0}, lv_pg_scene, &c);
         lv_render(lv_blit_hw, LvRect{0, 1, 0, 23}, lv_pg_scene, &c);
         lv_render(lv_blit_hw, LvRect{239, 1, 239, 23}, lv_pg_scene, &c);
-        lv_render(lv_blit_hw, LvRect{0, 24, 239, 319}, lv_pg_scene, &c);
+        lv_render(lv_blit_dirty_hw, LvRect{0, 24, 239, 319}, lv_pg_scene, &c);   /* perf-all r2: still page sends changed rows only */
     }
     if (!lv_pg_cache_on && a != LV_PG_CTL) lv_pg_cb_release();
 #if LV_PG_PROF

@@ -153,7 +153,7 @@ static void pad_bevel_rect(LvBand &B, int x, int y, int w, int h, uint16_t fill,
     b_frame(B, x, y, w, h, pressed ? lv_hi(ink) : ink);
 }
 
-static void pad_disc(LvBand &B, int cx, int cy, int r, uint16_t fill, uint16_t ink, int pressed)
+static void pad_disc_ref(LvBand &B, int cx, int cy, int r, uint16_t fill, uint16_t ink, int pressed)
 {
     const uint16_t hi = pressed ? lv_dim(fill, 3, 8) : lv_mix(ink, lv_hex(0xffffff), 7, 8);
     const uint16_t lo = pressed ? lv_mix(ink, lv_hex(0xffffff), 3, 8) : lv_dim(ink, 3, 8);
@@ -170,7 +170,7 @@ static void pad_disc(LvBand &B, int cx, int cy, int r, uint16_t fill, uint16_t i
     }
 }
 
-static void pad_glow(LvBand &B, int cx, int cy, int r, uint16_t c, int k)
+static void pad_glow_ref(LvBand &B, int cx, int cy, int r, uint16_t c, int k)
 {
     const int r2 = (r + 1) * (r + 1), r0 = (r - 1) * (r - 1);
     for (int dy = b_ylo(B, cy - r - 1) - cy; dy <= b_yhi(B, cy + r + 1) - cy; ++dy) for (int dx = -r - 1; dx <= r + 1; ++dx) {   /* v1.2.11: band rows only */
@@ -180,7 +180,7 @@ static void pad_glow(LvBand &B, int cx, int cy, int r, uint16_t c, int k)
     }
 }
 
-static void pad_octagon(LvBand &B, int cx, int cy, int rx, int ry, uint16_t fill, uint16_t ink, int pressed)
+static void pad_octagon_ref(LvBand &B, int cx, int cy, int rx, int ry, uint16_t fill, uint16_t ink, int pressed)
 {
     const uint16_t hi = pressed ? lv_dim(fill, 3, 8) : lv_mix(ink, lv_hex(0xffffff), 6, 8);
     const uint16_t lo = pressed ? lv_mix(ink, lv_hex(0xffffff), 3, 8) : lv_dim(ink, 3, 8);
@@ -199,7 +199,7 @@ static void pad_octagon(LvBand &B, int cx, int cy, int rx, int ry, uint16_t fill
 }
 
 /* 1-2 px halo around a wide octagon gate. */
-static void pad_glow_oct(LvBand &B, int cx, int cy, int rx, int ry, uint16_t c, int k)
+static void pad_glow_oct_ref(LvBand &B, int cx, int cy, int rx, int ry, uint16_t c, int k)
 {
     const int lim0 = 5 * rx * ry, lim1 = 5 * (rx + 1) * (ry + 1);
     for (int dy = b_ylo(B, cy - ry - 1) - cy; dy <= b_yhi(B, cy + ry + 1) - cy; ++dy) for (int dx = -rx - 1; dx <= rx + 1; ++dx) {   /* v1.2.11: band rows only */
@@ -208,6 +208,88 @@ static void pad_glow_oct(LvBand &B, int cx, int cy, int rx, int ry, uint16_t c, 
         if (adx > rx + 1 || ady > ry + 1 || s > lim1) continue;
         const int inner = adx <= rx && ady <= ry && 3 * (adx * ry + ady * rx) <= lim0;
         if (!inner) b_blend(B, cx + dx, cy + dy, c, k);
+    }
+}
+
+/* perf-all r2 (2026-11-21): exact span versions of the four pad shapes above. Same pixels, same colours, same order of
+ * writes per pixel: each row's inside / edge / ring limits are solved once with integer maths (the same inequalities the
+ * per-pixel tests use), then whole runs are filled or blended. The *_ref versions are the originals (kept for fallback and for
+ * tools/livescan/pad_span_test.cpp, which checks both against each other over every size the pads use and more). */
+static inline int pad_fdiv(int a, int b) { int q = a / b; if ((a % b) && ((a < 0) != (b < 0))) --q; return q; }   /* floor(a / b), b != 0 */
+static inline int pad_isqrt_le(int v) { if (v < 0) return -1; int r = (int)sqrtf((float)v); while (r * r > v) --r; while ((r + 1) * (r + 1) <= v) ++r; return r; }   /* max r: r*r <= v */
+static void pad_octagon(LvBand &B, int cx, int cy, int rx, int ry, uint16_t fill, uint16_t ink, int pressed)
+{
+    if (rx <= 0 || ry <= 0) { pad_octagon_ref(B, cx, cy, rx, ry, fill, ink, pressed); return; }
+    const uint16_t hi = pressed ? lv_dim(fill, 3, 8) : lv_mix(ink, lv_hex(0xffffff), 6, 8);
+    const uint16_t lo = pressed ? lv_mix(ink, lv_hex(0xffffff), 3, 8) : lv_dim(ink, 3, 8);
+    const uint16_t body = pressed ? lv_mix(fill, ink, 5, 8) : fill;
+    const uint16_t cA = lv_mix(body, hi, 3, 8);
+    auto P = [&](uint16_t c) { return pressed ? lv_mix(c, ink, 3, 8) : c; };
+    const uint16_t hiP = P(hi), loP = P(lo), bodyP = P(body), cAP = P(cA);
+    const int lim = 5 * rx * ry, L2 = lim - (3 * (ry + rx));
+    for (int dy = b_ylo(B, cy - ry) - cy; dy <= b_yhi(B, cy + ry) - cy; ++dy) {
+        const int ady = abs(dy), num = lim - 3 * ady * rx; if (num < 0) continue;
+        int dmax = num / (3 * ry); if (dmax > rx) dmax = rx;                       /* 3*(|dx|*ry + ady*rx) <= lim */
+        int emin; if (ady == ry) emin = 0; else { const int m = L2 - 3 * ady * rx; emin = m <= 0 ? 0 : (m + 3 * ry - 1) / (3 * ry); }
+        if (emin > rx) emin = rx;                                                    /* |dx| == rx is always an edge */
+        const int y = cy + dy;
+        for (int dx = -dmax; dx <= dmax; ++dx) {                                     /* edge runs: left, then (after the inside) right */
+            if (dx > -emin && dx < emin) { /* inside run [-(emin-1) .. emin-1]: cA where 2*dx + 3*dy < -ry, else body */
+                const int t = pad_fdiv(-ry - 3 * dy - 1, 2);                         /* last dx with 2*dx < -ry - 3*dy */
+                const int a0 = dx, a1 = emin - 1 < dmax ? emin - 1 : dmax, sA = t < a1 ? t : a1;
+                if (sA >= a0) b_fill(B, cx + a0, y, sA - a0 + 1, 1, cAP);
+                const int b0 = sA + 1 > a0 ? sA + 1 : a0; if (a1 >= b0) b_fill(B, cx + b0, y, a1 - b0 + 1, 1, bodyP);
+                dx = a1; continue; }
+            b_pix(B, cx + dx, y, (dx + dy < 0) ? hiP : loP);
+        }
+    }
+}
+static void pad_disc(LvBand &B, int cx, int cy, int r, uint16_t fill, uint16_t ink, int pressed)
+{
+    const uint16_t hi = pressed ? lv_dim(fill, 3, 8) : lv_mix(ink, lv_hex(0xffffff), 7, 8);
+    const uint16_t lo = pressed ? lv_mix(ink, lv_hex(0xffffff), 3, 8) : lv_dim(ink, 3, 8);
+    const uint16_t body = pressed ? lv_mix(fill, ink, 5, 8) : fill;
+    const uint16_t cA = lv_mix(body, hi, 3, 8), cB = lv_mix(body, lo, 2, 8);
+    auto P = [&](uint16_t c) { return pressed ? lv_mix(c, ink, 3, 8) : c; };   /* pressed tint is for the inside (d2 <= rin) only */
+    const uint16_t bodyP = P(body), cAP = P(cA), cBP = P(cB);
+    const int r2 = r * r, rin = (r - 1) * (r - 1);
+    for (int dy = b_ylo(B, cy - r) - cy; dy <= b_yhi(B, cy + r) - cy; ++dy) {
+        int dm = pad_isqrt_le(r2 - dy * dy); if (dm < 0) continue; if (dm > r) dm = r;   /* d2 <= r2 */
+        const int iv = rin - dy * dy, im = pad_isqrt_le(iv);                          /* inside: dx*dx <= iv, |dx| <= im (-1 = none) */
+        const int y = cy + dy;
+        const int tA = pad_fdiv(-r - 3 * dy - 1, 2);                                  /* cA: 2*dx + 3*dy < -r  <=>  dx <= tA */
+        const int tB = r / 2 - dy;                                                    /* cB: dx + dy > r/2     <=>  dx >  tB */
+        for (int dx = -dm; dx <= dm; ++dx) {
+            if (im >= 0 && dx >= -im && dx <= im) {
+                const int a1 = im < dm ? im : dm, eA = tA < a1 ? tA : a1;
+                if (eA >= dx) b_fill(B, cx + dx, y, eA - dx + 1, 1, cAP);
+                int s0 = eA + 1 > dx ? eA + 1 : dx; const int eBody = tB < a1 ? tB : a1;   /* not cA: body while dx <= tB, then cB */
+                if (eBody >= s0) { b_fill(B, cx + s0, y, eBody - s0 + 1, 1, bodyP); s0 = eBody + 1; }
+                if (a1 >= s0) b_fill(B, cx + s0, y, a1 - s0 + 1, 1, cBP);
+                dx = a1; continue; }
+            b_pix(B, cx + dx, y, (dx + dy < 0) ? hi : lo);
+        }
+    }
+}
+static void pad_glow(LvBand &B, int cx, int cy, int r, uint16_t c, int k)
+{
+    const int r2 = (r + 1) * (r + 1), r0 = (r - 1) * (r - 1);
+    for (int dy = b_ylo(B, cy - r - 1) - cy; dy <= b_yhi(B, cy + r + 1) - cy; ++dy) {
+        int dm = pad_isqrt_le(r2 - dy * dy); if (dm < 0) continue; if (dm > r + 1) dm = r + 1;
+        const int iv = r0 - dy * dy; int e0 = 0; if (iv > 0) { e0 = pad_isqrt_le(iv - 1) + 1; }   /* d2 >= r0  <=>  |dx| >= e0 */
+        for (int dx = -dm; dx <= dm; ++dx) { if (dx > -e0 && dx < e0) { dx = e0 - 1; continue; } b_blend(B, cx + dx, cy + dy, c, k); }
+    }
+}
+static void pad_glow_oct(LvBand &B, int cx, int cy, int rx, int ry, uint16_t c, int k)
+{
+    if (rx <= 0 || ry <= 0) { pad_glow_oct_ref(B, cx, cy, rx, ry, c, k); return; }
+    const int lim0 = 5 * rx * ry, lim1 = 5 * (rx + 1) * (ry + 1);
+    for (int dy = b_ylo(B, cy - ry - 1) - cy; dy <= b_yhi(B, cy + ry + 1) - cy; ++dy) {
+        const int ady = abs(dy); if (ady > ry + 1) continue;
+        const int n1 = lim1 - 3 * ady * (rx + 1); if (n1 < 0) continue;
+        int dmax = n1 / (3 * (ry + 1)); if (dmax > rx + 1) dmax = rx + 1;
+        int imax = -1; if (ady <= ry) { const int n0 = lim0 - 3 * ady * rx; if (n0 >= 0) { imax = n0 / (3 * ry); if (imax > rx) imax = rx; } }
+        for (int dx = -dmax; dx <= dmax; ++dx) { if (dx >= -imax && dx <= imax) { dx = imax; continue; } b_blend(B, cx + dx, cy + dy, c, k); }
     }
 }
 

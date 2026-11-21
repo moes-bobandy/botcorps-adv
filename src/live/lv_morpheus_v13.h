@@ -170,10 +170,20 @@ static inline void mo11_bl(LvBand &B, int x, int y, uint16_t c, int a)   /* alph
     const uint32_t k = (uint32_t)p << 16 | c; if (k != mk || a != ma) { mk = k; ma = a; mv = lv_mix(p, c, a, 256); }
     p = mv;
 }
+/* perf-all r2: == for (x = xa..xb) mo11_bl(B, x, y, c, a), walked with a row pointer (same clips, same blend, one-entry memo) */
+static void mo11_hrow(LvBand &B, int y, int xa, int xb, uint16_t c, int a)
+{
+    if (a <= 0 || y < B.y0 || y >= B.y0 + B.h) return;
+    if (xa < B.x0) xa = B.x0; if (xb > B.x0 + B.w - 1) xb = B.x0 + B.w - 1; if (xa > xb) return;
+    uint16_t *q = B.px + (y - B.y0) * B.w + (xa - B.x0), *e = q + (xb - xa + 1);
+    if (a >= 256) { while (q < e) *q++ = c; return; }
+    uint16_t lk = *q, lv = lv_mix(lk, c, a, 256);
+    for (; q < e; ++q) { if (*q != lk) { lk = *q; lv = lv_mix(lk, c, a, 256); } *q = lv; }
+}
 static int mo_cy0 = -10000;   /* scene clip top: folders never paint over the header (y < 46) */
 static inline void mo_bl(LvBand &B, int x, int y, uint16_t c, int a) { if (y >= mo_cy0) mo11_bl(B, x, y, c, a); }
 static inline uint16_t mo_mixh(uint32_t a, uint32_t b, int k, int n) { return lv_mix(lv_hex(a), lv_hex(b), k, n); }
-static void mo_hspan(LvBand &B, int y, int xa, int xb, uint16_t c, int a) { if (y < B.y0 || y >= B.y0 + B.h) return; for (int x = xa; x <= xb; ++x) mo_bl(B, x, y, c, a); }
+static void mo_hspan(LvBand &B, int y, int xa, int xb, uint16_t c, int a) { if (y < B.y0 || y >= B.y0 + B.h || y < mo_cy0) return; mo11_hrow(B, y, xa, xb, c, a); }   /* perf-all r2: row walk (same clips as mo_bl per pixel) */
 static void mo_quad(LvBand &B, const float *px, const float *py, uint16_t c, int a)   /* convex quad fill */
 {
     float ymin = py[0], ymax = py[0]; for (int k = 1; k < 4; ++k) { if (py[k] < ymin) ymin = py[k]; if (py[k] > ymax) ymax = py[k]; }
@@ -275,12 +285,19 @@ static void mo11_tatami(LvBand &B, int y, float Z, float ph)   /* per floor row,
     const int fade = Z > 7 ? 0 : Z > 4 ? (int)(256 * (7 - Z) / 3) : 256; if (!fade) return;
     const float zs = Z + ph; const int zr = (int)floorf(zs); const float zf = zs - zr;
     const uint16_t a = lv_hex(MO11_MAT_A), b = lv_hex(MO11_MAT_B);
+    if (B.x0 != 0 || B.w < 240) { for (int x = 0; x < 240; ++x) {   /* not a full-width band: the original per-pixel path */
+        const float X = (x - 120) * Z / LV_RD_F + lv_rd_camx; const int xc = lv_ifloor(X * 2.0f);
+        const bool alt = ((xc + zr) & 1) != 0; int k = alt ? 256 : 0;
+        if (Z < 4 && (((int)(zf * 16)) & 1)) k = alt ? 200 : 90;
+        if (k) mo11_bl(B, x, y, b, k * fade / 256); } (void)a; return; }
+    uint16_t *row = B.px + (y - B.y0) * B.w, tk = 0, tv = 0; int ta = -1;
     for (int x = 0; x < 240; ++x) {
         const float X = (x - 120) * Z / LV_RD_F + lv_rd_camx; const int xc = lv_ifloor(X * 2.0f);
         const bool alt = ((xc + zr) & 1) != 0;
         int k = alt ? 256 : 0;
         if (Z < 4 && (((int)(zf * 16)) & 1)) k = alt ? 200 : 90;   /* rush weave across the mat */
-        if (k) mo11_bl(B, x, y, b, k * fade / 256);
+        if (k) { const int al = k * fade / 256; if (al <= 0) continue; uint16_t &p = row[x - B.x0];   /* perf-all r2: mo11_bl inlined on the row (x is always inside: the band is full width) */
+            if (al >= 256) p = b; else { if (p != tk || al != ta) { tk = p; ta = al; tv = lv_mix(p, b, al, 256); } p = tv; } }
     }
 }
 static void mo11_horizon(LvBand &B, int shift)   /* Gibson's skyline, transformed: the dojo's far shoji wall + timber posts + ceiling rafters */
@@ -288,15 +305,15 @@ static void mo11_horizon(LvBand &B, int shift)   /* Gibson's skyline, transforme
     const int top = LV_RD_HOR - 30, beam = top - 3;
     if (!b_yhit(B, LV_RD_Y0 - 2, LV_RD_HOR + 1)) return;   /* v1.2.11 speed: wall, beams, rafters all lie in rows LV_RD_Y0..LV_RD_HOR (lines clip to the band) */
     const uint16_t dark = lv_hex(MO11_BEAM), paper = lv_hex(MO11_PAPER), seam = lv_hex(MO11_SEAM);
-    for (int y = b_ylo(B, top); y < LV_RD_HOR && y < B.y0 + B.h; ++y) for (int x = 0; x < 240; ++x) mo11_bl(B, x, y, paper, 200);   /* backlit paper band */
+    for (int y = b_ylo(B, top); y < LV_RD_HOR && y < B.y0 + B.h; ++y) mo11_hrow(B, y, 0, 239, paper, 200);   /* backlit paper band */
     for (int k = -12; k < 36; ++k) {   /* Gibson's skyline slots (x = k*11 - 6 - shift) become shoji panels; extended past 24 so a far-pillar pan never leaves a gap */
         const int x0 = k * 11 - 6 - shift, w = 9; if (x0 < -11 || x0 > 240) continue;
-        for (int yy = top + 4; yy < LV_RD_HOR - 2; yy += 6) { if (yy < B.y0 || yy >= B.y0 + B.h) continue; for (int x = x0 + 1; x < x0 + w; ++x) mo11_bl(B, x, yy, seam, 90); }   /* kumiko lattice (perf-all: band rows only) */
+        for (int yy = top + 4; yy < LV_RD_HOR - 2; yy += 6) mo11_hrow(B, yy, x0 + 1, x0 + w - 1, seam, 90);   /* kumiko lattice (perf-all: band rows only) */
         for (int y = b_ylo(B, top); y < LV_RD_HOR && y < B.y0 + B.h; ++y) { mo11_bl(B, x0 + 4, y, seam, 70); mo11_bl(B, x0, y, dark, ((k + 36) % 3) == 0 ? 230 : 120); }
         if (((k + 36) % 3) == 0) for (int y = b_ylo(B, top); y < LV_RD_HOR && y < B.y0 + B.h; ++y) mo11_bl(B, x0 + 1, y, dark, 160);   /* heavy timber post every 3 panels */
     }
-    for (int y = b_ylo(B, beam); y < top && y < B.y0 + B.h; ++y) for (int x = 0; x < 240; ++x) mo11_bl(B, x, y, dark, 235);   /* kamoi head beam */
-    if (b_yhit(B, LV_RD_HOR - 2, LV_RD_HOR - 2)) for (int x = 0; x < 240; ++x) mo11_bl(B, x, LV_RD_HOR - 2, dark, 140);                       /* sill */
+    for (int y = b_ylo(B, beam); y < top && y < B.y0 + B.h; ++y) mo11_hrow(B, y, 0, 239, dark, 235);   /* kamoi head beam */
+    if (b_yhit(B, LV_RD_HOR - 2, LV_RD_HOR - 2)) mo11_hrow(B, LV_RD_HOR - 2, 0, 239, dark, 140);                       /* sill */
     /* ceiling rafters (world Y 2.25) receding from the camera to the wall at Z 4.8, with Gibson's camera parallax */
     const float Yc = 2.25f, Zw = 4.8f;
     for (int r = -6; r <= 6; ++r) {
@@ -307,7 +324,7 @@ static void mo11_horizon(LvBand &B, int shift)   /* Gibson's skyline, transforme
     }
     for (int q = 0; q < 6; ++q) {   /* cross beams */
         const float Z = 1.9f + q * 0.55f; const int y = (int)lv_lroundf(mo_py(Yc, Z)); if (y < LV_RD_Y0 || y >= beam || !b_yhit(B, y, y + 1)) continue;
-        for (int x = 0; x < 240; ++x) { mo11_bl(B, x, y, dark, 150 - q * 14); mo11_bl(B, x, y + 1, lv_hex(0xd8c6a0), 60 - q * 6); }
+        mo11_hrow(B, y, 0, 239, dark, 150 - q * 14); mo11_hrow(B, y + 1, 0, 239, lv_hex(0xd8c6a0), 60 - q * 6);   /* perf-all r2: rows y and y+1 never overlap, so row-at-a-time == the old pixel interleave */
     }
 }
 

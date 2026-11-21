@@ -38,6 +38,7 @@ static void mo11_horizon(LvBand &B, int shift);
 static void mo11_tatami(LvBand &B, int y, float Z, float ph);
 static void mo11_ink(const LvTower &T, uint16_t &face, uint16_t &edge);
 static void mo11_tower_fx(LvBand &B, const LvTower &T);
+static bool mo11_body_rows(const LvTower &T, int &ra, int &rb);   /* perf-all r2: rows the Dojo body will paint opaque over T's front face */
 static void mo11_overlay(LvBand &B);
 #endif
 #endif
@@ -1100,7 +1101,11 @@ static void lv_scene_radar(LvBand &B, void *)
         for (int y = b_ylo(B, T.byt); y <= b_yhi(B, T.yt); ++y) { if (y < LV_RD_Y0 || y > LV_RD_Y1) continue; const float u = T.yt == T.byt ? 1.0f : (float)(y - T.byt) / (T.yt - T.byt);
             const int xa = (int)(T.bx0 + (T.x0 - T.bx0) * u), xb = (int)(T.bx1 + (T.x1 - T.bx1) * u); for (int x = xa; x <= xb; ++x) b_blend(B, x, y, face, fa); }
         /* front face */
-        for (int y = b_ylo(B, T.yt); y <= b_yhi(B, T.yb); ++y) { if (y < LV_RD_Y0 || y > LV_RD_Y1) continue; for (int x = T.x0; x <= T.x1; ++x) b_blend(B, x, y, face, fa); }   /* v1.2.11: band rows only (both face loops) */
+        int cra = 1, crb = 0;   /* perf-all r2: rows the Dojo skin repaints opaque over this same front face (x0..x1) right after; blending there is dead work */
+#if LV_RD_SKINS && LV_MO_INSIDE
+        if (sk == 1 && !mo11_body_rows(T, cra, crb)) { cra = 1; crb = 0; }
+#endif
+        for (int y = b_ylo(B, T.yt); y <= b_yhi(B, T.yb); ++y) { if (y < LV_RD_Y0 || y > LV_RD_Y1 || (y >= cra && y <= crb)) continue; for (int x = T.x0; x <= T.x1; ++x) b_blend(B, x, y, face, fa); }   /* v1.2.11: band rows only (both face loops) */
         b_line(B, T.x0, T.yt, T.x0, T.yb, edge); b_line(B, T.x1, T.yt, T.x1, T.yb, edge);
         b_line(B, T.x0, T.yt, T.x1, T.yt, edge); b_line(B, T.x0, T.yb, T.x1, T.yb, lv_dim(edge, 1, 2));
         b_line(B, T.bx0, T.byt, T.bx1, T.byt, lv_dim(edge, 5, 8)); b_line(B, T.bx0, T.byt, T.x0, T.yt, edge); b_line(B, T.bx1, T.byt, T.x1, T.yt, edge);

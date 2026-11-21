@@ -228,6 +228,31 @@ static inline uint32_t mo_shade3(uint32_t lit, uint32_t mid, uint32_t dk, float 
     const uint32_t c = u < 0.35f ? mo_mixc(lit, mid, u / 0.35f) : mo_mixc(mid, dk, (u - 0.35f) / 0.65f); return mo_mixc(c, dk, v * 0.22f); }
 static inline uint32_t mo_bcol(int i) {   /* the body base colour per look */
     return MO_BODY == 4 ? 0xe0b040 : MO_BODY == 5 ? MO_EMB_COL[i] : 0xf2e6d0; }
+/* perf-all r2: the rows where mo11_tower_fx's MO_BODY 5 front body (below) writes every pixel x0..x1 opaque (a >= 256 in mo11_bl):
+ * the same row range, field clip (mo13_px), scene clip (mo_bl) and alpha it uses. false = not opaque / not this body. */
+/* perf-all r2: == lv_hex(mo_mixc(a, b, t)) for an already-clamped t: the same per-channel float expression, unrolled, packed straight to RGB565 */
+static inline uint16_t mo_mixc_hex(uint32_t a, uint32_t b, float t)
+{
+    const int a0 = a & 255, b0 = b & 255, a1 = (a >> 8) & 255, b1 = (b >> 8) & 255, a2 = (a >> 16) & 255, b2 = (b >> 16) & 255;
+    const uint32_t c0 = (uint32_t)(a0 + (b0 - a0) * t + 0.5f), c1 = (uint32_t)(a1 + (b1 - a1) * t + 0.5f), c2 = (uint32_t)(a2 + (b2 - a2) * t + 0.5f);
+    return lv_rgb((uint8_t)c2, (uint8_t)c1, (uint8_t)c0);
+}
+static uint16_t mo_bm;   /* perf-all r2: body-row blend memo value */
+static bool mo11_body_rows(const LvTower &T, int &ra, int &rb)
+{
+#if MO_BODY == 5
+    const int i = T.i; if (i < 0 || i >= MO_N) return false;
+    const bool open = i == itw_mo_sel || (mo_closing && i == mo_last);
+    const int a = open ? 256 : mo11_fade(); if (a < 256) return false;
+    const int x0 = T.x0, x1 = T.x1, yt = T.yt, yb = T.yb; if (x1 - x0 < 2) return false;
+    const int yv = yb < 246 || !open ? yb : 246;
+    ra = yt; if (ra < LV_RD_Y0 + 1) ra = LV_RD_Y0 + 1; if (ra < mo_cy0) ra = mo_cy0;
+    rb = yv; if (rb > LV_RD_Y1) rb = LV_RD_Y1;
+    return ra <= rb;
+#else
+    (void)T; (void)ra; (void)rb; return false;
+#endif
+}
 static void mo11_tower_fx(LvBand &B, const LvTower &T)
 {
     const int i = T.i; if (i < 0 || i >= MO_N) return;
@@ -323,9 +348,29 @@ static void mo11_tower_fx(LvBand &B, const LvTower &T)
     const uint32_t e_lit = mo_mixc(MO_EMB_COL[i], 0xffffff, 0.30f), e_mid = mo_mixc(MO_EMB_COL[i], 0x000000, 0.12f), e_dk = mo_mixc(MO_EMB_COL[i], 0x000000, 0.50f);
     uint32_t e_col[240]; const int ex0 = x0 < B.x0 ? B.x0 : x0, ex1 = x1 > B.x0 + B.w - 1 ? B.x0 + B.w - 1 : x1;
     for (int x = ex0; x <= ex1; ++x) { const float u = (x - x0) / (float)fw; e_col[x - ex0] = u < 0.35f ? mo_mixc(e_lit, e_mid, u / 0.35f) : mo_mixc(e_mid, e_dk, (u - 0.35f) / 0.65f); }
-    for (int y = (yt > B.y0 ? yt : B.y0); y <= yv && y < B.y0 + B.h; ++y) { const float v = (y - yt) / (float)(yb - yt + 1);
-        uint32_t lk = 0xffffffffu; uint16_t lc = 0;   /* perf-all 2026-11-21: neighbouring columns often share e_col; same mix, computed once */
-        for (int x = ex0; x <= ex1; ++x) { const uint32_t e = e_col[x - ex0]; if (e != lk) { lk = e; lc = lv_hex(mo_mixc(e, e_dk, v * 0.22f)); } mo13_px(B, x, y, lc, a); } }
+    /* perf-all r2: column-major body. Per channel, mo_mixc(e, e_dk, t) is monotone in t, and t = clamp(((y - yt) / (float)H) * 0.22f)
+     * is monotone in y (every float step rounds monotonically), so the RGB565 result is monotone per channel down a column: when two
+     * rows give the same colour, every row between them does too. Each column is split only where the colour changes. Same rows, same
+     * clips (field rows, mo_cy0, band) and the same opaque write / blend as the old mo13_px -> mo_bl -> mo11_bl row loop. */
+    { int ra = yt > B.y0 ? yt : B.y0; if (ra < LV_RD_Y0 + 1) ra = LV_RD_Y0 + 1; if (ra < mo_cy0) ra = mo_cy0;
+      int rb = yv < B.y0 + B.h - 1 ? yv : B.y0 + B.h - 1; if (rb > LV_RD_Y1) rb = LV_RD_Y1;
+      if (a > 0 && ra <= rb && ex0 <= ex1) {
+        const float H = (float)(yb - yt + 1);
+        auto tt_at = [&](int y) { const float v = (y - yt) / H; float tt = v * 0.22f; if (tt < 0) tt = 0; if (tt > 1) tt = 1; return tt; };
+        uint16_t bk = 0, bv = 0, bm = 0; bool bh = false;
+        auto put = [&](uint16_t *col, int y, uint16_t c) { uint16_t &p = col[(y - B.y0) * B.w];
+            if (a >= 256) p = c; else { if (!bh || p != bk || c != bv) { bh = true; bk = p; bv = c; bm = lv_mix(p, c, a, 256); } p = bm; } };
+        for (int x = ex0; x <= ex1; ++x) { const uint32_t e = e_col[x - ex0]; uint16_t *col = B.px + (x - B.x0);
+            int st_lo[12], st_hi[12]; uint16_t st_cl[12], st_ch[12]; int sp = 0;
+            const uint16_t c_lo = mo_mixc_hex(e, e_dk, tt_at(ra)), c_hi = ra == rb ? c_lo : mo_mixc_hex(e, e_dk, tt_at(rb));
+            put(col, ra, c_lo); if (rb == ra) continue; put(col, rb, c_hi);
+            st_lo[0] = ra; st_hi[0] = rb; st_cl[0] = c_lo; st_ch[0] = c_hi; sp = 1;
+            while (sp) { --sp; const int lo = st_lo[sp], hi = st_hi[sp]; const uint16_t cl = st_cl[sp], ch = st_ch[sp];   /* rows lo, hi done */
+                if (hi - lo < 2) continue;
+                if (cl == ch) { for (int y = lo + 1; y < hi; ++y) put(col, y, cl); continue; }
+                const int m = (lo + hi) >> 1; const uint16_t cm = mo_mixc_hex(e, e_dk, tt_at(m)); put(col, m, cm);
+                if (sp + 2 > 12) { for (int y = lo + 1; y < hi; ++y) if (y != m) put(col, y, mo_mixc_hex(e, e_dk, tt_at(y))); continue; }
+                st_lo[sp] = lo; st_hi[sp] = m; st_cl[sp] = cl; st_ch[sp] = cm; ++sp; st_lo[sp] = m; st_hi[sp] = hi; st_cl[sp] = cm; st_ch[sp] = ch; ++sp; } } } }
     if (0)
 #endif
     for (int y = b_ylo(B, yt); y <= b_yhi(B, yv); ++y) { const float v = (y - yt) / (float)(yb - yt + 1);

@@ -120,3 +120,15 @@ device-timeline panel latches one coherent image at present-complete. `MO_PUSH_F
 Details: `DOJO_COHERENT.md`, `gate_dojo_coherent_vs_c70ef04.txt`.
 Proofs: `/workspace/out/fw-bigbot-1117/v1219-fixes/dojo-coherent/`.
 
+
+## 7. Scan-tower "stable" mechanism does not transfer (investigation only)
+
+Mobandy 1:17 PM ET: "do whatever you did on scan tower to keep it stable."
+The GIBSON present path is the same dirty-row push the Dojo already uses
+(`lv_dr_push`, ea8637e / e732a7c). On the device-timeline camera the scan
+tower still tears in idle sway (15/36 cam frames at K=1, 23/36 at K=120.7).
+Nothing was cloned. One-block-per-tower redraw is proposed, not implemented.
+See-through towers were not mocked. Details: `SCAN_TOWER_STABLE.md`,
+`gate_scan_tower_stable.txt`.
+Proofs: `/workspace/out/fw-bigbot-1117/v1219-fixes/dojo-scan-mech/`.
+

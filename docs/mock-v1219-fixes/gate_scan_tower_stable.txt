@@ -1,0 +1,13 @@
+Scan-tower "stable" mechanism does NOT transfer to Dojo idle tear (SIM ONLY).
+
+Mechanism: lv_dr_push (lv_core.h:2393) + lv_radar_frame lv_blit_dirty (lv_radar.h:1632),
+introduced ea8637e4f76b226e522b98ff397800d8dea64ae4. Dojo already calls the same
+helper via lv_blit_dirty_hw (lv_morpheus_v13.h:843) since e732a7cb792dcf4b3e472f1a86c055bfcef329d1.
+No clone was applied (it would be a no-op). No translucency. No one-block-per-tower (proposal only).
+
+Device-timeline idle, devrec 24 frames, 20 ms camera, sim_term (no Dojo fence):
+  K=1     GIBSON 15/36 mixed  21.91 ms  45.6 fps   Dojo 21/36 mixed  22.68 ms  44.1 fps
+  K=120.7 GIBSON 23/36 mixed  27.09 ms  36.9 fps   Dojo 33/46 mixed  38.16 ms  26.2 fps
+
+Code unchanged this layer: completed Dojo 0 px vs c70ef04, non-Dojo 0 px, drop law untouched, fps cost 0.
+Proofs: /workspace/out/fw-bigbot-1117/v1219-fixes/dojo-scan-mech/

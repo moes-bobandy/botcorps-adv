@@ -20,9 +20,9 @@
 #include "lv_build_3locks.h"   /* fw-3locks-1116: CONTROLbot v6 + BOTpheus EB3 + HACKbot game switches */
 
 #ifdef BOTCORPS_BUILD_ID
-#define LV_VERSION "cyd-livescan 1.0 " BOTCORPS_BUILD_ID
+#define LV_VERSION "cyd-livescan v1.2.17 " BOTCORPS_BUILD_ID   /* v1.2.17: release tag (was "1.0") */
 #else
-#define LV_VERSION "cyd-livescan 1.0"
+#define LV_VERSION "cyd-livescan v1.2.17"
 #endif
 
 /* ---------- finds ---------- */

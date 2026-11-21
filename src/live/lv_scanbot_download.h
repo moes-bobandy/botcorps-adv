@@ -105,17 +105,34 @@ static bool lv_dl_unpack_save(const uint8_t b[16], LvDlSave &s)
     memset(&s, 0, sizeof s); s.used = b[5] != 0; s.level = b[6]; s.score = (int16_t)(b[7] | (b[8] << 8));
     s.towers = b[9]; s.files_got = b[10]; s.files_need = b[11]; return true;
 }
-/* Firmware I/O is not run in this host-sim mock (no SD.h / Preferences.h in the sim). When a bin is later built:
- *   1) try SD: mkdir /BOTcorps, mkdir /BOTcorps/hackbot, read/write LV_DL_SAV_NAME (16-byte HB1).
- *   2) if the card is absent or the file I/O fails: NVS "botcorps" / hbsl1..hbsl3, same 16 bytes.
- * The sim keeps the three slots in RAM and preloads EXAMPLE DATA. */
+/* v1.2.17 firmware save I/O (Mobandy "build v1.2.17 ... HACKbot saves", 2026-11-20). The firmware glue (lv_ui.cpp) sets
+ * these two hooks; the host sim leaves them null and keeps the canned EXAMPLE DATA (EX.DATA stamp).
+ *   load: fills raw[i] / have[i] for slots 1..3. Returns 1 = read from SD /BOTcorps/hackbot/slotN.sav, 0 = no SD (NVS
+ *         "botcorps" hbsl1..hbsl3), -1 = neither.
+ *   save: SD first (mkdir /BOTcorps, /BOTcorps/hackbot, write 16 bytes, read back). If the card is absent or the write
+ *         fails: NVS hbslN, same 16 bytes. Returns 1 = SD, 0 = NVS, -1 = both failed. */
+static int (*lv_dl_io_load_hook)(uint8_t raw[LV_DL_NSLOT][16], bool have[LV_DL_NSLOT]) = nullptr;
+static int (*lv_dl_io_save_hook)(int slot, const uint8_t raw[16]) = nullptr;
+static int lv_dl_io_last = 1;    /* last save result (1 SD, 0 NVS, -1 failed); serial / sim dlstate only */
 static void lv_dl_slots_load(void)
 {
-#if defined(BOTCORPS_CYD_LIVESCAN) && BOTCORPS_CYD_LIVESCAN
-    lv_dl_slots_example();
-#else
-    lv_dl_slots_example();   /* mock default until the firmware SD/NVS path is wired on a "ok to build" pass */
-#endif
+    if (!lv_dl_io_load_hook) { lv_dl_slots_example(); return; }   /* host sim: example data, stamped EX.DATA */
+    memset(lv_dl_slot, 0, sizeof lv_dl_slot); lv_dl_exdata = false;   /* firmware: real saves, no EX.DATA stamp */
+    uint8_t raw[LV_DL_NSLOT][16]; bool have[LV_DL_NSLOT] = {};
+    memset(raw, 0, sizeof raw);
+    const int src = lv_dl_io_load_hook(raw, have);
+    lv_dl_sd_ok = src == 1;
+    for (int i = 0; i < LV_DL_NSLOT; ++i) {
+        LvDlSave s{};
+        if (have[i] && lv_dl_unpack_save(raw[i], s) && s.used) { if (s.level < 1) s.level = 1; lv_dl_slot[i] = s; }
+    }
+}
+static void lv_dl_slot_write(int i)
+{
+    if (!lv_dl_io_save_hook || i < 0 || i >= LV_DL_NSLOT) return;   /* host sim: RAM only */
+    uint8_t raw[16]; lv_dl_pack_save(lv_dl_slot[i], raw);
+    lv_dl_io_last = lv_dl_io_save_hook(i, raw);
+    lv_dl_sd_ok = lv_dl_io_last == 1;
 }
 static void lv_dl_capture_slot(int i)
 {
@@ -247,6 +264,7 @@ static void lv_dl_resume_play(void)
 static void lv_dl_do_save(void)
 {
     lv_dl_capture_slot(lv_dl_slot_i);
+    lv_dl_slot_write(lv_dl_slot_i);   /* v1.2.17: SD slotN.sav, NVS hbslN if no SD (firmware only) */
     lv_dl_phase = LV_DL_SAVEOK;
 }
 static void lv_dl_open_tower(int i)

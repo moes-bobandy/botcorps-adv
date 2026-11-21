@@ -11,6 +11,8 @@
  */
 #include <Arduino.h>
 #include <Preferences.h>
+#include <SPI.h>
+#include <SD.h>
 #include <WiFi.h>
 #include <esp_wifi.h>
 #include <esp_heap_caps.h>
@@ -494,6 +496,89 @@ static void r_mac_save(const char *key, const uint8_t *macs, int n)
     prefs.end(); Serial.printf("[live] NVS %s = %d MACs\n", key, n);
 }
 
+#if LV_DL_GAME
+/* v1.2.17 HACKbot save slots (locked 2026-11-20): SD /BOTcorps/hackbot/slot1.sav..slot3.sav (16-byte HB1 record), NVS
+ * "botcorps" hbsl1..hbsl3 only when there is no SD. CYD ESP32-2432S028 TF slot: CS 5, SCK 18, MISO 19, MOSI 23 on the
+ * Arduino VSPI SPIClass (SPI). The XPT2046 touch shares that peripheral on its own pins (25/32/39, CS 33) through
+ * LovyanGFX, so the card is mounted only for the few ms of a load/save, then unmounted and the touch bus re-initialised
+ * (Touch_XPT2046::init re-runs SPI.begin(25,39,32)). The panel is on HSPI and is not touched. Never formats the card
+ * (format_if_empty=false), never writes outside /BOTcorps/hackbot, so the Launcher's SD files are left alone. */
+static const int CYD_SD_CS = 5, CYD_SD_SCK = 18, CYD_SD_MISO = 19, CYD_SD_MOSI = 23;
+static bool cyd_sd_open(void)
+{
+    ui_dma_flush(); g_cyd.waitDisplay(); g_cyd.waitDMA();
+    SPI.end();
+    pinMode(CYD_SD_CS, OUTPUT); digitalWrite(CYD_SD_CS, HIGH);
+    SPI.begin(CYD_SD_SCK, CYD_SD_MISO, CYD_SD_MOSI, CYD_SD_CS);
+    static const uint32_t HZ[2] = {20000000, 4000000};
+    for (int k = 0; k < 2; ++k) {
+        if (SD.begin(CYD_SD_CS, SPI, HZ[k], "/sd", 2, false)) {
+            Serial.printf("[live] HACKbot SD mount @ %lu Hz OK\n", (unsigned long)HZ[k]); return true;
+        }
+        SD.end();
+    }
+    Serial.println("[live] HACKbot SD absent");
+    return false;
+}
+static void cyd_sd_close(void)
+{
+    SD.end(); SPI.end();
+    digitalWrite(CYD_SD_CS, HIGH);
+    if (lgfx::ITouch *t = g_cyd.touch()) t->init();   /* SPI back on the XPT2046 pins */
+}
+static void r_dl_path(int i, char *o, int n) { snprintf(o, n, LV_DL_SAV_NAME, i + 1); }
+static void r_dl_key(int i, char *o, int n) { snprintf(o, n, "hbsl%d", i + 1); }
+static int r_dl_load(uint8_t raw[LV_DL_NSLOT][16], bool have[LV_DL_NSLOT])
+{
+    int src = -1;
+    if (cyd_sd_open()) {
+        src = 1;
+        for (int i = 0; i < LV_DL_NSLOT; ++i) {
+            char p[40]; r_dl_path(i, p, sizeof p);
+            if (!SD.exists(p)) continue;
+            File f = SD.open(p, FILE_READ);
+            if (f) { have[i] = f.read(raw[i], 16) == 16; f.close(); }
+        }
+        cyd_sd_close();
+    } else {
+        cyd_sd_close();
+        Preferences prefs;
+        if (prefs.begin("botcorps", true)) {
+            src = 0;
+            for (int i = 0; i < LV_DL_NSLOT; ++i) {
+                char k[8]; r_dl_key(i, k, sizeof k);
+                have[i] = prefs.isKey(k) && prefs.getBytes(k, raw[i], 16) == 16;
+            }
+            prefs.end();
+        }
+    }
+    Serial.printf("[live] HACKbot slots load from %s: %d %d %d\n", src == 1 ? "SD /BOTcorps/hackbot" : src == 0 ? "NVS hbsl" : "NONE",
+                  (int)have[0], (int)have[1], (int)have[2]);
+    return src;
+}
+static int r_dl_save(int i, const uint8_t raw[16])
+{
+    char p[40]; r_dl_path(i, p, sizeof p);
+    bool ok = false;
+    if (cyd_sd_open()) {
+        if (!SD.exists("/BOTcorps")) SD.mkdir("/BOTcorps");
+        if (!SD.exists(LV_DL_SAV_DIR)) SD.mkdir(LV_DL_SAV_DIR);
+        File f = SD.open(p, FILE_WRITE);
+        if (f) { ok = f.write(raw, 16) == 16; f.close(); }
+        if (ok) {   /* read back */
+            uint8_t rb[16] = {0}; File g = SD.open(p, FILE_READ);
+            ok = g && g.read(rb, 16) == 16 && !memcmp(rb, raw, 16); if (g) g.close();
+        }
+    }
+    cyd_sd_close();
+    if (ok) { Serial.printf("[live] HACKbot slot %d -> SD %s OK\n", i + 1, p); return 1; }
+    Preferences prefs; char k[8]; r_dl_key(i, k, sizeof k);
+    const bool nv = prefs.begin("botcorps", false) && prefs.putBytes(k, raw, 16) == 16; prefs.end();
+    Serial.printf("[live] HACKbot slot %d -> SD failed/absent, NVS %s %s\n", i + 1, k, nv ? "OK" : "FAIL");
+    return nv ? 0 : -1;
+}
+#endif
+
 #if LV_BG_ENGINE
 /* background engine: BG STYLE (0..4, 5 = OFF) + BG COLOR (0..5) in NVS "botcorps" lkbgs / lkbgc */
 static void r_bg_save(int style, int col)
@@ -660,6 +745,9 @@ void lv_ui_begin(void)
     lv_begin(&s_radio, ui_blit, ui_raw_draw, th, millis(), cal_ok);
 #if LV_MO_INSIDE
     lv_band_hook = ui_band_hook;   /* v1.2.10: Dojo reads touch between bands */
+#endif
+#if LV_DL_GAME
+    lv_dl_io_load_hook = r_dl_load; lv_dl_io_save_hook = r_dl_save;   /* v1.2.17: HACKbot save slots (SD, NVS if no SD) */
 #endif
 #if LV_CB
     r_cb_load(); lv_cb_apply();   /* backlight stays dark here (hook set below) */

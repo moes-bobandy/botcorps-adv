@@ -1,0 +1,4 @@
+== band rows 24: HEAD vs 514df65
+TOTAL frames 2959 diff px 0
+== band rows 12: HEAD vs 514df65
+TOTAL frames 2959 diff px 0

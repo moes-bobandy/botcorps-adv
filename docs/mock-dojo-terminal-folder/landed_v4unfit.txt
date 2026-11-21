@@ -1,0 +1,9 @@
+tick 300
+go 13
+mofold 5
+tick 60
+tickto 17000
+tap 47 140
+tick 90
+dump landed_v4unfit
+itwstate

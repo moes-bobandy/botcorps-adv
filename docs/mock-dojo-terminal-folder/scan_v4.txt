@@ -1,0 +1,15 @@
+tick 300
+go 13
+mofold 4
+tick 60
+tickto 17000
+tap 47 140
+tick 100
+dump landed_v4b
+tap 160 225
+tick 2
+dump flash_v4
+tick 6
+dump scan_v4
+tick 20
+dump scan_v4b

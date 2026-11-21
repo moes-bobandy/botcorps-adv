@@ -101,6 +101,11 @@ static int fk_wifi_poll(LvFind *o, int max)
     int n = (int)(sizeof F / sizeof F[0]); if (n > max) n = max; memcpy(o, F, n * sizeof(LvFind)); fk_job = 0;
     for (int i = 0; i < n; ++i) if (o[i].mac[5] == fk_ovr_m5) o[i].rssi = (int8_t)fk_ovr_rssi;   /* 'sig' command: SAMPLE dBm for a hunt test */
     for (int i = 0; i < n; ++i) if (o[i].mac[5] == fk_ovr_m5 && fk_ovr_rssi <= -127) { memmove(o + i, o + i + 1, (n - i - 1) * sizeof(LvFind)); --n; break; }   /* 1109 mock: sig M -127 = WiFi target missed this pass */
+    if (lv_hunt == LV_H_EVILTWIN && n + 2 <= max) {   /* EX.DATA twin pair, only while this hunt is running (gate scripts never do) */
+        o[n] = mk("CafeWiFi", -55, 6, 3, 0, 0, 0, 30);
+        o[n + 1] = mk("CafeWiFi", -62, 6, 0, 0, 0, 0, 31);
+        n += 2;
+    }
     return n;
 }
 static int fk_ble_poll(LvFind *o, int max)
@@ -529,6 +534,7 @@ int main(int argc, char **argv)
         else if (!strcmp(cmd, "itwstate")) { itw_dump(); }
 #endif
         else if (!strcmp(cmd, "go")) { int k; if (fscanf(sc, "%d", &k) != 1) return 2; lv_go(k); }
+        else if (!strcmp(cmd, "mofold")) { int k; if (fscanf(sc, "%d", &k) != 1) return 2; mo_term_fold = k; printf("t=%u mo_term_fold=%d nfold=%d termj=%d\n", t_ms, mo_term_fold, mo_nfold(), mo_term_j()); }
         else if (!strcmp(cmd, "probe")) { /* probe NAME X Y: what a tap there does, in a forked child (no side effects) */
             char nm[64]; int x, y; if (fscanf(sc, "%63s %d %d", nm, &x, &y) != 3) return 2;
             int pf[2]; if (pipe(pf)) return 3; fflush(stdout);

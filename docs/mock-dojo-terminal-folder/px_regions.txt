@@ -1,0 +1,15 @@
+vs 514df65 (mofold 0 / current):
+  EVIL TWIN landed still: 0 px
+  full gate (pg_/dj_/pa_ scripts, no devrec), 2959 frames, band rows 24 and 12: 0 px
+
+V3 vs current (same EVIL TWIN landed timing):
+  896 px, bbox x=98..215 y=199..234 (scroll 3 body only)
+
+V4 packed vs current:
+  21041 px, bbox x=77..238 y=43..302 (folder column packed + search/footer "4 SCROLLS")
+
+V4 unfitted vs current:
+  480 px, bbox x=77..238 y=43..302 (search/footer "4 SCROLLS" + a sliver; 4th folder hidden under the panel)
+
+V3 vs V4 opened/scanning TTY:
+  827 px, bbox x=0..239 y=0..171 (SCANNING bar / dots phase only; same UI and log)

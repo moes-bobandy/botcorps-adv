@@ -419,8 +419,13 @@ static void lv_classify(LvFind &f)
 
 /* hunts = the TERMINALbot device chips */
 enum { LV_H_DEAUTH, LV_H_META, LV_H_HACK, LV_H_SKIMMER, LV_H_FLOCK, LV_H_FLIPPER, LV_H_DRONE, LV_H_AIRTAG, LV_H_KEYFOB, LV_H_SAMSUNG, LV_NHUNT };
-static const char *const LV_HUNT_NAME[LV_NHUNT] = {"deauth", "meta", "hack", "skimmer", "flock", "flipper", "drone", "airtag", "keyfob", "samsung"};
-static const char *const LV_HUNT_DESC[LV_NHUNT] = {
+/* mock/dojo-terminal-folder-2026-11-21: EVIL TWIN is not one of the 10 TERMINALbot chips (LV_NHUNT stays 10,
+ * TERM loops and tints unchanged). Sweep from a Dojo terminal folder uses this extra hunt id so TTY can
+ * reuse lv_tty_banner / lv_job_start / lv_hunt_match verbatim. */
+#define LV_H_EVILTWIN 10
+#define LV_NHUNT_ALL 11
+static const char *const LV_HUNT_NAME[LV_NHUNT_ALL] = {"deauth", "meta", "hack", "skimmer", "flock", "flipper", "drone", "airtag", "keyfob", "samsung", "eviltwin"};
+static const char *const LV_HUNT_DESC[LV_NHUNT_ALL] = {
     "passive deauth/disassoc frame watch",
     "BLE: Meta glasses (company 0x01AB/0x058E)",
     "WiFi: OPEN or WEP access points",
@@ -430,8 +435,9 @@ static const char *const LV_HUNT_DESC[LV_NHUNT] = {
     "WiFi+BLE: DJI/Tello/Skydio/Anafi, Remote ID",
     "BLE: Apple Find My adverts (0x004C type 0x12)",
     "BLE: Tile trackers (FEED/FEEC). No sub-GHz radio",
-    "BLE: Samsung SmartTag (FD5A/FD59)"};
-static const int LV_HUNT_JOB[LV_NHUNT] = {LV_J_DEAUTH, LV_J_BLE, LV_J_WIFI, LV_J_BLE, LV_J_ALL, LV_J_BLE, LV_J_ALL, LV_J_BLE, LV_J_BLE, LV_J_BLE};
+    "BLE: Samsung SmartTag (FD5A/FD59)",
+    "WiFi: same SSID, two BSSIDs, lock differs"};
+static const int LV_HUNT_JOB[LV_NHUNT_ALL] = {LV_J_DEAUTH, LV_J_BLE, LV_J_WIFI, LV_J_BLE, LV_J_ALL, LV_J_BLE, LV_J_ALL, LV_J_BLE, LV_J_BLE, LV_J_BLE, LV_J_WIFI};
 static bool lv_hunt_match(int h, const LvFind &f)
 {
     switch (h) {
@@ -444,6 +450,14 @@ static bool lv_hunt_match(int h, const LvFind &f)
     case LV_H_AIRTAG: return f.icon == LV_IC_AIRTAG;
     case LV_H_KEYFOB: return f.icon == LV_IC_KEYFOB;
     case LV_H_SAMSUNG: return f.icon == LV_IC_GALAXYTAG;
+    case LV_H_EVILTWIN: {   /* same SSID from two Wi-Fi APs whose lock type differs */
+        if (f.kind != LV_K_WIFI || !f.name[0]) return false;
+        for (int k = 0; k < lv_nf; ++k) {
+            const LvFind &o = lv_f[k];
+            if (&o == &f) continue;
+            if (o.kind == LV_K_WIFI && o.name[0] && !strcmp(o.name, f.name) && o.auth != f.auth) return true;
+        }
+        return false; }
     }
     return false;
 }
@@ -467,9 +481,9 @@ static void lv_find_line(const LvFind &f, char *o, int n)
 }
 
 /* hunt target (item 0 A+D): the bot that hunts, what it hunts, its emoji; sticky after the job ends */
-static const int LV_HUNT_ICON[LV_NHUNT] = {LV_IC_AP, LV_IC_GLASSES, LV_IC_LAPTOP, LV_IC_SKIMMER, LV_IC_CCTV, LV_IC_FLIPPER, LV_IC_DRONE, LV_IC_AIRTAG, LV_IC_KEYFOB, LV_IC_GALAXYTAG};
-static const char *const LV_HUNT_BOT[LV_NHUNT] = {"DEAUTHbot", "METAbot", "HACKbot", "SKIMMERbot", "FLOCKbot", "FLIPPERbot", "DRONEbot", "AIRTAGbot", "KEYFOBbot", "SAMSUNGbot"};
-static const char *const LV_HUNT_WHAT[LV_NHUNT] = {"DEAUTH FRAMES", "META GLASSES", "OPEN / WEP WIFI", "SERIAL SKIMMERS", "FLOCK CAMERAS", "FLIPPER ZERO", "DRONES", "FIND MY TAGS", "TILE TAGS", "SMARTTAGS"};
+static const int LV_HUNT_ICON[LV_NHUNT_ALL] = {LV_IC_AP, LV_IC_GLASSES, LV_IC_LAPTOP, LV_IC_SKIMMER, LV_IC_CCTV, LV_IC_FLIPPER, LV_IC_DRONE, LV_IC_AIRTAG, LV_IC_KEYFOB, LV_IC_GALAXYTAG, LV_IC_AP};
+static const char *const LV_HUNT_BOT[LV_NHUNT_ALL] = {"DEAUTHbot", "METAbot", "HACKbot", "SKIMMERbot", "FLOCKbot", "FLIPPERbot", "DRONEbot", "AIRTAGbot", "KEYFOBbot", "SAMSUNGbot", "EVILTWINbot"};
+static const char *const LV_HUNT_WHAT[LV_NHUNT_ALL] = {"DEAUTH FRAMES", "META GLASSES", "OPEN / WEP WIFI", "SERIAL SKIMMERS", "FLOCK CAMERAS", "FLIPPER ZERO", "DRONES", "FIND MY TAGS", "TILE TAGS", "SMARTTAGS", "EVIL TWIN APS"};
 static int lv_hunt_last = -1;      /* the last hunt started from TERMINALbot / 'hunt' (cleared by a plain scan or 'clear') */
 static void lv_upcase(char *p) { for (; *p; ++p) if (*p >= 'a' && *p <= 'z') *p -= 32; }
 /* D: full-info line for one find, built only from fields LvFind really carries. k/m = match k of m (m 0 = not a hunt) */
@@ -515,6 +529,7 @@ static void lv_store(int kind, const LvFind *src, int n)
         lv_f[lv_nf++] = f;
     }
     lv_sort();
+    if (lv_hunt == LV_H_EVILTWIN) for (int i = 0; i < lv_nf; ++i) lv_f[i].alert = lv_hunt_match(LV_H_EVILTWIN, lv_f[i]) ? 1 : 0;   /* twins need the full list */
     lv_page = 0; lv_sel = -1; lv_detail = false; lv_dirty_box = true; lv_tk_item = 0;
 }
 static bool lv_in_mode(const LvFind &f, int mode)
@@ -609,6 +624,7 @@ static void lv_hunt_report(void)
     for (int i = 0, k = 0; i < lv_nf && k < 8; ++i)
         if (lv_f[i].alert) { char l[96]; lv_find_line(lv_f[i], l, sizeof l); lv_print(" %s", l + 3); ++k; }
     if (lv_hunt == LV_H_KEYFOB) lv_print("note: car keyfobs are sub-GHz; CYD has no sub-GHz radio. BLE trackers only.");
+    if (lv_hunt == LV_H_EVILTWIN) lv_print("note: EX.DATA if no live same-SSID lock mismatch.");
     if (m) { int k = 0; for (int i = 0; i < lv_nf && k < 3; ++i) if (lv_f[i].alert) { char t[LV_TKLEN]; lv_full_line(lv_f[i], ++k, m, t, sizeof t); lv_event(true, "%s", t); } }
     else lv_event(false, "NO %s FOUND (%d DEVICES SEEN)", up, lv_nf);
 }
@@ -726,7 +742,7 @@ static void lv_cmd(const char *line)
     }
     else if (IS("sweep")) {   /* the old 'hunt <dev>' category sweep (TERMINALbot tiles use it) */
         int h = -1;
-        for (int k = 0; a1 && k < LV_NHUNT; ++k) if (!strcmp(a1, LV_HUNT_NAME[k]) || (!strcmp(a1, "air") && k == LV_H_AIRTAG)) h = k;
+        for (int k = 0; a1 && k < LV_NHUNT_ALL; ++k) if (!strcmp(a1, LV_HUNT_NAME[k]) || (!strcmp(a1, "air") && k == LV_H_AIRTAG) || (( !strcmp(a1, "twin") || !strcmp(a1, "evil") ) && k == LV_H_EVILTWIN)) h = k;
         if (h < 0) { lv_print("sweep what? airtag samsung flipper flock"); lv_print("  drone meta skimmer hack keyfob deauth"); }
         else { lv_print("sweep %s: %s", LV_HUNT_NAME[h], LV_HUNT_DESC[h]); lv_job_start(LV_HUNT_JOB[h], h); }
     }

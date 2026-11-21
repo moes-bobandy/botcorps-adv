@@ -129,6 +129,13 @@ static inline uint32_t mo_vnow(void) { return lv_sel_clk_now(mo_clk, lv_now); } 
 /* v1.2.11 (Mobandy 2026-11-20 "None of the folders are responsive or interactive"): a landed folder is a button.
  * Tap = press flash + it opens (green frame, its real facts in the footer); tap it again or another one to switch. */
 static int mo_fold_sel = -1;
+/* mock/dojo-terminal-folder-2026-11-21 (sim only): 0 = current 3 info scrolls, 3 = V3 terminal replaces scroll 3,
+ * 4 = V4 a 4th terminal folder. See mo_fdy/mo_fh below the MO12_* folder constants. */
+static int mo_term_fold = 0;
+static int mo_nfold(void) { return (mo_term_fold == 4 || mo_term_fold == 5) ? 4 : 3; }
+static int mo_term_j(void) { return mo_term_fold == 3 ? 2 : (mo_term_fold == 4 || mo_term_fold == 5) ? 3 : -1; }
+static int mo_fdy(void); static int mo_fh(void);
+static int mo_hunt_of(int i) { if (i < 0 || i >= MO_N) return -1; return MO_HUNT[i] >= 0 ? MO_HUNT[i] : LV_H_EVILTWIN; }
 static const char *mo_fold_line(int i, int j, int k);
 static int mo_txt_bad = 0, mo_txt_n = 0; static char mo_txt_why[160] = ""; static long mo_txt_tot = 0, mo_txt_lines = 0;
 static LvTower mo11_tw[MO_N]; static bool mo11_have[MO_N]; static float mo11_cam = 0; static int MO_ORD[MO_N], mo11_nord = 0;   /* this frame's lv_rd_tw, by device */
@@ -235,6 +242,10 @@ static float mo_t(void) { return (lv_now - mo_tw0) / 1000.0f; }
 #define MO12_DROP_MS 380
 #define MO12_LOAD_MS 500     /* a landed folder's LOADING bar */
 static const int MO12_FX = 92, MO12_FW = 143, MO12_FY0 = 60, MO12_FDY = 62, MO12_FH = 50;   /* folder j: tab top FY0 + j*FDY, body 8 below, 36 tall */
+/* V4 pack: 4 folders in the 60..246 band (panel starts at 247). FH=35, FDY=47, last body ends at 244. A 4th
+ * folder at the locked FDY=62/FH=50 would have tab top 246 and overlap the panel. Touch boxes stay >= 47 px tall. */
+static int mo_fdy(void) { return mo_term_fold == 4 ? 47 : MO12_FDY; }
+static int mo_fh(void) { return mo_term_fold == 4 ? 35 : MO12_FH; }
 static const int MO12_BX = 8, MO12_BY = 38, MO12_BW = 229, MO12_BH = 15;                      /* search bar 229x15 at (8,38) */
 static float mo12_camc = 0;   /* open camera centre (picked at tap) */
 static LvBand *mo12_B = nullptr;   /* the band being drawn (for the room wash inside the tower loop) */
@@ -422,8 +433,8 @@ static void mo_terminal(LvBand &B)   /* footer terminal rows 287..319, x 1..238 
     char a[48], b[48];
     if (itw_mo_sel < 0) { snprintf(a, sizeof a, "HEIGHT = EXAMPLE SIGNAL  EX.DATA"); snprintf(b, sizeof b, "TAP A PILLAR = OPEN IT"); }
     else if (mo_fold_sel >= 0) { snprintf(a, sizeof a, "%s", mo_fold_line(itw_mo_sel, mo_fold_sel, 0)); snprintf(b, sizeof b, "%s", mo_fold_line(itw_mo_sel, mo_fold_sel, 1)); }
-    else if (mo_live_n[itw_mo_sel]) { snprintf(a, sizeof a, "PILLAR OPEN  THREAT: %s  LIVE SCAN", MO_TNAME[MO_THREAT[itw_mo_sel]]); snprintf(b, sizeof b, "LOADED %s  3 SCROLLS", MO_DEV[itw_mo_sel].name); }
-    else { snprintf(a, sizeof a, "PILLAR OPEN  THREAT: %s  EX.DATA", MO_TNAME[MO_THREAT[itw_mo_sel]]); snprintf(b, sizeof b, "LOADED %s  3 SCROLLS", MO_DEV[itw_mo_sel].name); }
+    else if (mo_live_n[itw_mo_sel]) { snprintf(a, sizeof a, "PILLAR OPEN  THREAT: %s  LIVE SCAN", MO_TNAME[MO_THREAT[itw_mo_sel]]); snprintf(b, sizeof b, "LOADED %s  %d SCROLLS", MO_DEV[itw_mo_sel].name, mo_nfold()); }
+    else { snprintf(a, sizeof a, "PILLAR OPEN  THREAT: %s  EX.DATA", MO_TNAME[MO_THREAT[itw_mo_sel]]); snprintf(b, sizeof b, "LOADED %s  %d SCROLLS", MO_DEV[itw_mo_sel].name, mo_nfold()); }
     b_text35(B, x0 + 4, y0 + 4, a, g); b_text35(B, x0 + 4, y0 + 11, b, ink);
     b_fill(B, x0 + 2, y0 + 18, x1 - x0 - 3, 1, lv_hex(0x3a3228));
     int x = b_text(B, x0 + 4, y0 + 22, ">", lv_hex(MO11_GH)); const char *pr = itw_mo_sel < 0 ? "FREE YOUR MIND" : mo_fold_sel >= 0 ? "TAP SCROLL AGAIN = CLOSE IT" : "< TOWERS TO GO BACK"; x = b_text(B, x + 3, y0 + 22, pr, lv_hex(MO11_GH));
@@ -640,7 +651,7 @@ static void mo12_search(LvBand &B, const LvTower &T, int i, int el)
     int x = b_text35(B, x0 + 5, y0 + 5, "SEARCH", gh); x = b_text35(B, x + 3, y0 + 5, "//", lv_hex(0x8a7a5a));
     char q[24]; snprintf(q, sizeof q, "%.*s", typed, nm); const int nx = x + 4, ne = b_text(B, nx, y0 + 4, q, pap);
     if (typed < L || ((lv_now / 400) & 1)) mo12_rect(B, ne + 1, y0 + 4, 5, 7, gh, 256);   /* blinking green block cursor (solid while typing) */
-    char r[24]; snprintf(r, sizeof r, "%d/3 SCROLLS", mo12_nland); const int rx = x0 + w - 5 - lv_w35(r); b_text35(B, rx, y0 + 5, r, lv_hex(0xbfb294));
+    char r[24]; snprintf(r, sizeof r, "%d/%d SCROLLS", mo12_nland, mo_nfold()); const int rx = x0 + w - 5 - lv_w35(r); b_text35(B, rx, y0 + 5, r, lv_hex(0xbfb294));
     if (B.y0 == 0) { mo12_aud(x0 + 5, y0 + 5, x - 4 - (x0 + 5), 5, x0 + 2, y0 + 2, x0 + w - 3, y0 + h - 3, "sbarL"); mo12_aud(nx, y0 + 4, L * 6 + 6, 7, x0 + 2, y0 + 2, rx - 4, y0 + h - 3, "sbarQ");
                      mo12_aud(rx, y0 + 5, lv_w35(r), 5, nx + L * 6 + 8, y0 + 2, x0 + w - 3, y0 + h - 3, "sbarR"); }
 }
@@ -702,17 +713,17 @@ static void mo11_overlay(LvBand &B)   /* skin-1 hook: called by lv_scene_radar a
         const LvTower &T = mo11_tw[sel];
         /* v13: no select effect (Mobandy: no lock bracket) */
         /* v13: red pill removed */
-        int ys[4], nland = 0; float ph[4];
-        for (int j = 0; j < 3; ++j) { const bool go = lv_sel_drop((int)el, MO12_DROP0, MO12_GAP, MO12_DROP_MS, j, LV_RD_Y0 - 50, MO12_FY0 + j * MO12_FDY, ys[j], ph[j]);   /* lv_select.h drop law */
+        int ys[4], nland = 0; float ph[4]; const int nf = mo_nfold(), fdy = mo_fdy(), fh = mo_fh();
+        for (int j = 0; j < nf; ++j) { const bool go = lv_sel_drop((int)el, MO12_DROP0, MO12_GAP, MO12_DROP_MS, j, LV_RD_Y0 - 50, MO12_FY0 + j * fdy, ys[j], ph[j]);   /* lv_select.h drop law */
             if (go && ph[j] >= LV_SEL_LAND) nland = j + 1; }
         mo12_nland = nland;
         mo12_index(B, nland, ys);
-        for (int j = 2; j >= 0; --j) { const int tt = (int)el - MO12_DROP0 - j * MO12_GAP; if (tt < 0) continue;
+        for (int j = nf - 1; j >= 0; --j) { const int tt = (int)el - MO12_DROP0 - j * MO12_GAP; if (tt < 0) continue;
             mo_cy0 = 35; mo12_folder(B, sel, j, ys[j], ph[j] > 1 ? 1 : ph[j], tt - MO12_DROP_MS); mo_cy0 = -10000;
             if (B.y0 == 0) { mo12_fys[j] = ys[j]; mo12_fph100[j] = (int)(100 * (ph[j] > 1 ? 1 : ph[j])); } }
         if (mo_fold_sel >= 0 && mo_fold_sel < nland) {   /* v1.2.11: the opened folder wears a 2 px green frame */
             const int fy = ys[mo_fold_sel] + 8; const uint16_t g = lv_hex(MO11_GH);
-            if (b_yhit(B, fy - 13, fy + MO12_FH + 3)) { b_frame(B, MO12_FX - 4, fy - 13, MO12_FW + 8, MO12_FH + 17, g); b_frame(B, MO12_FX - 3, fy - 12, MO12_FW + 6, MO12_FH + 15, g); } }
+            if (b_yhit(B, fy - 13, fy + fh + 3)) { b_frame(B, MO12_FX - 4, fy - 13, MO12_FW + 8, fh + 17, g); b_frame(B, MO12_FX - 3, fy - 12, MO12_FW + 6, fh + 15, g); } }
         mo12_search(B, T, sel, (int)el);
         mo_panel(B);
     }
@@ -756,10 +767,10 @@ static void itw_mo_frame(void)
     const uint32_t real = lv_now; uint32_t cap = LV_SEL_NOCAP;
     if (itw_mo_sel >= 0 || mo_closing) {   /* v1.2.11: cap the step while the camera / folders move (lv_select.h clock) */
         const uint32_t el = mo_clk.vt - itw_mo_t0;
-        cap = mo_closing || el < MO12_PUSH_MS ? MO_DT_PUSH : el < (uint32_t)(MO12_DROP0 + 2 * MO12_GAP + MO12_DROP_MS) ? MO_DT_DROP : LV_SEL_NOCAP; }
+        cap = mo_closing || el < MO12_PUSH_MS ? MO_DT_PUSH : el < (uint32_t)(MO12_DROP0 + (mo_nfold() - 1) * MO12_GAP + MO12_DROP_MS) ? MO_DT_DROP : LV_SEL_NOCAP; }
     lv_now = lv_sel_clk_step(mo_clk, real, cap);
     if (itw_mo_sel >= 0) { const uint32_t el = lv_now - itw_mo_t0;
-        itw_mo_phase = el < MO12_PUSH_MS ? 1 : el < MO12_DROP0 + 2 * MO12_GAP + MO12_DROP_MS ? 2 : 3; }
+        itw_mo_phase = el < MO12_PUSH_MS ? 1 : el < (uint32_t)(MO12_DROP0 + (mo_nfold() - 1) * MO12_GAP + MO12_DROP_MS) ? 2 : 3; }
     /* v1.2.5: dirty-rect the field only (y=24..319). Never clear or repaint the ticker band;
      * a full-frame blit was overwriting the banner every tick, then itw_top black-filled it. */
     lv_render(lv_blit_dirty_hw, {0, 24, 239, 319}, itw_mo_scene, 0);   /* perf-all: changed rows only (was lv_blit_hw: every row, every frame) */
@@ -786,10 +797,15 @@ static int mo_fold_hit(int x, int y)   /* v1.2.11: landed folder j under (x,y), 
 {
     if (itw_mo_sel < 0 || x < MO12_FX - 4 || x > MO12_FX + MO12_FW + 3) return -1;
     const int el = (int)(mo_vnow() - itw_mo_t0);
-    static const LvRect R[3] = {{(int16_t)(MO12_FX - 4), (int16_t)(MO12_FY0 - 9), (int16_t)(MO12_FX + MO12_FW + 3), (int16_t)(MO12_FY0 + MO12_FDY - 7)},
-                                {(int16_t)(MO12_FX - 4), (int16_t)(MO12_FY0 + MO12_FDY - 6), (int16_t)(MO12_FX + MO12_FW + 3), (int16_t)(MO12_FY0 + 2 * MO12_FDY - 7)},
-                                {(int16_t)(MO12_FX - 4), (int16_t)(MO12_FY0 + 2 * MO12_FDY - 6), (int16_t)(MO12_FX + MO12_FW + 3), (int16_t)(MO12_FY0 + 2 * MO12_FDY + 8 + MO12_FH + 2)}};
-    const int j = lv_sel_hit(R, 3, x, y);   /* lv_select.h: landed folders only */
+    const int n = mo_nfold(), fdy = mo_fdy(), fh = mo_fh();
+    LvRect R[4];
+    for (int j = 0; j < n; ++j) {
+        const int ty = MO12_FY0 + j * fdy;
+        const int y0 = j == 0 ? ty - 9 : ty - 6;
+        const int y1 = j == n - 1 ? ty + 8 + fh + 2 : ty + fdy - 7;
+        R[j] = {(int16_t)(MO12_FX - 4), (int16_t)y0, (int16_t)(MO12_FX + MO12_FW + 3), (int16_t)y1};
+    }
+    const int j = lv_sel_hit(R, n, x, y);   /* lv_select.h: landed folders only */
     return j >= 0 && lv_sel_landed(el, MO12_DROP0, MO12_GAP, MO12_DROP_MS, j) ? j : -1;
 }
 static const char *itw_mo_tap(int x, int y)
@@ -800,10 +816,15 @@ static const char *itw_mo_tap(int x, int y)
         if (lv_in(MO_BTN, x, y)) { mo_last = itw_mo_sel; mo_closing = true; mo_close_t = mo_vnow(); itw_mo_sel = -1; itw_mo_phase = 0; mo_fold_sel = -1; return "mo-towers"; }
         const int j = mo_fold_hit(x, y);
         if (j >= 0) {   /* v1.2.11: folder = button (press flash on the whole folder, then open / close it) */
-            const int ty = MO12_FY0 + j * MO12_FDY;
-            lv_press({(int16_t)(MO12_FX - 4), (int16_t)(ty - 2), (int16_t)(MO12_FX + MO12_FW + 3), (int16_t)(ty + 8 + MO12_FH + 2)});
+            const int ty = MO12_FY0 + j * mo_fdy();
+            lv_press({(int16_t)(MO12_FX - 4), (int16_t)(ty - 2), (int16_t)(MO12_FX + MO12_FW + 3), (int16_t)(ty + 8 + mo_fh() + 2)});
+            if (j == mo_term_j()) {   /* same path as a TERMINALbot hunt chip: press flash, then lv_open_tty("sweep <dev>") */
+                const int h = mo_hunt_of(itw_mo_sel);
+                char c[24]; snprintf(c, sizeof c, "sweep %s", (h >= 0 && h < LV_NHUNT_ALL) ? LV_HUNT_NAME[h] : "eviltwin");
+                lv_go_soon(0, c); return "mo-term-sweep";
+            }
             mo_fold_sel = mo_fold_sel == j ? -1 : j;
-            static const char *const T[3] = {"mo-scroll1", "mo-scroll2", "mo-scroll3"}; return T[j];
+            static const char *const T[4] = {"mo-scroll1", "mo-scroll2", "mo-scroll3", "mo-scroll4"}; return T[j];
         }
         return "mo-open";
     }
@@ -815,6 +836,11 @@ static const char *itw_mo_tap(int x, int y)
 static const char *mo_fold_line(int i, int j, int k)   /* footer lines for an opened folder: its real name + fact */
 {
     static char L[48];
+    if (j == mo_term_j()) {
+        if (k == 0) snprintf(L, sizeof L, "SCROLL %d OPEN  %s  TERMINAL SWEEP", j + 1, MO_DEV[i].name);
+        else snprintf(L, sizeof L, "INDIVIDUAL SCAN");
+        return L;
+    }
     if (k == 0) snprintf(L, sizeof L, "SCROLL %d OPEN  %s  %s", j + 1, MO_DEV[i].name, MO_FOLD_NAME[i][j]);
     else snprintf(L, sizeof L, "%s", MO_FOLD_ACT[i][j]);
     return L;
@@ -829,6 +855,6 @@ static void mo_dump(void)
     for (int i = 0; i < MO_N; ++i) if (mo11_have[i]) printf("  MOEMB %d look=%d threat=%s hs=%.3f e=[%d,%d,%d]\n", i, MO_LOOKOF[i], MO_TNAME[MO_THREAT[i]], MO_HFIX[MO_LOOKOF[i]], mo_ex[i], mo_ey[i], mo_eS[i]);
     if (mo_txt_bad) printf("  MOWHY %s\n", mo_txt_why);
     if (cu >= 0 && mo11_have[cu]) { const LvTower &T = mo11_tw[cu]; printf("  MOCU %d p=%.3f f=[%d,%d,%d,%d] b=[%d,%d,%d,%d] fw=%d\n", cu, mo12_p(cu), T.x0, T.x1, T.yt, T.yb, T.bx0, T.bx1, T.byt, T.byb, T.x1 - T.x0); }
-    if (itw_mo_sel >= 0) { printf("  MOFOLD nland=%d typed=%d ys=", mo12_nland, mo12_typed); for (int j = 0; j < 3; ++j) printf("%d/%d%s", mo12_fys[j], mo12_fph100[j], j < 2 ? "," : "\n"); }
+    if (itw_mo_sel >= 0) { printf("  MOFOLD nland=%d typed=%d ys=", mo12_nland, mo12_typed); for (int j = 0; j < mo_nfold(); ++j) printf("%d/%d%s", mo12_fys[j], mo12_fph100[j], j < mo_nfold() - 1 ? "," : "\n"); }
 }
 #endif

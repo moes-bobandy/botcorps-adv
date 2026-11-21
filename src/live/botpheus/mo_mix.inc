@@ -402,7 +402,7 @@ static void mo3_perim(int x, int y, int w, int h, int p, int &px, int &py)
 }
 static void mo12_folder(LvBand &B, int i, int j, int ys, float ph, int tl)
 {
-    const int x = MO12_FX, w = MO12_FW, y = ys + 8, h = MO12_FH, tw = 60; const bool solid = ph >= 0.65f; const int cut = 7;
+    const int x = MO12_FX, w = MO12_FW, y = ys + 8, h = mo_fh(), tw = 60; const bool solid = ph >= 0.65f; const int cut = 7;
     const float t = lv_now / 1000.0f;
 const int MO_LOOK = MO_LOOKOF[i];   /* the opened pillar's own look */
     uint32_t BODY, SCAN, HEAD, OUT, IN, TAB, TABT, NAME, SIZE, ACT, BARF, BARB, GLOW, SHAD, IK, IB, IC;
@@ -457,7 +457,8 @@ const int MO_LOOK = MO_LOOKOF[i];   /* the opened pillar's own look */
     char tab[16]; snprintf(tab, sizeof tab, "SCROLL %d", j + 1); b_text35(B, x + 5, y - 6, tab, lv_hex(TABT));
     if (B.y0 == 0) mo12_aud(x + 5, y - 6, lv_w35(tab), 5, x + 1, y - 7, x + tw - 5, y - 1, "tab");
     mo_emb_draw(B, i, x + 5, y + 5, 10, IK, IB, 0, 256, 0);   /* device emblem (vector, 10 px) in the header strip */
-    const char *nm = MO_FOLD_NAME[i][j]; b_text(B, x + 17, y + 7, nm, ink);   /* real folder name: ID / DETECT / ACTION */
+    const bool term = (j == mo_term_j());
+    const char *nm = term ? "TERMINAL SWEEP" : MO_FOLD_NAME[i][j]; b_text(B, x + 17, y + 7, nm, ink);   /* real folder name: ID / DETECT / ACTION, or the terminal folder */
     /* v5f (Mobandy 3:24 / 3:48 PM ET): digital instruments, every element = a real value (folders18 + EX.DATA rssi + threat table) */
     auto seg7 = [&](int sx_, int sy_, char ch, uint16_t on, uint16_t off) {   /* 5x9 seven-segment digit, unlit segments dim */
         static const char *const D7 = "0123456789-ABCDEF"; static const uint8_t M7[17] = {0x3f,0x06,0x5b,0x4f,0x66,0x6d,0x7d,0x07,0x7f,0x6f,0x40,0x77,0x7c,0x39,0x5e,0x79,0x71};
@@ -467,9 +468,17 @@ const int MO_LOOK = MO_LOOKOF[i];   /* the opened pillar's own look */
     auto seg7s = [&](int sx_, int sy_, const char *s_, uint16_t on, uint16_t off) { for (int k = 0; s_[k]; ++k) seg7(sx_ + k * 7, sy_, s_[k], on, off); return sx_ + (int)strlen(s_) * 7; };
     const uint16_t LIT = lv_hex(MO_LOOK == 2 ? 0x00a83c : 0x30ff90), DIM = lv_hex(MO_LOOK == 2 ? 0xcfe8d8 : MO_LOOK == 3 ? 0x3a2414 : 0x0a3a20), LBL = lv_hex(ACT);
     const int th = MO_THREAT[i]; const uint16_t TC = lv_hex(th == 0 ? 0xff385c : th == 1 ? 0xffb000 : 0x30c060);
-    b_text35(B, x + 6, y + 19, MO_FOLD_ACT[i][j], lv_hex(ACT));   /* the folder's real fact line */
-    const int iy0 = y + 27, iy = y + 34;   /* instrument labels / instruments */
-    if (j == 0) {   /* WHAT IT IS: signal (EX.DATA dBm, 7-seg + 10-LED meter) + threat level (3 segments + warning icon) */
+    const int shortf = h < 50;   /* V4 packed body */
+    b_text35(B, x + 6, shortf ? y + 17 : y + 19, term ? "INDIVIDUAL SCAN" : MO_FOLD_ACT[i][j], lv_hex(ACT));   /* the folder's real fact line */
+    const int iy0 = shortf ? y + 22 : y + 27, iy = shortf ? y + 26 : y + 34;   /* instrument labels / instruments */
+    if (term) {   /* terminal folder: same instrument widgets (badge + 7-seg), the pillar's own hunt */
+        const int hnt = mo_hunt_of(i); const int job = (hnt >= 0 && hnt < LV_NHUNT_ALL) ? LV_HUNT_JOB[hnt] : LV_J_WIFI;
+        const char *rad = job == LV_J_BLE ? "BLE" : job == LV_J_ALL ? "WI+BT" : job == LV_J_DEAUTH ? "WIFI" : "WIFI";
+        auto badge = [&](int bx, const char *s_) { const int bw_ = (int)strlen(s_) * 4 + 5; mo12_rect(B, bx, iy - 1, bw_, 9, LIT, 256); b_text35(B, bx + 3, iy + 1, s_, lv_hex(MO_LOOK == 2 ? 0xffffff : 0x03140b)); return bx + bw_ + 3; };
+        b_text35(B, x + 6, iy0, "SWEEP", LBL); int bx = badge(x + 6, rad);
+        bx = badge(bx, mo_live(i) ? "LIVE" : "EX.DATA");
+        (void)bx;
+    } else if (j == 0) {   /* WHAT IT IS: signal (EX.DATA dBm, 7-seg + 10-LED meter) + threat level (3 segments + warning icon) */
         char db[8]; snprintf(db, sizeof db, "%d", mo_db(i)); b_text35(B, x + 6, iy0, "DBM", LBL); seg7s(x + 6, iy, db, LIT, DIM);
         int lev = mo_db(i) + 100; if (lev < 4) lev = 4; if (lev > 60) lev = 60; const int nl = (lev * 10 + 30) / 60;   /* lv_rd_level -> 10 LEDs */
         b_text35(B, x + 40, iy0, "SIGNAL", LBL);
@@ -493,5 +502,5 @@ const int MO_LOOK = MO_LOOKOF[i];   /* the opened pillar's own look */
     }
     (void)tl; (void)BARF; (void)BARB; (void)SIZE;
     if (B.y0 == 0) { mo12_aud(x + 17, y + 7, (int)strlen(nm) * 6 - 1, 7, x + 16, y + 3, x + w - 4, y + 17, "fname");
-                     mo12_aud(x + 6, y + 19, lv_w35(MO_FOLD_ACT[i][j]), 5, x + 2, y + 18, x + w - 4, y + 25, "fact"); }
+                     mo12_aud(x + 6, shortf ? y + 17 : y + 19, lv_w35(term ? "INDIVIDUAL SCAN" : MO_FOLD_ACT[i][j]), 5, x + 2, shortf ? y + 16 : y + 18, x + w - 4, shortf ? y + 23 : y + 25, "fact"); }
 }

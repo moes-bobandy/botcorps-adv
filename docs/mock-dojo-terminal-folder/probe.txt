@@ -1,0 +1,18 @@
+tick 300
+go 13
+mofold 3
+tick 60
+tickto 17000
+tap 47 140
+tick 90
+probe fold0 160 75
+probe fold1 160 137
+probe fold2 160 210
+probe fold2b 160 200
+mofold 4
+tick 5
+probe v4f0 160 70
+probe v4f1 160 110
+probe v4f2 160 155
+probe v4f3 160 225
+probe v4f3b 160 215

@@ -2342,7 +2342,9 @@ static void lv_blit_theme(int x, int y, int w, int h, const uint16_t *px) { lv_t
  * A dirty blit pushes runs of changed rows straight from the band (same zero-copy DMA path) and skips the rest, so the
  * panel ends every frame with the same pixels as a full push. Insurance against a hash collision: each row is pushed
  * anyway once every 32 frames (1/32 of the rows per frame). RAM: 1,280 B hashes + 40 B bits (BSS). No panel readback (there is no MISO). */
-static uint32_t lv_dr_h[320]; static uint8_t lv_dr_ok[40]; static uint32_t lv_dr_n = 0; static bool lv_dr_in = false;
+/* v1.2.17 build: lv_dr_h lives on the heap (calloc in lv_begin), not BSS: with the SD slot I/O linked, dram0 overflowed by
+ * 1,088 B. No heap -> every dirty blit is a plain full push (same pixels). */
+static uint32_t *lv_dr_h = nullptr; static uint8_t lv_dr_ok[40]; static uint32_t lv_dr_n = 0; static bool lv_dr_in = false;
 static lv_blit_fn lv_blit_panel; static lk_draw_fn lv_raw_panel;
 static inline void lv_dr_inval(int y0, int y1)
 {
@@ -2361,7 +2363,7 @@ static inline uint32_t lv_dr_hash(const uint16_t *p, int y)   /* 2-lane FNV-1a o
 }
 static void lv_dr_push(int x, int y, int w, int h, const uint16_t *px)
 {
-    if (x != 0 || w != 240 || ((uintptr_t)px & 3)) { lv_hw_tracked(x, y, w, h, px); return; }   /* not whole rows: plain push */
+    if (!lv_dr_h || x != 0 || w != 240 || ((uintptr_t)px & 3)) { lv_hw_tracked(x, y, w, h, px); return; }   /* not whole rows (or no hash table): plain push */
     { static uint32_t t = 0; if (lv_now != t) { t = lv_now; ++lv_dr_n; } }   /* one count per frame (lv_tick sets lv_now once) */
     int run = -1;
     for (int r = 0; r <= h; ++r) {
@@ -2381,7 +2383,8 @@ static void lv_blit_dirty_hw(int x, int y, int w, int h, const uint16_t *px) { l
 #include "lv_glossary.h"   /* item 2: glossary screens (after lv_blit_hw / lv_draw_backbot / lv_ticker) */
 static void lv_begin(const LvRadio *radio, lv_blit_fn blit, lk_draw_fn raw_draw, int theme, uint32_t now, bool cal_valid)
 {
-    lv_radio = radio; lv_blit_panel = blit; lv_blit_hw = lv_hw_tracked; lv_blit = lv_blit_theme; lv_raw_panel = raw_draw; lv_raw_draw = lv_raw_tracked; lv_dr_inval_all();   /* v1.2.17: tracked panel writes */
+    lv_radio = radio; lv_blit_panel = blit; lv_blit_hw = lv_hw_tracked; lv_blit = lv_blit_theme; lv_raw_panel = raw_draw; lv_raw_draw = lv_raw_tracked; lv_dr_inval_all();
+    if (!lv_dr_h) lv_dr_h = (uint32_t *)calloc(320, sizeof(uint32_t));   /* v1.2.17 build: 1,280 B heap, was BSS */   /* v1.2.17: tracked panel writes */
     lv_theme = (theme >= 0 && theme < LV_NTHEME_ALL) ? theme : 0;   /* fw-3locks-1116: the boot NVS theme may be a CONTROLbot v6 theme (12..25) */
     lv_now = lv_boot_ms = now; lv_clip_t = now; lv_auto_t = now;
     lv_print("BOTCORPS %s", LV_VERSION);

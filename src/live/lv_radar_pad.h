@@ -57,7 +57,8 @@ static const char *lv_radar_tap(int x, int y);
 static int lv_rd_pad_hit_at(int x, int y)
 {
     if (y < PAD_Y0 || y > PAD_Y1 || x < PAD_X0 || x > PAD_X1) return 0;
-    { const int d = lv_pad_dpad_at(x, y); if (d) return d == 1 ? 11 : d == 2 ? 12 : d == 3 ? 1 : 2; }   /* v1.2.14: 4-way d-pad (11 up, 12 down) */
+    if (lv_in(PAD_HIT_L, x, y)) return 1;   /* mock/v1219: restore v1.2.13 left/right rocker boxes (9efd705); 4-way diagonals were v1.2.14 */
+    if (lv_in(PAD_HIT_R, x, y)) return 2;
     if (lv_in(PAD_HIT_B, x, y)) return 6;
     if (lv_in(PAD_HIT_A, x, y)) return 5;
 #if LV_RD_FOLD
@@ -368,7 +369,8 @@ static void pad_draw_joey(LvBand &B, uint16_t ink, uint16_t dim)
     pad_octagon(B, PAD_CX, PAD_CY, 42, 25, lv_hex(0x06040a), dim, 0);
     pad_glow_oct(B, PAD_CX, PAD_CY, 42, 25, ink, 2);
     pad_octagon(B, PAD_CX, PAD_CY, 36, 20, lv_hex(0x100818), ink, 0);
-    { const int h = lv_rd_pad_held; pad_cross(B, PAD_CX, PAD_CY, h == 11 ? 1 : h == 12 ? 2 : h == 1 ? 3 : h == 2 ? 4 : 0, ink, lv_rd_lock ? ac : ink); }   /* v1.2.14: was pad_rocker (kept) */
+    pad_rocker(B, PAD_CX, PAD_CY, 16, 68, lv_hex(0x1a1018), ink);   /* mock/v1219: verbatim v1.2.13 left/right rocker (9efd705); was pad_cross */
+    pad_disc(B, PAD_CX, PAD_CY, 3, lv_rd_lock ? ac : ink, ink, 0);
     auto arcade = [&](int cx, int cy, uint16_t col, const char *lab, const char *sub, int held) {
         pad_disc(B, cx, cy, 20, lv_hex(0x08040c), col, 0);
         pad_glow(B, cx, cy, 20, held ? lv_hi(col) : col, held ? 6 : 3);
@@ -453,8 +455,12 @@ static void pad_hc_deck(LvBand &B, const char *st, const char *st2, const char *
     pad_glow_oct(B, cx, cy, 42, 25, ink, 2);
     pad_octagon(B, cx, cy, 36, 20, lv_hex(0x100818), ink, 0);
     const int H = lv_hc_dpad_held;
-    pad_cross(B, cx, cy, H, ink, ink);
-    b_text35(B, 104, 272, "UP/DN", dim); b_text35(B, 104, 280, ud, ink); b_text35(B, 104, 292, "L/R", dim); b_text35(B, 104, 300, lr, ink);
+    { const int keep = lv_rd_pad_held;   /* pad_rocker reads lv_rd_pad_held; map HACKbot L/R (3/4) onto it for the press highlight */
+      lv_rd_pad_held = H == 3 ? 1 : H == 4 ? 2 : 0;
+      pad_rocker(B, cx, cy, 16, 68, lv_hex(0x1a1018), ink);
+      pad_disc(B, cx, cy, 3, ink, ink, 0);
+      lv_rd_pad_held = keep; }   /* mock/v1219: left/right rocker, verbatim 9efd705 pad_rocker; A OPEN / B BACK stay */
+    b_text35(B, 104, 272, "L/R", dim); b_text35(B, 104, 280, lr, ink);
     auto arcade = [&](int x, int y, uint16_t col, const char *lab, const char *sub, int held) {
         pad_disc(B, x, y, 20, lv_hex(0x08040c), col, 0); pad_glow(B, x, y, 20, held ? lv_hi(col) : col, held ? 6 : 3);
         pad_disc(B, x, y, 15, held ? lv_mix(lv_hex(0x100818), col, 5, 8) : lv_hex(0x120818), col, held);

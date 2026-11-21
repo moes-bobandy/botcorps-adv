@@ -1,0 +1,7 @@
+flock/dojo_open maskpx/frame=22602 e11c7f2=0 0a2038c=0 fd8efa8=0 cd5e118=0 cda0390=0 4550a69=0 dc98ba3=0 abd538f=0 bg1=0 514df65=18582 10bg0=18582 10bg1=18582
+flock/dojo_drop maskpx/frame=40976 e11c7f2=0 0a2038c=0 fd8efa8=0 cd5e118=0 cda0390=0 4550a69=0 dc98ba3=0 abd538f=0 bg1=0 514df65=7683 10bg0=7683 10bg1=7683
+flock/dojo_fold maskpx/frame=42333 e11c7f2=54903 0a2038c=0 fd8efa8=0 cd5e118=0 cda0390=0 4550a69=0 dc98ba3=0 abd538f=0 bg1=0 514df65=10566 10bg0=10566 10bg1=10566
+et/dojo_open maskpx/frame=22081 e11c7f2=0 0a2038c=0 fd8efa8=0 cd5e118=0 cda0390=0 4550a69=0 dc98ba3=0 abd538f=0 bg1=0 514df65=23020 10bg0=23020 10bg1=23020
+et/dojo_drop maskpx/frame=40814 e11c7f2=0 0a2038c=0 fd8efa8=0 cd5e118=0 cda0390=0 4550a69=0 dc98ba3=0 abd538f=0 bg1=0 514df65=1945 10bg0=1945 10bg1=1945
+et/dojo_fold maskpx/frame=41190 e11c7f2=42074 0a2038c=0 fd8efa8=0 cd5e118=0 cda0390=0 4550a69=0 dc98ba3=0 abd538f=0 bg1=0 514df65=1443 10bg0=1443 10bg1=1443
+TOTAL folder-region diff px vs c08935a: e11c7f2=96977 0a2038c=0 fd8efa8=0 cd5e118=0 cda0390=0 4550a69=0 dc98ba3=0 abd538f=0 bg1=0 514df65=63239 10bg0=63239 10bg1=63239

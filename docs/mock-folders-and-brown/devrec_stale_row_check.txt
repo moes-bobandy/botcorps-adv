@@ -1,0 +1,2 @@
+cda0390 dojo_open: stale_rows=0/133496 | dojo_drop: stale_rows=0/122840 | dojo_fold: stale_rows=0/80216 | dojo_close: stale_rows=0/68672
+514df65 dojo_open: stale_rows=0/71040 | dojo_drop: stale_rows=0/78144 | dojo_fold: stale_rows=0/50912 | dojo_close: stale_rows=0/37000

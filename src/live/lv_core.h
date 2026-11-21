@@ -1950,7 +1950,7 @@ static void lv_paint_tints(bool all)
 }
 
 #ifndef LV_MO_BG
-#define LV_MO_BG 0   /* MOCK dojo-white-bg 2026-11-21: Dojo floor + wall only. 0 = locked tatami / shoji; 1 = A: solid white, Dojo-brown grid (MO11_SEAM); 2 = B: solid white, black grid */
+#define LV_MO_BG 1   /* MOCK dojo-10-pillars 2026-11-21 (Mobandy pick): brown grid on. MOCK dojo-white-bg 2026-11-21: Dojo floor + wall only. 0 = locked tatami / shoji; 1 = A: solid white, Dojo-brown grid (MO11_SEAM); 2 = B: solid white, black grid */
 #endif
 #include "lv_radar.h"
 #include "lv_scanbot_game.h"   /* MOCK 1111: SCANbot HOT COLD HUNT (LV_HC_GAME) */

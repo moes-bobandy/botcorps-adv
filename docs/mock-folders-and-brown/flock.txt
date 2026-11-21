@@ -1,0 +1,14 @@
+tick 300
+go 13
+tick 60
+rec 60 dojo_idle
+tickto 17000
+tap 120 160
+rec 45 dojo_open
+rec 45 dojo_drop
+tickto 33000
+tap 160 75
+rec 30 dojo_fold
+tickto 39000
+tap 200 265
+rec 45 dojo_close

@@ -1,0 +1,7 @@
+== band rows 24: HEAD vs cda0390
+TOTAL frames 2041 diff px 0
+== band rows 12: HEAD vs cda0390
+TOTAL frames 2041 diff px 0
+pa_themes (17 themes x TERM/SCAN/home pages/HACKbot): TOTAL frames 918 diff px 0
+pad_span_test: 60000 cases, 0 differ
+gibson atan2 bound check: 0 misses over 3000 beam phases x every pixel (7,260,000 cases), max approx error 0.00376 rad, margin 0.03

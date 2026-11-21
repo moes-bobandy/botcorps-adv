@@ -61,3 +61,19 @@ It missed the one-off open and entry freezes and the radio emblem rebuilds.
     HACKbot frame. An exact span rewrite is possible but riskier.
   - Gibson panel on home: per-pixel atan2f.
 - "Home landscape" does not exist in this firmware (only portrait and the 180° ORIENT FLIP), so there is nothing to measure.
+
+## Round 2 (2026-11-21, commits 8c4b49f, c403773) - HOST SIM ONLY, sim-only, not yet tested on your CYD
+
+Why the Dojo still misses 50 ms: there is no frame buffer (RAM), so every changed row is rebuilt from scratch, and in the
+open / drop / fold clips about 70 % of rows change every frame (faded pillars, wash, terminal and chrome overlay). Exact
+work cuts took the scene from 6.00 G to 3.13 G instructions (-48 %) but the modelled device time only fell 25-29 %, because
+the rest is blends (lv_mix), per-pixel opaque checks and SPI. The remaining ideas that could reach 50 ms all need RAM the CYD
+does not have (a cached full-screen static layer is 240 x 320 x 2 = 150 KB) or would change pixels. Not counting a faster frame rate as the fix.
+
+Round 2 changes (all 0 px vs cda0390): MO_BODY body rows skipped under the opaque front face; body shading column-major
+with constant-run fills; row-pointer spans for horizon, kumiko, kamoi, sill, beams and tatami; HACKbot pad shapes solved per
+row; Gibson home panel calls atan2f only where it can change a pixel; still home page pushes changed rows only; tint
+and clip-draw loop invariants lifted (TERM / SCAN entry).
+
+RAM / flash: no new static RAM; new stack use 128 B (lv_scene_tint region list); no new heap. Flash: a few KB of code (not
+built: Mobandy's build ok was not given, so no pio size run; estimate stays ~2.74 MB of the 3 MB app slot).

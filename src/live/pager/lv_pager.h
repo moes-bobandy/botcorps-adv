@@ -39,7 +39,9 @@
 #define LV_PG_CTL      3
 #endif
 #define LV_PG_DEFAULT  LV_PG_GIBSON
-#define LV_PG_MS       233
+#ifndef LV_PG_MS
+#define LV_PG_MS       100   /* v1.2.20 (Mobandy "then build", hit-list item 2): 233 -> 100 ms, ~3 slide frames instead of ~8: each 240x296 slide frame is ~30 ms of SPI (no TE sync), so fewer frames = fewer torn frames */
+#endif
 #define LV_PG_BOUNCE   18
 #define LV_PG_TICK_Y1  29  /* banner + pip band: taps here do nothing on the pager */
 #define LV_PG_SLIDE_CAP 45056u  /* 44 KB: board RLE (~33 KB) + second 8 KB decode set, under the ~50 KB HOME heap */

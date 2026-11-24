@@ -20,9 +20,9 @@
 #include "lv_build_3locks.h"   /* fw-3locks-1116: CONTROLbot v6 + BOTpheus EB3 + HACKbot game switches */
 
 #ifdef BOTCORPS_BUILD_ID
-#define LV_VERSION "cyd-livescan v1.2.19 " BOTCORPS_BUILD_ID   /* v1.2.19: v1.2.18 + L/R rocker + gold TERMINALbot pager page */
+#define LV_VERSION "cyd-livescan v1.2.20 " BOTCORPS_BUILD_ID   /* v1.2.20: v1.2.19 + mock/v1220 hit-list items 1, 1b, 2 (+100 ms slide), 3, 4 Dojo strip, 5, 6 */
 #else
-#define LV_VERSION "cyd-livescan v1.2.19"
+#define LV_VERSION "cyd-livescan v1.2.20"
 #endif
 
 /* ---------- finds ---------- */
@@ -1960,7 +1960,7 @@ static void lv_tint_setup(void)
     if (s == LV_SC_SCAN || s == LV_SC_TERM || s == LV_SC_CTL) lv_tint_add(LV_T_BACK, LV_R_BACKBOT);
 }
 #ifndef LV_TERM_STRIP
-#define LV_TERM_STRIP 1   /* mock/v1220 item 4: the GIBSON control strip on the TERMINALbot sub-screen (x1..238 y247..319); 0 = v1.2.19 */
+#define LV_TERM_STRIP 0   /* v1.2.20: OFF. The strip needs y247..319; the hunt-card labels end ~y250 and the mini terminal fills y262..310, so there is no free band to move it to (Mobandy to pick). 1 = the mock/v1220 item 4 strip */
 #endif
 #if LV_TERM_STRIP
 static const LvRect LV_R_TSTRIP = {1, 247, 238, 319};

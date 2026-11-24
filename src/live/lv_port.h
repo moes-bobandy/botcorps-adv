@@ -34,14 +34,15 @@ struct LvPortScr { const LvPortReg *reg; uint8_t nreg; const uint16_t (*rain)[10
 #define LV_TG_Y0 56
 #define LV_TG_S  48
 static uint16_t lv_pg_gold(uint16_t c);   /* pager/lv_pager_fx.h (7db0c6d), verbatim, defined later in this TU */
-static uint16_t lv_tg_under[LV_TG_S * LV_TG_S];   /* gold face under the rain (for the motion repaint) */
+static uint16_t lv_tg_under[LV_TG_S * LV_TG_S];
+static int lv_ts_speed = 1; static uint32_t lv_ts_soff = 0, lv_ts_slast = 0;   /* item 4 TERM strip SPEED: face-rain clock (GIBSON soff law) */   /* gold face under the rain (for the motion repaint) */
 static inline bool lv_tg_in(int x, int y) { return x >= LV_TG_X0 && x < LV_TG_X0 + LV_TG_S && y >= LV_TG_Y0 && y < LV_TG_Y0 + LV_TG_S; }
 static uint16_t lv_tg_rain(uint16_t g, int x, int y)   /* lv_pg_rain_row(pal {0,0,0}, skip=1) at one pixel, face box 48 */
 {
     if (g == lv_rgb(40, 24, 8) || g == lv_rgb(41, 24, 8)) return g;   /* lv_pg_keep_feat(TERMINAL): eyes stay on top */
     static const char GL[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ#$%*+<>/|";
     const int ngl = (int)sizeof(GL) - 1, CW = 6, CH = 8, NCOL = LV_TG_S / CW;
-    const int phase = (int)(lv_now / 30u);
+    const int phase = (int)((lv_now + lv_ts_soff) / 30u);
     const int ly = y - LV_TG_Y0, col = (x - LV_TG_X0 - 1) / CW, cx = (x - LV_TG_X0 - 1) % CW;
     if (x - LV_TG_X0 - 1 < 0 || col >= NCOL || cx > 4) return g;
     const uint32_t s = 0xC0DEU ^ (uint32_t)(col * 2654435761u);
@@ -219,7 +220,8 @@ static void lv_port_tick(void)
     const int n = (int)((uint64_t)ms * 30 / 1000 % 42), st = (int)((LV_PORT_RAIN_T0 + ms / 140) % 10);
 #if LV_TERM_GOLD
     if (lv_port_sc == 2) {   /* item 1: the icon rain is gone (nothing to step); the face rain repaints on its 30 ms phase */
-        static int ph = -1; const int p = (int)(lv_now / 30u);
+        { uint32_t dt = lv_now - lv_ts_slast; lv_ts_slast = lv_now; if (dt > 250) dt = 250; lv_ts_soff += dt * (uint32_t)(lv_ts_speed - 1); }
+        static int ph = -1; const int p = (int)((lv_now + lv_ts_soff) / 30u);
         if (p != ph) { ph = p; lv_tg_frame(); }
         return;
     }

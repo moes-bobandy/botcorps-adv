@@ -1,0 +1,25 @@
+tick 300
+motion 1
+go 13
+tick 20
+dump dojo_idle
+tap 70 292
+tick 5
+tap 70 292
+tick 5
+dump dojo_pick
+tap 125 292
+tick 2
+tap 125 292
+tick 10
+dump dojo_3x
+rec 60 dojo_3xrec
+tap 216 292
+tick 120
+dump dojo_open
+tap 216 292
+tick 30
+dump dojo_scroll
+tap 172 292
+tick 60
+dump dojo_back

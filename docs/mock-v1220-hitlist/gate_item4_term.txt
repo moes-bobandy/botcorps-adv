@@ -1,0 +1,18 @@
+item 4 (TERMINALbot strip) gates vs v1.2.19 sim_base
+A) strip only (both sides LV_TERM_GOLD=1; -DLV_TERM_STRIP=0 vs default), v1220_term.txt before any strip tap:
+screen            inside  outside   total  result  change bbox
+term_strip         14820        0   14820  PASS    (1,247)-(238,319)  allowed=1,247,238,319
+B) full tree tour (items 1+3+4+5):
+screen            inside  outside   total  result  change bbox
+pager0                 0        0       0  PASS      allowed=none
+pager1                 0        0       0  PASS      allowed=none
+pager2                 0        0       0  PASS      allowed=none
+pager3                 0        0       0  PASS      allowed=none
+pager4                 0        0       0  PASS      allowed=none
+term               17661        0   17661  PASS    (1,49)-(238,319)  allowed=81,48,158,145;1,247,238,319
+dojo               17041        0   17041  PASS    (1,247)-(238,318)  allowed=1,247,238,319
+gib_scan            6216        0    6216  PASS    (0,95)-(168,210)  allowed=0,24,239,246
+dl_intro            2185        0    2185  PASS    (4,113)-(143,314)  allowed=0,34,239,246;104,270,143,314
+dl_play             2122        0    2122  PASS    (0,156)-(239,314)  allowed=0,34,239,246;104,270,143,314
+C) taps: R,R -> term-pad-right x2 (META SEL 2/10); SPEED x2 -> term-speed-3x (face rain 3x). Strip pixels constant over 40 recorded frames (no flicker).
+CONFLICT (reported, not hidden): GIBSON's strip rect y247..319 on TERM covers the bottom hunt-card labels (DRONE / AIR TAG / KEYFOB / SAMSUNG, y244..254) and the mini terminal box (y261..311: SCAN / LIST / HELP / prompt -> keyboard) plus the BACKbot corner.

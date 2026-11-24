@@ -1926,9 +1926,19 @@ static void lv_tint_setup(void)
     }
     if (s == LV_SC_SCAN || s == LV_SC_TERM || s == LV_SC_CTL) lv_tint_add(LV_T_BACK, LV_R_BACKBOT);
 }
+#ifndef LV_TERM_STRIP
+#define LV_TERM_STRIP 1   /* mock/v1220 item 4: the GIBSON control strip on the TERMINALbot sub-screen (x1..238 y247..319); 0 = v1.2.19 */
+#endif
+#if LV_TERM_STRIP
+static const LvRect LV_R_TSTRIP = {1, 247, 238, 319};
+static bool lv_dirty_tstrip = true;
+#endif
 static void lv_set_masks(void)
 {
     lv_nmask = 0;
+#if LV_TERM_STRIP
+    if (lv_scr == LV_SC_TERM) lv_masks[lv_nmask++] = LV_R_TSTRIP;   /* the clip never draws under the strip */
+#endif
 #if LV_HC_GAME
     if (lv_scr == LV_SC_HCH) return;   /* MOCK 1111: the game redraws itself every frame, like the radar */
 #endif
@@ -1986,6 +1996,58 @@ static void lv_go_soon(int scr, const char *tty_cmd);
 static void lv_pad_snap(const LvRect *R, int n, int &x, int &y);   /* v1.1: CONTROLbot panel taps snap like every other screen (defined below) */
 #include "controlbot/lv_controlbot_screen.h"   /* fw-3locks-1116: CONTROLbot v6 */
 #include "pager/lv_pager.h"                    /* fw-bigbot-1117: pager is the new home */
+#endif
+#if LV_TERM_STRIP && LV_RD_PAD && LV_RD_FOLD
+/* mock/v1220 item 4: TERMINALbot strip = lv_rd_pad_draw body + pad_draw_joey + pad_draw_speed (GIBSON, cloned), theme ink.
+ * L/R pick one of the 10 hunt cards, A OPEN = that card's tap (sweep), B BACK = the banner's way back, SPEED 1-3X = face-rain clock. */
+static int lv_ts_pick = -1, lv_ts_held = 0;
+static void lv_scene_tstrip(LvBand &B, void *)
+{
+    const uint16_t ink = lv_ink(LV_ACC), dim = lv_ink(LV_ACCD);
+    b_fill(B, PAD_X0, PAD_Y0, PAD_X1 - PAD_X0 + 1, PAD_Y1 - PAD_Y0 + 1, lv_hex(0x000000));
+    b_frame(B, PAD_X0, PAD_Y0, PAD_X1 - PAD_X0 + 1, PAD_Y1 - PAD_Y0 + 1, ink);
+    pad_vias_frame(B, ink);
+    pad_plaque(B, ink, dim);
+    if (lv_ts_pick < 0) { b_text35(B, 10, 253, "L/R PICK HUNT", ink); b_text35(B, 10 + 140, 253, "A OPEN  B BACK", dim); }
+    else { char a[24], b[16]; snprintf(a, sizeof a, "%s", LV_HUNT_NAME[lv_ts_pick]); lv_upcase(a); snprintf(b, sizeof b, "SEL %d/%d", lv_ts_pick + 1, LV_NHUNT);
+           b_text35(B, 10, 253, a, lv_hex(0xffffff)); b_text35(B, 10 + 168, 253, b, ink); }
+    const uint16_t ac = lv_hex(0xff2ad4), ice = lv_hex(0x30e8ff);
+    const int keep = lv_rd_pad_held; lv_rd_pad_held = lv_ts_held == 1 || lv_ts_held == 2 ? lv_ts_held : 0;
+    pad_octagon(B, PAD_CX, PAD_CY, 42, 25, lv_hex(0x06040a), dim, 0);
+    pad_glow_oct(B, PAD_CX, PAD_CY, 42, 25, ink, 2);
+    pad_octagon(B, PAD_CX, PAD_CY, 36, 20, lv_hex(0x100818), ink, 0);
+    pad_rocker(B, PAD_CX, PAD_CY, 16, 68, lv_hex(0x1a1018), ink);
+    pad_disc(B, PAD_CX, PAD_CY, 3, ink, ink, 0);
+    auto arcade = [&](int cx, int cy, uint16_t col, const char *lab, const char *sub, int held) {
+        pad_disc(B, cx, cy, 20, lv_hex(0x08040c), col, 0);
+        pad_glow(B, cx, cy, 20, held ? lv_hi(col) : col, held ? 6 : 3);
+        pad_disc(B, cx, cy, 15, held ? lv_mix(lv_hex(0x100818), col, 5, 8) : lv_hex(0x120818), col, held);
+        b_text35(B, cx - 1, cy - 6, lab, held ? lv_hex(0xffffff) : col);
+        b_text35(B, cx - lv_w35(sub) / 2, cy + 3, sub, held ? lv_hex(0xffffff) : lv_dim(col, 6, 8));
+    };
+    arcade(172, PAD_CY, ice, "B", "BACK", lv_ts_held == 6);
+    arcade(216, PAD_CY, ac,  "A", "OPEN", lv_ts_held == 5);
+    const int ks = lv_rd_speed; lv_rd_speed = lv_ts_speed; lv_rd_pad_held = lv_ts_held == 10 ? 10 : 0;
+    pad_draw_speed(B);
+    lv_rd_speed = ks; lv_rd_pad_held = keep;
+}
+static const char *lv_ts_tap(int x, int y)
+{
+    lv_dirty_tstrip = true;
+    int id = 0;
+    if (x >= PAD_MID_X && x < PAD_MID_X + PAD_MID_W && y >= PAD_MID_YH && y < PAD_MID_YW + PAD_MID_H) id = 10;
+    else if (lv_in(PAD_HIT_L, x, y)) id = 1; else if (lv_in(PAD_HIT_R, x, y)) id = 2;
+    else if (lv_in(PAD_HIT_A, x, y)) id = 5; else if (lv_in(PAD_HIT_B, x, y)) id = 6;
+    if (id == 10) { lv_ts_speed = lv_ts_speed % 3 + 1; static const char *const S[3] = {"term-speed-1x", "term-speed-2x", "term-speed-3x"}; return S[lv_ts_speed - 1]; }
+    if (id == 1 || id == 2) { lv_ts_pick = lv_ts_pick < 0 ? 0 : (lv_ts_pick + (id == 2 ? 1 : LV_NHUNT - 1)) % LV_NHUNT; return id == 1 ? "term-pad-left" : "term-pad-right"; }
+    if (id == 5) { const int h = lv_ts_pick < 0 ? 0 : lv_ts_pick; char c[24]; snprintf(c, sizeof c, "sweep %s", LV_HUNT_NAME[h]); lv_go_soon(0, c); return LV_HUNT_NAME[h]; }   /* = that card's tap */
+    if (id == 6) {
+#if LV_MO_INSIDE
+        if (lv_term_from_mo) return lv_back();
+#endif
+        lv_go_soon(LV_SC_HOME, 0); return "term-pad-b-home"; }
+    return "term-strip";
+}
 #endif
 
 /* ---------- flow ---------- */
@@ -2296,6 +2358,10 @@ static void lv_paint_overlays(bool all)
         if (all || lv_dirty_box) { lv_render(lv_blit, LV_R_SBOX, lv_scene_box, 0); lv_dirty_box = false; }
         if (all || lv_dirty_term) { lv_render(lv_blit, LV_R_STERM, lv_scene_minterm, 0); lv_dirty_term = false; }
     }
+#if LV_TERM_STRIP && LV_RD_PAD && LV_RD_FOLD
+    if (lv_scr == LV_SC_TERM) { if (all || lv_dirty_tstrip) { lv_render(lv_blit, LV_R_TSTRIP, lv_scene_tstrip, 0); lv_dirty_tstrip = false; } lv_dirty_term = false; }   /* mock/v1220 item 4: strip replaces the mini terminal */
+    else
+#endif
     if ((lv_scr == LV_SC_TERM || lv_scr == LV_SC_HOME || lv_scr == LV_SC_CTL) && (all || lv_dirty_term)) { lv_render(lv_blit, LV_R_TTERM, lv_scene_minterm, 0); lv_dirty_term = false; }
     if (lv_scr == LV_SC_CTL && (all || lv_dirty_ctl)) {
 #if LV_CTL_VALUEBOX
@@ -2705,6 +2771,9 @@ static const char *lv_tap(int x, int y)
         }
     }
     if (LV_BANNER_BACK_ON && lv_in(LV_R_BANNER_BACK_HIT, x, y)) return lv_back();
+#if LV_TERM_STRIP && LV_RD_PAD && LV_RD_FOLD
+    if (lv_scr == LV_SC_TERM && y >= PAD_Y0) return lv_ts_tap(x, y);   /* mock/v1220 item 4 */
+#endif
 #if LV_HC_GAME
     if (lv_scr == LV_SC_HCH) return lv_hc_tap(x, y);   /* MOCK 1111: SCANbot HOT COLD HUNT */
 #endif

@@ -1,0 +1,17 @@
+tick 300
+motion 1
+page 3
+tick 10
+go 3
+tick 40
+dump term_strip
+tap 70 292
+tick 5
+tap 70 292
+tick 5
+tap 125 292
+tick 2
+tap 125 292
+tick 10
+dump term_strip_pick
+rec 40 term_strip_rec

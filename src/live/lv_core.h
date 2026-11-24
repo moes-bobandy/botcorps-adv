@@ -1158,6 +1158,12 @@ struct LvTickCtx { int span0, span1; };
 #if LV_CB
 static bool lv_cb_tint_active(void) { return !lv_hunt_bar_on() && (LV_CB_TICKER_ALL || lv_scr == LV_SC_CONTROLBOT || lv_scr == LV_SC_HOME); }   /* pager home uses the same tinted ticker */
 #endif
+#ifndef LV_RD_SEL_BANNER_HOOK
+#define LV_RD_SEL_BANNER_HOOK 1   /* mock/v1220 item 3 (lv_radar.h LV_RD_SEL_BANNER) */
+#endif
+#if LV_RD_SEL_BANNER_HOOK
+static bool lv_rd_sel_banner(char *name, int n, uint16_t *col);   /* lv_radar.h */
+#endif
 static void lv_scene_ticker(LvBand &B, void *vctx)
 {
     LvTickCtx *c = (LvTickCtx *)vctx;
@@ -1167,6 +1173,21 @@ static void lv_scene_ticker(LvBand &B, void *vctx)
     if (lv_hunt_bar_on()) { lv_hunt_bar(B); return; }   /* hunting: the banner stops scrolling and becomes the hunt bar */
 #if LV_CB
     if (lv_cb_tint_active()) { lv_cb_tint_colors(lv_theme); lv_scene_ticker_tint(B, c->span1); return; }   /* fw-3locks-1116 */
+#endif
+#if LV_RD_SEL_BANNER_HOOK
+    { char nm[34]; uint16_t dc;   /* mock/v1220 item 3: GIBSON selected tower -> its name, held, in its colour */
+      if (lv_rd_sel_banner(nm, 14, &dc)) {
+        b_fill(B, B.x0, B.y0, B.w, B.h, lv_dim(dc, 2, 8));
+        const int ph = (int)(lv_now / 40);
+        for (int y = B.y0; y < B.y0 + B.h; ++y) {
+            if (!(y <= 3 || y >= 21)) continue;
+            for (int x = B.x0; x < B.x0 + B.w; ++x) { const bool red = (((x + (y <= 3 ? y : -y) + ph) / 5) & 1); b_pix(B, x, y, red ? lv_hex(0xe00000) : dc); }
+        }
+        b_text(B, 73, 6, nm, lv_hex(0x200000), 2);
+        b_text(B, 72, 5, nm, dc, 2);
+        lv_banner_back_draw(B);
+        return;
+      } }
 #endif
     const bool flash = lv_tk_alert && ((lv_now / 350) & 1);
     const uint16_t bg = lv_tk_alert ? (flash ? lv_hex(0x6a0000) : lv_hex(0x3a0000)) : lv_hex(0x2a0400);

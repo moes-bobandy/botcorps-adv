@@ -1,0 +1,19 @@
+tick 300
+motion 1
+go 8
+tick 150
+towers
+rec 100 gib_idle
+tap 110 150
+tick 20
+radarstate
+dump gib_sel1
+rec 40 gib_sel1rec
+tap 70 292
+tick 10
+radarstate
+dump gib_sel2
+tap 70 292
+tick 10
+radarstate
+dump gib_sel3

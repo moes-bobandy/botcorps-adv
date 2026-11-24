@@ -88,6 +88,34 @@ static void lv_rd_clamp(void);
 /* v1.2.13 lv_select.h pull-up on GIBSON / HACKbot DOWNLOAD: the screen that owns the selection sets the tower (MAC), the eased
  * progress p and itself; lv_rd_place then flies that one tower toward the viewer. p = 0 (or another screen): untouched. */
 static float lv_rd_pull_p = 0; static uint8_t lv_rd_pull_mac[6]; static int lv_rd_pull_scr = -1;
+/* mock/v1220 hit-list item 3 (LV_RD_TW_DRIFT, default 1; 0 = byte-identical v1.2.19): GIBSON towers each move on their own.
+ * git history has no lost per-tower sway on the GIBSON scene (only the shared camera sway lv_rd_camx; checked every
+ * lv_radar.h revision, -S sway / -G T.X+=); the only locked per-tower motion is the Dojo's mo11_dx / mo11_dz (lv_morpheus_v13.h
+ * v5c "own phase + lateral sway" / "own phase" depth). Its law and its 10-row tables are cloned VERBATIM below; a tower takes
+ * row (MAC hash % 10) plus a hash phase offset so two towers on the same row never lock together. Same scene clock as the
+ * camera (SPEED 1X/2X/3X speeds it up too). Screens: LV_SC_RADAR (item 3); skins 1..3 untouched. */
+#ifndef LV_RD_TW_DRIFT
+#define LV_RD_TW_DRIFT 1
+#endif
+#if LV_RD_TW_DRIFT
+static float lv_rd_dr_t = 0;   /* scene seconds, set by lv_rd_layout */
+static const float LV_RD_DR_AX[10] = {0.281f, 0.282f, 0.276f, 0.31f, 0.244f, 0.238f, 0.231f, 0.329f, 0.269f, 0.248f};   /* = MO11_AX */
+static const float LV_RD_DR_WX[10] = {0.323f, 0.587f, 0.247f, 0.278f, 0.801f, 0.829f, 0.855f, 0.726f, 0.539f, 0.195f};  /* = MO11_WX */
+static const float LV_RD_DR_AZ[10] = {0.261f, 0.226f, 0.293f, 0.333f, 0.328f, 0.234f, 0.273f, 0.311f, 0.29f, 0.242f};   /* = MO11_AZ */
+static const float LV_RD_DR_WZ[10] = {0.613f, 0.262f, 0.201f, 0.311f, 0.353f, 0.285f, 0.181f, 0.54f, 0.728f, 0.673f};   /* = MO11_WZ */
+static const float LV_RD_DR_PX[10] = {4.974f, 0.836f, 0.518f, 5.273f, 0.932f, 5.765f, 0.22f, 5.384f, 2.198f, 4.591f};  /* = MO11_PX */
+static const float LV_RD_DR_PZ[10] = {5.122f, 2.672f, 0.408f, 4.291f, 0.204f, 6.153f, 2.034f, 2.391f, 3.717f, 4.919f}; /* = MO11_PZ */
+static const float LV_RD_DR_AS[10] = {0.051f, 0.058f, 0.05f, 0.04f, 0.059f, 0.048f, 0.037f, 0.049f, 0.068f, 0.068f};   /* = MO11_AS */
+static const float LV_RD_DR_WS[10] = {1.958f, 1.053f, 1.308f, 1.249f, 1.984f, 0.956f, 0.999f, 1.723f, 1.852f, 1.801f}; /* = MO11_WS */
+static const float LV_RD_DR_PS[10] = {1.912f, 3.194f, 4.48f, 4.229f, 4.51f, 1.554f, 5.198f, 0.913f, 1.143f, 5.049f};   /* = MO11_PS */
+static bool lv_rd_dr_on(void) { return lv_scr == LV_SC_RADAR; }
+static void lv_rd_drift(LvTower &T, uint32_t h)   /* mo11_dx / mo11_dz (mo11_k = mo11_kz = 1), Z0 = this tower's hash depth */
+{
+    const int i = (int)(h % 10u); const float t = lv_rd_dr_t, Z0 = T.Z, ph = ((h >> 20) & 0xff) / 255.0f * 6.2831853f;
+    T.X += LV_RD_DR_AX[i] * (Z0 / 2.0f) * sinf(LV_RD_DR_WX[i] * t + LV_RD_DR_PX[i] + ph) + LV_RD_DR_AS[i] * Z0 * sinf(LV_RD_DR_WS[i] * t + LV_RD_DR_PS[i] + ph);
+    T.Z += LV_RD_DR_AZ[i] * (Z0 / 3.0f) * sinf(LV_RD_DR_WZ[i] * t + LV_RD_DR_PZ[i] + ph);
+}
+#endif
 static void lv_rd_place(void)
 {
     lv_rd_n = 0;
@@ -101,6 +129,13 @@ static void lv_rd_place(void)
         float w = 0.12f; const float d = 0.24f;
 #if LV_RD_SKINS
         w *= lv_rd_skin_tw; T.H *= lv_rd_skin_th;
+#endif
+#if LV_RD_TW_DRIFT
+        if (
+#if LV_RD_SKINS
+            lv_rd_skin == 0 &&
+#endif
+            lv_rd_dr_on()) lv_rd_drift(T, h);   /* mock/v1220 item 3 */
 #endif
 #if LV_RD_SKINS && LV_MO_INSIDE
         if (lv_rd_skin == 1) mo11_drift(T);   /* MO v11: every tower its own 3D drift (X, Z, breathing H); the sort below re-orders far -> near */
@@ -153,6 +188,9 @@ static const LvRect LV_RD_FTAP[3] = {{88, 33, 238, 98}, {88, 99, 238, 164}, {88,
 static void lv_rd_layout(void)
 {
     const float t = (lv_now - lv_rd_t0 + LV_RD_SOFF) / 1000.0f;
+#if LV_RD_TW_DRIFT
+    lv_rd_dr_t = t;
+#endif
     if (!lv_rd_cam_hold) lv_rd_camx = lv_rainmode == 0 ? 0.5f * sinf(t * 0.45f) : 0.0f;
     lv_rd_place();
     if (!lv_rd_cam_hold) lv_rd_clamp();   /* while locked: camera DRIFT is clamped so the locked tower (and its brackets) stays fully on screen */
@@ -1642,6 +1680,16 @@ static int lv_rd_hit(int x, int y)   /* index into lv_f of the nearest tower und
     }
     return -1;
 }
+#ifndef LV_RD_SEL_BANNER
+#define LV_RD_SEL_BANNER 1   /* mock/v1220 item 3: the top banner names the selected GIBSON tower in that tower's colour; 0 = v1.2.19 */
+#endif
+#if LV_RD_SEL_BANNER
+static bool lv_rd_sel_banner(char *name, int n, uint16_t *col)   /* lv_scene_ticker asks: selected tower's label + lv_rd_col */
+{
+    if (lv_scr != LV_SC_RADAR || lv_rd_sel < 0 || lv_rd_sel >= lv_nf || lv_rd_hunting) return false;
+    lv_label(lv_f[lv_rd_sel], name, n); *col = lv_rd_col(lv_f[lv_rd_sel], 8, 8); return true;
+}
+#endif
 static void lv_rd_select(int i)   /* what a tower tap always did: select + its full line on the ticker */
 {
     lv_rd_sel = i; memcpy(lv_rd_selmac, lv_f[i].mac, 6);

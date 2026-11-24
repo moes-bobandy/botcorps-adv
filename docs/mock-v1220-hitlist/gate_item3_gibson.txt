@@ -1,0 +1,24 @@
+item 3 gates (vs v1.2.19 42587a5 sim_base)
+A) drift only (-DLV_RD_SEL_BANNER_HOOK=0), gib_idle 100 frames t=12000..15000: outside scene rows y24..246 max 0 px/frame; inside 4927..11769 px/frame
+B) banner only (-DLV_RD_TW_DRIFT=0), same taps = same towers selected:
+screen            inside  outside   total  result  change bbox
+gib_sel1            4123        0    4123  PASS    (33,1)-(238,23)  allowed=1,1,238,23
+gib_sel2            4122        0    4122  PASS    (33,1)-(238,23)  allowed=1,1,238,23
+gib_sel3            4118        0    4118  PASS    (33,1)-(238,23)  allowed=1,1,238,23
+C) full tree tour:
+screen            inside  outside   total  result  change bbox
+pager0                 0        0       0  PASS      allowed=none
+pager1                 0        0       0  PASS      allowed=none
+pager2                 0        0       0  PASS      allowed=none
+pager3                 0        0       0  PASS      allowed=none
+pager4                 0        0       0  PASS      allowed=none
+term                2841        0    2841  PASS    (82,49)-(157,136)  allowed=81,48,158,145
+dojo                   0        0       0  PASS      allowed=none
+gib_scan            6216        0    6216  PASS    (0,95)-(168,210)  allowed=0,24,239,246
+gib_sel_deck        9769        0    9769  PASS    (8,1)-(238,257)  allowed=0,0,239,319
+dl_intro               0        0       0  PASS      allowed=none
+dl_play                0        0       0  PASS      allowed=none
+(gib_sel_deck: the tap at 110,150 lands on a different, moving tower, so the strip name differs; B proves the strip is untouched)
+D) independence, tower centre dx over 1.2 s (scanhold):
+ base: 5.0 5.0 6.0 6.0 7.0 9.0 9.5 11.0 13.0 (all same direction = camera parallax)
+ new : -7.5 -2.0 20.0 31.5 6.0 -2.0 4.5 28.0 16.0 (6 right / 3 left)

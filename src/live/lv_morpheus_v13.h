@@ -418,6 +418,13 @@ static void mo_audit(int x, int y, int w, int h, int bx0, int by0, int bx1, int 
     mo_txt_n++; mo_txt_lines++;
     if (x < bx0 || y < by0 || x + w - 1 > bx1 || y + h - 1 > by1) { mo_txt_bad++; mo_txt_tot++; snprintf(mo_txt_why, sizeof mo_txt_why, "%s x=%d y=%d w=%d h=%d box=[%d,%d,%d,%d]", what, x, y, w, h, bx0, by0, bx1, by1); }
 }
+#ifndef LV_MO_STRIP
+#define LV_MO_STRIP 1   /* mock/v1220 item 4, see mo_strip() */
+#endif
+#if LV_MO_STRIP && LV_RD_PAD && LV_RD_FOLD
+static void mo_strip(LvBand &B);
+static void mo12_plan(int i);
+#endif
 static void mo_chrome(LvBand &B)   /* header bar rows 24..34: charcoal + parchment ink + green // */
 {
     const uint16_t ink = lv_hex(0xe8dec8); char t[32];
@@ -752,8 +759,94 @@ static void mo11_overlay(LvBand &B)   /* skin-1 hook: called by lv_scene_radar a
         mo_panel(B);
     }
     mo_terminal(B); mo_chrome(B);
+#if LV_MO_STRIP && LV_RD_PAD && LV_RD_FOLD
+    mo_strip(B);   /* mock/v1220 item 4 */
+#endif
     lv_draw_backbot(B, LV_R_BACKBOT.x0, LV_R_BACKBOT.y0);
 }
+/* mock/v1220 hit-list item 4 (LV_MO_STRIP, default 1; 0 = byte-identical v1.2.19): the GIBSON scan-tower control strip on the Dojo,
+ * WHITE in the Dojo style. Same rect as GIBSON (PAD_X0..PAD_X1, PAD_Y0..PAD_Y1 = x1..238 y247..319: the black void y247..286 and
+ * the footer terminal y287..319 are both under it). Drawn with GIBSON's own primitives (lv_rd_pad_draw body + pad_draw_joey +
+ * pad_draw_speed, cloned), ink = Dojo timber seam, then an HSL lightness inversion (out = c + 255 - max - min: hue + saturation
+ * kept, black -> white, white text -> near-black, MO11_SEAM-inverse ink -> MO11_SEAM). L/R pick a pillar, A OPEN (= a pillar tap)
+ * / A on an open pillar steps its scrolls, B BACK (open: "< TOWERS"; idle: home), SPEED 1X/2X/3X = the Dojo clock (lv_select.h
+ * caps on the pull-up / drop still apply). */
+#ifndef LV_MO_STRIP
+#define LV_MO_STRIP 1
+#endif
+#if LV_MO_STRIP && LV_RD_PAD && LV_RD_FOLD
+static int mo_pick = -1, mo_speed = 1, mo_held = 0; static uint32_t mo_soff = 0, mo_slast = 0;
+static inline uint16_t mo_inv(uint16_t c)
+{
+    int r = (c >> 11) << 3, g = ((c >> 5) & 63) << 2, b = (c & 31) << 3; r |= r >> 5; g |= g >> 6; b |= b >> 5;
+    const int mx = r > g ? (r > b ? r : b) : (g > b ? g : b), mn = r < g ? (r < b ? r : b) : (g < b ? g : b), k = 255 - mx - mn;
+    return lv_rgb((uint8_t)(r + k), (uint8_t)(g + k), (uint8_t)(b + k));
+}
+static void mo_strip(LvBand &B)
+{
+    if (!b_yhit(B, PAD_Y0, PAD_Y1)) return;
+    const uint16_t ink = mo_inv(lv_hex(MO11_SEAM)), dim = mo_inv(lv_hex(0xa08a6a));
+    /* lv_rd_pad_draw body, verbatim */
+    b_fill(B, PAD_X0, PAD_Y0, PAD_X1 - PAD_X0 + 1, PAD_Y1 - PAD_Y0 + 1, lv_hex(0x000000));
+    b_frame(B, PAD_X0, PAD_Y0, PAD_X1 - PAD_X0 + 1, PAD_Y1 - PAD_Y0 + 1, ink);
+    pad_vias_frame(B, ink);
+    pad_plaque(B, ink, dim);
+    { char a[36], b[28];   /* pad_status law, Dojo words */
+      const int cur = itw_mo_sel >= 0 ? itw_mo_sel : mo_pick;
+      if (cur < 0) { b_text35(B, 10, 253, "L/R PICK PILLAR", ink); b_text35(B, 10 + 140, 253, "A OPEN  B BACK", dim); }
+      else { snprintf(a, sizeof a, "%s", MO_DEV[cur].name); while (lv_w35(a) > 140 && a[0]) a[strlen(a) - 1] = 0;
+             if (itw_mo_sel >= 0) snprintf(b, sizeof b, mo_fold_sel >= 0 ? "SCROLL %d/3" : "OPEN %d/%d", mo_fold_sel >= 0 ? mo_fold_sel + 1 : cur + 1, MO_N);
+             else snprintf(b, sizeof b, "SEL %d/%d", cur + 1, MO_N);
+             b_text35(B, 10, 253, a, lv_hex(0xffffff)); b_text35(B, 10 + 168, 253, b, itw_mo_sel >= 0 ? lv_hex(0xff2ad4) : ink); } }
+    { /* pad_draw_joey, verbatim but A says OPEN (HACKbot deck word) */
+      const uint16_t ac = lv_hex(0xff2ad4), ice = lv_hex(0x30e8ff);
+      const int keep = lv_rd_pad_held; lv_rd_pad_held = mo_held == 1 || mo_held == 2 ? mo_held : 0;
+      pad_octagon(B, PAD_CX, PAD_CY, 42, 25, lv_hex(0x06040a), dim, 0);
+      pad_glow_oct(B, PAD_CX, PAD_CY, 42, 25, ink, 2);
+      pad_octagon(B, PAD_CX, PAD_CY, 36, 20, lv_hex(0x100818), ink, 0);
+      pad_rocker(B, PAD_CX, PAD_CY, 16, 68, lv_hex(0x1a1018), ink);
+      pad_disc(B, PAD_CX, PAD_CY, 3, itw_mo_sel >= 0 ? ac : ink, ink, 0);
+      auto arcade = [&](int cx, int cy, uint16_t col, const char *lab, const char *sub, int held) {
+          pad_disc(B, cx, cy, 20, lv_hex(0x08040c), col, 0);
+          pad_glow(B, cx, cy, 20, held ? lv_hi(col) : col, held ? 6 : 3);
+          pad_disc(B, cx, cy, 15, held ? lv_mix(lv_hex(0x100818), col, 5, 8) : lv_hex(0x120818), col, held);
+          b_text35(B, cx - 1, cy - 6, lab, held ? lv_hex(0xffffff) : col);
+          b_text35(B, cx - lv_w35(sub) / 2, cy + 3, sub, held ? lv_hex(0xffffff) : lv_dim(col, 6, 8));
+      };
+      arcade(172, PAD_CY, ice, "B", "BACK", mo_held == 6);
+      arcade(216, PAD_CY, ac,  "A", "OPEN", mo_held == 5);
+      const int ks = lv_rd_speed; lv_rd_speed = mo_speed; lv_rd_pad_held = mo_held == 10 ? 10 : 0;
+      pad_draw_speed(B);
+      lv_rd_speed = ks; lv_rd_pad_held = keep; }
+    /* white version: HSL lightness inversion of the strip rows in this band */
+    const int y0 = B.y0 > PAD_Y0 ? B.y0 : PAD_Y0, y1 = B.y0 + B.h - 1 < PAD_Y1 ? B.y0 + B.h - 1 : PAD_Y1;
+    for (int y = y0; y <= y1; ++y) for (int x = PAD_X0 > B.x0 ? PAD_X0 : B.x0; x <= PAD_X1 && x < B.x0 + B.w; ++x) {
+        uint16_t &p = B.px[(y - B.y0) * B.w + (x - B.x0)]; p = mo_inv(p); }
+}
+static int mo_strip_id(int x, int y)
+{
+    if (x >= PAD_MID_X && x < PAD_MID_X + PAD_MID_W && y >= PAD_MID_YH && y < PAD_MID_YW + PAD_MID_H) return 10;
+    if (lv_in(PAD_HIT_L, x, y)) return 1;
+    if (lv_in(PAD_HIT_R, x, y)) return 2;
+    return lv_in(PAD_HIT_A, x, y) ? 5 : lv_in(PAD_HIT_B, x, y) ? 6 : 0;
+}
+static void mo_strip_touch(bool down, int x, int y) { mo_held = down && y >= PAD_Y0 ? mo_strip_id(x, y) : 0; }
+static const char *mo_strip_tap(int x, int y)
+{
+    const int id = mo_strip_id(x, y);
+    if (id == 10) { mo_speed = mo_speed % 3 + 1; static const char *const S[3] = {"mo-speed-1x", "mo-speed-2x", "mo-speed-3x"}; return S[mo_speed - 1]; }
+    if (itw_mo_sel >= 0) {
+        if (id == 6) { mo_pick = itw_mo_sel; mo_last = itw_mo_sel; mo_closing = true; mo_close_t = mo_vnow(); itw_mo_sel = -1; itw_mo_phase = 0; mo_fold_sel = -1; return "mo-pad-b-towers"; }   /* = MO_BTN */
+        if (id == 5 || id == 1 || id == 2) { mo_fold_sel = id == 1 ? (mo_fold_sel + 2) % 3 : (mo_fold_sel + 1) % 3; static const char *const T[3] = {"mo-scroll1", "mo-scroll2", "mo-scroll3"}; return T[mo_fold_sel]; }
+        return "mo-strip";
+    }
+    if (id == 6) { lv_go_soon(LV_SC_HOME, 0); return "mo-pad-b-home"; }
+    if (mo_closing) return "mo-camera-moving";
+    if (id == 1 || id == 2) { mo_pick = mo_pick < 0 ? 0 : (mo_pick + (id == 2 ? 1 : MO_N - 1)) % MO_N; return id == 1 ? "mo-pad-left" : "mo-pad-right"; }
+    if (id == 5) { const int i = mo_pick < 0 ? 0 : mo_pick; mo12_plan(i); itw_mo_sel = i; itw_mo_phase = 1; itw_mo_t0 = mo_vnow(); mo_fold_sel = -1; return MO_DEV[i].name; }   /* = a pillar tap */
+    return "mo-strip";
+}
+#endif
 static void itw_mo_scene(LvBand &B, void *)
 {
     lv_hc_swap();
@@ -792,7 +885,12 @@ static void itw_mo_frame(void)
     if (itw_mo_sel >= 0 || mo_closing) {   /* v1.2.11: cap the step while the camera / folders move (lv_select.h clock) */
         const uint32_t el = mo_clk.vt - itw_mo_t0;
         cap = mo_closing || el < MO12_PUSH_MS ? MO_DT_PUSH : el < (uint32_t)(MO12_DROP0 + 2 * MO12_GAP + MO12_DROP_MS) ? MO_DT_DROP : LV_SEL_NOCAP; }
+#if LV_MO_STRIP && LV_RD_PAD && LV_RD_FOLD
+    { uint32_t dt = real - mo_slast; mo_slast = real; if (dt > 250) dt = 250; mo_soff += dt * (uint32_t)(mo_speed - 1); }   /* GIBSON's soff law on the Dojo clock */
+    lv_now = lv_sel_clk_step(mo_clk, real + mo_soff, cap);
+#else
     lv_now = lv_sel_clk_step(mo_clk, real, cap);
+#endif
     if (itw_mo_sel >= 0) { const uint32_t el = lv_now - itw_mo_t0;
         itw_mo_phase = el < MO12_PUSH_MS ? 1 : el < MO12_DROP0 + 2 * MO12_GAP + MO12_DROP_MS ? 2 : 3; }
     /* v1.2.5: dirty-rect the field only (y=24..319). Never clear or repaint the ticker band;
@@ -856,6 +954,9 @@ static int mo_fold_hit(int x, int y)   /* v1.2.11: landed folder j under (x,y), 
 static const char *itw_mo_tap(int x, int y)
 {
     if (y <= 23) { lv_go_soon(LV_SC_HOME, 0); return "mo-ticker"; }
+#if LV_MO_STRIP && LV_RD_PAD && LV_RD_FOLD
+    if (y >= PAD_Y0) return mo_strip_tap(x, y);   /* mock/v1220 item 4: the strip owns rows 247.. (was the "< TOWERS" box + footer terminal) */
+#endif
     if (y >= 287) { lv_term_from_mo = true; lv_go_soon(LV_SC_TERM, 0); return "mo-terminal"; }
     if (itw_mo_sel >= 0) {
         if (lv_in(MO_BTN, x, y)) { mo_last = itw_mo_sel; mo_closing = true; mo_close_t = mo_vnow(); itw_mo_sel = -1; itw_mo_phase = 0; mo_fold_sel = -1; return "mo-towers"; }

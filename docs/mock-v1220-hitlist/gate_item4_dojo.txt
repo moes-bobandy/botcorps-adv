@@ -1,0 +1,19 @@
+item 4 (Dojo) gates vs v1.2.19 sim_base
+A) same taps (pillar tap 40,160 + scroll tap 200,120), script v1220_dojo_gate.txt:
+screen            inside  outside   total  result  change bbox
+dojo_idle          17041        0   17041  PASS    (1,247)-(238,318)  allowed=1,247,238,319
+dojo_open          17029        0   17029  PASS    (1,247)-(238,318)  allowed=1,247,238,319
+dojo_fold          17039        0   17039  PASS    (1,247)-(238,318)  allowed=1,247,238,319
+B) full tree tour:
+screen            inside  outside   total  result  change bbox
+pager0                 0        0       0  PASS      allowed=none
+pager1                 0        0       0  PASS      allowed=none
+pager2                 0        0       0  PASS      allowed=none
+pager3                 0        0       0  PASS      allowed=none
+pager4                 0        0       0  PASS      allowed=none
+term                2841        0    2841  PASS    (82,49)-(157,136)  allowed=81,48,158,145
+dojo               17041        0   17041  PASS    (1,247)-(238,318)  allowed=1,247,238,319
+gib_scan            6216        0    6216  PASS    (0,95)-(168,210)  allowed=0,24,239,246
+dl_intro            2185        0    2185  PASS    (4,113)-(143,314)  allowed=0,34,239,246;104,270,143,314
+dl_play             2122        0    2122  PASS    (0,156)-(239,314)  allowed=0,34,239,246;104,270,143,314
+C) strip taps (v1220_dojo.txt): R,R -> mo-pad-right x2 (SEL 2/10 HACK); SPEED x2 -> mo-speed-3x; A -> HACK opens; A -> mo-scroll1; B -> mo-pad-b-towers

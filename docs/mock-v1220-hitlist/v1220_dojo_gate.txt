@@ -1,0 +1,11 @@
+tick 300
+motion 1
+go 13
+tick 20
+dump dojo_idle
+tap 40 160
+tick 120
+dump dojo_open
+tap 200 120
+tick 30
+dump dojo_fold

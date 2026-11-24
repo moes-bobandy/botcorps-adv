@@ -1,0 +1,32 @@
+item 6 gates: HACKbot self-destruct countdown (LV_DL_SELFDESTRUCT). Host sim tools/livescan/sim_live.cpp, scripts tools/livescan/scripts/v1220_dl_sd*.txt
+allowed: scene y34..246 (countdown box on the open tower, banners, card). End states also 176,12,239,31 = header TRACE %/word: the locked end law freezes trace and shows CUT once the game is lost.
+-DLV_DL_SELFDESTRUCT=0 build is byte-identical to the item5 (5540fbe) sim binary (cmp).
+A) vs item5 head 5540fbe, same script:
+screen            inside  outside   total  result  change bbox
+sd_run              2376        0    2376  PASS    (13,97)-(78,132)  allowed=0,34,239,246
+sd_urgent           2376        0    2376  PASS    (13,97)-(78,132)  allowed=0,34,239,246
+sd_urgent2          2376        0    2376  PASS    (13,97)-(78,132)  allowed=0,34,239,246
+sd_escape          12760        0   12760  PASS    (10,104)-(229,161)  allowed=0,34,239,246
+sd_blown           15044        0   15044  PASS    (0,12)-(239,246)  allowed=0,34,239,246;176,12,239,31
+sd_card            39146        0   39146  PASS    (12,12)-(232,240)  allowed=0,34,239,246;176,12,239,31
+B) vs v1.2.19 base (also has item5 SPEED button 104,270,143,314):
+screen            inside  outside   total  result  change bbox
+sd_run              5611        0    5611  PASS    (13,97)-(210,314)  allowed=0,34,239,246;104,270,143,314
+sd_urgent           5293        0    5293  PASS    (13,97)-(197,314)  allowed=0,34,239,246;104,270,143,314
+sd_urgent2          5373        0    5373  PASS    (13,97)-(197,314)  allowed=0,34,239,246;104,270,143,314
+sd_escape          17244        0   17244  PASS    (10,93)-(229,314)  allowed=0,34,239,246;104,270,143,314
+sd_blown           16936        0   16936  PASS    (0,12)-(239,314)  allowed=0,34,239,246;176,12,239,31;104,270,143,314
+sd_card            40868        0   40868  PASS    (12,12)-(232,314)  allowed=0,34,239,246;176,12,239,31;104,270,143,314
+C) full tour (pager0-4, term, dojo, gib, dl_intro, dl_play) item6 vs item5: must be 0 px
+screen            inside  outside   total  result  change bbox
+dl_intro               0        0       0  PASS      allowed=none
+dl_play                0        0       0  PASS      allowed=none
+dojo                   0        0       0  PASS      allowed=none
+gib_scan               0        0       0  PASS      allowed=none
+gib_sel_deck           0        0       0  PASS      allowed=none
+pager0                 0        0       0  PASS      allowed=none
+pager1                 0        0       0  PASS      allowed=none
+pager2                 0        0       0  PASS      allowed=none
+pager3                 0        0       0  PASS      allowed=none
+pager4                 0        0       0  PASS      allowed=none
+term                   0        0       0  PASS      allowed=none

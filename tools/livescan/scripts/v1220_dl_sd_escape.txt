@@ -1,0 +1,12 @@
+tick 300
+motion 1
+go 12
+tick 80
+tap 216 292
+tick 40
+dlopen 2
+tick 320
+tap 172 288
+tick 6
+dlstate
+dump sd_escape

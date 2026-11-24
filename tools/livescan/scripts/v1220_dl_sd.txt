@@ -1,0 +1,19 @@
+tick 300
+motion 1
+go 12
+tick 80
+tap 216 292
+tick 40
+dlopen 2
+tick 67
+dlstate
+dump sd_run
+tick 266
+dump sd_urgent
+tick 10
+dump sd_urgent2
+tick 70
+dlstate
+dump sd_blown
+tick 60
+dump sd_card

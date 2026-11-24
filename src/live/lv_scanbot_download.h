@@ -66,6 +66,22 @@ static int lv_dl_nf_for(int lv) { const int n = 3 + ((lv < 1 ? 1 : lv) - 1) / 2;
 static const int LV_DL_FX = 92, LV_DL_FW = 143, LV_DL_FY0 = 42;
 static int lv_dl_fdy(void) { return lv_dl_nf <= 3 ? 66 : (186 + 4) / lv_dl_nf; }        /* row pitch: 66 / 47 / 38 / 31 / 27 for 3..7 */
 static int lv_dl_fbody(void) { return lv_dl_nf <= 3 ? 46 : lv_dl_fdy() - 4 - 8; }     /* body height: 46 / 35 / 26 / 19 / 15 */
+#ifndef LV_DL_SELFDESTRUCT
+#define LV_DL_SELFDESTRUCT 1   /* mock/v1220 item 6 (Mobandy 3:49 PM ET 11-24 "a count down once in the tower to self destruct and then you lose if the folder is in the tower"); 0 = v1.2.19 */
+#endif
+#if LV_DL_SELFDESTRUCT
+#if LV_DL_SPEED
+#define LV_DL_SD_SPD lv_dl_speed
+#else
+#define LV_DL_SD_SPD 1
+#endif
+#define LV_DL_SD_MS 12000      /* tower self-destruct fuse in game ms: 12 s at 1X, 6 s at 2X, 4 s at 3X (the SPEED clock) */
+#define LV_DL_SD_URGENT 3000   /* real ms left: the readout flashes (banner flash law) */
+static int32_t lv_dl_sd = 0; static uint32_t lv_dl_sd_last = 0;   /* game ms left on the open tower's fuse */
+static bool lv_dl_blown = false; static int lv_dl_blown_tw = -1;   /* lost: the tower blew with the target still inside */
+static uint8_t lv_dl_sdk = 0; static uint32_t lv_dl_sdk_t = 0; static int lv_dl_sdk_tw = -1; static int32_t lv_dl_sdk_left = 0;   /* 1 close call (out with <3 s), 2 empty tower blew */
+static int lv_dl_sd_real(int32_t g) { return g <= 0 ? 0 : (int)((g + LV_DL_SD_SPD - 1) / LV_DL_SD_SPD); }   /* game ms -> real ms at this SPEED */
+#endif
 static int lv_dl_gap(void) { return lv_dl_nf <= 3 ? LV_DL_DROP_GAP : 2 * LV_DL_DROP_GAP / (lv_dl_nf - 1); }   /* same total stagger (220 ms) */
 #ifndef LV_DL_DECK
 #define LV_DL_DECK 1   /* v1.2.14: 1 = the d-pad game deck (real firmware); 0 = the old panel + terminal (kept) */
@@ -210,6 +226,9 @@ static void lv_dl_new_round(void)
         }
     }
     lv_dl_tw = -1; lv_dl_cam_tw = -1; lv_dl_cam_mode = 0; lv_dl_pf = -1; lv_dl_wrong = lv_dl_dls = lv_dl_trace = 0; lv_dl_deny = lv_dl_found = false; lv_dl_why[0] = lv_dl_note[0] = 0;
+#if LV_DL_SELFDESTRUCT
+    lv_dl_sd = 0; lv_dl_blown = false; lv_dl_blown_tw = -1; lv_dl_sdk = 0;
+#endif
     for (int t = 0; t < LV_DL_NT; ++t) lv_dl_seen[t] = false;
     lv_dl_t0 = lv_dl_tend = lv_now;
 }
@@ -273,11 +292,18 @@ static void lv_dl_open_tower(int i)
     lv_dl_why[0] = lv_dl_note[0] = 0; lv_dl_tw = i; lv_dl_open_t = vt; lv_dl_seen[i] = true; lv_dl_lock(i, true);
     lv_dl_cam_mode = 1; lv_dl_cam_tw = i; lv_dl_cam_t = vt; lv_dl_cam_from = lv_dl_cam_at; lv_dl_fsel = 0;
     lv_hc_log("TOWER %d OPEN. %d FILES.", i + 1, lv_dl_nf);
+#if LV_DL_SELFDESTRUCT
+    lv_dl_sd = LV_DL_SD_MS; lv_dl_sd_last = lv_now; lv_dl_sdk = 0; lv_hc_log("SELF-DESTRUCT ARMED: %dS", lv_dl_sd_real(LV_DL_SD_MS) / 1000);
+#endif
 }
 static void lv_dl_close_tower(void)
 {
     if (lv_dl_tw < 0) return;
     lv_hc_log("TOWER %d CHECKED", lv_dl_tw + 1);
+#if LV_DL_SELFDESTRUCT
+    if (lv_dl_phase == LV_DL_PLAY && lv_dl_sd > 0 && lv_dl_sd_real(lv_dl_sd) <= LV_DL_SD_URGENT) { lv_dl_sdk = 1; lv_dl_sdk_t = lv_now; lv_dl_sdk_tw = lv_dl_tw; lv_dl_sdk_left = lv_dl_sd_real(lv_dl_sd); }
+    lv_dl_sd = 0;
+#endif
     lv_dl_cam_mode = 2; lv_dl_cam_t = lv_sel_clk_now(lv_dl_clk, lv_now); lv_dl_tw = -1; lv_dl_lock(0, false);
     lv_dl_cam_from = lv_dl_cam_at; lv_dl_pull_p0 = lv_rd_pull_scr == LV_SC_DL ? lv_rd_pull_p : 0.0f;   /* v1.2.13: fly back out from here */
 }
@@ -322,6 +348,15 @@ static void lv_dl_tick(void)
         if (lv_dl_pf >= 0 && (int32_t)(lv_now - lv_dl_pt) >= LV_DL_DL_MS) { lv_dl_resolve(); lv_dl_trace_upd(); }
         if (lv_dl_deny && (int32_t)(lv_now - lv_dl_deny_t) >= LV_DL_DENY_MS) lv_dl_deny = false;
         if (lv_dl_found && (int32_t)(lv_now - lv_dl_found_t) >= LV_DL_DENY_MS) lv_dl_found = false;
+#if LV_DL_SELFDESTRUCT
+        { uint32_t dt = lv_now - lv_dl_sd_last; lv_dl_sd_last = lv_now; if (dt > 250) dt = 250;
+          if (lv_dl_sdk && (int32_t)(lv_now - lv_dl_sdk_t) >= LV_DL_DENY_MS) lv_dl_sdk = 0;
+          if (lv_dl_phase == LV_DL_PLAY && lv_dl_tw >= 0 && lv_dl_sd > 0 && (lv_dl_sd -= (int32_t)(dt * (uint32_t)LV_DL_SD_SPD)) <= 0) {
+              lv_dl_sd = 0; bool in = false; for (int q = 0; q < lv_dl_nf; ++q) { const LvDlFile &f = lv_dl_fo[lv_dl_tw][q]; if (f.tgt >= 0 && f.st != LV_DL_S_GOT) in = true; }
+              if (in) { lv_dl_blown = true; lv_dl_blown_tw = lv_dl_tw; lv_dl_phase = LV_DL_TRACED; lv_dl_tend = lv_dl_pt = lv_now; lv_dl_pf = -1; lv_hc_log("TOWER %d SELF-DESTRUCT. FILE LOST.", lv_dl_tw + 1); }
+              else { const int t = lv_dl_tw; lv_hc_log("TOWER %d BLEW. NOTHING LOST.", t + 1); lv_dl_close_tower(); lv_hc_w.sel = t; memcpy(lv_hc_w.selmac, lv_hc_w.f[t].mac, 6); lv_dl_sdk = 2; lv_dl_sdk_t = lv_now; lv_dl_sdk_tw = t; }
+          } }
+#endif
         if (lv_dl_phase == LV_DL_PLAY && lv_dl_trace >= 1000) { lv_dl_phase = LV_DL_TRACED; lv_dl_tend = lv_dl_pt = lv_now; lv_dl_pf = -1; lv_hc_log("TRACE COMPLETE. CONNECTION CUT."); }
     }
     if (lv_dl_phase == LV_DL_DONE && (int32_t)(lv_now - lv_dl_pt) >= 1500) lv_dl_phase = LV_DL_WIN;
@@ -376,17 +411,26 @@ static void lv_dl_chrome(LvBand &B)   /* rows 0..33: the INFO top chrome (stripe
     snprintf(t, sizeof t, "HACKBOT // CHECKED %d/%d TOWERS", ns, LV_DL_NT); lvi_txt(B, 3, 27, t, 0x6fc9df);
     const int s10 = lv_dl_secs10(); snprintf(t, sizeof t, "L%d %d.%dS", lv_dl_round, s10 / 10, s10 % 10); lvi_txt(B, 237 - lv_w35(t), 27, t, 0xe1ad45);
 }
+#if LV_DL_SELFDESTRUCT
+#define LV_DL_SD_TITLE (lv_dl_blown ? "BLOWN UP" : "TRACED")
+#else
+#define LV_DL_SD_TITLE "TRACED"
+#endif
 static void lv_dl_card(LvBand &B)   /* win / lose card (the Hot/Cold card frame; no bot face: Mobandy "you dont need a bot floating") */
 {
     const uint16_t W = lv_hex(0xffffff), G = lv_hex(0xa0a0a8), TAN = lv_hex(LV_TAN), CY = lv_hex(0x30e8ff);
     b_fill(B, 12, 60, 216, 181, 0x0000); b_frame(B, 12, 60, 216, 181, LV_HC_MAG); b_frame(B, 14, 62, 212, 177, lv_dim(LV_HC_MAG, 3, 8));
     const bool win = lv_dl_phase == LV_DL_WIN, one = lv_dl_need == 1; const int s10 = lv_dl_secs10(); char t[64], sz[12], tt[24]; lv_dl_size(lv_dl_tmb[0], sz, sizeof sz);
-    snprintf(tt, sizeof tt, "LEVEL %d CLEAR", lv_dl_round); const char *title = win ? tt : "TRACED"; const uint16_t tc = lv_hex(win ? 0x30ff60 : 0xff3030); const int tw = (int)strlen(title) * 12;
+    snprintf(tt, sizeof tt, "LEVEL %d CLEAR", lv_dl_round); const char *title = win ? tt : LV_DL_SD_TITLE; const uint16_t tc = lv_hex(win ? 0x30ff60 : 0xff3030); const int tw = (int)strlen(title) * 12;
     b_text(B, 120 - tw / 2 + 1, 79, title, lv_hex(win ? 0x0a4a1a : 0x4a0a0a), 2); b_text(B, 120 - tw / 2, 78, title, tc, 2);
     if (one) snprintf(t, sizeof t, "%s  %s", LV_DL_NAMES[lv_dl_tnm[0]], sz); else if (win) snprintf(t, sizeof t, "ALL %d FILES DOWNLOADED", lv_dl_need); else snprintf(t, sizeof t, "GOT %d OF %d FILES", lv_dl_got, lv_dl_need);
     b_text(B, 120 - (int)strlen(t) * 3, 104, t, lv_hex(0xffc34a));
     if (win) { int n = snprintf(t, sizeof t, one ? "FOUND IN TOWER" : "FOUND IN TOWERS"); for (int i = 0; i < LV_DL_NT; ++i) for (int k = 0; k < lv_dl_need; ++k) if (lv_dl_ttw[k] == i) n += snprintf(t + n, sizeof t - n, " %d", i + 1); lv_hc_ctext(B, 120, t, W); }
-    else { lv_hc_ctext(B, 120, "THEY TRACED YOU. CONNECTION CUT.", W);
+    else {
+#if LV_DL_SELFDESTRUCT
+           if (lv_dl_blown) { snprintf(t, sizeof t, "TOWER %d BLEW WITH THE FILE INSIDE.", lv_dl_blown_tw + 1); lv_hc_ctext(B, 120, t, W); } else
+#endif
+           lv_hc_ctext(B, 120, "THEY TRACED YOU. CONNECTION CUT.", W);
            if (one) snprintf(t, sizeof t, "IT WAS IN TOWER %d, FILE %d", lv_dl_ttw[0] + 1, lv_dl_tf[0] + 1);
            else { int n = snprintf(t, sizeof t, "MISSED:"); for (int k = 0; k < lv_dl_need; ++k) if (!lv_dl_tgot[k]) n += snprintf(t + n, sizeof t - n, " T%d F%d", lv_dl_ttw[k] + 1, lv_dl_tf[k] + 1); }
            lv_hc_ctext(B, 130, t, TAN); }
@@ -394,7 +438,11 @@ static void lv_dl_card(LvBand &B)   /* win / lose card (the Hot/Cold card frame;
     snprintf(t, sizeof t, "TIME %d.%dS  TOWERS %d/%d  WRONG %d", s10 / 10, s10 % 10, ns, LV_DL_NT, lv_dl_wrong); lv_hc_ctext(B, 142, t, G);
     if (win) { snprintf(t, sizeof t, "TRACE %d%%", lv_dl_trace / 10); lv_hc_ctext(B, 152, t, G);
                b_text35(B, 120 - 34, 170, "SCORE", TAN); snprintf(t, sizeof t, "%d", lv_dl_score); b_text(B, 120 - 10, 166, t, W, 2); }
-    else lv_hc_ctext(B, 152, "TIP: NAME AND SIZE MUST BOTH MATCH", lv_hex(0xf7ba4a));
+    else
+#if LV_DL_SELFDESTRUCT
+         if (lv_dl_blown) lv_hc_ctext(B, 152, "TIP: GET OUT BEFORE IT HITS 0", lv_hex(0xf7ba4a)); else
+#endif
+         lv_hc_ctext(B, 152, "TIP: NAME AND SIZE MUST BOTH MATCH", lv_hex(0xf7ba4a));
     if (win) snprintf(t, sizeof t, "NEXT: LEVEL %d = FIND %d FILES", lv_dl_round + 1, lv_dl_need_for(lv_dl_round + 1)); else snprintf(t, sizeof t, "RETRY = LEVEL %d AGAIN, NEW SPOTS", lv_dl_round);
     lv_hc_ctext(B, 184, t, CY);
     if (lv_dl_best >= 0) { snprintf(t, sizeof t, "BEST %d", lv_dl_best); lv_hc_ctext(B, 194, t, G); }
@@ -408,6 +456,24 @@ static void lv_dl_banner(LvBand &B, bool win, const char *a, const char *b, cons
     lvi_txt(B, 120 - lv_w35(sub) / 2, 150, sub, 0xffffff);
     if (!win && f % 2 == 0) for (int k = 0; k < 2; ++k) lvi_box(B, k, 34 + k, 240 - 2 * k, 213 - 2 * k, 0xff385c);
 }
+#if LV_DL_SELFDESTRUCT
+static void lv_dl_sd_draw(LvBand &B)   /* the open tower's fuse: lv_dl_banner's frame law (black, red box, half-dim inner box), on the tower body */
+{
+    const LvTower *T = nullptr; for (int n = 0; n < lv_rd_n; ++n) if (lv_rd_tw[n].i == (lv_dl_blown ? lv_dl_blown_tw : lv_dl_tw)) T = &lv_rd_tw[n];
+    if (!T || (int)(lv_dl_clk.vt - lv_dl_cam_t) < LV_DL_CAM_MS) return;   /* after the pull-up lands, on the tower itself */
+    int xa, xb, ya, yb; lv_rd_box(*T, 1, xa, xb, ya, yb);
+    const int w = 66, h = 36; int x = (xa + xb) / 2 - w / 2; if (x < 2) x = 2; if (x > LV_DL_FX - 4 - w) x = LV_DL_FX - 4 - w;
+    int y = (ya < LV_RD_Y0 ? LV_RD_Y0 : ya) + 18; if (y + h > LV_RD_PTOP - 12) y = LV_RD_PTOP - 12 - h;
+    const int rm = lv_dl_blown ? 0 : lv_dl_sd_real(lv_dl_sd), s10 = (rm + 99) / 100; const bool urg = rm <= LV_DL_SD_URGENT;
+    const uint32_t c = 0xff385c, t0 = lv_dl_blown ? lv_dl_pt : 0; const int f = (int)((lv_now - t0) / 150);
+    lvi_rect(B, x, y, w, h, 0x000000); lvi_box(B, x, y, w, h, urg && f % 2 ? 0xffffff : c); lvi_box(B, x + 2, y + 2, w - 4, h - 4, (c & 0xfefefe) >> 1);
+    lvi_txt(B, x + w / 2 - lv_w35("SELF-DESTRUCT") / 2, y + 5, "SELF-DESTRUCT", c);
+    char t[8]; snprintf(t, sizeof t, "%d.%d", s10 / 10, s10 % 10); const int tw = (int)strlen(t) * 12;
+    b_text(B, x + w / 2 - tw / 2, y + 12, t, lv_hex(urg && f % 2 == 0 ? 0xffffff : c), 2);
+    const int bw = w - 8, fill = bw * rm / lv_dl_sd_real(LV_DL_SD_MS);   /* fuse left (the download-bar law) */
+    lvi_box(B, x + 4, y + h - 7, bw, 4, c); if (fill > 2) lvi_rect(B, x + 5, y + h - 6, fill - 2, 2, c);
+}
+#endif
 static void lv_dl_folder(LvBand &B, int i, int ys, float ph)   /* the INFO Joey folder frame (tab, 3D lip, scanlines), one file inside */
 {
     const LvDlFile &fo = lv_dl_fo[lv_dl_tw][i]; const bool dl = lv_dl_pf == i;
@@ -636,6 +702,13 @@ static void lv_dl_scene(LvBand &B, void *)
             lv_dl_folder(B, i, y, u > 1 ? 1 : u);
         }
     }
+#if LV_DL_SELFDESTRUCT
+    if ((lv_dl_phase == LV_DL_PLAY && lv_dl_tw >= 0 && lv_dl_sd > 0) || (lv_dl_phase == LV_DL_TRACED && lv_dl_blown)) lv_dl_sd_draw(B);
+    if (lv_dl_phase == LV_DL_PLAY && lv_dl_tw >= 0 && lv_dl_sd > 0 && lv_dl_sd_real(lv_dl_sd) <= LV_DL_SD_URGENT && !((lv_now - lv_dl_t0) / 200 % 2)) for (int k = 0; k < 2; ++k) lvi_box(B, k, 34 + k, 240 - 2 * k, 213 - 2 * k, 0xff385c);
+    if (lv_dl_sdk && lv_dl_phase == LV_DL_PLAY) { char a[16], t[32]; snprintf(a, sizeof a, "TOWER %d", lv_dl_sdk_tw + 1);
+        if (lv_dl_sdk == 1) { const int s10 = (lv_dl_sdk_left + 99) / 100; snprintf(t, sizeof t, "OUT WITH %d.%dS LEFT", s10 / 10, s10 % 10); lv_dl_banner(B, true, "CLOSE", "CALL", t, 0x30ff90, lv_dl_sdk_t); }
+        else lv_dl_banner(B, true, a, "BLEW", "NO TARGET INSIDE. NOTHING LOST", 0xffb000, lv_dl_sdk_t); }
+#endif
     if (lv_dl_deny && lv_dl_phase == LV_DL_PLAY) lv_dl_banner(B, false, "ACCESS", "DENIED", "WRONG FILE", 0xff385c, lv_dl_deny_t);
     if (lv_dl_found && lv_dl_phase == LV_DL_PLAY) { char t[32]; snprintf(t, sizeof t, "%d OF %d. KEEP GOING", lv_dl_got, lv_dl_need); lv_dl_banner(B, true, "FILE", "FOUND", t, 0x30ff90, lv_dl_found_t); }
     if (lv_dl_phase == LV_DL_PLAY && lv_dl_trace >= 800 && !((lv_now - lv_dl_t0) / 200 % 2)) for (int k = 0; k < 2; ++k) lvi_box(B, k, 34 + k, 240 - 2 * k, 213 - 2 * k, 0xff385c);
@@ -652,6 +725,10 @@ static void lv_dl_scene(LvBand &B, void *)
     lv_dl_panel(B); lv_dl_terminal(B);
 #endif
     if (lv_dl_phase == LV_DL_DONE) lv_dl_banner(B, true, "DOWNLOAD", "COMPLETE", lv_dl_need > 1 ? "ALL FILES" : "RIGHT FILE", 0x30ff90, lv_dl_pt);
+#if LV_DL_SELFDESTRUCT
+    if (lv_dl_phase == LV_DL_TRACED && lv_dl_blown) { char t[40]; int k = -1; for (int j = 0; j < lv_dl_need; ++j) if (lv_dl_ttw[j] == lv_dl_blown_tw && !lv_dl_tgot[j]) k = j;
+        snprintf(t, sizeof t, "%s LOST IN TOWER %d", k >= 0 ? LV_DL_NAMES[lv_dl_tnm[k]] : "FILE", lv_dl_blown_tw + 1); lv_dl_banner(B, false, "SELF", "DESTRUCT", t, 0xff385c, lv_dl_pt); } else
+#endif
     if (lv_dl_phase == LV_DL_TRACED) lv_dl_banner(B, false, "TRACE", "COMPLETE", "CONNECTION CUT", 0xff385c, lv_dl_pt);
     if (lv_dl_phase == LV_DL_WIN || lv_dl_phase == LV_DL_OVER) lv_dl_card(B);
     if (lv_dl_phase == LV_DL_SLOTS || lv_dl_phase == LV_DL_PAUSE || lv_dl_phase == LV_DL_SAVEOK) lv_dl_save_card(B);

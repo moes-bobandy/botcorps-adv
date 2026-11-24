@@ -1,0 +1,18 @@
+tick 300
+motion 1
+go 12
+tick 80
+tap 216 292
+tick 40
+tap 125 292
+tick 2
+tap 125 292
+tick 10
+dlopen 2
+rec 100 seq1
+tap 172 288
+rec 45 seq2
+dlopen 2
+rec 150 seq3
+rec 60 seq4
+dlstate

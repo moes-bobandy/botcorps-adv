@@ -20,9 +20,9 @@
 #include "lv_build_3locks.h"   /* fw-3locks-1116: CONTROLbot v6 + BOTpheus EB3 + HACKbot game switches */
 
 #ifdef BOTCORPS_BUILD_ID
-#define LV_VERSION "cyd-livescan v1.2.18 " BOTCORPS_BUILD_ID   /* v1.2.18: release tag (v1.2.17 + 10 pillars, brown grid, smoother folder drop) */
+#define LV_VERSION "cyd-livescan v1.2.19 " BOTCORPS_BUILD_ID   /* v1.2.19: v1.2.18 + L/R rocker + gold TERMINALbot pager page */
 #else
-#define LV_VERSION "cyd-livescan v1.2.18"
+#define LV_VERSION "cyd-livescan v1.2.19"
 #endif
 
 /* ---------- finds ---------- */

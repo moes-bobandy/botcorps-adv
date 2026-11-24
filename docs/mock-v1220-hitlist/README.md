@@ -10,6 +10,7 @@ Every layer has its own flag; set it to 0 for byte-identical v1.2.19 behaviour o
 | 3 GIBSON independent towers + banner name/colour | `LV_RD_TW_DRIFT`, `LV_RD_SEL_BANNER(_HOOK)` | lv_radar.h, lv_core.h | gate_item3_gibson.txt |
 | 4 control strip: Dojo (white), TERMINALbot | `LV_MO_STRIP`, `LV_TERM_STRIP` | lv_morpheus_v13.h, lv_core.h, lv_port.h | gate_item4_dojo.txt, gate_item4_term.txt |
 | 5 HACKbot game SPEED + independent towers | `LV_DL_SPEED`, `LV_DL_TW_DRIFT` | lv_radar.h, lv_radar_pad.h, lv_scanbot_download.h | gate_item5_hackbot.txt |
+| 1c TERMINALbot: side pins purple, mini terminal gold, bot body grey/silver (home page colours) | `LV_TERM_RECOLOR` | lv_core.h | gate_item1c_terminal.txt |
 | 1b TERMINALbot: board rain removed, face rain one size smaller (3x5) | `LV_TERM_NORAIN`, `LV_TERM_RAIN35` | lv_core.h, lv_term_norain.h (generated, tools/livescan/gen_term_norain.py), lv_port.h | gate_item1b_terminal.txt |
 | 6 HACKbot game tower self-destruct countdown | `LV_DL_SELFDESTRUCT` | lv_scanbot_download.h | gate_item6_selfdestruct.txt |
 
@@ -20,3 +21,4 @@ Notes:
 - Item 2: the tearing during the slide is SPI-bound and is not fixed.
 - Item 6: opening a tower arms a 12000 game-ms fuse on the SPEED clock (12 s / 6 s / 4 s real at 1X / 2X / 3X). Readout = lv_dl_banner frame law on the open tower, flashing under 3 s with the HOT red edge. At 0: target file still in the tower (or mid-download) = loss (SELF DESTRUCT banner, then the TRACED card retitled BLOWN UP); no target inside = tower blows, you are thrown out, nothing lost. Backing out with under 3 s left shows CLOSE CALL.
 - Item 1b: the board rain is baked into the locked TERM clip, so it is pinned per pixel to the bare board (RGB565 table, themes 0..2). Themes 3..5 and 6..11 draw ghost bots over a grid there; the per-pixel rule smeared them, so those themes keep their background. Side pins + terminal box: unchanged (0 px), they already carry the colour UI.
+- Item 1c: side pins (signal pads only; 3V/5V stay red, GND stays grey) use the home TERMINALbot page pad purples; the mini terminal uses lv_pg_pan_hackbot gold=1 (0xD4AF37 / 0xE8C050 / 0x140E06); the black DIP body is remapped to the home IC greys (107,117,132 and bevel lips), black bezel + gold face + black rain unchanged. Screen-border gold is left alone.

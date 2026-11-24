@@ -909,6 +909,56 @@ static inline bool lv_bm_row(int) { return false; }
 static inline void lv_bm_apply(int, int, int, const uint8_t *, const uint16_t *, uint16_t *) {}
 static inline void lv_bm_fix(int) {}
 #endif
+#ifndef LV_TERM_RECOLOR
+#define LV_TERM_RECOLOR 1   /* mock/v1220 item 1c (Mobandy 4:57-4:59 PM ET 11-24): TERM sub-screen side pins purple, mini terminal gold, bot body grey/silver, all cloned from the home TERMINALbot page; 0 = item 1b */
+#endif
+#if LV_TERM_RECOLOR
+/* Home TERMINALbot page (pager board strip + lv_pg_pan_hackbot(..., gold=1)): exact colours, no invented inks. */
+#define LV_THC_PIN_FILL  lv_rgb(140, 56, 181)    /* most-used home signal-pad fill (theme 0) */
+#define LV_THC_PIN_TOP   lv_rgb(173, 69, 222)    /* home signal-pad top row */
+#define LV_THC_BODY      lv_rgb(107, 117, 132)  /* home IC mid grey */
+#define LV_THC_BODY_HI   lv_rgb(181, 190, 198)  /* home IC highlight (top / left lip) */
+#define LV_THC_BODY_MID  lv_rgb(148, 146, 140)  /* home IC mid lip */
+#define LV_THC_BODY_LO   lv_rgb(90, 97, 107)    /* home IC shadow (bottom / right lip, inner rim) */
+#define LV_THC_BOX_INK   lv_hex(0xD4AF37)       /* lv_pg_pan_hackbot gold ink (TRACE + plate frame) */
+#define LV_THC_BOX_HOT   lv_hex(0xE8C050)       /* lv_pg_pan_hackbot gold hot (ATK) */
+#define LV_THC_BOX_FILL  lv_hex(0x140E06)       /* lv_pg_pan_hackbot gold fill */
+static inline bool lv_thc_row(int y, int x, int n)
+{
+    if (lv_scr != LV_SC_TERM) return false;
+    if (y >= 32 && y <= 305 && ((x <= 12 && x + n > 6) || (x <= 233 && x + n > 227))) return true;   /* pad columns */
+    if (y >= 255 && y <= 310 && x <= 205 && x + n > 33) return true;   /* terminal chrome (clip frame + header) */
+    if (y >= 48 && y <= 149 && x <= 161 && x + n > 78) return true;    /* bot package (in case a run misses the port path) */
+    return false;
+}
+static uint16_t lv_term_home_px(uint16_t c, int x, int y)   /* idempotent: only the listed source colours in the listed rects change */
+{
+    if (lv_scr != LV_SC_TERM) return c;
+    /* --- side pins: signal pads only; 3V / 5V (red) and GND (grey) stay; screen-border gold at x=0/239 stays --- */
+    const bool lpad = (x >= 6 && x <= 12), rpad = (x >= 227 && x <= 233);
+    if ((lpad || rpad) && y >= 32 && y <= 305) {   /* last real pads end ~y304; below that the gold screen-edge is in the same columns */
+        if (c == lv_rgb(181, 146, 82)) return LV_THC_PIN_FILL;
+        if (c == lv_rgb(222, 219, 74)) {
+            const bool skip = lpad ? (y == 32 || y == 46 || y == 298) : (y == 200 || y == 270 || y == 284 || y == 298);
+            if (!skip) return LV_THC_PIN_TOP;
+        }
+    }
+    /* --- mini terminal clip chrome: magenta frame + TERMINALBOT title (LV_FRAME[0] = 0xff25ae) -> gold ink. Status LEDs stay. --- */
+    if (y >= 255 && y <= 310 && x >= 33 && x <= 205) {
+        if (c == lv_rgb(255, 36, 173)) return LV_THC_BOX_INK;
+    }
+    /* --- bot package: black body -> home grey; lips use the home bevel greys; face well (black bezel + gold face + rain) stays --- */
+    if (y >= 48 && y <= 149 && x >= 78 && x <= 161) {
+        const bool well = (x >= 91 && x <= 148 && y >= 52 && y <= 109);   /* inside the inner (82,89,99) rim: bezel + face */
+        if (c == 0 && !well) return LV_THC_BODY;
+        if (c == lv_rgb(24, 24, 24) && !(y >= 132 && y <= 142 && x >= 86 && x <= 152)) {   /* lips, not the "TERMINALbot" glyph stem */
+            return (y <= 50 || x <= 80) ? LV_THC_BODY_HI : LV_THC_BODY_LO;
+        }
+        if (c == lv_rgb(82, 89, 99)) return (x <= 81 || x >= 158 || y <= 48 || y >= 145) ? LV_THC_BODY_MID : LV_THC_BODY_LO;
+    }
+    return c;
+}
+#endif
 static void lv_scene_tint(LvBand &B, void *ctx)
 {
     const int t = *(const int *)ctx;
@@ -943,6 +993,9 @@ static void lv_scene_tint(LvBand &B, void *ctx)
                 if (lv_port_sc == 2 && lv_tg_in(x, y)) { c = lv_pg_gold(c); if (lv_tg_under) lv_tg_under[(y - LV_TG_Y0) * LV_TG_S + (x - LV_TG_X0)] = c; c = lv_tg_rain(c, x, y); }   /* mock/v1220 item 1 (lv_port.h) */
 #endif
             }
+#if LV_TERM_RECOLOR
+            c = lv_term_home_px(c, x, y);
+#endif
             o[x - B.x0] = raw ? c : lv_tx(s, c, x, y);
         }
     }
@@ -1049,13 +1102,21 @@ static void lv_clip_draw(int y, int x, int n, const uint8_t *idx)
 #else
         const bool tn = false;
 #endif
-        if (!ri && !po && !bm && !tn) { lv_raw_draw(y, x0, m, ix); return; }
+#if LV_TERM_RECOLOR
+        const bool thc = lv_thc_row(y, x0, m);   /* item 1c: pin / box / body remaps push RGB565 */
+#else
+        const bool thc = false;
+#endif
+        if (!ri && !po && !bm && !tn && !thc) { lv_raw_draw(y, x0, m, ix); return; }
         for (int k = 0; k < m; ++k) lb[k] = pal[ix[k]];
 #if LV_TERM_NORAIN
         if (tn) lv_tnr_apply(y, x0, m, lb);
 #endif
         if (ri) for (int k = 0; k < m; ++k) lb[k] = lv_multi_ink(lb[k], x0 + k, y);
         if (po) for (int k = 0; k < m; ++k) lb[k] = lv_port_apply(lb[k], x0 + k, y);
+#if LV_TERM_RECOLOR
+        if (thc || po) for (int k = 0; k < m; ++k) lb[k] = lv_term_home_px(lb[k], x0 + k, y);
+#endif
         if (bm) { lv_bm_apply(y, x0, m, ix, pal, lb); lv_blit_hw(x0, y, m, 1, lb); return; }   /* final colours: no theme re-ink */
         lv_blit(x0, y, m, 1, lb);
     };
@@ -1079,7 +1140,11 @@ static void lv_clip_draw(int y, int x, int n, const uint8_t *idx)
             const LvTS s = lv_tint_state(T.id);
             if (s.deco) lv_tdirty[c] = true;          /* painted by its own scene (shadow + decorator) */
             else {
-                for (int k = i; k < j; ++k) { uint16_t v = lv_tx(s, lv_port_apply(ri ? lv_multi_ink(pal[idx[k]], x + k, y) : pal[idx[k]], x + k, y), x + k, y); if (fl && lv_in(lv_flash_r, x + k, y)) v = lv_hi(v); lb[k - i] = v; }
+                for (int k = i; k < j; ++k) { uint16_t v = lv_port_apply(ri ? lv_multi_ink(pal[idx[k]], x + k, y) : pal[idx[k]], x + k, y);
+#if LV_TERM_RECOLOR
+                    v = lv_term_home_px(v, x + k, y);
+#endif
+                    v = lv_tx(s, v, x + k, y); if (fl && lv_in(lv_flash_r, x + k, y)) v = lv_hi(v); lb[k - i] = v; }
                 lv_blit(x + i, y, j - i, 1, lb);
             }
         }
@@ -1479,33 +1544,42 @@ static const char *lv_mt_label(int i)
 static void lv_mt_icon(LvBand &B, int k, int x, int y)
 {
     for (int r = 0; r < 10 && LV_MT_ICON[k][r]; ++r)
-        for (int c = 0; LV_MT_ICON[k][r][c]; ++c) if (LV_MT_ICON[k][r][c] == '#') b_pix(B, x + c, y + r, LV_MT_E);
+        for (int c = 0; LV_MT_ICON[k][r][c]; ++c) if (LV_MT_ICON[k][r][c] == '#') b_pix(B, x + c, y + r,
+#if LV_TERM_RECOLOR
+            (lv_scr == LV_SC_TERM) ? LV_THC_BOX_INK :
+#endif
+            LV_MT_E);
 }
 static void lv_scene_minterm(LvBand &B, void *)
 {
     const LvRect &bx = lv_mt_box();
     const bool log = lv_scr == LV_SC_SCAN || lv_scr == LV_SC_TERM;
-    b_fill(B, B.x0, B.y0, B.w, B.h, 0x0000);
+#if LV_TERM_RECOLOR
+    const bool goldbox = (lv_scr == LV_SC_TERM);   /* item 1c: the ATK/TRACE gold plate colours (lv_pg_pan_hackbot gold=1) */
+#else
+    const bool goldbox = false;
+#endif
+    b_fill(B, B.x0, B.y0, B.w, B.h, goldbox ? LV_THC_BOX_FILL : 0x0000);
     const int T = bx.y0, x0 = bx.x0 + 3;
     if (log) { char a[28]; snprintf(a, sizeof a, "%s", lv_line_back(0)); b_text(B, x0, T + 2, a, lv_hex(0xffffff)); }
     else b_fill(B, 37, T + 6, 139, 1, lv_ink(LV_ACCD));   /* the clip's separator, kept where it was */
     static const int IW[3] = {11, 12, 10}, IH[3] = {10, 8, 7};
     for (int i = 0; i < lv_mt_n(); ++i) {
         const LvRect r = lv_mt_btn(i); const int w = r.x1 - r.x0 + 1, h = r.y1 - r.y0 + 1;
-        b_fill(B, r.x0, r.y0, w, h, LV_MT_D); b_fill(B, r.x0 + 1, r.y0 + 1, w - 2, h - 2, 0x0000);
+        b_fill(B, r.x0, r.y0, w, h, goldbox ? LV_THC_BOX_INK : LV_MT_D); b_fill(B, r.x0 + 1, r.y0 + 1, w - 2, h - 2, goldbox ? LV_THC_BOX_FILL : 0x0000);
         const char *lab = lv_mt_label(i); const int k = lv_scr == LV_SC_CTL ? i - 2 : i;
         const int iw = k >= 0 ? IW[k] : 0, lw = lab ? (int)strlen(lab) * 6 - 1 : 0, gap = (iw && lw) ? 3 : 0;
         int cx = r.x0 + (w - iw - gap - lw) / 2;
         if (k >= 0) { lv_mt_icon(B, k, cx, r.y0 + 1 + (11 - IH[k]) / 2); cx += iw + gap; }
-        if (lab) b_text(B, cx, r.y0 + 3, lab, lv_ink(LV_ACC));
+        if (lab) b_text(B, cx, r.y0 + 3, lab, goldbox ? LV_THC_BOX_INK : lv_ink(LV_ACC));
     }
     const int py = T + 25;
-    int x = b_text(B, x0, py, LV_PROMPT, lv_hex(LV_PROMPT_INK));
+    int x = b_text(B, x0, py, LV_PROMPT, goldbox ? LV_THC_BOX_INK : lv_hex(LV_PROMPT_INK));
     const int maxc = bx.x1 - 2 - x - 8;
     const char *in = lv_inb; int len = lv_inlen;
     if (len * 6 > maxc) in += len - maxc / 6;
     x = b_text(B, x, py, in, lv_hex(0xffffff));
-    if ((lv_now / 500) & 1 || lv_scr == LV_SC_SCAN) b_fill(B, x + 1, py, 7, 7, lv_ink(LV_ACC));
+    if ((lv_now / 500) & 1 || lv_scr == LV_SC_SCAN) b_fill(B, x + 1, py, 7, 7, goldbox ? LV_THC_BOX_HOT : lv_ink(LV_ACC));
 }
 /* CONTROLbot overlays: the three value fields (theme / uptime / focus), BG MOTION and one value badge per chip.
  * The selected value is always spelled out in white on the theme accent, so the choice can't be missed. */

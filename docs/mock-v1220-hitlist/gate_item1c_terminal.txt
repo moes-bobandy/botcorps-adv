@@ -1,0 +1,15 @@
+item 1c gates (LV_TERM_RECOLOR) vs item 1b head 5483e3b (sim -DLV_TERM_STRIP=0, script tools/livescan/scripts/v1220_tour.txt)
+allowed: left pads 6,32,12,305; right pads 227,32,233,305; bot package 78,48,161,149; terminal box 33,255,205,310
+face (96,56)-(143,103) 0 px (gold + black rain unchanged). 3V/5V red and GND grey pads unchanged.
+screen            inside  outside   total  result  change bbox
+pager0                 0        0       0  PASS      allowed=none
+pager1                 0        0       0  PASS      allowed=none
+pager2                 0        0       0  PASS      allowed=none
+pager3                 0        0       0  PASS      allowed=none
+pager4                 0        0       0  PASS      allowed=none
+term               11420        0   11420  PASS    (6,32)-(233,306)  allowed=6,32,12,305;227,32,233,305;78,48,161,149;33,255,205,310
+dojo                   0        0       0  PASS      allowed=none
+gib_scan               0        0       0  PASS      allowed=none
+gib_sel_deck           0        0       0  PASS      allowed=none
+dl_intro               0        0       0  PASS      allowed=none
+dl_play                0        0       0  PASS      allowed=none

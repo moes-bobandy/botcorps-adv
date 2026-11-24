@@ -940,7 +940,7 @@ static void lv_scene_tint(LvBand &B, void *ctx)
                     if (x >= R.x0 && x <= R.x1) { k = R.code[(y - R.y0) * (R.x1 - R.x0 + 1) + (x - R.x0)]; break; } }
                 if (k) c = lv_port_px(k, c, x, y);
 #if LV_TERM_GOLD
-                if (lv_port_sc == 2 && lv_tg_in(x, y)) { c = lv_pg_gold(c); lv_tg_under[(y - LV_TG_Y0) * LV_TG_S + (x - LV_TG_X0)] = c; c = lv_tg_rain(c, x, y); }   /* mock/v1220 item 1 (lv_port.h) */
+                if (lv_port_sc == 2 && lv_tg_in(x, y)) { c = lv_pg_gold(c); if (lv_tg_under) lv_tg_under[(y - LV_TG_Y0) * LV_TG_S + (x - LV_TG_X0)] = c; c = lv_tg_rain(c, x, y); }   /* mock/v1220 item 1 (lv_port.h) */
 #endif
             }
             o[x - B.x0] = raw ? c : lv_tx(s, c, x, y);

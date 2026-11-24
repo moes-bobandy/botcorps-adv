@@ -37,7 +37,7 @@ struct LvPortScr { const LvPortReg *reg; uint8_t nreg; const uint16_t (*rain)[10
 #define LV_TG_Y0 56
 #define LV_TG_S  48
 static uint16_t lv_pg_gold(uint16_t c);   /* pager/lv_pager_fx.h (7db0c6d), verbatim, defined later in this TU */
-static uint16_t lv_tg_under[LV_TG_S * LV_TG_S];
+static uint16_t *lv_tg_under = nullptr;   /* heap (4.6 KB), allocated once like lv_port_under: a static array overflowed dram0_0_seg by 4,192 B in the v1.2.20 link */
 static int lv_ts_speed = 1; static uint32_t lv_ts_soff = 0, lv_ts_slast = 0;   /* item 4 TERM strip SPEED: face-rain clock (GIBSON soff law) */   /* gold face under the rain (for the motion repaint) */
 static inline bool lv_tg_in(int x, int y) { return x >= LV_TG_X0 && x < LV_TG_X0 + LV_TG_S && y >= LV_TG_Y0 && y < LV_TG_Y0 + LV_TG_S; }
 static uint16_t lv_tg_rain(uint16_t g, int x, int y)   /* lv_pg_rain_row(pal {0,0,0}, skip=1) at one pixel, face box 48 */
@@ -86,6 +86,10 @@ static void lv_port_begin(void)
     lv_port_t0 = lv_now; lv_port_n = 0; lv_port_step = LV_PORT_RAIN_T0 % 10;
     if (!lv_port_under) lv_port_under = (uint16_t *)malloc(LV_PORT_MAXGLOW * sizeof(uint16_t));
     if (lv_port_under) memset(lv_port_under, 0, LV_PORT_MAXGLOW * sizeof(uint16_t));
+#if LV_TERM_GOLD
+    if (!lv_tg_under) lv_tg_under = (uint16_t *)malloc(LV_TG_S * LV_TG_S * sizeof(uint16_t));
+    if (lv_tg_under) memset(lv_tg_under, 0, LV_TG_S * LV_TG_S * sizeof(uint16_t));
+#endif
 }
 static inline uint16_t lv_port_code(int x, int y)
 {
@@ -166,7 +170,7 @@ static inline uint16_t lv_port_apply(uint16_t c, int x, int y)
 #if LV_TERM_GOLD
     if (lv_port_sc == 2 && lv_tg_in(x, y)) {   /* item 1: gold face + pitch-black face rain */
         const uint16_t g = lv_pg_gold(k ? lv_port_px(k, c, x, y) : c);
-        lv_tg_under[(y - LV_TG_Y0) * LV_TG_S + (x - LV_TG_X0)] = g;
+        if (lv_tg_under) lv_tg_under[(y - LV_TG_Y0) * LV_TG_S + (x - LV_TG_X0)] = g;
         return lv_tg_rain(g, x, y);
     }
 #endif
@@ -203,6 +207,7 @@ static void lv_port_runs(const LvPortRun *rn, int nr)
 static void lv_tg_frame(void)   /* repaint the 48x48 face through the same tint transform / press flash as lv_port_runs */
 {
     static uint16_t lb[LV_TG_S];
+    if (!lv_tg_under) return;   /* no heap: the face keeps its last clip-drawn frame (rain still) */
     const bool fl = lv_flash_r.x1 >= lv_flash_r.x0;
     for (int y = LV_TG_Y0; y < LV_TG_Y0 + LV_TG_S; ++y) {
         int tl[LV_MAXT], nt = 0;

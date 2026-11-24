@@ -20,6 +20,49 @@ struct LvPortScr { const LvPortReg *reg; uint8_t nreg; const uint16_t (*rain)[10
                    const LvPortRun *rr; uint16_t nrr; const LvPortRun *gr; uint16_t ngr; };
 #include "lv_port_data.h"
 #include "lv_port_luts.h"
+/* mock/v1220 hit-list item 1 (LV_TERM_GOLD, default 1; 0 = byte-identical v1.2.19):
+ * LV_SC_TERM chip: the silver TERMINALbot face (48x48 clip pixels at (96,56)-(143,103)) goes through the SAME
+ * metallic-gold remap as the gold pager page (lv_pg_gold, 7db0c6d) and gets the SAME pitch-black face rain
+ * (lv_pg_rain_row law: 6x8 glyph cells, seeds 0xC0DE, speed 1..3, trail 9..15, skip = keep gold eyes (40/41,24,8)),
+ * cloned at this face's size (8 columns over 48 px instead of 18 over 110). The ui_main_bot_rain icon rain around him
+ * in the chip body (port code 2) is removed: each rain slot shows its body colour (darkest of its 10 steps). */
+#ifndef LV_TERM_GOLD
+#define LV_TERM_GOLD 1
+#endif
+#if LV_TERM_GOLD
+#define LV_TG_X0 96
+#define LV_TG_Y0 56
+#define LV_TG_S  48
+static uint16_t lv_pg_gold(uint16_t c);   /* pager/lv_pager_fx.h (7db0c6d), verbatim, defined later in this TU */
+static uint16_t lv_tg_under[LV_TG_S * LV_TG_S];   /* gold face under the rain (for the motion repaint) */
+static inline bool lv_tg_in(int x, int y) { return x >= LV_TG_X0 && x < LV_TG_X0 + LV_TG_S && y >= LV_TG_Y0 && y < LV_TG_Y0 + LV_TG_S; }
+static uint16_t lv_tg_rain(uint16_t g, int x, int y)   /* lv_pg_rain_row(pal {0,0,0}, skip=1) at one pixel, face box 48 */
+{
+    if (g == lv_rgb(40, 24, 8) || g == lv_rgb(41, 24, 8)) return g;   /* lv_pg_keep_feat(TERMINAL): eyes stay on top */
+    static const char GL[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ#$%*+<>/|";
+    const int ngl = (int)sizeof(GL) - 1, CW = 6, CH = 8, NCOL = LV_TG_S / CW;
+    const int phase = (int)(lv_now / 30u);
+    const int ly = y - LV_TG_Y0, col = (x - LV_TG_X0 - 1) / CW, cx = (x - LV_TG_X0 - 1) % CW;
+    if (x - LV_TG_X0 - 1 < 0 || col >= NCOL || cx > 4) return g;
+    const uint32_t s = 0xC0DEU ^ (uint32_t)(col * 2654435761u);
+    const int speed = 1 + (int)((s >> 8) % 3);
+    const int trail = 9 + (int)((s >> 3) % 7);
+    const int period = LV_TG_S + trail * CH + 24;
+    const int off = (int)((s >> 16) % (uint32_t)period);
+    const int head_y = (phase * speed + off) % period;
+    uint16_t out = g;
+    for (int t = 0; t < trail; ++t) {
+        const int gy = head_y - t * CH;
+        if (gy > LV_TG_S - 1 || gy + 6 < 0) continue;
+        if (ly < gy || ly > gy + 6) continue;
+        const unsigned k = (unsigned)(s + (unsigned)((gy + period) / CH) * 17u + (unsigned)col * 3u);
+        unsigned uc = (unsigned char)GL[k % (unsigned)ngl];
+        if (uc < 32 || uc > 126) uc = 32;
+        if (LV_GLCD[(uc - 32) * 5 + cx] & (1u << (ly - gy))) out = 0;   /* pal {0,0,0}: every trail step is black */
+    }
+    return out;
+}
+#endif
 static int lv_port_sc = -1;                       /* LV_PORT_SCR index for the current screen, -1 none */
 static uint32_t lv_port_t0 = 0;                   /* screen entry: rain + glow clock */
 static int lv_port_n = 0, lv_port_step = LV_PORT_RAIN_T0 % 10;   /* glow phase / rain step currently on the panel */
@@ -87,7 +130,15 @@ static uint16_t lv_port_px(uint16_t k, uint16_t c, int x, int y)
     const uint16_t s = k & 16383;
     switch (k >> 14) {
     case 1: return lv_hex(lv_port_rgb(s, x, y));
-    case 2: return lv_hex(lv_port_rgb(P.rain[s][lv_port_step], x, y));
+    case 2:
+#if LV_TERM_GOLD
+        if (lv_port_sc == 2) {   /* item 1: no icon rain around TERMINALbot: the slot's body colour (darkest step) */
+            int b = 0, bl = 1 << 30;
+            for (int st = 0; st < 10; ++st) { const uint32_t v = lv_port_rgb(P.rain[s][st], x, y); const int l = (int)((v >> 16) & 255) * 3 + (int)((v >> 8) & 255) * 6 + (int)(v & 255); if (l < bl) { bl = l; b = st; } }
+            return lv_hex(lv_port_rgb(P.rain[s][b], x, y));
+        }
+#endif
+        return lv_hex(lv_port_rgb(P.rain[s][lv_port_step], x, y));
     case 3: {
         const LvPortGlow &G = P.glow[s];
         if (G.base == 0xFFFF) { if (lv_port_under) lv_port_under[s] = c; return lv_port_glow(G, lv_port_x888(c), x, y); }
@@ -100,6 +151,13 @@ static inline uint16_t lv_port_apply(uint16_t c, int x, int y)
 {
     if (lv_port_sc < 0) return c;
     const uint16_t k = lv_port_code(x, y);
+#if LV_TERM_GOLD
+    if (lv_port_sc == 2 && lv_tg_in(x, y)) {   /* item 1: gold face + pitch-black face rain */
+        const uint16_t g = lv_pg_gold(k ? lv_port_px(k, c, x, y) : c);
+        lv_tg_under[(y - LV_TG_Y0) * LV_TG_S + (x - LV_TG_X0)] = g;
+        return lv_tg_rain(g, x, y);
+    }
+#endif
     return k ? lv_port_px(k, c, x, y) : c;
 }
 /* motion: repaint only the runs whose pixels change, through the same tint transform / press flash the clip path uses */
@@ -129,12 +187,43 @@ static void lv_port_runs(const LvPortRun *rn, int nr)
     }
     (void)P;
 }
+#if LV_TERM_GOLD
+static void lv_tg_frame(void)   /* repaint the 48x48 face through the same tint transform / press flash as lv_port_runs */
+{
+    static uint16_t lb[LV_TG_S];
+    const bool fl = lv_flash_r.x1 >= lv_flash_r.x0;
+    for (int y = LV_TG_Y0; y < LV_TG_Y0 + LV_TG_S; ++y) {
+        int tl[LV_MAXT], nt = 0;
+        for (int t = 0; t < lv_ntint; ++t) if (y >= lv_tints[t].r.y0 && y <= lv_tints[t].r.y1 && lv_tints[t].r.x1 >= LV_TG_X0 && lv_tints[t].r.x0 < LV_TG_X0 + LV_TG_S) tl[nt++] = t;
+        for (int k = 0; k < LV_TG_S; ++k) {
+            const int x = LV_TG_X0 + k;
+            uint16_t v = lv_tg_rain(lv_tg_under[(y - LV_TG_Y0) * LV_TG_S + k], x, y);
+            for (int j = 0; j < nt; ++j) {
+                const LvRect &r = lv_tints[tl[j]].r;
+                if (x < r.x0 || x > r.x1) continue;
+                const LvTS s = lv_tint_state(lv_tints[tl[j]].id);
+                if (!s.deco) { v = lv_tx(s, v, x, y); if (fl && lv_in(lv_flash_r, x, y)) v = lv_hi(v); }
+                break;
+            }
+            lb[k] = v;
+        }
+        lv_blit(LV_TG_X0, y, LV_TG_S, 1, lb);
+    }
+}
+#endif
 static void lv_port_tick(void)
 {
     if (lv_port_sc < 0 || lv_play.shown < 0 || !lv_motion) return;
     const LvPortScr &P = LV_PORT_SCR[lv_port_sc];
     const uint32_t ms = lv_now - lv_port_t0;
     const int n = (int)((uint64_t)ms * 30 / 1000 % 42), st = (int)((LV_PORT_RAIN_T0 + ms / 140) % 10);
+#if LV_TERM_GOLD
+    if (lv_port_sc == 2) {   /* item 1: the icon rain is gone (nothing to step); the face rain repaints on its 30 ms phase */
+        static int ph = -1; const int p = (int)(lv_now / 30u);
+        if (p != ph) { ph = p; lv_tg_frame(); }
+        return;
+    }
+#endif
     if (st != lv_port_step) { lv_port_step = st; lv_port_runs(P.rr, P.nrr); }
     if (n != lv_port_n && lv_port_under) { lv_port_n = n; lv_port_runs(P.gr, P.ngr); }
 }

@@ -1,0 +1,24 @@
+v1.2.19 vs v1.2.18 (61158ee / bd6c320) host sim, same t. SIM-ONLY.
+
+Dojo (must be 0 px — Dojo stays v1.2.18):
+  dojo_idle    t=11400  0 px
+  dojo_idle2   t=12600  0 px
+  dojo_settled t=15000  0 px  (tap 120,160 -> FLOCK, then tick 80)
+
+Non-touched screens:
+  term  t=10200  0 px
+  scan  t=10200  0 px
+
+Pager (allowed: 5-pip row y25-29 and first-page left arrow {5,32,28,67}):
+  HACKbot    825 px = 130 pips + 695 left arrow (gained; no longer first page)  other=0  strip=0
+  BOTpheus   837 px = 142 pips + 695 left arrow (lost; now first page)          other=0  strip=0
+  GIBSON     130 px, all pips (102,25)-(137,29)                                 other=0  strip=0
+  CONTROLbot 136 px, all pips (102,25)-(139,29)                                 other=0  strip=0
+
+GIBSON / HACKbot decks (allowed: control strip {1,247,238,319} only):
+  gib_scan t=11400  925 px inside (16,273)-(83,311)   out_strip=0
+  dl_intro t=11400 1026 px inside (16,272)-(122,311)  out_strip=0
+  dl_play  t=12300 1064 px inside (16,272)-(126,311)  out_strip=0  (tap 120,140 -> dl-slot-continue)
+
+TERMINALbot pager page 3 vs 24a0dc3 mock render
+  (/workspace/out/fw-bigbot-1117/v1219-fixes/terminalbot-page/new/terminal.rgb, t=9600): 0 px exact.

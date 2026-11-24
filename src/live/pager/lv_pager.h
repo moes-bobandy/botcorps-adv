@@ -541,6 +541,12 @@ static void lv_pg_flip_log(const char *why)
 }
 #endif
 
+#ifndef LV_PG_SLIDE_SPLIT
+#define LV_PG_SLIDE_SPLIT 1   /* mock/v1220 item 2 (banner flicker on page change); 0 = v1.2.19 */
+#endif
+#if LV_PG_SLIDE_SPLIT
+static bool lv_pg_entry_full = true;   /* lv_pg_frame(full) from a screen entry: the one whole-screen paint keeps the old path */
+#endif
 static void lv_pg_blit(int a, int b, int off, bool full)
 {
 #if LV_PG_PROF
@@ -568,9 +574,23 @@ static void lv_pg_blit(int a, int b, int off, bool full)
     if (need_cb && !lv_cb_pan) { lv_cb_panel_build(lv_cb_slot()); lv_pg_cb_hold = true; }
     else if (need_cb && lv_cb_panel_dirty) lv_cb_panel_build(lv_cb_slot());
     LvPgCtx c{a, b, off};
-    if (full || off != 0) {
+    if ((full || off != 0)
+#if LV_PG_SLIDE_SPLIT
+        && lv_pg_entry_full
+#endif
+       ) {
         lv_render(lv_blit_hw, LvRect{0, 0, 239, 319}, lv_pg_scene, &c);
-    } else {
+    }
+#if LV_PG_SLIDE_SPLIT
+    else if (full || off != 0) {   /* mock/v1220 item 2: slide / drag / slide-end frames use the still page's band split (cloned below), so the
+                                    * banner interior x1..238 y1..23 is never sent black-then-ticker in the same frame (the flicker), rows 24..319 full */
+        lv_render(lv_blit_hw, LvRect{0, 0, 239, 0}, lv_pg_scene, &c);
+        lv_render(lv_blit_hw, LvRect{0, 1, 0, 23}, lv_pg_scene, &c);
+        lv_render(lv_blit_hw, LvRect{239, 1, 239, 23}, lv_pg_scene, &c);
+        lv_render(lv_blit_hw, LvRect{0, 24, 239, 319}, lv_pg_scene, &c);
+    }
+#endif
+    else {
         /* still page: same band split as CONTROLbot so the live ticker can paint y=1..23 */
         lv_render(lv_blit_hw, LvRect{0, 0, 239, 0}, lv_pg_scene, &c);
         lv_render(lv_blit_hw, LvRect{0, 1, 0, 23}, lv_pg_scene, &c);
@@ -634,6 +654,9 @@ static void lv_pg_start_slide(int dir)
 static void lv_pg_frame(bool full)
 {
     static int seen_slot = -1;
+#if LV_PG_SLIDE_SPLIT
+    lv_pg_entry_full = full;
+#endif
     const int slot = lv_cb_slot();
     if (slot != seen_slot) { seen_slot = slot; lv_pg_dirty = true; lv_pg_corner_key = -1; lv_pg_rle_slot = -1; }
     lv_pg_ensure(lv_pg_page);

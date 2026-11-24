@@ -1,0 +1,12 @@
+tick 300
+motion 1
+page 2
+tick 20
+tap 222 50
+rec 20 slide_r
+tap 18 50
+rec 20 slide_l
+page 0
+tick 5
+tap 18 50
+rec 20 bounce

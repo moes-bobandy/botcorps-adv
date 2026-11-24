@@ -1,0 +1,24 @@
+item 2 banner flicker on pager page change (board-timing model tools/livescan/dev_model.h, devrec; HOST SIM, not the board)
+CAUSE: lv_pg_blit renders the whole screen {0,0,239,319} on every slide / drag / slide-end frame, so the pager compose sends banner rows 1..23 (x1..238) as black, then lv_ticker_tick repaints them later in the same frame. On the device timeline each slide frame is ~33 ms (82,274 px: 76,800 + the 5,474-px banner sent twice), so the panel shows a black banner for most of every slide frame.
+FIX (LV_PG_SLIDE_SPLIT): slide/drag/end frames use the still page's own band split (row 0, x0 / x239 columns, rows 24..319); only the screen-entry paint keeps the whole-screen render.
+
+panel camera (every 20 ms), script v1220_pgflick.txt (GIBSON -> TERMINALbot chip):
+  before v1.2.19: 11 of 60 camera frames show the banner >50% black (max 5,474 / 5,474 px black)
+  after  v1220 : 0 of 60 (max 0)
+  slide frame cost: 33.1 ms / 82,274 px -> 30.9 ms / 76,800 px
+finished frames, fixed 30 ms ticks (v1220_slide_plain.txt): slide right / slide left 20+20 frames: 0 px diff vs v1.2.19 (only the order of panel writes changes)
+pager -> GIBSON / HACKbot entry: 0 black-banner camera frames before and after (not affected)
+NOT FIXED (reported): the 'erratic for a moment' look. 14 of the first 20 camera frames of the 400 ms slide are torn (half old frame / half new) before AND after: a full 240x296 slide frame is ~71k px = ~28-31 ms of 40 MHz SPI, the whole 30 ms frame budget, and the CYD has no tearing-effect sync. Options need Mobandy's pick: shorter/fewer slide frames, or a cut instead of a slide.
+
+full tree tour:
+screen            inside  outside   total  result  change bbox
+pager0                 0        0       0  PASS      allowed=none
+pager1                 0        0       0  PASS      allowed=none
+pager2                 0        0       0  PASS      allowed=none
+pager3                 0        0       0  PASS      allowed=none
+pager4                 0        0       0  PASS      allowed=none
+term               17661        0   17661  PASS    (1,49)-(238,319)  allowed=81,48,158,145;1,247,238,319
+dojo               17041        0   17041  PASS    (1,247)-(238,318)  allowed=1,247,238,319
+gib_scan            6216        0    6216  PASS    (0,95)-(168,210)  allowed=0,24,239,246
+dl_intro            2185        0    2185  PASS    (4,113)-(143,314)  allowed=0,34,239,246;104,270,143,314
+dl_play             2122        0    2122  PASS    (0,156)-(239,314)  allowed=0,34,239,246;104,270,143,314

@@ -1,0 +1,10 @@
+tick 300
+motion 1
+page 2
+tick 20
+devrec 10 pg_pre
+wstart
+tap 222 50
+devrec 40 pg_next
+wstop pg_next
+devrec 10 pg_post

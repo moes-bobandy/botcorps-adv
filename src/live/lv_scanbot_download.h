@@ -312,6 +312,9 @@ static float lv_dl_cam_for(int i)   /* camera x that puts tower i's front face c
 }
 static void lv_dl_tick(void)
 {
+#if LV_DL_SPEED
+    { uint32_t dt = lv_now - lv_dl_slast; lv_dl_slast = lv_now; if (dt > 250) dt = 250; lv_dl_soff += dt * (uint32_t)(lv_dl_speed - 1); }   /* GIBSON's soff law */
+#endif
     { const int oel = (int)(lv_dl_clk.vt - lv_dl_open_t), cel = (int)(lv_dl_clk.vt - lv_dl_cam_t);   /* lv_select.h clock: cap only while the pull-up / drop plays */
       lv_sel_clk_step(lv_dl_clk, lv_now, (lv_dl_cam_mode && cel < LV_DL_CAM_MS) ? 50u : (lv_dl_tw >= 0 && oel < LV_DL_DROP0_MS + (lv_dl_nf - 1) * lv_dl_gap() + LV_DL_DROP_MS) ? 100u : LV_SEL_NOCAP); }
     lv_dl_trace_upd();
@@ -665,6 +668,9 @@ static void lv_go_soon(int scr, const char *tty_cmd);
 #if LV_DL_DECK
 /* v1.2.14: the deck's keys on the real game actions. 1 up 2 down 3 left 4 right (lv_pad_dpad_at), 5 A, 6 B (GIBSON's A / B). */
 static int lv_dl_deck_id(int x, int y) {   /* mock/v1219: L/R rocker boxes (v1.2.13), not the v1.2.14 4-way diagonals. A OPEN / B BACK unchanged. */
+#if LV_DL_SPEED
+    if (x >= PAD_MID_X && x < PAD_MID_X + PAD_MID_W && y >= PAD_MID_YH && y < PAD_MID_YW + PAD_MID_H) return 10;   /* mock/v1220 item 5: SPEED (GIBSON's id 10 box) */
+#endif
     if (lv_in(PAD_HIT_L, x, y)) return 3;
     if (lv_in(PAD_HIT_R, x, y)) return 4;
     return lv_in(PAD_HIT_A, x, y) ? 5 : lv_in(PAD_HIT_B, x, y) ? 6 : 0;
@@ -682,6 +688,9 @@ static const char *lv_dl_deck(int x, int y)
 {
     static const int DIR[5] = {0, 2, 3, 0, 1};   /* d-pad id -> lv_rd_dpad_pick dir */
     const int id = lv_dl_deck_id(x, y); if (!id) return "dl-deck";
+#if LV_DL_SPEED
+    if (id == 10) { lv_dl_speed = lv_dl_speed % 3 + 1; static const char *const S[3] = {"dl-speed-1x", "dl-speed-2x", "dl-speed-3x"}; return S[lv_dl_speed - 1]; }
+#endif
     if (lv_dl_tw >= 0) {   /* a tower is open */
         if (id == 1 || id == 2) { lv_dl_fsel = (lv_dl_fsel + (id == 2 ? 1 : lv_dl_nf - 1)) % lv_dl_nf; return id == 1 ? "dl-pad-up-file" : "dl-pad-down-file"; }
         if (id == 5) { const LvRect r = lv_dl_ftap(lv_dl_fsel); return lv_dl_tap((r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2); }   /* A = a tap on that folder */
@@ -698,6 +707,9 @@ static const char *lv_dl_deck(int x, int y)
 #endif
 static const char *lv_dl_menu_deck(int id)
 {
+#if LV_DL_SPEED
+    if (id == 10) { lv_dl_speed = lv_dl_speed % 3 + 1; static const char *const S[3] = {"dl-speed-1x", "dl-speed-2x", "dl-speed-3x"}; return S[lv_dl_speed - 1]; }
+#endif
     if (lv_dl_phase == LV_DL_SLOTS) {
         if (id == 1) { lv_dl_slot_i = (lv_dl_slot_i + LV_DL_NSLOT - 1) % LV_DL_NSLOT; return "dl-slot-up"; }
         if (id == 2) { lv_dl_slot_i = (lv_dl_slot_i + 1) % LV_DL_NSLOT; return "dl-slot-down"; }

@@ -1,0 +1,18 @@
+item 5 gates (vs v1.2.19 sim_base, script tools/livescan/scripts/v1220_dl.txt)
+A) SPEED only (-DLV_DL_TW_DRIFT=0), field at 1X:
+screen            inside  outside   total  result  change bbox
+dl_field            1722        0    1722  PASS    (104,270)-(143,314)  allowed=104,270,143,314
+   (x104..105 = the removed 'L/R' legend; button = GIBSON pad_draw_speed box x106 w38 y270..314)
+B) drift only (-DLV_DL_SPEED=0), dl_field1x 100 frames: outside scene y34..246 max 0 px/frame; inside 5686..7986
+C) full tree tour:
+screen            inside  outside   total  result  change bbox
+pager0                 0        0       0  PASS      allowed=none
+pager1                 0        0       0  PASS      allowed=none
+pager2                 0        0       0  PASS      allowed=none
+pager3                 0        0       0  PASS      allowed=none
+pager4                 0        0       0  PASS      allowed=none
+term                2841        0    2841  PASS    (82,49)-(157,136)  allowed=81,48,158,145
+dojo                   0        0       0  PASS      allowed=none
+gib_scan            6216        0    6216  PASS    (0,95)-(168,210)  allowed=0,24,239,246
+dl_intro            2185        0    2185  PASS    (4,113)-(143,314)  allowed=0,34,239,246;104,270,143,314
+dl_play             2122        0    2122  PASS    (0,156)-(239,314)  allowed=0,34,239,246;104,270,143,314

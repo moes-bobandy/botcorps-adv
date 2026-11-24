@@ -1,0 +1,15 @@
+tick 300
+motion 1
+go 12
+tick 80
+tap 216 292
+tick 40
+dlstate
+dump dl_field
+rec 100 dl_field1x
+tap 125 292
+tick 2
+tap 125 292
+tick 10
+dump dl_field3x
+rec 100 dl_field3xrec

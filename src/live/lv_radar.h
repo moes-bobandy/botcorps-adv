@@ -108,7 +108,14 @@ static const float LV_RD_DR_PZ[10] = {5.122f, 2.672f, 0.408f, 4.291f, 0.204f, 6.
 static const float LV_RD_DR_AS[10] = {0.051f, 0.058f, 0.05f, 0.04f, 0.059f, 0.048f, 0.037f, 0.049f, 0.068f, 0.068f};   /* = MO11_AS */
 static const float LV_RD_DR_WS[10] = {1.958f, 1.053f, 1.308f, 1.249f, 1.984f, 0.956f, 0.999f, 1.723f, 1.852f, 1.801f}; /* = MO11_WS */
 static const float LV_RD_DR_PS[10] = {1.912f, 3.194f, 4.48f, 4.229f, 4.51f, 1.554f, 5.198f, 0.913f, 1.143f, 5.049f};   /* = MO11_PS */
-static bool lv_rd_dr_on(void) { return lv_scr == LV_SC_RADAR; }
+#ifndef LV_DL_TW_DRIFT
+#define LV_DL_TW_DRIFT 1   /* mock/v1220 item 5: the same independent tower drift in the HACKbot game world; 0 = v1.2.19 there */
+#endif
+static bool lv_rd_dr_on(void) { return lv_scr == LV_SC_RADAR
+#if LV_DL_TW_DRIFT && LV_DL_GAME
+    || lv_scr == LV_SC_DL
+#endif
+    ; }
 static void lv_rd_drift(LvTower &T, uint32_t h)   /* mo11_dx / mo11_dz (mo11_k = mo11_kz = 1), Z0 = this tower's hash depth */
 {
     const int i = (int)(h % 10u); const float t = lv_rd_dr_t, Z0 = T.Z, ph = ((h >> 20) & 0xff) / 255.0f * 6.2831853f;
@@ -176,7 +183,15 @@ static bool lv_rd_cam_hold = false;   /* v1.2.4: HACKbot open-tower camera; skip
 static int lv_rd_fold_mode = 0;   /* 0 off, 1 advancing / open, 2 easing back to the drift */
 static uint32_t lv_rd_fold_t = 0; static LvSelClk lv_rd_fclk; static float lv_rd_fold_from = 0, lv_rd_fold_p0 = 0; static uint8_t lv_rd_fold_mac[6];
 static int lv_rd_speed = 1; static uint32_t lv_rd_soff = 0, lv_rd_slast = 0;   /* scene clock = lv_now + soff (radar screen only) */
+#ifndef LV_DL_SPEED
+#define LV_DL_SPEED 1   /* mock/v1220 item 5: HACKbot game deck gets the GIBSON SPEED button (1X/2X/3X game scene clock); 0 = v1.2.19 */
+#endif
+#if LV_DL_SPEED && LV_DL_GAME
+static int lv_dl_speed = 1; static uint32_t lv_dl_soff = 0, lv_dl_slast = 0;   /* HACKbot game scene clock = lv_now + soff (same law as GIBSON) */
+#define LV_RD_SOFF (lv_scr == LV_SC_RADAR ? lv_rd_soff : lv_scr == LV_SC_DL ? lv_dl_soff : 0u)
+#else
 #define LV_RD_SOFF (lv_scr == LV_SC_RADAR ? lv_rd_soff : 0u)
+#endif
 #define LV_RD_FCAM_MS 400
 #define LV_RD_FDROP0 300
 #define LV_RD_FGAP 110

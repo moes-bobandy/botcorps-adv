@@ -460,7 +460,13 @@ static void pad_hc_deck(LvBand &B, const char *st, const char *st2, const char *
       pad_rocker(B, cx, cy, 16, 68, lv_hex(0x1a1018), ink);
       pad_disc(B, cx, cy, 3, ink, ink, 0);
       lv_rd_pad_held = keep; }   /* mock/v1219: left/right rocker, verbatim 9efd705 pad_rocker; A OPEN / B BACK stay */
-    b_text35(B, 104, 272, "L/R", dim); b_text35(B, 104, 280, lr, ink);
+#if LV_DL_SPEED && LV_DL_GAME && LV_RD_FOLD
+    if (lv_scr == LV_SC_DL) {   /* mock/v1220 item 5: GIBSON's SPEED button verbatim (pad_draw_speed) in place of the L/R legend */
+        const int ks = lv_rd_speed, kh = lv_rd_pad_held; lv_rd_speed = lv_dl_speed; lv_rd_pad_held = H == 10 ? 10 : 0;
+        pad_draw_speed(B); lv_rd_speed = ks; lv_rd_pad_held = kh; (void)lr;
+    } else
+#endif
+    { b_text35(B, 104, 272, "L/R", dim); b_text35(B, 104, 280, lr, ink); }
     auto arcade = [&](int x, int y, uint16_t col, const char *lab, const char *sub, int held) {
         pad_disc(B, x, y, 20, lv_hex(0x08040c), col, 0); pad_glow(B, x, y, 20, held ? lv_hi(col) : col, held ? 6 : 3);
         pad_disc(B, x, y, 15, held ? lv_mix(lv_hex(0x100818), col, 5, 8) : lv_hex(0x120818), col, held);

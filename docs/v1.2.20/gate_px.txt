@@ -1,0 +1,28 @@
+v1.2.20 sim gates (host sim of this tree, tools/livescan/scripts/v1220_tour.txt)
+A) vs mock/v1220-hitlist c2ed3de (LV_TERM_STRIP=0): must be 0 px
+screen            inside  outside   total  result  change bbox
+pager0                 0        0       0  PASS      allowed=none
+pager1                 0        0       0  PASS      allowed=none
+pager2                 0        0       0  PASS      allowed=none
+pager3                 0        0       0  PASS      allowed=none
+pager4                 0        0       0  PASS      allowed=none
+term                   0        0       0  PASS      allowed=none
+dojo                   0        0       0  PASS      allowed=none
+gib_scan               0        0       0  PASS      allowed=none
+gib_sel_deck           0        0       0  PASS      allowed=none
+dl_intro               0        0       0  PASS      allowed=none
+dl_play                0        0       0  PASS      allowed=none
+B) vs v1.2.19 (42587a5 sim): changes only in the hit-list regions (gib_sel_deck banner 0,0,239,23 = item 3 selected-device name)
+screen            inside  outside   total  result  change bbox
+pager0                 0        0       0  PASS      allowed=none
+pager1                 0        0       0  PASS      allowed=none
+pager2                 0        0       0  PASS      allowed=none
+pager3                 0        0       0  PASS      allowed=none
+pager4                 0        0       0  PASS      allowed=none
+term                3924        0    3924  PASS    (72,49)-(167,254)  allowed=81,48,158,145;72,152,167,255
+dojo               17041        0   17041  PASS    (1,247)-(238,318)  allowed=1,247,238,319
+gib_scan            6216        0    6216  PASS    (0,95)-(168,210)  allowed=0,24,239,246
+gib_sel_deck        9679       90    9769  FAIL    (8,1)-(238,257)  allowed=0,0,239,246
+dl_intro            2185        0    2185  PASS    (4,113)-(143,314)  allowed=0,34,239,246;104,270,143,314
+dl_play             2122        0    2122  PASS    (0,156)-(239,314)  allowed=0,34,239,246;104,270,143,314
+   gib_sel_deck 90 px at (10,253)-(196,257) = the strip's selected-device line: with item 3 drift the same tap (110,150) lands on HOMENET-5G (SEL 1/9) instead of TESLA_MODEL3 (SEL 7/9); banner and strip agree. Expected, not a regression.

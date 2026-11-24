@@ -518,6 +518,13 @@ int main(int argc, char **argv)
             g_dev = false; fclose(fo); fclose(fc); fclose(ft); t_ms = (uint32_t)(E / 1000.0);
             printf("t=%u devrec %s %d frames\n", t_ms, nm, n);
         }
+#ifdef LV_SIM_IDXCAP
+        else if (!strcmp(cmd, "idxrec")) { /* idxrec N NAME: N ticks, the clip index map (240x320 u8) per tick appended to NAME.idx */
+            int n; char nm[64]; if (fscanf(sc, "%d %63s", &n, nm) != 2) return 2; char p[512]; snprintf(p, sizeof p, "%s/%s.idx", argv[2], nm);
+            FILE *o = fopen(p, "wb"); for (int i = 0; i < n; ++i) { tick1(io); fwrite(lv_sim_idx, 1, sizeof lv_sim_idx, o); } fclose(o);
+            printf("t=%u idxrec %s %d frames\n", t_ms, nm, n);
+        }
+#endif
         else if (!strcmp(cmd, "rec")) { /* rec N NAME: N ticks, one frame per tick appended to NAME.rgb */
             int n; char nm[64]; if (fscanf(sc, "%d %63s", &n, nm) != 2) return 2; char p[512]; snprintf(p, sizeof p, "%s/%s.rgb", argv[2], nm);
             FILE *o = fopen(p, "wb"); fclose(o);

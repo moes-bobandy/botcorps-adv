@@ -1,0 +1,15 @@
+item 1b gates (LV_TERM_NORAIN + LV_TERM_RAIN35) vs current item 1 (head e2f9db0 sim, -DLV_TERM_STRIP=0 = the item-1 look; OFF build -DLV_TERM_NORAIN=0 -DLV_TERM_RAIN35=0 is byte-identical to it)
+allowed: face 96,56,143,103 (smaller rain) + board window 72,152,167,255 (board rain removed)
+every frame: theme0 300 frames 0 px outside; theme4 100 frames 0 px outside, change only in the face (board rain kept on themes 3..11, see README)
+screen            inside  outside   total  result  change bbox
+pager0                 0        0       0  PASS      allowed=none
+pager1                 0        0       0  PASS      allowed=none
+pager2                 0        0       0  PASS      allowed=none
+pager3                 0        0       0  PASS      allowed=none
+pager4                 0        0       0  PASS      allowed=none
+term                1664        0    1664  PASS    (72,56)-(167,254)  allowed=96,56,143,103;72,152,167,255
+dojo                   0        0       0  PASS      allowed=none
+gib_scan               0        0       0  PASS      allowed=none
+gib_sel_deck           0        0       0  PASS      allowed=none
+dl_intro               0        0       0  PASS      allowed=none
+dl_play                0        0       0  PASS      allowed=none

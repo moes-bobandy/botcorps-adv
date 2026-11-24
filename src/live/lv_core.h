@@ -1006,8 +1006,32 @@ static const uint8_t *lv_hk_rename(int y, int x, int n, const uint8_t *idx)
     return buf;
 }
 #endif
+#ifndef LV_TERM_NORAIN
+#define LV_TERM_NORAIN 1   /* mock/v1220 item 1b: TERMINALbot sub-screen board rain removed (lv_term_norain.h); 0 = item 1 */
+#endif
+#if LV_TERM_NORAIN
+#include "lv_term_norain.h"
+static inline bool lv_tnr_row(int y, int x, int n) { return lv_scr == LV_SC_TERM && lv_theme < LV_TNR_NTHEME && y >= LV_TNR_Y0 && y <= LV_TNR_Y1 && x <= LV_TNR_X1 && x + n > LV_TNR_X0; }
+static void lv_tnr_apply(int y, int x, int n, uint16_t *lb)   /* pin the rain pixels on this run to the bare board (RGB565, before the re-ink) */
+{
+    const int th = lv_theme, r = y - LV_TNR_Y0, xe = x + n - 1 < LV_TNR_X1 ? x + n - 1 : LV_TNR_X1;
+    const uint8_t *bits = LV_TNR_BITS + r * LV_TNR_NB; int k = LV_TNR_OFF[r];
+    for (int px = LV_TNR_X0; px <= xe; ++px) {
+        const int i = px - LV_TNR_X0; if (!(bits[i >> 3] >> (i & 7) & 1)) continue;
+        if (px >= x) lb[px - x] = LV_TNR_RGB[th][k];
+        ++k;
+    }
+}
+#endif
+#ifdef LV_SIM_IDXCAP
+static uint8_t lv_sim_idx[320][240];   /* HOST SIM ONLY (tools/livescan): the clip palette index last drawn at each pixel */
+#endif
 static void lv_clip_draw(int y, int x, int n, const uint8_t *idx)
 {
+#ifdef LV_SIM_IDXCAP
+    if (y >= 0 && y < 320 && x >= 0 && x + n <= 240) memcpy(&lv_sim_idx[y][x], idx, n);
+#endif
+
 #if LV_HACKBOT_NAME
     idx = lv_hk_rename(y, x, n, idx);
 #endif
@@ -1020,8 +1044,17 @@ static void lv_clip_draw(int y, int x, int n, const uint8_t *idx)
     auto raw = [&](int x0, int m, const uint8_t *ix) {   /* re-inked themes push RGB565, the rest the palette indices */
         const bool po = lv_port_row(y, x0, m);         /* port layer owns pixels on this run: push RGB565 */
         const bool bm = lv_bm_row(y);                  /* item 4: MORPHEUSbot boot chip row */
-        if (!ri && !po && !bm) { lv_raw_draw(y, x0, m, ix); return; }
-        for (int k = 0; k < m; ++k) lb[k] = ri ? lv_multi_ink(pal[ix[k]], x0 + k, y) : pal[ix[k]];
+#if LV_TERM_NORAIN
+        const bool tn = lv_tnr_row(y, x0, m);         /* item 1b: board rain pinned to the bare board: push RGB565 */
+#else
+        const bool tn = false;
+#endif
+        if (!ri && !po && !bm && !tn) { lv_raw_draw(y, x0, m, ix); return; }
+        for (int k = 0; k < m; ++k) lb[k] = pal[ix[k]];
+#if LV_TERM_NORAIN
+        if (tn) lv_tnr_apply(y, x0, m, lb);
+#endif
+        if (ri) for (int k = 0; k < m; ++k) lb[k] = lv_multi_ink(lb[k], x0 + k, y);
         if (po) for (int k = 0; k < m; ++k) lb[k] = lv_port_apply(lb[k], x0 + k, y);
         if (bm) { lv_bm_apply(y, x0, m, ix, pal, lb); lv_blit_hw(x0, y, m, 1, lb); return; }   /* final colours: no theme re-ink */
         lv_blit(x0, y, m, 1, lb);

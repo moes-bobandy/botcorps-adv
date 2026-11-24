@@ -29,6 +29,9 @@ struct LvPortScr { const LvPortReg *reg; uint8_t nreg; const uint16_t (*rain)[10
 #ifndef LV_TERM_GOLD
 #define LV_TERM_GOLD 1
 #endif
+#ifndef LV_TERM_RAIN35
+#define LV_TERM_RAIN35 1   /* mock/v1220 item 1b: face rain glyphs one step smaller (3x5); 0 = item 1 (5x7) */
+#endif
 #if LV_TERM_GOLD
 #define LV_TG_X0 96
 #define LV_TG_Y0 56
@@ -41,10 +44,14 @@ static uint16_t lv_tg_rain(uint16_t g, int x, int y)   /* lv_pg_rain_row(pal {0,
 {
     if (g == lv_rgb(40, 24, 8) || g == lv_rgb(41, 24, 8)) return g;   /* lv_pg_keep_feat(TERMINAL): eyes stay on top */
     static const char GL[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ#$%*+<>/|";
-    const int ngl = (int)sizeof(GL) - 1, CW = 6, CH = 8, NCOL = LV_TG_S / CW;
+#if LV_TERM_RAIN35   /* item 1b (Mobandy 4:09 PM ET "black rain font size slightly smaller"): one step down, the LV_F35 3x5 caps (b_text35) in 4x6 cells, 12 columns */
+    const int ngl = (int)sizeof(GL) - 1, CW = 4, CH = 6, NCOL = LV_TG_S / CW, GW = 3, GH = 5, XO = 0;
+#else
+    const int ngl = (int)sizeof(GL) - 1, CW = 6, CH = 8, NCOL = LV_TG_S / CW, GW = 5, GH = 7, XO = 1;
+#endif
     const int phase = (int)((lv_now + lv_ts_soff) / 30u);
-    const int ly = y - LV_TG_Y0, col = (x - LV_TG_X0 - 1) / CW, cx = (x - LV_TG_X0 - 1) % CW;
-    if (x - LV_TG_X0 - 1 < 0 || col >= NCOL || cx > 4) return g;
+    const int ly = y - LV_TG_Y0, col = (x - LV_TG_X0 - XO) / CW, cx = (x - LV_TG_X0 - XO) % CW;
+    if (x - LV_TG_X0 - XO < 0 || col >= NCOL || cx > GW - 1) return g;
     const uint32_t s = 0xC0DEU ^ (uint32_t)(col * 2654435761u);
     const int speed = 1 + (int)((s >> 8) % 3);
     const int trail = 9 + (int)((s >> 3) % 7);
@@ -54,12 +61,16 @@ static uint16_t lv_tg_rain(uint16_t g, int x, int y)   /* lv_pg_rain_row(pal {0,
     uint16_t out = g;
     for (int t = 0; t < trail; ++t) {
         const int gy = head_y - t * CH;
-        if (gy > LV_TG_S - 1 || gy + 6 < 0) continue;
-        if (ly < gy || ly > gy + 6) continue;
+        if (gy > LV_TG_S - 1 || gy + GH - 1 < 0) continue;
+        if (ly < gy || ly > gy + GH - 1) continue;
         const unsigned k = (unsigned)(s + (unsigned)((gy + period) / CH) * 17u + (unsigned)col * 3u);
         unsigned uc = (unsigned char)GL[k % (unsigned)ngl];
         if (uc < 32 || uc > 126) uc = 32;
+#if LV_TERM_RAIN35
+        if (LV_F35[uc - 32] >> (14 - ((ly - gy) * 3 + cx)) & 1) out = 0;   /* b_text35's bit law; every trail step black */
+#else
         if (LV_GLCD[(uc - 32) * 5 + cx] & (1u << (ly - gy))) out = 0;   /* pal {0,0,0}: every trail step is black */
+#endif
     }
     return out;
 }

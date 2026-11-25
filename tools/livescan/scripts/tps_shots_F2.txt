@@ -1,0 +1,9 @@
+theme 0
+motion 1
+tick 80
+cmd tpsf2
+tick 300
+dump tps_F2_materialize
+rec 150 tps_F2_scroll
+tick 150
+dump tps_F2_full

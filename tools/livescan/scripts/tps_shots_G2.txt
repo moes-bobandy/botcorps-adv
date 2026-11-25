@@ -1,0 +1,9 @@
+theme 0
+motion 1
+tick 80
+cmd tpsg2
+tick 450
+dump tps_G2_materialize
+rec 180 tps_G2_scroll
+stick 80 400
+dump tps_G2_full

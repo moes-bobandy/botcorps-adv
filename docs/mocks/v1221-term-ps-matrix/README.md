@@ -232,3 +232,56 @@ Host sim `tools/livescan/scripts/tps_shots_F.txt` / `tps_shots_G.txt`.
 
 - F: `tps_F_materialize`, `tps_F_full` `@1x`/`@3x` + `tps_F_scroll@3x.gif`
 - G: `tps_G_materialize`, `tps_G_full` `@1x`/`@3x` + `tps_G_scroll@3x.gif`
+---
+
+## Variants F2 & G2 (new, A–G untouched): Mixed-case 5×7 CRT Trace & Wake-Up Cursor
+
+Added `LV_SC_TPSF2` (`tpsf2` / `psterm-trace2`) and `LV_SC_TPSG2` (`tpsg2` /
+`psterm-wake2`). All A–G image files and screens remain untouched.
+
+Solves the 3×5 readability & case-loss issue (`WIFIBOT` → `WIFIbot`) while
+still fitting every detected device on **one 240×320 screen with no scroll**:
+
+- **Typography & columns**: Uses mixed-case `5×7 LV_GLCD` (`6 px` pitch = 38
+  columns at `x = 6`, `11 px` row pitch at `y0 = 10`). Tighter columns:
+  `NAME` (16 chars, truncated cleanly with `...`), `CLASS` (10 chars, e.g.
+  `AIRTAGbot`, `WIFIbot`), `RSSI` (4), `CH` (3).
+- **Compact layout (27 rows total for SAMPLE 20-device deduped set)**:
+  - Row 0: `CALL OPT:RX gibson> trace:run  SAMPLE` (F2; flips to `trace:done`)
+    or `gibson> scan all  SAMPLE` (G2)
+  - Row 1: `core: scan lock zap purge restart`
+  - Row 2: `[ .. ] SCAN WIFI 9 LIVE  BLE 11 LIVE`
+  - Row 3: `[ -- ] NO DEAUTH ON GRID`
+  - Rows 4–5: `NAME              CLASS       RSSI CH` + dash underline
+  - Rows 6–25: 20 deduped detected devices (`TELLO-5A21B3` deduped to its
+    primary `DRONEbot` class instead of repeating under `HACKbot`; ordered by
+    BOTcorps hunt class then `WIFIbot`, `BLEbot`)
+  - Row 26: `gibson>`
+- **Overflow rule (`lv_tps2_build`)**:
+  - `<= 20` devices: `5×7 LV_GLCD`, `11 px` pitch (up to 27 total rows).
+  - `21..24` devices: `5×7 LV_GLCD`, `10 px` pitch (`y0 = 6`, up to 31 rows:
+    6 header + 24 devices + footer).
+  - `25..31` devices: auto-switches to `3×5 LV_F35`, `8 px` pitch (`y0 = 8`,
+    22-char `NAME`, up to 38 rows: 6 header + 31 devices + footer).
+  - `> 31` devices: stays in `3×5 LV_F35`, sorts devices by strongest RSSI
+    descending, shows the strongest **30** devices plus 1 overflow row
+    `+K more (strongest 30 shown)` (38 total rows).
+- **CRT / Matrix refinement**:
+  - Authentic 1999 Matrix phosphor palette (`#000000` black, `#00351d` bloom,
+    `#00990B` dim/trail, `#33e59a` / `#5FFFAF` crisp body/headers, `#43FF33`
+    racing trace wave peaks, `#E0FCD9` lock-snap flash, `#B2FFFE` block cursor).
+  - Subtle 4-neighbor `max-RGB` `#00351d` phosphor bloom (with `#00990B` cross
+    + `#00351d` diagonal halo on `#E0FCD9` lock flashes) and faint `7/8`
+    odd-scanline CRT modulation over lit/bloomed pixels.
+  - **F2 (`tpsf2`)**: Racing vertical green-wave digits (`0..9`) across
+    unlocked cells that lock character-by-character (`~15.6 s` full lock).
+  - **G2 (`tpsg2`)**: Empty black start (`700 ms` blink pause), `6×8` `#B2FFFE`
+    blinking block cursor (`350 ms` half-period), ominous slow typing cadence
+    with pauses (`850 / 450 / 420 / 220 ms`).
+
+### F2 & G2 Shots
+
+Host sim `tools/livescan/scripts/tps_shots_F2.txt` / `tps_shots_G2.txt`.
+
+- F2: `tps_F2_materialize`, `tps_F2_full` `@1x`/`@3x` + `tps_F2_scroll@3x.gif`
+- G2: `tps_G2_materialize`, `tps_G2_full` `@1x`/`@3x` + `tps_G2_scroll@3x.gif`

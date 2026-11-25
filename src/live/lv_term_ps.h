@@ -915,10 +915,300 @@ static void lv_tps_g_scene(LvBand &B, void *)
         b_fill(B, cur_x, cur_y - 1, 4, 7, LV_TPS_CUR);
 }
 
+/* ---- F2 (Trace 5x7 mixed-case) & G2 (Wake up Neo 5x7 mixed-case) ----
+ * Solves 3x5 size & case loss: uses 5x7 LV_GLCD mixed-case ("WIFIbot", "DRONEbot"),
+ * dedupes TELLO to its specific hunt class (DRONEbot), merges status headers to 2 lines
+ * ([ .. ] SCAN WIFI 9 LIVE  BLE 11 LIVE + [ -- ] NO DEAUTH ON GRID), and fits all 20
+ * deduped devices across all 10 classes + WIFI/BLE on ONE 240x320 screen (27 rows at
+ * 11 px pitch, 38 cols at 6 px pitch, no scroll).
+ * Overflow rule: <=20 dev -> 5x7 11px pitch; 21..24 -> 5x7 10px pitch; 25..31 -> auto-switch
+ * to 3x5 LV_F35 8px pitch; >31 -> strongest 31 devices (by RSSI) + "+K more" row. */
+#define LV_TPS2_X     6
+#define LV_TPS2_CW    6
+#define LV_TPS2_COLS 38
+#define LV_TPS2_MAXR 40
+
+struct LvTps2Model {
+    char line[LV_TPS2_MAXR][60];
+    uint8_t kind[LV_TPS2_MAXR];   /* 0=cmd/hdr, 1=live-status, 2=device, 3=no-grid, 4=overflow */
+    uint8_t grp[LV_TPS2_MAXR];    /* group break index for G2 pauses */
+    int n;
+    int y0, row_h;
+    bool dense35;                 /* true only if overflow >24 devices triggers 3x5 fallback */
+};
+
+/* Primary class index per find: check specific hunt classes first (DRONE before HACK so
+ * TELLO-5A21B3 resolves cleanly once to DRONEbot instead of duplicating under HACKbot). */
+static int lv_tps2_primary_hunt(const LvFind &f)
+{
+    static const int PRI[LV_NHUNT] = {
+        LV_H_AIRTAG, LV_H_KEYFOB, LV_H_DEAUTH, LV_H_META, LV_H_SKIMMER,
+        LV_H_FLOCK, LV_H_FLIPPER, LV_H_DRONE, LV_H_SAMSUNG, LV_H_HACK
+    };
+    for (int i = 0; i < LV_NHUNT; ++i) {
+        if (lv_hunt_match(PRI[i], f)) return PRI[i];
+    }
+    return -1;
+}
+
+static void lv_tps2_fmt_row(char *out, size_t osz, const LvFind &f, const char *cls, bool dense35)
+{
+    const int nw = dense35 ? 22 : 16;
+    char nm[26]; lv_label(f, nm, sizeof nm);
+    if ((int)strlen(nm) > nw) { nm[nw - 3] = '.'; nm[nw - 2] = '.'; nm[nw - 1] = '.'; nm[nw] = 0; }
+    char rssi[8], ch[8];
+    snprintf(rssi, sizeof rssi, "%d", (int)f.rssi);
+    if (f.kind == LV_K_WIFI && f.ch) snprintf(ch, sizeof ch, "%d", (int)f.ch); else ch[0] = 0;
+    if (dense35) snprintf(out, osz, "%-22s %-10s %4s %3s", nm, cls, rssi, ch);
+    else         snprintf(out, osz, "%-16s %-10s %4s %3s", nm, cls, rssi, ch);
+}
+
+static void lv_tps2_build(LvTps2Model &m, bool is_trace, bool trace_done)
+{
+    struct Item { int idx; int cls; uint8_t rank; };
+    Item items[LV_MAXF];
+    int n_dev = 0;
+    int nw = 0, nb = 0;
+
+    static const int ORD2[LV_NHUNT] = {
+        LV_H_AIRTAG, LV_H_KEYFOB, LV_H_META, LV_H_HACK, LV_H_SKIMMER,
+        LV_H_FLOCK, LV_H_FLIPPER, LV_H_DRONE, LV_H_SAMSUNG, LV_H_DEAUTH
+    };
+
+    for (int i = 0; i < lv_nf; ++i) {
+        if (lv_f[i].kind == LV_K_WIFI) ++nw; else ++nb;
+        const int ph = lv_tps2_primary_hunt(lv_f[i]);
+        uint8_t rk = 10;
+        if (ph >= 0) {
+            for (int j = 0; j < LV_NHUNT; ++j) if (ORD2[j] == ph) { rk = (uint8_t)j; break; }
+        } else {
+            rk = (lv_f[i].kind == LV_K_WIFI) ? 10 : 11;
+        }
+        items[n_dev++] = { i, ph, rk };
+    }
+
+    /* Overflow tiering:
+     * <= 20 devices -> 5x7 LV_GLCD, 11 px pitch (27 rows, generous breathing room)
+     * 21..24 devices -> 5x7 LV_GLCD, 10 px pitch (up to 31 rows)
+     * 25..31 devices -> auto-switch to 3x5 LV_F35, 8 px pitch (up to 38 rows)
+     * > 31 devices   -> 3x5 LV_F35, strongest 31 by RSSI + "+K more" row */
+    m.dense35 = (n_dev > 24);
+    int cap = m.dense35 ? 31 : (n_dev <= 20 ? 20 : 24);
+    int extra = 0;
+    if (n_dev > cap) {
+        /* Sort by strongest RSSI descending so the +K more overflow keeps strongest signals */
+        for (int a = 0; a < n_dev; ++a)
+            for (int b = a + 1; b < n_dev; ++b)
+                if (lv_f[items[b].idx].rssi > lv_f[items[a].idx].rssi) {
+                    Item tmp = items[a]; items[a] = items[b]; items[b] = tmp;
+                }
+        extra = n_dev - (cap - 1);   /* reserve 1 row for "+K more" */
+        n_dev = cap - 1;
+    }
+    /* Group visible devices cleanly by bot class order */
+    for (int a = 0; a < n_dev; ++a)
+        for (int b = a + 1; b < n_dev; ++b)
+            if (items[b].rank < items[a].rank || (items[b].rank == items[a].rank && items[b].idx < items[a].idx)) {
+                Item tmp = items[a]; items[a] = items[b]; items[b] = tmp;
+            }
+
+    m.y0 = m.dense35 ? 8 : (n_dev <= 20 ? 10 : 6);
+    m.row_h = m.dense35 ? 8 : (n_dev <= 20 ? 11 : 10);
+    m.n = 0;
+
+    auto push = [&](uint8_t k, uint8_t g, const char *fmt, ...) {
+        if (m.n >= LV_TPS2_MAXR) return;
+        va_list ap; va_start(ap, fmt);
+        vsnprintf(m.line[m.n], sizeof m.line[0], fmt, ap);
+        va_end(ap);
+        m.kind[m.n] = k; m.grp[m.n] = g;
+        ++m.n;
+    };
+
+    if (is_trace)
+        push(0, 0, "CALL OPT:RX gibson> trace:%s SAMPLE", trace_done ? "done" : "run ");
+    else
+        push(0, 0, "gibson> scan all               SAMPLE");
+    push(0, 1, "core: scan lock zap purge restart");
+    push(1, 2, "[ .. ] SCAN WIFI %d LIVE  BLE %d LIVE", nw, nb);
+    push(3, 3, "[ -- ] NO DEAUTH ON GRID");
+    if (m.dense35) {
+        push(0, 3, "NAME                   CLASS      RSSI  CH");
+        push(0, 3, "---------------------- ---------- ---- ---");
+    } else {
+        push(0, 3, "NAME             CLASS      RSSI  CH");
+        push(0, 3, "---------------- ---------- ---- ---");
+    }
+
+    for (int i = 0; i < n_dev; ++i) {
+        const LvFind &f = lv_f[items[i].idx];
+        const char *cls = items[i].cls >= 0 ? LV_HUNT_BOT[items[i].cls]
+                        : (f.kind == LV_K_WIFI ? "WIFIbot" : "BLEbot");
+        char row[60];
+        lv_tps2_fmt_row(row, sizeof row, f, cls, m.dense35);
+        push(2, (uint8_t)(4 + items[i].rank), "%s", row);
+    }
+    if (extra > 0) push(4, 20, "+%d more (strongest %d shown)", extra, n_dev);
+    push(0, 21, "gibson>");
+}
+
+/* CRT scanline + subtle phosphor bloom for 5x7 LV_GLCD (only lights when pixel > 0; pitch-black bg) */
+static inline uint16_t lv_tps2_scan_mod(uint16_t c, int y)
+{
+    return (y & 1) ? lv_dim(c, 7, 8) : c;
+}
+
+static void lv_tps2_draw_char(LvBand &B, int x, int y, char ch, uint16_t fg, uint16_t g1, uint16_t g2, bool dense35)
+{
+    if (dense35) { b_char35(B, x, y, ch, lv_tps2_scan_mod(fg, y)); return; }
+    unsigned uc = (unsigned char)ch;
+    if (uc <= 32 || uc > 126) return;
+    const uint8_t *col5 = &LV_GLCD[(uc - 32) * 5];
+    if (g2) {
+        for (int c = 0; c < 5; ++c) {
+            const uint8_t m = col5[c];
+            for (int r = 0; r < 7; ++r) if (m & (1u << r)) {
+                const int px = x + c, py = y + r;
+                const uint16_t gm = lv_tps2_scan_mod(g2, py);
+                b_max_pix(B, px - 1, py - 1, gm); b_max_pix(B, px + 1, py - 1, gm);
+                b_max_pix(B, px - 1, py + 1, gm); b_max_pix(B, px + 1, py + 1, gm);
+            }
+        }
+    }
+    if (g1) {
+        for (int c = 0; c < 5; ++c) {
+            const uint8_t m = col5[c];
+            for (int r = 0; r < 7; ++r) if (m & (1u << r)) {
+                const int px = x + c, py = y + r;
+                b_max_pix(B, px - 1, py, lv_tps2_scan_mod(g1, py));
+                b_max_pix(B, px + 1, py, lv_tps2_scan_mod(g1, py));
+                b_max_pix(B, px, py - 1, lv_tps2_scan_mod(g1, py - 1));
+                b_max_pix(B, px, py + 1, lv_tps2_scan_mod(g1, py + 1));
+            }
+        }
+    }
+    for (int c = 0; c < 5; ++c) {
+        const uint8_t m = col5[c];
+        for (int r = 0; r < 7; ++r) if (m & (1u << r))
+            b_max_pix(B, x + c, y + r, lv_tps2_scan_mod(fg, y + r));
+    }
+}
+
+/* F2: Refined 5x7 Matrix Trace screen — vertical pulsing green digit streams snap & lock per cell */
+static void lv_tps_f2_scene(LvBand &B, void *)
+{
+    b_fill(B, B.x0, B.y0, B.w, B.h, LV_TPSC_BG);   /* pure #000000 CRT black */
+    /* Ultra-faint 1-step green CRT raster only on even scanlines inside active trace window? Keep pure #000000
+     * background for maximum contrast; scanline modulation sits on every lit phosphor & bloom pixel. */
+    const int rel = (int)(lv_now - lv_tps_t0);
+    const bool done = (rel >= 15600);
+    LvTps2Model m;
+    lv_tps2_build(m, true, done);
+
+    const int cw = m.dense35 ? 4 : LV_TPS2_CW;
+    const int maxc = m.dense35 ? 56 : LV_TPS2_COLS;
+    const int cyc_tick = rel > 0 ? rel / 90 : 0;
+
+    for (int r = 0; r < m.n; ++r) {
+        const char *s = m.line[r];
+        const int L = (int)strlen(s);
+        const int y = m.y0 + r * m.row_h;
+        int r_base;
+        if (r <= 1) r_base = 160 + r * 260;
+        else if (r <= 5) r_base = 1500 + (r - 2) * 300;
+        else r_base = 6500 + (r - 6) * 410;   /* BLE arrives at 6.2s; locks rows 6..26 smoothly to ~15s */
+
+        for (int c = 0; c < L && c < maxc; ++c) {
+            if (s[c] == ' ') continue;
+            const int x = LV_TPS2_X + c * cw;
+            const int t_lock = r_base + c * 22 + ((r * 5 + c * 3) % 4) * 45;
+            const int dt = rel - t_lock;
+            if (dt < 0) {
+                /* Racing vertical pulse of digits ('0'..'9') with bright leading pulse wave */
+                const uint32_t h = (uint32_t)(cyc_tick * 131u + r * 37u + c * 17u);
+                const char dig = (char)('0' + (h % 10u));
+                const int wave = (cyc_tick + r + ((c * 3) % 7)) % 7;
+                const uint16_t fg = (wave == 0) ? LV_TPSC_HOT : (wave <= 2) ? LV_TPSC_MID : LV_TPSC_T1;
+                const uint16_t g1 = (wave == 0) ? LV_TPSC_T1 : 0;
+                lv_tps2_draw_char(B, x, y, dig, fg, g1, 0, m.dense35);
+            } else if (dt < 240) {
+                /* Slot-machine snap flare (#E0FCD9 + #00990B/#00351d bloom) */
+                lv_tps2_draw_char(B, x, y, s[c], LV_TPSC_LEAD, LV_TPSC_MID, LV_TPSC_T1, m.dense35);
+            } else if (dt < 520) {
+                lv_tps2_draw_char(B, x, y, s[c], LV_TPSC_TAG, LV_TPSC_T1, 0, m.dense35);
+            } else {
+                const uint16_t col = (m.kind[r] == 0 || m.kind[r] == 1) ? LV_TPSC_TAG :
+                                     (m.kind[r] == 3) ? LV_TPSC_MID :
+                                     (m.kind[r] == 4) ? LV_TPSC_HOT : LV_TPSC_BODY;
+                lv_tps2_draw_char(B, x, y, s[c], col, LV_TPSC_T1, 0, m.dense35);
+            }
+        }
+    }
+}
+
+/* G2: Refined 5x7 "Wake up, Neo..." terminal — blinking #B2FFFE block cursor, real pauses, CRT bloom */
+static void lv_tps_g2_scene(LvBand &B, void *)
+{
+    b_fill(B, B.x0, B.y0, B.w, B.h, LV_TPSC_BG);   /* pure #000000 CRT black */
+    const int rel = (int)(lv_now - lv_tps_t0);
+    LvTps2Model m;
+    lv_tps2_build(m, false, false);
+
+    const int cw = m.dense35 ? 4 : LV_TPS2_CW;
+    const int maxc = m.dense35 ? 56 : LV_TPS2_COLS;
+
+    int t_cur = 700;   /* ominous initial pause on empty black with pulsing cursor */
+    int cur_x = LV_TPS2_X, cur_y = m.y0;
+    bool typing_active = false;
+
+    for (int r = 0; r < m.n; ++r) {
+        const char *s = m.line[r];
+        const int L = (int)strlen(s);
+        const int y = m.y0 + r * m.row_h;
+        const int ms_per = (r == 0) ? 55 : (m.kind[r] != 2) ? 34 : 20;
+        const bool grp_end = (r + 1 < m.n && m.grp[r + 1] != m.grp[r]);
+        const int pause_after = (r == 0) ? 850 : (r == 1) ? 450 : (m.kind[r] == 1 || m.kind[r] == 3) ? 420 : grp_end ? 220 : 70;
+
+        if (rel < t_cur) break;
+        const int line_dt = rel - t_cur;
+        int chars_shown = 0, acc = 0;
+        for (int c = 0; c < L && c < maxc; ++c) {
+            const int step = ms_per + ((r * 7 + c * 11) % 3) * (ms_per / 3);
+            if (line_dt >= acc) chars_shown = c + 1;
+            acc += step;
+        }
+        if (line_dt < acc) typing_active = true;
+
+        for (int c = 0; c < chars_shown && c < L && c < maxc; ++c) {
+            const int x = LV_TPS2_X + c * cw;
+            const bool fresh = (c == chars_shown - 1) && (line_dt < acc);
+            const uint16_t col = fresh ? LV_TPSC_LEAD :
+                                 (m.kind[r] == 0 || m.kind[r] == 1) ? LV_TPSC_TAG :
+                                 (m.kind[r] == 3) ? LV_TPSC_MID :
+                                 (m.kind[r] == 4) ? LV_TPSC_HOT : LV_TPSC_BODY;
+            lv_tps2_draw_char(B, x, y, s[c], col, fresh ? LV_TPSC_MID : LV_TPSC_T1, 0, m.dense35);
+        }
+        cur_x = LV_TPS2_X + chars_shown * cw;
+        if (cur_x > LV_TPS2_X + (maxc - 1) * cw) cur_x = LV_TPS2_X + (maxc - 1) * cw;
+        cur_y = y;
+
+        t_cur += acc + pause_after;
+        if (rel < t_cur) break;
+    }
+
+    /* Film's pale teal-white block cursor #B2FFFE (~1.14:1 tall on 5x7 glyph) */
+    if (typing_active || ((lv_now / 420) & 1)) {
+        const int bw = m.dense35 ? 4 : 6, bh = m.dense35 ? 7 : 8;
+        b_fill(B, cur_x, cur_y, bw, bh, LV_TPS_CUR);
+    }
+}
+
 static void lv_tps_frame(void)
 {
     /* first paint is a full push; later frames use dirty-row blit so only changed text rows hit the panel */
-    const lv_scene_fn sc = (lv_scr == LV_SC_TPSF) ? lv_tps_f_scene
+    const lv_scene_fn sc = (lv_scr == LV_SC_TPSF2) ? lv_tps_f2_scene
+                        : (lv_scr == LV_SC_TPSG2) ? lv_tps_g2_scene
+                        : (lv_scr == LV_SC_TPSF) ? lv_tps_f_scene
                         : (lv_scr == LV_SC_TPSG) ? lv_tps_g_scene
                         : (lv_scr == LV_SC_TPSE) ? lv_tps_e_scene
                         : (lv_scr == LV_SC_TPSC || lv_scr == LV_SC_TPSD) ? lv_tps_cd_wrap

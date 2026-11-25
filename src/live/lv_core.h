@@ -126,11 +126,11 @@ enum LvScr { LV_SC_BOOT, LV_SC_HOME_INTRO, LV_SC_HOME, LV_SC_TERM, LV_SC_SCAN, L
 #define LV_TERM_PS 1   /* MOCK 2026-11-25: TERMINALbot PowerShell + Matrix area-scan (lv_term_ps.h); 0 = none */
 #endif
 #if LV_TERM_PS
-             , LV_SC_TPS, LV_SC_TPSB, LV_SC_TPSC, LV_SC_TPSD, LV_SC_TPSE, LV_SC_TPSF, LV_SC_TPSG
+             , LV_SC_TPS, LV_SC_TPSB, LV_SC_TPSC, LV_SC_TPSD, LV_SC_TPSE, LV_SC_TPSF, LV_SC_TPSG, LV_SC_TPSF2, LV_SC_TPSG2
 #endif
 };   /* item 2: MORPHEUSbot Device Glossary grid + the 12 description pages (lv_glossary.h) */
 #ifndef LV_TPS_ON
-#define LV_TPS_ON (LV_TERM_PS && (lv_scr == LV_SC_TPS || lv_scr == LV_SC_TPSB || lv_scr == LV_SC_TPSC || lv_scr == LV_SC_TPSD || lv_scr == LV_SC_TPSE || lv_scr == LV_SC_TPSF || lv_scr == LV_SC_TPSG))
+#define LV_TPS_ON (LV_TERM_PS && (lv_scr == LV_SC_TPS || lv_scr == LV_SC_TPSB || lv_scr == LV_SC_TPSC || lv_scr == LV_SC_TPSD || lv_scr == LV_SC_TPSE || lv_scr == LV_SC_TPSF || lv_scr == LV_SC_TPSG || lv_scr == LV_SC_TPSF2 || lv_scr == LV_SC_TPSG2))
 #endif
 
 #if (LV_MO_INSIDE || LV_CT_INSIDE || LV_TR_INSIDE) && !defined(LV_RD_SKINS)
@@ -713,6 +713,8 @@ static void lv_cmd(const char *line)
     else if (IS("tpse") || IS("psterm-table-rain")) { lv_go(LV_SC_TPSE); }
     else if (IS("tpsf") || IS("psterm-trace")) { lv_go(LV_SC_TPSF); }
     else if (IS("tpsg") || IS("psterm-wake")) { lv_go(LV_SC_TPSG); }
+    else if (IS("tpsf2") || IS("psterm-trace2")) { lv_go(LV_SC_TPSF2); }
+    else if (IS("tpsg2") || IS("psterm-wake2")) { lv_go(LV_SC_TPSG2); }
 #endif
     else if (IS("scan")) lv_job_start(!a1 || !strcmp(a1, "all") ? LV_J_ALL : !strcmp(a1, "wifi") ? LV_J_WIFI : !strcmp(a1, "ble") || !strcmp(a1, "bt") ? LV_J_BLE : LV_J_ALL, -1);
     else if (IS("wifi")) lv_job_start(LV_J_WIFI, -1);
@@ -2285,8 +2287,8 @@ static void lv_go(int s)
     if (s == LV_SC_TR && prev != LV_SC_TR) itw_tr_enter();
 #endif
 #if LV_TERM_PS
-    { const bool tp = (prev == LV_SC_TPS || prev == LV_SC_TPSB || prev == LV_SC_TPSC || prev == LV_SC_TPSD || prev == LV_SC_TPSE || prev == LV_SC_TPSF || prev == LV_SC_TPSG);
-      const bool ts = (s == LV_SC_TPS || s == LV_SC_TPSB || s == LV_SC_TPSC || s == LV_SC_TPSD || s == LV_SC_TPSE || s == LV_SC_TPSF || s == LV_SC_TPSG);
+    { const bool tp = (prev == LV_SC_TPS || prev == LV_SC_TPSB || prev == LV_SC_TPSC || prev == LV_SC_TPSD || prev == LV_SC_TPSE || prev == LV_SC_TPSF || prev == LV_SC_TPSG || prev == LV_SC_TPSF2 || prev == LV_SC_TPSG2);
+      const bool ts = (s == LV_SC_TPS || s == LV_SC_TPSB || s == LV_SC_TPSC || s == LV_SC_TPSD || s == LV_SC_TPSE || s == LV_SC_TPSF || s == LV_SC_TPSG || s == LV_SC_TPSF2 || s == LV_SC_TPSG2);
       if (tp && !ts) lv_tps_leave();
       if (ts && prev != s) lv_tps_enter(); }
 #endif

@@ -189,3 +189,46 @@ A, B, C, and D files and behavior are unchanged.
 Host sim `tools/livescan/scripts/tps_shots_E.txt`.
 
 - `tps_E_materialize`, `tps_E_full` `@1x`/`@3x` + `tps_E_scroll@3x.gif`
+
+---
+
+## Variants F & G (new, A–E untouched): One-screen compact Trace & Cursor-Type (no rain)
+
+Added `LV_SC_TPSF` (`tpsf` / `psterm-trace`) and `LV_SC_TPSG` (`tpsg` /
+`psterm-wake`). A–E image files and behavior remain untouched.
+
+Both use `LV_F35` (3×5 caps, `4 px` horizontal pitch = 56 columns, `8 px`
+row pitch = 38 rows) so **every detected device across all 10 device-bot
+classes plus WIFI/BLE fits on ONE 240×320 screen with no scroll**:
+
+- 4 header rows (`NAME / CLASS / RSSI / CH` + dash underline)
+- 12 locked BOTcorps command/status rows (`GIBSON> SCAN <DEV>` +
+  `[ .. ] SCAN <DEV> <N> LIVE` or `[ -- ] NO DEAUTH ON GRID`)
+- All 21 device rows (`WIFIbot`×5, `BLEbot`×5, `AIRTAGbot`, `KEYFOBbot`,
+  `METAbot`, `HACKbot`×3, `SKIMMERbot`, `FLOCKbot`, `FLIPPERbot`,
+  `DRONEbot`, `SAMSUNGbot`) + trailing `GIBSON>` = 38 rows (`y = 8..312`).
+- Pure `#000000` black, no rain, no border/UI/controls. Enter: `tpsf` /
+  `tpsg` (`psterm-trace` / `psterm-wake`). Exit: tap anywhere → TERM.
+  Power-save unchanged (20% backlight, 120 ms dirty-row frames, `LV_J_ALL`).
+
+- **F (`tpsf`) — Trace Program look**: Guided by the 1999 *Matrix* opening
+  *"Call trans opt: received ... Trace program: running"* sequence
+  (`overblack.org/script/the-matrix-1999`, `trace-program-ref.txt`).
+  Unlocked cells cycle racing green digits (`0..9`, 90 ms cadence), then
+  snap and lock character-by-character with a brief `#E0FCD9` flare into
+  `NAME / CLASS / RSSI / CH` until line 0 flips from `TRACE: RUNNING`
+  to `TRACE: COMPLETE`.
+- **G (`tpsg`) — "Wake up, Neo..." look**: Guided by Neo's opening
+  terminal (`narkhy/MatrixHasYou`, `leozhad/kirocrew-theme-matrix`
+  `kirocrew-splash.svg`, `jonnycampbell.com/notes/film-computer-type/`).
+  Starts on empty `#000000` black with a blinking `#B2FFFE` block cursor
+  (`4×7`), typing BOTcorps commands and device rows with cadence jitter
+  and deliberate cursor-blink pauses (`700 ms` / `450 ms` / `320 ms`)
+  without scrolling.
+
+### F & G Shots
+
+Host sim `tools/livescan/scripts/tps_shots_F.txt` / `tps_shots_G.txt`.
+
+- F: `tps_F_materialize`, `tps_F_full` `@1x`/`@3x` + `tps_F_scroll@3x.gif`
+- G: `tps_G_materialize`, `tps_G_full` `@1x`/`@3x` + `tps_G_scroll@3x.gif`

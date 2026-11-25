@@ -723,10 +723,204 @@ static void lv_tps_e_scene(LvBand &B, void *)
     }
 }
 
+/* ---- F (Trace Program: scrambling digits lock into place) & G (Wake up, Neo: cursor typing) ----
+ * Both fit EVERY detected device for all 10 classes + WIFI/BLE on ONE 240x320 screen (no scroll)
+ * using 3x5 LV_F35 glyphs (4 px pitch = 56 cols, 8 px row pitch = 38 rows). No rain. */
+#define LV_TPSF_X     8
+#define LV_TPSF_Y     8
+#define LV_TPSF_CW    4
+#define LV_TPSF_ROW   8
+#define LV_TPSF_ROWS 38
+#define LV_TPSF_COLS 56
+
+struct LvTpsFG {
+    char line[44][60];
+    uint8_t kind[44];   /* 0=header/cmd, 1=status, 2=device row, 3=no-grid */
+    int n;
+};
+
+static void lv_tpsfg_fmt_row(char *out, size_t osz, const LvFind &f, const char *cls)
+{
+    char nm[24]; lv_label(f, nm, sizeof nm);
+    if ((int)strlen(nm) > 22) { nm[19] = '.'; nm[20] = '.'; nm[21] = '.'; nm[22] = 0; }
+    char rssi[8], ch[8];
+    snprintf(rssi, sizeof rssi, "%d", (int)f.rssi);
+    if (f.kind == LV_K_WIFI && f.ch) snprintf(ch, sizeof ch, "%d", (int)f.ch); else ch[0] = 0;
+    snprintf(out, osz, "%-22s %-10s %4s %3s", nm, cls, rssi, ch);
+}
+
+static void lv_tpsfg_build(LvTpsFG &fg, bool is_trace, bool trace_done)
+{
+    fg.n = 0;
+    auto push = [&](uint8_t k, const char *fmt, ...) {
+        if (fg.n >= 44) return;
+        va_list ap; va_start(ap, fmt);
+        vsnprintf(fg.line[fg.n], sizeof fg.line[0], fmt, ap);
+        va_end(ap);
+        fg.kind[fg.n] = k;
+        ++fg.n;
+    };
+
+    if (is_trace)
+        push(0, "CALL OPT: RX  GIBSON> TRACE: %s [SAMPLE]", trace_done ? "COMPLETE" : "RUNNING ");
+    else
+        push(0, "GIBSON> SCAN ALL  [SAMPLE]");
+    push(0, "CORE: SCAN LOCK ZAP PURGE RESTART");
+    push(0, "NAME                   CLASS      RSSI  CH");
+    push(0, "---------------------- ---------- ---- ---");
+
+    int nw = 0, nb = 0;
+    for (int i = 0; i < lv_nf; ++i) { if (lv_f[i].kind == LV_K_WIFI) ++nw; else ++nb; }
+
+    if (nw) push(1, "GIBSON> SCAN WIFI      [ .. ] SCAN WIFI %d LIVE", nw);
+    else    push(3, "GIBSON> SCAN WIFI      [ -- ] NO WIFI ON GRID");
+    for (int i = 0; i < lv_nf; ++i) {
+        if (lv_f[i].kind != LV_K_WIFI || lv_tps_class(lv_f[i]) >= 0) continue;
+        char row[60]; lv_tpsfg_fmt_row(row, sizeof row, lv_f[i], "WIFIbot");
+        push(2, "%s", row);
+    }
+
+    if (nb) push(1, "GIBSON> SCAN BLUETOOTH [ .. ] SCAN BLUETOOTH %d LIVE", nb);
+    else    push(3, "GIBSON> SCAN BLUETOOTH [ -- ] NO BLUETOOTH ON GRID");
+    for (int i = 0; i < lv_nf; ++i) {
+        if (lv_f[i].kind != LV_K_BLE || lv_tps_class(lv_f[i]) >= 0) continue;
+        char row[60]; lv_tpsfg_fmt_row(row, sizeof row, lv_f[i], "BLEbot");
+        push(2, "%s", row);
+    }
+
+    for (int i = 0; i < LV_NHUNT; ++i) {
+        const int h = LV_TPS_ORD[i];
+        const int n = lv_tps_count_class(h, -1);
+        char up[16]; snprintf(up, sizeof up, "%s", LV_HUNT_NAME[h]); lv_upcase(up);
+        if (n > 0) push(1, "GIBSON> SCAN %-9s [ .. ] SCAN %s %d LIVE", up, up, n);
+        else       push(3, "GIBSON> SCAN %-9s [ -- ] NO %s ON GRID", up, up);
+        for (int k = 0; k < lv_nf; ++k) if (lv_hunt_match(h, lv_f[k])) {
+            char row[60]; lv_tpsfg_fmt_row(row, sizeof row, lv_f[k], LV_HUNT_BOT[h]);
+            push(2, "%s", row);
+        }
+    }
+    push(0, "GIBSON>");
+}
+
+static inline void b_char35(LvBand &B, int x, int y, char ch, uint16_t c)
+{
+    int uc = (uint8_t)ch; if (uc < 0x20 || uc > 0x7e) uc = '?';
+    if (uc == ' ' || y >= B.y0 + B.h || y + 5 <= B.y0) return;
+    const uint16_t g = LV_F35[uc - 0x20];
+    for (int k = 0; k < 15; ++k) if (g >> (14 - k) & 1) b_pix(B, x + k % 3, y + k / 3, c);
+}
+
+/* F: Matrix 1999 TRACE program — cycling digit columns snap & lock character-by-character */
+static void lv_tps_f_scene(LvBand &B, void *)
+{
+    b_fill(B, B.x0, B.y0, B.w, B.h, LV_TPSC_BG);   /* pure #000000 CRT black */
+    const int rel = (int)(lv_now - lv_tps_t0);
+    const bool done = (rel >= 15200);
+    LvTpsFG fg;
+    lv_tpsfg_build(fg, true, done);
+
+    const int cyc_tick = rel > 0 ? rel / 90 : 0;   /* rapid slot-machine digit spin */
+    for (int r = 0; r < fg.n && r < LV_TPSF_ROWS; ++r) {
+        const char *s = fg.line[r];
+        const int L = (int)strlen(s);
+        const int y = LV_TPSF_Y + r * LV_TPSF_ROW;
+        /* Header 0..3 locks first (0..900ms); Wi-Fi section rows 4..10 lock after 1.5s;
+         * BLE + hunt sections (11+) hold spinning digits until BLE arrives at 6.2s, then lock 6.5..14.8s. */
+        int r_base;
+        if (r <= 3) r_base = 120 + r * 200;
+        else if (r <= 10) r_base = 1600 + (r - 4) * 320;
+        else r_base = 6500 + (r - 11) * 290;
+
+        for (int c = 0; c < L && c < LV_TPSF_COLS; ++c) {
+            if (s[c] == ' ') continue;
+            const int x = LV_TPSF_X + c * LV_TPSF_CW;
+            /* Digits / hex / values lock slightly staggered like the 10-digit trace wheels */
+            const int t_lock = r_base + c * 18 + ((r * 5 + c * 3) % 4) * 35;
+            const int dt = rel - t_lock;
+            if (dt < 0) {
+                /* Scrambling digits ('0'..'9') cycling continuously before lock */
+                if (rel < r_base - 4800 && r > 10) {
+                    /* Still show ambient cycling trace digits in all active trace columns */
+                }
+                const uint32_t h = (uint32_t)(cyc_tick * 131u + r * 37u + c * 17u);
+                const char dig = (char)('0' + (h % 10u));
+                const uint16_t col = ((cyc_tick + r + c) % 5 == 0) ? LV_TPSC_HOT :
+                                     ((cyc_tick + c) % 2 == 0) ? LV_TPSC_MID : LV_TPSC_T1;
+                b_char35(B, x, y, dig, col);
+            } else if (dt < 180) {
+                b_char35(B, x, y, s[c], LV_TPSC_LEAD);   /* bright lock snap */
+            } else if (dt < 420) {
+                b_char35(B, x, y, s[c], LV_TPSC_TAG);
+            } else {
+                const uint16_t col = (fg.kind[r] == 0 || fg.kind[r] == 1) ? LV_TPSC_TAG :
+                                     (fg.kind[r] == 3) ? LV_TPSC_MID : LV_TPSC_BODY;
+                b_char35(B, x, y, s[c], col);
+            }
+        }
+    }
+}
+
+/* G: Matrix 1999 "Wake up, Neo..." — black CRT, green text typed at blinking block cursor, deliberate pauses */
+static void lv_tps_g_scene(LvBand &B, void *)
+{
+    b_fill(B, B.x0, B.y0, B.w, B.h, LV_TPSC_BG);   /* pure #000000 CRT black */
+    const int rel = (int)(lv_now - lv_tps_t0);
+    LvTpsFG fg;
+    lv_tpsfg_build(fg, false, false);
+
+    /* Compute per-line start/end times with deliberate pauses after commands/headers */
+    int t_cur = 500;   /* initial 500 ms cursor blink on empty black screen */
+    int cur_x = LV_TPSF_X, cur_y = LV_TPSF_Y;
+    bool typing_active = false;
+
+    for (int r = 0; r < fg.n && r < LV_TPSF_ROWS; ++r) {
+        const char *s = fg.line[r];
+        const int L = (int)strlen(s);
+        const int y = LV_TPSF_Y + r * LV_TPSF_ROW;
+        /* Slower operator pace on commands (65ms/char), brisker on table data (22ms/char) so all 38 rows fit cleanly */
+        const int ms_per = (r == 0 || fg.kind[r] != 2) ? 32 : 16;
+        const int pause_after = (r == 0) ? 700 : (r == 3) ? 450 : (fg.kind[r] == 1 || fg.kind[r] == 3) ? 320 : 80;
+
+        if (rel < t_cur) break;
+        const int line_dt = rel - t_cur;
+        int chars_shown = 0;
+        int acc = 0;
+        for (int c = 0; c < L && c < LV_TPSF_COLS; ++c) {
+            /* Subtle human cadence jitter */
+            const int step = ms_per + ((r * 7 + c * 11) % 3) * (ms_per / 3);
+            if (line_dt >= acc) chars_shown = c + 1;
+            acc += step;
+        }
+        if (line_dt < acc) typing_active = true;
+
+        for (int c = 0; c < chars_shown && c < L && c < LV_TPSF_COLS; ++c) {
+            const int x = LV_TPSF_X + c * LV_TPSF_CW;
+            const bool fresh = (c == chars_shown - 1) && (line_dt < acc);
+            const uint16_t col = fresh ? LV_TPSC_LEAD :
+                                 (fg.kind[r] == 0 || fg.kind[r] == 1) ? LV_TPSC_TAG :
+                                 (fg.kind[r] == 3) ? LV_TPSC_MID : LV_TPSC_BODY;
+            b_char35(B, x, y, s[c], col);
+        }
+        cur_x = LV_TPSF_X + chars_shown * LV_TPSF_CW;
+        if (cur_x > LV_TPSF_X + (LV_TPSF_COLS - 1) * LV_TPSF_CW)
+            cur_x = LV_TPSF_X + (LV_TPSF_COLS - 1) * LV_TPSF_CW;
+        cur_y = y;
+
+        t_cur += acc + pause_after;
+        if (rel < t_cur) break;
+    }
+
+    /* Blinking pale block cursor (#B2FFFE, solid while actively typing, blinking when paused) */
+    if (typing_active || ((lv_now / 360) & 1))
+        b_fill(B, cur_x, cur_y - 1, 4, 7, LV_TPS_CUR);
+}
+
 static void lv_tps_frame(void)
 {
     /* first paint is a full push; later frames use dirty-row blit so only changed text rows hit the panel */
-    const lv_scene_fn sc = (lv_scr == LV_SC_TPSE) ? lv_tps_e_scene
+    const lv_scene_fn sc = (lv_scr == LV_SC_TPSF) ? lv_tps_f_scene
+                        : (lv_scr == LV_SC_TPSG) ? lv_tps_g_scene
+                        : (lv_scr == LV_SC_TPSE) ? lv_tps_e_scene
                         : (lv_scr == LV_SC_TPSC || lv_scr == LV_SC_TPSD) ? lv_tps_cd_wrap
                         : lv_tps_scene;
     lv_render(lv_tps_full ? lv_blit : lv_blit_dirty, (LvRect){0, 0, 239, 319}, sc, 0);

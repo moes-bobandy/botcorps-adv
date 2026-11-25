@@ -162,3 +162,30 @@ Host sim `tools/livescan/scripts/tps_shots_C.txt` / `tps_shots_D.txt`.
 
 - C: `tps_C_materialize`, `tps_C_full` `@1x`/`@3x` + `tps_C_scroll@3x.gif`
 - D: `tps_D_materialize`, `tps_D_full` `@1x`/`@3x` + `tps_D_scroll@3x.gif`
+
+---
+
+## Variant E (new, A–D untouched): Table rain-lock on a dark backdrop
+
+Added `LV_SC_TPSE` (`tpse` / `psterm-table-rain`) as a blend of B, C, and D.
+A, B, C, and D files and behavior are unchanged.
+
+- **Layout**: mock B's Format-Table output. One table per hunt class
+  (`gibson> scan <device>`, locked `[ .. ] SCAN … LIVE` / `[ -- ] NO … ON GRID`,
+  then `NAME CLASS RSSI CH` with a dash underline and aligned rows). DEAUTH
+  stays `[ -- ] NO DEAUTH ON GRID` with an empty table (no invented find).
+  `SAMPLE` at the end.
+- **Materialize**: mock C's rain-lock — Matrix-inspired glyphs descend the
+  column into each table header/row cell, lock with column scatter and an
+  `#E0FCD9` flare, then cool to `#33e59a` / `#5FFFAF`.
+- **Backdrop**: mock D's sparse, dark ambient rain (~20% of columns, short
+  trails, `#001F04` / `#00351d` decay, no bright leaders) on pure `#000000`.
+- Entry: TTY/sim `tpse` / `psterm-table-rain`. Exit: tap anywhere → TERM.
+  No on-screen chrome. Power-save unchanged (20% backlight, 120 ms dirty-row
+  frames, `LV_J_ALL` keeps running).
+
+### E Shots
+
+Host sim `tools/livescan/scripts/tps_shots_E.txt`.
+
+- `tps_E_materialize`, `tps_E_full` `@1x`/`@3x` + `tps_E_scroll@3x.gif`

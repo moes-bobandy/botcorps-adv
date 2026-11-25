@@ -603,10 +603,132 @@ static void lv_tps_cd_wrap(LvBand &B, void *)
     lv_tps_cd_scene(B, lv_scr == LV_SC_TPSD);
 }
 
+/* ---- E: B's Format-Table layout + C rain-lock materialize + D dark sparse backdrop ---- */
+static void lv_tps_e_scene(LvBand &B, void *)
+{
+    b_fill(B, B.x0, B.y0, B.w, B.h, LV_TPSC_BG);   /* D: pure #000000 */
+    lv_tps_build_b();                              /* B: per-class NAME/CLASS/RSSI/CH tables */
+
+    const int rel = (int)(lv_now - lv_tps_t0);
+    const int rain_step = rel > 0 ? rel / LV_TPS_PERIOD : 0;
+    const int step_3 = rain_step / 3;
+
+    /* Same slow ominous cadence as C/D so Wi-Fi (1.2s) / BLE (6.2s) finds exist before later tables form. */
+    int t_line[LV_TPS_MAXL];
+    int tc = 500;
+    for (int i = 0; i < lv_tps_n; ++i) {
+        t_line[i] = tc;
+        if (lv_tps_line[i][0]) tc += (i == 0 ? 1000 : 860);
+    }
+
+    int open = 0;
+    for (int i = 0; i < lv_tps_n; ++i) {
+        if (rel >= t_line[i] - 720) open = i + 1;
+    }
+    const bool all_settled = (lv_tps_n > 0 && rel > t_line[lv_tps_n - 1] + 2200);
+    int start = 0;
+    if (all_settled) {
+        start = lv_tps_n > LV_TPSC_ROWS ? lv_tps_n - LV_TPSC_ROWS : 0;
+    } else if (open > LV_TPSC_ROWS - 4) {
+        start = open - (LV_TPSC_ROWS - 4);
+        if (start > lv_tps_n - LV_TPSC_ROWS && lv_tps_n > LV_TPSC_ROWS) start = lv_tps_n - LV_TPSC_ROWS;
+        if (start < 0) start = 0;
+    }
+
+    uint8_t busy[LV_TPSC_ROWS][LV_TPSC_NCOL];
+    memset(busy, 0, sizeof busy);
+
+    for (int row = 0; row < LV_TPSC_ROWS; ++row) {
+        const int li = start + row;
+        if (li >= lv_tps_n) break;
+        const char *s = lv_tps_line[li];
+        const int L = (int)strlen(s);
+        const int y = LV_TPSC_Y + row * LV_TPSC_ROW;
+        const bool is_cmd = lv_tpsc_is_cmd_line(s) || !strncmp(s, "NAME", 4) || s[0] == '-';
+
+        for (int c = 0; c < L && c < 35; ++c) {
+            const int rc = c + 2;
+            if (s[c] == ' ') {
+                if (rel >= t_line[li] - 240) busy[row][rc] = 1;
+                continue;
+            }
+            const int x = LV_TPSC_X + c * LV_TPSC_CW;
+            const int jit = ((li * 7 + c * 11) % 5) * 80;          /* C: column scatter */
+            const int t_lock = t_line[li] + c * 32 + jit;
+            const int dt = rel - t_lock;
+            const uint32_t cseed = (uint32_t)(li * 131u + c * 37u + 9u);
+
+            /* C rain-lock: carrier rain descends into the cell, locks with #E0FCD9 flare, cools to green */
+            if (dt < -840) continue;
+            if (dt < 0) {
+                const int dist = (-dt) / LV_TPS_PERIOD;
+                const int r_head = row - dist;
+                for (int k = 0; k < 6; ++k) {
+                    const int rr = r_head - k;
+                    if (rr < 0 || rr >= LV_TPSC_ROWS || busy[rr][rc]) continue;
+                    if (start + rr < li && lv_tps_line[start + rr][0] && rel >= t_line[start + rr] - 360) continue;
+                    if (rr == row && dt < -360) continue;
+                    const int ry = LV_TPSC_Y + rr * LV_TPSC_ROW;
+                    const uint16_t fg = k == 0 ? LV_TPSC_LEAD : k == 1 ? LV_TPSC_HOT : k <= 3 ? LV_TPSC_MID : LV_TPSC_T1;
+                    const uint16_t g1 = k == 0 ? LV_TPSC_MID : k == 1 ? LV_TPSC_T1 : 0;
+                    const uint16_t g2 = k == 0 ? LV_TPSC_T1 : 0;
+                    lv_tpsc_draw_rain(B, x, ry, cseed + (uint32_t)(rr * 19 + rain_step), step_3 + rr, fg, g1, g2);
+                }
+                if (dt >= -360) {
+                    busy[row][rc] = 1;
+                    const uint16_t fg = dt >= -120 ? LV_TPSC_LEAD : dt >= -240 ? LV_TPSC_HOT : LV_TPSC_MID;
+                    const uint16_t g1 = dt >= -240 ? LV_TPSC_MID : LV_TPSC_T1;
+                    lv_tpsc_draw_rain(B, x, y, cseed + (uint32_t)(rain_step * 5), rain_step, fg, g1, dt >= -120 ? LV_TPSC_T1 : 0);
+                }
+            } else {
+                busy[row][rc] = 1;
+                if (dt < 240) {
+                    lv_tpsc_draw_ascii(B, x, y, s[c], LV_TPSC_LEAD, LV_TPSC_MID, LV_TPSC_T1);
+                    const int sub = 1 + dt / 120;
+                    for (int k = 0; k < 2; ++k) {
+                        const int rr = row + sub + k;
+                        if (rr < LV_TPSC_ROWS && !busy[rr][rc]) {
+                            const int ry = LV_TPSC_Y + rr * LV_TPSC_ROW;
+                            /* drip under lock stays D-dark so the backdrop stays pitch-black */
+                            lv_tpsc_draw_rain(B, x, ry, cseed + (uint32_t)rr * 13u, step_3, k == 0 ? LV_TPSC_T1 : LV_TPSC_T0, 0, 0);
+                        }
+                    }
+                } else if (dt < 600) {
+                    lv_tpsc_draw_ascii(B, x, y, s[c], LV_TPSC_TAG, LV_TPSC_T1, 0);
+                } else {
+                    lv_tpsc_draw_ascii(B, x, y, s[c], is_cmd ? LV_TPSC_TAG : LV_TPSC_BODY, LV_TPSC_T1, 0);
+                }
+            }
+        }
+    }
+
+    /* D ambient: ~20% columns (mod 5), short trails, #001F04/#00351d decay, no bright leaders */
+    for (int rc = 0; rc < LV_TPSC_NCOL; ++rc) {
+        const uint32_t seed = 0x9E3779B9u ^ (uint32_t)(rc * 2654435761u);
+        if ((int)((seed >> 4) % 5u) != 0) continue;
+        const int speed = ((seed >> 8) % 2) + 1;
+        const int trail = 4 + (int)((seed >> 11) % 6);
+        const int period = LV_TPSC_ROWS + trail + 18 + (int)((seed >> 15) % 14);
+        const int off = (int)((seed >> 19) % (uint32_t)period);
+        const int head = (rain_step * speed + off) % period;
+        const int x = 2 + rc * LV_TPSC_CW;
+        for (int t = 0; t < trail; ++t) {
+            const int rr = head - t;
+            if (rr < 0 || rr >= LV_TPSC_ROWS) continue;
+            if (busy[rr][rc]) continue;
+            const uint16_t fg = t == 0 ? LV_TPSC_T1 : LV_TPSC_T0;
+            const int ry = LV_TPSC_Y + rr * LV_TPSC_ROW;
+            lv_tpsc_draw_rain(B, x, ry, seed + (uint32_t)rr * 17u, step_3, fg, 0, 0);
+        }
+    }
+}
+
 static void lv_tps_frame(void)
 {
     /* first paint is a full push; later frames use dirty-row blit so only changed text rows hit the panel */
-    const lv_scene_fn sc = (lv_scr == LV_SC_TPSC || lv_scr == LV_SC_TPSD) ? lv_tps_cd_wrap : lv_tps_scene;
+    const lv_scene_fn sc = (lv_scr == LV_SC_TPSE) ? lv_tps_e_scene
+                        : (lv_scr == LV_SC_TPSC || lv_scr == LV_SC_TPSD) ? lv_tps_cd_wrap
+                        : lv_tps_scene;
     lv_render(lv_tps_full ? lv_blit : lv_blit_dirty, (LvRect){0, 0, 239, 319}, sc, 0);
     lv_tps_full = 0;
 }

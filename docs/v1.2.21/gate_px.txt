@@ -16,3 +16,6 @@ gib_scan               0        0       0  PASS      allowed=none
 gib_sel_deck           0        0       0  PASS      allowed=none
 dl_intro               0        0       0  PASS      allowed=none
 dl_play                0        0       0  PASS      allowed=none
+
+Size-shrink rebuild (24c6896) vs the v1.2.21 sim tour dumps (same script):
+all 11 screens 0 px / 0 px PASS (no UI source changes).

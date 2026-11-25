@@ -1,10 +1,3 @@
-theme 0
-motion 1
-tick 60
-cmd psterm
-tick 140
-dump tps_idle
-cmd scan all
-tick 220
-dump tps_scanning
-rec 90 tps_scroll
+# A/B pre-scan typists: see tps_shots_A.txt and tps_shots_B.txt
+# run: sim_live tools/livescan/scripts/tps_shots_A.txt OUT nocal
+#      sim_live tools/livescan/scripts/tps_shots_B.txt OUT nocal

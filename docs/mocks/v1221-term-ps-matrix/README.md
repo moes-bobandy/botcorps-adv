@@ -1,33 +1,122 @@
-# MOCK 2026-11-25: TERMINALbot PowerShell + Matrix area-scan (LV_SC_TPS)
+# MOCK 2026-11-25: TERMINALbot pre-scan typists A / B (LV_SC_TPS, LV_SC_TPSB)
 
-New TERMINALbot subscreen only. No firmware build, upload, or flash.
-Type-out is built from our own TERMINALbot face-rain glyph law (`lv_tg_rain` / LV_F35) plus the existing `(lv_now/500)&1` cursor blink. The original Adv Matrix operator typewriter mock was not recovered (box data loss).
+New TERMINALbot subscreens only. No firmware build, upload, or flash.
 
-## Search (one pass, not found)
-- `/workspace` phrase grep (typewriter / operator screen / type-out / text-reveal)
-- `botcorps-adv` `git log --all` and local trees
-- GitHub `backup/*` branches on origin, including `backup/adv-f1c08aa`, `backup/adv-90d5cc2-ref`, `backup/adv-land-e0e5ec3`, plus CYD backup branches
-- Adv trees: advpaint, advpaint-ui-src, adv-ui-studio, adv-live, wt-f1c0 (f1c08aa is P0/hub/Gibson, not operator type-out), adv-90d5cc2-ref, adv-land-e0e5ec3
-- `botcorps-backup` loose files (Flock/plume ADV sketches, HTML — not this mock)
-- GitHub org `moes-bobandy`: 11 repos; `search_code` for typewriter/operator/matrix-terminal/type-out returned 0; `search_commits` only hit `gbcyd-meter` (Matrix-green build meter page), not an Adv operator terminal
+Two full-screen, no-chrome typists. The screen is not interactive: it is a
+passive pre-scan terminal that auto-types locked BOTcorps commands and lists
+everything around by name and device-bot class. Power-save stays on while
+scanning continues. SAMPLE data from the host-sim canned wifi/ble set.
 
-Closest unrelated CYD hits kept out of this base: controlbot-colorui v5-matrix4 banners; morpheus-mix "Matrix HIGH towers"; TERMINALbot face rain.
+The original Adv Matrix operator typewriter mock was not recovered (box data
+loss; one search pass, including GitHub `backup/*` and Adv trees). Type-out
+is our own typist (LV_F35 glyphs, `(lv_now/500)&1` block cursor), not a
+clone of the film or of that missing mock.
 
-## Entry / back
-- TERMINALbot minterm **LIST** (SCAN / HELP / face / hunt cards unchanged)
-- Sim / TTY: `psterm` or `tps`
-- Back (banner BACK or strip B) returns to LV_SC_TERM
-- Strip is the existing GIBSON pad pattern, on this screen only (A SCAN / B BACK / SPEED). Locked TERM keeps LV_TERM_STRIP 0.
+## Command language (locked, not invented)
+
+Auto-typed commands and output labels come from the locked Defend command
+sheet and the live TERM device-bot names:
+
+- Syntax (src/ui/botcorps_defend.inc `LOCK-DEFEND-CMDS`): typed
+  `verb + device name [+ sub]`. Core verbs on every board: `scan`, `lock`,
+  `zap`, `purge`, `restart`. A bare device name is `zap`. This screen only
+  auto-types `scan` — it does not issue lock/zap/purge or signature
+  subs, and it does not take input.
+- Device names: `BOTS[].short_name` / `LV_HUNT_NAME` —
+  `wifi`, `bluetooth`, `deauth`, `hack`, `flock`, `drone`, `airtag`,
+  `keyfob`, `meta`, `skimmer`, `flipper`, `samsung`.
+- Prompt and result tags from `zap_try_cmd`: `gibson> …`,
+  `[ .. ] SCAN NAME N LIVE`, `[ -- ] NO NAME ON GRID`.
+- Device-bot class labels: `LV_HUNT_BOT` (`AIRTAGbot`, `FLOCKbot`, …) on A;
+  short_name in the B CLASS column.
+- A also auto-types the TERM radio verbs `scan wifi` / `scan bluetooth`
+  (same names as Defend devices 0 and 1) before the per-class scans.
+- Core row `core  scan lock zap purge restart` is the command-sheet
+  core line (botcorps_ui.cpp), shown as a reminder only.
+- DEAUTH is not in `LV_J_ALL` / the canned wifi-ble set, so both mocks
+  print the locked `[ -- ] NO DEAUTH ON GRID` (no invented radio row).
+- `TELLO-5A21B3` matches both HACKbot (open/WEP wifi, `auth <= 1`) and
+  DRONEbot (name/icon). It is listed under each hunt that matches, labeled
+  with that section's class.
+
+## Entry / exit (no on-screen controls)
+
+- Enter A from TERMINALbot minterm **LIST**, or TTY/sim `psterm` / `tps` /
+  `tpsa`.
+- Enter B from TTY/sim `tpsb` / `psterm-table`. There is no extra on-device
+  chrome entry for B.
+- Exit either screen by tapping anywhere: back to TERM. Leave restores the
+  saved backlight. No banner, frame, strip, pins, or buttons.
 
 ## Look
-- Locked LV_THC_* grey lip + gold terminal box around a dark blue-black PowerShell pane (`PS C:\BOTcorps>`)
-- Live theme pin colours via `lv_thc_pin_*_px` (never hard-coded purple). Stills below are theme 0 GRAPE.
-- Matrix green rain in the left/right gutters, cloned from the face-rain seed/trail law, slower (low power)
-- Dim-backlight indicator in the banner; SAMPLE / EX.DATA labels
-- Readout lines come from `lv_f[]` + `lv_hunt_match` over the 10 hunt classes. Sim canned radio is labeled SAMPLE.
+
+Full 240×320 console, no border/frame/strip/banner. Field `#000200`, body
+ink `#33e59a`, 1 px trail glow `#00351d`, fresh glyph `#5FFFAF`, block
+cursor `#B2FFFE`. 14 px left / 16 px top, 14 px rows (7 px glyph + 7 px
+black), 35 columns, wrap or Windows-style `...` truncation. No digital
+rain (HACKbot `dl_intro` typist has none; we followed that). Original
+wording only — no film lines.
+
+This is a BOTcorps terminal, not a Matrix replica. The references below
+were used only to set hue, glow, type-out cadence, cursor, and spacing.
+
+- **A** — scrolling typist log: radio scans, then `gibson> scan <class>`
+  plus the locked SCAN / NO-GRID tag and one name + class + RSSI/CH line
+  per find.
+- **B** — the same commands and tags, then a Format-Table (header + dash
+  underline, aligned `NAME CLASS RSSI CH` columns) for each of the 10
+  hunt classes. A 240×320 / 14 px-row pane shows ~21 lines, so the B
+  (and A) "full" still is the tail of the log; the GIF is the mid typist
+  pass over earlier classes.
+
+Idle A and idle B match at the captured typist moment (shared header is
+still being typed; the two mocks have not diverged yet).
+
+## Power-save (what the code actually lowers)
+
+Measured on the host sim at enter (`t=2400` in the shot scripts):
+
+- Backlight PWM: `lv_cb_blset(LV_TPS_DIM_BRI=20)` → **20% (duty 51/255)**.
+  Boot was `lv_cb_set.bri` **80% (duty 204/255)**. The saved setting is
+  not mutated; `lv_tps_leave` restores it.
+- Frame interval: **120 ms** (`LV_TPS_PERIOD`).
+- Redraw: first frame after enter is a full `lv_blit` (`lv_tps_full`);
+  later frames use `lv_blit_dirty` (changed rows only).
+- Typist: **80 ms/char** + 3 char-times of pad per line. Film "Wake up"
+  lines on the references run ~150–300 ms/char; 80 ms is a deliberate
+  compromise so a full log / short GIF is reachable in sim time.
+- Scanning continues: enter starts `LV_J_ALL`; `lv_job_tick` still runs
+  before the TPS early-return in `lv_tick`.
+
+## Reference research (guides, not a redesign; comparison only)
+
+Local copies live in `/workspace/refs/matrix-terminal/` on the box. They
+are **not** in this commit and must not be shipped in a firmware bin.
+
+| Source | Local path | What was taken |
+| --- | --- | --- |
+| Jonny Campbell, film-computer / Matrix opening stills | `jonny-campbell-og.jpg` (1200×630) | Field `#000200`, trail/fade `#00351d`; sparse top-left type-out with lots of black; IBM-CRT-like green as a direction, not a hex-accurate film grade |
+| kirocrew theme-matrix 4K samples | (comparison pass; hex from that theme) | Body text `#33e59a` (~hue 154°), pale block cursor `#B2FFFE` slightly taller than the 7 px glyph |
+| narkhy/MatrixHasYou reconstruction | (comparison pass) | Closest 8-bit fresh-glyph `#5FFFAF`; film per-char times measured ~150–300 ms on the opening lines |
+| xscreensaver `xmatrix.c` trace typist | `xmatrix-trace.c.txt` | Confirmed a typist exists on the "trace programme" family of screens; that source's ~10 ms/char + 1.5 s line delay is *faster* than the film opening — we did not use that rate |
+| Microsoft Learn Format-Table | `powershell-format-table-example.txt` | Header row, dash underline as wide as each column, spaces between columns, left-aligned text, numeric columns right-aligned, Windows end-ellipsis `...` on a long NAME |
+
+Do not copy movie lines verbatim. Do not ship copyrighted frames.
 
 ## Gate
-Tour `v1220_tour.txt` vs v1.2.21 head `d7b5545` sim dumps: 0 px on all 11 screens (see gate_px.txt).
+
+Tour `tools/livescan/scripts/v1220_tour.txt` vs v1.2.21 head `d7b55459`
+sim dumps (`/tmp/v1220/gate121s`, no `nocal`): **0 px on all 11 screens**.
+See `gate_px.txt`.
+
+## Shots
+
+Host sim `tools/livescan/scripts/tps_shots_A.txt` / `tps_shots_B.txt`.
+`@1x` is 240×320; `@3x` is nearest-neighbor 720×960.
+
+- A: `tps_A_idle`, `tps_A_scanning`, `tps_A_full` `@1x`/`@3x` + `tps_A_scroll@3x.gif`
+- B: `tps_B_idle`, `tps_B_scanning`, `tps_B_full` `@1x`/`@3x` + `tps_B_scroll@3x.gif`
 
 ## Branch
+
 `mock/v1221-term-ps-matrix-2026-11-25` from `d7b55459` (build/v1.2.21-2026-11-25).

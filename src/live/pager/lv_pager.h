@@ -573,8 +573,13 @@ static void lv_pg_blit(int a, int b, int off, bool full)
         }
     }
     const bool need_cb = (a == LV_PG_CTL) || (off != 0 && b == LV_PG_CTL);
-    if (need_cb && !lv_cb_pan) { lv_cb_panel_build(lv_cb_slot()); lv_pg_cb_hold = true; }
-    else if (need_cb && lv_cb_panel_dirty) lv_cb_panel_build(lv_cb_slot());
+    /* Rebuild when the theme slot changes (CONTROLbot face tap). The locked v6 stills still
+     * carry the old SCAN/VOL/CHIME/TIME/TONE panel; lv_pg_compose_row only overlays the live
+     * v1.2.12 panel when lv_cb_pan_slot == slot, so a stale pan lets the old sound panel show
+     * through. Same rebuild condition as lv_cb_frame. Stills and LV_SC_CTL code stay. */
+    if (need_cb && (!lv_cb_pan || lv_cb_panel_dirty || lv_cb_pan_slot != lv_cb_slot())) {
+        if (lv_cb_panel_build(lv_cb_slot())) lv_pg_cb_hold = true;
+    }
     LvPgCtx c{a, b, off};
     if ((full || off != 0)
 #if LV_PG_SLIDE_SPLIT

@@ -1,0 +1,12 @@
+CONTROLbot panel fix (sim-only) — pixel gate
+Branch fix/controlbot-panel-2026-11-25 on v1.2.21 d7b5545.
+Trigger: pager page 4 (CONTROLbot), tap face 120,145, tick 20 (past the 130 ms flash).
+
+Tour (tools/livescan/scripts/v1220_tour.txt), after-fix vs unfixed d7b5545, default theme 0:
+all 11 screens 0 px PASS (pager0-4, term, dojo, gib_scan, gib_sel_deck, dl_intro, dl_play).
+
+ctl_open (page 4, no face tap): 0 px after-fix vs unfixed.
+ctl_after_theme (same trigger): 964 px inside the live panel (49,223)-(193,280), 0 px outside.
+@3x PNGs are exact nearest-neighbor 3x of @1x.
+
+HOST SIM ONLY, no bin, not flashed, not uploaded.

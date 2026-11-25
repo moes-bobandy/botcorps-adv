@@ -1,0 +1,10 @@
+theme 0
+motion 1
+tick 60
+cmd psterm
+tick 140
+dump tps_idle
+cmd scan all
+tick 220
+dump tps_scanning
+rec 90 tps_scroll

@@ -122,6 +122,12 @@ enum LvScr { LV_SC_BOOT, LV_SC_HOME_INTRO, LV_SC_HOME, LV_SC_TERM, LV_SC_SCAN, L
 #if LV_CB
              , LV_SC_CONTROLBOT   /* fw-3locks-1116: CONTROLbot v6 (controlbot/lv_controlbot_screen.h) */
 #endif
+#ifndef LV_TERM_PS
+#define LV_TERM_PS 1   /* MOCK 2026-11-25: TERMINALbot PowerShell + Matrix area-scan (lv_term_ps.h); 0 = none */
+#endif
+#if LV_TERM_PS
+             , LV_SC_TPS
+#endif
 };   /* item 2: MORPHEUSbot Device Glossary grid + the 12 description pages (lv_glossary.h) */
 
 #if (LV_MO_INSIDE || LV_CT_INSIDE || LV_TR_INSIDE) && !defined(LV_RD_SKINS)
@@ -235,7 +241,7 @@ static const LvRect LV_R_BANNER_BACK_HIT = {0, 0, 39, 39};
 #define LV_BANNER_BACK_TR 0
 #endif
 #ifndef LV_BANNER_BACK_ON
-#define LV_BANNER_BACK_ON (     lv_scr == LV_SC_TERM || lv_scr == LV_SC_SCAN || lv_scr == LV_SC_CTL || lv_scr == LV_SC_TTY     || lv_scr == LV_SC_RADAR || lv_scr == LV_SC_GLOSS || lv_scr == LV_SC_GLOSS_DESC     || (LV_HC_GAME && lv_scr == LV_SC_HCH)     || (LV_DL_GAME && lv_scr == LV_SC_DL)     || (LV_MO_INSIDE && lv_scr == LV_SC_MO)     || LV_BANNER_BACK_CT || LV_BANNER_BACK_TR)
+#define LV_BANNER_BACK_ON (     lv_scr == LV_SC_TERM || lv_scr == LV_SC_SCAN || lv_scr == LV_SC_CTL || lv_scr == LV_SC_TTY     || lv_scr == LV_SC_RADAR || lv_scr == LV_SC_GLOSS || lv_scr == LV_SC_GLOSS_DESC     || (LV_HC_GAME && lv_scr == LV_SC_HCH)     || (LV_DL_GAME && lv_scr == LV_SC_DL)     || (LV_MO_INSIDE && lv_scr == LV_SC_MO)     || LV_BANNER_BACK_CT || LV_BANNER_BACK_TR     || (LV_TERM_PS && lv_scr == LV_SC_TPS))
 #endif
 static const LvRect LV_R_SBOX = {33, 153, 206, 256};  /* SCANbot device-emoji grid (old 4 tabs + results box) */
 /* Small terminal box (item 11): the whole inner box is now overlay - 1 line row, an enlarged button row right above
@@ -696,6 +702,9 @@ static void lv_cmd(const char *line)
     if (a1) for (char *c = a1; *c; ++c) if (*c >= 'A' && *c <= 'Z') *c += 32;
 #define IS(s) (!strcmp(a0, s))
     if (IS("help") || IS("cmds") || IS("?")) { for (const char *h : LV_HELP) lv_print("%s", h); }
+#if LV_TERM_PS
+    else if (IS("psterm") || IS("tps")) { lv_go(LV_SC_TPS); }
+#endif
     else if (IS("scan")) lv_job_start(!a1 || !strcmp(a1, "all") ? LV_J_ALL : !strcmp(a1, "wifi") ? LV_J_WIFI : !strcmp(a1, "ble") || !strcmp(a1, "bt") ? LV_J_BLE : LV_J_ALL, -1);
     else if (IS("wifi")) lv_job_start(LV_J_WIFI, -1);
     else if (IS("ble") || IS("bt")) lv_job_start(LV_J_BLE, -1);
@@ -2067,6 +2076,9 @@ static void lv_set_masks(void)
 #if LV_TR_INSIDE
     if (lv_scr == LV_SC_TR) return;    /* MOCK 1112: Relay Ring redraws every frame */
 #endif
+#if LV_TERM_PS
+    if (lv_scr == LV_SC_TPS) return;   /* MOCK 2026-11-25: PS + Matrix readout redraws every frame */
+#endif
     if (lv_scr == LV_SC_BOOT || lv_scr == LV_SC_HOME_INTRO || lv_scr == LV_SC_CAL || lv_scr == LV_SC_TTY || lv_scr == LV_SC_RADAR || lv_scr == LV_SC_GLOSS || lv_scr == LV_SC_GLOSS_DESC) return;
     lv_masks[lv_nmask++] = LV_R_TICK;
     if (lv_scr == LV_SC_SCAN) { lv_masks[lv_nmask++] = LV_R_SBOX; lv_masks[lv_nmask++] = LV_R_STERM; }
@@ -2144,6 +2156,9 @@ static uint16_t lv_thc_pin_top_px(void)  { lv_thc_sample_pins(); return lv_thc_p
 #if !LV_CB && LV_TERM_RECOLOR
 static uint16_t lv_thc_pin_fill_px(void) { return lv_rgb(140, 56, 181); }
 static uint16_t lv_thc_pin_top_px(void)  { return lv_rgb(173, 69, 222); }
+#endif
+#if LV_TERM_PS
+#include "lv_term_ps.h"   /* MOCK 2026-11-25: PowerShell + Matrix area-scan (LV_SC_TPS) */
 #endif
 #if LV_TERM_STRIP && LV_RD_PAD && LV_RD_FOLD
 /* mock/v1220 item 4: TERMINALbot strip = lv_rd_pad_draw body + pad_draw_joey + pad_draw_speed (GIBSON, cloned), theme ink.
@@ -2259,6 +2274,9 @@ static void lv_go(int s)
 #endif
 #if LV_TR_INSIDE
     if (s == LV_SC_TR && prev != LV_SC_TR) itw_tr_enter();
+#endif
+#if LV_TERM_PS
+    if (s == LV_SC_TPS && prev != LV_SC_TPS) lv_tps_enter();
 #endif
     if (prev == LV_SC_RADAR && s == LV_SC_SCAN) lv_rd_restore_scan();
     lv_set_masks(); lv_tint_setup(); lv_port_begin();
@@ -2550,6 +2568,9 @@ static void lv_flash_repaint(const LvRect &r)
 #if LV_TR_INSIDE
     if (lv_scr == LV_SC_TR) return;
 #endif
+#if LV_TERM_PS
+    if (lv_scr == LV_SC_TPS) return;   /* MOCK 2026-11-25: redrawn every frame */
+#endif
     if (lv_scr == LV_SC_GLOSS || lv_scr == LV_SC_GLOSS_DESC) { lv_gloss_paint(r); return; }   /* item 2 */
     for (int t = 0; t < lv_ntint; ++t) if (lv_rect_hit(lv_tints[t].r, r)) lv_tint_paint(t);
     if (lv_scr == LV_SC_TTY && lv_rect_hit(LV_R_BACKBOT, r)) lv_dirty_kbd = true;   /* item 8: corner BACKbot repaints with the keyboard band */
@@ -2745,6 +2766,12 @@ static void lv_tick(const LkIo &io, uint32_t now)
 #if LV_TR_INSIDE
     if (lv_scr == LV_SC_TR) { if ((int32_t)(now - lv_clip_t) >= 30 || lv_enter) { lv_clip_t = now; lv_enter = false; itw_tr_frame(); } return; }
 #endif
+#if LV_TERM_PS
+    if (lv_scr == LV_SC_TPS) {   /* MOCK 2026-11-25: low-power 60 ms refresh */
+        if ((int32_t)(now - lv_clip_t) >= LV_TPS_PERIOD || lv_enter) { lv_clip_t = now; lv_enter = false; lv_tps_frame(); }
+        return;
+    }
+#endif
     if (lv_scr == LV_SC_RADAR) {
 #if defined(BOTCORPS_CYD) && !defined(LV_HOST)
         { lv_clip_t = now; lv_radar_frame(); } // firmware loop already owns the frame deadline
@@ -2818,6 +2845,9 @@ static const char *lv_back(void)
     }
     if (lv_scr == LV_SC_GLOSS_DESC) { lv_go_soon(LV_SC_GLOSS, 0); return "backbot-gloss"; }   /* item 2: description -> glossary grid */
     if (lv_scr == LV_SC_TERM && lv_term_from_mo) { lv_term_from_mo = false; lv_pg_set_page(LV_PG_BOTPHEUS); lv_go_soon(LV_SC_MO, 0); return "backbot-term-dojo"; }
+#if LV_TERM_PS
+    if (lv_scr == LV_SC_TPS) { lv_go_soon(LV_SC_TERM, 0); return "backbot-tps-term"; }
+#endif
     lv_go_soon(LV_SC_HOME, 0); return "backbot-home";
 }
 #define LV_TAP(R) (lv_in(R, x, y) && (lv_press(R), true))
@@ -2837,7 +2867,12 @@ static const char *lv_mt_hit(int x, int y)
         if (b == 0) { lv_scan_mix(); lv_go_soon(LV_SC_SCAN, 0); return "home-crosshair-scan"; }
         lv_go_soon(0, b == 1 ? "list" : "help"); return b == 1 ? "home-list" : "home-menu-help";
     case LV_SC_TERM:
+#if LV_TERM_PS
+        if (b == 1) { lv_go_soon(LV_SC_TPS, 0); return "term-list"; }
+        lv_go_soon(0, b == 0 ? "scan" : "help"); return b == 0 ? "term-crosshair-scan" : "term-menu-help";
+#else
         lv_go_soon(0, b == 0 ? "scan" : b == 1 ? "list" : "help"); return b == 0 ? "term-crosshair-scan" : b == 1 ? "term-list" : "term-menu-help";
+#endif
     case LV_SC_SCAN:
         if (b == 0) { lv_scan_view(0, LV_J_ALL); return "crosshair-scan-all"; }
         lv_go_soon(0, b == 1 ? "list" : "help"); return b == 1 ? "list" : "menu-help";
@@ -2940,6 +2975,9 @@ static const char *lv_tap(int x, int y)
 #endif
 #if LV_TR_INSIDE
     if (lv_scr == LV_SC_TR) return itw_tr_tap(x, y);   /* MOCK 1112: TERMINALbot Relay Ring */
+#endif
+#if LV_TERM_PS
+    if (lv_scr == LV_SC_TPS) return lv_tps_tap(x, y);  /* MOCK 2026-11-25: PowerShell + Matrix readout */
 #endif
     if (lv_scr == LV_SC_TTY) {
         if (lv_in(LV_R_TTY_TICK, x, y)) { lv_go(LV_SC_SCAN); return "ticker->scan"; }

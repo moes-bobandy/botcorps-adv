@@ -536,6 +536,12 @@ int main(int argc, char **argv)
         else if (!strcmp(cmd, "itwstate")) { itw_dump(); }
 #endif
         else if (!strcmp(cmd, "go")) { int k; if (fscanf(sc, "%d", &k) != 1) return 2; lv_go(k); }
+        else if (!strcmp(cmd, "cmd")) {   /* MOCK: run an lv_cmd line (scan, psterm, ...) */
+            char line[128]; if (!fgets(line, sizeof line, sc)) return 2;
+            char *p = line; while (*p == ' ' || *p == '\t') ++p;
+            char *e = p + strlen(p); while (e > p && (e[-1] == '\n' || e[-1] == '\r')) *--e = 0;
+            lv_cmd(p);
+        }
         else if (!strcmp(cmd, "probe")) { /* probe NAME X Y: what a tap there does, in a forked child (no side effects) */
             char nm[64]; int x, y; if (fscanf(sc, "%63s %d %d", nm, &x, &y) != 3) return 2;
             int pf[2]; if (pipe(pf)) return 3; fflush(stdout);

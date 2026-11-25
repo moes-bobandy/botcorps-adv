@@ -20,9 +20,9 @@
 #include "lv_build_3locks.h"   /* fw-3locks-1116: CONTROLbot v6 + BOTpheus EB3 + HACKbot game switches */
 
 #ifdef BOTCORPS_BUILD_ID
-#define LV_VERSION "cyd-livescan v1.2.20 " BOTCORPS_BUILD_ID   /* v1.2.20: v1.2.19 + mock/v1220 hit-list items 1, 1b, 2 (+100 ms slide), 3, 4 Dojo strip, 5, 6 */
+#define LV_VERSION "cyd-livescan v1.2.21 " BOTCORPS_BUILD_ID   /* v1.2.21: v1.2.20 + item 1c TERMINALbot recolor (LV_TERM_RECOLOR); strip stays off */
 #else
-#define LV_VERSION "cyd-livescan v1.2.20"
+#define LV_VERSION "cyd-livescan v1.2.21"
 #endif
 
 /* ---------- finds ---------- */

@@ -120,3 +120,45 @@ Host sim `tools/livescan/scripts/tps_shots_A.txt` / `tps_shots_B.txt`.
 ## Branch
 
 `mock/v1221-term-ps-matrix-2026-11-25` from `d7b55459` (build/v1.2.21-2026-11-25).
+
+---
+
+## Variants C & D (new, keeping A & B untouched): Rain-Lock & Backdrop-Emerge
+
+Added `LV_SC_TPSC` (`tpsc` / `psterm-rain`) and `LV_SC_TPSD` (`tpsd` /
+`psterm-veil`) on top of `8f43e93`. A and B files and behavior remain
+untouched.
+
+- **C (`tpsc`) — Rain-Lock Materialize**: Pure `#000000` black field with
+  39 columns × 22 rows (`13 px` vertical pitch: `7 px` glyph + `6 px`
+  black). Matrix-inspired 5×7 katakana/numeral rain glyphs (`LV_TPS_RAIN_GL`,
+  synchronized 3-frame cell swap, `#E0FCD9` leaders, `#43FF33 -> #00990B ->
+  #00351d -> #001F04` decay, 3×3 max-RGB phosphor bloom) descend down
+  columns into each forming line's character positions. Characters lock
+  with organic per-column scatter from swirling code glyphs into crisp
+  BOTcorps ASCII with a bright `#E0FCD9` flare, then cool to `#33e59a` /
+  `#5FFFAF` while sparse background rain continues falling through empty
+  rows and gutters.
+- **D (`tpsd`) — Backdrop-Emerge + Rain-Veil**: Sparser, darker ambient
+  rain (`~20%` columns, `#001F04 / #00351d`), where lines ghost upward
+  directly out of `#000000` through `#001F04 -> #00351d -> #00990B`
+  code shimmer, flash `#E0FCD9` on lock with a short drip beneath, and
+  settle on pitch black.
+- **Content**: Passive pre-scan using the same locked Defend + `BOTS[]`
+  command language (`gibson> scan wifi`, `gibson> scan bluetooth`,
+  `gibson> scan <class>`, `[ .. ] SCAN ... LIVE`, `[ -- ] NO DEAUTH ON GRID`)
+  plus uncategorized `WIFIbot` / `BLEbot` entries so every device in
+  `lv_f[]` is listed by name and device-bot class.
+- **Power-save (unchanged)**: `lv_cb_blset(20)` → 20% backlight (duty
+  51/255 vs 204/255 boot), 120 ms frame interval, first frame `lv_blit`
+  then `lv_blit_dirty` (changed rows only), `LV_J_ALL` keeps running.
+- **Additional references**:
+  - `carlnewton.github.io/digital-rain-analysis/` + local `/workspace/refs/matrix-terminal/digital-rain-01.gif` / `digital-rain-01-frame.png`: fixed-cell descending edge, synchronized 3-frame swap, 1-in-5 highlighted leaders, deletion gaps.
+  - `matrix.watch/styles/authentic.html` + local `/workspace/refs/matrix-terminal/matrix-watch-og.png`: 1999 4-stop ramp `#000000 / #001F04 / #00990B / #43FF33 / #E0FCD9` + bloom.
+
+### C & D Shots
+
+Host sim `tools/livescan/scripts/tps_shots_C.txt` / `tps_shots_D.txt`.
+
+- C: `tps_C_materialize`, `tps_C_full` `@1x`/`@3x` + `tps_C_scroll@3x.gif`
+- D: `tps_D_materialize`, `tps_D_full` `@1x`/`@3x` + `tps_D_scroll@3x.gif`

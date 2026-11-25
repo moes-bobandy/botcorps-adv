@@ -126,11 +126,11 @@ enum LvScr { LV_SC_BOOT, LV_SC_HOME_INTRO, LV_SC_HOME, LV_SC_TERM, LV_SC_SCAN, L
 #define LV_TERM_PS 1   /* MOCK 2026-11-25: TERMINALbot PowerShell + Matrix area-scan (lv_term_ps.h); 0 = none */
 #endif
 #if LV_TERM_PS
-             , LV_SC_TPS, LV_SC_TPSB
+             , LV_SC_TPS, LV_SC_TPSB, LV_SC_TPSC, LV_SC_TPSD
 #endif
 };   /* item 2: MORPHEUSbot Device Glossary grid + the 12 description pages (lv_glossary.h) */
 #ifndef LV_TPS_ON
-#define LV_TPS_ON (LV_TERM_PS && (lv_scr == LV_SC_TPS || lv_scr == LV_SC_TPSB))
+#define LV_TPS_ON (LV_TERM_PS && (lv_scr == LV_SC_TPS || lv_scr == LV_SC_TPSB || lv_scr == LV_SC_TPSC || lv_scr == LV_SC_TPSD))
 #endif
 
 #if (LV_MO_INSIDE || LV_CT_INSIDE || LV_TR_INSIDE) && !defined(LV_RD_SKINS)
@@ -708,6 +708,8 @@ static void lv_cmd(const char *line)
 #if LV_TERM_PS
     else if (IS("psterm") || IS("tps") || IS("tpsa")) { lv_go(LV_SC_TPS); }
     else if (IS("tpsb") || IS("psterm-table")) { lv_go(LV_SC_TPSB); }
+    else if (IS("tpsc") || IS("psterm-rain")) { lv_go(LV_SC_TPSC); }
+    else if (IS("tpsd") || IS("psterm-veil")) { lv_go(LV_SC_TPSD); }
 #endif
     else if (IS("scan")) lv_job_start(!a1 || !strcmp(a1, "all") ? LV_J_ALL : !strcmp(a1, "wifi") ? LV_J_WIFI : !strcmp(a1, "ble") || !strcmp(a1, "bt") ? LV_J_BLE : LV_J_ALL, -1);
     else if (IS("wifi")) lv_job_start(LV_J_WIFI, -1);
@@ -2280,8 +2282,10 @@ static void lv_go(int s)
     if (s == LV_SC_TR && prev != LV_SC_TR) itw_tr_enter();
 #endif
 #if LV_TERM_PS
-    if ((prev == LV_SC_TPS || prev == LV_SC_TPSB) && s != LV_SC_TPS && s != LV_SC_TPSB) lv_tps_leave();
-    if ((s == LV_SC_TPS || s == LV_SC_TPSB) && prev != s) lv_tps_enter();
+    { const bool tp = (prev == LV_SC_TPS || prev == LV_SC_TPSB || prev == LV_SC_TPSC || prev == LV_SC_TPSD);
+      const bool ts = (s == LV_SC_TPS || s == LV_SC_TPSB || s == LV_SC_TPSC || s == LV_SC_TPSD);
+      if (tp && !ts) lv_tps_leave();
+      if (ts && prev != s) lv_tps_enter(); }
 #endif
     if (prev == LV_SC_RADAR && s == LV_SC_SCAN) lv_rd_restore_scan();
     lv_set_masks(); lv_tint_setup(); lv_port_begin();
@@ -2851,7 +2855,7 @@ static const char *lv_back(void)
     if (lv_scr == LV_SC_GLOSS_DESC) { lv_go_soon(LV_SC_GLOSS, 0); return "backbot-gloss"; }   /* item 2: description -> glossary grid */
     if (lv_scr == LV_SC_TERM && lv_term_from_mo) { lv_term_from_mo = false; lv_pg_set_page(LV_PG_BOTPHEUS); lv_go_soon(LV_SC_MO, 0); return "backbot-term-dojo"; }
 #if LV_TERM_PS
-    if (lv_scr == LV_SC_TPS || lv_scr == LV_SC_TPSB) { lv_go_soon(LV_SC_TERM, 0); return "backbot-tps-term"; }
+    if (LV_TPS_ON) { lv_go_soon(LV_SC_TERM, 0); return "backbot-tps-term"; }
 #endif
     lv_go_soon(LV_SC_HOME, 0); return "backbot-home";
 }

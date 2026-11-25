@@ -910,12 +910,14 @@ static inline void lv_bm_apply(int, int, int, const uint8_t *, const uint16_t *,
 static inline void lv_bm_fix(int) {}
 #endif
 #ifndef LV_TERM_RECOLOR
-#define LV_TERM_RECOLOR 1   /* mock/v1220 item 1c (Mobandy 4:57-4:59 PM ET 11-24): TERM sub-screen side pins purple, mini terminal gold, bot body grey/silver, all cloned from the home TERMINALbot page; 0 = item 1b */
+#define LV_TERM_RECOLOR 1   /* item 1c + Mobandy 7:47 AM ET 11-25: TERM sub-screen side pins use the live theme accent (same home v6 board pad colours as the TERMINALbot pager page), mini terminal gold, bot body grey/silver; 0 = item 1b */
 #endif
 #if LV_TERM_RECOLOR
-/* Home TERMINALbot page (pager board strip + lv_pg_pan_hackbot(..., gold=1)): exact colours, no invented inks. */
-#define LV_THC_PIN_FILL  lv_rgb(140, 56, 181)    /* most-used home signal-pad fill (theme 0) */
-#define LV_THC_PIN_TOP   lv_rgb(173, 69, 222)    /* home signal-pad top row */
+/* Home TERMINALbot page colours, no invented inks. Pins are the live theme's home v6 board
+ * signal-pad fill / top (sampled at the same pixels item 1c read on theme 0: (8,89) / (8,88)),
+ * not hardcoded GRAPE purple — purple is just theme 0 (Mobandy 7:47 AM ET 11-25). */
+static uint16_t lv_thc_pin_fill_px(void);
+static uint16_t lv_thc_pin_top_px(void);
 #define LV_THC_BODY      lv_rgb(107, 117, 132)  /* home IC mid grey */
 #define LV_THC_BODY_HI   lv_rgb(181, 190, 198)  /* home IC highlight (top / left lip) */
 #define LV_THC_BODY_MID  lv_rgb(148, 146, 140)  /* home IC mid lip */
@@ -937,10 +939,10 @@ static uint16_t lv_term_home_px(uint16_t c, int x, int y)   /* idempotent: only 
     /* --- side pins: signal pads only; 3V / 5V (red) and GND (grey) stay; screen-border gold at x=0/239 stays --- */
     const bool lpad = (x >= 6 && x <= 12), rpad = (x >= 227 && x <= 233);
     if ((lpad || rpad) && y >= 32 && y <= 305) {   /* last real pads end ~y304; below that the gold screen-edge is in the same columns */
-        if (c == lv_rgb(181, 146, 82)) return LV_THC_PIN_FILL;
+        if (c == lv_rgb(181, 146, 82)) return lv_thc_pin_fill_px();
         if (c == lv_rgb(222, 219, 74)) {
             const bool skip = lpad ? (y == 32 || y == 46 || y == 298) : (y == 200 || y == 270 || y == 284 || y == 298);
-            if (!skip) return LV_THC_PIN_TOP;
+            if (!skip) return lv_thc_pin_top_px();
         }
     }
     /* --- mini terminal clip chrome: magenta frame + TERMINALBOT title (LV_FRAME[0] = 0xff25ae) -> gold ink. Status LEDs stay. --- */
@@ -2103,6 +2105,45 @@ static void lv_go_soon(int scr, const char *tty_cmd);
 static void lv_pad_snap(const LvRect *R, int n, int &x, int &y);   /* v1.1: CONTROLbot panel taps snap like every other screen (defined below) */
 #include "controlbot/lv_controlbot_screen.h"   /* fw-3locks-1116: CONTROLbot v6 */
 #include "pager/lv_pager.h"                    /* fw-bigbot-1117: pager is the new home */
+#if LV_TERM_RECOLOR
+/* Clone the home TERMINALbot page pin colours verbatim: those pads are pixels of the current
+ * theme's locked v6 board (lv_cb_strip). Sample the same two reference pixels item 1c used
+ * on theme 0 — fill (8,89) and top row (8,88) — into a private buffer so the clip inflater's
+ * io->buf is never touched. 3V/5V/GND remap skips stay in lv_term_home_px. */
+#define LV_THC_PIN_X     8
+#define LV_THC_PIN_YFILL 89
+#define LV_THC_PIN_YTOP  88
+static uint16_t lv_thc_pin_fill_c, lv_thc_pin_top_c;
+static int lv_thc_pin_slot = -1;
+static void lv_thc_sample_pins(void)
+{
+    if (!lv_cb_io || !lv_cb_io->inflate) return;
+    const int slot = lv_cb_slot();
+    if (slot == lv_thc_pin_slot) return;
+    const int s = LV_THC_PIN_YTOP / LV_CB_STRIP;
+    if (LV_THC_PIN_YFILL / LV_CB_STRIP != s) return;
+    const int key = slot * LV_CB_NSTRIP + s;
+    const uint32_t a = LV_CB_OFF[key], b = LV_CB_OFF[key + 1];
+    const uint32_t need = 240u * LV_CB_STRIP * 2u;
+    uint8_t *tmp = (uint8_t *)malloc(need);
+    if (!tmp) return;
+    const int n = lv_cb_io->inflate(LV_CB_Z + a, b - a, tmp, need);
+    if (n == (int)need) {
+        const uint8_t *rt = tmp + (LV_THC_PIN_YTOP  % LV_CB_STRIP) * 240 * 2;
+        const uint8_t *rf = tmp + (LV_THC_PIN_YFILL % LV_CB_STRIP) * 240 * 2;
+        lv_thc_pin_top_c  = (uint16_t)(rt[2 * LV_THC_PIN_X] | (rt[2 * LV_THC_PIN_X + 1] << 8));
+        lv_thc_pin_fill_c = (uint16_t)(rf[2 * LV_THC_PIN_X] | (rf[2 * LV_THC_PIN_X + 1] << 8));
+        lv_thc_pin_slot = slot;
+    }
+    free(tmp);
+}
+static uint16_t lv_thc_pin_fill_px(void) { lv_thc_sample_pins(); return lv_thc_pin_slot >= 0 ? lv_thc_pin_fill_c : lv_rgb(140, 56, 181); }
+static uint16_t lv_thc_pin_top_px(void)  { lv_thc_sample_pins(); return lv_thc_pin_slot >= 0 ? lv_thc_pin_top_c  : lv_rgb(173, 69, 222); }
+#endif
+#endif
+#if !LV_CB && LV_TERM_RECOLOR
+static uint16_t lv_thc_pin_fill_px(void) { return lv_rgb(140, 56, 181); }
+static uint16_t lv_thc_pin_top_px(void)  { return lv_rgb(173, 69, 222); }
 #endif
 #if LV_TERM_STRIP && LV_RD_PAD && LV_RD_FOLD
 /* mock/v1220 item 4: TERMINALbot strip = lv_rd_pad_draw body + pad_draw_joey + pad_draw_speed (GIBSON, cloned), theme ink.

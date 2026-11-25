@@ -1,0 +1,18 @@
+v1.2.21 pixel gate vs v1.2.20 (edd75bd / sim_b120), script tools/livescan/scripts/v1220_tour.txt, default theme 0.
+Allowed on term only: left pads 6,32,12,305; right pads 227,32,233,305; bot package 78,48,161,149; terminal box 33,255,205,310.
+Pins follow the live theme (home v6 board fill/top at (8,89)/(8,88)); theme 0 is the same GRAPE purple item 1c used.
+Body grey and gold mini terminal unchanged by the 7:47 AM theme-pin fix. LV_TERM_STRIP stays 0.
+Theme-proof renders (TERM under GRAPE / TOXIC / ORANGE): /workspace/out/fw-bigbot-1117/v1.2.21/theme-pin-proof/
+
+screen            inside  outside   total  result  change bbox
+pager0                 0        0       0  PASS      allowed=none
+pager1                 0        0       0  PASS      allowed=none
+pager2                 0        0       0  PASS      allowed=none
+pager3                 0        0       0  PASS      allowed=none
+pager4                 0        0       0  PASS      allowed=none
+term               11420        0   11420  PASS    (6,32)-(233,306)  allowed=6,32,12,305;227,32,233,305;78,48,161,149;33,255,205,310
+dojo                   0        0       0  PASS      allowed=none
+gib_scan               0        0       0  PASS      allowed=none
+gib_sel_deck           0        0       0  PASS      allowed=none
+dl_intro               0        0       0  PASS      allowed=none
+dl_play                0        0       0  PASS      allowed=none

@@ -129,7 +129,7 @@ static void lv_lb_face_row(uint16_t *row, int y, const uint8_t *fr);   /* lv_pag
 static void lv_lb_panel_row(uint16_t *row, int y);
 static int lv_lb_tab = 0;   /* 0 = SCAN LOG, 1 = SYSTEM LOG */
 #endif
-#include "lv_pager_hack21.h"   /* CYD-21 mock: HACKbot lime-green metallic plate + black rain (off unless LV_CYD21_HACK_LIME) */
+#include "lv_pager_hack21.h"   /* CYD-21 mock: HACKbot solid lime plate + black rain (off unless LV_CYD21_HACK_LIME) */
 static void lv_pg_face_fx_row(uint16_t *row, int y, int page, const uint8_t *fr)
 {
 #if LV_CYD19_LOGBOT
@@ -138,7 +138,7 @@ static void lv_pg_face_fx_row(uint16_t *row, int y, int page, const uint8_t *fr)
     if (y < LV_PG_FX_Y0 || y > LV_PG_FX_Y1 || page == LV_PG_CTL) return;
     if (page == LV_PG_HACKBOT) {
 #if LV_CYD21_HACK_LIME
-        lv_hb_face_row(row, y, fr);   /* lime metal + black rain, locked sockets kept; no lime-block eyes */
+        lv_hb_face_row(row, y, fr);   /* solid lime + black rain, locked sockets kept; no lime-block eyes */
         return;
 #else
         /* v1.2.5: the green Matrix face + lime eyes moved here from TERMINALbot */

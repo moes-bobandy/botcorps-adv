@@ -11,7 +11,7 @@ A) default-OFF build (LV_CYD21_HACK_LIME=0) vs base a87eb83 (same CYD17/CYD19 fl
   p4_full   diff_px=0  PASS
   p5_mid    diff_px=0  PASS
   p5_full   diff_px=0  PASS
-B) HACK_LIME=1 build vs base: 0 px outside HACKbot plate (x65-174, y88-197). Other pages 0 px everywhere.
+B) HACK_LIME=1 v2 (solid lime) vs base: 0 px outside HACKbot plate (x65-174, y88-197). Other pages 0 px everywhere.
   p0_mid    total=    0 plate=    0 OUTSIDE=    0  PASS  none
   p0_full   total=    0 plate=    0 OUTSIDE=    0  PASS  none
   p1_mid    total=12100 plate=12100 OUTSIDE=    0  PASS  bbox x65-174 y88-197
@@ -24,5 +24,6 @@ B) HACK_LIME=1 build vs base: 0 px outside HACKbot plate (x65-174, y88-197). Oth
   p4_full   total=    0 plate=    0 OUTSIDE=    0  PASS  none
   p5_mid    total=    0 plate=    0 OUTSIDE=    0  PASS  none
   p5_full   total=    0 plate=    0 OUTSIDE=    0  PASS  none
-C) sanity: HACKbot plate changed px=12100  PASS
+C) sanity: plate is only solid lime #7BFF00 (RGB565 of #7CFF00) + black (rain/sockets). unique_nonblack=1  PASS
+D) sanity: HACKbot plate changed px=12100  PASS
 OVERALL PASS

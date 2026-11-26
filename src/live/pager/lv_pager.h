@@ -28,7 +28,7 @@
 #define LV_CYD19_LOGBOT 0   /* CYD-19 mock (sim-only, NOT in any bin): LOGbot pager page between TERMINALbot and CONTROLbot */
 #endif
 #ifndef LV_CYD21_HACK_LIME
-#define LV_CYD21_HACK_LIME 0   /* CYD-21 mock (sim-only, NOT in any bin): HACKbot lime-green metallic plate + black code rain */
+#define LV_CYD21_HACK_LIME 0   /* CYD-21 mock (sim-only, NOT in any bin): HACKbot solid lime plate + black code rain */
 #endif
 #if LV_PG_TERMINAL_PAGE && LV_CYD19_LOGBOT
 #define LV_PG_N        6

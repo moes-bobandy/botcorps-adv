@@ -1,0 +1,13 @@
+A) default-OFF build (LV_CYD22_G2=0) vs base a87eb83: 0 px everywhere
+  home_terminalbot       diff_px=0  PASS
+  g2_materialize         diff_px=0  PASS
+  g2_full                diff_px=0  PASS
+B) CYD22=1 vs base: 0 px outside Stripe Slot back rect (x1-32,y1-23) and list area (y90-306, device rows + 1px bloom)
+  home_terminalbot       total=    0 back=   0 list=    0 OUTSIDE=    0  PASS  none
+  g2_materialize         total=  736 back= 736 list=    0 OUTSIDE=    0  PASS  bbox x1-32 y1-23
+  g2_full                total= 1294 back= 736 list=  558 OUTSIDE=    0  PASS  bbox x1-221 y1-306
+C) sanity: home page flag-on vs base diff_px=0  PASS
+D) sanity: G2 back-rect changed px=736  PASS
+E) sanity: removed slot is CRT black (all 0)  PASS
+F) list-area diffs on g2_full are CH=0 glyphs on BLE rows (previously blank); command/header/TERM pill unchanged.
+OVERALL PASS

@@ -125,6 +125,12 @@ enum LvScr { LV_SC_BOOT, LV_SC_HOME_INTRO, LV_SC_HOME, LV_SC_TERM, LV_SC_SCAN, L
 #ifndef LV_TPS_G2_ONLY
 #define LV_TPS_G2_ONLY 0   /* v1.2.23: 1 = G2 is THE TERMINALbot screen (every former TERM route opens G2). Old LV_SC_TERM code stays; a small G2 control opens it. */
 #endif
+#ifndef LV_CYD22_G2
+#define LV_CYD22_G2 0   /* CYD-22 mock (sim-only, NOT in any bin): no Stripe Slot back on G2; ~1s long-press exits; list shows LIVE/empty-state */
+#endif
+#ifndef LV_G2_HOLD_MS
+#define LV_G2_HOLD_MS 1000   /* CYD-22: long-press hold time on G2 (ms) */
+#endif
 #ifndef LV_TERM_PS
 #define LV_TERM_PS 1   /* MOCK 2026-11-25: TERMINALbot PowerShell + Matrix area-scan (lv_term_ps.h); 0 = none */
 #endif
@@ -261,7 +267,7 @@ static const LvRect LV_R_BANNER_BACK_HIT = {0, 0, 39, 39};
 #define LV_BANNER_BACK_TR 0
 #endif
 #ifndef LV_BANNER_BACK_ON
-#define LV_BANNER_BACK_ON (     lv_scr == LV_SC_TERM || lv_scr == LV_SC_SCAN || lv_scr == LV_SC_CTL || lv_scr == LV_SC_TTY     || lv_scr == LV_SC_RADAR || lv_scr == LV_SC_GLOSS || lv_scr == LV_SC_GLOSS_DESC     || (LV_HC_GAME && lv_scr == LV_SC_HCH)     || (LV_DL_GAME && lv_scr == LV_SC_DL)     || (LV_MO_INSIDE && lv_scr == LV_SC_MO)     || LV_BANNER_BACK_CT || LV_BANNER_BACK_TR     || (LV_TERM_PS && lv_scr == LV_SC_TPSG2))
+#define LV_BANNER_BACK_ON (     lv_scr == LV_SC_TERM || lv_scr == LV_SC_SCAN || lv_scr == LV_SC_CTL || lv_scr == LV_SC_TTY     || lv_scr == LV_SC_RADAR || lv_scr == LV_SC_GLOSS || lv_scr == LV_SC_GLOSS_DESC     || (LV_HC_GAME && lv_scr == LV_SC_HCH)     || (LV_DL_GAME && lv_scr == LV_SC_DL)     || (LV_MO_INSIDE && lv_scr == LV_SC_MO)     || LV_BANNER_BACK_CT || LV_BANNER_BACK_TR     || (LV_TERM_PS && lv_scr == LV_SC_TPSG2 && !LV_CYD22_G2))
 #endif
 static const LvRect LV_R_SBOX = {33, 153, 206, 256};  /* SCANbot device-emoji grid (old 4 tabs + results box) */
 /* Small terminal box (item 11): the whole inner box is now overlay - 1 line row, an enlarged button row right above
@@ -2961,6 +2967,9 @@ static void lv_touch(bool down, int x, int y) {
     lv_cb_finger(down);
     if (lv_cb_slp) return;   /* asleep or eating the wake gesture: do not start a swipe / radar lock */
 #endif
+#if LV_TERM_PS && LV_CYD22_G2
+    if (lv_scr == LV_SC_TPSG2) lv_tps_g2_touch(down, x, y);   /* CYD-22: ~1s hold (not on TERM pill) exits the same way the old back button did */
+#endif
     if (lv_scr == LV_SC_RADAR) lv_radar_touch(down, x, y);
 #if LV_DL_GAME && LV_DL_DECK
     if (lv_scr == LV_SC_DL) lv_dl_touch(down, x, y);   /* v1.2.14: deck key held state */
@@ -2974,6 +2983,9 @@ static void lv_touch(bool down, int x, int y) {
 static const char *lv_tap(int x, int y)
 {
     if (lv_scr == LV_SC_CAL) return "cal-raw-only";
+#if LV_TERM_PS && LV_CYD22_G2
+    if (lv_tps_g2_eat_tap()) return "g2-hold-eat";   /* swallow the release tap after a long-press exit, as swipe does */
+#endif
 #if LV_CB
     if (lv_cb_eat()) return "sleep-wake";   /* first tap after SLEEP blank must not fire a control */
     lv_cb_idle_t = lv_now;

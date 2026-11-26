@@ -923,11 +923,14 @@ static void lv_tps_g_scene(LvBand &B, void *)
  * 11 px pitch, 38 cols at 6 px pitch, no scroll).
  * Overflow rule: <=20 dev -> 5x7 11px pitch; 21..24 -> 5x7 10px pitch; 25..31 -> auto-switch
  * to 3x5 LV_F35 8px pitch; >31 -> strongest 31 devices (by RSSI) + "+K more" row. */
-/* v1.2.23: honest data tag. Rows come from lv_f[] (the real scan list). The host sim feeds it a canned set (SAMPLE); the CYD fills it from the live WiFi/BLE scan (LIVE). */
+/* v1.2.23: honest data tag. Rows come from lv_f[] (the real scan list). The host sim feeds it a canned set (SAMPLE); the CYD fills it from the live WiFi/BLE scan (LIVE).
+ * Overridable so a host sim can prove the device LIVE path with -DLV_TPS_DATA_TAG=\"LIVE\". */
+#ifndef LV_TPS_DATA_TAG
 #if defined(BOTCORPS_CYD) && !defined(LV_HOST)
 #define LV_TPS_DATA_TAG "LIVE"
 #else
 #define LV_TPS_DATA_TAG "SAMPLE"
+#endif
 #endif
 #define LV_TPS2_X     6
 #define LV_TPS2_CW    6
@@ -970,7 +973,11 @@ static void lv_tps2_fmt_row(char *out, size_t osz, const LvFind &f, const char *
     if ((int)strlen(nm) > nw) { nm[nw - 3] = '.'; nm[nw - 2] = '.'; nm[nw - 1] = '.'; nm[nw] = 0; }
     char rssi[8], ch[8];
     snprintf(rssi, sizeof rssi, "%d", (int)f.rssi);
+#if LV_CYD22_G2
+    snprintf(ch, sizeof ch, "%d", (int)f.ch);   /* CYD-22: every row shows, even when CH is 0 (was blanked for BLE / ch==0) */
+#else
     if (f.kind == LV_K_WIFI && f.ch) snprintf(ch, sizeof ch, "%d", (int)f.ch); else ch[0] = 0;
+#endif
     if (dense35) snprintf(out, osz, "%-22s %-10s %4s %3s", nm, cls, rssi, ch);
     else         snprintf(out, osz, "%-16s %-10s %4s %3s", nm, cls, rssi, ch);
 }
@@ -1061,6 +1068,20 @@ static void lv_tps2_build(LvTps2Model &m, bool is_trace, bool trace_done)
         push(2, (uint8_t)(4 + items[i].rank), "%s", row);
     }
     if (extra > 0) push(4, 20, "+%d more (strongest %d shown)", extra, n_dev);
+#if LV_CYD22_G2
+    /* Device (LIVE) starts with lv_nf==0 until the scan started in lv_tps_enter returns.
+     * Without a row here the typist stops at "gibson>" / an empty chart. Show a real status
+     * line, and force a full push when finds later arrive so dirty-row blit cannot skip them. */
+    if (n_dev == 0) {
+        if (lv_job != LV_J_NONE) push(1, 4, "[ .. ] SCANNING...");
+        else push(3, 4, "[ -- ] NO DEVICES ON GRID");
+    }
+    {
+        static int seen = 0x7fffffff;
+        const int key = (lv_nf << 16) ^ (lv_job << 8) ^ nw ^ (nb << 4) ^ n_dev;
+        if (key != seen) { seen = key; lv_tps_full = 1; }
+    }
+#endif
     push(0, 21, "gibson>");
 }
 
@@ -1392,11 +1413,44 @@ static const char *lv_tps_tap(int x, int y)
         return "g2-live-term";   /* v1.2.23: small unused-corner control opens the live typed terminal */
     }
     (void)x; (void)y;
-    return "none";   /* back is the uniform Stripe Slot (LV_R_BANNER_BACK_HIT), handled in lv_tap */
+    return "none";   /* CYD-22: Stripe Slot back is gone; exit is a ~1s long-press (lv_tps_g2_touch). TERM pill keeps its tap. */
 #else
     (void)x; (void)y;
     return lv_back();   /* no chrome: any tap leaves */
 #endif
 }
+
+#if LV_CYD22_G2
+static const char *lv_back(void);   /* defined later in lv_core.h, same TU */
+static bool lv_g2_hold_on = false;
+static bool lv_g2_ate = false;
+static uint32_t lv_g2_hold_t0 = 0;
+static int lv_g2_hold_x = 0, lv_g2_hold_y = 0;
+static bool lv_tps_g2_eat_tap(void)
+{
+    if (!lv_g2_ate) return false;
+    lv_g2_ate = false;
+    return true;
+}
+static void lv_tps_g2_touch(bool down, int x, int y)
+{
+    if (!down) { lv_g2_hold_on = false; return; }
+    if (!lv_g2_hold_on) {
+        lv_g2_hold_on = true;
+        lv_g2_hold_t0 = lv_now;
+        lv_g2_hold_x = x;
+        lv_g2_hold_y = y;
+        return;
+    }
+    if (lv_in(LV_R_G2_TERM_HIT, lv_g2_hold_x, lv_g2_hold_y)) return;   /* TERM pill keeps its tap; hold there does not exit */
+    if ((int)(lv_now - lv_g2_hold_t0) < LV_G2_HOLD_MS) return;
+    lv_g2_hold_on = false;
+    lv_g2_ate = true;   /* swallow the release tap so it cannot fire on the destination screen */
+    const char *r = lv_back();   /* same target as the old Stripe Slot back (home, or Dojo if G2 was opened from there) */
+#if !defined(ARDUINO)
+    printf("t=%u g2-longpress %d,%d %dms -> %s scr=%d\n", lv_now, lv_g2_hold_x, lv_g2_hold_y, LV_G2_HOLD_MS, r ? r : "-", lv_scr);
+#endif
+}
+#endif
 
 #endif /* LV_TERM_PS */

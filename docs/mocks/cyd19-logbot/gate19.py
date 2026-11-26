@@ -10,7 +10,7 @@ ok=True
 for th,tn in ((22,"Vapor Grid"),(23,"Amber CRT"),(9,"Prism")):
     run("/tmp/c19/bin/sim_base","/tmp/c19/gate_base.txt",th,f"/tmp/c19/g/base{th}")
     run("/tmp/c19/bin/sim_off","/tmp/c19/gate_base.txt",th,f"/tmp/c19/g/off{th}")
-    for fin in (0,1,2):
+    for fin in (2,):
         os.environ["LB_FINISH"]=str(fin)
         run("/tmp/c19/bin/sim_lb","/tmp/c19/gate_lb.txt",th,f"/tmp/c19/g/lb{th}_{fin}")
     lines.append(f"== SIM_THEME={th} ({tn})")
@@ -19,7 +19,7 @@ for th,tn in ((22,"Vapor Grid"),(23,"Amber CRT"),(9,"Prism")):
         d=(ld(f"/tmp/c19/g/base{th}",n)!=ld(f"/tmp/c19/g/off{th}",n)).any(-1).sum()
         lines.append(f"  {n:9s} diff_px={d}  {'PASS' if d==0 else 'FAIL'}"); ok&=d==0
     lines.append("B) LOGBOT=1 build vs base, existing pages (CONTROLbot is page 5 now): diff must be 0 outside pip band y=25..29")
-    for fin in (0,1,2):
+    for fin in (2,):
         for n in names:
             a=ld(f"/tmp/c19/g/base{th}",n); b=ld(f"/tmp/c19/g/lb{th}_{fin}",n)
             m=(a!=b).any(-1); outside=m.copy(); outside[25:30,:]=False
@@ -27,7 +27,7 @@ for th,tn in ((22,"Vapor Grid"),(23,"Amber CRT"),(9,"Prism")):
             bb=f"pip band x{xs.min()}-{xs.max()} y{ys.min()}-{ys.max()}" if m.any() else "none"
             res=outside.sum()==0
             ok&=res
-            if fin==0 or not res: lines.append(f"  fin{fin} {n:9s} total={m.sum():4d} inside_pip_band={m.sum()-outside.sum():4d} OUTSIDE={outside.sum()}  {'PASS' if res else 'FAIL'}  {bb}")
-        lines.append(f"  (finish {fin}: all 10 screens checked)")
+            if True: lines.append(f"  fin{fin} {n:9s} total={m.sum():4d} inside_pip_band={m.sum()-outside.sum():4d} OUTSIDE={outside.sum()}  {'PASS' if res else 'FAIL'}  {bb}")
+        lines.append(f"  (finish {fin} oil-slick: all 10 screens checked)")
 open('/tmp/c19/gate19.txt','w').write("\n".join(lines)+"\nOVERALL "+("PASS" if ok else "FAIL")+"\n")
 print("\n".join(lines[:30])); print("OVERALL","PASS" if ok else "FAIL")

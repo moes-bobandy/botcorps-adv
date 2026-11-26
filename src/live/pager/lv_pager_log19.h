@@ -1,19 +1,20 @@
 /* MOCK 2026-11-26 (CYD-19, sim-only, NOT in any bin): LOGbot home pager page, between TERMINALbot and CONTROLbot.
  * Off by default: LV_CYD19_LOGBOT is 0, so firmware and v1.2.22 renders are byte-identical. The mock sim builds with -DLV_CYD19_LOGBOT=1.
  * Cloned verbatim from the locked pager page: board, chrome, pins, banner, pips, rain face box (65,88)-(174,197) and role panel
- * (45,220) 152x71. Added: (1) LOGbot's chip face, the SAME 110x110 chip-plate art as the gold TERMINALbot page (blob 2, lv_pg_ch_row),
- * remapped through a metal finish + a smooth sheen; no existing LOGbot sprite/face exists in source or docs (rg: 0 hits), so the face is
- * the house chip plate with LOGbot features: the two locked eye sockets are the two TABS (lit = active log), the recessed slot below holds
- * the two log counters. (2) The panel becomes a two-tab terminal log (SCAN LOG / SYSTEM LOG), F2 look from CYD-17 (lv_pager_term17.h),
- * ink = live theme per pixel (lv_theme_at + sec_legible), never hardcoded. Tap the face or the panel to flip tabs.
- * All log rows are generated SAMPLE data (EX.DATA tag on the panel): no live scan or system log is read.
- * Finishes (LV_LB_FIN, or env LB_FINISH=0/1/2 in the host sim): 0 chrome blue, 1 metallic copper, 2 oil-slick (animated iridescent sheen).
+ * (45,220) 152x71. Added: (1) LOGbot's chip face, the SAME 110x110 chip-plate art as the gold TERMINALbot page (blob 2, lv_pg_ch_row
+ * in lv_pager.h, pixels in LV_PG_FACE_Z / lv_pager_data.h), remapped through a metal finish + a smooth sheen. Both eyes are the
+ * art's locked sockets, left untouched and identical — the same black chip-plate eyes TERMINALbot uses (kept as c==0, rain skip=1
+ * via lv_pg_keep_feat, no lit/tab state on the eyes). No mouth / counter slot: the lower plate is the art, unfilled. (2) The panel
+ * is a two-tab terminal log (SCAN LOG / SYSTEM LOG), F2 look from CYD-17 (lv_pager_term17.h), ink = live theme per pixel
+ * (lv_theme_at + sec_legible), never hardcoded. The active log tab shows only on the panel SCAN/SYS tabs. Tap the face or the
+ * panel to flip tabs. All log rows are generated SAMPLE data (EX.DATA tag on the panel): no live scan or system log is read.
+ * Locked finish: oil-slick (LV_LB_FIN default 2; animated iridescent sheen). Host sim still accepts LB_FINISH=0/1/2 (chrome / copper / oil-slick).
  * Mock-only RAM note: reuses the 21 KB CYD-17 panel buffer; a firmware port would draw row-wise. */
 #pragma once
 #if LV_CYD19_LOGBOT
 #include <stdlib.h>
 #ifndef LV_LB_FIN
-#define LV_LB_FIN 0
+#define LV_LB_FIN 2
 #endif
 struct LvLbStop { int16_t l; uint8_t r, g, b; };
 /* lum -> colour, piecewise linear. Chrome is non-monotone on purpose (dark horizon band between two bright reflections). */
@@ -96,35 +97,7 @@ static void lv_lb_face_row(uint16_t *row, int y, const uint8_t *fr)
         const int r = (c >> 11) << 3, g = ((c >> 5) & 63) << 2, b = (c & 31) << 3;
         row[X0 + lx] = lv_lb_metal((r * 3 + g * 6 + b) / 10, lx, ly);
     }
-    { const uint16_t pal[3] = { 0, 0, 0 }; lv_pg_rain_row(row, y, pal, 0, LV_PG_LOGBOT); }   /* same black code rain as the gold TERMINALbot face */
-    /* eye sockets = tabs. Lit socket = the open log: theme-ink core + bloom. Dark socket: one dim pip. */
-    for (int e = 0; e < 2; ++e) {
-        if (ly < LV_PG_EYE[e][1] || ly > LV_PG_EYE[e][3]) continue;
-        const bool lit = (e == lv_lb_tab);
-        const int cx2 = LV_PG_EYE[e][0] + LV_PG_EYE[e][2] + 1, cy2 = LV_PG_EYE[e][1] + LV_PG_EYE[e][3] + 1;   /* centre x2 */
-        for (int lx = LV_PG_EYE[e][0]; lx <= LV_PG_EYE[e][2]; ++lx) {
-            const int dx = abs(2 * lx + 1 - cx2), dy = abs(2 * ly + 1 - cy2), d = dx > dy ? dx : dy;   /* Chebyshev, doubled */
-            const int sx = X0 + lx;
-            uint16_t c = lv_rgb(3, 5, 9);
-            if (lit) { if (d <= 5) c = lv_lb_ink(C17_LEAD, sx, y); else if (d <= 13) c = lv_lb_ink(C17_HOT, sx, y); else if (d <= 17) c = lv_lb_ink(C17_MID, sx, y); else if (d <= 19) c = lv_lb_ink(C17_T1, sx, y); }
-            else if (d <= 3) c = lv_lb_ink(C17_T1, sx, y);
-            row[sx] = c;
-        }
-    }
-    /* recessed counter slot (face-local x22..87, y62..86): the two logs and how many rows each holds (sample counts) */
-    if (ly >= 62 && ly <= 86) {
-        const int a = lv_lb_arrivals();
-        for (int lx = 22; lx <= 87; ++lx) {
-            const bool rim = (lx == 22 || lx == 87 || ly == 62 || ly == 86);
-            row[X0 + lx] = rim ? lv_lb_metal(40, lx, ly) : lv_rgb(3, 5, 9);
-        }
-        char b0[16], b1[16]; snprintf(b0, sizeof b0, "SCAN %03d", 128 + a); snprintf(b1, sizeof b1, "SYS  %03d", 41 + a / 4);
-        const int xlo = X0 + 24, xhi = X0 + 85;
-        lv_lb_gl_row(row, y, X0 + 25, 88 + 66, b0, lv_lb_tab == 0 ? C17_TAG : C17_MID, xlo, xhi);
-        lv_lb_gl_row(row, y, X0 + 25, 88 + 77, b1, lv_lb_tab == 1 ? C17_TAG : C17_MID, xlo, xhi);
-        if (lv_lb_tab == 0) lv_lb_gl_row(row, y, X0 + 76, 88 + 66, "<", C17_HOT, xlo, xhi);
-        else lv_lb_gl_row(row, y, X0 + 76, 88 + 77, "<", C17_HOT, xlo, xhi);
-    }
+    { const uint16_t pal[3] = { 0, 0, 0 }; lv_pg_rain_row(row, y, pal, 1, LV_PG_LOGBOT); }   /* same black code rain as the gold TERMINALbot face; skip=1 keeps the art's eye sockets on top */
 }
 
 /* ---- panel: SCAN LOG / SYSTEM LOG terminal ---- */

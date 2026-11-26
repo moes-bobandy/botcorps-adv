@@ -11,19 +11,17 @@ A) default-OFF build (LV_CYD19_LOGBOT=0) vs base (6f031b0 tree, unmodified): eve
   p4_mid    diff_px=0  PASS
   p4_full   diff_px=0  PASS
 B) LOGBOT=1 build vs base, existing pages (CONTROLbot is page 5 now): diff must be 0 outside pip band y=25..29
-  fin0 p0_mid    total= 162 inside_pip_band= 162 OUTSIDE=0  PASS  pip band x96-141 y25-29
-  fin0 p0_full   total= 162 inside_pip_band= 162 OUTSIDE=0  PASS  pip band x96-141 y25-29
-  fin0 p1_mid    total= 156 inside_pip_band= 156 OUTSIDE=0  PASS  pip band x98-141 y25-29
-  fin0 p1_full   total= 156 inside_pip_band= 156 OUTSIDE=0  PASS  pip band x98-141 y25-29
-  fin0 p2_mid    total= 156 inside_pip_band= 156 OUTSIDE=0  PASS  pip band x98-141 y25-29
-  fin0 p2_full   total= 156 inside_pip_band= 156 OUTSIDE=0  PASS  pip band x98-141 y25-29
-  fin0 p3_mid    total= 156 inside_pip_band= 156 OUTSIDE=0  PASS  pip band x98-141 y25-29
-  fin0 p3_full   total= 156 inside_pip_band= 156 OUTSIDE=0  PASS  pip band x98-141 y25-29
-  fin0 p4_mid    total= 162 inside_pip_band= 162 OUTSIDE=0  PASS  pip band x98-143 y25-29
-  fin0 p4_full   total= 162 inside_pip_band= 162 OUTSIDE=0  PASS  pip band x98-143 y25-29
-  (finish 0: all 10 screens checked)
-  (finish 1: all 10 screens checked)
-  (finish 2: all 10 screens checked)
+  fin2 p0_mid    total= 162 inside_pip_band= 162 OUTSIDE=0  PASS  pip band x96-141 y25-29
+  fin2 p0_full   total= 162 inside_pip_band= 162 OUTSIDE=0  PASS  pip band x96-141 y25-29
+  fin2 p1_mid    total= 156 inside_pip_band= 156 OUTSIDE=0  PASS  pip band x98-141 y25-29
+  fin2 p1_full   total= 156 inside_pip_band= 156 OUTSIDE=0  PASS  pip band x98-141 y25-29
+  fin2 p2_mid    total= 156 inside_pip_band= 156 OUTSIDE=0  PASS  pip band x98-141 y25-29
+  fin2 p2_full   total= 156 inside_pip_band= 156 OUTSIDE=0  PASS  pip band x98-141 y25-29
+  fin2 p3_mid    total= 156 inside_pip_band= 156 OUTSIDE=0  PASS  pip band x98-141 y25-29
+  fin2 p3_full   total= 156 inside_pip_band= 156 OUTSIDE=0  PASS  pip band x98-141 y25-29
+  fin2 p4_mid    total= 162 inside_pip_band= 162 OUTSIDE=0  PASS  pip band x98-143 y25-29
+  fin2 p4_full   total= 162 inside_pip_band= 162 OUTSIDE=0  PASS  pip band x98-143 y25-29
+  (finish 2 oil-slick: all 10 screens checked)
 == SIM_THEME=23 (Amber CRT)
 A) default-OFF build (LV_CYD19_LOGBOT=0) vs base (6f031b0 tree, unmodified): every page 0 px
   p0_mid    diff_px=0  PASS
@@ -37,19 +35,17 @@ A) default-OFF build (LV_CYD19_LOGBOT=0) vs base (6f031b0 tree, unmodified): eve
   p4_mid    diff_px=0  PASS
   p4_full   diff_px=0  PASS
 B) LOGBOT=1 build vs base, existing pages (CONTROLbot is page 5 now): diff must be 0 outside pip band y=25..29
-  fin0 p0_mid    total= 162 inside_pip_band= 162 OUTSIDE=0  PASS  pip band x96-141 y25-29
-  fin0 p0_full   total= 162 inside_pip_band= 162 OUTSIDE=0  PASS  pip band x96-141 y25-29
-  fin0 p1_mid    total= 156 inside_pip_band= 156 OUTSIDE=0  PASS  pip band x98-141 y25-29
-  fin0 p1_full   total= 156 inside_pip_band= 156 OUTSIDE=0  PASS  pip band x98-141 y25-29
-  fin0 p2_mid    total= 156 inside_pip_band= 156 OUTSIDE=0  PASS  pip band x98-141 y25-29
-  fin0 p2_full   total= 156 inside_pip_band= 156 OUTSIDE=0  PASS  pip band x98-141 y25-29
-  fin0 p3_mid    total= 156 inside_pip_band= 156 OUTSIDE=0  PASS  pip band x98-141 y25-29
-  fin0 p3_full   total= 156 inside_pip_band= 156 OUTSIDE=0  PASS  pip band x98-141 y25-29
-  fin0 p4_mid    total= 162 inside_pip_band= 162 OUTSIDE=0  PASS  pip band x98-143 y25-29
-  fin0 p4_full   total= 162 inside_pip_band= 162 OUTSIDE=0  PASS  pip band x98-143 y25-29
-  (finish 0: all 10 screens checked)
-  (finish 1: all 10 screens checked)
-  (finish 2: all 10 screens checked)
+  fin2 p0_mid    total= 162 inside_pip_band= 162 OUTSIDE=0  PASS  pip band x96-141 y25-29
+  fin2 p0_full   total= 162 inside_pip_band= 162 OUTSIDE=0  PASS  pip band x96-141 y25-29
+  fin2 p1_mid    total= 156 inside_pip_band= 156 OUTSIDE=0  PASS  pip band x98-141 y25-29
+  fin2 p1_full   total= 156 inside_pip_band= 156 OUTSIDE=0  PASS  pip band x98-141 y25-29
+  fin2 p2_mid    total= 156 inside_pip_band= 156 OUTSIDE=0  PASS  pip band x98-141 y25-29
+  fin2 p2_full   total= 156 inside_pip_band= 156 OUTSIDE=0  PASS  pip band x98-141 y25-29
+  fin2 p3_mid    total= 156 inside_pip_band= 156 OUTSIDE=0  PASS  pip band x98-141 y25-29
+  fin2 p3_full   total= 156 inside_pip_band= 156 OUTSIDE=0  PASS  pip band x98-141 y25-29
+  fin2 p4_mid    total= 162 inside_pip_band= 162 OUTSIDE=0  PASS  pip band x98-143 y25-29
+  fin2 p4_full   total= 162 inside_pip_band= 162 OUTSIDE=0  PASS  pip band x98-143 y25-29
+  (finish 2 oil-slick: all 10 screens checked)
 == SIM_THEME=9 (Prism)
 A) default-OFF build (LV_CYD19_LOGBOT=0) vs base (6f031b0 tree, unmodified): every page 0 px
   p0_mid    diff_px=0  PASS
@@ -63,17 +59,15 @@ A) default-OFF build (LV_CYD19_LOGBOT=0) vs base (6f031b0 tree, unmodified): eve
   p4_mid    diff_px=0  PASS
   p4_full   diff_px=0  PASS
 B) LOGBOT=1 build vs base, existing pages (CONTROLbot is page 5 now): diff must be 0 outside pip band y=25..29
-  fin0 p0_mid    total= 164 inside_pip_band= 164 OUTSIDE=0  PASS  pip band x95-141 y25-29
-  fin0 p0_full   total= 164 inside_pip_band= 164 OUTSIDE=0  PASS  pip band x95-141 y25-29
-  fin0 p1_mid    total= 156 inside_pip_band= 156 OUTSIDE=0  PASS  pip band x98-141 y25-29
-  fin0 p1_full   total= 156 inside_pip_band= 156 OUTSIDE=0  PASS  pip band x98-141 y25-29
-  fin0 p2_mid    total= 156 inside_pip_band= 156 OUTSIDE=0  PASS  pip band x98-141 y25-29
-  fin0 p2_full   total= 156 inside_pip_band= 156 OUTSIDE=0  PASS  pip band x98-141 y25-29
-  fin0 p3_mid    total= 156 inside_pip_band= 156 OUTSIDE=0  PASS  pip band x98-141 y25-29
-  fin0 p3_full   total= 156 inside_pip_band= 156 OUTSIDE=0  PASS  pip band x98-141 y25-29
-  fin0 p4_mid    total= 164 inside_pip_band= 164 OUTSIDE=0  PASS  pip band x98-144 y25-29
-  fin0 p4_full   total= 164 inside_pip_band= 164 OUTSIDE=0  PASS  pip band x98-144 y25-29
-  (finish 0: all 10 screens checked)
-  (finish 1: all 10 screens checked)
-  (finish 2: all 10 screens checked)
+  fin2 p0_mid    total= 164 inside_pip_band= 164 OUTSIDE=0  PASS  pip band x95-141 y25-29
+  fin2 p0_full   total= 164 inside_pip_band= 164 OUTSIDE=0  PASS  pip band x95-141 y25-29
+  fin2 p1_mid    total= 156 inside_pip_band= 156 OUTSIDE=0  PASS  pip band x98-141 y25-29
+  fin2 p1_full   total= 156 inside_pip_band= 156 OUTSIDE=0  PASS  pip band x98-141 y25-29
+  fin2 p2_mid    total= 156 inside_pip_band= 156 OUTSIDE=0  PASS  pip band x98-141 y25-29
+  fin2 p2_full   total= 156 inside_pip_band= 156 OUTSIDE=0  PASS  pip band x98-141 y25-29
+  fin2 p3_mid    total= 156 inside_pip_band= 156 OUTSIDE=0  PASS  pip band x98-141 y25-29
+  fin2 p3_full   total= 156 inside_pip_band= 156 OUTSIDE=0  PASS  pip band x98-141 y25-29
+  fin2 p4_mid    total= 164 inside_pip_band= 164 OUTSIDE=0  PASS  pip band x98-144 y25-29
+  fin2 p4_full   total= 164 inside_pip_band= 164 OUTSIDE=0  PASS  pip band x98-144 y25-29
+  (finish 2 oil-slick: all 10 screens checked)
 OVERALL PASS

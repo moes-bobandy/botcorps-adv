@@ -1,0 +1,8 @@
+tick 300
+motion 0
+page 4
+tick 150
+dump scan
+tap 120 255
+tick 12
+dump sys

@@ -15,10 +15,13 @@
 #ifndef LV_CYD17_PANEL_TERM
 #define LV_CYD17_PANEL_TERM 0
 #endif
+#ifndef LV_CYD19_LOGBOT
+#define LV_CYD19_LOGBOT 0   /* CYD-19: also needed here, the LOGbot log panel reuses the CYD-17 F2 glyph/ink helpers */
+#endif
 #ifndef LV_C17_CTL
 #define LV_C17_CTL 0   /* 1 = also overpaint the CONTROLbot panel (hides its live controls; extra mock only) */
 #endif
-#if LV_CYD17_PANEL_TERM
+#if LV_CYD17_PANEL_TERM || LV_CYD19_LOGBOT
 #define LV_C17_MS    45        /* ms per typed cell */
 #define LV_C17_PAUSE 4         /* extra cells of pause at end of each line */
 #define LV_C17_X     52
@@ -27,16 +30,6 @@
 #define LV_C17_NL    6
 
 enum { C17_T1, C17_MID, C17_BODY, C17_TAG, C17_HOT, C17_LEAD, C17_NONE = -1 };
-struct LvC17Page { const char *l[LV_C17_NL]; uint8_t kind[LV_C17_NL]; };   /* kind 0 name, 1 role, 2 body, 3 prompt */
-/* Index = LV_PG_* page id (BOTPHEUS 0, HACKBOT 1, GIBSON 2, TERMINAL 3, CTL 4). Max 23 chars per line. */
-static const LvC17Page LV_C17_PG[5] = {
-    { { "> BOTpheus", "> role: dojo construct", "  10 device pillars", "  tap pillar: 3 folders", "  search bar on top", "> _" },        { 0, 1, 2, 2, 2, 3 } },
-    { { "> HACKbot", "> role: hack game", "  1 file in 5 towers", "  tap file: download", "  trace timer: 90 s", "> _" },          { 0, 1, 2, 2, 2, 3 } },
-    { { "> GIBSONbot", "> role: home radar", "  3D tower scan view", "  tap tower: lock", "  tower height = RSSI", "> _" },               { 0, 1, 2, 2, 2, 3 } },
-    { { "> TERMINALbot", "> role: term", "  sweep 10 device bots", "  scan lock zap purge", "  restart", "> _" },                          { 0, 1, 2, 2, 2, 3 } },
-    { { "> CONTROLbot", "> role: ctl", "  radar sleep bright", "  recal rotate bar", "  exit", "> _" },                                   { 0, 1, 2, 2, 2, 3 } },
-};
-
 static uint32_t lv_c17_legible(uint32_t c) { return sec_legible(c); }
 static uint16_t lv_c17_role_px(int role, uint32_t T)
 {
@@ -83,6 +76,18 @@ static void lv_c17_char(int x, int y, char ch, int fg, int g1, int g2)
             if (pass == 2) lv_c17_put(fg, px, py);
         }
 }
+#endif
+#if LV_CYD17_PANEL_TERM
+struct LvC17Page { const char *l[LV_C17_NL]; uint8_t kind[LV_C17_NL]; };   /* kind 0 name, 1 role, 2 body, 3 prompt */
+/* Index = LV_PG_* page id (BOTPHEUS 0, HACKBOT 1, GIBSON 2, TERMINAL 3, CTL 4). Max 23 chars per line. */
+static const LvC17Page LV_C17_PG[5] = {
+    { { "> BOTpheus", "> role: dojo construct", "  10 device pillars", "  tap pillar: 3 folders", "  search bar on top", "> _" },        { 0, 1, 2, 2, 2, 3 } },
+    { { "> HACKbot", "> role: hack game", "  1 file in 5 towers", "  tap file: download", "  trace timer: 90 s", "> _" },          { 0, 1, 2, 2, 2, 3 } },
+    { { "> GIBSONbot", "> role: home radar", "  3D tower scan view", "  tap tower: lock", "  tower height = RSSI", "> _" },               { 0, 1, 2, 2, 2, 3 } },
+    { { "> TERMINALbot", "> role: term", "  sweep 10 device bots", "  scan lock zap purge", "  restart", "> _" },                          { 0, 1, 2, 2, 2, 3 } },
+    { { "> CONTROLbot", "> role: ctl", "  radar sleep bright", "  recal rotate bar", "  exit", "> _" },                                   { 0, 1, 2, 2, 2, 3 } },
+};
+
 static void lv_c17_render(int page, int rel)
 {
     for (int by = 0; by < LV_CB_PH; ++by) {   /* locked plate frame (same call as the v1.2.22 panels), black field */

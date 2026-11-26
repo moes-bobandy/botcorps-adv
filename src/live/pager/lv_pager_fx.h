@@ -118,8 +118,16 @@ static void lv_pg_lime_eyes_row(uint16_t *row, int y)
     }
 }
 
+#if LV_CYD19_LOGBOT
+static void lv_lb_face_row(uint16_t *row, int y, const uint8_t *fr);   /* lv_pager_log19.h (included below, after the CYD-17 helpers) */
+static void lv_lb_panel_row(uint16_t *row, int y);
+static int lv_lb_tab = 0;   /* 0 = SCAN LOG, 1 = SYSTEM LOG */
+#endif
 static void lv_pg_face_fx_row(uint16_t *row, int y, int page, const uint8_t *fr)
 {
+#if LV_CYD19_LOGBOT
+    if (page == LV_PG_LOGBOT) { if (y >= LV_PG_FX_Y0 && y <= LV_PG_FX_Y1) lv_lb_face_row(row, y, fr); return; }
+#endif
     if (y < LV_PG_FX_Y0 || y > LV_PG_FX_Y1 || page == LV_PG_CTL) return;
     if (page == LV_PG_HACKBOT) {   /* v1.2.5: the green Matrix face + lime eyes moved here from TERMINALbot */
         for (int x = LV_PG_FX_X0; x <= LV_PG_FX_X0 + LV_PG_FX_S - 1; ++x) row[x] = 0;
@@ -331,8 +339,12 @@ static void lv_pg_pan_terminal(uint16_t *row, int y, uint16_t acc)
 }
 
 #include "lv_pager_term17.h"   /* CYD-17 mock: terminal-prompt readout panels (off unless LV_CYD17_PANEL_TERM) */
+#include "lv_pager_log19.h"   /* CYD-19 mock: LOGbot page (off unless LV_CYD19_LOGBOT) */
 static void lv_pg_panel_fx_row(uint16_t *row, int y, int page)
 {
+#if LV_CYD19_LOGBOT
+    if (page == LV_PG_LOGBOT) { lv_lb_panel_row(row, y); return; }
+#endif
 #if LV_CYD17_PANEL_TERM
     if (page != LV_PG_CTL) { lv_c17_row(row, y, page); return; }
 #endif

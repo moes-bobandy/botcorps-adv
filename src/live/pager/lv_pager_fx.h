@@ -31,6 +31,9 @@ static int lv_pg_keep_feat(uint16_t c, int page)
 #if LV_PG_TERMINAL_PAGE
     if (page == LV_PG_TERMINAL) return c == lv_rgb(40, 24, 8) || c == lv_rgb(41, 24, 8);   /* 7db0c6d gold-face eyes (lv_pg_gold of black) stay on top */
 #endif
+#if LV_CYD19_LOGBOT
+    if (page == LV_PG_LOGBOT) return c == 0;   /* house chip-plate sockets (blob 2 / lv_pg_ch_row), same source eyes as TERMINALbot, stay on top */
+#endif
     return 0;
 }
 /* Metallic gold (not flat yellow): bronze shadow, rich mid, champagne highlight. */

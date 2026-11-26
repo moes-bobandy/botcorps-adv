@@ -1,4 +1,4 @@
-== SIM_THEME=22 (base b7496bf, flags off) vs build (CYD17+CYD19+G2 on, C17_CTL=0)
+== SIM_THEME=22
 screen            inside  outside   total  result  change bbox
 pager0             10512        0   10512  PASS    (46,25)-(195,289)  allowed=45,220,196,290;90,25,150,29
 pager1             10072        0   10072  PASS    (47,25)-(194,288)  allowed=45,220,196,290;90,25,150,29
@@ -12,7 +12,7 @@ gib_sel_deck           0        0       0  PASS      allowed=none
 dl_intro               0        0       0  PASS      allowed=none
 dl_play                0        0       0  PASS      allowed=none
 exit=0
-== SIM_THEME=23 (base b7496bf, flags off) vs build (CYD17+CYD19+G2 on, C17_CTL=0)
+== SIM_THEME=23
 screen            inside  outside   total  result  change bbox
 pager0             10512        0   10512  PASS    (46,25)-(195,289)  allowed=45,220,196,290;90,25,150,29
 pager1             10206        0   10206  PASS    (46,25)-(195,288)  allowed=45,220,196,290;90,25,150,29
@@ -26,7 +26,7 @@ gib_sel_deck           0        0       0  PASS      allowed=none
 dl_intro               0        0       0  PASS      allowed=none
 dl_play                0        0       0  PASS      allowed=none
 exit=0
-== SIM_THEME=9 (base b7496bf, flags off) vs build (CYD17+CYD19+G2 on, C17_CTL=0)
+== SIM_THEME=9
 screen            inside  outside   total  result  change bbox
 pager0             10380        0   10380  PASS    (46,25)-(195,289)  allowed=45,220,196,290;90,25,150,29
 pager1             10072        0   10072  PASS    (47,25)-(194,288)  allowed=45,220,196,290;90,25,150,29
@@ -41,19 +41,7 @@ dl_intro               0        0       0  PASS      allowed=none
 dl_play                0        0       0  PASS      allowed=none
 exit=0
 
-G2 (TERMINALbot tap) vs source mock 0d64cf3 sim (/tmp/v1221-tps-wt), cmd tpsg2 tour, SIM_THEME 9 / 3 / 12, frames g2_mat + g2_full:
-theme 9
-screen            inside  outside   total  result  change bbox
-g2_mat                 0        0       0  PASS      allowed=none
-g2_full                0        0       0  PASS      allowed=none
-theme 3
-screen            inside  outside   total  result  change bbox
-g2_mat                 0        0       0  PASS      allowed=none
-g2_full                0        0       0  PASS      allowed=none
-theme 12
-screen            inside  outside   total  result  change bbox
-g2_mat                 0        0       0  PASS      allowed=none
-g2_full                0        0       0  PASS      allowed=none
-
-CONTROLbot: pager4 row above = base CONTROLbot vs build CONTROLbot (page 5 with LOGbot): 0 px outside the pip band; the only diff is the 5->6 pips (162 px, theme 22/23; 164 px theme 9).
-term (TERMINALbot subscreen reached by go 3) 0 px: TERM is unchanged; G2 is reached by tapping the TERMINALbot pager face and tap-anywhere returns to TERM.
+G2 brightness fix (Mobandy 9:27 AM ET) vs source mock 0d64cf3 (cmd tpsg2 tour):
+expected diffs are the raised MID floor only (no-grid line, and MID bloom on the just-typed glyph).
+theme 9 / 3 / 12: g2_mat 270 px, g2_full 263 px, bbox of the full frame is the no-grid row (7,43)-(148,49).
+Home/CONTROLbot/TERM/dojo/GIBSON/HACKbot gates above are unchanged (33 PASS, 0 FAIL).

@@ -1,0 +1,44 @@
+== SIM_THEME=22  base=unmodified v1.2.22 sim (acd4c7b src), new=LV_CYD17_PANEL_TERM=1 sim; allowed rect (45,220)-(196,290), CONTROLbot page (p4) must be 0 px
+screen            inside  outside   total  result  change bbox
+p0_full            10350        0   10350  PASS    (46,221)-(195,289)  allowed=45,220,196,290
+p1_full             9916        0    9916  PASS    (47,222)-(194,288)  allowed=45,220,196,290
+p2_full            10216        0   10216  PASS    (46,221)-(195,289)  allowed=45,220,196,290
+p3_full            10792        0   10792  PASS    (45,220)-(196,290)  allowed=45,220,196,290
+p4_full                0        0       0  PASS      allowed=none
+p0_mid             10350        0   10350  PASS    (46,221)-(195,289)  allowed=45,220,196,290
+p1_mid              9916        0    9916  PASS    (47,222)-(194,288)  allowed=45,220,196,290
+p2_mid             10216        0   10216  PASS    (46,221)-(195,289)  allowed=45,220,196,290
+p3_mid             10792        0   10792  PASS    (45,220)-(196,290)  allowed=45,220,196,290
+p4_mid                 0        0       0  PASS      allowed=none
+== SIM_THEME=23  base=unmodified v1.2.22 sim (acd4c7b src), new=LV_CYD17_PANEL_TERM=1 sim; allowed rect (45,220)-(196,290), CONTROLbot page (p4) must be 0 px
+screen            inside  outside   total  result  change bbox
+p0_full            10350        0   10350  PASS    (46,221)-(195,289)  allowed=45,220,196,290
+p1_full            10050        0   10050  PASS    (46,222)-(195,288)  allowed=45,220,196,290
+p2_full            10050        0   10050  PASS    (46,222)-(195,288)  allowed=45,220,196,290
+p3_full            10766        0   10766  PASS    (45,220)-(196,290)  allowed=45,220,196,290
+p4_full                0        0       0  PASS      allowed=none
+p0_mid             10350        0   10350  PASS    (46,221)-(195,289)  allowed=45,220,196,290
+p1_mid             10050        0   10050  PASS    (46,222)-(195,288)  allowed=45,220,196,290
+p2_mid             10050        0   10050  PASS    (46,222)-(195,288)  allowed=45,220,196,290
+p3_mid             10788        0   10788  PASS    (45,220)-(196,290)  allowed=45,220,196,290
+p4_mid                 0        0       0  PASS      allowed=none
+== SIM_THEME=9  base=unmodified v1.2.22 sim (acd4c7b src), new=LV_CYD17_PANEL_TERM=1 sim; allowed rect (45,220)-(196,290), CONTROLbot page (p4) must be 0 px
+screen            inside  outside   total  result  change bbox
+p0_full            10216        0   10216  PASS    (46,221)-(195,289)  allowed=45,220,196,290
+p1_full             9916        0    9916  PASS    (47,222)-(194,288)  allowed=45,220,196,290
+p2_full             9916        0    9916  PASS    (47,222)-(194,288)  allowed=45,220,196,290
+p3_full            10792        0   10792  PASS    (45,220)-(196,290)  allowed=45,220,196,290
+p4_full                0        0       0  PASS      allowed=none
+p0_mid             10216        0   10216  PASS    (46,221)-(195,289)  allowed=45,220,196,290
+p1_mid              9916        0    9916  PASS    (47,222)-(194,288)  allowed=45,220,196,290
+p2_mid              9916        0    9916  PASS    (47,222)-(194,288)  allowed=45,220,196,290
+p3_mid             10792        0   10792  PASS    (45,220)-(196,290)  allowed=45,220,196,290
+p4_mid                 0        0       0  PASS      allowed=none
+
+== default build (LV_CYD17_PANEL_TERM=0, as committed) vs base, theme 22: firmware path unchanged
+screen            inside  outside   total  result  change bbox
+p0_full                0        0       0  PASS      allowed=none
+p1_full                0        0       0  PASS      allowed=none
+p2_full                0        0       0  PASS      allowed=none
+p3_full                0        0       0  PASS      allowed=none
+p4_full                0        0       0  PASS      allowed=none

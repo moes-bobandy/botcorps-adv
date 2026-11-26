@@ -1,0 +1,1 @@
+GIF frames=135 (BOTpheus, Vapor Grid, page switch + typing, 30 ms/frame): px changed outside panel rect (45,220)-(196,290) summed over all frames = 0; inside = 1397250

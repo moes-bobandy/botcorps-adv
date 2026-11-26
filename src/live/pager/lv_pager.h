@@ -24,7 +24,18 @@
 #ifndef LV_PG_TERMINAL_PAGE
 #define LV_PG_TERMINAL_PAGE 1   /* mock/v1219: restore v1.2.5 TERMINALbot pager page; set 0 to drop this layer */
 #endif
-#if LV_PG_TERMINAL_PAGE
+#ifndef LV_CYD19_LOGBOT
+#define LV_CYD19_LOGBOT 0   /* CYD-19 mock (sim-only, NOT in any bin): LOGbot pager page between TERMINALbot and CONTROLbot */
+#endif
+#if LV_PG_TERMINAL_PAGE && LV_CYD19_LOGBOT
+#define LV_PG_N        6
+#define LV_PG_BOTPHEUS 0
+#define LV_PG_HACKBOT  1
+#define LV_PG_GIBSON   2
+#define LV_PG_TERMINAL 3
+#define LV_PG_LOGBOT   4
+#define LV_PG_CTL      5
+#elif LV_PG_TERMINAL_PAGE
 #define LV_PG_N        5
 #define LV_PG_BOTPHEUS 0
 #define LV_PG_HACKBOT  1
@@ -96,7 +107,9 @@ static uint32_t lv_pg_us_now(void)
 
 static int lv_pg_art(int page)
 {
-#if LV_PG_TERMINAL_PAGE
+#if LV_PG_TERMINAL_PAGE && LV_CYD19_LOGBOT
+    static const int8_t A[LV_PG_N] = {0, 2, 1, 3, 2, -1};   /* CYD-19: LOGbot reuses blob 2 (the chip-plate shading) like TERMINALbot */
+#elif LV_PG_TERMINAL_PAGE
     /* 7db0c6d: blobs 0 BOTpheus, 1 GIBSONbot, 2 HACKbot, 3 TERMINALbot; compose uses blob 2 + gold for TERMINAL */
     static const int8_t A[LV_PG_N] = {0, 2, 1, 3, -1};
 #else
@@ -328,7 +341,9 @@ static void lv_pg_pips_row(uint16_t *row, int y, int page)
     if (y < 25 || y > 29) return;
     uint8_t on[3], dim[3];
     lv_pg_pip_ink(on, dim);
-#if LV_PG_TERMINAL_PAGE
+#if LV_PG_TERMINAL_PAGE && LV_CYD19_LOGBOT
+    const float CX0 = 100.f, PITCH = 8.f, CY = 27.f, R_OFF = 1.35f, R_ON = 1.75f;   /* CYD-19: 6 pips, still centred on x=120 */
+#elif LV_PG_TERMINAL_PAGE
     const float CX0 = 104.f, PITCH = 8.f, CY = 27.f, R_OFF = 1.35f, R_ON = 1.75f;   /* 7db0c6d: 5 pips, still centred on x=120 */
 #else
     const float CX0 = 108.f, PITCH = 8.f, CY = 27.f, R_OFF = 1.35f, R_ON = 1.75f;   /* v1.2.6: 4 pips, still centred on x=120 */
@@ -386,10 +401,13 @@ static void lv_pg_compose_row(uint16_t *row, int y, int page, LvPgSet &S)
         memcpy(row + LV_CB_PX0, lv_cb_pan + (y - LV_CB_PY0) * LV_CB_PW, LV_CB_PW * 2);
     if (page != LV_PG_CTL && y >= LV_CB_PY0 && y < LV_CB_PY0 + LV_CB_PH)
         lv_pg_panel_fx_row(row, y, page);
+#if LV_CYD17_PANEL_TERM && LV_C17_CTL
+    if (page == LV_PG_CTL && y >= LV_CB_PY0 && y < LV_CB_PY0 + LV_CB_PH) lv_c17_row(row, y, page);
+#endif
 
     if (page != LV_PG_CTL && y >= 88 && y <= 197) {
 #if LV_PG_TERMINAL_PAGE
-        const uint8_t *fr = (page == LV_PG_HACKBOT) ? nullptr : lv_pg_ch_row(S, true, page == LV_PG_TERMINAL ? 2 : lv_pg_art(page), y - 88);
+        const uint8_t *fr = (page == LV_PG_HACKBOT) ? nullptr : lv_pg_ch_row(S, true, page == LV_PG_TERMINAL ? 2 : lv_pg_art(page), y - 88);   /* LOGbot: lv_pg_art = 2 too */
 #else
         const uint8_t *fr = (page == LV_PG_HACKBOT) ? nullptr : lv_pg_ch_row(S, true, lv_pg_art(page), y - 88);
 #endif
@@ -718,6 +736,11 @@ static const char *lv_pg_tap(int x, int y)
         if (lv_pg_page == LV_PG_TERMINAL) { lv_go_soon(LV_SC_TERM, 0); return "pager-terminal"; }   /* 7db0c6d */
 #endif
     }
+#if LV_CYD19_LOGBOT
+    if (lv_pg_page == LV_PG_LOGBOT && (lv_in(LV_CB_FACE, x, y) || (x >= LV_CB_PX0 && x < LV_CB_PX0 + LV_CB_PW && y >= LV_CB_PY0 && y < LV_CB_PY0 + LV_CB_PH))) {
+        lv_lb_tab ^= 1; lv_pg_dirty = true; return "pager-logbot-tab";   /* CYD-19 mock: tap the face or the log panel toggles SCAN LOG <-> SYSTEM LOG */
+    }
+#endif
     return "none";
 }
 

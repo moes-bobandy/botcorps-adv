@@ -1,0 +1,5 @@
+tick 300
+motion 0
+page 1
+tick 200
+dump hack

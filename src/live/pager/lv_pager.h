@@ -27,6 +27,9 @@
 #ifndef LV_CYD19_LOGBOT
 #define LV_CYD19_LOGBOT 0   /* CYD-19 mock (sim-only, NOT in any bin): LOGbot pager page between TERMINALbot and CONTROLbot */
 #endif
+#ifndef LV_CYD21_HACK_LIME
+#define LV_CYD21_HACK_LIME 0   /* CYD-21 mock (sim-only, NOT in any bin): HACKbot lime-green metallic plate + black code rain */
+#endif
 #if LV_PG_TERMINAL_PAGE && LV_CYD19_LOGBOT
 #define LV_PG_N        6
 #define LV_PG_BOTPHEUS 0
@@ -407,9 +410,17 @@ static void lv_pg_compose_row(uint16_t *row, int y, int page, LvPgSet &S)
 
     if (page != LV_PG_CTL && y >= 88 && y <= 197) {
 #if LV_PG_TERMINAL_PAGE
+#if LV_CYD21_HACK_LIME
+        const uint8_t *fr = lv_pg_ch_row(S, true, page == LV_PG_TERMINAL ? 2 : lv_pg_art(page), y - 88);   /* blob 2 = HACKbot chip-plate, same source TERMINALbot/LOGbot use */
+#else
         const uint8_t *fr = (page == LV_PG_HACKBOT) ? nullptr : lv_pg_ch_row(S, true, page == LV_PG_TERMINAL ? 2 : lv_pg_art(page), y - 88);   /* LOGbot: lv_pg_art = 2 too */
+#endif
+#else
+#if LV_CYD21_HACK_LIME
+        const uint8_t *fr = lv_pg_ch_row(S, true, lv_pg_art(page), y - 88);
 #else
         const uint8_t *fr = (page == LV_PG_HACKBOT) ? nullptr : lv_pg_ch_row(S, true, lv_pg_art(page), y - 88);
+#endif
 #endif
         lv_pg_face_fx_row(row, y, page, fr);
     }

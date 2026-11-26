@@ -1,0 +1,28 @@
+A) default-OFF build (LV_CYD21_HACK_LIME=0) vs base a87eb83 (same CYD17/CYD19 flags): every page 0 px
+  p0_mid    diff_px=0  PASS
+  p0_full   diff_px=0  PASS
+  p1_mid    diff_px=0  PASS
+  p1_full   diff_px=0  PASS
+  p2_mid    diff_px=0  PASS
+  p2_full   diff_px=0  PASS
+  p3_mid    diff_px=0  PASS
+  p3_full   diff_px=0  PASS
+  p4_mid    diff_px=0  PASS
+  p4_full   diff_px=0  PASS
+  p5_mid    diff_px=0  PASS
+  p5_full   diff_px=0  PASS
+B) HACK_LIME=1 build vs base: 0 px outside HACKbot plate (x65-174, y88-197). Other pages 0 px everywhere.
+  p0_mid    total=    0 plate=    0 OUTSIDE=    0  PASS  none
+  p0_full   total=    0 plate=    0 OUTSIDE=    0  PASS  none
+  p1_mid    total=12100 plate=12100 OUTSIDE=    0  PASS  bbox x65-174 y88-197
+  p1_full   total=12100 plate=12100 OUTSIDE=    0  PASS  bbox x65-174 y88-197
+  p2_mid    total=    0 plate=    0 OUTSIDE=    0  PASS  none
+  p2_full   total=    0 plate=    0 OUTSIDE=    0  PASS  none
+  p3_mid    total=    0 plate=    0 OUTSIDE=    0  PASS  none
+  p3_full   total=    0 plate=    0 OUTSIDE=    0  PASS  none
+  p4_mid    total=    0 plate=    0 OUTSIDE=    0  PASS  none
+  p4_full   total=    0 plate=    0 OUTSIDE=    0  PASS  none
+  p5_mid    total=    0 plate=    0 OUTSIDE=    0  PASS  none
+  p5_full   total=    0 plate=    0 OUTSIDE=    0  PASS  none
+C) sanity: HACKbot plate changed px=12100  PASS
+OVERALL PASS

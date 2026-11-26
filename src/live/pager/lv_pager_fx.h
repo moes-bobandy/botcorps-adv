@@ -34,6 +34,9 @@ static int lv_pg_keep_feat(uint16_t c, int page)
 #if LV_CYD19_LOGBOT
     if (page == LV_PG_LOGBOT) return c == 0;   /* house chip-plate sockets (blob 2 / lv_pg_ch_row), same source eyes as TERMINALbot, stay on top */
 #endif
+#if LV_CYD21_HACK_LIME
+    if (page == LV_PG_HACKBOT) return c == 0;   /* same locked chip-plate sockets as LOGbot / source blob 2; rain skip=1 keeps them on top */
+#endif
     return 0;
 }
 /* Metallic gold (not flat yellow): bronze shadow, rich mid, champagne highlight. */
@@ -126,18 +129,25 @@ static void lv_lb_face_row(uint16_t *row, int y, const uint8_t *fr);   /* lv_pag
 static void lv_lb_panel_row(uint16_t *row, int y);
 static int lv_lb_tab = 0;   /* 0 = SCAN LOG, 1 = SYSTEM LOG */
 #endif
+#include "lv_pager_hack21.h"   /* CYD-21 mock: HACKbot lime-green metallic plate + black rain (off unless LV_CYD21_HACK_LIME) */
 static void lv_pg_face_fx_row(uint16_t *row, int y, int page, const uint8_t *fr)
 {
 #if LV_CYD19_LOGBOT
     if (page == LV_PG_LOGBOT) { if (y >= LV_PG_FX_Y0 && y <= LV_PG_FX_Y1) lv_lb_face_row(row, y, fr); return; }
 #endif
     if (y < LV_PG_FX_Y0 || y > LV_PG_FX_Y1 || page == LV_PG_CTL) return;
-    if (page == LV_PG_HACKBOT) {   /* v1.2.5: the green Matrix face + lime eyes moved here from TERMINALbot */
+    if (page == LV_PG_HACKBOT) {
+#if LV_CYD21_HACK_LIME
+        lv_hb_face_row(row, y, fr);   /* lime metal + black rain, locked sockets kept; no lime-block eyes */
+        return;
+#else
+        /* v1.2.5: the green Matrix face + lime eyes moved here from TERMINALbot */
         for (int x = LV_PG_FX_X0; x <= LV_PG_FX_X0 + LV_PG_FX_S - 1; ++x) row[x] = 0;
         const uint16_t pal[3] = { lv_hex(0xD8FFD8), lv_hex(0x00FF41), lv_hex(0x001800) };
         lv_pg_rain_row(row, y, pal, 0, page);
         lv_pg_lime_eyes_row(row, y);
         return;
+#endif
     }
     if (fr) memcpy(row + LV_PG_FX_X0, fr, LV_PG_FACE_S * 2);
 #if LV_PG_TERMINAL_PAGE

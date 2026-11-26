@@ -1,17 +1,17 @@
 /* v3 NEW themes mock (Mobandy 2026-11-16 11:17 AM ET) + 2026-11-25 theme-refresh candidates (16..21):
  * EXT_* = the 12 CYD themes (0..11) + 4 v3 themes (12..15: CIRCUIT/SONAR/HOLO/CAMO) + 6 refresh candidates (16..21:
- * MATRX / STEEL / CARBN primary replacements + AMBER / TEAL / VAPOR bonus). Old themes untouched for 0-px default gate. */
+ * MATRX / STEEL / CARBN + AMBER / TEAL / VAPOR + 3 VAPOR-structure grids SUNST / TRON / ACID). Old themes untouched for 0-px default gate. */
 #include <cmath>
-#define EXT_NTHEME 22
+#define EXT_NTHEME 25
 static const uint32_t EXT_ACC[EXT_NTHEME]  = {0xb324fd, 0xdd00ac, 0x92ff02, 0x00ffff, 0x345efb, 0xfd6b00, 0xffda00, 0xff24fd, 0x20fe01, 0x00fe02, 0xfe0001, 0xff0052,
                                               0xe0913c, 0x3dffcf, 0xc9a8ff, 0x9aa36a,
-                                              0x22e868, 0xa8c4e0, 0xff244c, 0xffb010, 0x00e0a8, 0x00e8ff};
+                                              0x22e868, 0xa8c4e0, 0xff244c, 0xffb010, 0x00e0a8, 0x00e8ff, 0xff7a18, 0x40f0ff, 0xa8ff20};
 static const uint32_t EXT_ACCD[EXT_NTHEME] = {0x53205d, 0x68004f, 0x4a6010, 0x00636d, 0x0e5166, 0x61480f, 0x6a5a00, 0x690d69, 0x0d690d, 0x086908, 0x690405, 0x690022,
                                               0x0a4a2c, 0x00444a, 0x4f3f72, 0x3a4a2a,
-                                              0x0a5228, 0x3c4b5c, 0x5e0a1a, 0x683c00, 0x005c44, 0x3b1866};
+                                              0x0a5228, 0x3c4b5c, 0x5e0a1a, 0x683c00, 0x005c44, 0x3b1866, 0x691808, 0x0a3a5c, 0x2a6908};
 static const uint32_t EXT_HDR[EXT_NTHEME]  = {0xb36afe, 0xdc4aac, 0xb9fb4f, 0x4afffc, 0x6891ff, 0xf4b24c, 0xffe86a, 0xff6afd, 0x6aff6b, 0x6afe6c, 0xff6a6b, 0xff6a96,
                                               0xffd27a, 0xa8ffe8, 0xffc2ee, 0xd8cc98,
-                                              0x9effc0, 0xe8f4ff, 0xff889e, 0xffe082, 0x78ffd8, 0xff78e0};
+                                              0x9effc0, 0xe8f4ff, 0xff889e, 0xffe082, 0x78ffd8, 0xff78e0, 0xffc878, 0xc0ffff, 0xe0ff88};
 static bool ext_multi(int t) { return (t >= 7 && t <= 10) || (t >= 12 && t != 20); }
 static uint32_t ext_lerp_ring(const uint32_t *P, int n, int u, int period)   /* smooth cyclic blend through n stops */
 {
@@ -98,6 +98,39 @@ static uint32_t ext_theme_at(int t, int x, int y)
         const bool vline = ((gx % 24 + 24) % 24) < 3;
         if (hline || vline) return lv_mix3(0xff48dc, 0x00f4ff, dy, 165);
         return lv_mix3(0x7018c0, 0x0078b8, dy, 165);
+    }
+    case 22: {   /* SUNST: sunset grid — orange-to-magenta sky, gold horizon, warm receding grid (VAPOR structure, palette only) */
+        if (y < 146) return lv_mix3(0xff6a10, 0xff1878, y, 145);
+        if (y <= 154) return 0xffe8a0;
+        const int dy = y - 154;
+        const bool hline = ((dy >= 8 && dy <= 10) || (dy >= 22 && dy <= 24) || (dy >= 40 && dy <= 42)
+                         || (dy >= 64 && dy <= 66) || (dy >= 94 && dy <= 96) || (dy >= 130 && dy <= 132));
+        const int gx = (x - 120) * 64 / (dy + 20);
+        const bool vline = ((gx % 24 + 24) % 24) < 3;
+        if (hline || vline) return lv_mix3(0xff6030, 0xff40c0, dy, 165);
+        return lv_mix3(0x801020, 0x301040, dy, 165);
+    }
+    case 23: {   /* TRON: ice-cyan / electric-blue grid on deep navy (VAPOR structure, palette only) */
+        if (y < 146) return lv_mix3(0x041848, 0x1860c0, y, 145);
+        if (y <= 154) return 0xc8ffff;
+        const int dy = y - 154;
+        const bool hline = ((dy >= 8 && dy <= 10) || (dy >= 22 && dy <= 24) || (dy >= 40 && dy <= 42)
+                         || (dy >= 64 && dy <= 66) || (dy >= 94 && dy <= 96) || (dy >= 130 && dy <= 132));
+        const int gx = (x - 120) * 64 / (dy + 20);
+        const bool vline = ((gx % 24 + 24) % 24) < 3;
+        if (hline || vline) return lv_mix3(0x80ffff, 0x2080ff, dy, 165);
+        return lv_mix3(0x041830, 0x020818, dy, 165);
+    }
+    case 24: {   /* ACID: lime-to-teal toxic grid (VAPOR structure, palette only) */
+        if (y < 146) return lv_mix3(0xb0ff20, 0x00e0a0, y, 145);
+        if (y <= 154) return 0xe8ffc0;
+        const int dy = y - 154;
+        const bool hline = ((dy >= 8 && dy <= 10) || (dy >= 22 && dy <= 24) || (dy >= 40 && dy <= 42)
+                         || (dy >= 64 && dy <= 66) || (dy >= 94 && dy <= 96) || (dy >= 130 && dy <= 132));
+        const int gx = (x - 120) * 64 / (dy + 20);
+        const bool vline = ((gx % 24 + 24) % 24) < 3;
+        if (hline || vline) return lv_mix3(0xc8ff20, 0x00ffc8, dy, 165);
+        return lv_mix3(0x186820, 0x084040, dy, 165);
     }
     default: return lv_theme_at(t, x, y);
     }

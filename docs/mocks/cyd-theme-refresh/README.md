@@ -27,3 +27,15 @@ Real `lv_controlbot_screen` / `lv_cb_frame` stills (locked v6 board + live panel
 
 - 6 stills: `NN_*_controlbot_full@3x.png` (plus `@1x.png`).
 - 3 primary scroll GIFs: 72 frames, 20 fps, 720x960 nearest-neighbor, ticker scroll + stripe motion only (body 0 px change). `*_controlbot_scroll@3x.gif`.
+
+## 3 more Vapor-structure grid themes (Mobandy 9:00 PM ET 2026-11-25)
+
+Cloned from `VAPOR GRID` `ext_theme_at(21)` (same sky gradient + horizon band + receding perspective grid). Palette only. Appended as `lv_theme` 32..34 / `LV_CB_FW` slots 30..32. Nothing removed. Default theme still `GRAPE` (`0`) in this mock so `v1220_tour` stays 0 px.
+
+Mobandy's current pick (not applied in this mock): Amber CRT, Cyber Teal, and Vapor Grid replace SONAR / GRAPE / CIRCUIT, with Vapor Grid as the new default.
+
+| Slot | Index | Short | Full Name | Type | ACC | ACCD | HDR | FRAME | Look |
+|---|---|---|---|---|---|---|---|---|---|
+| 30 | 32 | `SUNST` | `SUNSET GRID` | Multi-color | `#FF7A18` | `#691808` | `#FFC878` | `#FF7A18` | orange-to-magenta sky, gold horizon |
+| 31 | 33 | `TRON` | `TRON GRID` | Multi-color | `#40F0FF` | `#0A3A5C` | `#C0FFFF` | `#40F0FF` | ice-cyan / electric-blue on deep navy |
+| 32 | 34 | `ACID` | `ACID GRID` | Multi-color | `#A8FF20` | `#2A6908` | `#E0FF88` | `#A8FF20` | lime-to-teal toxic grid |

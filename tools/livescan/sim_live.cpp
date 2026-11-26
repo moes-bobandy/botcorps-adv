@@ -463,6 +463,10 @@ int main(int argc, char **argv)
         else if (!strcmp(cmd, "cbalert")) { lv_event(true, "SIM ALERT (CHIME TEST)"); }   /* fw-3locks: an alert event, as a hunt match / deauth raises */
 #endif
         else if (!strcmp(cmd, "controlbot")) { int k; if (fscanf(sc, "%d", &k) != 1) return 2; lv_set_theme_any(LV_CB_FW[k]); lv_cb_dirty = true; }   /* fw-3locks: CONTROLbot v6 slot k (locked order) */
+        else if (!strcmp(cmd, "cbscr")) {   /* MOCK ONLY: enter the real LV_SC_CONTROLBOT (lv_cb_frame + tinted ticker), skipping lv_go's pager remap */
+            lv_scr = LV_SC_CONTROLBOT; lv_cb_enter(); lv_enter = true; lv_play.seg = -1;
+            printf("t=%u cbscr -> scr=%d theme=%d\n", t_ms, lv_scr, lv_theme);
+        }
         else if (!strcmp(cmd, "tkstill")) {   /* fw-3locks: redraw the firmware ticker at the lock still's clock (now off alert), default text, then restore lv_now */
             unsigned nw; int off, al; if (fscanf(sc, "%u %d %d", &nw, &off, &al) != 3) return 2;
             const uint32_t keep = lv_now; lv_now = nw; lv_tk_off = off; lv_tk_alert = al != 0; snprintf(lv_tk_msg, sizeof lv_tk_msg, "%s", "NO THREATS - TAP SCAN");

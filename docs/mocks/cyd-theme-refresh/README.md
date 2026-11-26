@@ -20,3 +20,10 @@ Base commit: `d7b55459` (v1.2.21).
 
 ## Gate Result
 `v1220_tour` 11-screen gate vs `/tmp/v1220/gate121s`: **0 px diff across all 11 screens (PASS)**.
+
+## CONTROLbot screen (Mobandy 8:52 PM ET 2026-11-25)
+
+Real `lv_controlbot_screen` / `lv_cb_frame` stills (locked v6 board + live panel + theme-tinted scrolling ticker + BACKbot). Firmware `lv_go(LV_SC_CONTROLBOT)` remaps to the pager CONTROLbot page; these were captured with a sim-only `cbscr` command in `tools/livescan/sim_live.cpp` that sets `lv_scr = LV_SC_CONTROLBOT` so `lv_cb_frame` draws exactly as the firmware would.
+
+- 6 stills: `NN_*_controlbot_full@3x.png` (plus `@1x.png`).
+- 3 primary scroll GIFs: 72 frames, 20 fps, 720x960 nearest-neighbor, ticker scroll + stripe motion only (body 0 px change). `*_controlbot_scroll@3x.gif`.

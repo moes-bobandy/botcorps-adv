@@ -44,7 +44,15 @@ static uint16_t lv_c17_role_px(int role, uint32_t T)
     default:       return lv_hex(Tl);
     }
 }
-static uint16_t lv_c17_buf[LV_CB_PH][LV_CB_PW];
+/* v1.2.23: the 21,584 B panel buffer is heap, allocated on first pager panel draw (static .bss overflowed dram0 by 21,088 B).
+ * lv_c17_alloc() false -> the caller leaves the locked panel (lv_pg_panel_fx_row falls through). lv_c17_buf keeps its name for lv_pager_log19.h. */
+static uint16_t (*lv_c17_bufp)[LV_CB_PW] = nullptr;
+#define lv_c17_buf lv_c17_bufp
+static bool lv_c17_alloc(void)
+{
+    if (!lv_c17_bufp) lv_c17_bufp = (uint16_t (*)[LV_CB_PW])malloc(sizeof(uint16_t) * LV_CB_PH * LV_CB_PW);
+    return lv_c17_bufp != nullptr;
+}
 static uint32_t lv_c17_key = 0xFFFFFFFFu; static int lv_c17_keypg = -1;
 static int lv_c17_lastpg = -1; static uint32_t lv_c17_t0 = 0;
 

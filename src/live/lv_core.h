@@ -20,9 +20,9 @@
 #include "lv_build_3locks.h"   /* fw-3locks-1116: CONTROLbot v6 + BOTpheus EB3 + HACKbot game switches */
 
 #ifdef BOTCORPS_BUILD_ID
-#define LV_VERSION "cyd-livescan v1.2.22 " BOTCORPS_BUILD_ID   /* v1.2.22: v1.2.21 + theme refresh (CYBER TEAL / VAPOR GRID / AMBER CRT in place of NEON GRAPE / CIRCUIT / SONAR, + SUNSET / TRON / ACID GRID, VAPOR GRID default, pager pips follow the theme) */
+#define LV_VERSION "cyd-livescan v1.2.23 " BOTCORPS_BUILD_ID   /* v1.2.22: v1.2.21 + theme refresh (CYBER TEAL / VAPOR GRID / AMBER CRT in place of NEON GRAPE / CIRCUIT / SONAR, + SUNSET / TRON / ACID GRID, VAPOR GRID default, pager pips follow the theme) */
 #else
-#define LV_VERSION "cyd-livescan v1.2.22"
+#define LV_VERSION "cyd-livescan v1.2.23"
 #endif
 
 /* ---------- finds ---------- */
@@ -121,6 +121,9 @@ enum LvScr { LV_SC_BOOT, LV_SC_HOME_INTRO, LV_SC_HOME, LV_SC_TERM, LV_SC_SCAN, L
 #endif
 #if LV_CB
              , LV_SC_CONTROLBOT   /* fw-3locks-1116: CONTROLbot v6 (controlbot/lv_controlbot_screen.h) */
+#endif
+#ifndef LV_TPS_G2_ONLY
+#define LV_TPS_G2_ONLY 0   /* v1.2.23: 1 = only the G2 (Wake up, Neo 5x7 mixed-case) subscreen is reachable: opened by tapping TERMINALbot on the pager; tap anywhere -> TERM */
 #endif
 #ifndef LV_TERM_PS
 #define LV_TERM_PS 1   /* MOCK 2026-11-25: TERMINALbot PowerShell + Matrix area-scan (lv_term_ps.h); 0 = none */
@@ -715,6 +718,7 @@ static void lv_cmd(const char *line)
 #define IS(s) (!strcmp(a0, s))
     if (IS("help") || IS("cmds") || IS("?")) { for (const char *h : LV_HELP) lv_print("%s", h); }
 #if LV_TERM_PS
+#if !LV_TPS_G2_ONLY
     else if (IS("psterm") || IS("tps") || IS("tpsa")) { lv_go(LV_SC_TPS); }
     else if (IS("tpsb") || IS("psterm-table")) { lv_go(LV_SC_TPSB); }
     else if (IS("tpsc") || IS("psterm-rain")) { lv_go(LV_SC_TPSC); }
@@ -723,6 +727,7 @@ static void lv_cmd(const char *line)
     else if (IS("tpsf") || IS("psterm-trace")) { lv_go(LV_SC_TPSF); }
     else if (IS("tpsg") || IS("psterm-wake")) { lv_go(LV_SC_TPSG); }
     else if (IS("tpsf2") || IS("psterm-trace2")) { lv_go(LV_SC_TPSF2); }
+#endif
     else if (IS("tpsg2") || IS("psterm-wake2")) { lv_go(LV_SC_TPSG2); }
 #endif
     else if (IS("scan")) lv_job_start(!a1 || !strcmp(a1, "all") ? LV_J_ALL : !strcmp(a1, "wifi") ? LV_J_WIFI : !strcmp(a1, "ble") || !strcmp(a1, "bt") ? LV_J_BLE : LV_J_ALL, -1);
@@ -2890,7 +2895,7 @@ static const char *lv_mt_hit(int x, int y)
         if (b == 0) { lv_scan_mix(); lv_go_soon(LV_SC_SCAN, 0); return "home-crosshair-scan"; }
         lv_go_soon(0, b == 1 ? "list" : "help"); return b == 1 ? "home-list" : "home-menu-help";
     case LV_SC_TERM:
-#if LV_TERM_PS
+#if LV_TERM_PS && !LV_TPS_G2_ONLY
         if (b == 1) { lv_go_soon(LV_SC_TPS, 0); return "term-list"; }
         lv_go_soon(0, b == 0 ? "scan" : "help"); return b == 0 ? "term-crosshair-scan" : "term-menu-help";
 #else

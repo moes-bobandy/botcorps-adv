@@ -1287,6 +1287,9 @@ static void lv_tps_frame(void)
     /* first paint is a full push; later frames use dirty-row blit so only changed text rows hit the panel;
      * F2/G2 resolve live theme colors per pixel (including multi-color themes), so bypass lv_theme_ink sentinel pass */
     const bool f2g2 = (lv_scr == LV_SC_TPSF2 || lv_scr == LV_SC_TPSG2);
+#if LV_TPS_G2_ONLY
+    const lv_scene_fn sc = lv_tps_g2_scene;   /* v1.2.23: G2 only; every other variant is unreferenced and dropped by the linker */
+#else
     const lv_scene_fn sc = (lv_scr == LV_SC_TPSF2) ? lv_tps_f2_scene
                         : (lv_scr == LV_SC_TPSG2) ? lv_tps_g2_scene
                         : (lv_scr == LV_SC_TPSF) ? lv_tps_f_scene
@@ -1294,6 +1297,7 @@ static void lv_tps_frame(void)
                         : (lv_scr == LV_SC_TPSE) ? lv_tps_e_scene
                         : (lv_scr == LV_SC_TPSC || lv_scr == LV_SC_TPSD) ? lv_tps_cd_wrap
                         : lv_tps_scene;
+#endif
     const lv_blit_fn fn = f2g2 ? (lv_tps_full ? lv_blit_hw : lv_blit_dirty_hw)
                                : (lv_tps_full ? lv_blit    : lv_blit_dirty);
     lv_render(fn, (LvRect){0, 0, 239, 319}, sc, 0);

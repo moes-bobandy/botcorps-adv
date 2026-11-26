@@ -343,10 +343,10 @@ static void lv_pg_pan_terminal(uint16_t *row, int y, uint16_t acc)
 static void lv_pg_panel_fx_row(uint16_t *row, int y, int page)
 {
 #if LV_CYD19_LOGBOT
-    if (page == LV_PG_LOGBOT) { lv_lb_panel_row(row, y); return; }
+    if (page == LV_PG_LOGBOT) { if (lv_c17_alloc()) lv_lb_panel_row(row, y); return; }
 #endif
 #if LV_CYD17_PANEL_TERM
-    if (page != LV_PG_CTL) { lv_c17_row(row, y, page); return; }
+    if (page != LV_PG_CTL && lv_c17_alloc()) { lv_c17_row(row, y, page); return; }   /* alloc fail -> locked panel */
 #endif
     if (page == LV_PG_CTL || y < LV_CB_PY0 || y >= LV_CB_PY0 + LV_CB_PH) return;
     const uint16_t acc = lv_pg_fx_acc();

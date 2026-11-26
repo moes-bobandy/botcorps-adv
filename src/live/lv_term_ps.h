@@ -923,6 +923,12 @@ static void lv_tps_g_scene(LvBand &B, void *)
  * 11 px pitch, 38 cols at 6 px pitch, no scroll).
  * Overflow rule: <=20 dev -> 5x7 11px pitch; 21..24 -> 5x7 10px pitch; 25..31 -> auto-switch
  * to 3x5 LV_F35 8px pitch; >31 -> strongest 31 devices (by RSSI) + "+K more" row. */
+/* v1.2.23: honest data tag. Rows come from lv_f[] (the real scan list). The host sim feeds it a canned set (SAMPLE); the CYD fills it from the live WiFi/BLE scan (LIVE). */
+#ifdef LV_HOST
+#define LV_TPS_DATA_TAG "SAMPLE"
+#else
+#define LV_TPS_DATA_TAG "LIVE"
+#endif
 #define LV_TPS2_X     6
 #define LV_TPS2_CW    6
 #define LV_TPS2_COLS 38
@@ -1026,9 +1032,9 @@ static void lv_tps2_build(LvTps2Model &m, bool is_trace, bool trace_done)
     };
 
     if (is_trace)
-        push(0, 0, "CALL OPT:RX gibson> trace:%s SAMPLE", trace_done ? "done" : "run ");
+        push(0, 0, "CALL OPT:RX gibson> trace:%s " LV_TPS_DATA_TAG, trace_done ? "done" : "run ");
     else
-        push(0, 0, "gibson> scan all               SAMPLE");
+        push(0, 0, "gibson> scan all               " LV_TPS_DATA_TAG);
     push(0, 1, "core: scan lock zap purge restart");
     push(1, 2, "[ .. ] SCAN WIFI %d LIVE  BLE %d LIVE", nw, nb);
     push(3, 3, "[ -- ] NO DEAUTH ON GRID");

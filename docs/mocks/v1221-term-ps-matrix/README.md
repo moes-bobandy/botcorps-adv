@@ -285,3 +285,45 @@ Host sim `tools/livescan/scripts/tps_shots_F2.txt` / `tps_shots_G2.txt`.
 
 - F2: `tps_F2_materialize`, `tps_F2_full` `@1x`/`@3x` + `tps_F2_scroll@3x.gif`
 - G2: `tps_G2_materialize`, `tps_G2_full` `@1x`/`@3x` + `tps_G2_scroll@3x.gif`
+
+---
+
+## Live Theme Color UI Support on F2 & G2 (existing green baselines untouched)
+
+F2 (`tpsf2` / `LV_SC_TPSF2`) and G2 (`tpsg2` / `LV_SC_TPSG2`) now follow the
+firmware's selected Color UI (`lv_theme`) — including all single-color themes
+and all multi-color themes (`lv_multi_theme(lv_theme)`):
+
+- **Reused firmware theme getters (verbatim)**:
+  - `lv_theme` (`src/live/lv_core.h:280`)
+  - `lv_multi_theme(int t)` (`src/live/lv_core.h:189`)
+  - `lv_theme_at(int t, int x, int y)` (`src/live/lv_core.h:201-217`, which
+    returns `LV_ACC[t]` for single-color themes and delegates `7..10`
+    `SYNTHWAVE/AURORA/PRISM/GLITCH`, `13..21` `sec_theme_at`, and `22..25`
+    `ext_theme_at` per pixel `(x, y)`)
+  - `lv_mix3()` (`src/live/lv_core.h:195-200`) and `sec_legible()`
+    (`src/live/controlbot/themes_spec_v2.h:117-121`)
+  - `lv_blit_hw` / `lv_blit_dirty_hw` (`src/live/lv_core.h:273, 2684`) so
+    final resolved multi-color pixels bypass `lv_theme_ink()` sentinel
+    double-re-inking.
+- **Same 7-role shade ramp**:
+  - `T1`: `mix3(T, black, 79, 100)` (~21%, bloom + trace trail)
+  - `MID`: `mix3(Tl, black, 40, 100)` (60%, mid trace + `NO DEAUTH` + flash halo)
+  - `BODY`: `mix3(Tl, white, 1, 8)` (device rows)
+  - `TAG`: `mix3(Tl, white, 2, 5)` (headers / status / cooling, matching `LV_HDR`)
+  - `HOT`: `Tl` (100% legible accent, wave peak + overflow row)
+  - `LEAD`: `mix3(Tl, white, 4, 5)` (lock snap flash + fresh typed glyph)
+  - `CUR`: `mix3(Tl, white, 7, 10)` (G2 block cursor)
+  where `Tl = sec_legible(T)`.
+- **Note on theme 0**: In `lv_core.h`, `lv_theme = 0` is `NEON GRAPE`
+  (`0xb324fd`, purple), not Matrix green (`0x33e59a` was a Matrix-only constant
+  in `lv_term_ps.h`); `TOXIC` (`theme 2`, `0x92ff02`) and `NVG` (`theme 13`)
+  are the firmware's green themes. All existing green `tps_F2_*` / `tps_G2_*`
+  baseline files remain untouched (`0 px` non-black layout/bloom/scanline mask
+  difference across all themed renders).
+
+### Theme-Aware F2 & G2 Renders
+- Single-color: `grape` (`0`), `toxic` (`2`), `ice` (`3`), `orange` (`5`) ->
+  `tps_{F2,G2}_{grape,toxic,ice,orange}_full@3x.png`
+- Multi-color: `synth` (`7`) `full@3x.png`, `prism` (`9`) `full@3x.png` +
+  `tps_{F2,G2}_prism_scroll@3x.gif`

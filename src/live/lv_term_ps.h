@@ -1058,48 +1058,118 @@ static inline uint16_t lv_tps2_scan_mod(uint16_t c, int y)
     return (y & 1) ? lv_dim(c, 7, 8) : c;
 }
 
-static void lv_tps2_draw_char(LvBand &B, int x, int y, char ch, uint16_t fg, uint16_t g1, uint16_t g2, bool dense35)
+/* Theme-aware shade ramp for F2 & G2: reuses the firmware's live lv_theme, lv_multi_theme(),
+ * lv_theme_at(lv_theme, x, y), lv_mix3(), and sec_legible() verbatim (lv_core.h / themes_spec_v2.h),
+ * deriving the same 7-role brightness ramp used by the Matrix green palette (T1 21%, MID 60%,
+ * BODY +1/8 white, TAG +2/5 white == LV_HDR, HOT 100%, LEAD +4/5 white, CUR +7/10 white). */
+enum {
+    LV_TPS2_R_NONE = -1,
+    LV_TPS2_R_T1   = 0,
+    LV_TPS2_R_MID  = 1,
+    LV_TPS2_R_BODY = 2,
+    LV_TPS2_R_TAG  = 3,
+    LV_TPS2_R_HOT  = 4,
+    LV_TPS2_R_LEAD = 5,
+    LV_TPS2_R_CUR  = 6,
+};
+
+static inline uint32_t lv_tps2_legible(uint32_t c)
 {
-    if (dense35) { b_char35(B, x, y, ch, lv_tps2_scan_mod(fg, y)); return; }
+#if LV_CB
+    return sec_legible(c);
+#else
+    return c;
+#endif
+}
+
+static inline uint16_t lv_tps2_role_px(int role, uint32_t T)
+{
+    if (role == LV_TPS2_R_T1) return lv_hex(lv_mix3(T, 0x000000, 79, 100));
+    const uint32_t Tl = lv_tps2_legible(T);
+    switch (role) {
+    case LV_TPS2_R_MID:  return lv_hex(lv_mix3(Tl, 0x000000, 40, 100));
+    case LV_TPS2_R_BODY: return lv_hex(lv_mix3(Tl, 0xffffff, 1, 8));
+    case LV_TPS2_R_TAG:  return lv_hex(lv_mix3(Tl, 0xffffff, 2, 5));
+    case LV_TPS2_R_HOT:  return lv_hex(Tl);
+    case LV_TPS2_R_LEAD: return lv_hex(lv_mix3(Tl, 0xffffff, 4, 5));
+    case LV_TPS2_R_CUR:  return lv_hex(lv_mix3(Tl, 0xffffff, 7, 10));
+    default:             return lv_hex(Tl);
+    }
+}
+
+struct LvTps2Pal {
+    bool multi;
+    uint16_t pal[7];
+};
+
+static void lv_tps2_init_pal(LvTps2Pal &P)
+{
+    P.multi = lv_multi_theme(lv_theme);
+    if (!P.multi) {
+        const uint32_t T = lv_theme_at(lv_theme, 0, 0);
+        for (int r = 0; r < 7; ++r) P.pal[r] = lv_tps2_role_px(r, T);
+    }
+}
+
+static inline uint16_t lv_tps2_shade_at(const LvTps2Pal &P, int role, int x, int y)
+{
+    return P.multi ? lv_tps2_role_px(role, lv_theme_at(lv_theme, x, y)) : P.pal[role];
+}
+
+static void lv_tps2_draw_char(LvBand &B, const LvTps2Pal &P, int x, int y, char ch, int fg_r, int g1_r, int g2_r, bool dense35)
+{
     unsigned uc = (unsigned char)ch;
     if (uc <= 32 || uc > 126) return;
+    if (dense35) {
+        if (y >= B.y0 + B.h || y + 5 <= B.y0) return;
+        const uint16_t g = LV_F35[uc - 0x20];
+        for (int k = 0; k < 15; ++k) if (g >> (14 - k) & 1) {
+            const int px = x + k % 3, py = y + k / 3;
+            b_pix(B, px, py, lv_tps2_scan_mod(lv_tps2_shade_at(P, fg_r, px, py), y));
+        }
+        return;
+    }
     const uint8_t *col5 = &LV_GLCD[(uc - 32) * 5];
-    if (g2) {
+    if (g2_r >= 0) {
         for (int c = 0; c < 5; ++c) {
             const uint8_t m = col5[c];
             for (int r = 0; r < 7; ++r) if (m & (1u << r)) {
                 const int px = x + c, py = y + r;
-                const uint16_t gm = lv_tps2_scan_mod(g2, py);
-                b_max_pix(B, px - 1, py - 1, gm); b_max_pix(B, px + 1, py - 1, gm);
-                b_max_pix(B, px - 1, py + 1, gm); b_max_pix(B, px + 1, py + 1, gm);
+                b_max_pix(B, px - 1, py - 1, lv_tps2_scan_mod(lv_tps2_shade_at(P, g2_r, px - 1, py - 1), py));
+                b_max_pix(B, px + 1, py - 1, lv_tps2_scan_mod(lv_tps2_shade_at(P, g2_r, px + 1, py - 1), py));
+                b_max_pix(B, px - 1, py + 1, lv_tps2_scan_mod(lv_tps2_shade_at(P, g2_r, px - 1, py + 1), py));
+                b_max_pix(B, px + 1, py + 1, lv_tps2_scan_mod(lv_tps2_shade_at(P, g2_r, px + 1, py + 1), py));
             }
         }
     }
-    if (g1) {
+    if (g1_r >= 0) {
         for (int c = 0; c < 5; ++c) {
             const uint8_t m = col5[c];
             for (int r = 0; r < 7; ++r) if (m & (1u << r)) {
                 const int px = x + c, py = y + r;
-                b_max_pix(B, px - 1, py, lv_tps2_scan_mod(g1, py));
-                b_max_pix(B, px + 1, py, lv_tps2_scan_mod(g1, py));
-                b_max_pix(B, px, py - 1, lv_tps2_scan_mod(g1, py - 1));
-                b_max_pix(B, px, py + 1, lv_tps2_scan_mod(g1, py + 1));
+                b_max_pix(B, px - 1, py,     lv_tps2_scan_mod(lv_tps2_shade_at(P, g1_r, px - 1, py),     py));
+                b_max_pix(B, px + 1, py,     lv_tps2_scan_mod(lv_tps2_shade_at(P, g1_r, px + 1, py),     py));
+                b_max_pix(B, px,     py - 1, lv_tps2_scan_mod(lv_tps2_shade_at(P, g1_r, px,     py - 1), py - 1));
+                b_max_pix(B, px,     py + 1, lv_tps2_scan_mod(lv_tps2_shade_at(P, g1_r, px,     py + 1), py + 1));
             }
         }
     }
     for (int c = 0; c < 5; ++c) {
         const uint8_t m = col5[c];
-        for (int r = 0; r < 7; ++r) if (m & (1u << r))
-            b_max_pix(B, x + c, y + r, lv_tps2_scan_mod(fg, y + r));
+        for (int r = 0; r < 7; ++r) if (m & (1u << r)) {
+            const int px = x + c, py = y + r;
+            b_max_pix(B, px, py, lv_tps2_scan_mod(lv_tps2_shade_at(P, fg_r, px, py), py));
+        }
     }
 }
 
-/* F2: Refined 5x7 Matrix Trace screen — vertical pulsing green digit streams snap & lock per cell */
+/* F2: Refined 5x7 Trace screen — vertical pulsing digit streams snap & lock per cell, themed by live lv_theme */
 static void lv_tps_f2_scene(LvBand &B, void *)
 {
     b_fill(B, B.x0, B.y0, B.w, B.h, LV_TPSC_BG);   /* pure #000000 CRT black */
-    /* Ultra-faint 1-step green CRT raster only on even scanlines inside active trace window? Keep pure #000000
-     * background for maximum contrast; scanline modulation sits on every lit phosphor & bloom pixel. */
+    LvTps2Pal P;
+    lv_tps2_init_pal(P);
+
     const int rel = (int)(lv_now - lv_tps_t0);
     const bool done = (rel >= 15600);
     LvTps2Model m;
@@ -1128,28 +1198,31 @@ static void lv_tps_f2_scene(LvBand &B, void *)
                 const uint32_t h = (uint32_t)(cyc_tick * 131u + r * 37u + c * 17u);
                 const char dig = (char)('0' + (h % 10u));
                 const int wave = (cyc_tick + r + ((c * 3) % 7)) % 7;
-                const uint16_t fg = (wave == 0) ? LV_TPSC_HOT : (wave <= 2) ? LV_TPSC_MID : LV_TPSC_T1;
-                const uint16_t g1 = (wave == 0) ? LV_TPSC_T1 : 0;
-                lv_tps2_draw_char(B, x, y, dig, fg, g1, 0, m.dense35);
+                const int fg_r = (wave == 0) ? LV_TPS2_R_HOT : (wave <= 2) ? LV_TPS2_R_MID : LV_TPS2_R_T1;
+                const int g1_r = (wave == 0) ? LV_TPS2_R_T1 : LV_TPS2_R_NONE;
+                lv_tps2_draw_char(B, P, x, y, dig, fg_r, g1_r, LV_TPS2_R_NONE, m.dense35);
             } else if (dt < 240) {
-                /* Slot-machine snap flare (#E0FCD9 + #00990B/#00351d bloom) */
-                lv_tps2_draw_char(B, x, y, s[c], LV_TPSC_LEAD, LV_TPSC_MID, LV_TPSC_T1, m.dense35);
+                /* Slot-machine snap flare (bright accent-white + mid/dim bloom) */
+                lv_tps2_draw_char(B, P, x, y, s[c], LV_TPS2_R_LEAD, LV_TPS2_R_MID, LV_TPS2_R_T1, m.dense35);
             } else if (dt < 520) {
-                lv_tps2_draw_char(B, x, y, s[c], LV_TPSC_TAG, LV_TPSC_T1, 0, m.dense35);
+                lv_tps2_draw_char(B, P, x, y, s[c], LV_TPS2_R_TAG, LV_TPS2_R_T1, LV_TPS2_R_NONE, m.dense35);
             } else {
-                const uint16_t col = (m.kind[r] == 0 || m.kind[r] == 1) ? LV_TPSC_TAG :
-                                     (m.kind[r] == 3) ? LV_TPSC_MID :
-                                     (m.kind[r] == 4) ? LV_TPSC_HOT : LV_TPSC_BODY;
-                lv_tps2_draw_char(B, x, y, s[c], col, LV_TPSC_T1, 0, m.dense35);
+                const int fg_r = (m.kind[r] == 0 || m.kind[r] == 1) ? LV_TPS2_R_TAG :
+                                 (m.kind[r] == 3) ? LV_TPS2_R_MID :
+                                 (m.kind[r] == 4) ? LV_TPS2_R_HOT : LV_TPS2_R_BODY;
+                lv_tps2_draw_char(B, P, x, y, s[c], fg_r, LV_TPS2_R_T1, LV_TPS2_R_NONE, m.dense35);
             }
         }
     }
 }
 
-/* G2: Refined 5x7 "Wake up, Neo..." terminal — blinking #B2FFFE block cursor, real pauses, CRT bloom */
+/* G2: Refined 5x7 "Wake up, Neo..." terminal — blinking block cursor, real pauses, CRT bloom, live lv_theme */
 static void lv_tps_g2_scene(LvBand &B, void *)
 {
     b_fill(B, B.x0, B.y0, B.w, B.h, LV_TPSC_BG);   /* pure #000000 CRT black */
+    LvTps2Pal P;
+    lv_tps2_init_pal(P);
+
     const int rel = (int)(lv_now - lv_tps_t0);
     LvTps2Model m;
     lv_tps2_build(m, false, false);
@@ -1182,11 +1255,11 @@ static void lv_tps_g2_scene(LvBand &B, void *)
         for (int c = 0; c < chars_shown && c < L && c < maxc; ++c) {
             const int x = LV_TPS2_X + c * cw;
             const bool fresh = (c == chars_shown - 1) && (line_dt < acc);
-            const uint16_t col = fresh ? LV_TPSC_LEAD :
-                                 (m.kind[r] == 0 || m.kind[r] == 1) ? LV_TPSC_TAG :
-                                 (m.kind[r] == 3) ? LV_TPSC_MID :
-                                 (m.kind[r] == 4) ? LV_TPSC_HOT : LV_TPSC_BODY;
-            lv_tps2_draw_char(B, x, y, s[c], col, fresh ? LV_TPSC_MID : LV_TPSC_T1, 0, m.dense35);
+            const int fg_r = fresh ? LV_TPS2_R_LEAD :
+                             (m.kind[r] == 0 || m.kind[r] == 1) ? LV_TPS2_R_TAG :
+                             (m.kind[r] == 3) ? LV_TPS2_R_MID :
+                             (m.kind[r] == 4) ? LV_TPS2_R_HOT : LV_TPS2_R_BODY;
+            lv_tps2_draw_char(B, P, x, y, s[c], fg_r, fresh ? LV_TPS2_R_MID : LV_TPS2_R_T1, LV_TPS2_R_NONE, m.dense35);
         }
         cur_x = LV_TPS2_X + chars_shown * cw;
         if (cur_x > LV_TPS2_X + (maxc - 1) * cw) cur_x = LV_TPS2_X + (maxc - 1) * cw;
@@ -1196,16 +1269,24 @@ static void lv_tps_g2_scene(LvBand &B, void *)
         if (rel < t_cur) break;
     }
 
-    /* Film's pale teal-white block cursor #B2FFFE (~1.14:1 tall on 5x7 glyph) */
+    /* Block cursor (~1.14:1 tall on 5x7 glyph) tinted by the active theme */
     if (typing_active || ((lv_now / 420) & 1)) {
         const int bw = m.dense35 ? 4 : 6, bh = m.dense35 ? 7 : 8;
-        b_fill(B, cur_x, cur_y, bw, bh, LV_TPS_CUR);
+        if (!P.multi) {
+            b_fill(B, cur_x, cur_y, bw, bh, P.pal[LV_TPS2_R_CUR]);
+        } else {
+            for (int py = cur_y; py < cur_y + bh; ++py)
+                for (int px = cur_x; px < cur_x + bw; ++px)
+                    b_pix(B, px, py, lv_tps2_shade_at(P, LV_TPS2_R_CUR, px, py));
+        }
     }
 }
 
 static void lv_tps_frame(void)
 {
-    /* first paint is a full push; later frames use dirty-row blit so only changed text rows hit the panel */
+    /* first paint is a full push; later frames use dirty-row blit so only changed text rows hit the panel;
+     * F2/G2 resolve live theme colors per pixel (including multi-color themes), so bypass lv_theme_ink sentinel pass */
+    const bool f2g2 = (lv_scr == LV_SC_TPSF2 || lv_scr == LV_SC_TPSG2);
     const lv_scene_fn sc = (lv_scr == LV_SC_TPSF2) ? lv_tps_f2_scene
                         : (lv_scr == LV_SC_TPSG2) ? lv_tps_g2_scene
                         : (lv_scr == LV_SC_TPSF) ? lv_tps_f_scene
@@ -1213,7 +1294,9 @@ static void lv_tps_frame(void)
                         : (lv_scr == LV_SC_TPSE) ? lv_tps_e_scene
                         : (lv_scr == LV_SC_TPSC || lv_scr == LV_SC_TPSD) ? lv_tps_cd_wrap
                         : lv_tps_scene;
-    lv_render(lv_tps_full ? lv_blit : lv_blit_dirty, (LvRect){0, 0, 239, 319}, sc, 0);
+    const lv_blit_fn fn = f2g2 ? (lv_tps_full ? lv_blit_hw : lv_blit_dirty_hw)
+                               : (lv_tps_full ? lv_blit    : lv_blit_dirty);
+    lv_render(fn, (LvRect){0, 0, 239, 319}, sc, 0);
     lv_tps_full = 0;
 }
 

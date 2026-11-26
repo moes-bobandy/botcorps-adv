@@ -8,10 +8,11 @@
 #include "lv_controlbot_data.h"
 #include "lv_controlbot_panel.h"   /* the live control panel (SCAN / VOL / BRIGHT / CHIME / TIME / BAR / TONE) */
 /* the locked v6 order (render_v6_ticker.py ORDER/NAMES) -> this firmware's theme index */
-static const uint8_t LV_CB_FW[LV_CB_N] = {22, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 0, 24, 2, 3, 23, 5, 6, 7, 8, 9, 10, 11, 25};
+static const uint8_t LV_CB_FW[LV_CB_N] = {22, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 0, 24, 2, 3, 23, 5, 6, 7, 8, 9, 10, 11, 25, 26, 27, 28, 29, 30, 31};
 static const char *const LV_CB_NAME[LV_CB_N] = {"CIRCUIT", "HI-VIS BLUE", "NV GREEN BLOOM", "NV WHITE PHOSPHOR", "IR IRONBOW", "IR RAINBOW HEAT",
     "IR WHITE-HOT", "IR RED-HOT", "ALARM STROBE", "POLICE SIREN", "PERIMETER GRID", "NEON GRAPE", "HOLO FOIL", "TOXIC", "ICE", "SONAR",
-    "BLAZE ORANGE", "GOLD RUSH", "SYNTHWAVE", "AURORA", "PRISM", "GLITCH", "HOT ROSE", "DIGI CAMO"};
+    "BLAZE ORANGE", "GOLD RUSH", "SYNTHWAVE", "AURORA", "PRISM", "GLITCH", "HOT ROSE", "DIGI CAMO",
+    "MATRIX RAIN", "CHROME STEEL", "CRIMSON CARBON", "AMBER CRT", "CYBER TEAL", "VAPOR GRID"};
 static const LkIo *lv_cb_io = nullptr;   /* set by lv_tick: the clip inflater + its LK_INFL_CAP buffer (no clip plays on this screen) */
 static int lv_cb_cached = -1;            /* theme * 20 + strip held in io->buf */
 static bool lv_cb_dirty = true;

@@ -1,14 +1,18 @@
-/* v3 NEW themes mock (Mobandy 2026-11-16 11:17 AM ET): EXT_* = the 12 CYD themes from the verbatim lv_core.h copy (unchanged)
- * + 4 NEW patterned candidates (12..15). Nothing in cyd_themes_lv_core_copy.h is edited; this header only appends. */
+/* v3 NEW themes mock (Mobandy 2026-11-16 11:17 AM ET) + 2026-11-25 theme-refresh candidates (16..21):
+ * EXT_* = the 12 CYD themes (0..11) + 4 v3 themes (12..15: CIRCUIT/SONAR/HOLO/CAMO) + 6 refresh candidates (16..21:
+ * MATRX / STEEL / CARBN primary replacements + AMBER / TEAL / VAPOR bonus). Old themes untouched for 0-px default gate. */
 #include <cmath>
-#define EXT_NTHEME 16
+#define EXT_NTHEME 22
 static const uint32_t EXT_ACC[EXT_NTHEME]  = {0xb324fd, 0xdd00ac, 0x92ff02, 0x00ffff, 0x345efb, 0xfd6b00, 0xffda00, 0xff24fd, 0x20fe01, 0x00fe02, 0xfe0001, 0xff0052,
-                                              0xe0913c, 0x3dffcf, 0xc9a8ff, 0x9aa36a};
+                                              0xe0913c, 0x3dffcf, 0xc9a8ff, 0x9aa36a,
+                                              0x22e868, 0xa8c4e0, 0xff244c, 0xffb010, 0x00e0a8, 0x00e8ff};
 static const uint32_t EXT_ACCD[EXT_NTHEME] = {0x53205d, 0x68004f, 0x4a6010, 0x00636d, 0x0e5166, 0x61480f, 0x6a5a00, 0x690d69, 0x0d690d, 0x086908, 0x690405, 0x690022,
-                                              0x0a4a2c, 0x00444a, 0x4f3f72, 0x3a4a2a};
+                                              0x0a4a2c, 0x00444a, 0x4f3f72, 0x3a4a2a,
+                                              0x0a5228, 0x3c4b5c, 0x5e0a1a, 0x683c00, 0x005c44, 0x3b1866};
 static const uint32_t EXT_HDR[EXT_NTHEME]  = {0xb36afe, 0xdc4aac, 0xb9fb4f, 0x4afffc, 0x6891ff, 0xf4b24c, 0xffe86a, 0xff6afd, 0x6aff6b, 0x6afe6c, 0xff6a6b, 0xff6a96,
-                                              0xffd27a, 0xa8ffe8, 0xffc2ee, 0xd8cc98};
-static bool ext_multi(int t) { return (t >= 7 && t <= 10) || t >= 12; }
+                                              0xffd27a, 0xa8ffe8, 0xffc2ee, 0xd8cc98,
+                                              0x9effc0, 0xe8f4ff, 0xff889e, 0xffe082, 0x78ffd8, 0xff78e0};
+static bool ext_multi(int t) { return (t >= 7 && t <= 10) || (t >= 12 && t != 20); }
 static uint32_t ext_lerp_ring(const uint32_t *P, int n, int u, int period)   /* smooth cyclic blend through n stops */
 {
     u %= period; if (u < 0) u += period; const int seg = period / n, k = u / seg, f = u % seg;
@@ -41,6 +45,59 @@ static uint32_t ext_theme_at(int t, int x, int y)
         static const uint32_t P[4] = {0x2c3a26, 0x55703a, 0x9aa36a, 0xcbbb8a};
         const int bx = x / 10, by = y / 10;
         return P[((ext_hash(bx / 3, by / 3) & 3) * 2 + (ext_hash(bx, by) & 3)) / 2 % 4];
+    }
+    case 16: {   /* MATRX: falling emerald-mint phosphor rain columns (replaces CIRCUIT) */
+        const int col = x / 10;
+        const int hy = 40 + (int)(ext_hash(col, 7) % 240);
+        const int len = 140 + (int)(ext_hash(col, 13) % 120);
+        const int d = (hy - y + 320) % 320;
+        const int cell = 75 + (int)(ext_hash(col, y / 8) % 26);
+        if (d < 14) return lv_mix3(0xe4fff2, 0x38ff78, d, 13);
+        if (d < len) {
+            const uint32_t base = lv_mix3(0x24f868, 0x089838, d - 14, len - 14);
+            return lv_mix3(0x003814, base, cell, 100);
+        }
+        return lv_mix3(0x00521e, 0x00782c, cell, 100);
+    }
+    case 17: {   /* STEEL: anisotropic brushed titanium/chrome sheen (replaces NEON GRAPE) */
+        static const uint32_t S[5] = {0x384a5e, 0x6c86a2, 0xb8d2ec, 0xf4f9ff, 0x8aa4c0};
+        const int u = (x * 3 + y * 2) % 320;
+        const int v = u < 160 ? u : 319 - u;
+        const int grain = ((int)(ext_hash(y, 3) & 7) - 3) * 4;
+        int k = v * 255 / 159 + grain;
+        if (k < 0) k = 0; if (k > 255) k = 255;
+        const int seg = 255 / 4, i = k / seg >= 4 ? 3 : k / seg;
+        return lv_mix3(S[i], S[i + 1], k - i * seg, seg);
+    }
+    case 18: {   /* CARBN: 2x2 twill crimson carbon-fiber weave with ruby sheen (replaces SONAR) */
+        const int cx = x / 6, cy = y / 6, w = (cx + cy) & 3;
+        int d = (x * 2 + y) - 340; if (d < 0) d = -d;
+        int sheen = 255 - d * 255 / 340; if (sheen < 0) sheen = 0;
+        const bool warp = (w < 2);
+        const bool hi = warp && ((y % 6) == 0 || (x % 6) == 0);
+        if (hi) return lv_mix3(0xd82040, 0xff6884, sheen, 255);
+        return warp ? lv_mix3(0xb8102e, 0xff284c, sheen, 255)
+                    : lv_mix3(0x3a0814, 0x760e24, sheen, 255);
+    }
+    case 19: {   /* AMBER: warm amber phosphor CRT bloom + scanlines (bonus 1) */
+        static const uint32_t S[4] = {0xfff0b0, 0xffbe24, 0xd87400, 0x6b3200};
+        int dx = x - 120, dy = y - 160; if (dx < 0) dx = -dx; if (dy < 0) dy = -dy;
+        int b = (dx * 5 + dy * 4) / 4; if (b > 255) b = 255;
+        const int seg = 255 / 3, i = b / seg >= 3 ? 2 : b / seg;
+        const uint32_t c = lv_mix3(S[i], S[i + 1], b - i * seg, seg);
+        return (y % 4 == 3) ? lv_mix3(c, 0x1a0800, 38, 100) : c;
+    }
+    case 20: return EXT_ACC[20];   /* TEAL: solid cyber-teal (bonus 2) */
+    case 21: {   /* VAPOR: neon horizon + receding perspective cyber-grid (bonus 3) */
+        if (y < 146) return lv_mix3(0x00b4ff, 0xff28c8, y, 145);
+        if (y <= 154) return 0xffe8ff;
+        const int dy = y - 154;
+        const bool hline = ((dy >= 8 && dy <= 10) || (dy >= 22 && dy <= 24) || (dy >= 40 && dy <= 42)
+                         || (dy >= 64 && dy <= 66) || (dy >= 94 && dy <= 96) || (dy >= 130 && dy <= 132));
+        const int gx = (x - 120) * 64 / (dy + 20);
+        const bool vline = ((gx % 24 + 24) % 24) < 3;
+        if (hline || vline) return lv_mix3(0xff48dc, 0x00f4ff, dy, 165);
+        return lv_mix3(0x7018c0, 0x0078b8, dy, 165);
     }
     default: return lv_theme_at(t, x, y);
     }

@@ -131,7 +131,7 @@ enum LvScr { LV_SC_BOOT, LV_SC_HOME_INTRO, LV_SC_HOME, LV_SC_TERM, LV_SC_SCAN, L
 #if LV_CB   /* fw-3locks-1116 CONTROLbot v6: 12..21 = SECURITYbot v2 themes 1..10 (themes_spec_v2.h), 22..25 = v3 NEW
               * CIRCUIT / SONAR / HOLO FOIL / DIGI CAMO (new_themes_v3.h EXT 12..15). Inks copied from those headers. 0..11 unchanged.
               * LV_NTHEME stays 12 for the locked CONTROLbot / terminal theme cycle. */
-#define LV_NTHEME_ALL 26
+#define LV_NTHEME_ALL 32
 #else
 #define LV_NTHEME_ALL LV_NTHEME
 #endif
@@ -143,12 +143,12 @@ enum LvScr { LV_SC_BOOT, LV_SC_HOME_INTRO, LV_SC_HOME, LV_SC_TERM, LV_SC_SCAN, L
  * 31 px THEME field; LV_THEME_FULL is the original name (terminal 'theme', CONTROLbot name plate). */
 static const char *const LV_THEME_NAME[LV_NTHEME_ALL] = {"GRAPE", "MAGENTA", "TOXIC", "ICE", "BLUE", "ORANGE", "GOLD", "SYNTH", "AURA", "PRISM", "GLTCH", "ROSE"
 #if LV_CB
-    , "HIVIS", "NVG", "NVWHT", "IRON", "HEAT", "WHHOT", "REDHT", "ALARM", "SIREN", "PERIM", "CIRC", "SONAR", "HOLO", "CAMO"
+    , "HIVIS", "NVG", "NVWHT", "IRON", "HEAT", "WHHOT", "REDHT", "ALARM", "SIREN", "PERIM", "CIRC", "SONAR", "HOLO", "CAMO", "MATRX", "STEEL", "CARBN", "AMBER", "TEAL", "VAPOR"
 #endif
 };
 static const char *const LV_THEME_FULL[LV_NTHEME_ALL] = {"NEON GRAPE", "HOT PINK", "TOXIC", "ICE", "BLUE", "BLAZE ORANGE", "GOLD RUSH", "SYNTHWAVE", "AURORA", "PRISM", "GLITCH", "HOT ROSE"
 #if LV_CB
-    , "HI-VIS BLUE", "NV GREEN BLOOM", "NV WHITE PHOSPHOR", "IR IRONBOW", "IR RAINBOW HEAT", "IR WHITE-HOT", "IR RED-HOT", "ALARM STROBE", "POLICE SIREN", "PERIMETER GRID", "CIRCUIT", "SONAR", "HOLO FOIL", "DIGI CAMO"
+    , "HI-VIS BLUE", "NV GREEN BLOOM", "NV WHITE PHOSPHOR", "IR IRONBOW", "IR RAINBOW HEAT", "IR WHITE-HOT", "IR RED-HOT", "ALARM STROBE", "POLICE SIREN", "PERIMETER GRID", "CIRCUIT", "SONAR", "HOLO FOIL", "DIGI CAMO", "MATRIX RAIN", "CHROME STEEL", "CRIMSON CARBON", "AMBER CRT", "CYBER TEAL", "VAPOR GRID"
 #endif
 };
 #define LV_THEME_ORIG 6          /* first re-inked theme */
@@ -158,26 +158,26 @@ static const char *const LV_THEME_FULL[LV_NTHEME_ALL] = {"NEON GRAPE", "HOT PINK
  * that lv_blit_theme re-inks per pixel, so every overlay stroke follows the fade / spectrum / split. */
 static const uint32_t LV_ACC[LV_NTHEME_ALL] = {0xb324fd, 0xdd00ac, 0x92ff02, 0x00ffff, 0x345efb, 0xfd6b00, 0xffda00, 0xff24fd, 0x20fe01, 0x00fe02, 0xfe0001, 0xff0052
 #if LV_CB
-    , 0x0096ff, 0x8cff3c, 0xe4eef6, 0xff7a10, 0xffe000, 0xd0d4d8, 0xff5a14, 0xff1418, 0xff1e2e, 0xb050ff, 0xe0913c, 0x3dffcf, 0xc9a8ff, 0x9aa36a
+    , 0x0096ff, 0x8cff3c, 0xe4eef6, 0xff7a10, 0xffe000, 0xd0d4d8, 0xff5a14, 0xff1418, 0xff1e2e, 0xb050ff, 0xe0913c, 0x3dffcf, 0xc9a8ff, 0x9aa36a, 0x22e868, 0xa8c4e0, 0xff244c, 0xffb010, 0x00e0a8, 0x00e8ff
 #endif
 };
 static const uint32_t LV_ACCD[LV_NTHEME_ALL] = {0x53205d, 0x68004f, 0x4a6010, 0x00636d, 0x0e5166, 0x61480f, 0x6a5a00, 0x690d69, 0x0d690d, 0x086908, 0x690405, 0x690022
 #if LV_CB
-    , 0x003d69, 0x396918, 0x5d6165, 0x693206, 0x695c00, 0x55575a, 0x692508, 0x690809, 0x690c13, 0x482068, 0x0a4a2c, 0x00444a, 0x4f3f72, 0x3a4a2a
+    , 0x003d69, 0x396918, 0x5d6165, 0x693206, 0x695c00, 0x55575a, 0x692508, 0x690809, 0x690c13, 0x482068, 0x0a4a2c, 0x00444a, 0x4f3f72, 0x3a4a2a, 0x0a5228, 0x3c4b5c, 0x5e0a1a, 0x683c00, 0x005c44, 0x3b1866
 #endif
 };
 static const uint32_t LV_HDR[LV_NTHEME_ALL] = {0xb36afe, 0xdc4aac, 0xb9fb4f, 0x4afffc, 0x6891ff, 0xf4b24c, 0xffe86a, 0xff6afd, 0x6aff6b, 0x6afe6c, 0xff6a6b, 0xff6a96
 #if LV_CB
-    , 0x66c0ff, 0xbaff8a, 0xeff5f9, 0xffaf70, 0xffec66, 0xe2e5e7, 0xff9c72, 0xff7274, 0xff787f, 0xcf96ff, 0xffd27a, 0xa8ffe8, 0xffc2ee, 0xd8cc98
+    , 0x66c0ff, 0xbaff8a, 0xeff5f9, 0xffaf70, 0xffec66, 0xe2e5e7, 0xff9c72, 0xff7274, 0xff787f, 0xcf96ff, 0xffd27a, 0xa8ffe8, 0xffc2ee, 0xd8cc98, 0x9effc0, 0xe8f4ff, 0xff889e, 0xffe082, 0x78ffd8, 0xff78e0
 #endif
 };
 static const uint32_t LV_FRAME[LV_NTHEME_ALL] = {0xff25ae, 0xdf00ae, 0x92fd00, 0x00feff, 0xfd22ff, 0xfd6b00, 0xffda00, 0xff24fd, 0x20fe01, 0x00fe02, 0xfe0001, 0xff0052
 #if LV_CB
-    , 0x0096ff, 0x8cff3c, 0xe4eef6, 0xff7a10, 0xffe000, 0xd0d4d8, 0xff5a14, 0xff1418, 0xff1e2e, 0xb050ff, 0xe0913c, 0x3dffcf, 0xc9a8ff, 0x9aa36a
+    , 0x0096ff, 0x8cff3c, 0xe4eef6, 0xff7a10, 0xffe000, 0xd0d4d8, 0xff5a14, 0xff1418, 0xff1e2e, 0xb050ff, 0xe0913c, 0x3dffcf, 0xc9a8ff, 0x9aa36a, 0x22e868, 0xa8c4e0, 0xff244c, 0xffb010, 0x00e0a8, 0x00e8ff
 #endif
 };
 #if LV_CB
-static bool lv_multi_theme(int t) { return (t >= 7 && t <= 10) || (t >= 13 && t <= 21) || t >= 22; }   /* + SEC NVG..PERIM, + the 4 NEW patterns */
+static bool lv_multi_theme(int t) { return (t >= 7 && t <= 10) || (t >= 13 && t <= 21) || (t >= 22 && t != 30); }   /* + SEC NVG..PERIM, + the 4 NEW patterns */
 static uint32_t lv_theme_at_cb(int t, int x, int y);   /* lv_cb_themes (below lv_theme_at) */
 #else
 static bool lv_multi_theme(int t) { return t >= 7 && t <= 10; }

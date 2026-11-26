@@ -25,7 +25,7 @@
 #define LV_TPS_COLS   35           /* 14 + 35*6 = 224, 16 px right margin */
 #define LV_TPS_MAXL   96
 #define LV_TPS_LSZ    40
-#define LV_TPS_DIM_BRI 20          /* backlight percent while this screen is up */
+#define LV_TPS_DIM_BRI 20          /* backlight percent for non-G2 TPS screens only; G2 never overrides brightness */
 
 /* Frame-sampled / measured greens (comparison refs, not film frames shipped):
  * body #33e59a (terminal text, kirocrew 4K sample, hue ~154°);
@@ -1093,7 +1093,12 @@ static inline uint16_t lv_tps2_role_px(int role, uint32_t T)
     if (role == LV_TPS2_R_T1) return lv_hex(lv_mix3(T, 0x000000, 79, 100));
     const uint32_t Tl = lv_tps2_legible(T);
     switch (role) {
-    case LV_TPS2_R_MID:  return lv_hex(lv_mix3(Tl, 0x000000, 40, 100));
+    /* v1.2.23 (Mobandy 9:27 AM ET): G2 no longer dims the backlight, so the dimmest
+     * text lines (MID = no-grid / "[ -- ] NO … ON GRID") must stay readable at the
+     * user's normal brightness. Floor raised from 60% of the (legible) theme accent
+     * (mix 40/100 to black) to 80% (mix 20/100 to black). Still follows the live
+     * theme accent, still below BODY/TAG/HOT. */
+    case LV_TPS2_R_MID:  return lv_hex(lv_mix3(Tl, 0x000000, 20, 100));
     case LV_TPS2_R_BODY: return lv_hex(lv_mix3(Tl, 0xffffff, 1, 8));
     case LV_TPS2_R_TAG:  return lv_hex(lv_mix3(Tl, 0xffffff, 2, 5));
     case LV_TPS2_R_HOT:  return lv_hex(Tl);
@@ -1334,7 +1339,10 @@ static void lv_tps_enter(void)
     lv_tps_emit = 0;
     lv_tps_phase = 0;
     lv_tps_full = 1;
-    lv_tps_dim(1);
+    /* v1.2.23 (Mobandy 9:27 AM ET): G2 must keep the user's normal brightness.
+     * Do not override the backlight to LV_TPS_DIM_BRI (20%). Other TPS variants,
+     * if ever enabled, still dim. */
+    if (lv_scr != LV_SC_TPSG2) lv_tps_dim(1);
     if (lv_job == LV_J_NONE) lv_job_start(LV_J_ALL, -1);   /* keep scanning while the typist runs */
 }
 

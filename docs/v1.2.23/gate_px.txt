@@ -41,7 +41,10 @@ dl_intro               0        0       0  PASS      allowed=none
 dl_play                0        0       0  PASS      allowed=none
 exit=0
 
-G2 brightness fix (Mobandy 9:27 AM ET) vs source mock 0d64cf3 (cmd tpsg2 tour):
-expected diffs are the raised MID floor only (no-grid line, and MID bloom on the just-typed glyph).
-theme 9 / 3 / 12: g2_mat 270 px, g2_full 263 px, bbox of the full frame is the no-grid row (7,43)-(148,49).
-Home/CONTROLbot/TERM/dojo/GIBSON/HACKbot gates above are unchanged (33 PASS, 0 FAIL).
+G2-as-TERMINALbot routing (SIM_THEME=22, g2_route.txt):
+  pager face tap 120,120 -> pager-terminal-g2 (scr=23 G2)
+  G2 TERM chip tap 220,310 -> g2-live-term (scr=3 old TERM)
+  old TERM banner back tap 16,12 -> banner-term-g2 (scr=23 G2)
+  G2 Stripe Slot back tap 16,12 -> backbot-g2-home (scr=2 pager)
+  cmd "go term" -> scr=23 G2
+Home/CONTROLbot/TERM(go 3 still raw LV_SC_TERM)/dojo/GIBSON/HACKbot gates above: 33 PASS, 0 FAIL (themes 22/23/9).

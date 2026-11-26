@@ -122,7 +122,7 @@ static int lv_lb_row(int tab, int i, char out[28])
         }
     } else {
         switch (i % 8) {
-        case 0: snprintf(out, 28, "%s BOOT v1.2.22", t); ev = 9; break;
+        case 0: snprintf(out, 28, "%s BOOT v1.2.23", t); ev = 9; break;
         case 1: snprintf(out, 28, "%s SD mount ok", t); break;
         case 2: snprintf(out, 28, "%s TOUCH cal ok", t); break;
         case 3: snprintf(out, 28, "%s WARN SD %dms", t, 180 + (int)(h % 90)); ev = 9; break;

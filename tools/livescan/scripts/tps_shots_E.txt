@@ -1,0 +1,9 @@
+theme 0
+motion 1
+tick 80
+cmd tpse
+tick 280
+dump tps_E_materialize
+rec 180 tps_E_scroll
+stick 220 400
+dump tps_E_full

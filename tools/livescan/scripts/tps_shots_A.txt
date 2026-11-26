@@ -1,0 +1,11 @@
+theme 0
+motion 1
+tick 80
+cmd tpsa
+tick 140
+dump tps_A_idle
+tick 1200
+dump tps_A_scanning
+rec 90 tps_A_scroll
+stick 250 400
+dump tps_A_full

@@ -1,0 +1,3 @@
+# A/B pre-scan typists: see tps_shots_A.txt and tps_shots_B.txt
+# run: sim_live tools/livescan/scripts/tps_shots_A.txt OUT nocal
+#      sim_live tools/livescan/scripts/tps_shots_B.txt OUT nocal

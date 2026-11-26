@@ -1,0 +1,12 @@
+screen            inside  outside   total  result  change bbox
+pager0                 0        0       0  PASS      allowed=none
+pager1                 0        0       0  PASS      allowed=none
+pager2                 0        0       0  PASS      allowed=none
+pager3                 0        0       0  PASS      allowed=none
+pager4                 0        0       0  PASS      allowed=none
+term                   0        0       0  PASS      allowed=none
+dojo                   0        0       0  PASS      allowed=none
+gib_scan               0        0       0  PASS      allowed=none
+gib_sel_deck           0        0       0  PASS      allowed=none
+dl_intro               0        0       0  PASS      allowed=none
+dl_play                0        0       0  PASS      allowed=none

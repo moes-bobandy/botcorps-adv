@@ -1,0 +1,18 @@
+tick 300
+motion 1
+page 3
+tick 200
+dump home_terminalbot
+page 4
+tick 120
+dump logbot_scan
+tap 120 255
+tick 12
+dump logbot_sys
+page 3
+tick 40
+tap 120 120
+tick 450
+dump g2_materialize
+stick 80 400
+dump g2_full

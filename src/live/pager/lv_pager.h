@@ -386,6 +386,9 @@ static void lv_pg_compose_row(uint16_t *row, int y, int page, LvPgSet &S)
         memcpy(row + LV_CB_PX0, lv_cb_pan + (y - LV_CB_PY0) * LV_CB_PW, LV_CB_PW * 2);
     if (page != LV_PG_CTL && y >= LV_CB_PY0 && y < LV_CB_PY0 + LV_CB_PH)
         lv_pg_panel_fx_row(row, y, page);
+#if LV_CYD17_PANEL_TERM && LV_C17_CTL
+    if (page == LV_PG_CTL && y >= LV_CB_PY0 && y < LV_CB_PY0 + LV_CB_PH) lv_c17_row(row, y, page);
+#endif
 
     if (page != LV_PG_CTL && y >= 88 && y <= 197) {
 #if LV_PG_TERMINAL_PAGE

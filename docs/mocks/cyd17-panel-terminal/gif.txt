@@ -1,0 +1,4 @@
+tick 300
+motion 0
+page 0
+rec 135 gif_p0

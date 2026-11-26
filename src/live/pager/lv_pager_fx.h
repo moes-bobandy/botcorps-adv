@@ -330,8 +330,12 @@ static void lv_pg_pan_terminal(uint16_t *row, int y, uint16_t acc)
     }
 }
 
+#include "lv_pager_term17.h"   /* CYD-17 mock: terminal-prompt readout panels (off unless LV_CYD17_PANEL_TERM) */
 static void lv_pg_panel_fx_row(uint16_t *row, int y, int page)
 {
+#if LV_CYD17_PANEL_TERM
+    if (page != LV_PG_CTL) { lv_c17_row(row, y, page); return; }
+#endif
     if (page == LV_PG_CTL || y < LV_CB_PY0 || y >= LV_CB_PY0 + LV_CB_PH) return;
     const uint16_t acc = lv_pg_fx_acc();
     if (page == LV_PG_BOTPHEUS) lv_pg_pan_botpheus(row, y, acc);

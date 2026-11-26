@@ -924,10 +924,10 @@ static void lv_tps_g_scene(LvBand &B, void *)
  * Overflow rule: <=20 dev -> 5x7 11px pitch; 21..24 -> 5x7 10px pitch; 25..31 -> auto-switch
  * to 3x5 LV_F35 8px pitch; >31 -> strongest 31 devices (by RSSI) + "+K more" row. */
 /* v1.2.23: honest data tag. Rows come from lv_f[] (the real scan list). The host sim feeds it a canned set (SAMPLE); the CYD fills it from the live WiFi/BLE scan (LIVE). */
-#ifdef LV_HOST
-#define LV_TPS_DATA_TAG "SAMPLE"
-#else
+#if defined(BOTCORPS_CYD) && !defined(LV_HOST)
 #define LV_TPS_DATA_TAG "LIVE"
+#else
+#define LV_TPS_DATA_TAG "SAMPLE"
 #endif
 #define LV_TPS2_X     6
 #define LV_TPS2_CW    6

@@ -1,0 +1,41 @@
+A) built code, SIM_THEME=0 (old default index; now CYBER TEAL) vs /tmp/v1220/gate121s (GRAPE):
+screen            inside  outside   total  result  change bbox
+pager0                 0    13022   13022  FAIL    (0,1)-(239,315)  allowed=none
+pager1                 0    11702   11702  FAIL    (0,1)-(239,315)  allowed=none
+pager2                 0    13026   13026  FAIL    (0,1)-(239,315)  allowed=none
+pager3                 0    10752   10752  FAIL    (0,1)-(239,315)  allowed=none
+pager4                 0    27005   27005  FAIL    (0,1)-(239,315)  allowed=none
+term                   0    13182   13182  FAIL    (1,24)-(238,317)  allowed=none
+dojo                   0        0       0  PASS      allowed=none
+gib_scan               0     3838    3838  FAIL    (0,24)-(239,319)  allowed=none
+gib_sel_deck           0     3683    3683  FAIL    (0,24)-(239,319)  allowed=none
+dl_intro               0     3351    3351  FAIL    (1,247)-(238,319)  allowed=none
+dl_play                0     3351    3351  FAIL    (1,247)-(238,319)  allowed=none
+
+B) kept theme 3: v1.2.21 sim (d7b55459) vs v1.2.22 sim:
+screen            inside  outside   total  result  change bbox
+pager0                 0       92      92  FAIL    (99,25)-(137,29)  allowed=none
+pager1                 0       92      92  FAIL    (102,25)-(137,29)  allowed=none
+pager2                 0       92      92  FAIL    (102,25)-(137,29)  allowed=none
+pager3                 0       92      92  FAIL    (102,25)-(137,29)  allowed=none
+pager4                 0       92      92  FAIL    (102,25)-(140,29)  allowed=none
+term                   0        0       0  PASS      allowed=none
+dojo                   0        0       0  PASS      allowed=none
+gib_scan               0        0       0  PASS      allowed=none
+gib_sel_deck           0        0       0  PASS      allowed=none
+dl_intro               0        0       0  PASS      allowed=none
+dl_play                0        0       0  PASS      allowed=none
+
+B) kept theme 12: v1.2.21 sim (d7b55459) vs v1.2.22 sim:
+screen            inside  outside   total  result  change bbox
+pager0                 0       88      88  FAIL    (100,25)-(137,29)  allowed=none
+pager1                 0       88      88  FAIL    (102,25)-(137,29)  allowed=none
+pager2                 0       88      88  FAIL    (102,25)-(137,29)  allowed=none
+pager3                 0       88      88  FAIL    (102,25)-(137,29)  allowed=none
+pager4                 0       88      88  FAIL    (102,25)-(139,29)  allowed=none
+term                   0        0       0  PASS      allowed=none
+dojo                   0        0       0  PASS      allowed=none
+gib_scan               0        0       0  PASS      allowed=none
+gib_sel_deck           0        0       0  PASS      allowed=none
+dl_intro               0        0       0  PASS      allowed=none
+dl_play                0        0       0  PASS      allowed=none

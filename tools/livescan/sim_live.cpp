@@ -331,7 +331,7 @@ int main(int argc, char **argv)
     blob.resize(LK_BLOB_SIZE);
     if (fread(blob.data(), 1, LK_BLOB_SIZE, bf) != LK_BLOB_SIZE) return 1;
     LkIo io{blob.data(), infl, lv_clip_draw, ibuf};
-    /* fw-3locks: SIM_THEME=N boots with NVS lktheme=N (persistence test) */ lv_begin(&FAKE, blit, raw_draw, getenv("SIM_THEME") ? atoi(getenv("SIM_THEME")) : 0, 0, !(argc > 3 && !strcmp(argv[3], "nocal")));
+    /* fw-3locks: SIM_THEME=N boots with NVS lktheme=N (persistence test) */ lv_begin(&FAKE, blit, raw_draw, getenv("SIM_THEME") ? atoi(getenv("SIM_THEME")) : LV_THEME_DEFAULT, 0, !(argc > 3 && !strcmp(argv[3], "nocal")));
 #if LV_CB   /* fw-3locks: SIM_CB="scan,vol,bri,chime,time,bar,tone" = the CONTROLbot NVS values read at boot (persistence test) */
     if (getenv("SIM_CB")) { int v[7]; if (sscanf(getenv("SIM_CB"), "%d,%d,%d,%d,%d,%d,%d", v, v + 1, v + 2, v + 3, v + 4, v + 5, v + 6) == 7)
         lv_cb_set = LvCbSet{(uint8_t)v[0], (uint8_t)v[1], (uint8_t)v[2], (uint8_t)v[3], (uint8_t)v[4], (uint8_t)v[5], (uint8_t)v[6]}; }
@@ -463,6 +463,10 @@ int main(int argc, char **argv)
         else if (!strcmp(cmd, "cbalert")) { lv_event(true, "SIM ALERT (CHIME TEST)"); }   /* fw-3locks: an alert event, as a hunt match / deauth raises */
 #endif
         else if (!strcmp(cmd, "controlbot")) { int k; if (fscanf(sc, "%d", &k) != 1) return 2; lv_set_theme_any(LV_CB_FW[k]); lv_cb_dirty = true; }   /* fw-3locks: CONTROLbot v6 slot k (locked order) */
+        else if (!strcmp(cmd, "cbscr")) {   /* sim only: enter the real LV_SC_CONTROLBOT (lv_cb_frame + tinted ticker), skipping lv_go's pager remap */
+            lv_scr = LV_SC_CONTROLBOT; lv_cb_enter(); lv_enter = true; lv_play.seg = -1;
+            printf("t=%u cbscr -> scr=%d theme=%d\n", t_ms, lv_scr, lv_theme);
+        }
         else if (!strcmp(cmd, "tkstill")) {   /* fw-3locks: redraw the firmware ticker at the lock still's clock (now off alert), default text, then restore lv_now */
             unsigned nw; int off, al; if (fscanf(sc, "%u %d %d", &nw, &off, &al) != 3) return 2;
             const uint32_t keep = lv_now; lv_now = nw; lv_tk_off = off; lv_tk_alert = al != 0; snprintf(lv_tk_msg, sizeof lv_tk_msg, "%s", "NO THREATS - TAP SCAN");

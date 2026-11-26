@@ -298,7 +298,10 @@ static void lv_pg_pip_ink_calc(uint8_t on[3], uint8_t dim[3])
             if (lum >= 80) { sr += R; sg += G; sb += B; ++n; }
         }
     }
-    if (n < 8) { on[0] = 192; on[1] = 76; on[2] = 248; }
+    /* v1.2.22 (Mobandy 2026-11-25): the board ticker band is blank in LV_CB_Z, so this always fell back to GRAPE #C04CF8.
+     * The pips now take the live theme accent (LV_ACC) when the band has no ink. */
+    const int th = (lv_theme >= 0 && lv_theme < LV_NTHEME_ALL) ? lv_theme : 0;
+    if (n < 8) { on[0] = (uint8_t)(LV_ACC[th] >> 16); on[1] = (uint8_t)(LV_ACC[th] >> 8); on[2] = (uint8_t)LV_ACC[th]; }
     else { on[0] = (uint8_t)(sr / n); on[1] = (uint8_t)(sg / n); on[2] = (uint8_t)(sb / n); }
     dim[0] = (uint8_t)(on[0] * 52 / 100); dim[1] = (uint8_t)(on[1] * 52 / 100); dim[2] = (uint8_t)(on[2] * 52 / 100);
 }
@@ -307,7 +310,7 @@ static void lv_pg_pip_ink_calc(uint8_t on[3], uint8_t dim[3])
 static void lv_pg_pip_ink(uint8_t on[3], uint8_t dim[3])
 {
     static int slot_c = -1; static uint8_t on_c[3], dim_c[3];
-    const int slot = lv_cb_slot();
+    const int slot = lv_theme;   /* v1.2.22: cache per theme (HOT PINK / BLUE share a board slot but not an accent) */
     if (slot != slot_c) { lv_pg_pip_ink_calc(on_c, dim_c); slot_c = slot; lv_cb_cached = -1; }
     memcpy(on, on_c, 3); memcpy(dim, dim_c, 3);
 }

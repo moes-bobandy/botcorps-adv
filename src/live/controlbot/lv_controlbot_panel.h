@@ -60,7 +60,7 @@ static uint16_t lv_cb_reink(int role, uint16_t c, int x, int y, int sx, int sy)
     }
 }
 /* v6 slot -> re-ink theme index (render_controlbot_colorui.py ORDER) */
-static const uint8_t LV_CB_REINK_T[24] = {23, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 25, 13, 14, 24, 16, 17, 18, 19, 20, 21, 22, 26};
+static const uint8_t LV_CB_REINK_T[27] = {23, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 25, 13, 14, 24, 16, 17, 18, 19, 20, 21, 22, 26, 27, 28, 29};   /* v1.2.22: + SUNSET / TRON / ACID (EXT 16..18) */
 
 /* ---- panel canvas (heap, only while drawing) ---- */
 #define LV_CB_PX0 45

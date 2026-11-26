@@ -1,17 +1,17 @@
 /* fw-3locks-1116: CONTROLbot v6 screen (LOCKED a87fe22 / 585810c, Mobandy 2026-11-16 12:59 PM ET "Lock it in").
  * LV_SC_CONTROLBOT draws the locked v6 frame of the selected theme (lv_controlbot_data.h: the 24 locked stills, RGB565, ticker rect blank) and the
  * live tinted ticker on top (lv_controlbot_tint.h). Tap the big face = next theme in the locked order (as tap_cycle_24themes_ticker@3x.mp4);
- * the theme is applied through lv_set_theme's NVS path (lktheme, now 0..25) so it persists and every CYD screen follows it.
+ * the theme is applied through lv_set_theme's NVS path (lktheme, now 0..28) so it persists and every CYD screen follows it.
  * BACKbot (bottom-right, drawn in the locked frame) = back home. The control panel is live (lv_controlbot_panel.h); a face tap flashes the
  * square bot itself (x54..185, y79..210: face + its black frame), nothing outside it (Mobandy 2026-11-16 2:20 PM ET). */
 #pragma once
 #include "lv_controlbot_data.h"
 #include "lv_controlbot_panel.h"   /* the live control panel (SCAN / VOL / BRIGHT / CHIME / TIME / BAR / TONE) */
 /* the locked v6 order (render_v6_ticker.py ORDER/NAMES) -> this firmware's theme index */
-static const uint8_t LV_CB_FW[LV_CB_N] = {22, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 0, 24, 2, 3, 23, 5, 6, 7, 8, 9, 10, 11, 25};
-static const char *const LV_CB_NAME[LV_CB_N] = {"CIRCUIT", "HI-VIS BLUE", "NV GREEN BLOOM", "NV WHITE PHOSPHOR", "IR IRONBOW", "IR RAINBOW HEAT",
-    "IR WHITE-HOT", "IR RED-HOT", "ALARM STROBE", "POLICE SIREN", "PERIMETER GRID", "NEON GRAPE", "HOLO FOIL", "TOXIC", "ICE", "SONAR",
-    "BLAZE ORANGE", "GOLD RUSH", "SYNTHWAVE", "AURORA", "PRISM", "GLITCH", "HOT ROSE", "DIGI CAMO"};
+static const uint8_t LV_CB_FW[LV_CB_N] = {22, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 0, 24, 2, 3, 23, 5, 6, 7, 8, 9, 10, 11, 25, 26, 27, 28};   /* v1.2.22: slots 0 / 11 / 15 re-inked in place (VAPOR / TEAL / AMBER), + 24..26 SUNSET / TRON / ACID GRID */
+static const char *const LV_CB_NAME[LV_CB_N] = {"VAPOR GRID", "HI-VIS BLUE", "NV GREEN BLOOM", "NV WHITE PHOSPHOR", "IR IRONBOW", "IR RAINBOW HEAT",
+    "IR WHITE-HOT", "IR RED-HOT", "ALARM STROBE", "POLICE SIREN", "PERIMETER GRID", "CYBER TEAL", "HOLO FOIL", "TOXIC", "ICE", "AMBER CRT",
+    "BLAZE ORANGE", "GOLD RUSH", "SYNTHWAVE", "AURORA", "PRISM", "GLITCH", "HOT ROSE", "DIGI CAMO", "SUNSET GRID", "TRON GRID", "ACID GRID"};
 static const LkIo *lv_cb_io = nullptr;   /* set by lv_tick: the clip inflater + its LK_INFL_CAP buffer (no clip plays on this screen) */
 static int lv_cb_cached = -1;            /* theme * 20 + strip held in io->buf */
 static bool lv_cb_dirty = true;

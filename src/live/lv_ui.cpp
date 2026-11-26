@@ -722,16 +722,28 @@ void lv_ui_begin(void)
     Preferences prefs;
 #if LV_BG_ENGINE
     int th = 0, rot = 0, bgs = 0, bgc = 0;
-    if (prefs.begin("botcorps", true)) { th = prefs.getUChar("lktheme", 0); rot = prefs.getUChar("lkrot", 0); bgs = prefs.getUChar("lkbgs", 0); bgc = prefs.getUChar("lkbgc", 0); prefs.end(); }
+    if (prefs.begin("botcorps", true)) { th = prefs.getUChar("lktheme", LV_THEME_DEFAULT); rot = prefs.getUChar("lkrot", 0); bgs = prefs.getUChar("lkbgs", 0); bgc = prefs.getUChar("lkbgc", 0); prefs.end(); }
     lv_rain = bgs < LV_NBGSTYLE; lv_bgstyle = bgs < LV_NBGSTYLE ? bgs : 0; lv_raincol = bgc < LV_NBGCOL ? bgc : 0;   /* background engine (defaults RAIN + GREEN) */
 #else
     int th = 0, rot = 0;
-    if (prefs.begin("botcorps", true)) { th = prefs.getUChar("lktheme", 0); rot = prefs.getUChar("lkrot", 0); prefs.end(); }
+    if (prefs.begin("botcorps", true)) { th = prefs.getUChar("lktheme", LV_THEME_DEFAULT); rot = prefs.getUChar("lkrot", 0); prefs.end(); }
 #endif
     lv_flip = rot == 1;
     if (lv_flip) g_cyd.setRotation(0);   /* CONTROLbot ORIENT = FLIP */
     g_cyd.fillScreen(0x0000);
-    if (th < 0 || th >= LV_NTHEME_ALL) th = 0;   /* fw-3locks-1116: 0..25 (CONTROLbot v6 themes) */
+    /* v1.2.22 theme refresh: NEON GRAPE (0), CIRCUIT (22) and SONAR (23) are gone; their indexes now hold CYBER TEAL /
+     * VAPOR GRID / AMBER CRT. A theme saved before v1.2.22 (no lkthv key) that points at one of them, or a missing / bad
+     * value, boots VAPOR GRID (the new default). lkthv = 22 marks the NVS as migrated so a later pick of 0 / 23 sticks. */
+    {
+        int thv = 0, had = 0;
+        if (prefs.begin("botcorps", true)) { thv = prefs.getUChar("lkthv", 0); had = prefs.isKey("lktheme"); prefs.end(); }
+        if (thv != 22) {
+            if (!had || th == 0 || th == 22 || th == 23) th = LV_THEME_DEFAULT;
+            if (th < 0 || th >= LV_NTHEME_ALL) th = LV_THEME_DEFAULT;
+            if (prefs.begin("botcorps", false)) { prefs.putUChar("lktheme", (uint8_t)th); prefs.putUChar("lkthv", 22); prefs.end(); }
+        }
+    }
+    if (th < 0 || th >= LV_NTHEME_ALL) th = LV_THEME_DEFAULT;   /* 0..28 (CONTROLbot themes) */
     ui_live_init(); // NVS/display startup allocations are now included in the heap budget.
     Serial.printf("[live] blob=%u (expect %u) theme=%d %dx%d\n", (unsigned)(lk_blob_live_end - lk_blob_live),
                   (unsigned)LK_BLOB_SIZE, th, (int)g_cyd.width(), (int)g_cyd.height());

@@ -20,9 +20,9 @@
 #include "lv_build_3locks.h"   /* fw-3locks-1116: CONTROLbot v6 + BOTpheus EB3 + HACKbot game switches */
 
 #ifdef BOTCORPS_BUILD_ID
-#define LV_VERSION "cyd-livescan v1.2.21 " BOTCORPS_BUILD_ID   /* v1.2.21: v1.2.20 + item 1c TERMINALbot recolor (LV_TERM_RECOLOR); strip stays off */
+#define LV_VERSION "cyd-livescan v1.2.22 " BOTCORPS_BUILD_ID   /* v1.2.22: v1.2.21 + theme refresh (CYBER TEAL / VAPOR GRID / AMBER CRT in place of NEON GRAPE / CIRCUIT / SONAR, + SUNSET / TRON / ACID GRID, VAPOR GRID default, pager pips follow the theme) */
 #else
-#define LV_VERSION "cyd-livescan v1.2.21"
+#define LV_VERSION "cyd-livescan v1.2.22"
 #endif
 
 /* ---------- finds ---------- */
@@ -131,7 +131,7 @@ enum LvScr { LV_SC_BOOT, LV_SC_HOME_INTRO, LV_SC_HOME, LV_SC_TERM, LV_SC_SCAN, L
 #if LV_CB   /* fw-3locks-1116 CONTROLbot v6: 12..21 = SECURITYbot v2 themes 1..10 (themes_spec_v2.h), 22..25 = v3 NEW
               * CIRCUIT / SONAR / HOLO FOIL / DIGI CAMO (new_themes_v3.h EXT 12..15). Inks copied from those headers. 0..11 unchanged.
               * LV_NTHEME stays 12 for the locked CONTROLbot / terminal theme cycle. */
-#define LV_NTHEME_ALL 26
+#define LV_NTHEME_ALL 29   /* v1.2.22: + 26..28 SUNSET / TRON / ACID GRID (new_themes_v3.h EXT 16..18) */
 #else
 #define LV_NTHEME_ALL LV_NTHEME
 #endif
@@ -141,39 +141,48 @@ enum LvScr { LV_SC_BOOT, LV_SC_HOME_INTRO, LV_SC_HOME, LV_SC_TERM, LV_SC_SCAN, L
  * live UI never had: they play the ICE clip and re-ink its cyan accent pixels (lv_multi_ink) - gold, silver and
  * pink art is never cyan, so SCANbot / TERMINALbot / BACKbot keep their own colours. LV_THEME_NAME fits the
  * 31 px THEME field; LV_THEME_FULL is the original name (terminal 'theme', CONTROLbot name plate). */
-static const char *const LV_THEME_NAME[LV_NTHEME_ALL] = {"GRAPE", "MAGENTA", "TOXIC", "ICE", "BLUE", "ORANGE", "GOLD", "SYNTH", "AURA", "PRISM", "GLTCH", "ROSE"
+static const char *const LV_THEME_NAME[LV_NTHEME_ALL] = {"TEAL", "MAGENTA", "TOXIC", "ICE", "BLUE", "ORANGE", "GOLD", "SYNTH", "AURA", "PRISM", "GLTCH", "ROSE"
 #if LV_CB
-    , "HIVIS", "NVG", "NVWHT", "IRON", "HEAT", "WHHOT", "REDHT", "ALARM", "SIREN", "PERIM", "CIRC", "SONAR", "HOLO", "CAMO"
+    , "HIVIS", "NVG", "NVWHT", "IRON", "HEAT", "WHHOT", "REDHT", "ALARM", "SIREN", "PERIM", "VAPOR", "AMBER", "HOLO", "CAMO", "SUNST", "TRON", "ACID"
 #endif
 };
-static const char *const LV_THEME_FULL[LV_NTHEME_ALL] = {"NEON GRAPE", "HOT PINK", "TOXIC", "ICE", "BLUE", "BLAZE ORANGE", "GOLD RUSH", "SYNTHWAVE", "AURORA", "PRISM", "GLITCH", "HOT ROSE"
+static const char *const LV_THEME_FULL[LV_NTHEME_ALL] = {"CYBER TEAL", "HOT PINK", "TOXIC", "ICE", "BLUE", "BLAZE ORANGE", "GOLD RUSH", "SYNTHWAVE", "AURORA", "PRISM", "GLITCH", "HOT ROSE"
 #if LV_CB
-    , "HI-VIS BLUE", "NV GREEN BLOOM", "NV WHITE PHOSPHOR", "IR IRONBOW", "IR RAINBOW HEAT", "IR WHITE-HOT", "IR RED-HOT", "ALARM STROBE", "POLICE SIREN", "PERIMETER GRID", "CIRCUIT", "SONAR", "HOLO FOIL", "DIGI CAMO"
+    , "HI-VIS BLUE", "NV GREEN BLOOM", "NV WHITE PHOSPHOR", "IR IRONBOW", "IR RAINBOW HEAT", "IR WHITE-HOT", "IR RED-HOT", "ALARM STROBE", "POLICE SIREN", "PERIMETER GRID", "VAPOR GRID", "AMBER CRT", "HOLO FOIL", "DIGI CAMO", "SUNSET GRID", "TRON GRID", "ACID GRID"
 #endif
 };
 #define LV_THEME_ORIG 6          /* first re-inked theme */
 #define LV_THEME_BASE 3          /* ICE: the clip the re-inked themes play */
+/* v1.2.22 theme refresh (Mobandy 2026-11-25 9:00 PM ET): 0 = CYBER TEAL (was NEON GRAPE), 22 = VAPOR GRID (was CIRCUIT),
+ * 23 = AMBER CRT (was SONAR), 26..28 = SUNSET / TRON / ACID GRID. Theme 0 has no clip of its own any more: it plays the ICE
+ * clip re-inked like 6..11, so no purple T0 frame shows. 1..5 keep their LOCKED native clips. Boot / NVS default = VAPOR GRID. */
+#if LV_CB
+#define LV_THEME_DEFAULT 22
+#else
+#define LV_THEME_DEFAULT 0
+#endif
+static inline bool lv_native_theme(int t) { return t >= 1 && t < LV_THEME_ORIG; }   /* plays its own LOCKED clip, no re-ink */
 /* Theme inks sampled from the LOCKED SCANbot/TERMINALbot clips (frame 0 of each theme loop). 6..11: the
  * originals' accents (botcorps_rgb565 of ac); on the multi themes (7..10) these four values are sentinels
  * that lv_blit_theme re-inks per pixel, so every overlay stroke follows the fade / spectrum / split. */
-static const uint32_t LV_ACC[LV_NTHEME_ALL] = {0xb324fd, 0xdd00ac, 0x92ff02, 0x00ffff, 0x345efb, 0xfd6b00, 0xffda00, 0xff24fd, 0x20fe01, 0x00fe02, 0xfe0001, 0xff0052
+static const uint32_t LV_ACC[LV_NTHEME_ALL] = {0x00e0a8, 0xdd00ac, 0x92ff02, 0x00ffff, 0x345efb, 0xfd6b00, 0xffda00, 0xff24fd, 0x20fe01, 0x00fe02, 0xfe0001, 0xff0052
 #if LV_CB
-    , 0x0096ff, 0x8cff3c, 0xe4eef6, 0xff7a10, 0xffe000, 0xd0d4d8, 0xff5a14, 0xff1418, 0xff1e2e, 0xb050ff, 0xe0913c, 0x3dffcf, 0xc9a8ff, 0x9aa36a
+    , 0x0096ff, 0x8cff3c, 0xe4eef6, 0xff7a10, 0xffe000, 0xd0d4d8, 0xff5a14, 0xff1418, 0xff1e2e, 0xb050ff, 0x00e8ff, 0xffb010, 0xc9a8ff, 0x9aa36a, 0xff7a18, 0x40f0ff, 0xa8ff20
 #endif
 };
-static const uint32_t LV_ACCD[LV_NTHEME_ALL] = {0x53205d, 0x68004f, 0x4a6010, 0x00636d, 0x0e5166, 0x61480f, 0x6a5a00, 0x690d69, 0x0d690d, 0x086908, 0x690405, 0x690022
+static const uint32_t LV_ACCD[LV_NTHEME_ALL] = {0x005c44, 0x68004f, 0x4a6010, 0x00636d, 0x0e5166, 0x61480f, 0x6a5a00, 0x690d69, 0x0d690d, 0x086908, 0x690405, 0x690022
 #if LV_CB
-    , 0x003d69, 0x396918, 0x5d6165, 0x693206, 0x695c00, 0x55575a, 0x692508, 0x690809, 0x690c13, 0x482068, 0x0a4a2c, 0x00444a, 0x4f3f72, 0x3a4a2a
+    , 0x003d69, 0x396918, 0x5d6165, 0x693206, 0x695c00, 0x55575a, 0x692508, 0x690809, 0x690c13, 0x482068, 0x3b1866, 0x683c00, 0x4f3f72, 0x3a4a2a, 0x691808, 0x0a3a5c, 0x2a6908
 #endif
 };
-static const uint32_t LV_HDR[LV_NTHEME_ALL] = {0xb36afe, 0xdc4aac, 0xb9fb4f, 0x4afffc, 0x6891ff, 0xf4b24c, 0xffe86a, 0xff6afd, 0x6aff6b, 0x6afe6c, 0xff6a6b, 0xff6a96
+static const uint32_t LV_HDR[LV_NTHEME_ALL] = {0x78ffd8, 0xdc4aac, 0xb9fb4f, 0x4afffc, 0x6891ff, 0xf4b24c, 0xffe86a, 0xff6afd, 0x6aff6b, 0x6afe6c, 0xff6a6b, 0xff6a96
 #if LV_CB
-    , 0x66c0ff, 0xbaff8a, 0xeff5f9, 0xffaf70, 0xffec66, 0xe2e5e7, 0xff9c72, 0xff7274, 0xff787f, 0xcf96ff, 0xffd27a, 0xa8ffe8, 0xffc2ee, 0xd8cc98
+    , 0x66c0ff, 0xbaff8a, 0xeff5f9, 0xffaf70, 0xffec66, 0xe2e5e7, 0xff9c72, 0xff7274, 0xff787f, 0xcf96ff, 0xff78e0, 0xffe082, 0xffc2ee, 0xd8cc98, 0xffc878, 0xc0ffff, 0xe0ff88
 #endif
 };
-static const uint32_t LV_FRAME[LV_NTHEME_ALL] = {0xff25ae, 0xdf00ae, 0x92fd00, 0x00feff, 0xfd22ff, 0xfd6b00, 0xffda00, 0xff24fd, 0x20fe01, 0x00fe02, 0xfe0001, 0xff0052
+static const uint32_t LV_FRAME[LV_NTHEME_ALL] = {0x00e0a8, 0xdf00ae, 0x92fd00, 0x00feff, 0xfd22ff, 0xfd6b00, 0xffda00, 0xff24fd, 0x20fe01, 0x00fe02, 0xfe0001, 0xff0052
 #if LV_CB
-    , 0x0096ff, 0x8cff3c, 0xe4eef6, 0xff7a10, 0xffe000, 0xd0d4d8, 0xff5a14, 0xff1418, 0xff1e2e, 0xb050ff, 0xe0913c, 0x3dffcf, 0xc9a8ff, 0x9aa36a
+    , 0x0096ff, 0x8cff3c, 0xe4eef6, 0xff7a10, 0xffe000, 0xd0d4d8, 0xff5a14, 0xff1418, 0xff1e2e, 0xb050ff, 0x00e8ff, 0xffb010, 0xc9a8ff, 0x9aa36a, 0xff7a18, 0x40f0ff, 0xa8ff20
 #endif
 };
 #if LV_CB
@@ -268,7 +277,7 @@ static void lv_blit_dirty(int x, int y, int w, int h, const uint16_t *px);      
 static void lv_blit_dirty_hw(int x, int y, int w, int h, const uint16_t *px);   /* final colours, changed rows only */
 static void lv_dr_inval_all(void);
 static LkPlay lv_play;
-static int lv_scr = LV_SC_BOOT, lv_theme = 0;
+static int lv_scr = LV_SC_BOOT, lv_theme = LV_THEME_DEFAULT;
 static bool lv_motion = true, lv_enter = true;
 static uint32_t lv_now, lv_clip_t, lv_boot_ms;
 static bool lv_selftest_pending = false;
@@ -856,7 +865,7 @@ static uint16_t lv_tx(const LvTS &s, uint16_t c, int px = 0, int py = 0)
 /* Issue 2: themes 6..11 play the ICE clip; its cyan accent pixels (R well under G and B, G ~ B) take the theme ink at
  * their screen position, keeping the clip's shading (max(G,B)) and its white lift (R). Everything else - black,
  * greys, silver TERMINALbot, gold SCANbot, pink BACKbot, the green / red status art - is not cyan and stays. */
-static bool lv_reink_on(void) { return lv_theme >= LV_THEME_ORIG && (lv_scr == LV_SC_HOME || lv_scr == LV_SC_TERM || lv_scr == LV_SC_SCAN || lv_scr == LV_SC_GLOSS || lv_scr == LV_SC_GLOSS_DESC); }
+static bool lv_reink_on(void) { return !lv_native_theme(lv_theme) && (lv_scr == LV_SC_HOME || lv_scr == LV_SC_TERM || lv_scr == LV_SC_SCAN || lv_scr == LV_SC_GLOSS || lv_scr == LV_SC_GLOSS_DESC); }
 static uint16_t lv_multi_ink(uint16_t c, int x, int y)
 {
     const int R = (c >> 11) << 3, G = ((c >> 5) & 63) << 2, Bl = (c & 31) << 3;
@@ -1066,7 +1075,7 @@ static const uint8_t *lv_hk_rename(int y, int x, int n, const uint8_t *idx)
 #endif
 #if LV_TERM_NORAIN
 #include "lv_term_norain.h"
-static inline bool lv_tnr_row(int y, int x, int n) { return lv_scr == LV_SC_TERM && lv_theme < LV_TNR_NTHEME && y >= LV_TNR_Y0 && y <= LV_TNR_Y1 && x <= LV_TNR_X1 && x + n > LV_TNR_X0; }
+static inline bool lv_tnr_row(int y, int x, int n) { return lv_scr == LV_SC_TERM && lv_native_theme(lv_theme) && lv_theme < LV_TNR_NTHEME && y >= LV_TNR_Y0 && y <= LV_TNR_Y1 && x <= LV_TNR_X1 && x + n > LV_TNR_X0; }
 static void lv_tnr_apply(int y, int x, int n, uint16_t *lb)   /* pin the rain pixels on this run to the bare board (RGB565, before the re-ink) */
 {
     const int th = lv_theme, r = y - LV_TNR_Y0, xe = x + n - 1 < LV_TNR_X1 ? x + n - 1 : LV_TNR_X1;
@@ -1970,8 +1979,8 @@ static LvTS lv_tint_state(int id)
     case LV_T_SWIFI: if (lv_wifi_busy()) s = {LV_TM_COLOR, (uint8_t)(ph ? 7 : 6), LV_WIFI_COL, 0}; break;
     case LV_T_SBLE: if (lv_ble_busy()) s = {LV_TM_COLOR, (uint8_t)(ph ? 7 : 6), LV_BLE_COL, 0}; break;
     case LV_T_SBOT: if (lv_job != LV_J_NONE) s = {LV_TM_LIT, (uint8_t)(ph ? 3 : 1), 0, 0}; break;
-    case LV_T_CFACE: if (lv_theme) s = {LV_TM_HUE, 0, LV_ACC[lv_theme], 0}; break;
-    case LV_T_CLABEL: if (lv_theme) s = {LV_TM_RAW, 0, (uint32_t)lv_theme, 1}; break;
+    case LV_T_CFACE: s = {LV_TM_HUE, 0, LV_ACC[lv_theme], 0}; break;
+    case LV_T_CLABEL: s = {LV_TM_RAW, 0, (uint32_t)lv_theme, 1}; break;
     case LV_T_BACK: s = {LV_TM_RAW, 0, (uint32_t)lv_backbot_face, 1}; break;
     case LV_T_BGREY: s = {LV_TM_GREY, 0, 0, 0}; break;
     case LV_T_SPILL: s = {LV_TM_RAW, 0, 0, 1}; break;
@@ -2199,7 +2208,7 @@ static const char *lv_ts_tap(int x, int y)
 #endif
 
 /* ---------- flow ---------- */
-static int lv_theme_seg(int base) { return base + (lv_theme < LV_THEME_ORIG ? lv_theme : LV_THEME_BASE); }
+static int lv_theme_seg(int base) { return base + (lv_native_theme(lv_theme) ? lv_theme : LV_THEME_BASE); }
 static uint32_t lv_flash_t = 0;
 static int lv_soon_kind = 0, lv_soon_scr = 0; static char lv_soon_cmd[32]; static uint32_t lv_soon_t = 0;
 static void lv_go(int s)
@@ -2652,7 +2661,7 @@ static void lv_begin(const LvRadio *radio, lv_blit_fn blit, lk_draw_fn raw_draw,
 {
     lv_radio = radio; lv_blit_panel = blit; lv_blit_hw = lv_hw_tracked; lv_blit = lv_blit_theme; lv_raw_panel = raw_draw; lv_raw_draw = lv_raw_tracked; lv_dr_inval_all();
     if (!lv_dr_h) lv_dr_h = (uint32_t *)calloc(320, sizeof(uint32_t));   /* v1.2.17 build: 1,280 B heap, was BSS */   /* v1.2.17: tracked panel writes */
-    lv_theme = (theme >= 0 && theme < LV_NTHEME_ALL) ? theme : 0;   /* fw-3locks-1116: the boot NVS theme may be a CONTROLbot v6 theme (12..25) */
+    lv_theme = (theme >= 0 && theme < LV_NTHEME_ALL) ? theme : LV_THEME_DEFAULT;   /* fw-3locks-1116: the boot NVS theme may be a CONTROLbot v6 theme (12..25) */
     lv_now = lv_boot_ms = now; lv_clip_t = now; lv_auto_t = now;
     lv_print("BOTCORPS %s", LV_VERSION);
     lv_print("type 'help'. scans: tap SCAN or 'scan'");

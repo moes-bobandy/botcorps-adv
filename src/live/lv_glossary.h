@@ -12,7 +12,7 @@
 static inline bool lv_gl_themed(int i) { return (LV_GL_THEMED[i >> 3] >> (i & 7)) & 1; }
 static inline uint16_t lv_gl_col(uint16_t i, int x, int y)
 {
-    if (lv_theme < LV_THEME_ORIG) return LV_GL_PAL[i][lv_theme];
+    if (lv_native_theme(lv_theme)) return LV_GL_PAL[i][lv_theme];
     const uint16_t c = LV_GL_PAL[i][LV_THEME_BASE];
     return lv_gl_themed(i) && lv_reink_on() ? lv_multi_ink(c, x, y) : c;
 }

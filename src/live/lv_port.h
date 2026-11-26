@@ -110,7 +110,7 @@ static bool lv_port_row(int y, int x, int n)      /* does [x, x+n) on row y touc
 static inline uint32_t lv_port_x888(uint16_t c) { const uint32_t r = c >> 11, g = (c >> 5) & 63, b = c & 31; return (r << 3 | r >> 2) << 16 | (g << 2 | g >> 4) << 8 | (b << 3 | b >> 2); }
 static uint32_t lv_port_rgb(uint16_t i, int x, int y)
 {
-    const uint32_t v = LV_PORT_PAL[i][lv_theme < LV_THEME_ORIG ? lv_theme : LV_THEME_BASE];
+    const uint32_t v = LV_PORT_PAL[i][lv_native_theme(lv_theme) ? lv_theme : LV_THEME_BASE];
     if (LV_PORT_PTHEMED[i] && lv_reink_on()) return lv_port_x888(lv_multi_ink(lv_hex(v), x, y));
     return v;
 }

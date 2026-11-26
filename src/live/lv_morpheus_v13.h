@@ -957,7 +957,7 @@ static const char *itw_mo_tap(int x, int y)
 #if LV_MO_STRIP && LV_RD_PAD && LV_RD_FOLD
     if (y >= PAD_Y0) return mo_strip_tap(x, y);   /* mock/v1220 item 4: the strip owns rows 247.. (was the "< TOWERS" box + footer terminal) */
 #endif
-    if (y >= 287) { lv_term_from_mo = true; lv_go_soon(LV_SC_TERM, 0); return "mo-terminal"; }
+    if (y >= 287) { lv_term_from_mo = true; lv_go_soon(LV_SC_TERMBOT, 0); return "mo-terminal"; }   /* v1.2.23: G2 is THE TERMINALbot screen */
     if (itw_mo_sel >= 0) {
         if (lv_in(MO_BTN, x, y)) { mo_last = itw_mo_sel; mo_closing = true; mo_close_t = mo_vnow(); itw_mo_sel = -1; itw_mo_phase = 0; mo_fold_sel = -1; return "mo-towers"; }
         const int j = mo_fold_hit(x, y);

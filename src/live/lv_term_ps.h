@@ -933,6 +933,12 @@ static void lv_tps_g_scene(LvBand &B, void *)
 #define LV_TPS2_CW    6
 #define LV_TPS2_COLS 38
 #define LV_TPS2_MAXR 40
+/* v1.2.23: G2 chrome. Stripe Slot back is the uniform sub-screen back (LV_R_BANNER_BACK).
+ * Typist starts at y=25 when it still fits so the slot does not cover the first line.
+ * Live typed TERM (old LV_SC_TERM, code kept) is a small pill in the bottom-right
+ * unused corner, right of the "gibson>" prompt, below the last device row. */
+static const LvRect LV_R_G2_TERM     = {208, 307, 238, 318};
+static const LvRect LV_R_G2_TERM_HIT = {200, 304, 239, 319};
 
 struct LvTps2Model {
     char line[LV_TPS2_MAXR][60];
@@ -1240,15 +1246,19 @@ static void lv_tps_g2_scene(LvBand &B, void *)
 
     const int cw = m.dense35 ? 4 : LV_TPS2_CW;
     const int maxc = m.dense35 ? 56 : LV_TPS2_COLS;
+    /* Reserve the uniform banner-back row (y=1..23) when the typist still fits below it. */
+    const int cursor_h = m.dense35 ? 7 : 8;
+    const int last_h = (m.n ? (m.n - 1) * m.row_h : 0) + cursor_h;
+    const int y0 = (m.y0 < 25 && 25 + last_h <= 319) ? 25 : m.y0;
 
     int t_cur = 700;   /* ominous initial pause on empty black with pulsing cursor */
-    int cur_x = LV_TPS2_X, cur_y = m.y0;
+    int cur_x = LV_TPS2_X, cur_y = y0;
     bool typing_active = false;
 
     for (int r = 0; r < m.n; ++r) {
         const char *s = m.line[r];
         const int L = (int)strlen(s);
-        const int y = m.y0 + r * m.row_h;
+        const int y = y0 + r * m.row_h;
         const int ms_per = (r == 0) ? 55 : (m.kind[r] != 2) ? 34 : 20;
         const bool grp_end = (r + 1 < m.n && m.grp[r + 1] != m.grp[r]);
         const int pause_after = (r == 0) ? 850 : (r == 1) ? 450 : (m.kind[r] == 1 || m.kind[r] == 3) ? 420 : grp_end ? 220 : 70;
@@ -1290,6 +1300,29 @@ static void lv_tps_g2_scene(LvBand &B, void *)
                 for (int px = cur_x; px < cur_x + bw; ++px)
                     b_pix(B, px, py, lv_tps2_shade_at(P, LV_TPS2_R_CUR, px, py));
         }
+    }
+
+    /* Uniform Stripe Slot back (same control as every other sub-screen) in the top-left banner slot. */
+    lv_banner_back_draw(B);
+
+    /* Small live-TERM control in the unused bottom-right corner (does not overlap typist on the default 20-device layout). */
+    {
+        const int x0 = LV_R_G2_TERM.x0, y0c = LV_R_G2_TERM.y0, x1 = LV_R_G2_TERM.x1, y1 = LV_R_G2_TERM.y1;
+        const uint16_t gold = lv_hex(0xffb000);
+        const uint16_t ink = P.multi ? lv_tps2_shade_at(P, LV_TPS2_R_TAG, (x0 + x1) / 2, (y0c + y1) / 2) : P.pal[LV_TPS2_R_TAG];
+        for (int y = y0c; y <= y1; ++y) for (int x = x0; x <= x1; ++x) {
+            const int cap = ((y - y0c) < 2 || (y1 - y) < 2) ? (2 - (((y - y0c) < 2) ? (y - y0c) : (y1 - y))) : 0;
+            if (x < x0 + cap || x > x1 - cap) continue;
+            uint16_t c = lv_hex(0x100408);
+            if (y == y0c || x == x0 + cap) c = lv_dim(gold, 4, 8);
+            else if (y == y1 || x == x1 - cap) c = gold;
+            b_pix(B, x, y, c);
+        }
+        const char *lab = "TERM";
+        const int tx = x0 + 4, ty = y0c + 3;
+        for (int i = 0; lab[i]; ++i)
+            lv_tps2_draw_char(B, P, tx + i * 6, ty, lab[i], LV_TPS2_R_TAG, LV_TPS2_R_T1, LV_TPS2_R_NONE, false);
+        (void)ink;
     }
 }
 
@@ -1353,8 +1386,17 @@ static void lv_tps_leave(void)
 
 static const char *lv_tps_tap(int x, int y)
 {
+#if LV_TPS_G2_ONLY
+    if (lv_scr == LV_SC_TPSG2 && lv_in(LV_R_G2_TERM_HIT, x, y)) {
+        lv_go_soon(LV_SC_TERM, 0);
+        return "g2-live-term";   /* v1.2.23: small unused-corner control opens the live typed terminal */
+    }
+    (void)x; (void)y;
+    return "none";   /* back is the uniform Stripe Slot (LV_R_BANNER_BACK_HIT), handled in lv_tap */
+#else
     (void)x; (void)y;
     return lv_back();   /* no chrome: any tap leaves */
+#endif
 }
 
 #endif /* LV_TERM_PS */

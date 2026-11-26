@@ -734,9 +734,10 @@ static const char *lv_pg_tap(int x, int y)
         if (lv_pg_page == LV_PG_GIBSON)   { lv_go_soon(LV_SC_RADAR, 0); return "pager-gibson-radar"; }
 #if LV_PG_TERMINAL_PAGE
 #if LV_TPS_G2_ONLY
-        if (lv_pg_page == LV_PG_TERMINAL) { lv_go_soon(LV_SC_TPSG2, 0); return "pager-terminal-g2"; }   /* v1.2.23: TERMINALbot opens the G2 wake-up subscreen; tap anywhere -> TERM */
-#endif
+        if (lv_pg_page == LV_PG_TERMINAL) { lv_go_soon(LV_SC_TPSG2, 0); return "pager-terminal-g2"; }   /* v1.2.23: G2 is THE TERMINALbot screen */
+#else
         if (lv_pg_page == LV_PG_TERMINAL) { lv_go_soon(LV_SC_TERM, 0); return "pager-terminal"; }   /* 7db0c6d */
+#endif
 #endif
     }
 #if LV_CYD19_LOGBOT

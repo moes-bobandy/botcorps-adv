@@ -123,7 +123,7 @@ enum LvScr { LV_SC_BOOT, LV_SC_HOME_INTRO, LV_SC_HOME, LV_SC_TERM, LV_SC_SCAN, L
              , LV_SC_CONTROLBOT   /* fw-3locks-1116: CONTROLbot v6 (controlbot/lv_controlbot_screen.h) */
 #endif
 #ifndef LV_TPS_G2_ONLY
-#define LV_TPS_G2_ONLY 0   /* v1.2.23: 1 = only the G2 (Wake up, Neo 5x7 mixed-case) subscreen is reachable: opened by tapping TERMINALbot on the pager; tap anywhere -> TERM */
+#define LV_TPS_G2_ONLY 0   /* v1.2.23: 1 = G2 is THE TERMINALbot screen (every former TERM route opens G2). Old LV_SC_TERM code stays; a small G2 control opens it. */
 #endif
 #ifndef LV_TERM_PS
 #define LV_TERM_PS 1   /* MOCK 2026-11-25: TERMINALbot PowerShell + Matrix area-scan (lv_term_ps.h); 0 = none */
@@ -134,6 +134,11 @@ enum LvScr { LV_SC_BOOT, LV_SC_HOME_INTRO, LV_SC_HOME, LV_SC_TERM, LV_SC_SCAN, L
 };   /* item 2: MORPHEUSbot Device Glossary grid + the 12 description pages (lv_glossary.h) */
 #ifndef LV_TPS_ON
 #define LV_TPS_ON (LV_TERM_PS && (lv_scr == LV_SC_TPS || lv_scr == LV_SC_TPSB || lv_scr == LV_SC_TPSC || lv_scr == LV_SC_TPSD || lv_scr == LV_SC_TPSE || lv_scr == LV_SC_TPSF || lv_scr == LV_SC_TPSG || lv_scr == LV_SC_TPSF2 || lv_scr == LV_SC_TPSG2))
+#endif
+#if LV_TERM_PS && LV_TPS_G2_ONLY
+#define LV_SC_TERMBOT LV_SC_TPSG2   /* v1.2.23: G2 replaces old TERM as the TERMINALbot screen */
+#else
+#define LV_SC_TERMBOT LV_SC_TERM
 #endif
 
 #if (LV_MO_INSIDE || LV_CT_INSIDE || LV_TR_INSIDE) && !defined(LV_RD_SKINS)
@@ -256,7 +261,7 @@ static const LvRect LV_R_BANNER_BACK_HIT = {0, 0, 39, 39};
 #define LV_BANNER_BACK_TR 0
 #endif
 #ifndef LV_BANNER_BACK_ON
-#define LV_BANNER_BACK_ON (     lv_scr == LV_SC_TERM || lv_scr == LV_SC_SCAN || lv_scr == LV_SC_CTL || lv_scr == LV_SC_TTY     || lv_scr == LV_SC_RADAR || lv_scr == LV_SC_GLOSS || lv_scr == LV_SC_GLOSS_DESC     || (LV_HC_GAME && lv_scr == LV_SC_HCH)     || (LV_DL_GAME && lv_scr == LV_SC_DL)     || (LV_MO_INSIDE && lv_scr == LV_SC_MO)     || LV_BANNER_BACK_CT || LV_BANNER_BACK_TR)
+#define LV_BANNER_BACK_ON (     lv_scr == LV_SC_TERM || lv_scr == LV_SC_SCAN || lv_scr == LV_SC_CTL || lv_scr == LV_SC_TTY     || lv_scr == LV_SC_RADAR || lv_scr == LV_SC_GLOSS || lv_scr == LV_SC_GLOSS_DESC     || (LV_HC_GAME && lv_scr == LV_SC_HCH)     || (LV_DL_GAME && lv_scr == LV_SC_DL)     || (LV_MO_INSIDE && lv_scr == LV_SC_MO)     || LV_BANNER_BACK_CT || LV_BANNER_BACK_TR     || (LV_TERM_PS && lv_scr == LV_SC_TPSG2))
 #endif
 static const LvRect LV_R_SBOX = {33, 153, 206, 256};  /* SCANbot device-emoji grid (old 4 tabs + results box) */
 /* Small terminal box (item 11): the whole inner box is now overlay - 1 line row, an enlarged button row right above
@@ -790,7 +795,7 @@ static void lv_cmd(const char *line)
         if (!a1) lv_print("go where? home scan term ctl boot glossary wifi ble");
         else if (!strcmp(a1, "home")) lv_go(LV_SC_HOME);
         else if (!strcmp(a1, "scan")) lv_go(LV_SC_SCAN);
-        else if (!strcmp(a1, "term")) lv_go(LV_SC_TERM);
+        else if (!strcmp(a1, "term")) lv_go(LV_SC_TERMBOT);   /* v1.2.23: G2 is THE TERMINALbot screen */
 #if LV_CB
         else if (!strcmp(a1, "ctl")) lv_go(LV_SC_CONTROLBOT);   /* fw-3locks-1116 (Mobandy 2:17 PM ET): CONTROLbot v6 REPLACES the old CONTROLbot screen (its code stays, unrouted) */
 #else
@@ -2256,7 +2261,9 @@ static void lv_go(int s)
 #endif
 #if LV_MO_INSIDE
     if (prev == LV_SC_MO && s != LV_SC_MO) { mo_emb_free_all(); lv_tk_alert = false; lv_tk_next(); }   /* v1.2.1: the Dojo hands its emblem cache back; v1.2.10: and its banner text (it leaked onto GIBSON) */
-    if (prev == LV_SC_TERM && s != LV_SC_TERM && s != LV_SC_TTY && s != LV_SC_MO) lv_term_from_mo = false;   /* v1.2.10: left the Dojo's TERM some other way */
+    if ((prev == LV_SC_TERM || (LV_TERM_PS && prev == LV_SC_TPSG2))
+        && s != LV_SC_TERM && !(LV_TERM_PS && s == LV_SC_TPSG2) && s != LV_SC_TTY && s != LV_SC_MO)
+        lv_term_from_mo = false;   /* v1.2.10/v1.2.23: left the Dojo's TERMINALbot screen some other way */
 #endif
     /* item 14: tear the radio down when heading home so no scan/deauth/hunt is left running across screens */
     if (prev != s && lv_job != LV_J_NONE && (s == LV_SC_HOME || s == LV_SC_HOME_INTRO || s == LV_SC_BOOT)) lv_job_stop();
@@ -2872,9 +2879,11 @@ static const char *lv_back(void)
         lv_cat = LV_CAT_GRID; lv_sel = -1; lv_dirty_box = true; return "backbot-list->grid";
     }
     if (lv_scr == LV_SC_GLOSS_DESC) { lv_go_soon(LV_SC_GLOSS, 0); return "backbot-gloss"; }   /* item 2: description -> glossary grid */
+    if (LV_TPS_ON && lv_term_from_mo) { lv_term_from_mo = false; lv_pg_set_page(LV_PG_BOTPHEUS); lv_go_soon(LV_SC_MO, 0); return "backbot-g2-dojo"; }
     if (lv_scr == LV_SC_TERM && lv_term_from_mo) { lv_term_from_mo = false; lv_pg_set_page(LV_PG_BOTPHEUS); lv_go_soon(LV_SC_MO, 0); return "backbot-term-dojo"; }
 #if LV_TERM_PS
-    if (LV_TPS_ON) { lv_go_soon(LV_SC_TERM, 0); return "backbot-tps-term"; }
+    if (lv_scr == LV_SC_TERM && LV_TPS_G2_ONLY) { lv_go_soon(LV_SC_TPSG2, 0); return "backbot-term-g2"; }   /* v1.2.23: live TERM is a child of G2 */
+    if (LV_TPS_ON) { lv_go_soon(LV_SC_HOME, 0); return "backbot-g2-home"; }   /* v1.2.23: G2 back = pager, same as other sub-screens */
 #endif
     lv_go_soon(LV_SC_HOME, 0); return "backbot-home";
 }
@@ -2978,6 +2987,9 @@ static const char *lv_tap(int x, int y)
 #if LV_MO_INSIDE
             if (lv_scr == LV_SC_TERM && lv_term_from_mo) return lv_back();   /* v1.2.10: TERM opened from the Dojo footer: the banner goes back to the Dojo (lv_back's backbot-term-dojo was unreachable) */
 #endif
+#if LV_TPS_G2_ONLY
+            if (lv_scr == LV_SC_TERM) { lv_go_soon(LV_SC_TPSG2, 0); return "banner-term-g2"; }   /* v1.2.23: live TERM is a child of G2; banner back returns one level up */
+#endif
             lv_go_soon(LV_SC_HOME, 0); return "banner-home";
         }
     }
@@ -3065,7 +3077,7 @@ static const char *lv_tap(int x, int y)
 #else
         if (LV_TAP(LV_HOME_CHIP[3])) { lv_go_soon(LV_SC_SCAN, 0); return "scan"; }
 #endif
-        if (LV_TAP(LV_HOME_CHIP[4])) { lv_go_soon(LV_SC_TERM, 0); return "term"; }
+        if (LV_TAP(LV_HOME_CHIP[4])) { lv_go_soon(LV_SC_TERMBOT, 0); return "term"; }
         if (const char *a = lv_mt_hit(x, y)) return a;
         return "none";
     }

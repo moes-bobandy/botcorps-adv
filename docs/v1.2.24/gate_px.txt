@@ -1,0 +1,6 @@
+v1.2.24 vs v1.2.23 (a87eb83, flags LV_CYD17_PANEL_TERM=1 LV_CYD19_LOGBOT=1 LV_TPS_G2_ONLY=1).
+Existing v1220_gate tour (pager0-3, logbot, pager4/CONTROLbot, go-3 live TERM, dojo, gib_scan, gib_sel_deck, dl_intro, dl_play): 0 px on every screen, themes 22/23/9. The go-3 dump is the old live TERM child (unchanged).
+G2 typist tour (TERMINALbot face tap 120,120, official typist wait, SIM_THEME=22):
+  home_terminalbot  diff_px=0  PASS
+  g2_full           diff_px=26835  PASS (allowed full frame; Var F typist, no Stripe Slot back, no gold TERM pill)
+OVERALL: PASS — only G2 changed.

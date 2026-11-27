@@ -34,3 +34,13 @@ Proved on the device LIVE path in the host sim with `-DLV_TPS_DATA_TAG=\"LIVE\"`
 Renders (Vapor Grid, theme 22) are in `/workspace/out/fw-bigbot-1117/cyd22-g2-longpress/`. `cyd22_01`–`03` are the pre-restyle chart; `cyd22_04`–`06` are the script typist (SAMPLE full, LIVE full, LIVE empty).
 
 Gate (`gate_c22.txt`): OFF vs a87eb83: 0 px on home + G2 mid + G2 full. ON vs base: home 0 px. G2 typist diffs are the script restyle (expected). Long-press and `term` tap/hold still behave as above.
+
+## Scan chart variations (Mobandy 2026-11-27)
+Four labeled stills of the top `scan` info, same device list and typist face. The FIGlet `BOT` letter gap is one column tighter in every variation (glyph shapes and `corps` unchanged). Default typist (no `SIM_C22_VAR`) keeps the stacked `wifi` / `ble` / `deauth` list, now with that tighter wordmark.
+
+- **Var A** — spreadsheet: types as columns, one value row (`wifi` `ble` `deauth` / `9` `11` `0`)
+- **Var B** — ruled typist table: `typ` / `n` header, dash rule, one row per type
+- **Var C** — suggested: scan counts hang to the right of the `T` stem (neofetch-style), reclaiming the vertical scan block
+- **Var D** — compact key=value ledger: `wifi=9  ble=11  deauth=0  tot=20`
+
+Reproduce in the host sim with `SIM_C22_VAR=A|B|C|D` (LIVE path). Renders: `cyd22_07`–`10` in `/workspace/out/fw-bigbot-1117/cyd22-g2-longpress/`. On-image `VAR A`–`D` labels are dim typist glyphs in the bottom-left corner. Mock only; pick one before it becomes the default typist.

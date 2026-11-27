@@ -1091,7 +1091,27 @@ static void lv_tps2_build(LvTps2Model &m, bool is_trace, bool trace_done)
  * ASCII wordmark, Armbian-style dim-grey section headers, dim labels / bright values,
  * tight even 8 px pitch. G2 only; F2 and flag-off keep lv_tps2_build. Kinds:
  * 0 cmd, 1 scanning, 2 device, 3 empty, 4 overflow, 5 logo, 6 section, 7 kv,
- * 8 column header, 9 meta. */
+ * 8 column header, 9 meta.
+ * SIM_C22_VAR / LV_C22_VAR: 0 default stacked scan, 1=A spreadsheet, 2=B ruled
+ * table, 3=C side stats, 4=D key=value ledger. Comparison stills only. */
+#ifndef LV_C22_VAR
+#define LV_C22_VAR 0
+#endif
+static int lv_c22_var(void)
+{
+    static int v = -1;
+    if (v >= 0) return v;
+    v = LV_C22_VAR;
+#if defined(BOTCORPS_CYD_LIVESCAN)
+    if (const char *e = getenv("SIM_C22_VAR")) {
+        if (e[0] == 'A' || e[0] == 'a' || e[0] == '1') v = 1;
+        else if (e[0] == 'B' || e[0] == 'b' || e[0] == '2') v = 2;
+        else if (e[0] == 'C' || e[0] == 'c' || e[0] == '3') v = 3;
+        else if (e[0] == 'D' || e[0] == 'd' || e[0] == '4') v = 4;
+    }
+#endif
+    return v;
+}
 static void lv_c22_script_build(LvTps2Model &m)
 {
     struct Item { int idx; int cls; uint8_t rank; };
@@ -1147,12 +1167,29 @@ static void lv_c22_script_build(LvTps2Model &m)
         ++m.n;
     };
 
-    push(5, 0, " ____      ____     _______");
-    push(5, 0, "|  _ \\    / __ \\   |__   __|");
-    push(5, 0, "| |_) |  | |  | |     | |");
-    push(5, 0, "|  _ <   | |  | |     | |");
-    push(5, 0, "| |_) |  | |__| |     | |");
-    push(5, 0, "|____/    \\____/      |_|  corps");
+    /* BOT letter gap tightened by 1 col (glyph shapes and "corps" unchanged). */
+    static const char *const LOGO[6] = {
+        " ____     ____    _______",
+        "|  _ \\   / __ \\  |__   __|",
+        "| |_) | | |  | |    | |",
+        "|  _ <  | |  | |    | |",
+        "| |_) | | |__| |    | |",
+        "|____/   \\____/     |_|  corps"
+    };
+    const int var = lv_c22_var();
+    for (int i = 0; i < 6; ++i) {
+        char buf[44];
+        snprintf(buf, sizeof buf, "%s", LOGO[i]);
+        if (var == 3 && i >= 2 && i <= 4) {   /* Var C: counts hang to the right of the T stem, under the cap */
+            int L = (int)strlen(buf);
+            while (L < 27 && L < (int)sizeof(buf) - 1) buf[L++] = ' ';
+            buf[L] = 0;
+            static const char *const lab[3] = { "wifi", "ble", "deauth" };
+            const int val[3] = { nw, nb, nde };
+            snprintf(buf + 27, sizeof(buf) - 27, "%2d %s", val[i - 2], lab[i - 2]);
+        }
+        push(5, 0, "%s", buf);
+    }
 
     {
         const char *tag = LV_TPS_DATA_TAG;
@@ -1164,12 +1201,36 @@ static void lv_c22_script_build(LvTps2Model &m)
     }
 
     push(6, 1, "");
-    push(6, 2, "scan");
-    push(7, 2, "  %-8s %3d", "wifi", nw);
-    push(7, 2, "  %-8s %3d", "ble", nb);
-    push(7, 2, "  %-8s %3d", "deauth", nde);
-
-    push(6, 3, "");
+    if (var == 1) {
+        /* A: one-row spreadsheet, types as columns */
+        push(6, 2, "scan");
+        push(8, 2, "  %7s %7s %8s", "wifi", "ble", "deauth");
+        push(7, 2, "  %7d %7d %8d", nw, nb, nde);
+        push(6, 3, "");
+    } else if (var == 2) {
+        /* B: ruled typist table, one row per type */
+        push(6, 2, "scan");
+        push(8, 2, "  %-8s  %3s", "typ", "n");
+        push(8, 2, "  %-8s  %3s", "--------", "--");
+        push(7, 2, "  %-8s  %3d", "wifi", nw);
+        push(7, 2, "  %-8s  %3d", "ble", nb);
+        push(7, 2, "  %-8s  %3d", "deauth", nde);
+        push(6, 3, "");
+    } else if (var == 3) {
+        /* C: no extra scan block — counts already sit beside the logo */
+    } else if (var == 4) {
+        /* D: compact key=value ledger on one line */
+        push(6, 2, "scan");
+        push(7, 2, "  wifi=%d  ble=%d  deauth=%d  tot=%d", nw, nb, nde, nw + nb);
+        push(6, 3, "");
+    } else {
+        /* default: stacked dim-label / bright-value list */
+        push(6, 2, "scan");
+        push(7, 2, "  %-8s %3d", "wifi", nw);
+        push(7, 2, "  %-8s %3d", "ble", nb);
+        push(7, 2, "  %-8s %3d", "deauth", nde);
+        push(6, 3, "");
+    }
     push(6, 4, "devices");
     push(8, 4, "  name             class      rssi  ch");
 
@@ -1451,11 +1512,23 @@ static void lv_tps_g2_scene(LvBand &B, void *)
                 const int k = m.kind[r];
                 if (k == 5) {
                     const int Ll = (int)strlen(s);
-                    fg_r = (Ll >= 5 && c >= Ll - 5) ? LV_TPS2_R_TAG : LV_TPS2_R_HOT;
+                    if (Ll >= 5 && c >= Ll - 5 && !strncmp(s + Ll - 5, "corps", 5))
+                        fg_r = LV_TPS2_R_TAG;
+                    else if (lv_c22_var() == 3 && c >= 27) {
+                        const unsigned char ch = (unsigned char)s[c];
+                        const bool num = (ch >= '0' && ch <= '9') ||
+                            (ch == '-' && c + 1 < Ll && s[c + 1] >= '0' && s[c + 1] <= '9');
+                        fg_r = num ? LV_TPS2_R_HOT : LV_TPS2_R_SEC;
+                    } else {
+                        fg_r = LV_TPS2_R_HOT;
+                    }
                 } else if (k == 6 || k == 8) {
                     fg_r = LV_TPS2_R_SEC;
                 } else if (k == 7) {
-                    fg_r = (c >= 11) ? LV_TPS2_R_HOT : LV_TPS2_R_SEC;
+                    const unsigned char ch = (unsigned char)s[c];
+                    const bool num = (ch >= '0' && ch <= '9') ||
+                        (ch == '-' && c + 1 < L && s[c + 1] >= '0' && s[c + 1] <= '9');
+                    fg_r = num ? LV_TPS2_R_HOT : LV_TPS2_R_SEC;
                 } else if (k == 9) {
                     const int tagl = (int)strlen(LV_TPS_DATA_TAG);
                     const int Ll = (int)strlen(s);
@@ -1513,6 +1586,14 @@ static void lv_tps_g2_scene(LvBand &B, void *)
         const int tx = 214, ty = 310;
         for (int i = 0; lab[i]; ++i)
             lv_tps2_draw_char(B, P, tx + i * 6, ty, lab[i], LV_TPS2_R_SEC, LV_TPS2_R_NONE, LV_TPS2_R_NONE, false);
+    }
+    /* Comparison stills: label the scan-chart variation on-image, same typist face. */
+    if (lv_c22_var() >= 1 && lv_c22_var() <= 4) {
+        const char *lab = (lv_c22_var() == 1) ? "VAR A" :
+                          (lv_c22_var() == 2) ? "VAR B" :
+                          (lv_c22_var() == 3) ? "VAR C" : "VAR D";
+        for (int i = 0; lab[i]; ++i)
+            lv_tps2_draw_char(B, P, 6 + i * 6, 310, lab[i], LV_TPS2_R_SEC, LV_TPS2_R_NONE, LV_TPS2_R_NONE, false);
     }
 #else
     /* Small live-TERM control in the unused bottom-right corner (does not overlap typist on the default 20-device layout). */

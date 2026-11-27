@@ -126,7 +126,7 @@ enum LvScr { LV_SC_BOOT, LV_SC_HOME_INTRO, LV_SC_HOME, LV_SC_TERM, LV_SC_SCAN, L
 #define LV_TPS_G2_ONLY 0   /* v1.2.23: 1 = G2 is THE TERMINALbot screen (every former TERM route opens G2). Old LV_SC_TERM code stays; a small G2 control opens it. */
 #endif
 #ifndef LV_CYD22_G2
-#define LV_CYD22_G2 0   /* CYD-22 mock (sim-only, NOT in any bin): no Stripe Slot back on G2; ~1s long-press exits; list shows LIVE/empty-state */
+#define LV_CYD22_G2 0   /* CYD-22 mock (sim-only, NOT in any bin): no Stripe Slot back on G2; ~1s long-press exits; script typist (ASCII wordmark, no TERM box); list shows LIVE/empty-state */
 #endif
 #ifndef LV_G2_HOLD_MS
 #define LV_G2_HOLD_MS 1000   /* CYD-22: long-press hold time on G2 (ms) */

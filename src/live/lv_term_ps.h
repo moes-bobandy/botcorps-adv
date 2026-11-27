@@ -1085,6 +1085,116 @@ static void lv_tps2_build(LvTps2Model &m, bool is_trace, bool trace_done)
     push(0, 21, "gibson>");
 }
 
+
+#if LV_CYD22_G2
+/* CYD-22 script typist (Mobandy 9:20 PM ET): pure terminal text — compact BOTcorps
+ * ASCII wordmark, Armbian-style dim-grey section headers, dim labels / bright values,
+ * tight even 8 px pitch. G2 only; F2 and flag-off keep lv_tps2_build. Kinds:
+ * 0 cmd, 1 scanning, 2 device, 3 empty, 4 overflow, 5 logo, 6 section, 7 kv,
+ * 8 column header, 9 meta. */
+static void lv_c22_script_build(LvTps2Model &m)
+{
+    struct Item { int idx; int cls; uint8_t rank; };
+    Item items[LV_MAXF];
+    int n_dev = 0;
+    int nw = 0, nb = 0, nde = 0;
+
+    static const int ORD2[LV_NHUNT] = {
+        LV_H_AIRTAG, LV_H_KEYFOB, LV_H_META, LV_H_HACK, LV_H_SKIMMER,
+        LV_H_FLOCK, LV_H_FLIPPER, LV_H_DRONE, LV_H_SAMSUNG, LV_H_DEAUTH
+    };
+
+    for (int i = 0; i < lv_nf; ++i) {
+        if (lv_f[i].kind == LV_K_WIFI) ++nw; else ++nb;
+        if (lv_hunt_match(LV_H_DEAUTH, lv_f[i])) ++nde;
+        const int ph = lv_tps2_primary_hunt(lv_f[i]);
+        uint8_t rk = 10;
+        if (ph >= 0) {
+            for (int j = 0; j < LV_NHUNT; ++j) if (ORD2[j] == ph) { rk = (uint8_t)j; break; }
+        } else {
+            rk = (lv_f[i].kind == LV_K_WIFI) ? 10 : 11;
+        }
+        items[n_dev++] = { i, ph, rk };
+    }
+
+    /* Always 5x7, 8 px pitch, y0=4 (no back button). Cap 22 rows + "+K more". */
+    m.dense35 = false;
+    m.y0 = 4;
+    m.row_h = 8;
+    int extra = 0;
+    if (n_dev > 22) {
+        for (int a = 0; a < n_dev; ++a)
+            for (int b = a + 1; b < n_dev; ++b)
+                if (lv_f[items[b].idx].rssi > lv_f[items[a].idx].rssi) {
+                    Item tmp = items[a]; items[a] = items[b]; items[b] = tmp;
+                }
+        extra = n_dev - 21;
+        n_dev = 21;
+    }
+    for (int a = 0; a < n_dev; ++a)
+        for (int b = a + 1; b < n_dev; ++b)
+            if (items[b].rank < items[a].rank || (items[b].rank == items[a].rank && items[b].idx < items[a].idx)) {
+                Item tmp = items[a]; items[a] = items[b]; items[b] = tmp;
+            }
+
+    m.n = 0;
+    auto push = [&](uint8_t k, uint8_t g, const char *fmt, ...) {
+        if (m.n >= LV_TPS2_MAXR) return;
+        va_list ap; va_start(ap, fmt);
+        vsnprintf(m.line[m.n], sizeof m.line[0], fmt, ap);
+        va_end(ap);
+        m.kind[m.n] = k; m.grp[m.n] = g;
+        ++m.n;
+    };
+
+    push(5, 0, " ____      ____     _______");
+    push(5, 0, "|  _ \\    / __ \\   |__   __|");
+    push(5, 0, "| |_) |  | |  | |     | |");
+    push(5, 0, "|  _ <   | |  | |     | |");
+    push(5, 0, "| |_) |  | |__| |     | |");
+    push(5, 0, "|____/    \\____/      |_|  corps");
+
+    {
+        const char *tag = LV_TPS_DATA_TAG;
+        const int tagl = (int)strlen(tag);
+        char meta[44];
+        const int pad = LV_TPS2_COLS - 9 - tagl;  /* "  v1.2.23" is 9 */
+        snprintf(meta, sizeof meta, "  v1.2.23%*s%s", pad > 0 ? pad : 1, "", tag);
+        push(9, 0, "%s", meta);
+    }
+
+    push(6, 1, "");
+    push(6, 2, "scan");
+    push(7, 2, "  %-8s %3d", "wifi", nw);
+    push(7, 2, "  %-8s %3d", "ble", nb);
+    push(7, 2, "  %-8s %3d", "deauth", nde);
+
+    push(6, 3, "");
+    push(6, 4, "devices");
+    push(8, 4, "  name             class      rssi  ch");
+
+    for (int i = 0; i < n_dev; ++i) {
+        const LvFind &f = lv_f[items[i].idx];
+        const char *cls = items[i].cls >= 0 ? LV_HUNT_BOT[items[i].cls]
+                        : (f.kind == LV_K_WIFI ? "WIFIbot" : "BLEbot");
+        char row[60];
+        lv_tps2_fmt_row(row, sizeof row, f, cls, false);
+        push(2, 5, "  %s", row);
+    }
+    if (extra > 0) push(4, 5, "  +%d more", extra);
+    if (n_dev == 0) {
+        if (lv_job != LV_J_NONE) push(1, 5, "  SCANNING...");
+        else push(3, 5, "  no devices on grid");
+    }
+    {
+        static int seen = 0x7fffffff;
+        const int key = (lv_nf << 16) ^ (lv_job << 8) ^ nw ^ (nb << 4) ^ n_dev;
+        if (key != seen) { seen = key; lv_tps_full = 1; }
+    }
+    push(0, 6, "Gibson>");
+}
+#endif
+
 /* CRT scanline + subtle phosphor bloom for 5x7 LV_GLCD (only lights when pixel > 0; pitch-black bg) */
 static inline uint16_t lv_tps2_scan_mod(uint16_t c, int y)
 {
@@ -1104,6 +1214,9 @@ enum {
     LV_TPS2_R_HOT  = 4,
     LV_TPS2_R_LEAD = 5,
     LV_TPS2_R_CUR  = 6,
+#if LV_CYD22_G2
+    LV_TPS2_R_SEC  = 7,  /* dim grey section/label (Armbian-style, not theme-tinted) */
+#endif
 };
 
 static inline uint32_t lv_tps2_legible(uint32_t c)
@@ -1117,6 +1230,9 @@ static inline uint32_t lv_tps2_legible(uint32_t c)
 
 static inline uint16_t lv_tps2_role_px(int role, uint32_t T)
 {
+#if LV_CYD22_G2
+    if (role == LV_TPS2_R_SEC) return lv_hex(0x8c8c8c);
+#endif
     if (role == LV_TPS2_R_T1) return lv_hex(lv_mix3(T, 0x000000, 79, 100));
     const uint32_t Tl = lv_tps2_legible(T);
     switch (role) {
@@ -1137,7 +1253,11 @@ static inline uint16_t lv_tps2_role_px(int role, uint32_t T)
 
 struct LvTps2Pal {
     bool multi;
+#if LV_CYD22_G2
+    uint16_t pal[8];
+#else
     uint16_t pal[7];
+#endif
 };
 
 static void lv_tps2_init_pal(LvTps2Pal &P)
@@ -1145,12 +1265,19 @@ static void lv_tps2_init_pal(LvTps2Pal &P)
     P.multi = lv_multi_theme(lv_theme);
     if (!P.multi) {
         const uint32_t T = lv_theme_at(lv_theme, 0, 0);
+#if LV_CYD22_G2
+        for (int r = 0; r < 8; ++r) P.pal[r] = lv_tps2_role_px(r, T);
+#else
         for (int r = 0; r < 7; ++r) P.pal[r] = lv_tps2_role_px(r, T);
+#endif
     }
 }
 
 static inline uint16_t lv_tps2_shade_at(const LvTps2Pal &P, int role, int x, int y)
 {
+#if LV_CYD22_G2
+    if (role == LV_TPS2_R_SEC) return lv_hex(0x8c8c8c);
+#endif
     return P.multi ? lv_tps2_role_px(role, lv_theme_at(lv_theme, x, y)) : P.pal[role];
 }
 
@@ -1263,16 +1390,28 @@ static void lv_tps_g2_scene(LvBand &B, void *)
 
     const int rel = (int)(lv_now - lv_tps_t0);
     LvTps2Model m;
+#if LV_CYD22_G2
+    lv_c22_script_build(m);
+#else
     lv_tps2_build(m, false, false);
+#endif
 
     const int cw = m.dense35 ? 4 : LV_TPS2_CW;
     const int maxc = m.dense35 ? 56 : LV_TPS2_COLS;
     /* Reserve the uniform banner-back row (y=1..23) when the typist still fits below it. */
     const int cursor_h = m.dense35 ? 7 : 8;
     const int last_h = (m.n ? (m.n - 1) * m.row_h : 0) + cursor_h;
+#if LV_CYD22_G2
+    const int y0 = m.y0;   /* script starts at the top; the Stripe Slot is gone */
+#else
     const int y0 = (m.y0 < 25 && 25 + last_h <= 319) ? 25 : m.y0;
+#endif
 
+#if LV_CYD22_G2
+    int t_cur = 180;   /* short beat, then even typist */
+#else
     int t_cur = 700;   /* ominous initial pause on empty black with pulsing cursor */
+#endif
     int cur_x = LV_TPS2_X, cur_y = y0;
     bool typing_active = false;
 
@@ -1280,9 +1419,16 @@ static void lv_tps_g2_scene(LvBand &B, void *)
         const char *s = m.line[r];
         const int L = (int)strlen(s);
         const int y = y0 + r * m.row_h;
+#if LV_CYD22_G2
+        const int k = m.kind[r];
+        const int ms_per = (k == 5) ? 10 : (k == 2) ? 12 : (k == 0) ? 18 : 14;
+        const bool grp_end = (r + 1 < m.n && m.grp[r + 1] != m.grp[r]);
+        const int pause_after = (k == 5 && grp_end) ? 140 : (k == 6) ? 70 : grp_end ? 90 : 32;
+#else
         const int ms_per = (r == 0) ? 55 : (m.kind[r] != 2) ? 34 : 20;
         const bool grp_end = (r + 1 < m.n && m.grp[r + 1] != m.grp[r]);
         const int pause_after = (r == 0) ? 850 : (r == 1) ? 450 : (m.kind[r] == 1 || m.kind[r] == 3) ? 420 : grp_end ? 220 : 70;
+#endif
 
         if (rel < t_cur) break;
         const int line_dt = rel - t_cur;
@@ -1297,11 +1443,45 @@ static void lv_tps_g2_scene(LvBand &B, void *)
         for (int c = 0; c < chars_shown && c < L && c < maxc; ++c) {
             const int x = LV_TPS2_X + c * cw;
             const bool fresh = (c == chars_shown - 1) && (line_dt < acc);
+#if LV_CYD22_G2
+            int fg_r = LV_TPS2_R_BODY;
+            if (fresh) {
+                fg_r = LV_TPS2_R_LEAD;
+            } else {
+                const int k = m.kind[r];
+                if (k == 5) {
+                    const int Ll = (int)strlen(s);
+                    fg_r = (Ll >= 5 && c >= Ll - 5) ? LV_TPS2_R_TAG : LV_TPS2_R_HOT;
+                } else if (k == 6 || k == 8) {
+                    fg_r = LV_TPS2_R_SEC;
+                } else if (k == 7) {
+                    fg_r = (c >= 11) ? LV_TPS2_R_HOT : LV_TPS2_R_SEC;
+                } else if (k == 9) {
+                    const int tagl = (int)strlen(LV_TPS_DATA_TAG);
+                    const int Ll = (int)strlen(s);
+                    if (c >= Ll - tagl) fg_r = (s[Ll - tagl] == 'L') ? LV_TPS2_R_HOT : LV_TPS2_R_TAG;
+                    else fg_r = LV_TPS2_R_SEC;
+                } else if (k == 2) {
+                    if (c >= 30) fg_r = LV_TPS2_R_HOT;
+                    else if (c >= 19) fg_r = LV_TPS2_R_TAG;
+                    else fg_r = LV_TPS2_R_BODY;
+                } else if (k == 0 || k == 1) {
+                    fg_r = LV_TPS2_R_TAG;
+                } else if (k == 3) {
+                    fg_r = LV_TPS2_R_SEC;
+                } else if (k == 4) {
+                    fg_r = LV_TPS2_R_HOT;
+                }
+            }
+            /* Crisp glyphs: no standing bloom; only the just-typed char flashes. */
+            lv_tps2_draw_char(B, P, x, y, s[c], fg_r, fresh ? LV_TPS2_R_MID : LV_TPS2_R_NONE, LV_TPS2_R_NONE, m.dense35);
+#else
             const int fg_r = fresh ? LV_TPS2_R_LEAD :
                              (m.kind[r] == 0 || m.kind[r] == 1) ? LV_TPS2_R_TAG :
                              (m.kind[r] == 3) ? LV_TPS2_R_MID :
                              (m.kind[r] == 4) ? LV_TPS2_R_HOT : LV_TPS2_R_BODY;
             lv_tps2_draw_char(B, P, x, y, s[c], fg_r, fresh ? LV_TPS2_R_MID : LV_TPS2_R_T1, LV_TPS2_R_NONE, m.dense35);
+#endif
         }
         cur_x = LV_TPS2_X + chars_shown * cw;
         if (cur_x > LV_TPS2_X + (maxc - 1) * cw) cur_x = LV_TPS2_X + (maxc - 1) * cw;
@@ -1326,6 +1506,15 @@ static void lv_tps_g2_scene(LvBand &B, void *)
     /* Uniform Stripe Slot back (same control as every other sub-screen) in the top-left banner slot. */
     lv_banner_back_draw(B);
 
+#if LV_CYD22_G2
+    /* Plain "term" glyphs in the old pill's corner; the hit rect is unchanged. No box. */
+    {
+        const char *lab = "term";
+        const int tx = 214, ty = 310;
+        for (int i = 0; lab[i]; ++i)
+            lv_tps2_draw_char(B, P, tx + i * 6, ty, lab[i], LV_TPS2_R_SEC, LV_TPS2_R_NONE, LV_TPS2_R_NONE, false);
+    }
+#else
     /* Small live-TERM control in the unused bottom-right corner (does not overlap typist on the default 20-device layout). */
     {
         const int x0 = LV_R_G2_TERM.x0, y0c = LV_R_G2_TERM.y0, x1 = LV_R_G2_TERM.x1, y1 = LV_R_G2_TERM.y1;
@@ -1345,6 +1534,7 @@ static void lv_tps_g2_scene(LvBand &B, void *)
             lv_tps2_draw_char(B, P, tx + i * 6, ty, lab[i], LV_TPS2_R_TAG, LV_TPS2_R_T1, LV_TPS2_R_NONE, false);
         (void)ink;
     }
+#endif
 }
 
 static void lv_tps_frame(void)

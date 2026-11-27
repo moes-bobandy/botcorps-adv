@@ -1776,6 +1776,23 @@ static void lv_tps_frame(void)
 {
     /* first paint is a full push; later frames use dirty-row blit so only changed text rows hit the panel;
      * F2/G2 resolve live theme colors per pixel (including multi-color themes), so bypass lv_theme_ink sentinel pass */
+#if LV_CYD22_G2
+    /* Keep scanning while G2 is up (low-power typist is supposed to stay live). lv_auto
+     * defaults to OFF, so without this the enter-time LV_J_ALL job was a one-shot. */
+    if (lv_scr == LV_SC_TPSG2 && lv_job == LV_J_NONE && (int32_t)(lv_now - lv_auto_t) >= 2000)
+        lv_job_start(LV_J_ALL, -1);
+    /* Late finds must choose the blit BEFORE the scene runs. The typist used to set
+     * lv_tps_full inside the scene and lv_tps_frame then cleared it at the end of the
+     * same call, so a full push never happened. The host sim missed this: it paints
+     * with a canned SAMPLE lv_f[] already filled on the first (full) enter frame. */
+    {
+        static int seen = 0x7fffffff;
+        int nw = 0, nb = 0;
+        for (int i = 0; i < lv_nf; ++i) { if (lv_f[i].kind == LV_K_WIFI) ++nw; else ++nb; }
+        const int key = (lv_nf << 16) ^ (lv_job << 8) ^ nw ^ (nb << 4);
+        if (key != seen) { seen = key; lv_tps_full = 1; }
+    }
+#endif
     const bool f2g2 = (lv_scr == LV_SC_TPSF2 || lv_scr == LV_SC_TPSG2);
 #if LV_TPS_G2_ONLY
     const lv_scene_fn sc = lv_tps_g2_scene;   /* v1.2.23: G2 only; every other variant is unreferenced and dropped by the linker */

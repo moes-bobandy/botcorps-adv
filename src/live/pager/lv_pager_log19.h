@@ -86,7 +86,13 @@ static void lv_lb_gl_row(uint16_t *row, int y, int x0, int gy, const char *s, in
         for (int c = 0; c < 5; ++c) if ((g[c] >> bit & 1) && x0 + c >= xlo && x0 + c <= xhi) row[x0 + c] = lv_lb_ink(role, x0 + c, y);
     }
 }
-static int lv_lb_arrivals(void) { return (int)(lv_now / 1800u); }
+/* v1.2.25: the 1.8 s arrival window was a SAMPLE typist loop — the same 8-line
+ * cycle (BOOT / SD mount / TOUCH / WARN / FLASH / ...) kept sliding in and
+ * "materializing" forever. That also forced a full panel re-raster (trig metal
+ * frame + glyphs) every tick. Freeze arrivals at 0 so the 5 visible SYS rows
+ * stay the photographed set (BOOT v1.2.24, SD mount ok, TOUCH cal ok, WARN,
+ * FLASH ok 2.6MB). Look unchanged; no replay. */
+static int lv_lb_arrivals(void) { return 0; }
 static void lv_lb_face_row(uint16_t *row, int y, const uint8_t *fr)
 {
     const int X0 = LV_PG_FX_X0, ly = y - LV_PG_FX_Y0;
@@ -154,8 +160,9 @@ static void lv_lb_render(void)
     for (int x = PX0 + 3; x <= PX0 + PW - 4; ++x) lv_c17_put(C17_T1, x, 233);   /* tab baseline */
     const int ux = lv_lb_tab == 0 ? PX0 + 6 : PX0 + 36, uw = lv_lb_tab == 0 ? 24 : 18;
     for (int x = ux; x < ux + uw; ++x) { lv_c17_put(C17_HOT, x, 232); lv_c17_put(C17_HOT, x, 233); }
-    /* log rows: 5 newest, newest at the bottom, older rows step down in brightness */
-    const int a = lv_lb_arrivals(), age_ms = (int)(lv_now % 1800u);
+    /* log rows: 5 newest, newest at the bottom, older rows step down in brightness.
+     * age_ms is settled (>=240) so the arriving-row snap flare does not replay. */
+    const int a = lv_lb_arrivals(), age_ms = 240;
     for (int k = 0; k < 5; ++k) {
         const int idx = a + k, y = 237 + k * 9, age = 4 - k;
         char buf[28]; const int ev = lv_lb_row(lv_lb_tab, idx + 8, buf);
@@ -169,11 +176,15 @@ static void lv_lb_render(void)
         }
     }
 }
-static uint32_t lv_lb_key = 0xFFFFFFFFu; static int lv_lb_keytab = -1;
+static uint32_t lv_lb_key = 0xFFFFFFFFu; static int lv_lb_keytab = -1, lv_lb_keyslot = -1;
 static void lv_lb_panel_row(uint16_t *row, int y)
 {
     if (y < LV_CB_PY0 || y >= LV_CB_PY0 + LV_CB_PH) return;
-    if (lv_lb_key != (uint32_t)lv_now || lv_lb_keytab != lv_lb_tab) { lv_lb_key = (uint32_t)lv_now; lv_lb_keytab = lv_lb_tab; lv_lb_render(); }
+    /* Rebuild only when the tab or theme slot changes, not every lv_now tick. */
+    const int slot = lv_cb_slot();
+    if (lv_lb_keytab != lv_lb_tab || lv_lb_keyslot != slot || lv_lb_key == 0xFFFFFFFFu) {
+        lv_lb_key = 1; lv_lb_keytab = lv_lb_tab; lv_lb_keyslot = slot; lv_lb_render();
+    }
     memcpy(row + LV_CB_PX0, lv_c17_buf[y - LV_CB_PY0], LV_CB_PW * 2);
 }
 #endif

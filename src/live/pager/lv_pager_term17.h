@@ -55,6 +55,7 @@ static bool lv_c17_alloc(void)
 }
 static uint32_t lv_c17_key = 0xFFFFFFFFu; static int lv_c17_keypg = -1;
 static int lv_c17_lastpg = -1; static uint32_t lv_c17_t0 = 0;
+static int lv_c17_slotkey = -1, lv_c17_settled = 0;
 
 static inline uint16_t lv_c17_maxc(uint16_t a, uint16_t b)
 {
@@ -96,6 +97,15 @@ static const LvC17Page LV_C17_PG[5] = {
     { { "> CONTROLbot", "> role: ctl", "  radar sleep bright", "  recal rotate bar", "  exit", "> _" },                                   { 0, 1, 2, 2, 2, 3 } },
 };
 
+static int lv_c17_settle_ms(int page)
+{
+    if (page < 0 || page > 4) return 0;
+    int n = 0;
+    for (int i = 0; i < LV_C17_NL; ++i) n += (int)strlen(LV_C17_PG[page].l[i]) + LV_C17_PAUSE;
+    return n * LV_C17_MS + 520;   /* last glyph's settled colour */
+}
+
+
 static void lv_c17_render(int page, int rel)
 {
     for (int by = 0; by < LV_CB_PH; ++by) {   /* locked plate frame (same call as the v1.2.22 panels), black field */
@@ -134,8 +144,21 @@ static void lv_c17_render(int page, int rel)
 static void lv_c17_row(uint16_t *row, int y, int page)
 {
     if (y < LV_CB_PY0 || y >= LV_CB_PY0 + LV_CB_PH || page < 0 || page > 4) return;
-    if (page != lv_c17_lastpg) { lv_c17_lastpg = page; lv_c17_t0 = lv_now; lv_c17_key = 0xFFFFFFFFu; }
-    if (lv_c17_key != (uint32_t)lv_now || lv_c17_keypg != page) { lv_c17_key = (uint32_t)lv_now; lv_c17_keypg = page; lv_c17_render(page, (int)(lv_now - lv_c17_t0)); }
+    if (page != lv_c17_lastpg) { lv_c17_lastpg = page; lv_c17_t0 = lv_now; lv_c17_key = 0xFFFFFFFFu; lv_c17_settled = 0; }
+    {
+        const int slot = lv_cb_slot();
+        const int rel = (int)(lv_now - lv_c17_t0);
+        if (lv_c17_slotkey != slot) { lv_c17_settled = 0; lv_c17_key = 0xFFFFFFFFu; }
+        /* One raster per tick while the typist is running (same as the old lv_now
+         * key). After settle the buffer is static and we skip. This used to run
+         * on every panel row of every tick, which starved SPI/touch. */
+        const bool need = !lv_c17_bufp || lv_c17_keypg != page || lv_c17_slotkey != slot || !lv_c17_settled;
+        if (need && (lv_c17_key != (uint32_t)lv_now || lv_c17_keypg != page || lv_c17_slotkey != slot)) {
+            lv_c17_key = (uint32_t)lv_now; lv_c17_keypg = page; lv_c17_slotkey = slot;
+            lv_c17_render(page, rel);
+            if (rel >= lv_c17_settle_ms(page)) lv_c17_settled = 1;
+        }
+    }
     memcpy(row + LV_CB_PX0, lv_c17_buf[y - LV_CB_PY0], LV_CB_PW * 2);
 }
 #endif

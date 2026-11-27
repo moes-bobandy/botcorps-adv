@@ -90,7 +90,7 @@ static void lv_lb_gl_row(uint16_t *row, int y, int x0, int gy, const char *s, in
  * cycle (BOOT / SD mount / TOUCH / WARN / FLASH / ...) kept sliding in and
  * "materializing" forever. That also forced a full panel re-raster (trig metal
  * frame + glyphs) every tick. Freeze arrivals at 0 so the 5 visible SYS rows
- * stay the photographed set (BOOT v1.2.24, SD mount ok, TOUCH cal ok, WARN,
+ * stay the photographed set (BOOT v1.2.25, SD mount ok, TOUCH cal ok, WARN,
  * FLASH ok 2.6MB). Look unchanged; no replay. */
 static int lv_lb_arrivals(void) { return 0; }
 static void lv_lb_face_row(uint16_t *row, int y, const uint8_t *fr)
@@ -128,7 +128,7 @@ static int lv_lb_row(int tab, int i, char out[28])
         }
     } else {
         switch (i % 8) {
-        case 0: snprintf(out, 28, "%s BOOT v1.2.24", t); ev = 9; break;
+        case 0: snprintf(out, 28, "%s BOOT v1.2.25", t); ev = 9; break;
         case 1: snprintf(out, 28, "%s SD mount ok", t); break;
         case 2: snprintf(out, 28, "%s TOUCH cal ok", t); break;
         case 3: snprintf(out, 28, "%s WARN SD %dms", t, 180 + (int)(h % 90)); ev = 9; break;

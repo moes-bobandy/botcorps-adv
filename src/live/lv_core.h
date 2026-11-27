@@ -20,9 +20,9 @@
 #include "lv_build_3locks.h"   /* fw-3locks-1116: CONTROLbot v6 + BOTpheus EB3 + HACKbot game switches */
 
 #ifdef BOTCORPS_BUILD_ID
-#define LV_VERSION "cyd-livescan v1.2.24 " BOTCORPS_BUILD_ID   /* v1.2.22: v1.2.21 + theme refresh (CYBER TEAL / VAPOR GRID / AMBER CRT in place of NEON GRAPE / CIRCUIT / SONAR, + SUNSET / TRON / ACID GRID, VAPOR GRID default, pager pips follow the theme) */
+#define LV_VERSION "cyd-livescan v1.2.25 " BOTCORPS_BUILD_ID   /* v1.2.22: v1.2.21 + theme refresh (CYBER TEAL / VAPOR GRID / AMBER CRT in place of NEON GRAPE / CIRCUIT / SONAR, + SUNSET / TRON / ACID GRID, VAPOR GRID default, pager pips follow the theme) */
 #else
-#define LV_VERSION "cyd-livescan v1.2.24"
+#define LV_VERSION "cyd-livescan v1.2.25"
 #endif
 
 /* ---------- finds ---------- */

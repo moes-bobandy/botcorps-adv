@@ -1096,14 +1096,14 @@ static void lv_tps2_build(LvTps2Model &m, bool is_trace, bool trace_done)
  * table, 3=C side stats, 4=D key=value ledger, 5=E dmesg boot log, 6=F tmux panes.
  * Comparison stills only. */
 #ifndef LV_C22_VAR
-#define LV_C22_VAR 0
+#define LV_C22_VAR 6   /* v1.2.24: Var F (tmux panes) is the default G2 typist */
 #endif
 static int lv_c22_var(void)
 {
     static int v = -1;
     if (v >= 0) return v;
     v = LV_C22_VAR;
-#if defined(BOTCORPS_CYD_LIVESCAN)
+#if defined(BOTCORPS_CYD_LIVESCAN) && !defined(BOTCORPS_CYD)
     if (const char *e = getenv("SIM_C22_VAR")) {
         if (e[0] == 'A' || e[0] == 'a' || e[0] == '1') v = 1;
         else if (e[0] == 'B' || e[0] == 'b' || e[0] == '2') v = 2;
@@ -1183,7 +1183,7 @@ static void lv_c22_script_build(LvTps2Model &m)
 
     /* ---- Var E: dmesg / boot log that settles into Gibson> ---- */
     if (var == 5) {
-        push(10, 0, "0.00 cyd-livescan v1.2.23");
+        push(10, 0, "0.00 cyd-livescan v1.2.24");
         push(10, 0, "0.04 radios up      wifi  ble");
         push(10, 0, "0.12 scan start");
         for (int i = 0; i < 6; ++i) push(5, 1, "%s", LOGO[i]);
@@ -1192,7 +1192,7 @@ static void lv_c22_script_build(LvTps2Model &m)
             const int tagl = (int)strlen(tag);
             char meta[44];
             const int pad = LV_TPS2_COLS - 9 - tagl;
-            snprintf(meta, sizeof meta, "  v1.2.23%*s%s", pad > 0 ? pad : 1, "", tag);
+            snprintf(meta, sizeof meta, "  v1.2.24%*s%s", pad > 0 ? pad : 1, "", tag);
             push(9, 1, "%s", meta);
         }
         push(10, 2, "1.18 wifi         %3d live", nw);
@@ -1247,7 +1247,7 @@ static void lv_c22_script_build(LvTps2Model &m)
             push(11, 0, "%s", bar);
         }
         for (int i = 0; i < 6; ++i) push(5, 1, "%s", LOGO[i]);
-        push(9, 1, "  v1.2.23");
+        push(9, 1, "  v1.2.24");
         {
             char rule[44];
             snprintf(rule, sizeof rule, "-- scan ");
@@ -1309,8 +1309,8 @@ static void lv_c22_script_build(LvTps2Model &m)
         const char *tag = LV_TPS_DATA_TAG;
         const int tagl = (int)strlen(tag);
         char meta[44];
-        const int pad = LV_TPS2_COLS - 9 - tagl;  /* "  v1.2.23" is 9 */
-        snprintf(meta, sizeof meta, "  v1.2.23%*s%s", pad > 0 ? pad : 1, "", tag);
+        const int pad = LV_TPS2_COLS - 9 - tagl;  /* "  v1.2.24" is 9 */
+        snprintf(meta, sizeof meta, "  v1.2.24%*s%s", pad > 0 ? pad : 1, "", tag);
         push(9, 0, "%s", meta);
     }
 
@@ -1738,7 +1738,9 @@ static void lv_tps_g2_scene(LvBand &B, void *)
             lv_tps2_draw_char(B, P, tx + i * 6, ty, lab[i], LV_TPS2_R_SEC, LV_TPS2_R_NONE, LV_TPS2_R_NONE, false);
     }
     /* Comparison stills: label the scan-chart variation on-image, same typist face. */
-    if (lv_c22_var() >= 1 && lv_c22_var() <= 6) {
+#if defined(BOTCORPS_CYD_LIVESCAN) && !defined(BOTCORPS_CYD)
+    /* Comparison stills only: never painted in the CYD bin. */
+    if (getenv("SIM_C22_VAR") && lv_c22_var() >= 1 && lv_c22_var() <= 6) {
         static const char *const LAB[] = {
             0, "VAR A", "VAR B", "VAR C", "VAR D", "VAR E", "VAR F"
         };
@@ -1746,6 +1748,7 @@ static void lv_tps_g2_scene(LvBand &B, void *)
         for (int i = 0; lab[i]; ++i)
             lv_tps2_draw_char(B, P, 6 + i * 6, 310, lab[i], LV_TPS2_R_SEC, LV_TPS2_R_NONE, LV_TPS2_R_NONE, false);
     }
+#endif
 #else
     /* Small live-TERM control in the unused bottom-right corner (does not overlap typist on the default 20-device layout). */
     {

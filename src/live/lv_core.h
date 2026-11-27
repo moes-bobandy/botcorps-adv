@@ -20,9 +20,9 @@
 #include "lv_build_3locks.h"   /* fw-3locks-1116: CONTROLbot v6 + BOTpheus EB3 + HACKbot game switches */
 
 #ifdef BOTCORPS_BUILD_ID
-#define LV_VERSION "cyd-livescan v1.2.23 " BOTCORPS_BUILD_ID   /* v1.2.22: v1.2.21 + theme refresh (CYBER TEAL / VAPOR GRID / AMBER CRT in place of NEON GRAPE / CIRCUIT / SONAR, + SUNSET / TRON / ACID GRID, VAPOR GRID default, pager pips follow the theme) */
+#define LV_VERSION "cyd-livescan v1.2.24 " BOTCORPS_BUILD_ID   /* v1.2.22: v1.2.21 + theme refresh (CYBER TEAL / VAPOR GRID / AMBER CRT in place of NEON GRAPE / CIRCUIT / SONAR, + SUNSET / TRON / ACID GRID, VAPOR GRID default, pager pips follow the theme) */
 #else
-#define LV_VERSION "cyd-livescan v1.2.23"
+#define LV_VERSION "cyd-livescan v1.2.24"
 #endif
 
 /* ---------- finds ---------- */
@@ -126,7 +126,7 @@ enum LvScr { LV_SC_BOOT, LV_SC_HOME_INTRO, LV_SC_HOME, LV_SC_TERM, LV_SC_SCAN, L
 #define LV_TPS_G2_ONLY 0   /* v1.2.23: 1 = G2 is THE TERMINALbot screen (every former TERM route opens G2). Old LV_SC_TERM code stays; a small G2 control opens it. */
 #endif
 #ifndef LV_CYD22_G2
-#define LV_CYD22_G2 0   /* CYD-22 mock (sim-only, NOT in any bin): no Stripe Slot back on G2; ~1s long-press exits; script typist (ASCII wordmark, no TERM box); list shows LIVE/empty-state */
+#define LV_CYD22_G2 1   /* v1.2.24: no Stripe Slot back on G2; ~1s long-press exits; Var F typist is the default G2 screen; list shows LIVE/empty-state */
 #endif
 #ifndef LV_G2_HOLD_MS
 #define LV_G2_HOLD_MS 1000   /* CYD-22: long-press hold time on G2 (ms) */

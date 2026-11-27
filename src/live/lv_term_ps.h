@@ -1093,7 +1093,8 @@ static void lv_tps2_build(LvTps2Model &m, bool is_trace, bool trace_done)
  * 0 cmd, 1 scanning, 2 device, 3 empty, 4 overflow, 5 logo, 6 section, 7 kv,
  * 8 column header, 9 meta.
  * SIM_C22_VAR / LV_C22_VAR: 0 default stacked scan, 1=A spreadsheet, 2=B ruled
- * table, 3=C side stats, 4=D key=value ledger. Comparison stills only. */
+ * table, 3=C side stats, 4=D key=value ledger, 5=E dmesg boot log, 6=F tmux panes.
+ * Comparison stills only. */
 #ifndef LV_C22_VAR
 #define LV_C22_VAR 0
 #endif
@@ -1108,6 +1109,8 @@ static int lv_c22_var(void)
         else if (e[0] == 'B' || e[0] == 'b' || e[0] == '2') v = 2;
         else if (e[0] == 'C' || e[0] == 'c' || e[0] == '3') v = 3;
         else if (e[0] == 'D' || e[0] == 'd' || e[0] == '4') v = 4;
+        else if (e[0] == 'E' || e[0] == 'e' || e[0] == '5') v = 5;
+        else if (e[0] == 'F' || e[0] == 'f' || e[0] == '6') v = 6;
     }
 #endif
     return v;
@@ -1177,6 +1180,117 @@ static void lv_c22_script_build(LvTps2Model &m)
         "|____/   \\____/     |_|  corps"
     };
     const int var = lv_c22_var();
+
+    /* ---- Var E: dmesg / boot log that settles into Gibson> ---- */
+    if (var == 5) {
+        push(10, 0, "0.00 cyd-livescan v1.2.23");
+        push(10, 0, "0.04 radios up      wifi  ble");
+        push(10, 0, "0.12 scan start");
+        for (int i = 0; i < 6; ++i) push(5, 1, "%s", LOGO[i]);
+        {
+            const char *tag = LV_TPS_DATA_TAG;
+            const int tagl = (int)strlen(tag);
+            char meta[44];
+            const int pad = LV_TPS2_COLS - 9 - tagl;
+            snprintf(meta, sizeof meta, "  v1.2.23%*s%s", pad > 0 ? pad : 1, "", tag);
+            push(9, 1, "%s", meta);
+        }
+        push(10, 2, "1.18 wifi         %3d live", nw);
+        push(10, 2, "1.19 ble          %3d live", nb);
+        push(10, 2, "1.20 deauth       %3d idle", nde);
+        for (int i = 0; i < n_dev; ++i) {
+            const LvFind &f = lv_f[items[i].idx];
+            const char *cls = items[i].cls >= 0 ? LV_HUNT_BOT[items[i].cls]
+                            : (f.kind == LV_K_WIFI ? "WIFIbot" : "BLEbot");
+            char typ[12];
+            const int cl = (int)strlen(cls);
+            if (cl > 3 && !strcmp(cls + cl - 3, "bot")) {
+                snprintf(typ, sizeof typ, "%s", cls);
+                typ[cl - 3] = 0;
+            } else {
+                snprintf(typ, sizeof typ, "%s", cls);
+            }
+            char nm[26]; lv_label(f, nm, sizeof nm);
+            if ((int)strlen(nm) > 16) { nm[13] = '.'; nm[14] = '.'; nm[15] = '.'; nm[16] = 0; }
+            char stamp[8];
+            snprintf(stamp, sizeof stamp, "%d.%02d", 1, 21 + i);
+            push(2, 3, "%-4s %-16s %-7s %4d %3d",
+                 stamp, nm, typ, (int)f.rssi, (int)f.ch);
+        }
+        if (extra > 0) push(4, 3, "1.99 +%d more", extra);
+        if (n_dev == 0) {
+            if (lv_job != LV_J_NONE) push(1, 3, "1.21 SCANNING...");
+            else push(3, 3, "1.21 no devices on grid");
+        } else {
+            push(10, 4, "1.%02d %d found", 21 + n_dev, n_dev + extra);
+        }
+        {
+            static int seen = 0x7fffffff;
+            const int key = (lv_nf << 16) ^ (lv_job << 8) ^ nw ^ (nb << 4) ^ n_dev;
+            if (key != seen) { seen = key; lv_tps_full = 1; }
+        }
+        push(0, 6, "Gibson>");
+        return;
+    }
+
+    /* ---- Var F: tmux window bar + scan / devices panes ---- */
+    if (var == 6) {
+        {
+            const char *tag = LV_TPS_DATA_TAG;
+            char bar[44];
+            snprintf(bar, sizeof bar, " 0:motd  1:scan  2:devs*");
+            int L = (int)strlen(bar);
+            const int tagl = (int)strlen(tag);
+            while (L < LV_TPS2_COLS - tagl && L < (int)sizeof(bar) - 1) bar[L++] = ' ';
+            bar[L] = 0;
+            snprintf(bar + L, sizeof(bar) - L, "%s", tag);
+            push(11, 0, "%s", bar);
+        }
+        for (int i = 0; i < 6; ++i) push(5, 1, "%s", LOGO[i]);
+        push(9, 1, "  v1.2.23");
+        {
+            char rule[44];
+            snprintf(rule, sizeof rule, "-- scan ");
+            int L = (int)strlen(rule);
+            while (L < LV_TPS2_COLS && L < (int)sizeof(rule) - 1) rule[L++] = '-';
+            rule[L] = 0;
+            push(8, 2, "%s", rule);
+        }
+        push(7, 2, "  wifi  %3d    ble  %3d    deauth  %3d", nw, nb, nde);
+        {
+            char rule[44], tail[12];
+            snprintf(tail, sizeof tail, " %d -", n_dev + extra);
+            snprintf(rule, sizeof rule, "-- devices ");
+            int L = (int)strlen(rule);
+            const int tl = (int)strlen(tail);
+            while (L < LV_TPS2_COLS - tl && L < (int)sizeof(rule) - 1) rule[L++] = '-';
+            rule[L] = 0;
+            snprintf(rule + L, sizeof(rule) - L, "%s", tail);
+            push(7, 2, "%s", rule);
+        }
+        push(8, 4, "  name             class      rssi  ch");
+        for (int i = 0; i < n_dev; ++i) {
+            const LvFind &f = lv_f[items[i].idx];
+            const char *cls = items[i].cls >= 0 ? LV_HUNT_BOT[items[i].cls]
+                            : (f.kind == LV_K_WIFI ? "WIFIbot" : "BLEbot");
+            char row[60];
+            lv_tps2_fmt_row(row, sizeof row, f, cls, false);
+            push(2, 5, "  %s", row);
+        }
+        if (extra > 0) push(4, 5, "  +%d more", extra);
+        if (n_dev == 0) {
+            if (lv_job != LV_J_NONE) push(1, 5, "  SCANNING...");
+            else push(3, 5, "  no devices on grid");
+        }
+        {
+            static int seen = 0x7fffffff;
+            const int key = (lv_nf << 16) ^ (lv_job << 8) ^ nw ^ (nb << 4) ^ n_dev;
+            if (key != seen) { seen = key; lv_tps_full = 1; }
+        }
+        push(0, 6, "Gibson>");
+        return;
+    }
+
     for (int i = 0; i < 6; ++i) {
         char buf[44];
         snprintf(buf, sizeof buf, "%s", LOGO[i]);
@@ -1482,9 +1596,22 @@ static void lv_tps_g2_scene(LvBand &B, void *)
         const int y = y0 + r * m.row_h;
 #if LV_CYD22_G2
         const int k = m.kind[r];
-        const int ms_per = (k == 5) ? 10 : (k == 2) ? 12 : (k == 0) ? 18 : 14;
+        const int var = lv_c22_var();
         const bool grp_end = (r + 1 < m.n && m.grp[r + 1] != m.grp[r]);
-        const int pause_after = (k == 5 && grp_end) ? 140 : (k == 6) ? 70 : grp_end ? 90 : 32;
+        int ms_per, pause_after;
+        if (var == 5) {
+            /* boot log: quick header, short pause after the banner, then a find burst */
+            ms_per = (k == 5) ? 10 : (k == 2 || k == 10) ? 8 : (k == 0) ? 18 : 12;
+            pause_after = (k == 5 && grp_end) ? 160 : (k == 10 && r < 3) ? 50
+                        : (k == 0) ? 80 : grp_end ? 70 : 16;
+        } else if (var == 6) {
+            ms_per = (k == 8 || k == 11) ? 6 : (k == 5) ? 10 : (k == 2) ? 12 : 14;
+            pause_after = (k == 11) ? 80 : (k == 5 && grp_end) ? 120
+                        : (k == 8) ? 40 : grp_end ? 70 : 32;
+        } else {
+            ms_per = (k == 5) ? 10 : (k == 2) ? 12 : (k == 0) ? 18 : 14;
+            pause_after = (k == 5 && grp_end) ? 140 : (k == 6) ? 70 : grp_end ? 90 : 32;
+        }
 #else
         const int ms_per = (r == 0) ? 55 : (m.kind[r] != 2) ? 34 : 20;
         const bool grp_end = (r + 1 < m.n && m.grp[r + 1] != m.grp[r]);
@@ -1535,9 +1662,32 @@ static void lv_tps_g2_scene(LvBand &B, void *)
                     if (c >= Ll - tagl) fg_r = (s[Ll - tagl] == 'L') ? LV_TPS2_R_HOT : LV_TPS2_R_TAG;
                     else fg_r = LV_TPS2_R_SEC;
                 } else if (k == 2) {
-                    if (c >= 30) fg_r = LV_TPS2_R_HOT;
-                    else if (c >= 19) fg_r = LV_TPS2_R_TAG;
-                    else fg_r = LV_TPS2_R_BODY;
+                    if (lv_c22_var() == 5) {
+                        /* "1.21 name             TYPE     rssi  ch" */
+                        if (c <= 3) fg_r = LV_TPS2_R_SEC;
+                        else if (c >= 30) fg_r = LV_TPS2_R_HOT;
+                        else if (c >= 22) fg_r = LV_TPS2_R_TAG;
+                        else fg_r = LV_TPS2_R_BODY;
+                    } else {
+                        if (c >= 30) fg_r = LV_TPS2_R_HOT;
+                        else if (c >= 19) fg_r = LV_TPS2_R_TAG;
+                        else fg_r = LV_TPS2_R_BODY;
+                    }
+                } else if (k == 10) {
+                    if (c <= 3) fg_r = LV_TPS2_R_SEC;
+                    else {
+                        const unsigned char ch = (unsigned char)s[c];
+                        const bool num = (ch >= '0' && ch <= '9') ||
+                            (ch == '-' && c + 1 < L && s[c + 1] >= '0' && s[c + 1] <= '9');
+                        fg_r = num ? LV_TPS2_R_HOT : LV_TPS2_R_SEC;
+                    }
+                } else if (k == 11) {
+                    /* tmux bar: active "2:devs*" and LIVE/SAMPLE on the right */
+                    const int Ll = (int)strlen(s);
+                    const int tagl = (int)strlen(LV_TPS_DATA_TAG);
+                    if (c >= 17 && c <= 23) fg_r = LV_TPS2_R_HOT;
+                    else if (c >= Ll - tagl) fg_r = (s[Ll - tagl] == 'L') ? LV_TPS2_R_HOT : LV_TPS2_R_TAG;
+                    else fg_r = LV_TPS2_R_SEC;
                 } else if (k == 0 || k == 1) {
                     fg_r = LV_TPS2_R_TAG;
                 } else if (k == 3) {
@@ -1588,10 +1738,11 @@ static void lv_tps_g2_scene(LvBand &B, void *)
             lv_tps2_draw_char(B, P, tx + i * 6, ty, lab[i], LV_TPS2_R_SEC, LV_TPS2_R_NONE, LV_TPS2_R_NONE, false);
     }
     /* Comparison stills: label the scan-chart variation on-image, same typist face. */
-    if (lv_c22_var() >= 1 && lv_c22_var() <= 4) {
-        const char *lab = (lv_c22_var() == 1) ? "VAR A" :
-                          (lv_c22_var() == 2) ? "VAR B" :
-                          (lv_c22_var() == 3) ? "VAR C" : "VAR D";
+    if (lv_c22_var() >= 1 && lv_c22_var() <= 6) {
+        static const char *const LAB[] = {
+            0, "VAR A", "VAR B", "VAR C", "VAR D", "VAR E", "VAR F"
+        };
+        const char *lab = LAB[lv_c22_var()];
         for (int i = 0; lab[i]; ++i)
             lv_tps2_draw_char(B, P, 6 + i * 6, 310, lab[i], LV_TPS2_R_SEC, LV_TPS2_R_NONE, LV_TPS2_R_NONE, false);
     }

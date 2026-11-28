@@ -126,10 +126,20 @@ static void lv_lb_face_row(uint16_t *row, int y, const uint8_t *fr);   /* lv_pag
 static void lv_lb_panel_row(uint16_t *row, int y);
 static int lv_lb_tab = 0;   /* 0 = SCAN LOG, 1 = SYSTEM LOG */
 #endif
+#if LV_CYD27_LOGSUB
+static inline bool lv_ls_active(void);   /* lv_pager_logsub.h */
+#if LV_CYD27_LOGSUB_B
+static void lv_lsb_face_row(uint16_t *row, int y);   /* lv_pager_logsub.h: var B log in the face window */
+#endif
+#endif
 static void lv_pg_face_fx_row(uint16_t *row, int y, int page, const uint8_t *fr)
 {
 #if LV_CYD19_LOGBOT
-    if (page == LV_PG_LOGBOT) { if (y >= LV_PG_FX_Y0 && y <= LV_PG_FX_Y1) lv_lb_face_row(row, y, fr); return; }
+    if (page == LV_PG_LOGBOT) {
+#if LV_CYD27_LOGSUB && LV_CYD27_LOGSUB_B
+        if (lv_ls_active()) { lv_lsb_face_row(row, y); return; }   /* CYD-27 B: the exact face rect (65,88)-(174,197) is the live log; board/bezel around it stay */
+#endif
+        if (y >= LV_PG_FX_Y0 && y <= LV_PG_FX_Y1) lv_lb_face_row(row, y, fr); return; }
 #endif
     if (y < LV_PG_FX_Y0 || y > LV_PG_FX_Y1 || page == LV_PG_CTL) return;
     if (page == LV_PG_HACKBOT) {   /* v1.2.5: the green Matrix face + lime eyes moved here from TERMINALbot */

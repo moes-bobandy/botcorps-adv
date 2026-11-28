@@ -1,0 +1,55 @@
+# BOTcorps CYD cyd-livescan v1.2.26 LOGbot log, filter ALL, saved at uptime 37s
+[0:00:00] SYS  BOTCORPS cyd-livescan v1.2.26
+[0:00:00] SYS  type 'help'. scans: tap SCAN or 'scan'
+[0:00:09] SYS  $ scan
+[0:00:09] WIFI scan wifi: radio on, scanning
+[0:00:10] WIFI WIFI -52 ch6 HomeNet-5G
+[0:00:10] WIFI WIFI -61 ch11 Flock-A7F21C
+[0:00:10] WIFI WIFI -66 ch1 TELLO-5A21B3
+[0:00:10] WIFI WIFI -70 ch1 xfinitywifi
+[0:00:10] WIFI WIFI -73 ch6 DIRECT-6B-HP OfficeJet
+[0:00:10] WIFI WIFI -80 ch149 6A:12:2A:06
+[0:00:10] WIFI WIFI -82 ch36 Tesla_Model3
+[0:00:10] WIFI WIFI -84 ch9 NETGEAR42
+[0:00:10] WIFI WIFI -88 ch3 CoffeeShop Guest
+[0:00:10] WIFI wifi: 9 found (1200 ms), radio off
+[0:00:10] BLE  scan ble: NimBLE on, 5 s active scan
+[0:00:15] BLE  BLE -48 6A:12:46:0A
+[0:00:15] BLE  BLE -58 Flipper Zeph
+[0:00:15] BLE  BLE -63 6A:12:54:0C
+[0:00:15] BLE  BLE -67 RB Meta 0A1F
+[0:00:15] BLE  BLE -71 HC-05
+[0:00:15] BLE  BLE -74 Galaxy Watch6
+[0:00:15] BLE  BLE -77 Tile
+[0:00:15] BLE  BLE -79 JBL Flip 6
+[0:00:15] BLE  BLE -83 6A:12:7E:12
+[0:00:15] BLE  BLE -86 [TV] Samsung Q60
+[0:00:15] BLE  BLE -91 6A:12:8C:14
+[0:00:15] BLE  ble: 11 found (5010 ms), radio off
+[0:00:15] SYS  SCAN DONE: 9 WIFI  11 BLE
+[0:00:27] SYS  $ scan
+[0:00:27] WIFI scan wifi: radio on, scanning
+[0:00:29] WIFI WIFI -52 ch6 HomeNet-5G
+[0:00:29] WIFI WIFI -61 ch11 Flock-A7F21C
+[0:00:29] WIFI WIFI -66 ch1 TELLO-5A21B3
+[0:00:29] WIFI WIFI -70 ch1 xfinitywifi
+[0:00:29] WIFI WIFI -73 ch6 DIRECT-6B-HP OfficeJet
+[0:00:29] WIFI WIFI -80 ch149 6A:12:2A:06
+[0:00:29] WIFI WIFI -82 ch36 Tesla_Model3
+[0:00:29] WIFI WIFI -84 ch9 NETGEAR42
+[0:00:29] WIFI WIFI -88 ch3 CoffeeShop Guest
+[0:00:29] WIFI wifi: 9 found (1200 ms), radio off
+[0:00:29] BLE  scan ble: NimBLE on, 5 s active scan
+[0:00:34] BLE  BLE -48 6A:12:46:0A
+[0:00:34] BLE  BLE -58 Flipper Zeph
+[0:00:34] BLE  BLE -63 6A:12:54:0C
+[0:00:34] BLE  BLE -67 RB Meta 0A1F
+[0:00:34] BLE  BLE -71 HC-05
+[0:00:34] BLE  BLE -74 Galaxy Watch6
+[0:00:34] BLE  BLE -77 Tile
+[0:00:34] BLE  BLE -79 JBL Flip 6
+[0:00:34] BLE  BLE -83 6A:12:7E:12
+[0:00:34] BLE  BLE -86 [TV] Samsung Q60
+[0:00:34] BLE  BLE -91 6A:12:8C:14
+[0:00:34] BLE  ble: 11 found (5010 ms), radio off
+[0:00:34] SYS  SCAN DONE: 9 WIFI  11 BLE

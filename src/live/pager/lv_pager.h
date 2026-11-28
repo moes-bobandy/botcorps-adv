@@ -28,13 +28,15 @@
 #define LV_CYD19_LOGBOT 0   /* CYD-19 mock (sim-only, NOT in any bin): LOGbot pager page between TERMINALbot and CONTROLbot */
 #endif
 #if LV_PG_TERMINAL_PAGE && LV_CYD19_LOGBOT
+/* v1.2.26 (Mobandy 2026-11-28): home row left -> right LOGbot, BOTpheus, GIBSONbot, CONTROLbot, TERMINALbot, HACKbot.
+ * Every page table / tap / pip / slide is keyed by these ids (lv_pg_art, lv_c17_ix), so the order lives here only. */
 #define LV_PG_N        6
-#define LV_PG_BOTPHEUS 0
-#define LV_PG_HACKBOT  1
+#define LV_PG_LOGBOT   0
+#define LV_PG_BOTPHEUS 1
 #define LV_PG_GIBSON   2
-#define LV_PG_TERMINAL 3
-#define LV_PG_LOGBOT   4
-#define LV_PG_CTL      5
+#define LV_PG_CTL      3
+#define LV_PG_TERMINAL 4
+#define LV_PG_HACKBOT  5
 #elif LV_PG_TERMINAL_PAGE
 #define LV_PG_N        5
 #define LV_PG_BOTPHEUS 0
@@ -108,7 +110,9 @@ static uint32_t lv_pg_us_now(void)
 static int lv_pg_art(int page)
 {
 #if LV_PG_TERMINAL_PAGE && LV_CYD19_LOGBOT
-    static const int8_t A[LV_PG_N] = {0, 2, 1, 3, 2, -1};   /* CYD-19: LOGbot reuses blob 2 (the chip-plate shading) like TERMINALbot */
+    /* blobs 0 BOTpheus, 1 GIBSONbot, 2 chip-plate (HACKbot / LOGbot), 3 TERMINALbot; CONTROLbot has none */
+    int8_t A[LV_PG_N];
+    A[LV_PG_BOTPHEUS] = 0; A[LV_PG_HACKBOT] = 2; A[LV_PG_GIBSON] = 1; A[LV_PG_TERMINAL] = 3; A[LV_PG_LOGBOT] = 2; A[LV_PG_CTL] = -1;
 #elif LV_PG_TERMINAL_PAGE
     /* 7db0c6d: blobs 0 BOTpheus, 1 GIBSONbot, 2 HACKbot, 3 TERMINALbot; compose uses blob 2 + gold for TERMINAL */
     static const int8_t A[LV_PG_N] = {0, 2, 1, 3, -1};

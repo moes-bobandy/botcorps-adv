@@ -97,11 +97,22 @@ static const LvC17Page LV_C17_PG[5] = {
     { { "> CONTROLbot", "> role: ctl", "  radar sleep bright", "  recal rotate bar", "  exit", "> _" },                                   { 0, 1, 2, 2, 2, 3 } },
 };
 
+/* v1.2.26: LV_C17_PG keeps its BOTpheus, HACKbot, GIBSONbot, TERMINALbot, CONTROLbot rows; map the page id (any home order) */
+static int lv_c17_ix(int page)
+{
+    if (page == LV_PG_BOTPHEUS) return 0;
+    if (page == LV_PG_HACKBOT) return 1;
+    if (page == LV_PG_GIBSON) return 2;
+    if (page == LV_PG_TERMINAL) return 3;
+    if (page == LV_PG_CTL) return 4;
+    return -1;
+}
 static int lv_c17_settle_ms(int page)
 {
-    if (page < 0 || page > 4) return 0;
+    const int ix = lv_c17_ix(page);
+    if (ix < 0) return 0;
     int n = 0;
-    for (int i = 0; i < LV_C17_NL; ++i) n += (int)strlen(LV_C17_PG[page].l[i]) + LV_C17_PAUSE;
+    for (int i = 0; i < LV_C17_NL; ++i) n += (int)strlen(LV_C17_PG[ix].l[i]) + LV_C17_PAUSE;
     return n * LV_C17_MS + 520;   /* last glyph's settled colour */
 }
 
@@ -113,7 +124,7 @@ static void lv_c17_render(int page, int rel)
         lv_pg_pan_plate(tmp, LV_CB_PY0 + by, lv_pg_fx_acc(), lv_rgb(0, 0, 0));
         memcpy(lv_c17_buf[by], tmp + LV_CB_PX0, LV_CB_PW * 2);
     }
-    const LvC17Page &P = LV_C17_PG[page];
+    const LvC17Page &P = LV_C17_PG[lv_c17_ix(page)];
     const int cyc = rel > 0 ? rel / 90 : 0;
     int n = 0, cur = 0;
     for (int i = 0; i < LV_C17_NL; ++i) {   /* current row = first line that is not fully locked */
@@ -143,7 +154,7 @@ static void lv_c17_render(int page, int rel)
 }
 static void lv_c17_row(uint16_t *row, int y, int page)
 {
-    if (y < LV_CB_PY0 || y >= LV_CB_PY0 + LV_CB_PH || page < 0 || page > 4) return;
+    if (y < LV_CB_PY0 || y >= LV_CB_PY0 + LV_CB_PH || lv_c17_ix(page) < 0) return;
     if (page != lv_c17_lastpg) { lv_c17_lastpg = page; lv_c17_t0 = lv_now; lv_c17_key = 0xFFFFFFFFu; lv_c17_settled = 0; }
     {
         const int slot = lv_cb_slot();

@@ -397,8 +397,10 @@ static void lv_pg_compose_row(uint16_t *row, int y, int page, LvPgSet &S)
         }
     }
 
-    if (page == LV_PG_CTL && lv_cb_pan && lv_cb_pan_slot == slot && y >= LV_CB_PY0 && y < LV_CB_PY0 + LV_CB_PH)
-        memcpy(row + LV_CB_PX0, lv_cb_pan + (y - LV_CB_PY0) * LV_CB_PW, LV_CB_PW * 2);
+    if (page == LV_PG_CTL && y >= LV_CB_PY0 && y < LV_CB_PY0 + LV_CB_PH) {
+        if (lv_cb_pan && lv_cb_pan_slot == slot) memcpy(row + LV_CB_PX0, lv_cb_pan + (y - LV_CB_PY0) * LV_CB_PW, LV_CB_PW * 2);
+        else lv_cb_panel_row(row, y, slot);   /* v1.2.26: no heap -> still the live panel, never the old baked one */
+    }
     if (page != LV_PG_CTL && y >= LV_CB_PY0 && y < LV_CB_PY0 + LV_CB_PH)
         lv_pg_panel_fx_row(row, y, page);
 #if LV_CYD17_PANEL_TERM && LV_C17_CTL
@@ -419,7 +421,7 @@ static void lv_pg_compose_row(uint16_t *row, int y, int page, LvPgSet &S)
 
     if (lv_cb_flash_on && page == LV_PG_CTL && y >= LV_CB_BOT.y0 && y <= LV_CB_BOT.y1)
         for (int x = LV_CB_BOT.x0; x <= LV_CB_BOT.x1; ++x) row[x] = lv_hi(row[x]);
-    if (lv_cb_blk_on && page == LV_PG_CTL && lv_cb_pan && y >= lv_cb_blk.y0 && y <= lv_cb_blk.y1)
+    if (lv_cb_blk_on && page == LV_PG_CTL && y >= lv_cb_blk.y0 && y <= lv_cb_blk.y1)
         for (int x = lv_cb_blk.x0; x <= lv_cb_blk.x1; ++x) row[x] = lv_cb_invert(row[x], x, y);
 
     if (!lv_ls_active()) lv_pg_pips_row(row, y, page);

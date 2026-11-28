@@ -634,12 +634,14 @@ static void r_cb_exit(void)
     while (digitalRead(36) == LOW && (int32_t)(millis() - release_by) < 0) delay(10);
     if (digitalRead(36) == LOW) { Serial.println("[live] EXIT: release touch, then tap EXIT again"); return; }
     if (L) {
-        /* Ask IDF to boot the Launcher's partition. Stock IDF only accepts factory / OTA slots here, so on ESP_ERR_INVALID_ARG
-         * fall back to Launcher 3.0's own path: its bootloader opens the Launcher on a deep-sleep wake (200 ms timer). */
-        const esp_err_t e = esp_ota_set_boot_partition(L);
-        Serial.printf("[live] EXIT: Launcher at 0x%06x, set_boot_partition -> %s\n", (unsigned)L->address, esp_err_to_name(e));
+        /* v1.2.26 (Mobandy 2026-11-28 "exit to launcher"): NO esp_ota_set_boot_partition here. IDF v5.5.4
+         * esp_rewrite_ota_data() masks the subtype with 0x0F, so APP_TEST (0x20) -> slot 0: it returned ESP_OK,
+         * rewrote otadata to boot ota_0, and esp_restart() (a software reset, which the Launcher bootloader skips)
+         * came straight back into an app, not the Launcher. Launcher 3.0's bootloader opens the Launcher on a
+         * power-on reset or a deep-sleep wake (unless its "DeepSleep starts Launcher" option is off), so do that:
+         * otadata untouched, 200 ms timer wake. */
+        Serial.printf("[live] EXIT: Launcher at 0x%06x -> deep-sleep wake into Launcher\n", (unsigned)L->address);
         Serial.flush();
-        if (e == ESP_OK) esp_restart();
         g_cyd.setBrightness(0);
         esp_sleep_enable_timer_wakeup(200000);
         esp_deep_sleep_start();

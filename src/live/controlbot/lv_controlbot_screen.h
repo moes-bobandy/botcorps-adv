@@ -56,9 +56,17 @@ static void lv_cb_scene(LvBand &B, void *)
         if (!st) { for (int x = 0; x < B.w; ++x) o[x] = 0; continue; }
         const uint8_t *r = st + (y % LV_CB_STRIP) * 240 * 2;
         for (int x = B.x0; x < B.x0 + B.w; ++x) o[x - B.x0] = (uint16_t)(r[2 * x] | (r[2 * x + 1] << 8));   /* byte loads: io->buf has no 16-bit alignment */
-        if (lv_cb_pan && lv_cb_pan_slot == slot && y >= LV_CB_PY0 && y < LV_CB_PY0 + LV_CB_PH)   /* live panel over the locked one */
-            for (int x = B.x0 > LV_CB_PX0 ? B.x0 : LV_CB_PX0; x < B.x0 + B.w && x < LV_CB_PX0 + LV_CB_PW; ++x) o[x - B.x0] = lv_cb_pan[(y - LV_CB_PY0) * LV_CB_PW + x - LV_CB_PX0];
-        if (lv_cb_blk_on && lv_cb_pan && y >= lv_cb_blk.y0 && y <= lv_cb_blk.y1)   /* v1.1 tap feedback: the tapped control block inverts in the theme ink */
+        if (y >= LV_CB_PY0 && y < LV_CB_PY0 + LV_CB_PH) {   /* live panel over the locked one */
+            if (lv_cb_pan && lv_cb_pan_slot == slot)
+                for (int x = B.x0 > LV_CB_PX0 ? B.x0 : LV_CB_PX0; x < B.x0 + B.w && x < LV_CB_PX0 + LV_CB_PW; ++x) o[x - B.x0] = lv_cb_pan[(y - LV_CB_PY0) * LV_CB_PW + x - LV_CB_PX0];
+            else {   /* v1.2.26: no heap for lv_cb_pan -> scanline fallback, never the old baked panel */
+                static uint16_t t[240];
+                for (int x = B.x0; x < B.x0 + B.w; ++x) t[x] = o[x - B.x0];
+                lv_cb_panel_row(t, y, slot);
+                for (int x = B.x0; x < B.x0 + B.w; ++x) o[x - B.x0] = t[x];
+            }
+        }
+        if (lv_cb_blk_on && y >= lv_cb_blk.y0 && y <= lv_cb_blk.y1)   /* v1.1 tap feedback: the tapped control block inverts in the theme ink */
             for (int x = B.x0 > lv_cb_blk.x0 ? B.x0 : lv_cb_blk.x0; x < B.x0 + B.w && x <= lv_cb_blk.x1; ++x) o[x - B.x0] = lv_cb_invert(o[x - B.x0], x, y);
         if (lv_cb_flash_on && y >= LV_CB_BOT.y0 && y <= LV_CB_BOT.y1)   /* tap flash: the square bot only */
             for (int x = B.x0 > LV_CB_BOT.x0 ? B.x0 : LV_CB_BOT.x0; x < B.x0 + B.w && x <= LV_CB_BOT.x1; ++x) o[x - B.x0] = lv_hi(o[x - B.x0]);
@@ -76,7 +84,7 @@ static void lv_cb_frame(bool full)   /* the locked frames are final colours: lv_
         lv_render(lv_blit_hw, LvRect{239, 1, 239, 23}, lv_cb_scene, 0);
         lv_render(lv_blit_hw, LvRect{0, 24, 239, 319}, lv_cb_scene, 0);
         lv_cb_dirty = false;
-    } else if (lv_cb_pan) {   /* a setting changed: repaint the panel only */
+    } else {   /* a setting changed: repaint the panel only */
         lv_cb_cached = -1;
         lv_render(lv_blit_hw, LvRect{LV_CB_PX0, LV_CB_PY0, LV_CB_PX0 + LV_CB_PW - 1, LV_CB_PY0 + LV_CB_PH - 1}, lv_cb_scene, 0);
     }

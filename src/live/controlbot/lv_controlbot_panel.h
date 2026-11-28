@@ -72,15 +72,21 @@ static int lv_cb_pan_slot = -1;
 enum { CB_PLATE = 0x080808, CB_KEY = 0x9449ad, CB_VALUE = 0xde92ff, CB_SEGOFF = 0x210c31, CB_CAP = 0x8c9aa5, CB_WHITE = 0xffffff };
 struct LvCbRect { int x0, y0, x1, y1; };   /* exclusive end */
 static LvCbRect lv_cb_r7[5]; static int lv_cb_n7 = 0;   /* badge / value-box rects: role 4 -> 7, sampled at the centre */
+/* v1.2.26 (Mobandy 2026-11-28): on the device the 21,584 B lv_cb_pan malloc can fail (HOME heap ~50 KB, fragmented:
+ * c17 panel buffer + slide set1 + radio stacks), and then the locked v6 still's OLD SCAN/VOL/CHIME/TIME/TONE panel
+ * showed. Fallback: paint the live panel straight into one 240 px scanline (no heap). */
+static uint16_t *lv_cb_rowout = nullptr; static int lv_cb_rowy = -1;
 static void lv_cb_put(int x, int y, uint32_t rgb, bool txt)
 {
     if (x < LV_CB_PX0 || x >= LV_CB_PX0 + LV_CB_PW || y < LV_CB_PY0 || y >= LV_CB_PY0 + LV_CB_PH) return;
+    if (lv_cb_rowout && y != lv_cb_rowy) return;
     const uint16_t c = lv_hex(rgb); int role = 0, sx = x, sy = y;
     if (txt && rgb == CB_WHITE) role = 6;                         /* TXT sentinel (v2 base_and_roles) */
     else if (rgb == CB_KEY) role = 3; else if (rgb == CB_VALUE) role = 4; else if (rgb == CB_SEGOFF) role = 5;
     if (role == 4) for (int k = 0; k < lv_cb_n7; ++k) { const LvCbRect &r = lv_cb_r7[k];
         if (x >= r.x0 && x < r.x1 && y >= r.y0 && y < r.y1) { role = 7; sx = (r.x0 + r.x1) / 2; sy = (r.y0 + r.y1) / 2; break; } }
-    lv_cb_pan[(y - LV_CB_PY0) * LV_CB_PW + (x - LV_CB_PX0)] = lv_cb_reink(role, c, x, y, sx, sy);
+    const uint16_t o = lv_cb_reink(role, c, x, y, sx, sy);
+    if (lv_cb_rowout) lv_cb_rowout[x] = o; else lv_cb_pan[(y - LV_CB_PY0) * LV_CB_PW + (x - LV_CB_PX0)] = o;
 }
 static void lv_cb_fill(int x, int y, int w, int h, uint32_t c) { for (int j = y; j < y + h; ++j) for (int i = x; i < x + w; ++i) lv_cb_put(i, j, c, false); }
 static void lv_cb_frame(int x, int y, int w, int h, uint32_t c) { lv_cb_fill(x, y, w, 1, c); lv_cb_fill(x, y + h - 1, w, 1, c); lv_cb_fill(x, y, 1, h, c); lv_cb_fill(x + w - 1, y, 1, h, c); }
@@ -117,10 +123,8 @@ static void lv_cb_btn(int x, int y, const char *label, const char *value, bool o
     lv_cb_text(bx + (bw - lv_cb_tw(value)) / 2, by + (bh - 7) / 2, value, on ? 0xffffff : 0xb0b0b0);
 }
 static int lv_cb_lit(int pct) { const int n = (8 * pct + 50) / 100; return n < 1 ? 1 : n; }
-static bool lv_cb_panel_build(int slot)
+static void lv_cb_panel_draw(int slot)
 {
-    if (!lv_cb_pan) lv_cb_pan = (uint16_t *)malloc(LV_CB_PW * LV_CB_PH * 2);
-    if (!lv_cb_pan) return false;
     lv_cb_g_t = LV_CB_REINK_T[slot]; lv_cb_n7 = 0;
     const LvCbSet &s = lv_cb_set; char b[8];
     lv_cb_fill(LV_CB_PX0, LV_CB_PY0, LV_CB_PW, LV_CB_PH, CB_PLATE); lv_cb_frame(LV_CB_PX0, LV_CB_PY0, LV_CB_PW, LV_CB_PH, CB_KEY);
@@ -131,8 +135,25 @@ static bool lv_cb_panel_build(int slot)
     lv_cb_btn(157, 221, "ROTATE", LV_FLIP_NAME[lv_flip ? 1 : 0], true);   /* was TIME */
     lv_cb_btn(116, 256, "BAR", LV_CB_BAR_NAME[s.bar], true);
     lv_cb_btn(157, 256, "EXIT", lv_cb_has_launcher ? "LNCHR" : "OFF", true);   /* was TONE */
+}
+static int lv_cb_pan_fails = 0;
+static bool lv_cb_panel_build(int slot)
+{
+#ifdef LV_SIM_CB_NOHEAP
+    if (!lv_cb_pan && getenv("LV_SIM_CB_NOHEAP")) { ++lv_cb_pan_fails; return false; }   /* host: replay the device malloc failure */
+#endif
+    if (!lv_cb_pan) lv_cb_pan = (uint16_t *)malloc(LV_CB_PW * LV_CB_PH * 2);
+    if (!lv_cb_pan) { ++lv_cb_pan_fails; return false; }
+    lv_cb_panel_draw(slot);
     lv_cb_pan_slot = slot; lv_cb_panel_dirty = false;
     return true;
+}
+/* one scanline y (LV_CB_PY0..+PH) of the live panel into row[0..239]; ~1 full panel draw per row, used only without lv_cb_pan */
+static void lv_cb_panel_row(uint16_t *row, int y, int slot)
+{
+    lv_cb_rowout = row; lv_cb_rowy = y;
+    lv_cb_panel_draw(slot);
+    lv_cb_rowout = nullptr; lv_cb_rowy = -1;
 }
 static void lv_cb_panel_free(void) { free(lv_cb_pan); lv_cb_pan = nullptr; lv_cb_pan_slot = -1; }
 

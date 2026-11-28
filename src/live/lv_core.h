@@ -266,8 +266,17 @@ static const LvRect LV_R_BANNER_BACK_HIT = {0, 0, 39, 39};
 #else
 #define LV_BANNER_BACK_TR 0
 #endif
+#ifndef LV_CYD27_LOGSUB
+#define LV_CYD27_LOGSUB 0   /* CYD-27 mock (sim-only, NOT in any bin): LOGbot subscreen, a mode of the LOGbot pager page (pager/lv_pager_logsub.h) */
+#endif
+#if LV_CYD27_LOGSUB
+static bool lv_ls_on = false;
+#define LV_BANNER_BACK_LS (lv_scr == LV_SC_HOME && lv_ls_on)
+#else
+#define LV_BANNER_BACK_LS 0
+#endif
 #ifndef LV_BANNER_BACK_ON
-#define LV_BANNER_BACK_ON (     lv_scr == LV_SC_TERM || lv_scr == LV_SC_SCAN || lv_scr == LV_SC_CTL || lv_scr == LV_SC_TTY     || lv_scr == LV_SC_RADAR || lv_scr == LV_SC_GLOSS || lv_scr == LV_SC_GLOSS_DESC     || (LV_HC_GAME && lv_scr == LV_SC_HCH)     || (LV_DL_GAME && lv_scr == LV_SC_DL)     || (LV_MO_INSIDE && lv_scr == LV_SC_MO)     || LV_BANNER_BACK_CT || LV_BANNER_BACK_TR     || (LV_TERM_PS && lv_scr == LV_SC_TPSG2 && !LV_CYD22_G2))
+#define LV_BANNER_BACK_ON (     lv_scr == LV_SC_TERM || lv_scr == LV_SC_SCAN || lv_scr == LV_SC_CTL || lv_scr == LV_SC_TTY     || lv_scr == LV_SC_RADAR || lv_scr == LV_SC_GLOSS || lv_scr == LV_SC_GLOSS_DESC     || (LV_HC_GAME && lv_scr == LV_SC_HCH)     || (LV_DL_GAME && lv_scr == LV_SC_DL)     || (LV_MO_INSIDE && lv_scr == LV_SC_MO)     || LV_BANNER_BACK_CT || LV_BANNER_BACK_TR || LV_BANNER_BACK_LS     || (LV_TERM_PS && lv_scr == LV_SC_TPSG2 && !LV_CYD22_G2))
 #endif
 static const LvRect LV_R_SBOX = {33, 153, 206, 256};  /* SCANbot device-emoji grid (old 4 tabs + results box) */
 /* Small terminal box (item 11): the whole inner box is now overlay - 1 line row, an enlarged button row right above
@@ -1301,7 +1310,7 @@ struct LvTickCtx { int span0, span1; };
 #include "controlbot/lv_controlbot_tint.h"   /* fw-3locks-1116: CONTROLbot v6 tinted ticker (alert stays firmware red) */
 #endif
 #if LV_CB
-static bool lv_cb_tint_active(void) { return !lv_hunt_bar_on() && (LV_CB_TICKER_ALL || lv_scr == LV_SC_CONTROLBOT || lv_scr == LV_SC_HOME); }   /* pager home uses the same tinted ticker */
+static bool lv_cb_tint_active(void) { return !lv_hunt_bar_on() && !LV_BANNER_BACK_LS && (LV_CB_TICKER_ALL || lv_scr == LV_SC_CONTROLBOT || lv_scr == LV_SC_HOME); }   /* pager home uses the same tinted ticker */
 #endif
 #ifndef LV_RD_SEL_BANNER_HOOK
 #define LV_RD_SEL_BANNER_HOOK 1   /* mock/v1220 item 3 (lv_radar.h LV_RD_SEL_BANNER) */
@@ -2875,6 +2884,9 @@ static void lv_scan_view(int mode, int job) { lv_mode = mode; lv_cat = LV_CAT_GR
 /* one level up: SCAN detail -> sublist -> grid -> home; TTY -> where it was opened; others -> home */
 static const char *lv_back(void)
 {
+#if LV_CYD27_LOGSUB
+    if (lv_scr == LV_SC_HOME && lv_ls_on) { lv_ls_leave(); return "backbot-logsub"; }   /* CYD-27 mock: LOGbot subscreen -> LOGbot pager page */
+#endif
     if (lv_scr == LV_SC_TTY) { lv_go_soon(lv_tty_from == LV_SC_TTY ? LV_SC_HOME : lv_tty_from, 0); return "backbot-tty"; }
 #if LV_RD_INFO
     if (lv_scr == LV_SC_RADAR && lv_rd_info) { lv_rd_info_close(); return "backbot-radar-info"; }   /* MOCK 1111: INFO -> radar, same tower */

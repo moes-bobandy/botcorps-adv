@@ -140,6 +140,9 @@ static int lv_lb_row(int tab, int i, char out[28])
     }
     return ev;
 }
+#if LV_CYD27_LOGSUB
+static inline bool lv_ls_active(void); static void lv_ls_rows(void); static bool lv_ls_stale(void);   /* CYD-27 mock, defined in lv_pager_logsub.h */
+#endif
 static void lv_lb_render(void)
 {
     const int PW = LV_CB_PW, PH = LV_CB_PH;
@@ -160,6 +163,9 @@ static void lv_lb_render(void)
     for (int x = PX0 + 3; x <= PX0 + PW - 4; ++x) lv_c17_put(C17_T1, x, 233);   /* tab baseline */
     const int ux = lv_lb_tab == 0 ? PX0 + 6 : PX0 + 36, uw = lv_lb_tab == 0 ? 24 : 18;
     for (int x = ux; x < ux + uw; ++x) { lv_c17_put(C17_HOT, x, 232); lv_c17_put(C17_HOT, x, 233); }
+#if LV_CYD27_LOGSUB
+    if (lv_ls_active()) { lv_ls_rows(); return; }   /* CYD-27 mock: scrolling rows, same text and roles */
+#endif
     /* log rows: 5 newest, newest at the bottom, older rows step down in brightness.
      * age_ms is settled (>=240) so the arriving-row snap flare does not replay. */
     const int a = lv_lb_arrivals(), age_ms = 240;
@@ -181,6 +187,9 @@ static void lv_lb_panel_row(uint16_t *row, int y)
 {
     if (y < LV_CB_PY0 || y >= LV_CB_PY0 + LV_CB_PH) return;
     /* Rebuild only when the tab or theme slot changes, not every lv_now tick. */
+#if LV_CYD27_LOGSUB
+    if (lv_ls_active() && lv_ls_stale()) lv_lb_key = 0xFFFFFFFFu;
+#endif
     const int slot = lv_cb_slot();
     if (lv_lb_keytab != lv_lb_tab || lv_lb_keyslot != slot || lv_lb_key == 0xFFFFFFFFu) {
         lv_lb_key = 1; lv_lb_keytab = lv_lb_tab; lv_lb_keyslot = slot; lv_lb_render();

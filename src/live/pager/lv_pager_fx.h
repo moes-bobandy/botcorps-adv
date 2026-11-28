@@ -343,6 +343,7 @@ static void lv_pg_pan_terminal(uint16_t *row, int y, uint16_t acc)
 
 #include "lv_pager_term17.h"   /* CYD-17 mock: terminal-prompt readout panels (off unless LV_CYD17_PANEL_TERM) */
 #include "lv_pager_log19.h"   /* CYD-19 mock: LOGbot page (off unless LV_CYD19_LOGBOT) */
+#include "lv_pager_logsub.h"   /* CYD-27 mock: LOGbot subscreen (off unless LV_CYD27_LOGSUB) */
 static void lv_pg_panel_fx_row(uint16_t *row, int y, int page)
 {
 #if LV_CYD19_LOGBOT

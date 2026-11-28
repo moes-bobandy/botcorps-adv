@@ -422,7 +422,10 @@ static void lv_pg_compose_row(uint16_t *row, int y, int page, LvPgSet &S)
     if (lv_cb_blk_on && page == LV_PG_CTL && lv_cb_pan && y >= lv_cb_blk.y0 && y <= lv_cb_blk.y1)
         for (int x = lv_cb_blk.x0; x <= lv_cb_blk.x1; ++x) row[x] = lv_cb_invert(row[x], x, y);
 
-    lv_pg_pips_row(row, y, page);
+    if (!lv_ls_active()) lv_pg_pips_row(row, y, page);
+#if LV_CYD27_LOGSUB
+    else lv_ls_strip_row(row, y);
+#endif
 }
 
 /* ---- v1.2.2 (Mobandy 12:04 PM ET): arrow chips replace the Matrix pills. Same 24 x 36 boxes,
@@ -439,6 +442,7 @@ static uint32_t lv_pg_pill_guard = 0;   /* v1.2.5: ignore further chip taps unti
 #define LV_PG_PILL_DEBOUNCE 280
 static int lv_pg_chip_at(int x, int y)   /* 1 left, 2 right, 0 none; chip wins over the coil when the point is near both */
 {
+    if (lv_ls_active()) return 0;
     const int pad = 6;
     const LvRect *R[2] = { &LV_PG_PILL_LH, &LV_PG_PILL_RH };
     int best = 0; long bd = 1L << 30;
@@ -498,6 +502,7 @@ static void lv_pg_chip_row(uint16_t *row, int y, const LvRect &P, int dir, bool 
 
 static void lv_pg_pills_row(uint16_t *row, int y)
 {
+    if (lv_ls_active()) return;   /* CYD-27 mock: no pager arrow chips on the LOGbot subscreen */
     if (y < LV_PG_PILL_L.y0 || y > LV_PG_PILL_L.y1) return;
     if (lv_pg_page != 0)   /* no left arrow chip on the first pager page */
         lv_pg_chip_row(row, y, LV_PG_PILL_L, -1, lv_pg_pill_on == 1);
@@ -719,6 +724,13 @@ static const char *lv_pg_tap(int x, int y)
 {
     if (lv_pg_swiped) { lv_pg_swiped = false; return "pager-swipe"; }
     if (lv_pg_anim) return "pager-busy";
+#if LV_CYD27_LOGSUB
+    if (lv_ls_active()) {   /* CYD-27 mock: LOGbot subscreen. Every tap is the "last tap" the TOUCH cell reports; the log plate flips SCAN <-> SYS */
+        lv_ls_tx = x; lv_ls_ty = y;
+        if (x >= LV_CB_PX0 && x < LV_CB_PX0 + LV_CB_PW && y >= LV_CB_PY0 && y < LV_CB_PY0 + LV_CB_PH) { lv_lb_tab ^= 1; lv_ls_rkey = 0xFFFFFFFFu; lv_pg_dirty = true; return "logsub-tab"; }
+        return "logsub-none";
+    }
+#endif
     if (lv_pg_pill_guard && (int32_t)(lv_now - lv_pg_pill_guard) < LV_PG_PILL_DEBOUNCE) return "pager-chip-debounce";
     { const int ch = lv_pg_chip_at(x, y);
       if (ch == 1) { lv_pg_pill_go(1, -1); return "pager-chip-left-prev"; }
@@ -746,6 +758,9 @@ static const char *lv_pg_tap(int x, int y)
 #endif
 #if LV_CYD19_LOGBOT
     if (lv_pg_page == LV_PG_LOGBOT && (lv_in(LV_CB_FACE, x, y) || (x >= LV_CB_PX0 && x < LV_CB_PX0 + LV_CB_PW && y >= LV_CB_PY0 && y < LV_CB_PY0 + LV_CB_PH))) {
+#if LV_CYD27_LOGSUB
+        if (lv_in(LV_CB_FACE, x, y)) { lv_ls_enter(); return "pager-logbot-sub"; }   /* CYD-27 mock: the LOGbot chip opens its subscreen */
+#endif
         lv_lb_tab ^= 1; lv_pg_dirty = true; return "pager-logbot-tab";   /* CYD-19 mock: tap the face or the log panel toggles SCAN LOG <-> SYSTEM LOG */
     }
 #endif
@@ -755,6 +770,7 @@ static const char *lv_pg_tap(int x, int y)
 static void lv_pg_touch(bool down, int x, int y)
 {
     if (lv_pg_anim) return;
+    if (lv_ls_active()) return;   /* CYD-27 mock: no coil swipe on the subscreen */
     if (down) {
         if (!lv_pg_dragging) {
             if (lv_pg_chip_at(x, y)) return;   /* v1.2.5: a chip press is not a coil swipe; wait for the release tap */
@@ -792,4 +808,7 @@ static void lv_pg_set_page(int p)
 {
     if (p < 0) p = 0; if (p >= LV_PG_N) p = LV_PG_N - 1;
     lv_pg_page = p; lv_pg_anim = 0; lv_pg_dirty = true;
+#if LV_CYD27_LOGSUB
+    lv_ls_on = false;   /* CYD-27 mock: a sim page jump leaves the subscreen */
+#endif
 }

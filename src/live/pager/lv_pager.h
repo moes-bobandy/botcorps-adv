@@ -291,6 +291,21 @@ static const uint8_t *lv_pg_ch_row(LvPgSet &S, bool face, int idx, int r)
 }
 
 
+/* v1.2.26 (Mobandy 2026-11-28): GIBSONbot's blob 1 bakes a 6 px tan->dark bevel on the right and bottom (x169..174,
+ * y191..197) where the other bots carry 2 px, so his ivory face read ~4 px smaller and shoved toward a corner. Stretch
+ * the 104x104 face body (blob 0..103) over 108x108 (nearest) and keep the 2 px dark rim (blob 108..109), like the others. */
+#define LV_PG_GIB_BODY 104
+#define LV_PG_GIB_DST  (LV_PG_FACE_S - 2)
+static int lv_pg_gib_src(int d) { return d < LV_PG_GIB_DST ? d * LV_PG_GIB_BODY / LV_PG_GIB_DST : d; }
+static const uint8_t *lv_pg_gib_row(LvPgSet &S, int r)
+{
+    const uint8_t *src = lv_pg_ch_row(S, true, lv_pg_art(LV_PG_GIBSON), lv_pg_gib_src(r));
+    if (!src) return nullptr;
+    static uint8_t g[LV_PG_FACE_S * 2];
+    for (int d = 0; d < LV_PG_FACE_S; ++d) { const int sx = lv_pg_gib_src(d); g[2 * d] = src[2 * sx]; g[2 * d + 1] = src[2 * sx + 1]; }
+    return g;
+}
+
 static void lv_pg_ensure(int page) { (void)page; lv_pg_load_corner(lv_cb_slot()); }
 
 /* theme ink for the pips: mean of bright pixels on the current row-band of the v6 board (ticker y=5..17) */
@@ -409,7 +424,9 @@ static void lv_pg_compose_row(uint16_t *row, int y, int page, LvPgSet &S)
 
     if (page != LV_PG_CTL && y >= 88 && y <= 197) {
 #if LV_PG_TERMINAL_PAGE
-        const uint8_t *fr = (page == LV_PG_HACKBOT) ? nullptr : lv_pg_ch_row(S, true, page == LV_PG_TERMINAL ? 2 : lv_pg_art(page), y - 88);   /* LOGbot: lv_pg_art = 2 too */
+        const uint8_t *fr;
+        if (page == LV_PG_GIBSON) fr = lv_pg_gib_row(S, y - 88);
+        else fr = (page == LV_PG_HACKBOT) ? nullptr : lv_pg_ch_row(S, true, page == LV_PG_TERMINAL ? 2 : lv_pg_art(page), y - 88);   /* LOGbot: lv_pg_art = 2 too */
 #else
         const uint8_t *fr = (page == LV_PG_HACKBOT) ? nullptr : lv_pg_ch_row(S, true, lv_pg_art(page), y - 88);
 #endif

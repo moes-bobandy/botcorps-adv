@@ -142,6 +142,9 @@ static int lv_lb_row(int tab, int i, char out[28])
 }
 #if LV_CYD27_LOGSUB
 static inline bool lv_ls_active(void); static void lv_ls_rows(void); static bool lv_ls_stale(void);   /* CYD-27 mock, defined in lv_pager_logsub.h */
+#if LV_CYD27_LOGSUB_B
+static void lv_lsb_panel(void);
+#endif
 #endif
 static void lv_lb_render(void)
 {
@@ -154,6 +157,9 @@ static void lv_lb_render(void)
         lv_c17_buf[by][bx] = c;
     }
     const int PX0 = LV_CB_PX0, PY0 = LV_CB_PY0;
+#if LV_CYD27_LOGSUB && LV_CYD27_LOGSUB_B
+    if (lv_ls_active()) { lv_lsb_panel(); return; }   /* CYD-27 B: skip the SCAN/SYS tab strip; the plate is the control chips */
+#endif
     /* tab strip: label of the open tab is lit + underlined, the other is dim; EX.DATA marks every number below as sample data */
     const char *L0 = "SCAN", *L1 = "SYS";
     for (const char *s = L0; *s; ++s) lv_c17_char(PX0 + 6 + (int)(s - L0) * 6, 224, *s, lv_lb_tab == 0 ? C17_TAG : C17_MID, lv_lb_tab == 0 ? C17_T1 : C17_NONE, C17_NONE);
@@ -163,8 +169,8 @@ static void lv_lb_render(void)
     for (int x = PX0 + 3; x <= PX0 + PW - 4; ++x) lv_c17_put(C17_T1, x, 233);   /* tab baseline */
     const int ux = lv_lb_tab == 0 ? PX0 + 6 : PX0 + 36, uw = lv_lb_tab == 0 ? 24 : 18;
     for (int x = ux; x < ux + uw; ++x) { lv_c17_put(C17_HOT, x, 232); lv_c17_put(C17_HOT, x, 233); }
-#if LV_CYD27_LOGSUB
-    if (lv_ls_active()) { lv_ls_rows(); return; }   /* CYD-27 mock: scrolling rows, same text and roles */
+#if LV_CYD27_LOGSUB && !LV_CYD27_LOGSUB_B
+    if (lv_ls_active()) { lv_ls_rows(); return; }   /* CYD-27 A: scrolling rows, same text and roles */
 #endif
     /* log rows: 5 newest, newest at the bottom, older rows step down in brightness.
      * age_ms is settled (>=240) so the arriving-row snap flare does not replay. */

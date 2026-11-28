@@ -269,6 +269,9 @@ static const LvRect LV_R_BANNER_BACK_HIT = {0, 0, 39, 39};
 #ifndef LV_CYD27_LOGSUB
 #define LV_CYD27_LOGSUB 0   /* CYD-27 mock (sim-only, NOT in any bin): LOGbot subscreen, a mode of the LOGbot pager page (pager/lv_pager_logsub.h) */
 #endif
+#ifndef LV_CYD27_LOGSUB_B
+#define LV_CYD27_LOGSUB_B 0   /* CYD-27 variant B (sim-only, NOT in any bin): live log fills the face window; bottom plate is uniform filter/action chips. Needs LV_CYD27_LOGSUB. */
+#endif
 #if LV_CYD27_LOGSUB
 static bool lv_ls_on = false;
 #define LV_BANNER_BACK_LS (lv_scr == LV_SC_HOME && lv_ls_on)

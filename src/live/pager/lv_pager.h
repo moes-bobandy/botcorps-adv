@@ -725,10 +725,15 @@ static const char *lv_pg_tap(int x, int y)
     if (lv_pg_swiped) { lv_pg_swiped = false; return "pager-swipe"; }
     if (lv_pg_anim) return "pager-busy";
 #if LV_CYD27_LOGSUB
-    if (lv_ls_active()) {   /* CYD-27 mock: LOGbot subscreen. Every tap is the "last tap" the TOUCH cell reports; the log plate flips SCAN <-> SYS */
+    if (lv_ls_active()) {   /* CYD-27 mock: LOGbot subscreen. Every tap is the "last tap" the TOUCH cell reports. */
         lv_ls_tx = x; lv_ls_ty = y;
+#if LV_CYD27_LOGSUB_B
+        { const char *a = lv_lsb_tap(x, y); if (a) return a; }
+        return "logsub-none";
+#else
         if (x >= LV_CB_PX0 && x < LV_CB_PX0 + LV_CB_PW && y >= LV_CB_PY0 && y < LV_CB_PY0 + LV_CB_PH) { lv_lb_tab ^= 1; lv_ls_rkey = 0xFFFFFFFFu; lv_pg_dirty = true; return "logsub-tab"; }
         return "logsub-none";
+#endif
     }
 #endif
     if (lv_pg_pill_guard && (int32_t)(lv_now - lv_pg_pill_guard) < LV_PG_PILL_DEBOUNCE) return "pager-chip-debounce";

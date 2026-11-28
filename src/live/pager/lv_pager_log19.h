@@ -49,23 +49,55 @@ static void lv_lb_hsv(float h, float s, float v, int &R, int &G, int &B)
                      case 3: r = p; g = q; b = v; break; case 4: r = t; g = p; b = v; break; default: r = v; g = p; b = q; }
     R = (int)(r * 255.f + .5f); G = (int)(g * 255.f + .5f); B = (int)(b * 255.f + .5f);
 }
-/* finish colour for source luminance l (0..255) at face-local (u,v) 0..109; panel frame passes its own (u,v) */
+/* finish colour for source luminance l (0..255) at face-local (u,v) 0..109; panel frame passes its own (u,v)
+ * v1.2.26 (Mobandy 2026-11-28, LOGbot flip-in lag): this ran cosf + 3 sinf + sqrtf + floorf per face pixel
+ * (~12k px, every frame and every slide frame: ~70k libm calls, the face is animated by lv_now). The position-only
+ * terms are now tables built once, the time term is one 110-entry table per frame, and the thin-film sine plus
+ * the value/saturation curves are interpolated tables. Same formula, same colours (rounding-level). */
+#define LV_LB_SN 1024
+static float lv_lb_sin_t[LV_LB_SN + 1], lv_lb_cuv[220], lv_lb_su[110], lv_lb_vv[110];
+static float lv_lb_val_t[258], lv_lb_sat_t[258];
+static float lv_lb_ut[110]; static uint32_t lv_lb_ut_at = 0xFFFFFFFFu;
+static bool lv_lb_tab_ok = false;
+static void lv_lb_tables(void)
+{
+    if (lv_lb_tab_ok) return;
+    for (int i = 0; i <= LV_LB_SN; ++i) lv_lb_sin_t[i] = sinf((float)i * (6.2831853f / LV_LB_SN));
+    for (int i = 0; i < 220; ++i) lv_lb_cuv[i] = cosf(((float)i - 70.f) * 0.045f);
+    for (int i = 0; i < 110; ++i) { lv_lb_su[i] = sinf((float)i * 0.21f); lv_lb_vv[i] = 20.f * ((float)i / 110.f); }
+    for (int i = 0; i < 258; ++i) {
+        const float L = (float)(i > 255 ? 255 : i), x = L / 230.f;
+        float val = 0.10f + 0.90f * x * sqrtf(x); if (val > 1.f) val = 1.f;
+        lv_lb_val_t[i] = val; lv_lb_sat_t[i] = 0.88f - 0.6f * x * x * x;
+    }
+    lv_lb_tab_ok = true;
+}
+static inline float lv_lb_sinr(float ph)   /* sinf(ph) for ph > -400, linear-interpolated 1024 table */
+{
+    const float k = ph * (LV_LB_SN / 6.2831853f) + (float)(LV_LB_SN * 64);   /* ph > -400: positive, no floorf */
+    const int ki = (int)k; const float f = k - (float)ki; const int i = ki & (LV_LB_SN - 1);
+    return lv_lb_sin_t[i] + (lv_lb_sin_t[i + 1] - lv_lb_sin_t[i]) * f;
+}
+static inline float lv_lb_lerp(const float *t, float L) { const int i = (int)L; const float f = L - (float)i; return t[i] + (t[i + 1] - t[i]) * f; }
 static uint16_t lv_lb_metal(int l, int u, int v)
 {
+    lv_lb_tables();
+    if (u < 0) u = 0; if (u > 109) u = 109; if (v < 0) v = 0; if (v > 109) v = 109;
     /* smooth anisotropic sheen laid over the art's banded shading, so no band is a flat fill */
-    float L = (float)l + (lv_lb_fin() == 1 ? 34.f : 24.f) * cosf(((float)(u + v) - 70.f) * 0.045f) - 20.f * ((float)v / 110.f) + 6.f * sinf((float)u * 0.21f);
+    float L = (float)l + (lv_lb_fin() == 1 ? 34.f : 24.f) * lv_lb_cuv[u + v] - lv_lb_vv[v] + 6.f * lv_lb_su[u];
     if (L < 0.f) L = 0.f; if (L > 255.f) L = 255.f;
     const int f = lv_lb_fin();
     if (f == 0) return lv_lb_ramp(LV_LB_CHROME, (int)(sizeof LV_LB_CHROME / sizeof *LV_LB_CHROME), (int)L);
     if (f == 1) return lv_lb_ramp(LV_LB_COPPER, (int)(sizeof LV_LB_COPPER / sizeof *LV_LB_COPPER), (int)L);
     /* oil slick: near-black substrate whose value follows the shading, plus a thin-film hue (green->teal->blue->violet->magenta)
      * that drifts with position, shading and time; highlights wash toward white like a real slick */
-    const float t = (float)(lv_now % 12000u) * (1.f / 12000.f);
-    const float ph = (float)(u + v) * 0.045f + L * 0.016f + 0.7f * sinf((float)u * 0.06f + t * 12.566f) + t * 6.2832f;
-    const float s1 = 0.5f + 0.5f * sinf(ph);
+    const uint32_t nm = lv_now % 12000u;
+    const float t = (float)nm * (1.f / 12000.f);
+    if (lv_lb_ut_at != nm) { for (int i = 0; i < 110; ++i) lv_lb_ut[i] = 0.7f * sinf((float)i * 0.06f + t * 12.566f); lv_lb_ut_at = nm; }
+    const float ph = (float)(u + v) * 0.045f + L * 0.016f + lv_lb_ut[u] + t * 6.2832f;
+    const float s1 = 0.5f + 0.5f * lv_lb_sinr(ph);
     const float hue = 0.32f + 0.55f * s1;
-    const float x = L / 230.f; float val = 0.10f + 0.90f * x * sqrtf(x); if (val > 1.f) val = 1.f;
-    const float sat = 0.88f - 0.6f * x * x * x;
+    const float val = lv_lb_lerp(lv_lb_val_t, L), sat = lv_lb_lerp(lv_lb_sat_t, L);
     int R, G, B; lv_lb_hsv(hue, sat, val, R, G, B);
     return lv_rgb((uint8_t)R, (uint8_t)G, (uint8_t)B);
 }

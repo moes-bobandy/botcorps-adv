@@ -579,6 +579,51 @@ static int r_dl_save(int i, const uint8_t raw[16])
 }
 #endif
 
+#if LV_CYD27_LOGSUB
+/* v1.2.26 LOGbot subscreen health + SAVE. Same mount-briefly rule as the HACKbot slots (touch shares VSPI): mount,
+ * read / write, unmount, touch re-init. Writes only /logs/logbot_<n>.txt (n = first free 1..999), never deletes. */
+static uint32_t r_log_heap(void) { return ESP.getFreeHeap(); }
+static int r_log_sd(uint32_t *free_mb, uint32_t *size_mb)
+{
+    const uint32_t t0 = millis();
+    int r = 0;
+    if (cyd_sd_open()) {
+        const uint64_t sz = SD.totalBytes(), used = SD.usedBytes();
+        *size_mb = (uint32_t)(sz >> 20); *free_mb = (uint32_t)((sz - (used < sz ? used : sz)) >> 20); r = 1;
+    }
+    cyd_sd_close();
+    Serial.printf("[live] LOGbot SD %s free=%luMB size=%luMB (%lu ms)\n", r ? "mounted" : "absent", (unsigned long)*free_mb, (unsigned long)*size_mb, (unsigned long)(millis() - t0));
+    return r;
+}
+static int r_log_save(int filt, uint32_t from, uint32_t to, char *path, int n)
+{
+    static const char *const K[3] = {"WIFI", "BLE", "SYS"};
+    int lines = 0, ok = 0;
+    if (cyd_sd_open()) {
+        if (!SD.exists("/logs")) SD.mkdir("/logs");
+        int k = 1; for (; k < 1000; ++k) { snprintf(path, n, "/logs/logbot_%d.txt", k); if (!SD.exists(path)) break; }
+        if (k < 1000) {
+            File f = SD.open(path, FILE_WRITE);
+            if (f) {
+                f.printf("# BOTcorps CYD %s LOGbot log, filter %s, saved at uptime %lus\n", LV_VERSION, filt == 0 ? "ALL" : K[filt - 1], (unsigned long)(millis() / 1000));
+                for (uint32_t q = from; q < to; ++q) {
+                    const LvLogE *e = lv_log_at(q); if (!e) continue;
+                    if (filt != 0 && (int)e->kind != filt - 1) continue;
+                    const uint32_t s = e->ms / 1000;
+                    f.printf("[%lu:%02lu:%02lu] %-4s %s\n", (unsigned long)(s / 3600), (unsigned long)(s / 60 % 60), (unsigned long)(s % 60), K[e->kind % 3], e->t);
+                    ++lines;
+                }
+                const size_t wrote = f.size(); f.close();
+                File g = SD.open(path, FILE_READ); ok = g && (size_t)g.size() == wrote && wrote > 0; if (g) g.close();   /* read back */
+            }
+        }
+    }
+    cyd_sd_close();
+    Serial.printf("[live] LOGbot SAVE %s: %d lines %s\n", path, lines, ok ? "OK" : "FAILED");
+    return ok ? lines : -1;
+}
+#endif
+
 #if LV_BG_ENGINE
 /* background engine: BG STYLE (0..4, 5 = OFF) + BG COLOR (0..5) in NVS "botcorps" lkbgs / lkbgc */
 static void r_bg_save(int style, int col)
@@ -757,6 +802,11 @@ void lv_ui_begin(void)
 #endif
     Serial.printf("[live] CALbot: saved cal %s\n", cal_ok ? "valid (cv=3) - hold 1 s to redo" : "missing - capture 4 corners");
     lv_begin(&s_radio, ui_blit, ui_raw_draw, th, millis(), cal_ok);
+#if LV_CYD27_LOGSUB
+    lv_log_sd_hook = r_log_sd; lv_log_heap_hook = r_log_heap; lv_log_save_hook = r_log_save;
+    lv_log_pushf(LV_LOG_SYS, "BOOT v1.2.26 heap %uK", (unsigned)(ESP.getFreeHeap() / 1024));
+    lv_log_pushf(LV_LOG_SYS, "TOUCH cal %s", cal_ok ? "saved" : "missing");
+#endif
 #if LV_MO_INSIDE
     lv_band_hook = ui_band_hook;   /* v1.2.10: Dojo reads touch between bands */
 #endif
@@ -768,6 +818,9 @@ void lv_ui_begin(void)
     lv_cb_save_hook = r_cb_save; lv_cb_tone_hook = r_cb_tone;
     lv_cb_has_launcher = r_launcher_part() != nullptr; lv_cb_exit_hook = r_cb_exit; lv_cb_panel_dirty = true;
     Serial.printf("[live] CONTROLbot EXIT: %s\n", lv_cb_has_launcher ? "Launcher found (test partition)" : "NO LAUNCHER (deep-sleep power off)");
+#if LV_CYD27_LOGSUB
+    lv_log_pushf(LV_LOG_SYS, "EXIT -> %s", lv_cb_has_launcher ? "Launcher" : "power off (no Launcher)");
+#endif
 #endif
     /* item 3: draw frame 0 of the real (themed) first screen, THEN raise the backlight, so the panel turns on
      * already showing the correct themed frame instead of a black fill or a legacy/unthemed intro. */

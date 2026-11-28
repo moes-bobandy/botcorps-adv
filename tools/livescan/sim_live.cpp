@@ -19,6 +19,10 @@
 #include <vector>
 #include <string>
 #include <malloc.h>
+#include <sys/statvfs.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <string>
 #include <time.h>
 #include <unistd.h>
 #include <sys/wait.h>
@@ -332,6 +336,19 @@ int main(int argc, char **argv)
     if (fread(blob.data(), 1, LK_BLOB_SIZE, bf) != LK_BLOB_SIZE) return 1;
     LkIo io{blob.data(), infl, lv_clip_draw, ibuf};
     /* fw-3locks: SIM_THEME=N boots with NVS lktheme=N (persistence test) */ lv_begin(&FAKE, blit, raw_draw, getenv("SIM_THEME") ? atoi(getenv("SIM_THEME")) : LV_THEME_DEFAULT, 0, !(argc > 3 && !strcmp(argv[3], "nocal")));
+#if LV_CYD27_LOGSUB   /* v1.2.26 host stand-ins for the lv_ui.cpp LOGbot hooks: SD = the outdir's filesystem (statvfs), SAVE = outdir/logs/logbot_<n>.txt. No heap hook on the host ("--"). */
+    { static std::string od; od = argv[2];
+      lv_log_sd_hook = [](uint32_t *fr, uint32_t *sz) -> int { struct statvfs v; if (statvfs(od.c_str(), &v)) return 0; *fr = (uint32_t)((uint64_t)v.f_bavail * v.f_frsize >> 20); *sz = (uint32_t)((uint64_t)v.f_blocks * v.f_frsize >> 20); return 1; };
+      lv_log_save_hook = [](int filt, uint32_t from, uint32_t to, char *path, int n) -> int {
+          static const char *const K[3] = {"WIFI", "BLE", "SYS"};
+          std::string d = od + "/logs"; mkdir(d.c_str(), 0755);
+          int k = 1; char full[600]; for (; k < 1000; ++k) { snprintf(path, n, "/logs/logbot_%d.txt", k); snprintf(full, sizeof full, "%s%s", od.c_str(), path); if (access(full, F_OK)) break; }
+          FILE *f = fopen(full, "w"); if (!f) return -1; int lines = 0;
+          fprintf(f, "# BOTcorps CYD %s LOGbot log, filter %s, saved at uptime %lus\n", LV_VERSION, filt == 0 ? "ALL" : K[filt - 1], (unsigned long)(lv_now / 1000));
+          for (uint32_t q = from; q < to; ++q) { const LvLogE *e = lv_log_at(q); if (!e || (filt && (int)e->kind != filt - 1)) continue; const uint32_t s = e->ms / 1000;
+              fprintf(f, "[%lu:%02lu:%02lu] %-4s %s\n", (unsigned long)(s / 3600), (unsigned long)(s / 60 % 60), (unsigned long)(s % 60), K[e->kind % 3], e->t); ++lines; }
+          fclose(f); return lines; }; }
+#endif
 #if LV_CB   /* fw-3locks: SIM_CB="scan,vol,bri,chime,time,bar,tone" = the CONTROLbot NVS values read at boot (persistence test) */
     if (getenv("SIM_CB")) { int v[7]; if (sscanf(getenv("SIM_CB"), "%d,%d,%d,%d,%d,%d,%d", v, v + 1, v + 2, v + 3, v + 4, v + 5, v + 6) == 7)
         lv_cb_set = LvCbSet{(uint8_t)v[0], (uint8_t)v[1], (uint8_t)v[2], (uint8_t)v[3], (uint8_t)v[4], (uint8_t)v[5], (uint8_t)v[6]}; }

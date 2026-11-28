@@ -1183,7 +1183,7 @@ static void lv_c22_script_build(LvTps2Model &m)
 
     /* ---- Var E: dmesg / boot log that settles into Gibson> ---- */
     if (var == 5) {
-        push(10, 0, "0.00 cyd-livescan v1.2.25");
+        push(10, 0, "0.00 cyd-livescan v1.2.26");
         push(10, 0, "0.04 radios up      wifi  ble");
         push(10, 0, "0.12 scan start");
         for (int i = 0; i < 6; ++i) push(5, 1, "%s", LOGO[i]);
@@ -1192,7 +1192,7 @@ static void lv_c22_script_build(LvTps2Model &m)
             const int tagl = (int)strlen(tag);
             char meta[44];
             const int pad = LV_TPS2_COLS - 9 - tagl;
-            snprintf(meta, sizeof meta, "  v1.2.25%*s%s", pad > 0 ? pad : 1, "", tag);
+            snprintf(meta, sizeof meta, "  v1.2.26%*s%s", pad > 0 ? pad : 1, "", tag);
             push(9, 1, "%s", meta);
         }
         push(10, 2, "1.18 wifi         %3d live", nw);
@@ -1247,7 +1247,7 @@ static void lv_c22_script_build(LvTps2Model &m)
             push(11, 0, "%s", bar);
         }
         for (int i = 0; i < 6; ++i) push(5, 1, "%s", LOGO[i]);
-        push(9, 1, "  v1.2.25");
+        push(9, 1, "  v1.2.26");
         {
             char rule[44];
             snprintf(rule, sizeof rule, "-- scan ");
@@ -1309,8 +1309,8 @@ static void lv_c22_script_build(LvTps2Model &m)
         const char *tag = LV_TPS_DATA_TAG;
         const int tagl = (int)strlen(tag);
         char meta[44];
-        const int pad = LV_TPS2_COLS - 9 - tagl;  /* "  v1.2.25" is 9 */
-        snprintf(meta, sizeof meta, "  v1.2.25%*s%s", pad > 0 ? pad : 1, "", tag);
+        const int pad = LV_TPS2_COLS - 9 - tagl;  /* "  v1.2.26" is 9 */
+        snprintf(meta, sizeof meta, "  v1.2.26%*s%s", pad > 0 ? pad : 1, "", tag);
         push(9, 0, "%s", meta);
     }
 

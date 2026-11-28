@@ -20,9 +20,9 @@
 #include "lv_build_3locks.h"   /* fw-3locks-1116: CONTROLbot v6 + BOTpheus EB3 + HACKbot game switches */
 
 #ifdef BOTCORPS_BUILD_ID
-#define LV_VERSION "cyd-livescan v1.2.25 " BOTCORPS_BUILD_ID   /* v1.2.22: v1.2.21 + theme refresh (CYBER TEAL / VAPOR GRID / AMBER CRT in place of NEON GRAPE / CIRCUIT / SONAR, + SUNSET / TRON / ACID GRID, VAPOR GRID default, pager pips follow the theme) */
+#define LV_VERSION "cyd-livescan v1.2.26 " BOTCORPS_BUILD_ID   /* v1.2.26: LOGbot log subscreen, home order, CONTROLbot panel + EXIT, GIBSONbot size, LOGbot lag. v1.2.22: v1.2.21 + theme refresh (CYBER TEAL / VAPOR GRID / AMBER CRT in place of NEON GRAPE / CIRCUIT / SONAR, + SUNSET / TRON / ACID GRID, VAPOR GRID default, pager pips follow the theme) */
 #else
-#define LV_VERSION "cyd-livescan v1.2.25"
+#define LV_VERSION "cyd-livescan v1.2.26"
 #endif
 
 /* ---------- finds ---------- */
@@ -267,10 +267,10 @@ static const LvRect LV_R_BANNER_BACK_HIT = {0, 0, 39, 39};
 #define LV_BANNER_BACK_TR 0
 #endif
 #ifndef LV_CYD27_LOGSUB
-#define LV_CYD27_LOGSUB 0   /* CYD-27 mock (sim-only, NOT in any bin): LOGbot subscreen, a mode of the LOGbot pager page (pager/lv_pager_logsub.h) */
+#define LV_CYD27_LOGSUB 0   /* CYD-27 LOGbot subscreen (v1.2.26: ON in env cyd_livescan via platformio.ini), a mode of the LOGbot pager page (pager/lv_pager_logsub.h) */
 #endif
 #ifndef LV_CYD27_LOGSUB_B
-#define LV_CYD27_LOGSUB_B 0   /* CYD-27 variant B (sim-only, NOT in any bin): live log fills the face window; bottom plate is uniform filter/action chips. Needs LV_CYD27_LOGSUB. */
+#define LV_CYD27_LOGSUB_B 0   /* CYD-27 variant B (v1.2.26: ON in env cyd_livescan): live log fills the face window; bottom plate is uniform filter/action chips. Needs LV_CYD27_LOGSUB. */
 #endif
 #if LV_CYD27_LOGSUB
 static bool lv_ls_on = false;
@@ -315,6 +315,7 @@ static LkPlay lv_play;
 static int lv_scr = LV_SC_BOOT, lv_theme = LV_THEME_DEFAULT;
 static bool lv_motion = true, lv_enter = true;
 static uint32_t lv_now, lv_clip_t, lv_boot_ms;
+#include "lv_log.h"   /* v1.2.26: LOGbot subscreen real log ring (LV_CYD27_LOGSUB) */
 static bool lv_selftest_pending = false;
 static int lv_gloss_dev = 0;        /* item 2: device on LV_SC_GLOSS_DESC, 0..11 (LV_GLOSS_NAME order) */
 static int lv_gloss_step = 9;       /* item 2: glossary chip-rain step on the panel (9 = the locked still) */
@@ -367,6 +368,7 @@ static void lv_print(const char *fmt, ...)
         char *nl = strchr(s, '\n');
         if (nl) *nl = 0;
         int len = (int)strlen(s);
+        LV_LOG_PUSH(-1, s);   /* v1.2.26: every TTY line is a LOGbot log line too */
         if (len == 0 && nl) lv_tline("");
         for (int o = 0; o < len; o += LV_TTY_COLS) { char t[LV_TTY_COLS + 1]; strncpy(t, s + o, LV_TTY_COLS); t[LV_TTY_COLS] = 0; lv_tline(t); if (o) lv_tcont[(lv_tn - 1) % LV_TLINES] = 1; }
         if (!nl) break;
@@ -399,6 +401,7 @@ static void lv_event(bool alert, const char *fmt, ...)
 #endif
     if (lv_nev >= 4) { memmove(lv_evq[0], lv_evq[1], sizeof lv_evq[0] * 3); memmove(lv_evalert, lv_evalert + 1, 3); lv_nev = 3; }
     va_list ap; va_start(ap, fmt); vsnprintf(lv_evq[lv_nev], LV_TKLEN, fmt, ap); va_end(ap);
+    LV_LOG_PUSH(-1, lv_evq[lv_nev]);   /* v1.2.26: ticker events into the LOGbot log */
     lv_evalert[lv_nev++] = alert;
     if (!lv_tk_alert || alert) lv_tk_off = 1 << 14; /* cut over now unless an alert is mid-scroll */
 }
@@ -626,6 +629,14 @@ static void lv_job_tick(void)
     if (r < -1) { lv_radio->stop(); lv_job = LV_J_NONE; lv_hunt = -1; lv_dirty_box = true; lv_event(true, "RADIO SCAN FAILED"); return; }
     if (r < 0) return;
     lv_store(wifi_phase ? LV_K_WIFI : LV_K_BLE, lv_tmp, r);
+#if LV_CYD27_LOGSUB
+    for (int i = 0; i < r && i < 16; ++i) {   /* v1.2.26: what the radio really reported, one LOGbot line per device (first 16) */
+        const LvFind &f = lv_tmp[i]; char nm[24];
+        if (f.name[0]) snprintf(nm, sizeof nm, "%s", f.name); else snprintf(nm, sizeof nm, "%02X:%02X:%02X:%02X", f.mac[2], f.mac[3], f.mac[4], f.mac[5]);
+        if (wifi_phase) lv_log_pushf(LV_LOG_WIFI, "WIFI %d ch%u %s", f.rssi, (unsigned)f.ch, nm);
+        else lv_log_pushf(LV_LOG_BLE, "BLE %d %s", f.rssi, nm);
+    }
+#endif
     if (lv_rd_is_trk()) { lv_job = LV_J_NONE; lv_rd_track_done(); return; }   /* radar hunt re-scan: no SCAN DONE event */
     lv_print("%s: %d found (%lu ms), radio off", wifi_phase ? "wifi" : "ble", r, (unsigned long)(lv_now - lv_job_t0));
     if (lv_job == LV_J_ALL && lv_job_phase == 0) {

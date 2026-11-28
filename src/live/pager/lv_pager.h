@@ -702,6 +702,9 @@ static void lv_pg_frame(bool full)
     static int seen_slot = -1;
     const int slot = lv_cb_slot();
     if (slot != seen_slot) { seen_slot = slot; lv_pg_dirty = true; lv_pg_corner_key = -1; lv_pg_rle_slot = -1; }
+#if LV_CYD27_LOGSUB && LV_CYD27_LOGSUB_B
+    if (lv_ls_active()) lv_lsb_tick();   /* v1.2.26: the SD health read, off the flip-in frame */
+#endif
     lv_pg_ensure(lv_pg_page);
     if (lv_pg_anim) {
         if ((int32_t)(lv_now - lv_pg_t0) >= LV_PG_MS) {
@@ -750,6 +753,9 @@ static const char *lv_pg_tap(int x, int y)
 #if LV_CYD27_LOGSUB
     if (lv_ls_active()) {   /* CYD-27 mock: LOGbot subscreen. Every tap is the "last tap" the TOUCH cell reports. */
         lv_ls_tx = x; lv_ls_ty = y;
+#if LV_CYD27_LOGSUB_B
+        lv_lsb_tap_t = lv_now;
+#endif
 #if LV_CYD27_LOGSUB_B
         { const char *a = lv_lsb_tap(x, y); if (a) return a; }
         return "logsub-none";

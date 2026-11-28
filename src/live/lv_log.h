@@ -5,12 +5,12 @@
 #pragma once
 #if LV_CYD27_LOGSUB
 #ifndef LV_LOG_N
-#define LV_LOG_N 80
+#define LV_LOG_N 64
 #endif
-#define LV_LOG_W 44
+#define LV_LOG_W 39   /* + ms + kind = 44 B an entry; 64 entries = 2,816 B of heap (malloc at the first push, at boot: DRAM .bss is full) */
 enum { LV_LOG_WIFI = 0, LV_LOG_BLE = 1, LV_LOG_SYS = 2 };
 struct LvLogE { uint32_t ms; uint8_t kind; char t[LV_LOG_W]; };
-static LvLogE lv_log_r[LV_LOG_N];
+static LvLogE *lv_log_r = nullptr;
 static uint32_t lv_log_seq = 0;   /* entries ever pushed; entry s is lv_log_r[s % LV_LOG_N] while s + LV_LOG_N > lv_log_seq */
 /* lv_ui.cpp hooks (host sim: nullptr -> the cell says so) */
 static int (*lv_log_sd_hook)(uint32_t *free_mb, uint32_t *size_mb) = nullptr;   /* 1 card mounted, 0 no card */
@@ -37,6 +37,7 @@ static void lv_log_push(int kind, const char *s)
     if (!s) return;
     while (*s == ' ' || *s == '>' || *s == '\t') ++s;   /* TTY prompt / indent */
     if (!*s) return;
+    if (!lv_log_r && !(lv_log_r = (LvLogE *)calloc(LV_LOG_N, sizeof(LvLogE)))) return;
     LvLogE &e = lv_log_r[lv_log_seq % LV_LOG_N];
     e.ms = lv_now; e.kind = (uint8_t)(kind < 0 ? lv_log_kind(s) : kind);
     int i = 0; for (; s[i] && i < LV_LOG_W - 1; ++i) e.t[i] = (s[i] == '\n' || s[i] == '\r') ? ' ' : s[i];
@@ -49,7 +50,7 @@ static void lv_log_pushf(int kind, const char *fmt, ...)
     lv_log_push(kind, b);
 }
 static uint32_t lv_log_first(void) { return lv_log_seq > LV_LOG_N ? lv_log_seq - LV_LOG_N : 0; }
-static const LvLogE *lv_log_at(uint32_t s) { return (s >= lv_log_first() && s < lv_log_seq) ? &lv_log_r[s % LV_LOG_N] : nullptr; }
+static const LvLogE *lv_log_at(uint32_t s) { return (lv_log_r && s >= lv_log_first() && s < lv_log_seq) ? &lv_log_r[s % LV_LOG_N] : nullptr; }
 /* uptime stamp of an entry, 5 chars: MM:SS under 100 min, then HHhMM */
 static void lv_log_stamp(uint32_t ms, char o[8])
 {

@@ -52,26 +52,9 @@ static void lv_lb_hsv(float h, float s, float v, int &R, int &G, int &B)
 /* finish colour for source luminance l (0..255) at face-local (u,v) 0..109; panel frame passes its own (u,v)
  * v1.2.26 (Mobandy 2026-11-28, LOGbot flip-in lag): this ran cosf + 3 sinf + sqrtf + floorf per face pixel
  * (~12k px, every frame and every slide frame: ~70k libm calls, the face is animated by lv_now). The position-only
- * terms are now tables built once, the time term is one 110-entry table per frame, and the thin-film sine plus
+ * terms are now tables built once, the time term and the thin-film sine plus
  * the value/saturation curves are interpolated tables. Same formula, same colours (rounding-level). */
-#define LV_LB_SN 1024
-static float lv_lb_sin_t[LV_LB_SN + 1], lv_lb_cuv[220], lv_lb_su[110], lv_lb_vv[110];
-static float lv_lb_val_t[258], lv_lb_sat_t[258];
-static float lv_lb_ut[110]; static uint32_t lv_lb_ut_at = 0xFFFFFFFFu;
-static bool lv_lb_tab_ok = false;
-static void lv_lb_tables(void)
-{
-    if (lv_lb_tab_ok) return;
-    for (int i = 0; i <= LV_LB_SN; ++i) lv_lb_sin_t[i] = sinf((float)i * (6.2831853f / LV_LB_SN));
-    for (int i = 0; i < 220; ++i) lv_lb_cuv[i] = cosf(((float)i - 70.f) * 0.045f);
-    for (int i = 0; i < 110; ++i) { lv_lb_su[i] = sinf((float)i * 0.21f); lv_lb_vv[i] = 20.f * ((float)i / 110.f); }
-    for (int i = 0; i < 258; ++i) {
-        const float L = (float)(i > 255 ? 255 : i), x = L / 230.f;
-        float val = 0.10f + 0.90f * x * sqrtf(x); if (val > 1.f) val = 1.f;
-        lv_lb_val_t[i] = val; lv_lb_sat_t[i] = 0.88f - 0.6f * x * x * x;
-    }
-    lv_lb_tab_ok = true;
-}
+#include "lv_pager_lbtab.h"   /* const position / curve tables (flash): tools/gen_lv_lb_tables.py */
 static inline float lv_lb_sinr(float ph)   /* sinf(ph) for ph > -400, linear-interpolated 1024 table */
 {
     const float k = ph * (LV_LB_SN / 6.2831853f) + (float)(LV_LB_SN * 64);   /* ph > -400: positive, no floorf */
@@ -81,7 +64,6 @@ static inline float lv_lb_sinr(float ph)   /* sinf(ph) for ph > -400, linear-int
 static inline float lv_lb_lerp(const float *t, float L) { const int i = (int)L; const float f = L - (float)i; return t[i] + (t[i + 1] - t[i]) * f; }
 static uint16_t lv_lb_metal(int l, int u, int v)
 {
-    lv_lb_tables();
     if (u < 0) u = 0; if (u > 109) u = 109; if (v < 0) v = 0; if (v > 109) v = 109;
     /* smooth anisotropic sheen laid over the art's banded shading, so no band is a flat fill */
     float L = (float)l + (lv_lb_fin() == 1 ? 34.f : 24.f) * lv_lb_cuv[u + v] - lv_lb_vv[v] + 6.f * lv_lb_su[u];
@@ -93,8 +75,7 @@ static uint16_t lv_lb_metal(int l, int u, int v)
      * that drifts with position, shading and time; highlights wash toward white like a real slick */
     const uint32_t nm = lv_now % 12000u;
     const float t = (float)nm * (1.f / 12000.f);
-    if (lv_lb_ut_at != nm) { for (int i = 0; i < 110; ++i) lv_lb_ut[i] = 0.7f * sinf((float)i * 0.06f + t * 12.566f); lv_lb_ut_at = nm; }
-    const float ph = (float)(u + v) * 0.045f + L * 0.016f + lv_lb_ut[u] + t * 6.2832f;
+    const float ph = (float)(u + v) * 0.045f + L * 0.016f + 0.7f * lv_lb_sinr((float)u * 0.06f + t * 12.566f) + t * 6.2832f;
     const float s1 = 0.5f + 0.5f * lv_lb_sinr(ph);
     const float hue = 0.32f + 0.55f * s1;
     const float val = lv_lb_lerp(lv_lb_val_t, L), sat = lv_lb_lerp(lv_lb_sat_t, L);

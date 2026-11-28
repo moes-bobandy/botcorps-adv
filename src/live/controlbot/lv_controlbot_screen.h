@@ -60,7 +60,7 @@ static void lv_cb_scene(LvBand &B, void *)
             if (lv_cb_pan && lv_cb_pan_slot == slot)
                 for (int x = B.x0 > LV_CB_PX0 ? B.x0 : LV_CB_PX0; x < B.x0 + B.w && x < LV_CB_PX0 + LV_CB_PW; ++x) o[x - B.x0] = lv_cb_pan[(y - LV_CB_PY0) * LV_CB_PW + x - LV_CB_PX0];
             else {   /* v1.2.26: no heap for lv_cb_pan -> scanline fallback, never the old baked panel */
-                static uint16_t t[240];
+                uint16_t t[240];   /* stack: DRAM .bss is full */
                 for (int x = B.x0; x < B.x0 + B.w; ++x) t[x] = o[x - B.x0];
                 lv_cb_panel_row(t, y, slot);
                 for (int x = B.x0; x < B.x0 + B.w; ++x) o[x - B.x0] = t[x];

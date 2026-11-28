@@ -301,11 +301,10 @@ static const uint8_t *lv_pg_ch_row(LvPgSet &S, bool face, int idx, int r)
 #define LV_PG_GIB_BODY 104
 #define LV_PG_GIB_DST  (LV_PG_FACE_S - 2)
 static int lv_pg_gib_src(int d) { return d < LV_PG_GIB_DST ? d * LV_PG_GIB_BODY / LV_PG_GIB_DST : d; }
-static const uint8_t *lv_pg_gib_row(LvPgSet &S, int r)
+static const uint8_t *lv_pg_gib_row(LvPgSet &S, int r, uint8_t *g)   /* g: caller's LV_PG_FACE_S * 2 bytes (stack; DRAM .bss is full) */
 {
     const uint8_t *src = lv_pg_ch_row(S, true, lv_pg_art(LV_PG_GIBSON), lv_pg_gib_src(r));
     if (!src) return nullptr;
-    static uint8_t g[LV_PG_FACE_S * 2];
     for (int d = 0; d < LV_PG_FACE_S; ++d) { const int sx = lv_pg_gib_src(d); g[2 * d] = src[2 * sx]; g[2 * d + 1] = src[2 * sx + 1]; }
     return g;
 }
@@ -428,8 +427,8 @@ static void lv_pg_compose_row(uint16_t *row, int y, int page, LvPgSet &S)
 
     if (page != LV_PG_CTL && y >= 88 && y <= 197) {
 #if LV_PG_TERMINAL_PAGE
-        const uint8_t *fr;
-        if (page == LV_PG_GIBSON) fr = lv_pg_gib_row(S, y - 88);
+        const uint8_t *fr; uint8_t gib[LV_PG_FACE_S * 2];
+        if (page == LV_PG_GIBSON) fr = lv_pg_gib_row(S, y - 88, gib);
         else fr = (page == LV_PG_HACKBOT) ? nullptr : lv_pg_ch_row(S, true, page == LV_PG_TERMINAL ? 2 : lv_pg_art(page), y - 88);   /* LOGbot: lv_pg_art = 2 too */
 #else
         const uint8_t *fr = (page == LV_PG_HACKBOT) ? nullptr : lv_pg_ch_row(S, true, lv_pg_art(page), y - 88);
